@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '../generated/client/index.js';
 import { AsyncLocalStorage } from 'async_hooks';
 
 export const queryMetricsStorage = new AsyncLocalStorage<any>();

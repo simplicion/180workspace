@@ -2,6 +2,8 @@ const path = require('path');
 const fs = require('fs');
 
 const nextConfig = {
+    transpilePackages: ['@workspace/db', '@workspace/ui'],
+    serverExternalPackages: ['@prisma/client'],
     output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
     reactStrictMode: true,
     poweredByHeader: false,
