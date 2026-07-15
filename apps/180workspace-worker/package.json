@@ -1,0 +1,21 @@
+{
+  "name": "180workspace-worker",
+  "version": "1.0.0",
+  "description": "Background worker node for IMS",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cross-env PORT=4004 RUN_MODE=worker nodemon ../180workspace-backend/server.js",
+    "start": "cross-env PORT=4003 RUN_MODE=worker node ../180workspace-backend/server.js"
+  },
+  "dependencies": {
+    "@sentry/node": "^10.65.0",
+    "@workspace/db": "workspace:^",
+    "bullmq": "^5.7.0",
+    "cross-env": "^7.0.3",
+    "dotenv": "^17.3.1",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

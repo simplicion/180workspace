@@ -1,0 +1,7 @@
+node_modules
+.next
+.turbo
+apps/*/node_modules
+packages/*/node_modules
+.env
+.git

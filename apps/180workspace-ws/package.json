@@ -1,0 +1,22 @@
+{
+  "name": "180workspace-ws",
+  "version": "1.0.0",
+  "description": "Dedicated WebSocket Microservice for IMS",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "cross-env WS_PORT=4003 nodemon src/index.js"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ioredis": "^5.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

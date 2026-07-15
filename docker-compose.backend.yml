@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # 1. Meilisearch (Search Engine)
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: 180workspace-meilisearch
+    environment:
+      - MEILI_MASTER_KEY=your_master_key_here
+      - MEILI_NO_ANALYTICS=true
+    ports:
+      - "7700:7700"
+    volumes:
+      - ./meili_data:/meili_data
+    restart: unless-stopped
+
+  # 2. 180workspace HTTP Backend API
+  180workspace-backend:
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-180workspace-backend:latest
+    container_name: 180workspace-backend
+    ports:
+      - "4002:4002"
+    restart: unless-stopped
+    # env_file:
+    #   - ./apps/180workspace-backend/.env
+
+  # 3. 180workspace WebSocket Server
+  180workspace-ws:
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-180workspace-ws:latest
+    container_name: 180workspace-ws
+    ports:
+      - "4003:4003"
+    restart: unless-stopped
+    # env_file:
+    #   - ./apps/180workspace-ws/.env
+
+  # 4. 180workspace Background Worker
+  180workspace-worker:
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-180workspace-backend:latest
+    container_name: 180workspace-worker
+    environment:
+      - RUN_MODE=worker
+      - PORT=4004
+    ports:
+      - "4004:4004"
+    restart: unless-stopped
+    # env_file:
+    #   - ./apps/180workspace-backend/.env

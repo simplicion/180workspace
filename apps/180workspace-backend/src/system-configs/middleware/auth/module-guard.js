@@ -1,0 +1,140 @@
+'use strict';
+
+/**
+ * Module Guard Middleware
+ * 
+ * Prevents access to disabled applications or specific modules.
+ * 
+ * SECURITY POLICY:
+ * - If company context is missing → DENY (403). The request should never
+ *   reach a guarded route without tenant context.
+ * - If CompanyConfig cannot be loaded → DENY (503). This signals a
+ *   configuration or database issue. We must NOT silently proceed.
+ * - If the requested app/module is disabled → DENY (403).
+ * - If appId/moduleId are undefined at registration time → Developer error,
+ *   logged and denied to prevent silent authorization bypass.
+ * 
+ * Usage:
+ *   const moduleGuard = require('./module-guard');
+ *   router.get('/path', moduleGuard('crm'), controller.method);         // App level
+ *   router.get('/path', moduleGuard('crm', 'leads'), controller.method); // Module level
+ */
+module.exports = function moduleGuard(appId, moduleId) {
+    // Catch developer misuse at registration time (app startup)
+    if (!appId && !moduleId) {
+        console.error('[Module Guard] MISCONFIGURATION: moduleGuard() called without appId or moduleId. This route will deny all requests.');
+    }
+
+    return async (req, res, next) => {
+        try {
+            const company = req.company;
+            const tenantDb = req.prisma;
+
+            // GATE 1: Tenant context is mandatory for guarded routes
+            if (!company || !tenantDb) {
+                console.error(`[Module Guard] DENIED — No tenant context. appId=${appId}, moduleId=${moduleId}, url=${req.originalUrl}`);
+                return res.status(403).json({
+                    error: 'Access Denied',
+                    message: 'This resource requires an active workspace context.',
+                    code: 'NO_TENANT_CONTEXT'
+                });
+            }
+
+            // GATE 2: Developer error — guard was registered without identifiers
+            if (!appId && !moduleId) {
+                console.error(`[Module Guard] DENIED — Guard has no appId/moduleId. This is a developer misconfiguration. url=${req.originalUrl}`);
+                return res.status(403).json({
+                    error: 'Access Denied',
+                    message: 'This route is misconfigured. Contact your administrator.',
+                    code: 'GUARD_MISCONFIGURED'
+                });
+            }
+
+            // GATE 3: Load CompanyConfig (cached on req for the rest of the request lifecycle)
+            let config = req.companyConfig;
+
+            if (!config) {
+                try {
+                    config = await tenantDb.companyConfig.findFirst();
+                    
+                    // Auto-create CompanyConfig if missing (workspace setup may not have created it)
+                    if (!config) {
+                        try {
+                            config = await tenantDb.companyConfig.create({ data: {} });
+                            console.log(`[Module Guard] Auto-created CompanyConfig for company=${company.id}`);
+                        } catch (createErr) {
+                            // If create fails (e.g., unique constraint), try findFirst again
+                            config = await tenantDb.companyConfig.findFirst();
+                        }
+                    }
+
+                    if (config) {
+                        // Merge enabledApps/enabledModules from Company metadata (the source of truth)
+                        let metadata = company.metadata || {};
+                        if (typeof metadata === 'string') {
+                            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+                        }
+                        config.enabledApps = metadata.enabledApps || [];
+                        config.enabledModules = metadata.enabledModules || [];
+                        req.companyConfig = config; // Cache for subsequent middleware/controllers
+                    }
+                } catch (dbErr) {
+                    console.error('[Module Guard] DENIED — CompanyConfig query failed:', dbErr.message);
+                    return res.status(503).json({
+                        error: 'Service Unavailable',
+                        message: 'Unable to verify workspace configuration. Please try again later.',
+                        code: 'CONFIG_UNAVAILABLE'
+                    });
+                }
+            }
+
+            // GATE 4: Missing config = workspace not properly set up (should be rare after auto-create)
+            if (!config) {
+                console.error(`[Module Guard] DENIED — No CompanyConfig found for company=${company.id}. appId=${appId}, moduleId=${moduleId}`);
+                return res.status(503).json({
+                    error: 'Workspace Not Configured',
+                    message: 'Your workspace configuration is incomplete. Please contact support.',
+                    code: 'CONFIG_NOT_FOUND'
+                });
+            }
+
+            if (process.env.DEBUG_AUTH === 'true') {
+                console.log(`[Module Guard] Checking appId=${appId}, moduleId=${moduleId}`);
+                console.log(`[Module Guard] Enabled Apps: ${JSON.stringify(config.enabledApps)}`);
+                console.log(`[Module Guard] Enabled Modules: ${JSON.stringify(config.enabledModules)}`);
+            }
+
+            // GATE 5: App-level access check
+            if (appId && config.enabledApps && !config.enabledApps.includes(appId)) {
+                console.warn(`[Module Guard] DENIED — App "${appId}" is disabled for company=${company.id}`);
+                return res.status(403).json({
+                    error: 'App Disabled',
+                    message: `The ${appId} application is currently disabled for your workspace.`,
+                    code: 'APP_DISABLED'
+                });
+            }
+
+            // GATE 6: Module-level access check
+            if (moduleId && config.enabledModules && !config.enabledModules.includes(moduleId)) {
+                console.warn(`[Module Guard] DENIED — Module "${moduleId}" is disabled for company=${company.id}`);
+                return res.status(403).json({
+                    error: 'Module Disabled',
+                    message: `The ${moduleId} module is currently disabled for your workspace.`,
+                    code: 'MODULE_DISABLED'
+                });
+            }
+
+            // All gates passed
+            if (req.performanceData?.mark) req.performanceData.mark('moduleGuard');
+            next();
+        } catch (err) {
+            // Unexpected errors are DENIED, not silently passed through
+            console.error(`[Module Guard] DENIED — Unexpected error on url=${req.originalUrl}:`, err.message);
+            return res.status(500).json({
+                error: 'Internal Error',
+                message: 'An error occurred while verifying access. Please try again.',
+                code: 'GUARD_ERROR'
+            });
+        }
+    };
+};

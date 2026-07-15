@@ -1,0 +1,32 @@
+{
+  "name": "180workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "pnpm --parallel -r dev",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "prettier": "latest",
+    "turbo": "latest"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": "24.x",
+    "pnpm": "9"
+  },
+  "pnpm": {
+    "overrides": {
+      "proxy-from-env": "^1.1.0"
+    }
+  },
+  "dependencies": {
+    "proxy-from-env": "^1.1.0"
+  },
+  "prisma": {
+    "schema": "packages/db/prisma/schema.prisma"
+  }
+}

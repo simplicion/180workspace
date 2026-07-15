@@ -1,0 +1,71 @@
+name: Backend CICD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/180workspace-backend/**'
+      - 'apps/180workspace-worker/**'
+      - 'apps/180workspace-ws/**'
+      - 'apps/pitchin180-backend/**'
+      - 'apps/pitchin180-worker/**'
+      - '.github/workflows/backend-cicd.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - app: 180workspace-backend
+            context: .
+            dockerfile: apps/180workspace-backend/Dockerfile
+            image-suffix: 180workspace-backend
+          - app: pitchin180-backend
+            context: .
+            dockerfile: apps/pitchin180-backend/Dockerfile
+            image-suffix: pitchin180-backend
+          - app: 180workspace-ws
+            context: .
+            dockerfile: apps/180workspace-ws/Dockerfile
+            image-suffix: 180workspace-ws
+            
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.image-suffix }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

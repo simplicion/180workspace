@@ -1,0 +1,16 @@
+{
+    "watch": ["src", "server.js", "package.json"],
+    "ext": "js,json,ts",
+    "ignore": [
+        "node_modules",
+        "*.test.js",
+        "*.spec.js",
+        "logs",
+        "dist",
+        "coverage",
+        "../../apps/user-web/.next",
+        "../../apps/user-web/node_modules",
+        "../../packages/*/dist"
+    ],
+    "delay": "500"
+}

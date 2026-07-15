@@ -1,0 +1,11 @@
+{
+  "connector": { "name": "local" },
+  "hints": {
+    "axe/aria": "off",
+    "no-inline-styles": "off",
+    "compat-api/css": "off",
+    "compat-api/html": "off",
+    "compat-feature-policy/css": "off",
+    "html-checker": "off"
+  }
+}
