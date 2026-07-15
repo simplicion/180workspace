@@ -117,28 +117,44 @@ export const authOptions: NextAuthOptions = {
       
       // Handle manual session updates (e.g., after workspace setup is completed)
       if (trigger === "update" && session) {
-        token.companyId = session.companyId;
-        token.role = session.role;
+        if (session.companyId !== undefined) token.companyId = session.companyId;
+        if (session.role !== undefined) token.role = session.role;
         if (session.permissions !== undefined) token.permissions = session.permissions;
-        token.isOnboardingComplete = session.isOnboardingComplete;
+        if (session.isOnboardingComplete !== undefined) token.isOnboardingComplete = session.isOnboardingComplete;
         if (session.isFirstLogin !== undefined) token.isFirstLogin = session.isFirstLogin;
         if (session.username !== undefined) token.username = session.username;
       }
 
-      // If missing data (e.g. Google OAuth login or old token), fetch from DB to attach
-      if (token.id && (!token.companyId || token.isFirstLogin === undefined || token.permissions === undefined)) {
-        const dbUser = await prisma.user.findUnique({ 
-          where: { id: token.id as string },
-          include: { company: true }
-        });
-        if (dbUser) {
+      // Always verify user against database to ensure server-side security and session validity
+      if (token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({ 
+            where: { id: token.id as string },
+            include: { company: true }
+          });
+          
+          if (!dbUser || !dbUser.isActive || dbUser.deletedAt) {
+            // User disabled or deleted, invalidate token
+            return {};
+          }
+          
           token.companyId = dbUser.companyId;
           token.username = dbUser.username;
           token.role = dbUser.role;
           token.permissions = dbUser.permissions || [];
-          token.isOnboardingComplete = dbUser.company?.isOnboardingComplete || false;
+          
+          // Only trust DB for onboarding if it's true or if token isn't already true (prevent race condition)
+          const dbOnboardingComplete = dbUser.company?.isOnboardingComplete || false;
+          if (dbOnboardingComplete) token.isOnboardingComplete = true;
+          
           const isLegacyOrAdmin = !!dbUser.companyId || (dbUser.role && dbUser.role !== 'employee' && dbUser.role !== 'USER');
-          token.isFirstLogin = isLegacyOrAdmin ? false : dbUser.isFirstLogin;
+          const dbIsFirstLogin = isLegacyOrAdmin ? false : dbUser.isFirstLogin;
+          // Prevent race condition: if token is already false due to manual update, keep it false
+          if (!dbIsFirstLogin) token.isFirstLogin = false;
+          
+        } catch(e) {
+          console.error("Session DB verification error:", e);
+          // Don't crash the session, keep existing token values
         }
       }
 

@@ -87,10 +87,10 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     const [grouping, setGrouping] = useState('daily');
 
     const userRoles = Array.isArray(user?.roles) ? [...user.roles] : [user?.role];
-    if (userRoles.includes('ceo') || user?.role === 'ceo' || userRoles.includes('superadmin') || user?.role === 'superadmin') {
+    if (userRoles.includes('ceo') || user?.role === 'ceo' || userRoles.includes('superadmin') || user?.role === 'superadmin' || userRoles.includes('accounting') || user?.role === 'accounting') {
         userRoles.push('admin');
     }
-    const isAdmin = ['admin', 'ceo'].some(r => userRoles.includes(r)) || (user?.permissions && user.permissions.includes('can_manage_team'));
+    const isAdmin = ['admin', 'ceo', 'accounting'].some(r => userRoles.includes(r)) || (user?.permissions && user.permissions.includes('can_manage_team')) || (user?.role !== 'employee' && user?.role !== 'USER');
 
     useEffect(() => {
         if (!isAdmin) return;

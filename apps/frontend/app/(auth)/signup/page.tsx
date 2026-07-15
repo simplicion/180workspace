@@ -207,7 +207,7 @@ export default function SignupFlow() {
         try {
             const finalData = {
                 email,
-                role: 'ADMIN', // Implicit for 180workspace
+                role: 'admin', // Implicit for 180workspace
                 ...profile,
                 ...profileData,
                 interests: []
@@ -224,7 +224,7 @@ export default function SignupFlow() {
                 toast.success('Onboarding complete!');
                 
                 // Update session to reflect new role before redirecting
-                await updateSession({ role: 'ADMIN', isOnboardingComplete: true, isFirstLogin: false });
+                await updateSession({ role: 'admin', isOnboardingComplete: true, isFirstLogin: false });
 
                 router.push('/workspace-setup');
             } else {

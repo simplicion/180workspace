@@ -23,8 +23,15 @@ import dynamic from 'next/dynamic';
 const safeImport = (importFn: () => Promise<any>) => {
     return importFn().catch((err) => {
         if (err.message.includes('ChunkLoadError') || err.message.includes('Loading chunk')) {
-            window.location.reload();
-            return new Promise(() => { }); // never resolve while reloading to avoid error flashes
+            if (typeof window !== 'undefined') {
+                const hasReloaded = sessionStorage.getItem('chunkLoadReloaded');
+                if (!hasReloaded) {
+                    sessionStorage.setItem('chunkLoadReloaded', 'true');
+                    window.location.reload();
+                    return new Promise(() => { }); // never resolve while reloading to avoid error flashes
+                }
+                sessionStorage.removeItem('chunkLoadReloaded');
+            }
         }
         throw err;
     });
@@ -644,8 +651,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     }, [isCollapsed]);
 
     const normalizedRole = user?.role?.toLowerCase() || '';
-    const isAdmin = ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder'].includes(normalizedRole) ||
-        user?.roles?.some(r => ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder'].includes(r?.toLowerCase() || '')) ||
+    const isAdmin = ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder', 'accounting', 'finance_admin', 'hr_admin', 'manager'].includes(normalizedRole) ||
+        user?.roles?.some(r => ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder', 'accounting', 'finance_admin', 'hr_admin', 'manager'].includes(r?.toLowerCase() || '')) ||
         (user?.permissions && user.permissions.includes('can_manage_team'));
     const isBillingPath = pathname?.startsWith('/dashboard/billing') || false;
     const showWall = isExpired && !(isAdmin && isBillingPath);
