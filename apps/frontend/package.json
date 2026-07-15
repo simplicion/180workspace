@@ -1,5 +1,5 @@
 {
-    "name": "180workspace-frontend",
+    "name": "frontend",
     "version": "2.0.0",
     "private": true,
     "scripts": {
@@ -86,3 +86,4 @@
         "typescript": "^5.9.3"
     }
 }
+

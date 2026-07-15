@@ -2,7 +2,7 @@
 
 require('dotenv').config();
 
-const { redis } = require('../../180workspace-backend/src/system-configs/config/redis');
+const { redis } = require('../../backend/src/system-configs/config/redis');
 
 // Import Workers
 const setupEmailWorker = require('./workers/emailWorker');
@@ -120,3 +120,4 @@ bootstrap().catch(err => {
     console.error('â Œ Fatal Error during bootstrap:', err);
     process.exit(1);
 });
+

@@ -1,10 +1,10 @@
 'use strict';
 
 const { Worker } = require('bullmq');
-const { redis } = require('../../../180workspace-backend/src/system-configs/config/redis');
-const { getTenantDb } = require('../../../180workspace-backend/src/system-configs/database-tools/dbManager');
-const { triggerN8nWebhook } = require('../../../180workspace-backend/src/platform-core/platform-integrations/webhooks/webhook.routes');
-const AutomationService = require('../../../180workspace-backend/src/platform-core/platform-communications/automation.service');
+const { redis } = require('../../../backend/src/system-configs/config/redis');
+const { getTenantDb } = require('../../../backend/src/system-configs/database-tools/dbManager');
+const { triggerN8nWebhook } = require('../../../backend/src/platform-core/platform-integrations/webhooks/webhook.routes');
+const AutomationService = require('../../../backend/src/platform-core/platform-communications/automation.service');
 
 function setupAutomationWorker() {
     if (!redis) return null;
@@ -28,3 +28,4 @@ function setupAutomationWorker() {
 }
 
 module.exports = setupAutomationWorker;
+

@@ -1,5 +1,5 @@
 {
-  "name": "180workspace-ws",
+  "name": "ws",
   "version": "1.0.0",
   "description": "Dedicated WebSocket Microservice for IMS",
   "main": "src/index.js",
@@ -20,3 +20,4 @@
     "nodemon": "^3.1.9"
   }
 }
+

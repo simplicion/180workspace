@@ -2,21 +2,22 @@ version: '3.8'
 
 services:
   # 1. 180workspace Frontend
-  180workspace-frontend:
-    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-180workspace-frontend:latest
-    container_name: 180workspace-frontend
+  frontend:
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-frontend:latest
+    container_name: frontend
     ports:
       - "3002:3002"
     restart: unless-stopped
     # env_file:
-    #   - ./apps/180workspace-frontend/.env
+    #   - ./apps/frontend/.env
 
   # 2. 180workspace Admin Web App
-  180workspace-admin-web:
-    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-180workspace-admin-web:latest
-    container_name: 180workspace-admin-web
+  admin-web:
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-admin-web:latest
+    container_name: admin-web
     ports:
       - "3003:3003"
     restart: unless-stopped
     # env_file:
-    #   - ./apps/180workspace-admin-web/.env
+    #   - ./apps/admin-web/.env
+

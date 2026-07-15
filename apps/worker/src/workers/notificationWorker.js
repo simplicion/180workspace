@@ -1,8 +1,8 @@
 'use strict';
 
 const { Worker } = require('bullmq');
-const { redis } = require('../../../180workspace-backend/src/system-configs/config/redis');
-const { getTenantDb } = require('../../../180workspace-backend/src/system-configs/database-tools/dbManager');
+const { redis } = require('../../../backend/src/system-configs/config/redis');
+const { getTenantDb } = require('../../../backend/src/system-configs/database-tools/dbManager');
 
 function setupNotificationWorker() {
     if (!redis) return null;
@@ -23,3 +23,4 @@ function setupNotificationWorker() {
 }
 
 module.exports = setupNotificationWorker;
+

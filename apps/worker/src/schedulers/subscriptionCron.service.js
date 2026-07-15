@@ -7,9 +7,9 @@
 
 const cron = require('node-cron');
 const { prisma, getTenantPrisma } = require('@workspace/db');
-const EmailService = require('../../../180workspace-backend/src/app-registry/productivity-tools-app/emails/email.service');
-const BillingService = require('../../../180workspace-backend/src/app-registry/finance-app/bills/billing.service');
-const LifecycleService = require('../../../180workspace-backend/src/app-registry/superadmin/system-operations/lifecycle.service');
+const EmailService = require('../../../backend/src/app-registry/productivity-tools-app/emails/email.service');
+const BillingService = require('../../../backend/src/app-registry/finance-app/bills/billing.service');
+const LifecycleService = require('../../../backend/src/app-registry/superadmin/system-operations/lifecycle.service');
 
 const REMINDER_DAYS = [5, 4, 3, 2, 1];
 
@@ -195,3 +195,4 @@ exports.start = () => {
 };
 
 exports.runNow = runAllJobs;
+

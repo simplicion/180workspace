@@ -7,8 +7,8 @@ const path = require("path");
 const fs = require("fs-extra");
 const os = require("os");
 const axios = require("axios");
-const { uploadDirectoryToR2, uploadToR2 } = require('../../../180workspace-backend/src/platform-core/platform-storage/r2');
-const { getIo } = require('../../../180workspace-backend/src/system-configs/sockets/index');
+const { uploadDirectoryToR2, uploadToR2 } = require('../../../backend/src/platform-core/platform-storage/r2');
+const { getIo } = require('../../../backend/src/system-configs/sockets/index');
 
 // Tell fluent-ffmpeg where to find the static binaries
 ffmpeg.setFfmpegPath(ffmpegStatic);
@@ -116,7 +116,7 @@ const processMediaVideo = async (media, mediaType, localPath = null) => {
 
     const io = getIo();
     const userId = media.userId || media.creatorId || media.adminId;
-    const userRoom = userId ? `user:${userId}` : null; // Added 'user:' prefix to match 180workspace-backend rooms
+    const userRoom = userId ? `user:${userId}` : null; // Added 'user:' prefix to match backend rooms
 
     const modelPrefix =
       mediaType === "community"
@@ -215,3 +215,4 @@ const processMediaVideo = async (media, mediaType, localPath = null) => {
 };
 
 module.exports = { processMediaVideo };
+

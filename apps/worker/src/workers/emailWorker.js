@@ -1,9 +1,9 @@
 'use strict';
 
 const { Worker } = require('bullmq');
-const { redis } = require('../../../180workspace-backend/src/system-configs/config/redis');
-const { getTenantDb } = require('../../../180workspace-backend/src/system-configs/database-tools/dbManager');
-const EmailService = require('../../../180workspace-backend/src/app-registry/productivity-tools-app/emails/email.service');
+const { redis } = require('../../../backend/src/system-configs/config/redis');
+const { getTenantDb } = require('../../../backend/src/system-configs/database-tools/dbManager');
+const EmailService = require('../../../backend/src/app-registry/productivity-tools-app/emails/email.service');
 
 function setupEmailWorker() {
     if (!redis) return null;
@@ -31,3 +31,4 @@ function setupEmailWorker() {
 }
 
 module.exports = setupEmailWorker;
+

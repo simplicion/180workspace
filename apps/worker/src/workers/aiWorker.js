@@ -1,9 +1,9 @@
 'use strict';
 
 const { Worker } = require('bullmq');
-const { redis } = require('../../../180workspace-backend/src/system-configs/config/redis');
-const { getTenantDb } = require('../../../180workspace-backend/src/system-configs/database-tools/dbManager');
-const jobHunterService = require('../../../180workspace-backend/src/app-registry/job-hunter-app/job-discovery/job-hunter.service');
+const { redis } = require('../../../backend/src/system-configs/config/redis');
+const { getTenantDb } = require('../../../backend/src/system-configs/database-tools/dbManager');
+const jobHunterService = require('../../../backend/src/app-registry/job-hunter-app/job-discovery/job-hunter.service');
 
 function setupAIWorker() {
     if (!redis) return null;
@@ -52,3 +52,4 @@ function setupAIWorker() {
 }
 
 module.exports = setupAIWorker;
+
