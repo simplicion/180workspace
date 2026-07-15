@@ -4,7 +4,7 @@
   "description": "Background worker node for IMS",
   "main": "index.js",
   "scripts": {
-    "dev": "cross-env PORT=4004 RUN_MODE=worker nodemon ../backend/server.js",
+    "dev": "cross-env PORT=4004 RUN_MODE=worker node ../backend/server.js",
     "start": "cross-env PORT=4003 RUN_MODE=worker node ../backend/server.js"
   },
   "dependencies": {
