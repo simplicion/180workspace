@@ -3,7 +3,7 @@
 # System Architecture
 
 ## Overall Architecture
-The IMS Platform utilizes a **Modular Monolith** pattern with clear separation of concerns between its layers. It employs a decoupled client-server model:
+The 180workspace Platform utilizes a **Modular Monolith** pattern with clear separation of concerns between its layers. It employs a decoupled client-server model:
 1.  **Frontend (Client/SSR):** Next.js 15+ application handling routing, presentation, and hydration.
 2.  **Backend (API Server):** Node.js/Express.js application processing business logic, validation, and authentication.
 3.  **Database (Persistence):** PostgreSQL Atlas handling storage with multitenant scaling.

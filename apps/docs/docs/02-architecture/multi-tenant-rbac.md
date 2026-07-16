@@ -4,11 +4,11 @@ sidebar_position: 3
 
 # Multi-Tenancy & RBAC
 
-The IMS platform is a multi-tenant B2B application with strict Role-Based Access Control (RBAC).
+The 180workspace platform is a multi-tenant B2B application with strict Role-Based Access Control (RBAC).
 
 ## Multi-Tenant Architecture
 
-Every company that signs up for the IMS dashboard receives an isolated workspace. This is achieved via logical isolation in a shared database.
+Every company that signs up for the 180workspace dashboard receives an isolated workspace. This is achieved via logical isolation in a shared database.
 
 ### `tenant-db.js` Middleware
 Located in the backend, this middleware is the core of our data isolation.

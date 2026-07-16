@@ -1,7 +1,7 @@
 {
   "name": "ws",
   "version": "1.0.0",
-  "description": "Dedicated WebSocket Microservice for IMS",
+  "description": "Dedicated WebSocket Microservice for 180workspace",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

@@ -4,7 +4,7 @@ sidebar_position: 6
 
 # Design Patterns & Architecture
 
-This document outlines the high-level design patterns and architectural decisions used across the IMS Platform.
+This document outlines the high-level design patterns and architectural decisions used across the 180workspace Platform.
 
 ## Backend Patterns (Express)
 - Controller-Service-Repository Pattern

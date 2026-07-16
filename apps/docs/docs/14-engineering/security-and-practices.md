@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Good Practices & Security
 
-To maintain a high standard of code quality and protect user data, all contributions to the IMS Platform must adhere to the following security and coding practices.
+To maintain a high standard of code quality and protect user data, all contributions to the 180workspace Platform must adhere to the following security and coding practices.
 
 ## 1. API Security (Backend)
 - **Rate Limiting:** The `express-rate-limit` package is implemented globally (`globalLimiter`) and strictly on authentication routes (`authLimiter`) to prevent brute-force attacks.

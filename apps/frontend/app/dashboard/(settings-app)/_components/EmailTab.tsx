@@ -80,36 +80,32 @@ export default function EmailTab() {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="card max-w-2xl mx-auto overflow-hidden border-gray-100 shadow-xl shadow-indigo-50/20 rounded-[32px]">
-                <div className="card-header border-b border-gray-50 flex items-center justify-between p-8 bg-white">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3.5 bg-indigo-50 rounded-2xl">
-                            <Mail className="w-6 h-6 text-indigo-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight">Email Automation (SMTP)</h2>
-                            <p className="text-xs text-gray-500 font-medium">Configure your outgoing mail server credentials.</p>
-                        </div>
+        <div className="max-w-xl space-y-6">
+            <div className="card">
+                <div className="card-header flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-indigo-600" />
+                        <h2 className="font-semibold text-gray-900">SMTP Configuration</h2>
                     </div>
                     
                     <div className="flex items-center gap-2">
                         {testStatus === 'success' && (
-                            <div className="flex items-center gap-1.5 px-4 py-1.5 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-green-100 animate-in fade-in zoom-in duration-300">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> 
-                                <span>Connected</span>
-                            </div>
+                            <span className="badge badge-green flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Connected
+                            </span>
                         )}
                         {testStatus === 'failure' && (
-                            <div className="flex items-center gap-1.5 px-4 py-1.5 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-red-100 animate-in fade-in zoom-in duration-300">
-                                <ShieldAlert className="w-3.5 h-3.5" /> 
-                                <span>Connection Failed</span>
-                            </div>
+                            <span className="badge badge-red flex items-center gap-1 text-[10px]">
+                                <ShieldAlert className="w-3 h-3" /> Connection Failed
+                            </span>
                         )}
                     </div>
                 </div>
 
-                <div className="card-body p-8 space-y-8">
+                <div className="card-body space-y-4">
+                    <p className="text-xs text-gray-500 mb-4">
+                        Configure SMTP settings for system-wide notifications, transaction alerts, and automated reporting.
+                    </p>
                     {/* Instructional Alert */}
                     <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100 flex gap-3 animate-in fade-in duration-500">
                         <Info className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
@@ -124,17 +120,12 @@ export default function EmailTab() {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div className="md:col-span-3">
                             <label className="label">SMTP Host</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-indigo-600 text-gray-400">
-                                    <Activity className="w-4 h-4" />
-                                </div>
-                                <input 
-                                    value={smtpHost} 
-                                    onChange={e => setSmtpHost(e.target.value)} 
-                                    placeholder="smtp.gmail.com" 
-                                    className="input pl-11 bg-gray-50/30 border-gray-100 focus:bg-white" 
-                                />
-                            </div>
+                            <input 
+                                value={smtpHost} 
+                                onChange={e => setSmtpHost(e.target.value)} 
+                                placeholder="smtp.gmail.com" 
+                                className="input bg-white" 
+                            />
                         </div>
                         <div>
                             <label className="label">Port</label>
@@ -143,7 +134,7 @@ export default function EmailTab() {
                                 value={smtpPort} 
                                 onChange={e => setSmtpPort(parseInt(e.target.value))} 
                                 placeholder="587" 
-                                className="input bg-gray-50/30 border-gray-100 focus:bg-white" 
+                                className="input bg-white" 
                             />
                         </div>
                     </div>
@@ -154,7 +145,7 @@ export default function EmailTab() {
                             value={smtpUser} 
                             onChange={e => setSmtpUser(e.target.value)} 
                             placeholder="your-email@gmail.com" 
-                            className="input bg-gray-50/30 border-gray-100 focus:bg-white" 
+                            className="input bg-white" 
                         />
                     </div>
 
@@ -166,7 +157,7 @@ export default function EmailTab() {
                                 value={smtpPass}
                                 onChange={e => setSmtpPass(e.target.value)}
                                 placeholder="••••••••••••"
-                                className="input bg-gray-50/30 border-gray-100 focus:bg-white pr-12"
+                                className="input bg-white pr-12"
                             />
                             <button 
                                 onClick={() => setShowPw(!showPw)} 
@@ -178,12 +169,12 @@ export default function EmailTab() {
                     </div>
 
                     <div>
-                        <label className="label">&quot;From&quot; Name / Display Name</label>
+                        <label className="label">"From" Name / Display Name</label>
                         <input 
                             value={emailFrom} 
                             onChange={e => setEmailFrom(e.target.value)} 
                             placeholder="Snapshiksha Support" 
-                            className="input bg-gray-50/30 border-gray-100 focus:bg-white" 
+                            className="input bg-white" 
                         />
                     </div>
 
@@ -200,34 +191,34 @@ export default function EmailTab() {
                         </div>
                     </div>
 
-                    <div className="pt-4 flex flex-col md:flex-row gap-4">
+                    <div className="pt-4 flex gap-3 mt-4 border-t border-gray-100">
                         <button 
                             onClick={handleSave} 
                             disabled={saving} 
-                            className="btn-primary flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-indigo-100"
+                            className="btn-primary flex-1"
                         >
                             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            {saving ? 'Saving...' : 'Save Configuration'}
+                            {saving ? 'Saving...' : 'Save Settings'}
                         </button>
                         
                         <button
                             onClick={handleTest}
                             disabled={testing || !smtpHost || !smtpUser || !smtpPass}
                             className={clsx(
-                                "flex-1 h-12 flex items-center justify-center gap-2 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all",
+                                "flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl border text-sm font-medium transition-all",
                                 testStatus === 'success' 
-                                    ? "border-green-200 bg-green-50 text-green-700" 
-                                    : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:border-gray-300"
+                                    ? "border-green-200 bg-green-50 text-green-700 font-bold" 
+                                    : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
                             )}
                         >
                             {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
-                            {testing ? 'Verifying...' : 'Connect & Test'}
+                            {testing ? 'Validating...' : 'Connect & Test'}
                         </button>
                     </div>
 
                     {settings?.lastEmailTestDate && (
-                        <p className="text-[10px] text-gray-400 text-center font-medium">
-                            System verified connectivity {new Date(settings.lastEmailTestDate).toLocaleString()}
+                        <p className="text-[10px] text-gray-400 text-center">
+                            Last tested: {new Date(settings.lastEmailTestDate).toLocaleString()}
                         </p>
                     )}
                 </div>

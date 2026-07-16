@@ -1652,7 +1652,7 @@ model VerificationToken {
 
 model PlatformSettings {
   id                 String  @id @default(uuid())
-  platformName       String  @default("IMS")
+  platformName       String  @default("180workspace")
   maintenanceMode    Boolean @default(false)
   maintenanceMessage String  @default("System is under maintenance. Please try again shortly.")
   defaultPlanId      String?

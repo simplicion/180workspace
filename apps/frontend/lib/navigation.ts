@@ -141,26 +141,16 @@ export const navigation = [
         ]
     },
 
-    {
-        group: 'Company Hub',
-        id: 'company-hub-group',
-        icon: Building2,
-        roles: ['admin', 'manager', 'hr', 'venue_owner', 'owner', 'founder', 'ceo'],
-        items: [
-            { id: 'company-profile', name: 'Profile & Details', href: '/dashboard/company/profile', icon: Building2, roles: ['admin', 'manager', 'hr', 'venue_owner', 'owner', 'founder', 'ceo'] },
-            { id: 'company-events', name: 'Events', href: '/dashboard/company/events', icon: Calendar, roles: ['admin', 'manager', 'hr', 'venue_owner', 'owner', 'founder', 'ceo'] },
-            { id: 'service-responses', name: 'Service Responses', href: '/dashboard/company/service-responses', icon: Mail, roles: ['admin', 'manager', 'owner', 'founder', 'ceo'] },
-        ]
-    },
 
     {
         group: 'Settings',
         icon: Settings,
         roles: ['admin', 'manager'],
         items: [
-            { id: 'roles', name: 'Roles & Access', href: '/dashboard/admin/roles-and-access', icon: UserSquare, roles: ['admin', 'manager'] },
+            { id: 'roles', name: 'Roles & Access', href: '/dashboard/settings/roles-access', icon: UserSquare, roles: ['admin', 'manager'] },
             { id: 'apps', name: 'Apps', href: '/dashboard/settings/apps', icon: LayoutGrid, roles: ['admin', 'manager'] },
             { id: 'system-configs', name: 'System Configs', href: '/dashboard/settings/system-configs', icon: Settings, roles: ['admin', 'manager'] },
+            { id: 'billing', name: 'Billing', href: '/dashboard/billing', icon: CreditCard, roles: ['admin', 'manager'] },
         ]
     },
 ];

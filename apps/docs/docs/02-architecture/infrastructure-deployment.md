@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Infrastructure & Deployment
 
-The IMS Platform is designed for cloud-native deployment. While specific hosting providers can be swapped, the architecture relies on Docker containers, managed databases, and CI/CD pipelines.
+The 180workspace Platform is designed for cloud-native deployment. While specific hosting providers can be swapped, the architecture relies on Docker containers, managed databases, and CI/CD pipelines.
 
 ## Hosting Environments
 

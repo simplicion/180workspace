@@ -70,6 +70,28 @@ class AIService {
                     }
                 };
             }
+
+            if (provider === 'custom') {
+                if (!settings.customAiKey || !settings.customAiUrl || !settings.customAiModel) return null;
+                const OpenAI = require('openai');
+                const openai = new OpenAI({ 
+                    apiKey: settings.customAiKey, 
+                    baseURL: settings.customAiUrl 
+                });
+                return {
+                    provider: 'custom',
+                    client: openai,
+                    generate: async (prompt, options = {}) => {
+                        const reqOptions = {
+                            messages: [{ role: "user", content: prompt }],
+                            model: settings.customAiModel,
+                        };
+                        if (options.max_tokens) reqOptions.max_tokens = options.max_tokens;
+                        const completion = await openai.chat.completions.create(reqOptions);
+                        return completion.choices[0].message.content;
+                    }
+                };
+            }
         } catch (err) {
             console.error(`[AI Service] Initialization failed for ${provider}:`, err.message);
             return null;

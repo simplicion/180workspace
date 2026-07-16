@@ -6,9 +6,9 @@ const docs = [
         title: 'Platform Overview',
         category: 'Getting Started',
         slug: 'platform-overview',
-        content: `# Welcome to the Enterprise IMS Platform
+        content: `# Welcome to the Enterprise 180workspace Platform
 
-The IMS (Integrated Management System) is your central hub for project tracking, workforce management, and sales automation. This platform is designed to streamline operations and provide real-time insights into your business health.
+The 180workspace (Integrated Management System) is your central hub for project tracking, workforce management, and sales automation. This platform is designed to streamline operations and provide real-time insights into your business health.
 
 ## Why use the Dashboard?
 The Dashboard provides a 360-degree view of your organization. It aggregates critical data from all modules, allowing you to:

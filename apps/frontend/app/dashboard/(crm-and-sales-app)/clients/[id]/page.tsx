@@ -303,7 +303,7 @@ function ClientOverview({ client, onCreateInvoice }: any) {
                 )}
             </div>
 
-            {/* Quick Actions — IMS themed */}
+            {/* Quick Actions — 180workspace themed */}
             <div>
                 <div className="card p-5 border border-gray-100 shadow-sm">
                     {/* Card header */}

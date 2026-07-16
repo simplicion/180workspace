@@ -1,4 +1,4 @@
-# Pitchin180 Platform (IMS)
+# Pitchin180 Platform (180workspace)
 
 A comprehensive, production-ready, white-labeled solution for managing organizational operations. Built with a modern Turborepo monorepo architecture and enhanced with AI capabilities.
 

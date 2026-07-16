@@ -1,7 +1,7 @@
 # State Management
 
 ## Overview
-The IMS Frontend uses a highly reactive architectural blend to manage state without introducing massive external boilerplate overheads like Redux. The system leverages Next.js native capabilities optimized by modern React 19 paradigms.
+The 180workspace Frontend uses a highly reactive architectural blend to manage state without introducing massive external boilerplate overheads like Redux. The system leverages Next.js native capabilities optimized by modern React 19 paradigms.
 
 ## How State is Managed
 1. **Server vs. Client Contexts:** As an App Router-based implementation (`app/`), the application prioritizes Server Components for massive computational datasets avoiding immediate Client Hydration. Interactive areas are distinctly wrapped in `'use client'` boundaries.

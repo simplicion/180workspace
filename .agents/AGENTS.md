@@ -1,4 +1,4 @@
-# IMS Platform Workspace Rules
+# 180workspace Platform Workspace Rules
 
 The following design system and UI architecture rules MUST be followed when generating or modifying code in this workspace:
 

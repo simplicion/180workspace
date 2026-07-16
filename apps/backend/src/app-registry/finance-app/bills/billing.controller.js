@@ -34,7 +34,7 @@ exports.getStatus = async (req, res, next) => {
             currency: sub?.plan?.currency || 'INR',
             billingCycle: sub?.plan?.billingCycle || 'monthly',
             paymentsEnabled: !!settings.paymentsEnabled,
-            platformName: settings.platformName || 'IMS'
+            platformName: settings.platformName || '180workspace'
         });
     } catch (err) { next(err); }
 };

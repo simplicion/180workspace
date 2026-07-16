@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Local Development Guide
 
-This guide will walk you through setting up the IMS Platform monorepo on your local machine.
+This guide will walk you through setting up the 180workspace Platform monorepo on your local machine.
 
 ## Prerequisites
 Ensure you have the following installed before proceeding:
@@ -16,7 +16,7 @@ Ensure you have the following installed before proceeding:
 ## 1. Clone & Install
 ```bash
 git clone <repository-url>
-cd IMS-SYSTEM
+cd 180workspace
 pnpm install
 ```
 

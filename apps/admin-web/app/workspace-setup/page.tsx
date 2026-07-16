@@ -403,7 +403,7 @@ function WorkspaceSetup() {
                                     </div>
                                     <button onClick={completeSetup} disabled={saving} className="btn-primary shadow-lg shadow-indigo-500/20 px-8 py-3 h-auto text-base">
                                         {saving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
-                                        <span>{saving ? "Saving..." : "Start Using IMS"}</span>
+                                        <span>{saving ? "Saving..." : "Start Using 180workspace"}</span>
                                     </button>
                                 </div>
                             </motion.div>

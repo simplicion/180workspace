@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Google Workspace Integration
 
-The IMS Platform integrates with Google Workspace APIs to provide seamless document management and data synchronization for tenants.
+The 180workspace Platform integrates with Google Workspace APIs to provide seamless document management and data synchronization for tenants.
 
 ## Implementation Files
 - `src/services/google-drive.service.js`
@@ -20,9 +20,9 @@ To use Google services, a user must authenticate via OAuth 2.0.
 ## Google Drive (`google-drive.service.js`)
 This service allows users to:
 - Export platform reports directly to a specific Google Drive folder.
-- Attach existing Google Drive documents to Tasks or Projects within the IMS Dashboard without downloading/uploading them.
+- Attach existing Google Drive documents to Tasks or Projects within the 180workspace Dashboard without downloading/uploading them.
 
 ## Google Sheets (`google-sheets.service.js`)
 This service enables dynamic data export and sync:
 - Exporting CRM lead lists or expense reports to a connected Google Sheet.
-- Future capabilities may include reading data from a designated Sheet to update records inside IMS.
+- Future capabilities may include reading data from a designated Sheet to update records inside 180workspace.

@@ -258,7 +258,7 @@ export default function CreateGoalModal({ onClose, onSuccess, editGoal }: Props)
                 <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
                     <div className="text-[10px] font-semibold text-gray-400 flex items-center gap-2">
                         <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
-                        IMS Goal Tracking System
+                        180workspace Goal Tracking System
                     </div>
                     <div className="flex gap-3">
                         <button 

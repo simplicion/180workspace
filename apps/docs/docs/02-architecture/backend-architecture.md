@@ -52,7 +52,7 @@ Located in `src/models/`, these define the data schemas and handle database inte
 
 ## 4. Multi-Tenant Middleware
 Located in `src/middleware/tenant-db.js`.
-Because the IMS platform serves multiple companies (tenants), this middleware is injected into protected routes.
+Because the 180workspace platform serves multiple companies (tenants), this middleware is injected into protected routes.
 - It extracts the `companyId` from the authenticated user's JWT.
 - It attaches the tenant context so queries only retrieve data belonging to that specific company.
 

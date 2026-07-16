@@ -194,7 +194,7 @@ exports.getBranding = async (req, res, next) => {
         let ps = await prisma.platformSettings.findFirst();
         if (!ps) {
             ps = {
-                platformName: 'IMS',
+                platformName: '180workspace',
                 logoUrl: '',
                 faviconUrl: '',
                 supportEmail: '',
@@ -210,7 +210,7 @@ exports.getBranding = async (req, res, next) => {
 
         // Base branding from Platform (Superadmin)
         let branding = {
-            name: ps.platformName || 'IMS',
+            name: ps.platformName || '180workspace',
             logo: ps.logoUrl || '',
             favicon: ps.faviconUrl || '',
             email: ps.supportEmail || '',

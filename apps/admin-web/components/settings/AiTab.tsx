@@ -28,30 +28,40 @@ export default function AiTab() {
     const [showPw, setShowPw] = useState(false);
 
     // AI Settings State
-    const [aiProvider, setAiProvider] = useState<'none' | 'openai' | 'claude' | 'gemini'>(globalSettings?.aiProvider || 'none');
-    const [openaiKey, setOpenaiKey] = useState(globalSettings?.openaiKey || '');
-    const [claudeKey, setClaudeKey] = useState(globalSettings?.claudeKey || '');
-    const [geminiKey, setGeminiKey] = useState(globalSettings?.geminiKey || '');
+    const [aiProvider, setAiProvider] = useState<'none' | 'openai' | 'claude' | 'gemini' | 'custom'>(globalSettings?.aiProvider || 'none');
+    const [openaiKey, setOpenaiKey] = useState(globalSettings?.openaiKey === '********' ? '' : (globalSettings?.openaiKey || ''));
+    const [claudeKey, setClaudeKey] = useState(globalSettings?.claudeKey === '********' ? '' : (globalSettings?.claudeKey || ''));
+    const [geminiKey, setGeminiKey] = useState(globalSettings?.geminiKey === '********' ? '' : (globalSettings?.geminiKey || ''));
+    const [customAiUrl, setCustomAiUrl] = useState(globalSettings?.customAiUrl || '');
+    const [customAiKey, setCustomAiKey] = useState(globalSettings?.customAiKey === '********' ? '' : (globalSettings?.customAiKey || ''));
+    const [customAiModel, setCustomAiModel] = useState(globalSettings?.customAiModel || '');
     const [aiTestStatus, setAiTestStatus] = useState<'success' | 'failure' | 'none'>(globalSettings?.lastAiTestStatus || 'none');
-    const [googleSheetsId, setGoogleSheetsId] = useState(globalSettings?.googleSheetsId || '');
 
     useEffect(() => {
         if (globalSettings) {
             setAiProvider(globalSettings.aiProvider || 'none');
-            setOpenaiKey(globalSettings.openaiKey || '');
-            setClaudeKey(globalSettings.claudeKey || '');
-            setGeminiKey(globalSettings.geminiKey || '');
+            setOpenaiKey(globalSettings.openaiKey === '********' ? '' : (globalSettings.openaiKey || ''));
+            setClaudeKey(globalSettings.claudeKey === '********' ? '' : (globalSettings.claudeKey || ''));
+            setGeminiKey(globalSettings.geminiKey === '********' ? '' : (globalSettings.geminiKey || ''));
+            setCustomAiUrl(globalSettings.customAiUrl || '');
+            setCustomAiKey(globalSettings.customAiKey === '********' ? '' : (globalSettings.customAiKey || ''));
+            setCustomAiModel(globalSettings.customAiModel || '');
             setAiTestStatus(globalSettings.lastAiTestStatus || 'none');
-            setGoogleSheetsId(globalSettings.googleSheetsId || '');
         }
     }, [globalSettings]);
 
     const saveAiSettings = async () => {
         setSaving(true);
         try {
-            await api.put('/api/settings', {
-                aiProvider, openaiKey, claudeKey, geminiKey, googleSheetsId,
-            });
+            const payload: any = { aiProvider };
+            if (openaiKey) payload.openaiKey = openaiKey;
+            if (claudeKey) payload.claudeKey = claudeKey;
+            if (geminiKey) payload.geminiKey = geminiKey;
+            if (customAiUrl) payload.customAiUrl = customAiUrl;
+            if (customAiKey) payload.customAiKey = customAiKey;
+            if (customAiModel) payload.customAiModel = customAiModel;
+            
+            await api.put('/api/settings', payload);
             toast.success('AI configuration saved successfully');
             await refreshGlobalSettings();
         } catch (e: any) {
@@ -65,9 +75,15 @@ export default function AiTab() {
         setTestingAi(true);
         try {
             // First save
-            await api.put('/api/settings', {
-                aiProvider, openaiKey, claudeKey, geminiKey
-            });
+            const payload: any = { aiProvider };
+            if (openaiKey) payload.openaiKey = openaiKey;
+            if (claudeKey) payload.claudeKey = claudeKey;
+            if (geminiKey) payload.geminiKey = geminiKey;
+            if (customAiUrl) payload.customAiUrl = customAiUrl;
+            if (customAiKey) payload.customAiKey = customAiKey;
+            if (customAiModel) payload.customAiModel = customAiModel;
+            
+            await api.put('/api/settings', payload);
 
             const { data } = await api.post('/api/settings/test-ai');
             setAiTestStatus('success');
@@ -114,7 +130,8 @@ export default function AiTab() {
                                 { id: 'none', label: 'Disabled', icon: Cpu },
                                 { id: 'gemini', label: 'Google Gemini', icon: Zap },
                                 { id: 'openai', label: 'OpenAI (GPT)', icon: Brain },
-                                { id: 'claude', label: 'Claude (Anthropic)', icon: Cpu },
+                                { id: 'claude', label: 'Claude', icon: Cpu },
+                                { id: 'custom', label: 'Custom (Unified)', icon: Brain },
                             ].map((p) => (
                                 <button
                                     key={p.id}
@@ -144,7 +161,7 @@ export default function AiTab() {
                                     type={showPw ? 'text' : 'password'}
                                     value={geminiKey}
                                     onChange={e => setGeminiKey(e.target.value)}
-                                    placeholder="Enter your Gemini API Key..."
+                                    placeholder={globalSettings?.geminiKey === '********' ? "•••••••••••••••• (Saved)" : "Enter your Gemini API Key..."}
                                     className="input bg-white pr-10"
                                 />
                                 <button onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -168,7 +185,7 @@ export default function AiTab() {
                                     type={showPw ? 'text' : 'password'}
                                     value={openaiKey}
                                     onChange={e => setOpenaiKey(e.target.value)}
-                                    placeholder="sk-..."
+                                    placeholder={globalSettings?.openaiKey === '********' ? "•••••••••••••••• (Saved)" : "sk-..."}
                                     className="input bg-white pr-10"
                                 />
                                 <button onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -192,7 +209,7 @@ export default function AiTab() {
                                     type={showPw ? 'text' : 'password'}
                                     value={claudeKey}
                                     onChange={e => setClaudeKey(e.target.value)}
-                                    placeholder="sk-ant-..."
+                                    placeholder={globalSettings?.claudeKey === '********' ? "•••••••••••••••• (Saved)" : "sk-ant-..."}
                                     className="input bg-white pr-10"
                                 />
                                 <button onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -205,24 +222,7 @@ export default function AiTab() {
                         </div>
                     )}
 
-                    <div className="pt-4 border-t border-gray-100 mt-4">
-                        <label className="label">
-                            Google Sheets ID (for Meeting Notes)
-                            <InfoLink href="https://docs.google.com/spreadsheets/u/0/" label="Open Sheets" />
-                        </label>
-                        <input
-                            value={googleSheetsId}
-                            onChange={e => setGoogleSheetsId(e.target.value)}
-                            placeholder="1x2y3z... (ID from the URL)"
-                            className="input bg-white"
-                        />
-                        <p className="text-[10px] text-gray-400 mt-1">
-                            The ID of the spreadsheet where AI meeting summaries and action items will be stored.
-                            Ensure the service account defined in <b>Storage</b> settings has <b>Editor</b> access to this sheet.
-                        </p>
-                    </div>
-
-                    <div className="pt-4 flex gap-3">
+                    <div className="pt-4 flex gap-3 mt-4 border-t border-gray-100">
                         <button onClick={saveAiSettings} disabled={saving} className="btn-primary flex-1">
                             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Save Settings'}
@@ -244,6 +244,47 @@ export default function AiTab() {
                         <p className="text-[10px] text-gray-400 text-center">
                             Last tested: {new Date(globalSettings.lastAiTestDate).toLocaleString()}
                         </p>
+                    )}
+
+                    {aiProvider === 'custom' && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
+                            <div>
+                                <label className="label">Base URL</label>
+                                <input
+                                    value={customAiUrl}
+                                    onChange={e => setCustomAiUrl(e.target.value)}
+                                    placeholder="e.g. https://openrouter.ai/api/v1"
+                                    className="input bg-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="label">API Key</label>
+                                <div className="relative">
+                                    <input
+                                        type={showPw ? 'text' : 'password'}
+                                        value={customAiKey}
+                                        onChange={e => setCustomAiKey(e.target.value)}
+                                        placeholder={globalSettings?.customAiKey === '********' ? "•••••••••••••••• (Saved)" : "Enter your custom API key..."}
+                                        className="input bg-white pr-10"
+                                    />
+                                    <button onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                        {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="label">Model Name</label>
+                                <input
+                                    value={customAiModel}
+                                    onChange={e => setCustomAiModel(e.target.value)}
+                                    placeholder="e.g. meta-llama/llama-3.1-8b-instruct"
+                                    className="input bg-white"
+                                />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1">
+                                Use any OpenAI-compatible API endpoint (like OpenRouter, Together AI, local LM Studio, etc.).
+                            </p>
+                        </div>
                     )}
                 </div>
             </div>

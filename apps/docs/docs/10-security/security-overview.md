@@ -1,7 +1,7 @@
 # Authentication and Security
 
 ## Overview
-Authentication acts as the primary gatekeeper for the IMS system. Validation occurs at multiple points over the network request timeline, providing defense-in-depth architecture.
+Authentication acts as the primary gatekeeper for the 180workspace system. Validation occurs at multiple points over the network request timeline, providing defense-in-depth architecture.
 
 ## Authentication Flow
 1. **Frontend Initiation:** User supplies email and password strings to `/login` or through a dedicated OAuth modal constraint (`@react-oauth/google`).

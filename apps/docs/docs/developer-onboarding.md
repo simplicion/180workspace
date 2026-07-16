@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # New Developer Onboarding
 
-Welcome to the IMS Platform! This guide will help you set up your local environment and get familiar with our monorepo architecture.
+Welcome to the 180workspace Platform! This guide will help you set up your local environment and get familiar with our monorepo architecture.
 
 ## 1. Environment Setup
 - Install Node.js (>= 20)

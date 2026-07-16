@@ -3,7 +3,7 @@
 # Testing and Quality
 
 ## Existing Testing Setup
-Based on root configuration files (`package.json`), the IMS platform does not currently deploy a standardized automated runner configuration (like Jest, Mocha, or Cypress). 
+Based on root configuration files (`package.json`), the 180workspace platform does not currently deploy a standardized automated runner configuration (like Jest, Mocha, or Cypress). 
 Instead, Quality Assurance relies predominantly on isolated manual procedural scripts housed in the root directory:
 *   `test_automation_systemic.js`
 *   `test_reminders.js`

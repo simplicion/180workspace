@@ -1057,7 +1057,7 @@ class SalesService {
 
         const companyContext = `
         CRITICAL INSTRUCTION: You MUST incorporate the following details representing OUR COMPANY into the contract. We are the provider:
-        Company Name: ${company?.companyName || 'IMS Master Entity'}
+        Company Name: ${company?.companyName || '180workspace Master Entity'}
         Company Contact Email: ${company?.adminEmail || ''}
         Company Website: ${company?.website || ''}
         `;
@@ -1144,7 +1144,7 @@ class SalesService {
 
         const emailService = require('../../productivity-tools-app/emails/email.service');
         const result = await emailService.sendGenericEmail(recipientEmail, 
-            `${company?.companyName || 'IMS'} - ${contractTitle || 'Legal Agreement'}`,
+            `${company?.companyName || '180workspace'} - ${contractTitle || 'Legal Agreement'}`,
             `Hello,\n\nPlease find the attached ${contractTitle || 'document'} prepared for you by ${company?.companyName || 'our team'}.\n\nBest regards,\n${userName}`,
             [
                 {

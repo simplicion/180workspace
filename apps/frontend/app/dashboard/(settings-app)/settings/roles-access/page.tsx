@@ -4,13 +4,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import {
     Shield, Users, Search, ArrowLeft, CheckCircle2, XCircle,
-    Loader2, Save, ChevronDown, Eye, EyeOff, Info
+    Loader2, Save, ChevronDown, Eye, EyeOff, Info,
+    UserCog, ShieldCheck, ShieldAlert, Edit
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { navigation } from '@/lib/navigation';
+import { ManageAccessModal, UserRoleData } from '../../_components/ManageAccessModal';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -87,9 +89,10 @@ export default function RolesAccessPage() {
     const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
     // Users state
-    const [users, setUsers] = useState<UserRow[]>([]);
+    const [users, setUsers] = useState<UserRoleData[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [selectedUser, setSelectedUser] = useState<UserRoleData | null>(null);
 
     const roleMatrix = useMemo(() => buildRoleMatrix(), []);
 
@@ -121,66 +124,7 @@ export default function RolesAccessPage() {
 
     // ─── Handlers ───────────────────────────────────────────────────────────
 
-    const handleRoleChange = (userId: string, newRole: string) => {
-        setUsers(prev =>
-            prev.map(u => {
-                if (u.id !== userId) return u;
-                return { ...u, _editRole: newRole, _dirty: true };
-            })
-        );
-    };
-
-    const handlePermissionToggle = (userId: string, permId: string) => {
-        setUsers(prev =>
-            prev.map(u => {
-                if (u.id !== userId) return u;
-                const perms = u._editPermissions || [];
-                const next = perms.includes(permId)
-                    ? perms.filter(p => p !== permId)
-                    : [...perms, permId];
-                return { ...u, _editPermissions: next, _dirty: true };
-            })
-        );
-    };
-
-    const handleSave = async (userId: string) => {
-        const user = users.find(u => u.id === userId);
-        if (!user) return;
-
-        // Prevent self-demotion
-        if (userId === currentUser?.id && user._editRole !== 'admin') {
-            toast.error("You can't change your own role.");
-            return;
-        }
-
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, _saving: true } : u));
-
-        try {
-            const { data } = await api.put('/api/roles-access/bulk-update', {
-                userId,
-                role: user._editRole,
-                permissions: user._editPermissions,
-            });
-            setUsers(prev =>
-                prev.map(u => {
-                    if (u.id !== userId) return u;
-                    return {
-                        ...u,
-                        role: data.user.role,
-                        permissions: data.user.permissions,
-                        _editRole: data.user.role,
-                        _editPermissions: [...data.user.permissions],
-                        _dirty: false,
-                        _saving: false,
-                    };
-                })
-            );
-            toast.success(`${user.name}'s access updated`);
-        } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Failed to update');
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, _saving: false } : u));
-        }
-    };
+    // (Removed inline edit handlers since we now use ManageAccessModal)
 
     const filteredUsers = useMemo(() => {
         if (!search) return users;
@@ -193,27 +137,20 @@ export default function RolesAccessPage() {
     // ─── Render ─────────────────────────────────────────────────────────────
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8 min-h-screen">
+        <div className="max-w-7xl space-y-6">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+                <div className="flex items-center gap-4">
                     <Link
                         href="/dashboard/settings/system-configs"
-                        className="inline-flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-indigo-600 transition-colors group"
+                        title="Back to System Config"
+                        className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
                     >
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        Back to System Configs
+                        <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <div className="p-2 bg-rose-50 text-rose-600 rounded-xl">
-                                <Shield className="w-6 h-6" />
-                            </div>
-                            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                                Roles & Access
-                            </h1>
-                        </div>
-                        <p className="text-gray-500 font-medium">
+                        <h1 className="text-2xl font-bold text-gray-900">Roles & Access</h1>
+                        <p className="text-gray-500 mt-1">
                             View the role matrix and manage user permissions across the platform
                         </p>
                     </div>
@@ -245,6 +182,46 @@ export default function RolesAccessPage() {
                         <Users className="w-4 h-4" />
                         User Permissions
                     </button>
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 font-medium">Total Users</p>
+                        <p className="text-lg font-bold text-gray-900">{users.length}</p>
+                    </div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 font-medium">Active</p>
+                        <p className="text-lg font-bold text-gray-900">{users.filter(u => u.isActive).length}</p>
+                    </div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <ShieldAlert className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 font-medium">Admins</p>
+                        <p className="text-lg font-bold text-gray-900">{users.filter(u => u.role === 'admin').length}</p>
+                    </div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                        <UserCog className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 font-medium">Custom Perms</p>
+                        <p className="text-lg font-bold text-gray-900">{users.filter(u => u.permissions?.length > 0).length}</p>
+                    </div>
                 </div>
             </div>
 
@@ -410,48 +387,32 @@ export default function RolesAccessPage() {
                                                         </div>
                                                     </td>
 
-                                                    {/* Role Dropdown */}
+                                                    {/* Role */}
                                                     <td className="px-4 py-3.5">
-                                                        <select
-                                                            value={user._editRole || user.role}
-                                                            onChange={e => handleRoleChange(user.id, e.target.value)}
-                                                            disabled={isSelf}
-                                                            className={clsx(
-                                                                'text-xs font-bold rounded-xl px-3 py-2 border appearance-none cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20',
-                                                                ROLE_COLORS[user._editRole || user.role] || 'bg-gray-50 text-gray-700 border-gray-200',
-                                                                isSelf && 'opacity-60 cursor-not-allowed'
-                                                            )}
-                                                        >
-                                                            {ALL_ROLES.map(r => (
-                                                                <option key={r} value={r}>
-                                                                    {ROLE_LABELS[r]}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                        <span className={clsx('inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border', ROLE_COLORS[user.role] || 'bg-gray-50 text-gray-700 border-gray-200')}>
+                                                            {ROLE_LABELS[user.role] || user.role}
+                                                        </span>
                                                     </td>
 
-                                                    {/* Permission Checkboxes */}
-                                                    {PERMISSIONS_LIST.map(p => (
-                                                        <td key={p.id} className="px-3 py-3.5 text-center">
-                                                            {isAdmin ? (
-                                                                <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
-                                                            ) : (
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={(user._editPermissions || []).includes(p.id)}
-                                                                    onChange={() => handlePermissionToggle(user.id, p.id)}
-                                                                    disabled={isSelf}
-                                                                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                                                                />
-                                                            )}
-                                                        </td>
-                                                    ))}
+                                                    {/* Permission Checks */}
+                                                    {PERMISSIONS_LIST.map(p => {
+                                                        const hasPerm = isAdmin || (user.permissions || []).includes(p.id);
+                                                        return (
+                                                            <td key={p.id} className="px-3 py-3.5 text-center">
+                                                                {hasPerm ? (
+                                                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto" />
+                                                                ) : (
+                                                                    <span className="text-gray-300">—</span>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
 
                                                     {/* Status */}
                                                     <td className="px-4 py-3.5 text-center">
                                                         <span
                                                             className={clsx(
-                                                                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold',
+                                                                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide',
                                                                 user.isActive
                                                                     ? 'bg-emerald-50 text-emerald-600'
                                                                     : 'bg-red-50 text-red-600'
@@ -467,24 +428,15 @@ export default function RolesAccessPage() {
                                                         </span>
                                                     </td>
 
-                                                    {/* Save */}
+                                                    {/* Actions */}
                                                     <td className="px-4 py-3.5 text-center">
-                                                        {user._dirty ? (
-                                                            <button
-                                                                onClick={() => handleSave(user.id)}
-                                                                disabled={user._saving}
-                                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                                                            >
-                                                                {user._saving ? (
-                                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                                ) : (
-                                                                    <Save className="w-3.5 h-3.5" />
-                                                                )}
-                                                                Save
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-xs text-gray-300 font-medium">—</span>
-                                                        )}
+                                                        <button
+                                                            onClick={() => setSelectedUser(user)}
+                                                            className="p-2 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex"
+                                                            title="Manage Access"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             );
@@ -502,6 +454,17 @@ export default function RolesAccessPage() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {selectedUser && (
+                <ManageAccessModal 
+                    user={selectedUser} 
+                    onClose={() => setSelectedUser(null)} 
+                    onUpdated={() => {
+                        setSelectedUser(null);
+                        fetchUsers();
+                    }}
+                />
             )}
         </div>
     );

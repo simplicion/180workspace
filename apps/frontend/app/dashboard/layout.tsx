@@ -410,7 +410,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                         : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 justify-center"
                 )} title="Back to 180workspace">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-white text-indigo-600 shadow-sm group-hover:scale-105 transition-transform">
-                        <ArrowRight className="w-4 h-4 rotate-180" />
+                        <img src="/black%20icon.svg" alt="180workspace" className="w-5 h-5 object-contain" />
                     </div>
                     {isExpanded && <span className="font-bold tracking-tight text-lg text-indigo-900 whitespace-nowrap"><span className="text-blue-600">180</span>workspace</span>}
                 </Link>

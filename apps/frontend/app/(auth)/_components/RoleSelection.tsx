@@ -56,7 +56,7 @@ export default function RoleSelection({
                             </div>
                             <div>
                                 <h4 className="font-bold text-lg text-gray-900 group-hover:text-blue-700">Manage my Startup / Company</h4>
-                                <p className="text-sm text-gray-500 mt-1">Set up a workspace, manage employees, and access IMS tools.</p>
+                                <p className="text-sm text-gray-500 mt-1">Set up a workspace, manage employees, and access 180workspace tools.</p>
                             </div>
                         </button>
 

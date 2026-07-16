@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # System Overview
 
-The IMS Platform is built on a scalable, cloud-agnostic architecture. It utilizes a monorepo setup managed by Turborepo and pnpm, allowing code sharing across distinct applications.
+The 180workspace Platform is built on a scalable, cloud-agnostic architecture. It utilizes a monorepo setup managed by Turborepo and pnpm, allowing code sharing across distinct applications.
 
 ## High-Level Architecture
 
@@ -26,7 +26,7 @@ The platform consists of four primary deployment nodes:
 - **Role:** The primary interface for end-users, founders, and investors.
 - **Stack:** Next.js, React, Tailwind CSS, Capacitor (for native Android/iOS deployment).
 - **Location:** `apps/user-web`
-- **Key Feature:** Operates as a Progressive Web App (PWA) and a native mobile wrapper. Houses both the core IMS features and the dedicated PitchIn 180 network module.
+- **Key Feature:** Operates as a Progressive Web App (PWA) and a native mobile wrapper. Houses both the core 180workspace features and the dedicated PitchIn 180 network module.
 
 ### 4. Admin Web (Super Admin Portal)
 - **Role:** The back-office control panel for platform administrators.

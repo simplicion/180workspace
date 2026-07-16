@@ -10,7 +10,7 @@ const seed = async () => {
         if (!settings) {
             await prisma.platformSettings.create({
                 data: {
-                    platformName: 'IMS Platform',
+                    platformName: '180workspace Platform',
                     themeColor: '#4f46e5',
                     smtpFrom: 'noreply@ims-platform.com'
                 }

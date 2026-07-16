@@ -1,7 +1,7 @@
 {
   "name": "worker",
   "version": "1.0.0",
-  "description": "Background worker node for IMS",
+  "description": "Background worker node for 180workspace",
   "main": "index.js",
   "scripts": {
     "dev": "cross-env PORT=4004 RUN_MODE=worker node ../backend/server.js",

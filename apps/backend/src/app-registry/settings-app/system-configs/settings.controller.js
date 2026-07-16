@@ -59,7 +59,10 @@ const METADATA_FIELDS = [
     'lastStorageTestError',
     'lastDbTestStatus',
     'lastDbTestDate',
-    'lastDbTestError'
+    'lastDbTestError',
+    'customAiUrl',
+    'customAiKey',
+    'customAiModel'
 ];
 
 exports.getSettings = async (req, res) => {
@@ -88,7 +91,7 @@ exports.getSettings = async (req, res) => {
         }
 
         // Merge company metadata settings
-        const companyId = req.user?.companyId || req.company?.id;
+        const companyId = req.user?.companyId || req.company?.id || settings?.companyId;
         const metadata = companyId ? await getCompanyMetadata(companyId) : {};
         const mergedSettings = { ...settings };
         METADATA_FIELDS.forEach(field => {
@@ -104,7 +107,7 @@ exports.getSettings = async (req, res) => {
 
 exports.updateSettings = async (req, res) => {
     try {
-        const isPrivileged = ['admin', 'manager'].includes(req.user.role);
+        const isPrivileged = ['admin', 'manager', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(req.user.role);
         if (!isPrivileged) {
             return res.status(403).json({ error: 'Only admins/managers can update company settings' });
         }
@@ -149,9 +152,17 @@ exports.updateSettings = async (req, res) => {
         }
 
         // Save metadata fields
-        const companyId = req.user.companyId || req.company?.id;
+        const companyId = req.user.companyId || req.company?.id || (settings ? settings.companyId : null) || (updatedSettings ? updatedSettings.companyId : null);
+        console.log('[DEBUG updateSettings] bodyData:', bodyData);
+        console.log('[DEBUG updateSettings] metadataUpdate:', metadataUpdate);
+        console.log('[DEBUG updateSettings] resolved companyId:', companyId);
+        
         if (Object.keys(metadataUpdate).length > 0 && companyId) {
+            console.log('[DEBUG updateSettings] Calling updateCompanyMetadata...');
             await updateCompanyMetadata(companyId, metadataUpdate);
+            console.log('[DEBUG updateSettings] Done updateCompanyMetadata.');
+        } else {
+            console.log('[DEBUG updateSettings] Skipping metadata update. keys len:', Object.keys(metadataUpdate).length, 'companyId:', companyId);
         }
 
         // Return merged updated settings
@@ -174,7 +185,10 @@ exports.testAiConnection = async (req, res) => {
             return res.status(403).json({ error: 'Only admins/managers can test AI connection' });
         }
 
-        const metadata = await getCompanyMetadata(req.user.companyId);
+        const settings = await req.prisma.settings.findFirst();
+        const companyId = req.user.companyId || settings?.companyId;
+
+        const metadata = await getCompanyMetadata(companyId);
         if (!metadata || !metadata.aiProvider || metadata.aiProvider === 'none') {
             return res.status(400).json({ error: 'AI provider is not selected' });
         }
@@ -208,18 +222,33 @@ exports.testAiConnection = async (req, res) => {
                 messages: [{ role: "user", content: "Say 'Connection Successful'" }]
             });
             if (msg.content && msg.content.length > 0) testSuccess = true;
+        } else if (provider === 'custom') {
+            if (!metadata.customAiKey) throw new Error('Custom API Key missing');
+            if (!metadata.customAiUrl) throw new Error('Custom Base URL missing');
+            if (!metadata.customAiModel) throw new Error('Custom Model Name missing');
+            
+            const OpenAI = require('openai');
+            const openai = new OpenAI({ 
+                apiKey: metadata.customAiKey, 
+                baseURL: metadata.customAiUrl 
+            });
+            const completion = await openai.chat.completions.create({
+                messages: [{ role: "user", content: "Say 'Connection Successful'" }],
+                model: metadata.customAiModel,
+            });
+            if (completion.choices[0].message.content) testSuccess = true;
         }
 
         let updatedSettings = await req.prisma.settings.findFirst();
         if (testSuccess) {
-            await updateCompanyMetadata(req.user.companyId, {
+            await updateCompanyMetadata(companyId, {
                 lastAiTestStatus: 'success',
                 lastAiTestDate: new Date(),
                 lastAiTestError: null
             });
 
             // Return merged settings
-            const freshMeta = await getCompanyMetadata(req.user.companyId);
+            const freshMeta = await getCompanyMetadata(companyId);
             const merged = { ...updatedSettings };
             METADATA_FIELDS.forEach(field => {
                 merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -231,14 +260,14 @@ exports.testAiConnection = async (req, res) => {
         }
     } catch (error) {
         console.error('AI connection test failed:', error);
-        await updateCompanyMetadata(req.user.companyId, {
+        await updateCompanyMetadata(companyId, {
             lastAiTestStatus: 'failure',
             lastAiTestDate: new Date(),
             lastAiTestError: error.message
         });
 
         const updatedSettings = await req.prisma.settings.findFirst();
-        const freshMeta = await getCompanyMetadata(req.user.companyId);
+        const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...updatedSettings };
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -255,6 +284,7 @@ exports.testEmailConnection = async (req, res) => {
         }
 
         const settings = await req.prisma.settings.findFirst();
+        const companyId = req.user.companyId || settings?.companyId;
         
         const smtpHost = req.body.smtpHost || settings?.smtpHost;
         const smtpPort = req.body.smtpPort || settings?.smtpPort;
@@ -289,13 +319,13 @@ exports.testEmailConnection = async (req, res) => {
             html: `<h3>Connection successful!</h3><p>Your SMTP settings are correctly configured for <b>${settings?.companyName || 'Your Company'}</b>.</p><p>Tested on: ${new Date().toLocaleString()}</p>`,
         });
 
-        await updateCompanyMetadata(req.user.companyId, {
+        await updateCompanyMetadata(companyId, {
             lastEmailTestStatus: 'success',
             lastEmailTestDate: new Date(),
             lastEmailTestError: null
         });
 
-        const freshMeta = await getCompanyMetadata(req.user.companyId);
+        const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...settings };
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -304,14 +334,14 @@ exports.testEmailConnection = async (req, res) => {
         res.json({ message: 'Test email sent successfully! Please check your inbox.', settings: merged });
     } catch (error) {
         console.error('Email connection test failed:', error);
-        await updateCompanyMetadata(req.user.companyId, {
+        await updateCompanyMetadata(companyId, {
             lastEmailTestStatus: 'failure',
             lastEmailTestDate: new Date(),
             lastEmailTestError: error.message
         });
 
         const settings = await req.prisma.settings.findFirst();
-        const freshMeta = await getCompanyMetadata(req.user.companyId);
+        const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...settings };
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -332,6 +362,8 @@ exports.testStorageConnection = async (req, res) => {
         }
 
         const settings = await req.prisma.settings.findFirst();
+        const companyId = req.user.companyId || settings?.companyId;
+
         if (!settings || settings.storageMode === 'local') {
             return res.status(400).json({ error: 'Storage mode is set to local or not configured' });
         }
@@ -340,13 +372,13 @@ exports.testStorageConnection = async (req, res) => {
             const googleDriveService = require('./google-drive.service');
             await googleDriveService.testConnection(settings);
 
-            await updateCompanyMetadata(req.user.companyId, {
+            await updateCompanyMetadata(companyId, {
                 lastStorageTestStatus: 'success',
                 lastStorageTestDate: new Date(),
                 lastStorageTestError: null
             });
 
-            const freshMeta = await getCompanyMetadata(req.user.companyId);
+            const freshMeta = await getCompanyMetadata(companyId);
             const merged = { ...settings };
             METADATA_FIELDS.forEach(field => {
                 merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -358,7 +390,7 @@ exports.testStorageConnection = async (req, res) => {
         if (settings.storageMode === 'cloudinary') {
             const { configureCloudinary } = require('../../../system-configs/config/cloudinary.js');
 
-            const metadata = await getCompanyMetadata(req.user.companyId);
+            const metadata = await getCompanyMetadata(companyId);
             const cloudinaryCloudName = metadata.cloudinaryCloudName || settings.cloudinaryCloudName;
             const cloudinaryApiKey = metadata.cloudinaryApiKey || settings.cloudinaryApiKey;
             const cloudinaryApiSecret = metadata.cloudinaryApiSecret || settings.cloudinaryApiSecret;
@@ -375,13 +407,13 @@ exports.testStorageConnection = async (req, res) => {
 
             const result = await dynamicCloudinary.api.ping();
             if (result.status === 'ok') {
-                await updateCompanyMetadata(req.user.companyId, {
+                await updateCompanyMetadata(companyId, {
                     lastStorageTestStatus: 'success',
                     lastStorageTestDate: new Date(),
                     lastStorageTestError: null
                 });
 
-                const freshMeta = await getCompanyMetadata(req.user.companyId);
+                const freshMeta = await getCompanyMetadata(companyId);
                 const merged = { ...settings };
                 METADATA_FIELDS.forEach(field => {
                     merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -395,14 +427,14 @@ exports.testStorageConnection = async (req, res) => {
         res.status(400).json({ error: 'Unsupported storage mode for testing' });
     } catch (error) {
         console.error('Storage connection test failed:', error);
-        await updateCompanyMetadata(req.user.companyId, {
+        await updateCompanyMetadata(companyId, {
             lastStorageTestStatus: 'failure',
             lastStorageTestDate: new Date(),
             lastStorageTestError: error.message
         });
 
         const settings = await req.prisma.settings.findFirst();
-        const freshMeta = await getCompanyMetadata(req.user.companyId);
+        const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...settings };
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -420,14 +452,16 @@ exports.testDatabaseConnection = async (req, res) => {
 
         await req.prisma.$queryRaw`SELECT 1`;
 
-        await updateCompanyMetadata(req.user.companyId, {
+        const settings = await req.prisma.settings.findFirst();
+        const companyId = req.user.companyId || settings?.companyId;
+
+        await updateCompanyMetadata(companyId, {
             lastDbTestStatus: 'success',
             lastDbTestDate: new Date(),
             lastDbTestError: null
         });
 
-        const settings = await req.prisma.settings.findFirst();
-        const freshMeta = await getCompanyMetadata(req.user.companyId);
+        const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...settings };
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -436,14 +470,16 @@ exports.testDatabaseConnection = async (req, res) => {
         res.json({ message: 'Database connection successful!', settings: merged });
     } catch (error) {
         console.error('Database connection test failed:', error);
-        await updateCompanyMetadata(req.user.companyId, {
+        const settings = await req.prisma.settings.findFirst();
+        const companyId = req.user.companyId || settings?.companyId;
+
+        await updateCompanyMetadata(companyId, {
             lastDbTestStatus: 'failure',
             lastDbTestDate: new Date(),
             lastDbTestError: error.message
         });
 
-        const settings = await req.prisma.settings.findFirst();
-        const freshMeta = await getCompanyMetadata(req.user.companyId);
+        const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...settings };
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';

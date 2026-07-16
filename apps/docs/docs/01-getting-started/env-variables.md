@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Environment Variables Reference
 
-This document lists all environment variables required to run the IMS Platform across its various microservices and frontend applications.
+This document lists all environment variables required to run the 180workspace Platform across its various microservices and frontend applications.
 
 ## 1. HTTP Backend (`apps/http-backend/.env`)
 

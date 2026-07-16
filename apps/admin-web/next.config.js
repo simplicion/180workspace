@@ -22,11 +22,11 @@ const nextConfig = {
         },
     },
 
-    webpack: (config, { isServer, webpack }) => {
-        // ... (keep this comment around proxy-from-env if there is one)
-        config.resolve.alias['proxy-from-env'] = require.resolve('proxy-from-env/index.js');
-        return config;
-    },
+    // webpack: (config, { isServer, webpack }) => {
+    //     // ... (keep this comment around proxy-from-env if there is one)
+    //     config.resolve.alias['proxy-from-env'] = require.resolve('proxy-from-env/index.js');
+    //     return config;
+    // },
 
     images: {
         remotePatterns: [

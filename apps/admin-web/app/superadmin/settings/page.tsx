@@ -651,7 +651,7 @@ export default function SettingsPage() {
             <MongoSetupGuide 
                 show={showGuide} 
                 onClose={() => setShowGuide(false)} 
-                platformName={form.platformName || 'IMS'}
+                platformName={form.platformName || '180workspace'}
             />
         </div>
     );

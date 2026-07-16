@@ -2,7 +2,7 @@
 
 ## Complete Breakdown
 
-The IMS repository relies on a standard Monorepo pattern (separated by folders rather than heavy native workspaces).
+The 180workspace repository relies on a standard Monorepo pattern (separated by folders rather than heavy native workspaces).
 
 ```text
 /ims-platform/

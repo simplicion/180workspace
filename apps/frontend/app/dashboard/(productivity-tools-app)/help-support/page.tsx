@@ -38,7 +38,7 @@ const QUICK_LINKS = [
         href: '/dashboard/help-support/community',
         icon: Globe,
         label: 'Community Forum',
-        sub: 'Join other IMS users',
+        sub: 'Join other 180workspace users',
         iconBg: 'bg-emerald-50',
         iconColor: 'text-emerald-500',
         border: 'hover:border-emerald-200',
@@ -60,7 +60,7 @@ const HELP_CATEGORIES = [
     {
         id: 'getting-started',
         title: 'Getting Started',
-        description: 'New to IMS? Learn the basics and set up your workspace in minutes.',
+        description: 'New to 180workspace? Learn the basics and set up your workspace in minutes.',
         icon: Zap,
         bg: 'bg-amber-50',
         text: 'text-amber-600',
@@ -146,20 +146,20 @@ const HELP_CATEGORIES = [
 
 const FAQS = [
     {
-        q: 'What is IMS and how can it help my business?',
-        a: 'IMS is an all-in-one ERP designed for modern teams. It combines CRM, HR, Finance, and AI Productivity tools into a single, unified workspace to eliminate data silos and accelerate growth.',
+        q: 'What is 180workspace and how can it help my business?',
+        a: '180workspace is an all-in-one ERP designed for modern teams. It combines CRM, HR, Finance, and AI Productivity tools into a single, unified workspace to eliminate data silos and accelerate growth.',
     },
     {
         q: 'How does the AI Content Calendar work?',
         a: 'Our AI analyses your brand voice, industry, and targets to generate a month-long content strategy — including headlines, captions, and visual briefs — tailored for different platforms.',
     },
     {
-        q: 'Is my data secure on IMS?',
+        q: 'Is my data secure on 180workspace?',
         a: 'Absolutely. We use enterprise-grade encryption for all data at rest and in transit, backed by granular Role-Based Access Control (RBAC) so you control exactly who sees what.',
     },
     {
-        q: 'Can I integrate other apps with IMS?',
-        a: 'Yes! IMS supports webhooks and has a public API so you can connect with tools like Slack, Google Workspace, and WhatsApp for seamless automation.',
+        q: 'Can I integrate other apps with 180workspace?',
+        a: 'Yes! 180workspace supports webhooks and has a public API so you can connect with tools like Slack, Google Workspace, and WhatsApp for seamless automation.',
     },
     {
         q: 'What support options are available?',
@@ -194,39 +194,24 @@ export default function HelpSupportPage() {
         : HELP_CATEGORIES;
 
     return (
-        <div className="max-w-6xl mx-auto pb-24 px-4 space-y-14">
+        <div className="max-w-4xl space-y-6">
 
-            {/* ── Hero ──────────────────────────────────────────────────────── */}
-            <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 shadow-2xl shadow-indigo-500/20 p-8 md:p-12">
-                {/* decorative blobs */}
-                <div className="absolute -top-20 -right-20 w-80 h-80 bg-purple-500/30 rounded-full blur-[90px] pointer-events-none" />
-                <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-300/20 rounded-full blur-[70px] pointer-events-none" />
-                <HelpCircle className="absolute top-8 right-8 w-52 h-52 text-white/5 pointer-events-none -rotate-12" />
+            {/* ── Header ──────────────────────────────────────────────────────── */}
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">Help & Support</h1>
+                <p className="text-gray-500 mt-1">Search our documentation, browse guides, or connect with our support team.</p>
+            </div>
 
-                <div className="relative z-10 max-w-2xl">
-                    <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-indigo-100 text-xs font-semibold px-3 py-1.5 rounded-full mb-5">
-                        <Sparkles className="w-3.5 h-3.5" /> Support Center
-                    </span>
-                    <h1 className="text-3xl md:text-4xl xl:text-5xl font-black text-white mb-3 leading-tight tracking-tight">
-                        How can we help you <br />
-                        <span className="text-indigo-200">succeed with IMS?</span>
-                    </h1>
-                    <p className="text-indigo-100/80 text-sm md:text-base mb-8 font-medium max-w-lg">
-                        Search our documentation, browse guides, or connect with our support team.
-                    </p>
-
-                    {/* Search */}
-                    <div className="relative group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-300 group-focus-within:text-white transition-colors" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search for articles, features, or tutorials..."
-                            className="w-full h-14 bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 text-white placeholder:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-white/40 focus:bg-white/20 transition-all font-medium backdrop-blur-md text-sm"
-                        />
-                    </div>
-                </div>
+            {/* Search */}
+            <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-gray-900 transition-colors" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search for articles, features, or tutorials..."
+                    className="w-full h-12 bg-white border border-gray-200 rounded-xl pl-12 pr-5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all font-medium text-sm"
+                />
             </div>
 
             {/* ── Stats Bar ─────────────────────────────────────────────────── */}
@@ -335,38 +320,38 @@ export default function HelpSupportPage() {
             </div>
 
             {/* ── FAQ Accordion ─────────────────────────────────────────────── */}
-            <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-3xl border border-gray-100 p-8 md:p-12">
-                <div className="text-center max-w-xl mx-auto mb-10">
-                    <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-3">Frequently Asked Questions</h2>
-                    <p className="text-gray-500 font-medium text-sm leading-relaxed">
+            <div className="bg-white rounded-2xl border border-gray-200 p-8">
+                <div className="mb-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-1">Frequently Asked Questions</h2>
+                    <p className="text-gray-500 font-medium text-sm">
                         Can&apos;t find what you&apos;re looking for? Most common questions are answered here.
                     </p>
                 </div>
 
-                <div className="max-w-3xl mx-auto space-y-3">
+                <div className="space-y-3">
                     {FAQS.map((faq, i) => (
                         <div
                             key={i}
                             className={clsx(
-                                'bg-white rounded-2xl border transition-all overflow-hidden',
-                                openFaq === i ? 'border-indigo-200 shadow-md shadow-indigo-500/5' : 'border-gray-100 hover:border-gray-200'
+                                'bg-white rounded-xl border transition-all overflow-hidden',
+                                openFaq === i ? 'border-gray-900 shadow-sm' : 'border-gray-200 hover:border-gray-300'
                             )}
                         >
                             <button
                                 onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                                className="w-full text-left px-6 py-5 flex items-center justify-between gap-4"
+                                className="w-full text-left px-5 py-4 flex items-center justify-between gap-4"
                             >
-                                <span className="font-bold text-gray-900 text-sm md:text-base leading-snug">{faq.q}</span>
+                                <span className="font-bold text-gray-900 text-sm">{faq.q}</span>
                                 <span className={clsx(
-                                    'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
-                                    openFaq === i ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'
+                                    'w-6 h-6 rounded flex items-center justify-center shrink-0 transition-all',
+                                    openFaq === i ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500'
                                 )}>
                                     <ChevronDown className={clsx('w-4 h-4 transition-transform', openFaq === i && 'rotate-180')} />
                                 </span>
                             </button>
                             {openFaq === i && (
-                                <div className="px-6 pb-5">
-                                    <div className="h-px bg-gray-100 mb-4" />
+                                <div className="px-5 pb-4">
+                                    <div className="h-px bg-gray-100 mb-3" />
                                     <p className="text-sm text-gray-600 leading-relaxed">{faq.a}</p>
                                 </div>
                             )}
@@ -376,38 +361,26 @@ export default function HelpSupportPage() {
             </div>
 
             {/* ── CTA ───────────────────────────────────────────────────────── */}
-            <div className="relative rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 p-8 md:p-16 text-center overflow-hidden shadow-2xl shadow-indigo-900/30">
-                <div
-                    className="absolute inset-0 opacity-[0.07] pointer-events-none"
-                    style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.4) 1px, transparent 0)', backgroundSize: '24px 24px' }}
-                />
-                <div className="absolute -top-24 -left-24 w-72 h-72 bg-purple-600/30 rounded-full blur-[80px] pointer-events-none" />
-                <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-indigo-400/20 rounded-full blur-[80px] pointer-events-none" />
-
+            <div className="bg-gray-900 rounded-2xl p-8 md:p-10 text-center shadow-lg relative overflow-hidden">
                 <div className="relative z-10">
-                    <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-indigo-100 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
-                        <Phone className="w-3 h-3" /> 24/7 Support Available
-                    </span>
-                    <h2 className="text-3xl md:text-4xl font-black text-white mb-4 tracking-tight">Still need help?</h2>
-                    <p className="text-indigo-100/80 mb-10 max-w-md mx-auto font-medium text-sm md:text-base">
-                        Our technical support team is available around the clock to resolve your blockers. Reach out anytime.
+                    <h2 className="text-2xl font-bold text-white mb-2">Still need help?</h2>
+                    <p className="text-gray-400 mb-6 text-sm">
+                        Our technical support team is available around the clock to resolve your blockers. Reach out anytime via email or phone.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Link
-                            href="/dashboard/help-support/tickets/new"
-                            className="inline-flex items-center gap-2 h-14 bg-white text-indigo-900 hover:bg-indigo-50 px-10 rounded-2xl font-black shadow-xl shadow-black/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        <a
+                            href="mailto:support@180workspace.com"
+                            className="inline-flex items-center gap-2 bg-white text-gray-900 hover:bg-gray-50 px-6 py-3 rounded-xl font-bold shadow-sm transition-all text-sm"
                         >
                             <Mail className="w-4 h-4" />
-                            Contact Support
-                        </Link>
+                            support@180workspace.com
+                        </a>
                         <a
-                            href="https://github.com/Prince364133/IMS-SYSTEM"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 text-white font-bold px-6 h-14 hover:bg-white/10 rounded-2xl transition-all border border-white/20"
+                            href="tel:+18001809000"
+                            className="inline-flex items-center gap-2 bg-gray-800 text-white hover:bg-gray-700 px-6 py-3 rounded-xl font-bold transition-all text-sm border border-gray-700"
                         >
-                            <Github className="w-5 h-5" />
-                            Visit GitHub Repo
+                            <Phone className="w-4 h-4" />
+                            +1 (800) 180-9000
                         </a>
                     </div>
                 </div>

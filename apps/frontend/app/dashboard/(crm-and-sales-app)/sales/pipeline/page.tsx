@@ -282,7 +282,7 @@ export default function PipelinePage() {
                 </div>
             </div>
 
-            {/* Stats Bar (IMS Design) */}
+            {/* Stats Bar (180workspace Design) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 px-2 lg:px-4">
                 {[
                     { label: 'Pipeline Value', value: `$${leads.reduce((sum, lead) => sum + (lead.value || 0), 0).toLocaleString()}`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' },

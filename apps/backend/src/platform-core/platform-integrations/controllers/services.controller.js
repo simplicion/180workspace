@@ -126,7 +126,7 @@ exports.submitServiceRequest = async (req, res) => {
                     <p><strong>Requirements:</strong> ${requirements}</p>
                     <p><strong>Budget:</strong> ${budgetRange || 'N/A'} | <strong>Timeline:</strong> ${timeline || 'N/A'}</p>
                     <br/>
-                    <p>Log in to your IMS Dashboard to manage this request.</p>
+                    <p>Log in to your 180workspace Dashboard to manage this request.</p>
                 `);
             } catch (emailError) {
                 console.error("Failed to send lead email notification", emailError);

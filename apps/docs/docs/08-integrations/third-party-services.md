@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Third-Party Integrations
 
-The IMS Platform integrates with multiple external providers to handle payments, AI generation, file storage, and communications. These are primarily managed within the `src/services/` directory of the `http-backend`.
+The 180workspace Platform integrates with multiple external providers to handle payments, AI generation, file storage, and communications. These are primarily managed within the `src/services/` directory of the `http-backend`.
 
 ## 1. Payments & Billing (Stripe & Razorpay)
 Managed via `billing.service.js`.

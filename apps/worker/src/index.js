@@ -32,7 +32,7 @@ try {
 
 
 console.log('====================================');
-console.log('âš™ï¸  IMS BACKGROUND WORKER BOOTING...');
+console.log('âš™ï¸  180workspace BACKGROUND WORKER BOOTING...');
 console.log('====================================');
 
 let activeWorkers = [];
@@ -81,7 +81,7 @@ async function bootstrap() {
     }
 
     console.log('====================================');
-    console.log('ðŸš€ IMS BACKGROUND WORKER ONLINE');
+    console.log('ðŸš€ 180workspace BACKGROUND WORKER ONLINE');
     console.log('====================================');
 }
 

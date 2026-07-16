@@ -68,7 +68,7 @@ class AiContentService {
         }
 
         const prompt = `
-SYSTEM ROLE: Content Calendar Creator Engine for IMS Digital Marketing App
+SYSTEM ROLE: Content Calendar Creator Engine for 180workspace Digital Marketing App
 
 YOU ARE: An enterprise-grade content calendar creation assistant skilled in viral marketing and brand strategy.
 YOUR GOAL: Generate a high-quality, perfectly structured social media content calendar based on the user's specific parameters.

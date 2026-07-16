@@ -1,12 +1,12 @@
 > *Last verified against Postgres schema migration (July 2026)*
 
-# IMS (Inventory Management System) / Enterprise Platform
+# 180workspace (Inventory Management System) / Enterprise Platform
 
 ## Project Overview
-The IMS Enterprise Platform is a multi-tenant business management and inventory tracking architecture designed to handle complex organizational hierarchies, human resources, CRM, scheduling, and physical inventory routing. The project operates globally via a dual-layered architecture featuring robust RESTful communication and real-time socket updates.
+The 180workspace Enterprise Platform is a multi-tenant business management and inventory tracking architecture designed to handle complex organizational hierarchies, human resources, CRM, scheduling, and physical inventory routing. The project operates globally via a dual-layered architecture featuring robust RESTful communication and real-time socket updates.
 
-## Purpose of IMS
-The primary goal of the IMS system is to centralize operational datasets across multiple disparate departments—ranging from HR (Salaries, Leaves) to Finance (Invoicing, Expenses) and CRM (Clients, Vendors). It incorporates strict Role-Based Access Control (RBAC) and data containment mechanisms (Tenant level isolation).
+## Purpose of 180workspace
+The primary goal of the 180workspace system is to centralize operational datasets across multiple disparate departments—ranging from HR (Salaries, Leaves) to Finance (Invoicing, Expenses) and CRM (Clients, Vendors). It incorporates strict Role-Based Access Control (RBAC) and data containment mechanisms (Tenant level isolation).
 
 ## Key Features
 - **Multi-Tenant Data Architecture:** Dynamic tenant resolution isolating PostgreSQL namespaces per company.

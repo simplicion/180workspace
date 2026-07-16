@@ -248,7 +248,7 @@ API CONFIGURATION:
 - Authentication: Header 'x-api-key' with value '${apiKey || 'YOUR_API_KEY'}'
 
 SECURITY NOTE (Domain Whitelisting):
-- For browser-based requests, you MUST ensure your website domain (e.g., yourcompany.com) is added to the "Whitelisted Domains" in the IMS Recruitment Dashboard -> API Settings.
+- For browser-based requests, you MUST ensure your website domain (e.g., yourcompany.com) is added to the "Whitelisted Domains" in the 180workspace Recruitment Dashboard -> API Settings.
 - Requests from unauthorized origins will return a 403 Forbidden error.
 
 UI REQUIREMENTS:

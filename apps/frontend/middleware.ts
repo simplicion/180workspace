@@ -12,7 +12,7 @@ export default withAuth(
       
     const isSetupPage = req.nextUrl.pathname.startsWith("/workspace-setup")
 
-    // IMS Dashboard routes (Requires Workspace Setup)
+    // 180workspace Dashboard routes (Requires Workspace Setup)
     const isIMSRoute = req.nextUrl.pathname.startsWith("/dashboard");
 
     // PitchIn routes (Accessible by ANYONE with a token, regardless of workspace setup)
@@ -58,7 +58,7 @@ export default withAuth(
       return NextResponse.redirect(new URL("/", req.url));
     }
 
-    // 3. User is trying to access IMS routes (Dashboard, CRM, etc.)
+    // 3. User is trying to access 180workspace routes (Dashboard, CRM, etc.)
     if (isIMSRoute) {
        // If personal onboarding is not complete, redirect to signup
        if (!isOnboardingDone) {
@@ -73,7 +73,7 @@ export default withAuth(
 
     // 4. User is trying to access Workspace Setup
     if (isSetupPage) {
-       // If they already completed it, redirect them to IMS Dashboard
+       // If they already completed it, redirect them to 180workspace Dashboard
        if (isWorkspaceSetupComplete) {
          return NextResponse.redirect(new URL("/dashboard", req.url));
        }

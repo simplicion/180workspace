@@ -14,21 +14,19 @@ import { useSettings } from '@/lib/settings-context';
 
 const SectionHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
     <div className="flex items-center gap-2 mb-5 pb-3 border-b border-gray-100 mt-8 first:mt-0">
-        <div className="p-1.5 bg-indigo-50 rounded-lg">
-            <Icon className="w-4 h-4 text-indigo-600" />
-        </div>
-        <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest">{title}</h3>
+        <Icon className="w-5 h-5 text-indigo-600" />
+        <h3 className="font-semibold text-gray-900">{title}</h3>
     </div>
 );
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <div className="space-y-1.5">
-        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">{label}</label>
+        <label className="label">{label}</label>
         {children}
     </div>
 );
 
-const inputCls = "w-full px-4 py-2.5 border border-gray-200 rounded-2xl text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 placeholder:text-gray-300 transition-all";
+const inputCls = "input bg-white";
 
 export default function CompanyLegalsPage() {
     const router = useRouter();
@@ -142,45 +140,36 @@ export default function CompanyLegalsPage() {
     };
 
     return (
-        <div className="p-8 max-w-5xl mx-auto space-y-0">
+        <div className="max-w-5xl space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => router.push('/dashboard/settings/system-configs')}
                         title="Back to System Config"
                         aria-label="Back to System Config"
-                        className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all border border-gray-100"
+                        className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-
-                            <Building2 className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">System Config</span>
-                                <h1 className="text-2xl font-black text-gray-900">Company & Legals</h1>
-                            </div>
-                            <p className="text-sm text-gray-500 font-medium">Company identity, white-labeling, legal, and banking details</p>
-                        </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Company & Legals</h1>
+                        <p className="text-gray-500 mt-1">Company identity, white-labeling, legal, and banking details</p>
                     </div>
                 </div>
                 <button
                     onClick={handleSave}
                     disabled={loading}
                     title="Save all configuration changes"
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50"
+                    className="btn-primary"
                 >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {loading ? 'Saving...' : 'Save All Changes'}
+                    {loading ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>
 
             {/* Form Card */}
-            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8 space-y-0">
+            <div className="card space-y-0 p-8">
 
                 {/* ── Branding & Visuals ── */}
                 <SectionHeader icon={ImageIcon} title="Branding & Visuals" />

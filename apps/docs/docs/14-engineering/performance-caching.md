@@ -4,7 +4,7 @@ sidebar_position: 6
 
 # Performance & Caching
 
-At the scale of the IMS Platform, efficiency is crucial. Follow these performance strategies.
+At the scale of the 180workspace Platform, efficiency is crucial. Follow these performance strategies.
 
 ## Backend Performance
 

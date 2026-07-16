@@ -42,11 +42,11 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
         useCases: ['View unified dashboards across CRM, HR, and Finance', 'Generate and export monthly business reports', 'Set KPI targets and track performance over time']
     },
     tools: {
-        overview: 'Workspace Tools brings productivity and communication directly into IMS. Chat, schedule meetings, manage documents, and delegate tasks without switching apps.',
+        overview: 'Workspace Tools brings productivity and communication directly into 180workspace. Chat, schedule meetings, manage documents, and delegate tasks without switching apps.',
         useCases: ['Real-time internal chat between team members', 'Schedule and host video meetings in-browser', 'Store and collaborate on company documents', 'Use the AI Assistant for contextual Q&A across data']
     },
     advertising: {
-        overview: 'Advertising lets you create dynamic landing pages, track ad performance with pixel integrations, and monitor campaign statistics — all from within the IMS.',
+        overview: 'Advertising lets you create dynamic landing pages, track ad performance with pixel integrations, and monitor campaign statistics — all from within the 180workspace.',
         useCases: ['Build and publish landing pages for ad campaigns', 'Configure Facebook, Google, and custom pixel tracking', 'Monitor campaign performance and conversion rates']
     },
     jobhunter: {
@@ -54,8 +54,8 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
         useCases: ['Discover relevant job postings matched to your profile', 'Track application status across multiple platforms', 'Build and optimize your candidate profile with AI insights']
     },
     integrations: {
-        overview: 'Custom Integrations lets you connect external tools and services to your IMS. Set up webhook endpoints to push data out, generate API keys for external access, or connect popular tools like Slack and GitHub.',
-        useCases: ['Register webhook URLs to receive real-time event notifications', 'Generate scoped API keys for external systems to access your IMS data', 'Connect third-party tools like Slack, GitHub, or Zapier', 'Monitor and manage all active integrations in one place']
+        overview: 'Custom Integrations lets you connect external tools and services to your 180workspace. Set up webhook endpoints to push data out, generate API keys for external access, or connect popular tools like Slack and GitHub.',
+        useCases: ['Register webhook URLs to receive real-time event notifications', 'Generate scoped API keys for external systems to access your 180workspace data', 'Connect third-party tools like Slack, GitHub, or Zapier', 'Monitor and manage all active integrations in one place']
     }
 };
 
@@ -395,7 +395,7 @@ export default function AppConfigPage() {
                             <div>
                                 <h2 className="text-lg font-black text-gray-900">About {app.name}</h2>
                                 <p className="text-gray-500 mt-2 leading-relaxed font-medium">
-                                    {appDetails?.overview || `${app.name} is a core module of the IMS architecture: ${app.description}`}
+                                    {appDetails?.overview || `${app.name} is a core module of the 180workspace architecture: ${app.description}`}
                                 </p>
                             </div>
 

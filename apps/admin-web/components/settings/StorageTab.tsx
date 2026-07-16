@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
     Server, ShieldCheck, ShieldAlert, Info, Eye, EyeOff, 
-    Loader2, Save, Activity, CheckCircle2, Cloud, Globe, Palette, ExternalLink
+    Loader2, Save, Activity, Cloud, Globe, Palette, ExternalLink, Database
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -34,6 +34,7 @@ export default function StorageTab() {
     const [storageMode, setStorageMode] = useState<'cloudinary' | 'google_drive' | 'local'>(settings?.storageMode || 'cloudinary');
     const [googleDriveServiceAccount, setGoogleDriveServiceAccount] = useState(settings?.googleDriveServiceAccount || '');
     const [googleDriveFolderId, setGoogleDriveFolderId] = useState(settings?.googleDriveFolderId || '');
+    const [googleSheetsId, setGoogleSheetsId] = useState(settings?.googleSheetsId || '');
     const [cloudinaryCloudName, setCloudinaryCloudName] = useState(settings?.cloudinaryCloudName || '');
     const [cloudinaryApiKey, setCloudinaryApiKey] = useState(settings?.cloudinaryApiKey || '');
     const [cloudinaryApiSecret, setCloudinaryApiSecret] = useState(settings?.cloudinaryApiSecret || '');
@@ -46,6 +47,7 @@ export default function StorageTab() {
             setStorageMode(settings.storageMode || 'cloudinary');
             setGoogleDriveServiceAccount(settings.googleDriveServiceAccount || '');
             setGoogleDriveFolderId(settings.googleDriveFolderId || '');
+            setGoogleSheetsId(settings.googleSheetsId || '');
             setCloudinaryCloudName(settings.cloudinaryCloudName || '');
             setCloudinaryApiKey(settings.cloudinaryApiKey || '');
             setCloudinaryApiSecret(settings.cloudinaryApiSecret || '');
@@ -57,7 +59,7 @@ export default function StorageTab() {
         setSaving(true);
         try {
             await api.put('/api/settings', {
-                storageMode, googleDriveServiceAccount, googleDriveFolderId,
+                storageMode, googleDriveServiceAccount, googleDriveFolderId, googleSheetsId,
                 cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret
             });
             toast.success('Storage configuration saved');
@@ -74,7 +76,7 @@ export default function StorageTab() {
         try {
             // First save
             await api.put('/api/settings', {
-                storageMode, googleDriveServiceAccount, googleDriveFolderId,
+                storageMode, googleDriveServiceAccount, googleDriveFolderId, googleSheetsId,
                 cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret
             });
 
@@ -91,68 +93,53 @@ export default function StorageTab() {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="card max-w-3xl mx-auto overflow-hidden border-gray-100 shadow-xl shadow-blue-50/20 rounded-[32px]">
-                <div className="card-header border-b border-gray-50 flex items-center justify-between p-8 bg-white">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3.5 bg-blue-50 rounded-2xl">
-                            <Server className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight">Storage & Cloud Drive</h2>
-                            <p className="text-xs text-gray-500 font-medium">Choose and configure your preferred file storage provider.</p>
-                        </div>
+        <div className="max-w-xl space-y-6">
+            <div className="card">
+                <div className="card-header flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Database className="w-5 h-5 text-blue-600" />
+                        <h2 className="font-semibold text-gray-900">Storage Configuration</h2>
                     </div>
                     
                     <div className="flex items-center gap-2">
                         {testStatus === 'success' && (
-                            <div className="flex items-center gap-1.5 px-4 py-1.5 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-green-100 animate-in fade-in zoom-in duration-300">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> 
-                                <span>Configured</span>
-                            </div>
+                            <span className="badge badge-green flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Connected
+                            </span>
                         )}
                         {testStatus === 'failure' && (
-                            <div className="flex items-center gap-1.5 px-4 py-1.5 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-red-100 animate-in fade-in zoom-in duration-300">
-                                <ShieldAlert className="w-3.5 h-3.5" /> 
-                                <span>Configuration Error</span>
-                            </div>
+                            <span className="badge badge-red flex items-center gap-1 text-[10px]">
+                                <ShieldAlert className="w-3 h-3" /> Connection Failed
+                            </span>
                         )}
                     </div>
                 </div>
 
-                <div className="card-body p-8 space-y-10">
+                <div className="card-body space-y-4">
+                    <p className="text-xs text-gray-500 mb-4">
+                        Choose and configure your preferred file storage provider.
+                    </p>
+
                     {/* Storage Mode Selection */}
-                    <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Select Provider</label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="label">Select Provider</label>
+                        <div className="grid grid-cols-2 md:grid-cols-2 gap-2">
                             {[
-                                { id: 'cloudinary', label: 'Cloudinary', desc: 'Optimized for high-speed images & media.', icon: Palette, color: 'indigo' },
-                                { id: 'google_drive', label: 'Google Drive', desc: 'Secure document storage using cloud drive.', icon: Globe, color: 'blue' },
+                                { id: 'cloudinary', label: 'Cloudinary', icon: Palette },
+                                { id: 'google_drive', label: 'Google Drive', icon: Globe },
                             ].map((m) => (
                                 <button
                                     key={m.id}
                                     onClick={() => setStorageMode(m.id as any)}
                                     className={clsx(
-                                        "group relative flex flex-col items-start p-6 rounded-[24px] border transition-all duration-300 text-left overflow-hidden",
+                                        "flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-medium transition-all gap-2",
                                         storageMode === m.id
-                                            ? "border-blue-600 bg-blue-50/50 shadow-md ring-1 ring-blue-600/10"
-                                            : "border-gray-100 bg-white hover:border-blue-200 hover:bg-gray-50/50"
+                                            ? "border-blue-600 bg-blue-50 text-blue-600 ring-2 ring-blue-100"
+                                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                                     )}
                                 >
-                                    <div className={clsx(
-                                        "p-3 rounded-xl mb-4 transition-colors",
-                                        storageMode === m.id ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600"
-                                    )}>
-                                        <m.icon className="w-5 h-5" />
-                                    </div>
-                                    <span className={clsx("font-black text-sm mb-1 uppercase tracking-tight", storageMode === m.id ? "text-blue-900" : "text-gray-700")}>{m.label}</span>
-                                    <p className="text-xs text-gray-500 font-medium leading-relaxed opacity-80">{m.desc}</p>
-                                    
-                                    {storageMode === m.id && (
-                                        <div className="absolute top-4 right-4 animate-in fade-in zoom-in">
-                                            <CheckCircle2 className="w-5 h-5 text-blue-600 fill-white" />
-                                        </div>
-                                    )}
+                                    <m.icon className="w-4 h-4" />
+                                    {m.label}
                                 </button>
                             ))}
                         </div>
@@ -160,7 +147,7 @@ export default function StorageTab() {
 
                     {/* Google Drive Configuration */}
                     {storageMode === 'google_drive' && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
                             <div>
                                 <label className="label">
                                     Google Service Account (JSON)
@@ -170,20 +157,11 @@ export default function StorageTab() {
                                     value={googleDriveServiceAccount}
                                     onChange={e => setGoogleDriveServiceAccount(e.target.value)}
                                     placeholder='{ "type": "service_account", ... }'
-                                    className="input font-mono text-[10px] h-40 py-4 bg-gray-50/30 border-gray-100 focus:bg-white focus:ring-blue-500"
+                                    className="input bg-white h-40 py-4 font-mono text-[10px]"
                                 />
-                                <div className="mt-3 p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
-                                    <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                                    <div className="text-[10px] text-amber-900 font-medium space-y-1">
-                                        <p className="font-black uppercase tracking-widest text-[9px] mb-1">Quick Setup Guide:</p>
-                                        <ol className="list-decimal list-inside space-y-1">
-                                            <li>Create a <b>Service Account</b> in Google Cloud IAM.</li>
-                                            <li>Generate a <b>JSON Key</b> and paste its entire content above.</li>
-                                            <li>Enable the <b>Google Drive API</b> in your GCP project.</li>
-                                            <li>Share your root folder with the service account email.</li>
-                                        </ol>
-                                    </div>
-                                </div>
+                                <p className="text-[10px] text-gray-400 mt-1">
+                                    Create a Service Account in Google Cloud IAM, generate a JSON Key, and paste its entire content above.
+                                </p>
                             </div>
                             <div>
                                 <label className="label">Root Folder ID (Optional)</label>
@@ -191,16 +169,18 @@ export default function StorageTab() {
                                     value={googleDriveFolderId}
                                     onChange={e => setGoogleDriveFolderId(e.target.value)}
                                     placeholder="1A2B3C4D..."
-                                    className="input bg-gray-50/30 border-gray-100 focus:bg-white"
+                                    className="input bg-white"
                                 />
-                                <p className="text-[10px] text-gray-400 mt-1.5 font-medium">The unique identifier from the Google Drive URL of your target folder.</p>
+                                <p className="text-[10px] text-gray-400 mt-1">
+                                    The unique identifier from the Google Drive URL of your target folder.
+                                </p>
                             </div>
                         </div>
                     )}
 
                     {/* Cloudinary Configuration */}
                     {storageMode === 'cloudinary' && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
                             <div>
                                 <label className="label">
                                     Cloudinary Cloud Name
@@ -210,85 +190,82 @@ export default function StorageTab() {
                                     value={cloudinaryCloudName}
                                     onChange={e => setCloudinaryCloudName(e.target.value)}
                                     placeholder="e.g. dxyz123abc"
-                                    className="input bg-gray-50/30 border-gray-100 focus:bg-white"
+                                    className="input bg-white"
                                 />
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="label">API Key</label>
-                                    <input
-                                        value={cloudinaryApiKey}
-                                        onChange={e => setCloudinaryApiKey(e.target.value)}
-                                        placeholder="1234567890..."
-                                        className="input bg-gray-50/30 border-gray-100 focus:bg-white"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="label">API Secret</label>
-                                    <div className="relative">
-                                        <input
-                                            type={showPw ? 'text' : 'password'}
-                                            value={cloudinaryApiSecret}
-                                            onChange={e => setCloudinaryApiSecret(e.target.value)}
-                                            placeholder="••••••••••••"
-                                            className="input bg-gray-50/30 border-gray-100 focus:bg-white pr-12"
-                                        />
-                                        <button 
-                                            onClick={() => setShowPw(!showPw)} 
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                                        >
-                                            {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                </div>
+                            <div>
+                                <label className="label">API Key</label>
+                                <input
+                                    value={cloudinaryApiKey}
+                                    onChange={e => setCloudinaryApiKey(e.target.value)}
+                                    placeholder="1234567890..."
+                                    className="input bg-white"
+                                />
                             </div>
-                            <div className="bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100 flex gap-4">
-                                <Info className="w-6 h-6 text-indigo-500 flex-shrink-0 mt-0.5" />
-                                <div className="space-y-4 flex-1">
-                                    <div className="space-y-2">
-                                        <h4 className="text-sm font-black text-indigo-900 uppercase tracking-tight">Setup Instructions</h4>
-                                        <ol className="text-xs text-indigo-800 space-y-2 list-decimal list-inside opacity-90 font-medium leading-relaxed">
-                                            <li>Login to your <a href="https://console.cloudinary.com/" target="_blank" rel="noopener noreferrer" className="underline font-black hover:text-indigo-600 inline-flex items-center gap-1 transition-colors">Cloudinary Console <ExternalLink className="w-3 h-3" /></a></li>
-                                            <li>On the <b>Dashboard</b>, find &quot;Account Details&quot; section.</li>
-                                            <li>Copy and paste the <b>Cloud Name</b>, <b>API Key</b>, and <b>API Secret</b> above.</li>
-                                        </ol>
-                                    </div>
-                                    <p className="text-[10px] text-indigo-600 font-bold italic border-t border-indigo-100 pt-3">
-                                        Pro Tip: Use Cloudinary for lightning-fast image delivery and company branding. Google Drive is better suited for heavy document storage.
-                                    </p>
+                            <div>
+                                <label className="label">API Secret</label>
+                                <div className="relative">
+                                    <input
+                                        type={showPw ? 'text' : 'password'}
+                                        value={cloudinaryApiSecret}
+                                        onChange={e => setCloudinaryApiSecret(e.target.value)}
+                                        placeholder="••••••••••••"
+                                        className="input bg-white pr-10"
+                                    />
+                                    <button 
+                                        onClick={() => setShowPw(!showPw)} 
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                    >
+                                        {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     )}
 
+                    <div className="pt-4 border-t border-gray-100 mt-4">
+                        <label className="label">
+                            Google Sheets ID (for Meeting Notes)
+                            <InfoLink href="https://docs.google.com/spreadsheets/u/0/" label="Open Sheets" />
+                        </label>
+                        <input
+                            value={googleSheetsId}
+                            onChange={e => setGoogleSheetsId(e.target.value)}
+                            placeholder="1x2y3z... (ID from the URL)"
+                            className="input bg-white"
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">
+                            The ID of the spreadsheet where AI meeting summaries and action items will be stored.
+                            Ensure the service account defined above has <b>Editor</b> access to this sheet.
+                        </p>
+                    </div>
+
                     {/* Actions */}
-                    <div className="pt-6 flex flex-col md:flex-row gap-4">
+                    <div className="pt-4 flex gap-3 mt-4 border-t border-gray-100">
                         <button 
                             onClick={handleSave} 
                             disabled={saving} 
-                            className="btn-primary flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-blue-100"
+                            className="btn-primary flex-1"
                         >
-                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                            {saving ? 'Saving...' : 'Save Configuration'}
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? 'Saving...' : 'Save Settings'}
                         </button>
                         <button
                             onClick={handleTest}
                             disabled={testing || (storageMode === 'google_drive' && !googleDriveServiceAccount) || (storageMode === 'cloudinary' && !cloudinaryCloudName)}
                             className={clsx(
-                                "flex-1 h-14 flex items-center justify-center gap-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all shadow-sm",
-                                testStatus === 'success' 
-                                    ? "border-green-200 bg-green-50 text-green-700 font-bold shadow-green-50" 
-                                    : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:border-gray-300"
+                                "flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl border text-sm font-medium transition-all",
+                                testStatus === 'success' ? "border-green-200 bg-green-50 text-green-700 font-bold" : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
                             )}
                         >
-                            {testing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Activity className="w-5 h-5" />}
-                            {testing ? 'Testing...' : 'Verify Connectivity'}
+                            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                            {testing ? 'Validating...' : 'Connect & Test'}
                         </button>
                     </div>
 
                     {settings?.lastStorageTestDate && (
-                        <p className="text-[10px] text-gray-400 text-center font-bold tracking-tight">
-                            SYSTEM LAST VERIFIED SUCCESSFUL CONNECTION ON {new Date(settings.lastStorageTestDate).toLocaleString().toUpperCase()}
+                        <p className="text-[10px] text-gray-400 text-center">
+                            Last tested: {new Date(settings.lastStorageTestDate).toLocaleString()}
                         </p>
                     )}
                 </div>

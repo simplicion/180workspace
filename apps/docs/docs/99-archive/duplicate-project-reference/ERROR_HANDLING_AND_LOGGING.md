@@ -3,7 +3,7 @@
 # Error Handling and Logging
 
 ## Overview
-Error execution across the IMS structure isolates network faults completely from database faults ensuring stable user degradation. Backend crashes are caught before stalling the root process.
+Error execution across the 180workspace structure isolates network faults completely from database faults ensuring stable user degradation. Backend crashes are caught before stalling the root process.
 
 ## Error Handling Strategy
 1. **Frontend Fallbacks:** Next.js provides intrinsic `error.tsx` and `not-found.tsx` boundaries ensuring component trees do not crash fully upon bad data receives. 

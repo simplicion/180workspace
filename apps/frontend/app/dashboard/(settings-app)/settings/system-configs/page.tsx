@@ -28,30 +28,6 @@ const SYSTEM_TILES = [
         iconBg: 'bg-emerald-50',
         iconColor: 'text-emerald-600',
     },
-    {
-        name: 'Billing',
-        icon: CreditCard,
-        desc: 'Manage subscription plans, invoices, taxes and usage limits.',
-        href: '/dashboard/billing',
-        iconBg: 'bg-purple-50',
-        iconColor: 'text-purple-600',
-    },
-    {
-        name: 'User Management',
-        icon: Users,
-        desc: 'Invite users, manage teams, permissions and roles.',
-        href: '/dashboard/settings/user-management',
-        iconBg: 'bg-amber-50',
-        iconColor: 'text-amber-600',
-    },
-    {
-        name: 'Roles & Access',
-        icon: Shield,
-        desc: 'Define roles, access levels and permission control.',
-        href: '/dashboard/settings/roles-access',
-        iconBg: 'bg-rose-50',
-        iconColor: 'text-rose-600',
-    },
 ];
 
 // ─── Global Config Tiles ───
@@ -92,38 +68,6 @@ const GLOBAL_TILES = [
         rawCheck: (s: any) => !!(s?.smtpHost && s?.emailFrom),
         status: (s: any) => s?.lastEmailTestStatus,
     },
-    {
-        id: 'webhooks',
-        name: 'Webhooks',
-        icon: Globe,
-        desc: 'Manage webhook endpoints and automation triggers.',
-        href: '/dashboard/settings/webhooks',
-        iconBg: 'bg-orange-50',
-        iconColor: 'text-orange-600',
-        check: (s: any) => !!s?.webhookUrl,
-        rawCheck: (s: any) => !!s?.webhookUrl,
-        status: (s: any) => s?.webhookUrl ? 'success' : 'none',
-    },
-    {
-        id: 'crm',
-        name: 'CRM Algorithms',
-        icon: Activity,
-        desc: 'Configure lead scoring, automation rules and predictions.',
-        href: '/dashboard/settings/crm',
-        iconBg: 'bg-teal-50',
-        iconColor: 'text-teal-600',
-        check: (s: any) => !!s?.salesConfig,
-        rawCheck: (s: any) => !!s?.salesConfig,
-        status: (s: any) => s?.salesConfig ? 'success' : 'none',
-    },
-];
-
-// ─── Bottom Trust Bar Items ───
-const TRUST_ITEMS = [
-    { icon: ShieldCheck, title: 'Secure & Reliable', desc: 'Enterprise-grade security and data protection.' },
-    { icon: Zap, title: 'High Performance', desc: 'Optimized infrastructure for speed and scale.' },
-    { icon: Clock, title: '99.9% Uptime', desc: 'Built for reliability and always-on access.' },
-    { icon: Headphones, title: '24/7 Support', desc: 'Our team is here to help you anytime, anywhere.' },
 ];
 
 // ─── Status Badge ───
@@ -179,21 +123,11 @@ export default function SystemConfigsPage() {
                 <div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-black text-gray-900 tracking-tight">System Configs</h1>
-                        <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest">
-                            Admin
-                        </span>
                     </div>
                     <p className="text-sm text-gray-500 mt-1 font-medium">
                         Centralized hub for platform-wide preferences and technical infrastructure.
                     </p>
                 </div>
-                <Link
-                    href="/dashboard/settings/system-configs"
-                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm"
-                >
-                    <HeartPulse className="w-4 h-4 text-emerald-500" />
-                    System Health
-                </Link>
             </div>
 
             {/* ─── Section: System Configs ─── */}
@@ -204,7 +138,7 @@ export default function SystemConfigsPage() {
                     variants={containerVariants}
                     initial="hidden"
                     animate="show"
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
                 >
                     {SYSTEM_TILES.map((tile) => (
                         <motion.div key={tile.name} variants={cardVariants}>
@@ -232,26 +166,7 @@ export default function SystemConfigsPage() {
                             </Link>
                         </motion.div>
                     ))}
-                </motion.div>
-            </section>
 
-            {/* ─── Section: Global Configs ─── */}
-            <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xs font-black uppercase tracking-[0.15em] text-gray-400">Global Configs</h2>
-                        <p className="text-[11px] text-gray-400 mt-0.5 font-medium">
-                            Shared infrastructure used across multiple applications.
-                        </p>
-                    </div>
-                </div>
-
-                <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="show"
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-                >
                     {GLOBAL_TILES.map((tile) => (
                         <motion.div key={tile.id} variants={cardVariants}>
                             <Link
@@ -302,20 +217,6 @@ export default function SystemConfigsPage() {
                 </motion.div>
             </section>
 
-            {/* ─── Trust Footer ─── */}
-            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
-                {TRUST_ITEMS.map((item) => (
-                    <div key={item.title} className="flex items-start gap-3 p-3">
-                        <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                            <item.icon className="w-4.5 h-4.5 text-gray-400" />
-                        </div>
-                        <div>
-                            <p className="text-[12px] font-bold text-gray-800">{item.title}</p>
-                            <p className="text-[10px] text-gray-400 leading-relaxed mt-0.5">{item.desc}</p>
-                        </div>
-                    </div>
-                ))}
-            </section>
         </div>
     );
 }

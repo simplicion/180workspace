@@ -243,7 +243,7 @@ function LoginForm() {
                     transition={{ duration: 1, delay: 1 }}
                     className="relative z-10 text-sm text-blue-100/40"
                 >
-                    &copy; {new Date().getFullYear()} {platform?.name || 'IMS'}. All rights reserved.
+                    &copy; {new Date().getFullYear()} {platform?.name || '180workspace'}. All rights reserved.
                 </motion.div>
             </div>
 

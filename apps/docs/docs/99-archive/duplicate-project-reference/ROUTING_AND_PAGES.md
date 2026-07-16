@@ -3,7 +3,7 @@
 # Routing and Pages
 
 ## Overview
-The IMS platform delegates routing uniquely depending on the environment. The Next.js 14 App Router fundamentally drives all frontend views via the `/app` directory paradigm.
+The 180workspace platform delegates routing uniquely depending on the environment. The Next.js 14 App Router fundamentally drives all frontend views via the `/app` directory paradigm.
 
 ## Route Hierarchy
 ### Public Routes

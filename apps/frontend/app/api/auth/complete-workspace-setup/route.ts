@@ -6,6 +6,8 @@ import { prisma } from '@workspace/db';
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    console.log('[Workspace Setup] Session:', JSON.stringify(session, null, 2));
+
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

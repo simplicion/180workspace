@@ -4,7 +4,7 @@ sidebar_position: 7
 
 # Good Practices & Code Patterns
 
-This document outlines the coding standards and specific code-level patterns to use when contributing to the IMS Platform.
+This document outlines the coding standards and specific code-level patterns to use when contributing to the 180workspace Platform.
 
 ## 1. Clean Code Principles
 - **DRY (Don't Repeat Yourself):** Extract reusable logic into utility functions or shared hooks.

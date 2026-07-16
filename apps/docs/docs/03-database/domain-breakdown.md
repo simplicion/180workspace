@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Database & Core Domains
 
-The `http-backend` uses PostgreSQL (via Prisma) and contains 46 distinct models. These models are grouped into logical business domains to support the massive feature set of the IMS Platform.
+The `http-backend` uses PostgreSQL (via Prisma) and contains 46 distinct models. These models are grouped into logical business domains to support the massive feature set of the 180workspace Platform.
 
 ## 1. Core & Administration Domain
 These models handle system-wide configuration, multi-tenancy, and security.

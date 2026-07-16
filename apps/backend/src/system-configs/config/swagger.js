@@ -4,9 +4,9 @@ const options = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'IMS Platform API',
+            title: '180workspace Platform API',
             version: '2.0.0',
-            description: 'Interactive API documentation for the IMS Platform backend',
+            description: 'Interactive API documentation for the 180workspace Platform backend',
         },
         servers: [
             {

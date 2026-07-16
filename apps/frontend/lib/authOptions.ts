@@ -104,9 +104,11 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
+      console.log('[JWT] incoming token:', JSON.stringify(token));
+
       // Initialize or update token on sign in
       if (user) {
-        token.id = user.id;
+        token.id = user.id || token.sub;
         token.username = (user as any).username;
         token.companyId = (user as any).companyId;
         token.role = (user as any).role;
@@ -126,10 +128,10 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Always verify user against database to ensure server-side security and session validity
-      if (token.id) {
+      if (token.id || token.email) {
         try {
           const dbUser = await prisma.user.findUnique({ 
-            where: { id: token.id as string },
+            where: token.id ? { id: token.id as string } : { email: token.email as string },
             include: { company: true }
           });
           
@@ -138,6 +140,8 @@ export const authOptions: NextAuthOptions = {
             return {};
           }
           
+          // Ensure token.id is set correctly to the DB id
+          token.id = dbUser.id;
           token.companyId = dbUser.companyId;
           token.username = dbUser.username;
           token.role = dbUser.role;
@@ -161,6 +165,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      console.log('[Session Callback] token:', JSON.stringify(token));
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).username = token.username;

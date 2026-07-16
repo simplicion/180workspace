@@ -94,7 +94,7 @@ export default function AppsManagementPage() {
                 enabledApps: newApps,
                 enabledModules: newModules
             });
-            await refreshSettings();
+            await refreshSettings(true);
             toast.success(isEnabled ? 'App uninstalled successfully' : 'App installed successfully');
         } catch (error) {
             // Revert optimistic update on failure
@@ -116,7 +116,7 @@ export default function AppsManagementPage() {
 
     // ─── Derived Stats ───
     const totalApps = APPS_CONFIG.length;
-    const activeApps = enabledApps.length;
+    const activeApps = enabledApps.filter(appId => APPS_CONFIG.some(config => config.id === appId)).length;
     const customIntegrations = enabledApps.includes('integrations') ? 1 : 0;
 
     // ─── Filtered Apps ───

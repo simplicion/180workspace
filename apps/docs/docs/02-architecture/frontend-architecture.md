@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Frontend Architecture (Next.js)
 
-The IMS frontend apps (`user-web` and `admin-web`) follow a strict **3-Layer Architecture** to keep components clean, reusable, and easy to test.
+The 180workspace frontend apps (`user-web` and `admin-web`) follow a strict **3-Layer Architecture** to keep components clean, reusable, and easy to test.
 
 ```mermaid
 graph TD

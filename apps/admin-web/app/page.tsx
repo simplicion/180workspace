@@ -72,7 +72,7 @@ export default function HomePage() {
 
 
     const branding = company || platform;
-    const brandingName = company?.companyName || platform?.name || 'IMS';
+    const brandingName = company?.companyName || platform?.name || '180workspace';
     const brandingLogo = company?.companyLogo || platform?.logo;
     const brandingTagline = company?.tagline || platform?.tagline || 'Intelligent Management System';
     const brandingEmail = company?.companyEmail || platform?.email;

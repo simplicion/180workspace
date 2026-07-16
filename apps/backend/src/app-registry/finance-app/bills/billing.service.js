@@ -17,7 +17,7 @@ async function getPlatformSettingsInstance() {
     if (!settings) {
         settings = await prisma.platformSettings.create({
             data: {
-                platformName: 'IMS',
+                platformName: '180workspace',
                 paymentsEnabled: false,
                 trialDays: 14,
                 maxFreeUsers: 5,

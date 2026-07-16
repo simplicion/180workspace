@@ -304,7 +304,7 @@ export default function DatabaseTab() {
                             ) : (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold tracking-wide">
                                     <Globe className="w-3.5 h-3.5" />
-                                    Active Database Node: IMS Core Shared Hub
+                                    Active Database Node: 180workspace Core Shared Hub
                                 </span>
                             )}
                         </div>

@@ -7,7 +7,7 @@ const getPlatformSettingsInstance = async () => {
     if (!settings) {
         settings = await prisma.platformSettings.create({
             data: {
-                platformName: 'IMS',
+                platformName: '180workspace',
                 maintenanceMode: false,
                 maintenanceMessage: 'System is under maintenance. Please try again shortly.',
                 maxFreeUsers: 5,

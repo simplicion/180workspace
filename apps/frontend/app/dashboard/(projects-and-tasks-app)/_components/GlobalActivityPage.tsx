@@ -8,12 +8,23 @@ import {
     Activity, Clock, Filter, Search, Calendar, User, 
     ArrowUpRight, Bell, CheckCircle2, AlertCircle, 
     DollarSign, Briefcase, Users, FileText, Settings,
-    RefreshCw, ChevronLeft, ChevronRight, Download, CalendarRange
+    RefreshCw, ChevronLeft, ChevronRight, Download, CalendarRange,
+    ClipboardList, Loader2, Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { formatDistanceToNow, format } from 'date-fns';
 import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
+
+const ACTION_COLORS: Record<string, string> = {
+    'CREATE': 'text-emerald-600 bg-emerald-50',
+    'UPDATE': 'text-blue-600 bg-blue-50',
+    'DELETE': 'text-rose-600 bg-rose-50',
+    'LOGIN': 'text-indigo-600 bg-indigo-50',
+    'LOGOUT': 'text-gray-600 bg-gray-50',
+    'PASSWORD_CHANGE': 'text-amber-600 bg-amber-50',
+};
 
 interface ActivityLog {
     _id: string;
@@ -49,6 +60,16 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
     const [searchTerm, setSearchTerm] = useState('');
     const [totalLogs, setTotalLogs] = useState(0);
     const [showLogModal, setShowLogModal] = useState(false);
+    
+    // Tab State
+    const [activeTab, setActiveTab] = useState<'activity' | 'audit'>('activity');
+
+    // Audit State
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [loadingAudit, setLoadingAudit] = useState(false);
+    const [auditPage, setAuditPage] = useState(1);
+    const [auditTotalPages, setAuditTotalPages] = useState(1);
+    const [auditSearch, setAuditSearch] = useState('');
 
     const fetchLogs = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -73,6 +94,28 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
             setRefreshing(false);
         }
     }, [filter]);
+
+    const fetchAuditLogs = useCallback(async (page: number = 1, forceRefresh = false) => {
+        if (forceRefresh) setRefreshing(true);
+        else setLoadingAudit(true);
+        try {
+            const { data } = await api.get('/api/audit', { 
+                params: { 
+                    page, 
+                    limit: 50,
+                    action: auditSearch || undefined
+                } 
+            });
+            setAuditLogs(data.logs || []);
+            setAuditTotalPages(data.pages || 1);
+            setAuditPage(page);
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || 'Failed to fetch audit logs');
+        } finally {
+            setLoadingAudit(false);
+            setRefreshing(false);
+        }
+    }, [auditSearch]);
 
     const exportToCSV = async () => {
         try {
@@ -122,8 +165,12 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
     };
 
     useEffect(() => {
-        fetchLogs();
-    }, [fetchLogs]);
+        if (activeTab === 'activity') {
+            fetchLogs();
+        } else {
+            fetchAuditLogs(1);
+        }
+    }, [fetchLogs, fetchAuditLogs, activeTab]);
 
     const getEventIcon = (type: string, isNotification: boolean) => {
         if (isNotification) return <Bell className="w-4 h-4 text-amber-500" />;
@@ -161,13 +208,8 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
             {/* Header */}
             <div className={clsx("flex justify-between gap-4", mobileLayout ? "flex-col" : "flex-col md:flex-row md:items-center")}>
                 <div>
-                    <h1 className="text-2xl font-black text-gray-900 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
-                            <Activity className="w-6 h-6" />
-                        </div>
-                        Activity Hub
-                    </h1>
-                    <p className="text-gray-500 text-sm mt-1">Cross-platform event monitoring and system audit logs.</p>
+                    <h1 className="text-2xl font-bold text-gray-900">Activity Hub</h1>
+                    <p className="text-gray-500 mt-1">Cross-platform event monitoring and system audit logs.</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -186,7 +228,7 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
                         Export
                     </button>
                     <button 
-                        onClick={() => fetchLogs(true)}
+                        onClick={() => activeTab === 'activity' ? fetchLogs(true) : fetchAuditLogs(auditPage, true)}
                         disabled={refreshing}
                         className="btn-secondary py-2 flex items-center gap-2"
                     >
@@ -198,16 +240,42 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
                         <Search className="w-4 h-4 text-gray-400 ml-2" />
                         <input 
                             type="text" 
-                            placeholder="Filter timeline..."
+                            placeholder={activeTab === 'activity' ? "Filter timeline..." : "Filter audit action..."}
                             className="bg-transparent border-none focus:ring-0 text-sm py-1.5 px-3 w-full md:w-64"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            value={activeTab === 'activity' ? searchTerm : auditSearch}
+                            onChange={(e) => activeTab === 'activity' ? setSearchTerm(e.target.value) : setAuditSearch(e.target.value)}
                         />
                     </div>
                 </div>
             </div>
 
-            {/* Enterprise Dashboard Metrics */}
+            {/* Tab Switcher */}
+            <div className="flex p-1 bg-gray-100 rounded-2xl w-full md:w-max">
+                <button
+                    onClick={() => setActiveTab('activity')}
+                    className={clsx(
+                        "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2",
+                        activeTab === 'activity' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                    )}
+                >
+                    <Activity className="w-4 h-4" />
+                    Activity Feed
+                </button>
+                <button
+                    onClick={() => setActiveTab('audit')}
+                    className={clsx(
+                        "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2",
+                        activeTab === 'audit' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                    )}
+                >
+                    <ClipboardList className="w-4 h-4" />
+                    Audit Logs
+                </button>
+            </div>
+
+            {activeTab === 'activity' ? (
+                <>
+                    {/* Enterprise Dashboard Metrics */}
             <div className={mobileLayout ? "flex flex-col gap-4 mb-4" : "grid gap-4 mb-4 grid-cols-1 md:grid-cols-3"}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
                     <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -419,6 +487,18 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
                     </button>
                 </div>
             )}
+            </>
+            ) : (
+                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
+                    <AuditLogsList 
+                        logs={auditLogs} 
+                        loading={loadingAudit} 
+                        page={auditPage}
+                        totalPages={auditTotalPages}
+                        onPageChange={fetchAuditLogs}
+                    />
+                </div>
+            )}
             {/* Log Work Modal */}
             {showLogModal && (
                 <LogWorkModal 
@@ -446,5 +526,125 @@ function ActivitySkeleton() {
 
 function TrendingUpIcon(props: any) {
     return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></svg>;
+}
+
+function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
+    if (loading && logs.length === 0) return (
+        <div className="flex flex-col items-center justify-center py-32 gap-4">
+            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Fetching system logs...</p>
+        </div>
+    );
+
+    return (
+        <div className="relative">
+            {loading && (
+                <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                </div>
+            )}
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="border-b border-gray-50 bg-gray-50/30">
+                            <th className="py-5 px-8 text-[11px] font-black uppercase tracking-widest text-gray-400">Time</th>
+                            <th className="py-5 px-8 text-[11px] font-black uppercase tracking-widest text-gray-400">User</th>
+                            <th className="py-5 px-8 text-[11px] font-black uppercase tracking-widest text-gray-400">Action</th>
+                            <th className="py-5 px-8 text-[11px] font-black uppercase tracking-widest text-gray-400">Resource</th>
+                            <th className="py-5 px-8 text-[11px] font-black uppercase tracking-widest text-gray-400">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {logs.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="py-24 text-center">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center">
+                                            <ClipboardList className="w-8 h-8 text-gray-200" />
+                                        </div>
+                                        <p className="text-gray-400 font-bold uppercase tracking-wider text-xs">No logs recorded</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (
+                            logs.map((log: any) => {
+                                const actionKey = Object.keys(ACTION_COLORS).find(k => log.action.includes(k)) || 'LOGOUT';
+                                return (
+                                    <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="py-4 px-8">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold text-gray-900">
+                                                    {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 font-medium">
+                                                    {format(new Date(log.createdAt), 'MMM d, HH:mm:ss')}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-8">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                                    {log.userId?.name?.[0]?.toUpperCase() || '?'}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-gray-700">{log.userId?.name || 'Unknown'}</span>
+                                                    <span className="text-[10px] text-gray-400">{log.userId?.role || 'user'}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-8">
+                                            <span className={clsx(
+                                                "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider",
+                                                ACTION_COLORS[actionKey]
+                                            )}>
+                                                {log.action.replace(/_/g, ' ')}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-8">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">{log.resourceType || '-'}</span>
+                                                <span className="text-[9px] font-mono text-gray-400 truncate max-w-[100px]">{log.resourceId}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-8">
+                                            <div className="flex items-center gap-2 group/info">
+                                                <Info className="w-3.5 h-3.5 text-gray-300 group-hover/info:text-indigo-500 transition-colors cursor-help" />
+                                                <span className="text-[11px] text-gray-500 truncate max-w-[200px]" title={JSON.stringify(log.details, null, 2)}>
+                                                    {Object.keys(log.details || {}).length > 0 ? JSON.stringify(log.details).substring(0, 50) + '...' : 'No extra details'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="p-6 border-t border-gray-50 flex items-center justify-between bg-gray-50/10">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Page {page} of {totalPages}</span>
+                    <div className="flex gap-2">
+                        <button
+                            disabled={page === 1}
+                            onClick={() => onPageChange(page - 1)}
+                            className="px-4 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-900 disabled:opacity-50 hover:bg-gray-50 transition-all"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            disabled={page === totalPages}
+                            onClick={() => onPageChange(page + 1)}
+                            className="px-4 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-900 disabled:opacity-50 hover:bg-gray-50 transition-all"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
 

@@ -645,8 +645,8 @@ export default function ProjectDetailPage() {
                                 Members <span className="text-gray-400 text-sm font-normal">({project.memberIds?.length || 0})</span>
                             </h3>
                             <div className="space-y-2.5">
-                                {(project.memberIds || []).map((m: any) => (
-                                    <div key={m.id} className="flex items-center justify-between group/m">
+                                {(project.members || []).map((m: any) => (
+                                    <div key={m.id || m._id} className="flex items-center justify-between group/m">
                                         <div className="flex items-center gap-3 min-w-0 flex-1">
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
                                                 {m.photoUrl

@@ -182,7 +182,7 @@ export default function BillingPage() {
     const expiryDate = isTrialing ? subscription?.trialEndDate : subscription?.subscriptionEndDate;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-4xl space-y-6">
             <Toaster position="top-center" />
 
             <PlanDetailsModal
@@ -192,9 +192,9 @@ export default function BillingPage() {
                 onSelect={(p: any) => handleUpgrade(p)}
             />
 
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><CreditCard className="w-6 h-6 text-indigo-600" /> Billing & Subscription</h1>
-                <p className="text-gray-500 text-sm mt-1">Manage your plan, upgrade, and billing information</p>
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900">Billing & Subscription</h1>
+                <p className="text-gray-500 mt-1">Manage your plan, upgrade, and billing information</p>
             </div>
 
             {/* Pending Mandate Banner */}
