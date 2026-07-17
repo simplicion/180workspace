@@ -62,6 +62,7 @@ interface Settings {
     salesConfig?: any;
     plausibleApiKey?: string;
     plausibleSiteId?: string;
+    metadata?: any;
 }
 
 export interface CompanyConfig {
