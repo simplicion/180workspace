@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import {
-    CheckSquare, FolderKanban, Clock, Calendar, Star,
-    AlertCircle, TrendingUp, Loader2, ChevronRight, Award,
-    CheckCircle2, Palmtree, Play, Eye, Code2, LogOut, BarChart2
-} from 'lucide-react';
+import { CheckSquare, FolderKanban, Clock, Calendar, Star, AlertCircle, TrendingUp, ChevronRight, Award, CheckCircle2, Palmtree, Play, Eye, Code2, LogOut, BarChart2 } from 'lucide-react';
 import clsx from 'clsx';
 import { format, isValid, subDays } from 'date-fns';
 import Link from 'next/link';
-import { TimeProgressBar } from "@workspace/ui";
+import { TimeProgressBar , LogoLoader } from "@workspace/ui";
 import MarkAttendanceModal from '@/app/dashboard/(hr-management-app)/components/MarkAttendanceModal';
 import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
 import { ClipboardCheck } from 'lucide-react';
@@ -129,7 +125,7 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-24">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
             </div>
         );
     }

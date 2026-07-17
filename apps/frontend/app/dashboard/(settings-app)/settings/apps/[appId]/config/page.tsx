@@ -100,7 +100,7 @@ export default function AppConfigPage() {
         try {
             await api.patch('/api/company-config/modules', { modules: newModules });
             toast.success('Module updated');
-            refreshSettings();
+            refreshSettings(true);
         } catch (error) {
             toast.error('Failed to update module');
         }

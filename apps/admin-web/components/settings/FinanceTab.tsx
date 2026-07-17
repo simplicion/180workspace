@@ -1,9 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { CreditCard, Save, Loader2, Link2, ShieldAlert, Bell, Clock, Send } from 'lucide-react';
+import { CreditCard, Save, Link2, ShieldAlert, Bell, Clock, Send } from 'lucide-react';
 
 export default function FinanceTab() {
     const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export default function FinanceTab() {
         }
     };
 
-    if (loading) return <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>;
+    if (loading) return <div className="flex justify-center p-12"><LogoLoader className="w-6 h-6 animate-spin text-indigo-500" /></div>;
 
     return (
         <div className="max-w-xl space-y-6">
@@ -281,7 +282,7 @@ export default function FinanceTab() {
                                 disabled={triggering}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-500/20 disabled:opacity-50"
                             >
-                                {triggering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                {triggering ? <LogoLoader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                                 {triggering ? 'Processing...' : 'Send Now'}
                             </button>
                         </div>
@@ -293,7 +294,7 @@ export default function FinanceTab() {
                             disabled={saving}
                             className="btn-primary"
                         >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Save Configuration'}
                         </button>
                         <p className="text-xs text-gray-400 mt-3 text-center">

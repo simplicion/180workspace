@@ -1,6 +1,7 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useEffect, useState } from 'react';
 import BottomSheet from './BottomSheet';
-import { UserCircle2, Loader2 } from 'lucide-react';
+import { UserCircle2 } from 'lucide-react';
 
 interface LikeUser {
   id: string;
@@ -44,7 +45,7 @@ export default function LikesBottomSheet({ isOpen, onClose, postId }: LikesBotto
       <div className="p-4">
         {loading ? (
           <div className="flex justify-center p-8">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <LogoLoader className="w-6 h-6 animate-spin text-gray-400" />
           </div>
         ) : users.length === 0 ? (
           <div className="text-center py-8 text-gray-500 text-sm">

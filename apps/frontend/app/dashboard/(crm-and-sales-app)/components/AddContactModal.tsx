@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Building2, ShieldCheck, Loader2 } from 'lucide-react';
+import { X, User, Mail, Phone, Building2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -189,7 +190,7 @@ export default function AddContactModal({ isOpen, onClose, onSuccess, contact }:
                             disabled={loading}
                             className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest py-4 px-6 rounded-2xl shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                         >
-                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                            {loading ? <LogoLoader className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
                             {contact ? 'Update Contact' : 'Create Contact'}
                         </button>
                     </div>

@@ -97,20 +97,32 @@ async function getTransporter(category = CATEGORIES.WORK, tenantPrisma = null) {
         }
 
         try {
-            const settings = await tenantPrisma.settings.findFirst();
-            if (settings && settings.smtpHost && settings.smtpUser && settings.smtpPass) {
-                console.log(`[EmailService] [ISOLATION:WORK] Using Tenant SMTP: ${settings.smtpHost}`);
-                return nodemailer.createTransport({
-                    host: settings.smtpHost,
-                    port: settings.smtpPort || 587,
-                    secure: settings.smtpSecure || (settings.smtpPort === 465),
-                    auth: { user: settings.smtpUser, pass: settings.smtpPass },
+            const settingsRecord = await tenantPrisma.settings.findFirst();
+            if (settingsRecord) {
+                const company = await tenantPrisma.company.findUnique({ where: { id: settingsRecord.companyId }, select: { metadata: true } });
+                let metadata = company?.metadata || {};
+                if (typeof metadata === 'string') {
+                    try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
+                }
+                
+                // Merge settings with metadata
+                const settings = { ...settingsRecord };
+                ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom'].forEach(field => {
+                    if (metadata[field] !== undefined) settings[field] = metadata[field];
                 });
-            } else {
-                console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for tenant. Falling back to Platform SMTP.`);
-                // Fallback to SYSTEM category logic (Platform SMTP)
-                return await getTransporter(CATEGORIES.SYSTEM, null);
+
+                if (settings.smtpHost && settings.smtpUser && settings.smtpPass) {
+                    console.log(`[EmailService] [ISOLATION:WORK] Using Tenant SMTP: ${settings.smtpHost}`);
+                    return nodemailer.createTransport({
+                        host: settings.smtpHost,
+                        port: settings.smtpPort || 587,
+                        secure: settings.smtpSecure || (settings.smtpPort === 465),
+                        auth: { user: settings.smtpUser, pass: settings.smtpPass },
+                    });
+                }
             }
+            console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for tenant. Throwing error.`);
+            throw new Error("Tenant SMTP is not configured. Please configure your email settings in the dashboard to send work emails.");
         } catch (e) {
             console.error('[EmailService] [ISOLATION:WORK] Error loading tenant SMTP:', e.message);
             return null;
@@ -178,7 +190,9 @@ async function dispatchEmail(options, tenantPrisma) {
         }
 
         if (!transporter) {
-            const errorMsg = 'SMTP not configured. Please check your .env or Platform Settings.';
+            const errorMsg = category === CATEGORIES.WORK 
+                ? 'Tenant SMTP is not configured. Please configure your email settings in the dashboard to send work emails.' 
+                : 'SMTP not configured. Please check your .env or Platform Settings.';
             if (logId && tenantPrisma) {
                 await tenantPrisma.emailLog.update({
                     where: { id: logId },

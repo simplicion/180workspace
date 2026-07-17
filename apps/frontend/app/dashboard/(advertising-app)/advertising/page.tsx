@@ -1,11 +1,8 @@
 "use client";
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { 
-    Plus, Globe, MousePointer2, Users, 
-    MoreVertical, ExternalLink, Settings, 
-    Trash2, Search, Filter, Loader2 
-} from 'lucide-react';
+import { Plus, Globe, MousePointer2, Users, MoreVertical, ExternalLink, Settings, Trash2, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -119,7 +116,7 @@ export default function AdvertisingPage() {
             {/* Websites Grid */}
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                    <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
                     <p className="text-gray-500 text-sm mt-4">Loading your websites...</p>
                 </div>
             ) : filteredWebsites.length > 0 ? (

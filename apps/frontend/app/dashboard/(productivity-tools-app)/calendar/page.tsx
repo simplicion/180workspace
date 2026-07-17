@@ -3,17 +3,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
-import {
-    ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar,
-    Trash2, Circle, Video, MapPin, Link2, Users, Clock,
-    Mail, RefreshCw, ExternalLink, CheckCircle, Phone, Sparkles
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Calendar, Trash2, Circle, Video, MapPin, Link2, Users, Clock, Mail, RefreshCw, ExternalLink, CheckCircle, Phone, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO } from 'date-fns';
 import { useSettings } from '@/lib/settings-context';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import MeetingSummaryModal from '@/app/dashboard/(productivity-tools-app)/_components/MeetingSummaryModal';
 
 const EVENT_TYPES = [
@@ -371,7 +367,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                         className="btn-primary min-w-[140px]"
                     >
                         {loading ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> {sendingEmail ? 'Sending Invites...' : 'Creating...'}</>
+                            <><LogoLoader className="w-4 h-4 animate-spin" /> {sendingEmail ? 'Sending Invites...' : 'Creating...'}</>
                         ) : isMeeting ? (
                             <><Video className="w-4 h-4" /> Create Meeting</>
                         ) : (
@@ -542,7 +538,7 @@ export default function CalendarPage() {
 
                     {loading ? (
                         <div className="flex items-center justify-center h-48">
-                            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                            <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
                         </div>
                     ) : (
                         <div className="grid grid-cols-7 gap-0.5">
@@ -692,7 +688,7 @@ export default function CalendarPage() {
                                                         title="Resend invite emails"
                                                         className="p-1.5 hover:bg-sky-50 rounded text-sky-400 hover:text-sky-600"
                                                     >
-                                                        {resendingId === ev.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                                                        {resendingId === ev.id ? <LogoLoader className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                                                     </button>
                                                 )}
                                                 <button onClick={() => setShowDeleteConfirm(ev.id)} className="p-1.5 hover:bg-red-50 rounded text-red-300 hover:text-red-500">

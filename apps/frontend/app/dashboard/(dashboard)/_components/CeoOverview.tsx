@@ -1,9 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
-import { Loader2, Sparkles, BrainCircuit } from 'lucide-react';
+import { Sparkles, BrainCircuit } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
@@ -44,7 +45,7 @@ export default function CeoOverview() {
                 <div className="text-[13px] text-gray-700 leading-relaxed font-medium">
                     {insightsLoading ? (
                         <div className="flex items-center gap-2 text-indigo-500/80 py-2">
-                            <Loader2 className="w-4 h-4 animate-spin" /> Generating insights based on latest data...
+                            <LogoLoader className="w-4 h-4 animate-spin" /> Generating insights based on latest data...
                         </div>
                     ) : insights.toLowerCase().includes('unavailable') || insights.toLowerCase().includes('configure') ? (
                         <div className="bg-white/60 rounded-lg p-3 border border-indigo-100/50">

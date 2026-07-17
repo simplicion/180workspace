@@ -1,11 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import { ContentPiece, contentCalendarService } from '@/lib/services/content-calendar.service';
-import {
-    X, CalendarDays, Target, Image as ImageIcon, Hash, BarChart3,
-    CheckCircle2, Edit3, Circle, MessageSquare, Save, Loader2, Clock, Megaphone
-} from 'lucide-react';
+import { X, CalendarDays, Target, Image as ImageIcon, Hash, BarChart3, CheckCircle2, Edit3, Circle, MessageSquare, Save, Clock, Megaphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
@@ -318,7 +316,7 @@ export default function ContentPieceModal({ piece, calendarId, onClose, onSave }
                         className="btn-primary px-6 py-2 text-sm flex items-center gap-2"
                     >
                         {isSaving ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                            <><LogoLoader className="w-4 h-4 animate-spin" /> Saving...</>
                         ) : (
                             <><Save className="w-4 h-4" /> Save Changes</>
                         )}

@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { prisma } = require('@workspace/db');
 
@@ -20,14 +20,18 @@ exports.getCompanyConfig = async (req, res, next) => {
         }
 
         const metadata = company.metadata || {};
+        const safeCompany = { ...company };
+        delete safeCompany.adminPasswordHash;
+        
         const config = {
-            id: company.id,
+            ...safeCompany,
             companyId: company.id,
             companyName: company.name,
             companyEmail: company.adminEmail,
             companyLogo: company.logoUrl,
             enabledApps: metadata.enabledApps || [],
-            enabledModules: metadata.enabledModules || []
+            enabledModules: metadata.enabledModules || [],
+            ...metadata
         };
 
         // Self-healing migration: ensure all required modules are enabled
@@ -75,14 +79,18 @@ exports.updateCompanyConfig = async (req, res, next) => {
             }
         });
 
+        const safeCompany = { ...updatedCompany };
+        delete safeCompany.adminPasswordHash;
+
         const config = {
-            id: updatedCompany.id,
+            ...safeCompany,
             companyId: updatedCompany.id,
             companyName: updatedCompany.name,
             companyEmail: updatedCompany.adminEmail,
             companyLogo: updatedCompany.logoUrl,
             enabledApps: updatedCompany.metadata?.enabledApps || [],
-            enabledModules: updatedCompany.metadata?.enabledModules || []
+            enabledModules: updatedCompany.metadata?.enabledModules || [],
+            ...updatedCompany.metadata
         };
 
         res.json({ config, message: 'Company configuration updated successfully' });

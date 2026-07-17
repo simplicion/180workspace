@@ -1,7 +1,8 @@
 "use client";
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { X, Save, Loader2 } from 'lucide-react';
+import { X, Save } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false }) as any;
@@ -128,7 +129,7 @@ export function AboutEditModal({ company, isOpen, onClose, onSave }: AboutEditMo
                         disabled={isLoading}
                         className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-70"
                     >
-                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        {isLoading ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                         {isLoading ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>

@@ -59,6 +59,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/dashboard/emails': { appId: 'tools', moduleId: 'emails' },
   '/dashboard/documents': { appId: 'tools', moduleId: 'documents' },
   '/user-preference': { appId: 'tools', moduleId: 'ai-assistant' }, // AI Assistant lives in prefs for now
+  '/dashboard/ai': { appId: 'tools', moduleId: 'ai-assistant', isShared: true }, // Add AI Assistant to dashboard
   
   // Job Hunter
   '/dashboard/job-hunter': { appId: 'jobhunter', moduleId: 'job-dashboard' },

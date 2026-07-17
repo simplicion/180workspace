@@ -2,17 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import {
-    X, CheckSquare, Calendar, User, Tag, AlignLeft, Paperclip,
-    Loader2, Save, Trash2, Clock, Flag, FolderKanban,
-} from 'lucide-react';
+import { X, CheckSquare, Calendar, User, Tag, AlignLeft, Paperclip, Save, Trash2, Clock, Flag, FolderKanban } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import FileUploadModal from '@/components/shared/FileUploadModal';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { useAuth } from '@/lib/auth-context';
 import { TimeProgressBar } from "@workspace/ui";
 import { toast } from 'react-hot-toast';
+import VoiceRecorder from './VoiceRecorder';
 
 interface Props {
     taskId: string;
@@ -20,13 +18,6 @@ interface Props {
     onUpdated?: (task: any) => void;
     onDeleted?: (id: string) => void;
 }
-
-const STATUS_OPTIONS = [
-    { value: 'todo', label: 'To Do', cls: 'bg-gray-100 text-gray-700' },
-    { value: 'in_progress', label: 'In Progress', cls: 'bg-blue-100 text-blue-700' },
-    { value: 'in_review', label: 'In Review', cls: 'bg-amber-100 text-amber-700', internalOnly: true },
-    { value: 'done', label: 'Done', cls: 'bg-emerald-100 text-emerald-700', internalOnly: true },
-];
 
 const PRIORITY_OPTIONS = [
     { value: 'low', label: 'Low', cls: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' },
@@ -52,7 +43,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
     const [priority, setPriority] = useState('medium');
     const [assigneeId, setAssigneeId] = useState('');
     const [dueDate, setDueDate] = useState('');
-    const [estimatedHours, setEst] = useState('');
+    const [voiceMessageUrl, setVoiceMessageUrl] = useState('');
     const [sendEmailNotification, setSendEmailNotification] = useState(true);
 
 
@@ -68,8 +59,8 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
             setStatus(t.status);
             setPriority(t.priority);
             setAssigneeId(t.assigneeId?.id || '');
-            setDueDate(t.dueDate ? t.dueDate.slice(0, 10) : '');
-            setEst(t.estimatedHours?.toString() || '');
+            setDueDate(t.dueDate ? t.dueDate.slice(0, 16) : '');
+            setVoiceMessageUrl(t.voiceMessageUrl || '');
             setMembers(uRes.data.users);
         }).finally(() => setLoading(false));
     }, [taskId]);
@@ -82,7 +73,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                 title, description, status, priority,
                 assigneeId: assigneeId || null,
                 dueDate: dueDate || null,
-                estimatedHours: estimatedHours ? Number(estimatedHours) : null,
+                voiceMessageUrl: voiceMessageUrl || null,
                 sendEmailNotification,
             });
 
@@ -123,6 +114,16 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
     };
 
     const assignee = members.find(m => m.id === assigneeId);
+
+    const STATUS_OPTIONS = [
+        { value: 'todo', label: 'To Do', cls: 'bg-gray-100 text-gray-700' },
+        { value: 'in_progress', label: 'In Progress', cls: 'bg-blue-100 text-blue-700' },
+        { value: 'in_review', label: 'In Review', cls: 'bg-amber-100 text-amber-700', internalOnly: true },
+        { value: 'done', label: 'Done', cls: 'bg-emerald-100 text-emerald-700', internalOnly: true },
+        { value: 'backlog', label: 'Backlog', cls: 'bg-purple-100 text-purple-700' },
+        { value: 'custom', label: task?.project?.customTaskStatusName || 'Custom', cls: 'bg-indigo-100 text-indigo-700' },
+    ];
+    
     const statusCfg = STATUS_OPTIONS.find(s => s.value === status);
     const priorityCfg = PRIORITY_OPTIONS.find(p => p.value === priority);
 
@@ -160,7 +161,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
 
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
-                        <Loader2 className="w-7 h-7 animate-spin text-indigo-500" />
+                        <LogoLoader className="w-7 h-7 animate-spin text-indigo-500" />
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto">
@@ -199,11 +200,17 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                     {(!task?.attachments || task.attachments.length === 0) ? (
                                         <p className="text-xs text-gray-400 italic">No attachments yet</p>
                                     ) : (
-                                        <div className="grid gap-2">
-                                            {task.attachments.map((file: any) => (
+                                        <div className="grid gap-2 mt-2">
+                                            {task.attachments.map((file: any, i: number) => {
+                                                const url = typeof file === 'string' ? file : file.fileUrl || file.url;
+                                                const name = typeof file === 'string' ? `Attachment ${i + 1}` : file.name || `Attachment ${i + 1}`;
+                                                const size = file.fileSize ? `${(file.fileSize / 1024 / 1024).toFixed(2)} MB • ` : '';
+                                                const date = file.createdAt ? format(new Date(file.createdAt), 'MMM d, yyyy') : '';
+                                                
+                                                return (
                                                 <a
-                                                    key={file.id}
-                                                    href={file.fileUrl}
+                                                    key={file.id || i}
+                                                    href={url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all group"
@@ -213,17 +220,32 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
-                                                            {file.name}
+                                                            {name}
                                                         </p>
                                                         <p className="text-[10px] text-gray-400">
-                                                            {file.fileSize ? `${(file.fileSize / 1024 / 1024).toFixed(2)} MB • ` : ''}
-                                                            {format(new Date(file.createdAt), 'MMM d, yyyy')}
+                                                            {size}{date}
                                                         </p>
                                                     </div>
                                                 </a>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
+
+                                    {/* Voice Note */}
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                        {canEdit ? (
+                                            <div className="mb-2">
+                                                <VoiceRecorder label="Voice Note (Optional)" onUploadComplete={url => setVoiceMessageUrl(url)} />
+                                            </div>
+                                        ) : null}
+                                        {voiceMessageUrl && (
+                                            <div className="flex flex-col gap-2 p-3 bg-amber-50/50 rounded-xl border border-amber-100 mt-2">
+                                                <div className="text-sm font-medium text-amber-900">Voice Note</div>
+                                                <audio controls src={voiceMessageUrl} className="w-full h-8" />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -356,35 +378,14 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                     {canEdit ? (
                                         <input
                                             id="taskDueDate"
-                                            type="date"
+                                            type="datetime-local"
                                             value={dueDate}
                                             onChange={(e) => setDueDate(e.target.value)}
                                             className="input text-sm"
                                             title="Task due date"
                                         />
                                     ) : (
-                                        <div className="text-sm font-medium">{dueDate || 'No set date'}</div>
-                                    )}
-                                </div>
-
-                                {/* Estimated Hours */}
-                                <div>
-                                    <label htmlFor="taskEstHours" className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                                        <Clock className="w-3 h-3" aria-hidden="true" />Est. Hours
-                                    </label>
-                                    {canEdit ? (
-                                        <input
-                                            id="taskEstHours"
-                                            type="number"
-                                            min="0"
-                                            value={estimatedHours}
-                                            onChange={(e) => setEst(e.target.value)}
-                                            placeholder="0"
-                                            className="input text-sm"
-                                            title="Estimated hours"
-                                        />
-                                    ) : (
-                                        <div className="text-sm font-medium">{estimatedHours || 'None'}</div>
+                                        <div className="text-sm font-medium">{dueDate ? format(new Date(dueDate), 'MMM d, yyyy h:mm a') : 'No set date'}</div>
                                     )}
                                 </div>
 
@@ -423,13 +424,13 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                 disabled={loading || deleting}
                                 className="btn-danger"
                             >
-                                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                {deleting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                 Delete
                             </button>
                             <div className="flex gap-2">
                                 <button onClick={onClose} className="btn-secondary">Cancel</button>
                                 <button onClick={save} disabled={loading || saving} className="btn-primary">
-                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                     {saving ? 'Saving...' : 'Save Changes'}
                                 </button>
                             </div>

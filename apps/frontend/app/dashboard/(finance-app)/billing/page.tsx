@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { CreditCard, Shield, Zap, Check, Tag, Loader2, AlertCircle, Calendar, Users, ChevronRight, RefreshCw, XCircle, FileWarning } from 'lucide-react';
+import { CreditCard, Shield, Zap, Check, Tag, AlertCircle, Calendar, Users, ChevronRight, RefreshCw, XCircle, FileWarning } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useSubscription } from '@/lib/useSubscription';
@@ -266,13 +267,13 @@ export default function BillingPage() {
                         {autopayEnabled ? (
                             <button onClick={handleCancelAutopay} disabled={actionLoading}
                                 className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2">
-                                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                {actionLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                                 Cancel Autopay
                             </button>
                         ) : (
                             <button onClick={handleResumeAutopay} disabled={actionLoading}
                                 className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2">
-                                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                                {actionLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
                                 Enable Autopay
                             </button>
                         )}
@@ -319,7 +320,7 @@ export default function BillingPage() {
                 </h2>
                 <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                     {historyLoading ? (
-                        <div className="p-10 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></div>
+                        <div className="p-10 text-center"><LogoLoader className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></div>
                     ) : history.length === 0 ? (
                         <div className="p-10 text-center text-gray-400 text-sm italic">No transaction history found.</div>
                     ) : (

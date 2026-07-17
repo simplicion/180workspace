@@ -1,10 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { 
-    Mail, ShieldCheck, ShieldAlert, Info, Eye, EyeOff, 
-    Loader2, Save, Activity, CheckCircle2 
-} from 'lucide-react';
+import { Mail, ShieldCheck, ShieldAlert, Info, Eye, EyeOff, Save, Activity, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -42,11 +40,17 @@ export default function EmailTab() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await api.put('/api/settings', {
-                smtpHost, smtpPort, smtpUser, smtpPass, smtpSecure, emailFrom
-            });
+            const payload: any = {};
+            if (smtpHost) payload.smtpHost = smtpHost;
+            if (smtpPort) payload.smtpPort = smtpPort;
+            if (smtpUser) payload.smtpUser = smtpUser;
+            if (smtpPass) payload.smtpPass = smtpPass;
+            if (emailFrom) payload.emailFrom = emailFrom;
+            payload.smtpSecure = smtpSecure;
+
+            await api.put('/api/settings', payload);
             toast.success('Email settings saved successfully');
-            await refreshSettings();
+            await refreshSettings(true);
         } catch (e: any) {
             toast.error(e?.response?.data?.error || 'Failed to update email settings');
         } finally {
@@ -62,15 +66,20 @@ export default function EmailTab() {
 
         setTesting(true);
         try {
-            // First save the current settings to ensure we test what's on screen
-            await api.put('/api/settings', {
-                smtpHost, smtpPort, smtpUser, smtpPass, smtpSecure, emailFrom
-            });
+            const payload: any = {};
+            if (smtpHost) payload.smtpHost = smtpHost;
+            if (smtpPort) payload.smtpPort = smtpPort;
+            if (smtpUser) payload.smtpUser = smtpUser;
+            if (smtpPass) payload.smtpPass = smtpPass;
+            if (emailFrom) payload.emailFrom = emailFrom;
+            payload.smtpSecure = smtpSecure;
+
+            await api.put('/api/settings', payload);
 
             const { data } = await api.post('/api/settings/test-email');
             setTestStatus('success');
             toast.success(data.message || 'Test email sent successfully!');
-            await refreshSettings();
+            await refreshSettings(true);
         } catch (e: any) {
             setTestStatus('failure');
             toast.error(e?.response?.data?.error || e?.response?.data?.details || 'Connection test failed');
@@ -206,7 +215,7 @@ export default function EmailTab() {
                             disabled={saving} 
                             className="btn-primary flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-indigo-100"
                         >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Save Configuration'}
                         </button>
                         
@@ -220,7 +229,7 @@ export default function EmailTab() {
                                     : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:border-gray-300"
                             )}
                         >
-                            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                            {testing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
                             {testing ? 'Verifying...' : 'Connect & Test'}
                         </button>
                     </div>

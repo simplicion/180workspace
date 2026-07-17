@@ -1,12 +1,13 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { useSettings } from '../../lib/settings-context';
 import api from '../../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Users, ArrowRight, CheckCircle2, Loader2, Sparkles, LayoutDashboard, FolderKanban, TrendingUp, Briefcase } from 'lucide-react';
+import { Building2, Users, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, FolderKanban, TrendingUp, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { ALL_APPS } from '@/lib/module-map';
@@ -95,7 +96,7 @@ import { Suspense } from 'react';
 
 export default function WorkspaceSetupPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>}>
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>}>
             <WorkspaceSetup />
         </Suspense>
     );
@@ -210,7 +211,7 @@ function WorkspaceSetup() {
                 api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
             }
 
-            await refreshSettings();
+            await refreshSettings(true);
             await refreshUser();
             setStep(4); // Success screen is now step 4
         } catch (error: any) {
@@ -227,7 +228,7 @@ function WorkspaceSetup() {
     // Ensure only admins with firstLogin true see this, OR if we have an onboardingToken
     if (isCheckingDB || (!onboardingToken && (!user || user.role !== 'admin' || !user.isFirstLogin))) {
         // Render nothing while checking or if unauthorized, layout will redirect them away if they force navigate here
-        return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+        return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>;
     }
 
     return (
@@ -402,7 +403,7 @@ function WorkspaceSetup() {
                                         <p className="text-[10px] text-gray-500">Essential features automatically enabled</p>
                                     </div>
                                     <button onClick={completeSetup} disabled={saving} className="btn-primary shadow-lg shadow-indigo-500/20 px-8 py-3 h-auto text-base">
-                                        {saving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
+                                        {saving ? <LogoLoader className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
                                         <span>{saving ? "Saving..." : "Start Using 180workspace"}</span>
                                     </button>
                                 </div>

@@ -1,10 +1,11 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Video, Plus, Users, Calendar, Loader2, ExternalLink, Clock, Copy } from 'lucide-react';
+import { Video, Plus, Users, Calendar, ExternalLink, Clock, Copy } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
@@ -98,7 +99,7 @@ export default function MeetingPage() {
                             <div className="flex justify-end gap-3 pt-1">
                                 <button type="button" onClick={() => setShowNewForm(false)} className="btn-secondary" disabled={creating}>Cancel</button>
                                 <button type="submit" disabled={creating} className="btn-primary flex items-center gap-2">
-                                    {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                                    {creating ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
                                     {creating ? 'Creating...' : 'Start Now'}
                                 </button>
                             </div>
@@ -142,7 +143,7 @@ export default function MeetingPage() {
             <div>
                 <h2 className="text-base font-bold text-gray-800 mb-4">Recent Meetings</h2>
                 {loading ? (
-                    <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                    <div className="flex items-center justify-center py-16"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
                 ) : meetings.length === 0 ? (
                     <div className="card p-12 text-center">
                         <Video className="w-12 h-12 text-gray-200 mx-auto mb-3" />

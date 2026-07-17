@@ -2,15 +2,12 @@
 
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
-import {
-    Mail, History, Send, Loader2, Search, CheckCircle, XCircle,
-    RefreshCw, Users, BarChart3, Zap, ChevronLeft, ChevronRight,
-    Filter, Eye, AlertTriangle, TrendingUp, Mailbox, Clock, Sparkles
-} from 'lucide-react';
+import { Mail, History, Send, Search, CheckCircle, XCircle, RefreshCw, Users, BarChart3, Zap, ChevronLeft, ChevronRight, Filter, Eye, AlertTriangle, TrendingUp, Mailbox, Clock, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import AIEmailDraftModal from '@/app/dashboard/(productivity-tools-app)/_components/AIEmailDraftModal';
@@ -387,7 +384,7 @@ export default function EmailManagementPage() {
 
                     {loadingLogs ? (
                         <div className="flex items-center justify-center p-12 text-gray-400">
-                            <Loader2 className="w-8 h-8 animate-spin" />
+                            <LogoLoader className="w-8 h-8 animate-spin" />
                         </div>
                     ) : (
                         <>
@@ -571,7 +568,7 @@ export default function EmailManagementPage() {
                                         disabled={templatePreview?.loading || !form.to || !form.templateId}
                                         className="btn-primary w-full"
                                     >
-                                        {templatePreview?.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                                        {templatePreview?.loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                                         {templatePreview?.loading ? 'Generating...' : 'Preview & Edit'}
                                     </button>
                                 </form>
@@ -635,7 +632,7 @@ export default function EmailManagementPage() {
                                         disabled={sending || !customForm.to || !customForm.subject || !customForm.body}
                                         className="btn-primary w-full"
                                     >
-                                        {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                        {sending ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                         {sending ? 'Sending...' : 'Send Email'}
                                     </button>
                                 </form>
@@ -741,7 +738,7 @@ export default function EmailManagementPage() {
                                     disabled={sendingBulk || !bulkForm.subject || !bulkForm.message}
                                     className="btn-primary w-full"
                                 >
-                                    {sendingBulk ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                    {sendingBulk ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                                     {sendingBulk ? 'Sending to All...' : 'Send Bulk Email'}
                                 </button>
                             </form>
@@ -802,7 +799,7 @@ export default function EmailManagementPage() {
 
                         {templatePreview.loading ? (
                             <div className="flex-1 flex flex-col items-center justify-center p-12 text-gray-400">
-                                <Loader2 className="w-8 h-8 animate-spin mb-4" />
+                                <LogoLoader className="w-8 h-8 animate-spin mb-4" />
                                 <p>Generating template...</p>
                             </div>
                         ) : (
@@ -871,7 +868,7 @@ export default function EmailManagementPage() {
                                     disabled={sending || !templatePreview.subject || !templatePreview.html}
                                     className="btn-primary flex-1 whitespace-nowrap"
                                 >
-                                    {sending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : <><Send className="w-4 h-4" /> Send Final Email</>}
+                                    {sending ? <LogoLoader className="w-4 h-4 animate-spin mx-auto" /> : <><Send className="w-4 h-4" /> Send Final Email</>}
                                 </button>
                             </div>
                         )}

@@ -4,8 +4,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download, Loader2 } from 'lucide-react';
-import { Skeleton, SkeletonTable } from "@workspace/ui";
+import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download } from 'lucide-react';
+import { Skeleton, SkeletonTable , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
 import AddClientModal from '@/app/dashboard/(crm-and-sales-app)/_components/AddClientModal';
@@ -185,7 +185,7 @@ export default function ClientsPage() {
                             disabled={isBulkDeleting}
                             className="text-sm font-bold text-red-600 hover:text-red-700 flex items-center gap-1.5 transition-colors"
                         >
-                            {isBulkDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            {isBulkDeleting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                             Delete Selected
                         </button>
                     </div>

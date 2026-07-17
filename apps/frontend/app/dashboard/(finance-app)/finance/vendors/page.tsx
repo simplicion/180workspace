@@ -1,12 +1,9 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
-import {
-    Users, Plus, Search, Filter, Mail, Phone,
-    MapPin, Banknote, ShieldCheck, ShieldAlert,
-    MoreVertical, Edit, Trash2, Loader2, ExternalLink
-} from 'lucide-react';
+import { Users, Plus, Search, Filter, Mail, Phone, MapPin, Banknote, ShieldCheck, ShieldAlert, MoreVertical, Edit, Trash2, ExternalLink } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -56,7 +53,7 @@ export default function VendorsPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
             </div>
         );
     }

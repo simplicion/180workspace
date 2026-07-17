@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
-import { X, Loader2, CheckCircle } from 'lucide-react';
+import { X, CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -58,7 +59,7 @@ export default function ReviewSalaryModal({ salary, onClose, onSuccess }: { sala
                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} disabled={saving} className="btn-secondary">Cancel</button>
                     <button onClick={handleApprove} disabled={saving} className="btn-primary">
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                        {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                         Approve Salary
                     </button>
                 </div>

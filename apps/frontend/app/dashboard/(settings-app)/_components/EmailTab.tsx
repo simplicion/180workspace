@@ -1,16 +1,20 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { 
-    Mail, ShieldCheck, ShieldAlert, Info, Eye, EyeOff, 
-    Loader2, Save, Activity, CheckCircle2 
-} from 'lucide-react';
+import { Mail, ShieldCheck, ShieldAlert, Info, Eye, EyeOff, Save, Activity, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { useSettings } from '@/lib/settings-context';
 
-export default function EmailTab() {
+export default function EmailTab({ 
+    title = 'Platform Email Services',
+    description = 'Configure SMTP credentials used for system-wide emails.'
+}: { 
+    title?: string, 
+    description?: string 
+}) {
     const { settings, refreshSettings } = useSettings();
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
@@ -42,11 +46,17 @@ export default function EmailTab() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await api.put('/api/settings', {
-                smtpHost, smtpPort, smtpUser, smtpPass, smtpSecure, emailFrom
-            });
+            const payload: any = {};
+            if (smtpHost) payload.smtpHost = smtpHost;
+            if (smtpPort) payload.smtpPort = smtpPort;
+            if (smtpUser) payload.smtpUser = smtpUser;
+            if (smtpPass) payload.smtpPass = smtpPass;
+            if (emailFrom) payload.emailFrom = emailFrom;
+            payload.smtpSecure = smtpSecure;
+
+            await api.put('/api/settings', payload);
             toast.success('Email settings saved successfully');
-            await refreshSettings();
+            await refreshSettings(true);
         } catch (e: any) {
             toast.error(e?.response?.data?.error || 'Failed to update email settings');
         } finally {
@@ -62,15 +72,20 @@ export default function EmailTab() {
 
         setTesting(true);
         try {
-            // First save the current settings to ensure we test what's on screen
-            await api.put('/api/settings', {
-                smtpHost, smtpPort, smtpUser, smtpPass, smtpSecure, emailFrom
-            });
+            const payload: any = {};
+            if (smtpHost) payload.smtpHost = smtpHost;
+            if (smtpPort) payload.smtpPort = smtpPort;
+            if (smtpUser) payload.smtpUser = smtpUser;
+            if (smtpPass) payload.smtpPass = smtpPass;
+            if (emailFrom) payload.emailFrom = emailFrom;
+            payload.smtpSecure = smtpSecure;
+
+            await api.put('/api/settings', payload);
 
             const { data } = await api.post('/api/settings/test-email');
             setTestStatus('success');
             toast.success(data.message || 'Test email sent successfully!');
-            await refreshSettings();
+            await refreshSettings(true);
         } catch (e: any) {
             setTestStatus('failure');
             toast.error(e?.response?.data?.error || e?.response?.data?.details || 'Connection test failed');
@@ -80,14 +95,18 @@ export default function EmailTab() {
     };
 
     return (
-        <div className="max-w-xl space-y-6">
-            <div className="card">
-                <div className="card-header flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-indigo-600" />
-                        <h2 className="font-semibold text-gray-900">SMTP Configuration</h2>
+        <div className="max-w-4xl space-y-6">
+            <div className="bg-white p-6 rounded-lg border shadow-sm">
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 className="text-lg font-semibold flex items-center gap-2">
+                            <Mail className="w-5 h-5 text-gray-500" />
+                            {title}
+                        </h2>
+                        <p className="text-gray-500 text-sm mt-1">
+                            {description}
+                        </p>
                     </div>
-                    
                     <div className="flex items-center gap-2">
                         {testStatus === 'success' && (
                             <span className="badge badge-green flex items-center gap-1">
@@ -197,7 +216,7 @@ export default function EmailTab() {
                             disabled={saving} 
                             className="btn-primary flex-1"
                         >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Save Settings'}
                         </button>
                         
@@ -211,7 +230,7 @@ export default function EmailTab() {
                                     : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
                             )}
                         >
-                            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                            {testing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
                             {testing ? 'Validating...' : 'Connect & Test'}
                         </button>
                     </div>

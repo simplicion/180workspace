@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { Search, Loader2, X, Check, Users, Building2 } from 'lucide-react';
+import { Search, X, Check, Users, Building2 } from 'lucide-react';
 import api from '@/lib/api';
 import clsx from 'clsx';
 
@@ -93,7 +94,7 @@ export default function UserSelectionModal({
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
+                            <LogoLoader className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
                             <p className="text-sm text-gray-400 font-medium">Loading items...</p>
                         </div>
                     ) : filteredItems.length === 0 ? (

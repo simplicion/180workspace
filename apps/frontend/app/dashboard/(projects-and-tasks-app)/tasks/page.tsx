@@ -17,6 +17,8 @@ const COLUMNS = [
     { id: 'in_progress', label: 'In Progress', color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
     { id: 'in_review', label: 'In Review', color: 'border-orange-400', bg: 'bg-orange-50', badge: 'badge-orange' },
     { id: 'done', label: 'Done', color: 'border-green-400', bg: 'bg-green-50', badge: 'badge-green' },
+    { id: 'backlog', label: 'Backlog', color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
+    { id: 'custom', label: 'Custom', color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -143,20 +145,24 @@ export default function TasksPage() {
                     </div>
                 )
             ) : view === 'kanban' ? (
-                /* ── KANBAN VIEW ── */
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 overflow-x-auto">
+                /* ✨ KANBAN VIEW ✨ */
+                <div className="flex gap-4 overflow-x-auto pb-4">
                     {COLUMNS.map(col => {
                         const colTasks = tasks.filter(t => t.status === col.id);
+                        let displayLabel = col.label;
+                        if (col.id === 'custom' && colTasks.length > 0 && colTasks[0]?.projectId?.customTaskStatusName) {
+                            displayLabel = colTasks[0].projectId.customTaskStatusName;
+                        }
                         return (
                             <div
                                 key={col.id}
-                                className={clsx('rounded-2xl border-t-4 p-3 min-h-[420px]', col.bg, col.color)}
+                                className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] min-h-[420px] flex-shrink-0', col.bg, col.color)}
                                 onDragOver={e => e.preventDefault()}
                                 onDrop={() => handleDrop(col.id)}
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-sm text-gray-700">{col.label}</span>
+                                        <span className="font-semibold text-sm text-gray-700">{displayLabel}</span>
                                         <span className={clsx('badge text-xs', col.badge)}>{colTasks.length}</span>
                                     </div>
                                 </div>

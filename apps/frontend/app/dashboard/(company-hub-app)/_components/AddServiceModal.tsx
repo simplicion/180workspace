@@ -1,5 +1,6 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Upload } from 'lucide-react';
 import { useAddCompanyServiceMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -93,7 +94,7 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                                     ) : (
                                         <>
                                             {isUploading ? (
-                                                <Loader2 className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
+                                                <LogoLoader className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
                                             ) : (
                                                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                                             )}
@@ -171,7 +172,7 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                                 disabled={isLoading || isUploading}
                                 className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                {isLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : null}
                                 Save Service
                             </button>
                         </div>

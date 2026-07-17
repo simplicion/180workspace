@@ -4,16 +4,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useSettings } from '@/lib/settings-context';
-import {
-    FileText, Plus, Loader2, X, Trash2, Eye,
-    Filter, CheckCircle2, Send, Banknote, AlertCircle, Printer, CreditCard,
-    ExternalLink, Download, ShieldAlert
-} from 'lucide-react';
+import { FileText, Plus, X, Trash2, Eye, Filter, CheckCircle2, Send, Banknote, AlertCircle, Printer, CreditCard, ExternalLink, Download, ShieldAlert } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
 
 const STATUS_STYLES: Record<string, { badge: string; label: string; icon: any }> = {
@@ -191,7 +187,7 @@ function CreateInvoiceModal({ onClose, onSuccess, clients }: { onClose: () => vo
                     <div className="flex justify-end gap-3 pt-2">
                         <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
                         <button type="submit" disabled={loading} className="btn-primary">
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Invoice'}
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Create Invoice'}
                         </button>
                     </div>
                 </form>
@@ -256,7 +252,7 @@ function InvoiceViewModal({ invoice, onClose }: { invoice: any; onClose: () => v
                                 disabled={paying}
                                 className="btn-primary text-xs py-1.5 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                             >
-                                {paying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                                {paying ? <LogoLoader className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
                                 {paying ? 'Processing...' : 'Pay Online'}
                             </button>
                         )}
@@ -500,7 +496,7 @@ export default function InvoicesPage() {
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                    <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
             ) : invoices.length === 0 ? (
                 <div className="text-center py-16">

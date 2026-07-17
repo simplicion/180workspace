@@ -1,4 +1,6 @@
-import { X, AlertTriangle, AlertCircle, Info, CheckCircle, Loader2 } from 'lucide-react';
+"use client";
+import { LogoLoader } from "./LogoLoader";
+import { X, AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 
@@ -134,7 +136,7 @@ export default function ConfirmModal({
                                         action.className || currentVariant.btn
                                     )}
                                 >
-                                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {loading && <LogoLoader className="w-4 h-4 animate-spin" />}
                                     {action.label}
                                 </button>
                             ))}
@@ -149,7 +151,7 @@ export default function ConfirmModal({
                                 currentVariant.btn
                             )}
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <LogoLoader className="w-4 h-4 animate-spin" />}
                             {confirmText}
                         </button>
                     )}

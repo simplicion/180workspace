@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { Building2, Save, Loader2, Mail, Phone, MapPin, Landmark, PenTool, Hash, Globe, Image as ImageIcon } from 'lucide-react';
+import { Building2, Save, Mail, Phone, MapPin, Landmark, PenTool, Hash, Globe, Image as ImageIcon } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import { useSettings } from '../../lib/settings-context';
@@ -78,7 +79,7 @@ export default function CompanyTab() {
         setLoading(true);
         try {
             await api.put('/api/company-config', formData);
-            await refreshSettings();
+            await refreshSettings(true);
             toast.success('Company configuration updated successfully');
         } catch (error: any) {
             toast.error(error?.response?.data?.error || 'Failed to update company config');
@@ -106,7 +107,7 @@ export default function CompanyTab() {
                         </div>
                     </div>
                     <button onClick={handleSave} disabled={loading} className="btn-primary">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         {loading ? 'Saving...' : 'Save All Changes'}
                     </button>
                 </div>
@@ -269,7 +270,7 @@ export default function CompanyTab() {
 
                 <div className="card-footer bg-gray-50 flex justify-end gap-3 p-4">
                     <button onClick={handleSave} disabled={loading} className="btn-primary w-full md:w-auto px-12">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         {loading ? 'Saving Changes...' : 'Save Configuration'}
                     </button>
                 </div>

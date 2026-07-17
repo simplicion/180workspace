@@ -1,9 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
-import { BarChart3, Save, Loader2, Eye, EyeOff, ShieldCheck, ShieldAlert, Info, Activity, Globe } from 'lucide-react';
+import { BarChart3, Save, Eye, EyeOff, ShieldCheck, ShieldAlert, Info, Activity, Globe } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -29,7 +30,7 @@ export default function IntegrationsTab() {
         try {
             await api.put('/api/settings', { plausibleApiKey, plausibleSiteId });
             toast.success('Integration settings updated');
-            await refreshGlobalSettings();
+            await refreshGlobalSettings(true);
         } catch (e: any) {
             toast.error(e?.response?.data?.error || 'Failed to update integrations');
         } finally {
@@ -47,7 +48,7 @@ export default function IntegrationsTab() {
             });
             setTestStatus('success');
             toast.success(data.message || 'Plausible connection verified!');
-            await refreshGlobalSettings();
+            await refreshGlobalSettings(true);
         } catch (e: any) {
             setTestStatus('failure');
             toast.error(e?.response?.data?.error || e?.response?.data?.details || 'Connection failed');
@@ -143,7 +144,7 @@ export default function IntegrationsTab() {
                             disabled={saving} 
                             className="flex-1 flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-[20px] text-sm font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
                         >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'SAVING...' : 'SAVE CONFIG'}
                         </button>
                         <button 
@@ -154,7 +155,7 @@ export default function IntegrationsTab() {
                                 testStatus === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-white border-gray-100 text-gray-900 hover:bg-gray-50"
                             )}
                         >
-                            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                            {testing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
                             {testing ? 'TESTING...' : 'TEST LINK'}
                         </button>
                     </div>

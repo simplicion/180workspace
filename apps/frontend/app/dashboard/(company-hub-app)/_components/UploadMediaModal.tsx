@@ -1,5 +1,6 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { X, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { useAddCompanyMediaMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
 
@@ -75,7 +76,7 @@ export function UploadMediaModal({ isOpen, onClose, companyId }: UploadMediaModa
                         <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors relative overflow-hidden group">
                             {uploading || isLoading ? (
                                 <div className="flex flex-col items-center space-y-3">
-                                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                                    <LogoLoader className="w-8 h-8 text-blue-500 animate-spin" />
                                     <span className="text-sm font-medium text-gray-500">Uploading photo...</span>
                                 </div>
                             ) : (

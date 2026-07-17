@@ -1,15 +1,11 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import {
-    Plus, Search, Download,
-    Banknote, CreditCard, Calendar,
-    Eye, FileCheck, FileWarning,
-    TrendingUp, ArrowUpRight, DollarSign, Clock, AlertCircle, CheckCircle, Loader2
-} from 'lucide-react';
+import { Plus, Search, Download, Banknote, CreditCard, Calendar, Eye, FileCheck, FileWarning, TrendingUp, ArrowUpRight, DollarSign, Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 
@@ -135,7 +131,7 @@ export default function SalaryPage() {
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                <div className="flex items-center justify-center py-12"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
             ) : (
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden text-sm">
                     <div className="overflow-x-auto">

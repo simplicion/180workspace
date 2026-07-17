@@ -118,7 +118,7 @@ interface SettingsContextType {
     settings: Settings;
     company: CompanyConfig | null;
     platform: PlatformBranding | null;
-    refreshSettings: (force?: boolean) => Promise<void>;
+    refreshSettings: (forceFetch?: boolean) => Promise<void>;
     isLoading: boolean;
 }
 
@@ -132,7 +132,7 @@ const SettingsContext = createContext<SettingsContextType>({
     settings: defaultSettings,
     company: null,
     platform: null,
-    refreshSettings: async (force?: boolean) => { },
+    refreshSettings: async () => { },
     isLoading: true,
 });
 
@@ -179,7 +179,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
     const isFetchingRef = useRef(false);
 
-    const refreshSettings = useCallback(async (force = false) => {
+    const refreshSettings = useCallback(async (forceFetch: boolean = false) => {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
 
@@ -227,7 +227,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             };
 
             // 1. Check if AuthContext already fetched our data via /api/init
-            if (!force && activeToken && typeof window !== 'undefined') {
+            if (!forceFetch && activeToken && typeof window !== 'undefined') {
                 try {
                     const stored = sessionStorage.getItem('platform_init_data');
                     if (stored) {
@@ -242,7 +242,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
             // If AuthContext is currently loading the /api/init endpoint, do not fire fallback APIs.
             // We will just wait for the `platform_init_ready` event to trigger this again.
-            if (!force && activeToken && isAuthLoading) {
+            if (!forceFetch && activeToken && isAuthLoading) {
                 return;
             }
 
@@ -266,6 +266,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 (activeToken) ? api.get('/api/company-config').catch(() => ({ data: { config: null } })) : Promise.resolve({ data: { config: null } }),
                 api.get(`/api/public/branding${workspace ? `?workspace=${workspace}` : ''}`).catch(() => ({ data: null }))
             ]);
+
+            if (activeToken && typeof window !== 'undefined') {
+                try {
+                    const stored = sessionStorage.getItem('platform_init_data');
+                    let parsed = stored ? JSON.parse(stored) : {};
+                    parsed.settings = settingsRes.data.settings;
+                    parsed.companyConfig = companyRes.data.config;
+                    if (platformRes.data) parsed.platform = platformRes.data;
+                    sessionStorage.setItem('platform_init_data', JSON.stringify(parsed));
+                } catch(e) {}
+            }
 
             applyData(settingsRes.data.settings, companyRes.data.config, platformRes.data);
             

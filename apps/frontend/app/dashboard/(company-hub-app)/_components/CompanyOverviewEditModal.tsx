@@ -1,7 +1,8 @@
 "use client";
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { X, Save, Loader2, Plus } from 'lucide-react';
+import { X, Save, Plus } from 'lucide-react';
 
 interface CompanyOverviewEditModalProps {
     company: any;
@@ -238,7 +239,7 @@ export function CompanyOverviewEditModal({ company, isOpen, onClose, onSave }: C
                         Cancel
                     </button>
                     <button type="submit" form="overview-edit-form" disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed">
-                        {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                        {isLoading ? <LogoLoader className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         Save Changes
                     </button>
                 </div>

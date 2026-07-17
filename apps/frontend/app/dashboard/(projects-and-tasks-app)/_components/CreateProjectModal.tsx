@@ -1,11 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, FormEvent } from 'react';
 import api from '@/lib/api';
-import {
-    X, FolderKanban, Loader2, Plus, Users, Calendar, Flag,
-    Tag, AlignLeft, CheckCircle2, DollarSign, Settings, User, Briefcase, Eye, Building
-} from 'lucide-react';
+import { X, FolderKanban, Plus, Users, Calendar, Flag, Tag, AlignLeft, CheckCircle2, DollarSign, Settings, User, Briefcase, Eye, Building } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 
@@ -308,7 +306,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
                                 <div className="space-y-1.5 max-h-56 overflow-y-auto scrollbar-thin">
                                     {loadingUsers ? (
                                         <div className="flex items-center justify-center py-8">
-                                            <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                                            <LogoLoader className="w-5 h-5 animate-spin text-indigo-500" />
                                         </div>
                                     ) : filteredUsers.map(u => {
                                         const uid = u.id || u.id;
@@ -343,7 +341,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
                         </button>
                     ) : (
                         <button type="button" onClick={submit as any} disabled={submitting} className="btn-primary">
-                            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderKanban className="w-4 h-4" aria-hidden="true" />}
+                            {submitting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <FolderKanban className="w-4 h-4" aria-hidden="true" />}
                             {submitting ? 'Creating...' : 'Create Project'}
                         </button>
                     )}

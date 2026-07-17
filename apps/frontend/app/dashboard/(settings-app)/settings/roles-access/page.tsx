@@ -1,12 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import {
-    Shield, Users, Search, ArrowLeft, CheckCircle2, XCircle,
-    Loader2, Save, ChevronDown, Eye, EyeOff, Info,
-    UserCog, ShieldCheck, ShieldAlert, Edit
-} from 'lucide-react';
+import { Shield, Users, Search, ArrowLeft, CheckCircle2, XCircle, Save, ChevronDown, Eye, EyeOff, Info, UserCog, ShieldCheck, ShieldAlert, Edit } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -309,7 +306,7 @@ export default function RolesAccessPage() {
 
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                            <LogoLoader className="w-8 h-8 text-indigo-500 animate-spin" />
                         </div>
                     ) : (
                         <div className="bg-white border border-gray-100 rounded-[28px] shadow-sm overflow-hidden">

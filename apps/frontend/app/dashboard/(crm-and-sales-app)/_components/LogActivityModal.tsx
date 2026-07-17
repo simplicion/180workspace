@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Phone, Mail, Users, MessageSquare, CheckSquare, Loader2, Calendar, Search } from 'lucide-react';
+import { X, Phone, Mail, Users, MessageSquare, CheckSquare, Calendar, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
@@ -182,7 +183,7 @@ export default function LogActivityModal({ onClose, onSuccess }: Props) {
                                     if (selectedRelationId) setSelectedRelationId('');
                                 }}
                             />
-                            {fetchingData && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" aria-label="Searching..." />}
+                            {fetchingData && <LogoLoader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" aria-label="Searching..." />}
                             
                             {/* Suggestions List */}
                             {suggestions.length > 0 && !selectedRelationId && (
@@ -230,7 +231,7 @@ export default function LogActivityModal({ onClose, onSuccess }: Props) {
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
                     <button onClick={handleSubmit} disabled={loading || (searchTerm && !selectedRelationId)} className="btn-primary flex items-center gap-2">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
                         Log Activity
                     </button>
                 </div>

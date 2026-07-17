@@ -390,6 +390,7 @@ model Project {
   progress    Int       @default(0)
   budget      Float     @default(0)
   projectType String    @default("internal") // internal, client, marketing, development
+  customTaskStatusName String? @default("Custom")
   visibility  String    @default("public") // public, private
   billingType String    @default("non_billable") // hourly, fixed, non_billable
 
@@ -431,6 +432,8 @@ model Task {
   estimatedHours    Float     @default(0)
   isOverdueNotified Boolean   @default(false)
   completedOnTime   Boolean?
+  voiceMessageUrl   String?
+  attachments       String[]  @default([])
 
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id])
@@ -1588,6 +1591,7 @@ model WorkLog {
   workDate        DateTime  @default(now())
   links           String[]  @default([])
   attachmentUrls  String[]  @default([])
+  voiceMessageUrl String?
   isWorkCompleted Boolean   @default(false)
   status          String    @default("pending")
   reviewComment   String    @default("")

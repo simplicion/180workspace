@@ -57,7 +57,7 @@ export default function PaymentFailedPage() {
                     Try Again
                 </button>
                 <Link
-                    href="/dashboard/support"
+                    href="/dashboard/help-support"
                     className="w-full sm:w-auto px-10 py-4 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-slate-50 text-slate-600 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 group"
                 >
                     <LifeBuoy className="w-5 h-5 group-hover:rotate-12 transition-transform" />
@@ -72,3 +72,4 @@ export default function PaymentFailedPage() {
         </div>
     );
 }
+

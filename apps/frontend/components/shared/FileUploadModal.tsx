@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Upload, X, FileIcon, ImageIcon, AlertCircle, CheckCircle, Loader2, Search, Database, ShieldAlert, Tags, Users, ChevronDown, Mail, UserPlus, Link2 } from 'lucide-react';
+import { Upload, X, FileIcon, ImageIcon, AlertCircle, CheckCircle, Search, Database, ShieldAlert, Tags, Users, ChevronDown, Mail, UserPlus, Link2 } from 'lucide-react';
 import api from '@/lib/api';
 import clsx from 'clsx';
 import Link from 'next/link';
@@ -24,7 +25,7 @@ interface FileItem {
 }
 
 const MAX_SIZE_MB = 10;
-const ACCEPTED = ['image/*', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.zip'];
+const ACCEPTED = ['image/*', 'audio/*', 'video/*', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.zip'];
 
 function formatBytes(bytes: number) {
     if (bytes < 1024) return `${bytes} B`;
@@ -244,7 +245,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10 overflow-hidden">
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10 overflow-y-auto max-h-[90vh] scrollbar-thin">
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-lg font-bold text-gray-900">Manage Documents</h2>
                     <button onClick={onClose} aria-label="Close modal" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
@@ -254,7 +255,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
 
                 {settingsLoading ? (
                     <div className="flex flex-col items-center justify-center py-16">
-                        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
+                        <LogoLoader className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
                         <p className="text-sm text-gray-500">Checking configuration...</p>
                     </div>
                 ) : (
@@ -375,7 +376,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                                             <X className="w-4 h-4" />
                                                         </button>
                                                     )}
-                                                    {item.status === 'uploading' && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+                                                    {item.status === 'uploading' && <LogoLoader className="w-4 h-4 animate-spin text-indigo-500" />}
                                                     {item.status === 'done' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
                                                     {item.status === 'error' && <AlertCircle className="w-4 h-4 text-red-400" />}
                                                 </div>
@@ -438,7 +439,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                             disabled={!hasPending || isUploading}
                                             className="btn-primary flex-1"
                                         >
-                                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                            {isUploading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                                             {isUploading ? 'Uploading...' : `Upload ${items.filter(i => i.status === 'pending').length} file${items.filter(i => i.status === 'pending').length !== 1 ? 's' : ''}`}
                                         </button>
                                     )}
@@ -537,7 +538,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                         disabled={isSavingLink || !linkUrl}
                                         className="btn-primary flex-1"
                                     >
-                                        {isSavingLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                        {isSavingLink ? <LogoLoader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                                         {isSavingLink ? 'Saving...' : 'Add Link'}
                                     </button>
                                 </div>
@@ -557,7 +558,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
 
                                 {vaultLoading ? (
                                     <div className="flex-1 flex flex-col items-center justify-center">
-                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
+                                        <LogoLoader className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
                                         <p className="text-sm text-gray-400">Loading your vault...</p>
                                     </div>
                                 ) : filteredVault.length === 0 ? (
@@ -611,7 +612,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                         disabled={selectedVaultIds.length === 0 || isAttaching}
                                         className="btn-primary flex-1"
                                     >
-                                        {isAttaching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                                        {isAttaching ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
                                         {isAttaching ? 'Attaching...' : `Attach (${selectedVaultIds.length})`}
                                     </button>
                                 </div>
@@ -676,7 +677,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                             </div>
                                             <div className="max-h-32 overflow-y-auto scrollbar-thin">
                                                 {loadingUsers ? (
-                                                    <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-indigo-500" /></div>
+                                                    <div className="flex justify-center py-4"><LogoLoader className="w-4 h-4 animate-spin text-indigo-500" /></div>
                                                 ) : filteredUsers.length === 0 ? (
                                                     <p className="text-[10px] text-gray-400 text-center py-4">No users found</p>
                                                 ) : filteredUsers.map(u => (

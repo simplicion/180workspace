@@ -1,9 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, FormEvent, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, Lock, Mail, Loader2, Key, Globe, X, CheckCircle2, Zap, ShieldCheck, BarChart3, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Key, Globe, X, CheckCircle2, Zap, ShieldCheck, BarChart3, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../lib/auth-context';
 import { useSettings } from '../../lib/settings-context';
 import api from '../../lib/api';
@@ -48,7 +49,7 @@ function LoginForm() {
     if (isLoading || user || settingsLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                <LogoLoader className="w-10 h-10 animate-spin text-primary" />
                 <p className="text-sm font-semibold text-gray-400 tracking-wide">
                     {user ? 'Redirecting to your dashboard…' : 'Checking session…'}
                 </p>
@@ -275,7 +276,7 @@ function LoginForm() {
                         <div className="mb-6">
                             {googleLoading ? (
                                 <div className="flex justify-center items-center py-2.5 border border-gray-200 rounded-lg bg-gray-50 w-full mb-6">
-                                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                    <LogoLoader className="w-5 h-5 animate-spin text-primary" />
                                 </div>
                             ) : (
                                 <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded overflow-hidden">
@@ -355,7 +356,7 @@ function LoginForm() {
                                 disabled={loading}
                                 className="w-full py-4 rounded-2xl font-bold text-sm text-white bg-gray-900 hover:bg-black transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-gray-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
                             >
-                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                                {loading ? <LogoLoader className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
                                 {loading ? 'Authenticating...' : 'Sign In'}
                             </button>
 
@@ -396,7 +397,7 @@ function LoginForm() {
                                 disabled={loading || mfaToken.length !== 6}
                                 className="w-full py-4 rounded-2xl font-bold text-white bg-primary hover:bg-primary-dark transition-all duration-300 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Confirm Identity'}
+                                {loading ? <LogoLoader className="w-5 h-5 animate-spin mx-auto" /> : 'Confirm Identity'}
                             </button>
                             <button type="button" onClick={() => setMfaRequired(false)} className="w-full text-gray-400 hover:text-gray-600 text-sm font-semibold transition-colors">
                                 Cancel
@@ -458,7 +459,7 @@ function LoginForm() {
                                             disabled={forgotLoading || !forgotEmail}
                                             className="w-full py-3.5 rounded-xl font-bold text-sm text-white bg-gray-900 hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                                         >
-                                            {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Retrieve Password'}
+                                            {forgotLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Retrieve Password'}
                                         </button>
                                     </form>
                                 </>
@@ -486,7 +487,7 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><LogoLoader className="w-8 h-8 animate-spin text-primary" /></div>}>
             <LoginForm />
         </Suspense>
     );

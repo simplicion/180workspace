@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Target, Users, Calendar, TrendingUp, Loader2, Check } from 'lucide-react';
+import { X, Target, Users, Calendar, TrendingUp, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
@@ -273,7 +274,7 @@ export default function CreateGoalModal({ onClose, onSuccess, editGoal }: Props)
                             disabled={loading} 
                             className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-50"
                         >
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : (
                                 <>
                                     <Check className="w-4 h-4" aria-hidden="true" />
                                     <span>{isEdit ? 'Save Changes' : 'Create Goal'}</span>

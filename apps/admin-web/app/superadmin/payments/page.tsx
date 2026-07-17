@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
-import { Save, Zap, CheckCircle, XCircle, Loader2, Globe, ShieldCheck, ToggleRight } from 'lucide-react';
+import { Save, Zap, CheckCircle, XCircle, Globe, ShieldCheck, ToggleRight } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../lib/superadmin-api';
 
@@ -181,12 +182,12 @@ export default function PaymentsPage() {
                 <div className="flex gap-4 pt-6">
                     <button type="button" onClick={test} disabled={testing}
                         className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-sm flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50">
-                        {testing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 text-indigo-500" />}
+                        {testing ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 text-indigo-500" />}
                         Test API Gateway
                     </button>
                     <button type="submit" disabled={saving}
                         className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-3 transition-all shadow-xl shadow-indigo-200 active:scale-95 disabled:opacity-50">
-                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        {saving ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                         Commit Configuration
                     </button>
                 </div>

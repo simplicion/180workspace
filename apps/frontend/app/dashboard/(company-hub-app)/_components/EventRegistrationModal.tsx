@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, LogIn } from 'lucide-react';
+import { X, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRegisterForEventMutation } from '@/redux/api/companyApi';
 import { useAuth } from '@/lib/auth-context';
@@ -150,7 +151,7 @@ export function EventRegistrationModal({ eventId, eventTitle, isOpen, onClose }:
                             disabled={isLoading}
                             className="flex items-center px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
                         >
-                            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            {isLoading && <LogoLoader className="w-4 h-4 mr-2 animate-spin" />}
                             Complete Registration
                         </button>
                     </div>

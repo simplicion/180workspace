@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
-import { Database, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Database, CheckCircle, XCircle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../lib/superadmin-api';
 
@@ -70,7 +71,7 @@ export default function DatabasesPage() {
                             )}
                             <button onClick={() => test(db.id)} disabled={testing === db.id || !db.maskedUri}
                                 className="px-8 py-3.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-30 disabled:grayscale text-[11px] font-black uppercase tracking-[0.2em] text-white rounded-2xl transition-all shadow-lg shadow-sky-500/25 active:scale-95 flex items-center gap-3">
-                                {testing === db.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                                {testing === db.id ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
                                 {testing === db.id ? 'Pinging...' : 'Verify Node'}
                             </button>
                         </div>

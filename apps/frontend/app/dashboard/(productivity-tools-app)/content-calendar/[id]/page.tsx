@@ -1,14 +1,11 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { contentCalendarService, ContentCalendar, ContentPiece } from '@/lib/services/content-calendar.service';
-import { 
-    CalendarDays, ArrowLeft, Loader2, Calendar, Target, Hash, Info, 
-    CheckCircle2, Circle, Edit3, Image as ImageIcon, MessageSquare,
-    Download, Bookmark, Sparkles
-} from 'lucide-react';
+import { CalendarDays, ArrowLeft, Calendar, Target, Hash, Info, CheckCircle2, Circle, Edit3, Image as ImageIcon, MessageSquare, Download, Bookmark, Sparkles } from 'lucide-react';
 
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -112,7 +109,7 @@ export default function CalendarDetailView() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
+                <LogoLoader className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
                 <p className="text-gray-500 font-medium">Loading calendar details...</p>
             </div>
         );
@@ -145,7 +142,7 @@ export default function CalendarDetailView() {
                         disabled={savingTemplate}
                         className="btn flex items-center gap-2 text-sm"
                     >
-                        {savingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bookmark className="w-4 h-4" />}
+                        {savingTemplate ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Bookmark className="w-4 h-4" />}
                         Save as Template
                     </button>
                     <button 
@@ -153,7 +150,7 @@ export default function CalendarDetailView() {
                         disabled={exporting}
                         className="btn-primary flex items-center gap-2 text-sm shadow-sm"
                     >
-                        {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        {exporting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                         Export CSV
                     </button>
                 </div>

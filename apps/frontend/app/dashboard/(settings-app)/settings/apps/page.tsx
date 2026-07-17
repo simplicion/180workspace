@@ -1,14 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    ChevronRight, Search, Settings, Sparkles, 
-    Plus, ArrowRight, Activity, Bell, Filter,
-    LayoutGrid, CheckCircle2, Star, Plug2,
-    ShieldCheck, Zap, Clock, Headphones, Loader2
-} from 'lucide-react';
+import { ChevronRight, Search, Settings, Sparkles, Plus, ArrowRight, Activity, Bell, Filter, LayoutGrid, CheckCircle2, Star, Plug2, ShieldCheck, Zap, Clock, Headphones } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
 import { APPS_CONFIG, AppTag } from '@/lib/module-map';
 import api from '@/lib/api';

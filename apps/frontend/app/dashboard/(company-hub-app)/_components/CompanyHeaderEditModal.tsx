@@ -1,7 +1,8 @@
 "use client";
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { X, Upload, Save, Loader2, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, Save, Image as ImageIcon } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -110,7 +111,7 @@ export function CompanyHeaderEditModal({ company, isOpen, onClose, onSave }: Com
                                 <div className="flex space-x-2">
                                     <input type="text" name="bannerUrl" value={formData.bannerUrl} onChange={handleChange} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="https://..." />
                                     <label className={`flex flex-col items-center justify-center px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${uploadingField === 'bannerUrl' ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        {uploadingField === 'bannerUrl' ? <Loader2 className="h-4 w-4 animate-spin text-gray-600" /> : <Upload className="h-4 w-4 text-gray-600" />}
+                                        {uploadingField === 'bannerUrl' ? <LogoLoader className="h-4 w-4 animate-spin text-gray-600" /> : <Upload className="h-4 w-4 text-gray-600" />}
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'bannerUrl')} disabled={!!uploadingField} />
                                     </label>
                                 </div>
@@ -121,7 +122,7 @@ export function CompanyHeaderEditModal({ company, isOpen, onClose, onSave }: Com
                                 <div className="flex space-x-2">
                                     <input type="text" name="logoUrl" value={formData.logoUrl} onChange={handleChange} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="https://..." />
                                     <label className={`flex flex-col items-center justify-center px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${uploadingField === 'logoUrl' ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        {uploadingField === 'logoUrl' ? <Loader2 className="h-4 w-4 animate-spin text-gray-600" /> : <Upload className="h-4 w-4 text-gray-600" />}
+                                        {uploadingField === 'logoUrl' ? <LogoLoader className="h-4 w-4 animate-spin text-gray-600" /> : <Upload className="h-4 w-4 text-gray-600" />}
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'logoUrl')} disabled={!!uploadingField} />
                                     </label>
                                 </div>
@@ -167,7 +168,7 @@ export function CompanyHeaderEditModal({ company, isOpen, onClose, onSave }: Com
                         Cancel
                     </button>
                     <button type="submit" form="header-edit-form" disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed">
-                        {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                        {isLoading ? <LogoLoader className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         Save Changes
                     </button>
                 </div>

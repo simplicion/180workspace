@@ -1,8 +1,9 @@
+import { LogoLoader } from "@workspace/ui";
 // Force recompile to bust Next.js cache - updated
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Building, MapPin, Globe, Calendar, Users, DollarSign, TrendingUp, Trophy, ArrowRight, Loader2, CheckCircle2, ChevronDown, Clock, Eye, Mail, Phone, Target, Briefcase, FileText, Map, Activity, MonitorSmartphone, Code, Cpu, BarChart } from 'lucide-react';
+import { Building, MapPin, Globe, Calendar, Users, DollarSign, TrendingUp, Trophy, ArrowRight, CheckCircle2, ChevronDown, Clock, Eye, Mail, Phone, Target, Briefcase, FileText, Map, Activity, MonitorSmartphone, Code, Cpu, BarChart } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
@@ -132,7 +133,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                <LogoLoader className="h-8 w-8 animate-spin text-gray-400" />
             </div>
         );
     }
@@ -203,7 +204,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                         }`}
                                     >
                                         {(isFollowingLoading || isUnfollowingLoading) ? (
-                                            <Loader2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 animate-spin" />
+                                            <LogoLoader className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 animate-spin" />
                                         ) : isFollowing ? (
                                             <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" /> 
                                         ) : (

@@ -1,11 +1,12 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useSettings } from '@/lib/settings-context';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Users, ArrowRight, CheckCircle2, Loader2, Sparkles, LayoutDashboard, TrendingUp, Briefcase, Globe, Info, Target, FileText } from 'lucide-react';
+import { Building2, Users, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, TrendingUp, Briefcase, Globe, Info, Target, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { ALL_APPS } from '@/lib/module-map';
@@ -99,7 +100,7 @@ import { Suspense } from 'react';
 
 export default function WorkspaceSetupPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>}>
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>}>
             <WorkspaceSetup />
         </Suspense>
     );
@@ -212,7 +213,7 @@ function WorkspaceSetup() {
     };
 
     if (isSessionLoading) {
-        return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+        return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>;
     }
 
     return (
@@ -485,7 +486,7 @@ function WorkspaceSetup() {
                                         <p className="text-[10px] text-gray-500">Essential features automatically enabled</p>
                                     </div>
                                     <button onClick={completeSetup} disabled={saving} className="btn-primary shadow-lg shadow-indigo-500/20 px-8 py-3 h-auto text-base w-full sm:w-auto flex justify-center items-center">
-                                        {saving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
+                                        {saving ? <LogoLoader className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
                                         <span>{saving ? "Saving..." : "Start Using Workspace"}</span>
                                     </button>
                                 </div>

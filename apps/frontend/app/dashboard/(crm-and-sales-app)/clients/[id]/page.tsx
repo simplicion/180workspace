@@ -3,17 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import {
-    Building2, Mail, Phone, Globe, MapPin,
-    Briefcase, Receipt, Activity, Clock,
-    TrendingUp, ArrowUpRight, DollarSign,
-    FileText, ExternalLink, ChevronRight,
-    Edit3, Plus, MoreVertical, LayoutGrid,
-    Users, MessageSquare, CalendarIcon, PhoneCall,
-    Loader2, Trash2, X, CheckCircle, FolderOpen,
-    Video, CalendarDays, Receipt as ReceiptIcon,
-} from 'lucide-react';
-import { Skeleton,  SkeletonTable  } from "@workspace/ui";
+import { Building2, Mail, Phone, Globe, MapPin, Briefcase, Receipt, Activity, Clock, TrendingUp, ArrowUpRight, DollarSign, FileText, ExternalLink, ChevronRight, Edit3, Plus, MoreVertical, LayoutGrid, Users, MessageSquare, CalendarIcon, PhoneCall, Trash2, X, CheckCircle, FolderOpen, Video, CalendarDays, Receipt as ReceiptIcon } from 'lucide-react';
+import { Skeleton,  SkeletonTable  , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -487,7 +478,7 @@ function ClientCommunications({ clientId }: { clientId: string }) {
         }
     }
 
-    if (loading) return <div className="p-12 text-center"><Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto" /></div>;
+    if (loading) return <div className="p-12 text-center"><LogoLoader className="w-8 h-8 animate-spin text-blue-500 mx-auto" /></div>;
 
     return (
         <div className="space-y-6">
@@ -551,7 +542,7 @@ function ClientCommunications({ clientId }: { clientId: string }) {
                                     className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded-xl transition-all"
                                     title="Delete"
                                 >
-                                    {deleting === comm.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                    {deleting === comm.id ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                 </button>
                             </div>
                         </div>
@@ -658,7 +649,7 @@ function LogInteractionModal({ clientId, onClose, onSuccess }: any) {
                     <div className="flex gap-3 pt-2">
                         <button type="button" onClick={onClose} className="flex-1 btn-secondary">Cancel</button>
                         <button type="submit" disabled={saving} className="flex-1 btn-primary">
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Log Interaction'}
                         </button>
                     </div>
@@ -768,7 +759,7 @@ function ClientActivity({ clientId }: { clientId: string }) {
             .finally(() => setLoading(false));
     }, [clientId]);
 
-    if (loading) return <div className="p-12 text-center"><Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto" /></div>;
+    if (loading) return <div className="p-12 text-center"><LogoLoader className="w-8 h-8 animate-spin text-blue-500 mx-auto" /></div>;
 
     return (
         <div className="card divide-y divide-gray-100 overflow-hidden">

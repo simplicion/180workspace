@@ -2,14 +2,10 @@
 
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
-import {
-    FileText, Upload, Search, Loader2, Plus, Download, Trash2,
-    File, FolderOpen, Image, Video, X, ExternalLink, Eye,
-    Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle,
-    AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert
-} from 'lucide-react';
+import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Eye, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -288,7 +284,7 @@ export default function DocumentsPage() {
             {loading ? (
                 <div className="flex items-center justify-center py-28">
                     <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-9 h-9 animate-spin text-indigo-400" />
+                        <LogoLoader className="w-9 h-9 animate-spin text-indigo-400" />
                         <p className="text-sm text-gray-400">Loading documents...</p>
                     </div>
                 </div>

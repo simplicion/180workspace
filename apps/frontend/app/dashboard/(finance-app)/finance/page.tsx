@@ -1,13 +1,9 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
-import {
-    PieChart, TrendingUp, TrendingDown, Wallet, History,
-    UserCheck, AlertCircle, ArrowUpRight, ArrowDownLeft,
-    Download, Filter, RefreshCw, Loader2, Search,
-    ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock
-} from 'lucide-react';
+import { PieChart, TrendingUp, TrendingDown, Wallet, History, UserCheck, AlertCircle, ArrowUpRight, ArrowDownLeft, Download, Filter, RefreshCw, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import clsx from 'clsx';
@@ -83,7 +79,7 @@ export default function FinancialDashboard() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
             </div>
         );
     }

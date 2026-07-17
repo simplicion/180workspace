@@ -1,13 +1,11 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { toast } from 'react-hot-toast';
-import {
-    Bell, X, Check, CheckCheck, Loader2, MessageSquare,
-    FolderKanban, UserPlus, DollarSign, AlertCircle, Calendar, Mail, CheckCircle2
-} from 'lucide-react';
+import { Bell, X, Check, CheckCheck, MessageSquare, FolderKanban, UserPlus, DollarSign, AlertCircle, Calendar, Mail, CheckCircle2 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 

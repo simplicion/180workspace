@@ -21,6 +21,8 @@ const upload = multer({
             'application/vnd.ms-excel',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'text/plain', 'text/csv',
+            'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav',
+            'video/webm', 'video/mp4'
         ];
         if (allowed.includes(file.mimetype)) {
             cb(null, true);
@@ -47,20 +49,40 @@ function handleUpload(folder = 'general', options = {}) {
         }
 
         try {
-            const settings = await req.prisma.settings.findFirst();
+            const settings = await req.prisma.settings.findFirst() || {};
             
-            const isLogo = options.isLogo === true || folder === 'logos' || folder === 'employees';
-            const preferredMode = settings?.storageMode || 'google_drive';
+            // Merge company metadata to get storage credentials
+            let metadata = {};
+            if (req.user?.companyId || settings.companyId) {
+                const { prisma } = require('@workspace/db');
+                const company = await prisma.company.findUnique({
+                    where: { id: req.user?.companyId || settings.companyId }
+                });
+                if (company && company.metadata) {
+                    metadata = typeof company.metadata === 'string' ? JSON.parse(company.metadata) : company.metadata;
+                }
+            }
             
-            console.log(`[Upload DEBUG] folder: ${folder}, isLogo: ${isLogo}, options:`, options);
+            settings.googleDriveServiceAccount = metadata.googleDriveServiceAccount || settings.googleDriveServiceAccount;
+            settings.googleDriveFolderId = metadata.googleDriveFolderId || settings.googleDriveFolderId;
+            settings.cloudinaryCloudName = metadata.cloudinaryCloudName || settings.cloudinaryCloudName;
+            settings.cloudinaryApiKey = metadata.cloudinaryApiKey || settings.cloudinaryApiKey;
+            settings.cloudinaryApiSecret = metadata.cloudinaryApiSecret || settings.cloudinaryApiSecret;
+
+            // Check if it's a system asset that MUST go to R2
+            const isSystemAsset = options.isLogo === true || folder === 'logos' || folder === 'employees' || options.forceR2 === true;
+            
+            const preferredMode = settings?.storageMode || 'cloudinary';
+            
+            console.log(`[Upload DEBUG] folder: ${folder}, isSystemAsset: ${isSystemAsset}, preferredMode: ${preferredMode}`);
 
             let result = null;
 
             // --- STRICT ENFORCEMENT ---
-            // If it's NOT a logo, verify tenant has configured their own storage
-            if (!isLogo) {
-                const isCloudinaryConfigured = !!(settings?.cloudinaryCloudName && settings?.cloudinaryApiKey && settings?.cloudinaryApiSecret);
-                const isDriveConfigured = !!settings?.googleDriveServiceAccount;
+            // If it's NOT a system asset, verify tenant has configured their own storage
+            if (!isSystemAsset) {
+                const isCloudinaryConfigured = !!(settings.cloudinaryCloudName && settings.cloudinaryApiKey && settings.cloudinaryApiSecret);
+                const isDriveConfigured = !!settings.googleDriveServiceAccount;
 
                 if ((preferredMode === 'cloudinary' && !isCloudinaryConfigured) || 
                     (preferredMode === 'google_drive' && !isDriveConfigured) ||
@@ -72,10 +94,8 @@ function handleUpload(folder = 'general', options = {}) {
                 }
             }
 
-            // Attempt Preferred Storage
-            if (!options.forceR2 && preferredMode === 'google_drive' && (isLogo || settings.googleDriveServiceAccount)) {
-                // Logos usually go to Cloudinary because Drive isn't great for direct public image links
-                // Force Cloudinary for logos if possible, but respect the Drive flow if that's what's here
+            // Attempt Preferred Storage for Non-System Assets
+            if (!isSystemAsset && preferredMode === 'google_drive' && settings.googleDriveServiceAccount) {
                 try {
                     const driveResult = await googleDriveService.uploadFile(req.file.buffer, {
                         name: req.file.originalname,
@@ -92,14 +112,9 @@ function handleUpload(folder = 'general', options = {}) {
                 }
             } 
             
-            if (!options.forceR2 && !result && (preferredMode === 'cloudinary' || isLogo)) {
+            if (!isSystemAsset && !result && preferredMode === 'cloudinary') {
                 try {
-                    // Use tenant credentials if NOT a logo, else fallback to system env if it's a logo
-                    const config = (isLogo && !settings.cloudinaryCloudName) ? {
-                        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-                        apiKey: process.env.CLOUDINARY_API_KEY,
-                        apiSecret: process.env.CLOUDINARY_API_SECRET
-                    } : {
+                    const config = {
                         cloudName: settings.cloudinaryCloudName,
                         apiKey: settings.cloudinaryApiKey,
                         apiSecret: settings.cloudinaryApiSecret

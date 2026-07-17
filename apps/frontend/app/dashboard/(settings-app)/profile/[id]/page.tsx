@@ -4,20 +4,13 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import {
-    User, Mail, Phone, MapPin, Building2, Briefcase, Calendar,
-    Lock, Shield, ChevronRight, Loader2, Pencil, Trash2,
-    CheckCircle2, Clock, AlertCircle, DollarSign, Heart, Hash,
-    FileText, FolderKanban, Star, Settings, CheckSquare, MessageSquare,
-    Key, Code, Copy, RefreshCw, XCircle, ChevronDown, ChevronUp,
-    CreditCard, FileCheck, History, Download, Link2
-} from 'lucide-react';
+import { User, Mail, Phone, MapPin, Building2, Briefcase, Calendar, Lock, Shield, ChevronRight, Pencil, Trash2, CheckCircle2, Clock, AlertCircle, DollarSign, Heart, Hash, FileText, FolderKanban, Star, Settings, CheckSquare, MessageSquare, Key, Code, Copy, RefreshCw, XCircle, ChevronDown, ChevronUp, CreditCard, FileCheck, History, Download, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import AddEmployeeModal from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeModal';
 import EmployeeBankDetails from '@/app/dashboard/(settings-app)/_components/EmployeeBankDetails';
-import { FavoriteButton } from "@workspace/ui";
+import { FavoriteButton , LogoLoader } from "@workspace/ui";
 
 export default function UnifiedProfilePage() {
     const { id } = useParams();
@@ -291,7 +284,7 @@ export default function UnifiedProfilePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                <LogoLoader className="w-10 h-10 animate-spin text-primary" />
             </div>
         );
     }
@@ -671,7 +664,7 @@ export default function UnifiedProfilePage() {
                                                 <MessageSquare className="w-4 h-4 text-indigo-500" />
                                                 Client Administrative Notes
                                             </h3>
-                                            {isSavingNotes && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+                                            {isSavingNotes && <LogoLoader className="w-4 h-4 animate-spin text-indigo-500" />}
                                         </div>
                                         <textarea
                                             value={notes}
@@ -1390,7 +1383,7 @@ export default function UnifiedProfilePage() {
                                             disabled={passwordLoading}
                                             className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50"
                                         >
-                                            {passwordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                            {passwordLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                             {passwordLoading ? 'Updating...' : 'Update Password'}
                                         </button>
                                     </form>

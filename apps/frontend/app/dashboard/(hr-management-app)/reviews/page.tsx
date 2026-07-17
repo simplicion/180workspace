@@ -1,12 +1,11 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import {
-    Star, Plus, Loader2, X, ClipboardList, CheckCircle, Clock, Search, TrendingUp, Sparkles, Trophy
-} from 'lucide-react';
+import { Star, Plus, X, ClipboardList, CheckCircle, Clock, Search, TrendingUp, Sparkles, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -108,7 +107,7 @@ function CreateReviewModal({ onClose, onSuccess, employees }: { onClose: () => v
                     {/* Insights Section */}
                     {loadingInsights ? (
                         <div className="h-[140px] flex flex-col items-center justify-center bg-indigo-50/30 rounded-2xl border border-dashed border-indigo-200">
-                            <Loader2 className="w-6 h-6 animate-spin text-indigo-500 mb-2" />
+                            <LogoLoader className="w-6 h-6 animate-spin text-indigo-500 mb-2" />
                             <p className="text-[10px] uppercase font-bold text-indigo-400 tracking-tighter">Analyzing Performance Data...</p>
                         </div>
                     ) : insights ? (
@@ -151,7 +150,7 @@ function CreateReviewModal({ onClose, onSuccess, employees }: { onClose: () => v
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-50">
                         <button type="button" onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
                         <button type="submit" disabled={loading} className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50">
-                            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Launch Review Cycle'}
+                            {loading ? <LogoLoader className="w-5 h-5 animate-spin mx-auto" /> : 'Launch Review Cycle'}
                         </button>
                     </div>
                 </form>
@@ -321,7 +320,7 @@ function EvalForm({ review, role, onSuccess }: { review: any; role: string; onSu
                         {showSelfForm && (
                             <div className="flex justify-end">
                                 <button type="submit" disabled={loading} className="btn-primary">
-                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Self-Evaluation'}
+                                    {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Submit Self-Evaluation'}
                                 </button>
                             </div>
                         )}
@@ -397,7 +396,7 @@ function EvalForm({ review, role, onSuccess }: { review: any; role: string; onSu
                         {showManagerForm && (
                             <div className="flex justify-end">
                                 <button type="submit" disabled={loading} className="btn-primary">
-                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Finalize Review'}
+                                    {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Finalize Review'}
                                 </button>
                             </div>
                         )}
@@ -480,7 +479,7 @@ export default function ReviewsPage() {
                 <>
                     {/* List View */}
                     {loading ? (
-                        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                        <div className="flex justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
                     ) : reviews.length === 0 ? (
                         <div className="text-center py-20">
                             <Star className="w-12 h-12 text-gray-200 mx-auto mb-3" />

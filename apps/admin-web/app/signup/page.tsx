@@ -1,11 +1,12 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { Eye, EyeOff, Lock, Mail, Loader2, User, ChevronRight, Info, Globe, Building2, Database, Rocket, Shield, Clock, X } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, ChevronRight, Info, Globe, Building2, Database, Rocket, Shield, Clock, X } from 'lucide-react';
 import { useSettings } from '../../lib/settings-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
@@ -371,7 +372,7 @@ function SignupForm() {
                                     suppressHydrationWarning
                                     className="w-full py-4 mt-4 rounded-2xl font-bold text-white bg-gray-900 hover:bg-black transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-gray-900/20 disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
-                                    {isDbConnecting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Database className="w-5 h-5" />}
+                                    {isDbConnecting ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Database className="w-5 h-5" />}
                                     {isDbConnecting ? 'Connecting...' : 'Connect Database'}
                                 </button>
                             </form>
@@ -506,7 +507,7 @@ function SignupForm() {
                                         suppressHydrationWarning
                                         className="w-full py-4 mt-6 rounded-2xl font-bold text-white bg-gray-900 hover:bg-black transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-gray-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
                                     >
-                                        {registering ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5 group-hover:scale-110 transition-transform" />}
+                                        {registering ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5 group-hover:scale-110 transition-transform" />}
                                         {registering ? 'Creating Workspace...' : 'Create Workspace'}
                                     </button>
                                 </form>
@@ -560,7 +561,7 @@ function SignupForm() {
 
 export default function SignupPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><LogoLoader className="w-8 h-8 animate-spin text-primary" /></div>}>
             <SignupForm />
         </Suspense>
     );

@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../../lib/superadmin-api';
 
@@ -158,7 +159,7 @@ export default function TicketDetailPage() {
                                     disabled={sending || !reply.trim()}
                                     className="h-12 w-12 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:shadow-none text-white rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg shadow-sky-600/20 active:scale-90 flex-shrink-0"
                                 >
-                                    {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                                    {sending ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                                 </button>
                             </div>
                         </div>

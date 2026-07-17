@@ -12,7 +12,7 @@ const nextConfig = {
     },
     outputFileTracingRoot: path.join(__dirname, '../../'),
     experimental: {
-        optimizePackageImports: ['lucide-react', 'date-fns', 'recharts', 'framer-motion', 'lodash', '@mui/material', '@workspace/ui'],
+        optimizePackageImports: ['lucide-react', 'date-fns', 'recharts', 'framer-motion', 'lodash', '@mui/material'],
         staleTimes: {
             dynamic: 30,
             static: 180,

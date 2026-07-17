@@ -1,13 +1,10 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, useMemo } from 'react';
 import api from '@/lib/api';
-import { 
-    Target, Plus, Loader2, CheckCircle2, Clock, 
-    Pencil, ChevronDown, ChevronUp, Check, Search, Filter,
-    BarChart3, Rocket, User as UserIcon, Globe, Users2
-} from 'lucide-react';
+import { Target, Plus, CheckCircle2, Clock, Pencil, ChevronDown, ChevronUp, Check, Search, Filter, BarChart3, Rocket, User as UserIcon, Globe, Users2 } from 'lucide-react';
 import clsx from 'clsx';
 import CreateGoalModal from '@/app/dashboard/(projects-and-tasks-app)/_components/CreateGoalModal';
 import toast from 'react-hot-toast';
@@ -339,7 +336,7 @@ export default function GoalsPage() {
 
             {loading ? (
                 <div className="flex items-center justify-center py-24">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                    <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

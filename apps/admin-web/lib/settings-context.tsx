@@ -117,7 +117,7 @@ interface SettingsContextType {
     settings: Settings;
     company: CompanyConfig | null;
     platform: PlatformBranding | null;
-    refreshSettings: () => Promise<void>;
+    refreshSettings: (forceFetch?: boolean) => Promise<void>;
     isLoading: boolean;
 }
 
@@ -182,7 +182,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         }
     })();
 
-    const refreshSettings = useCallback(async () => {
+    const refreshSettings = useCallback(async (forceFetch: boolean = false) => {
         try {
             const isPublicPath = typeof window !== 'undefined' && ['/login', '/signup', '/workspace-setup'].includes(window.location.pathname);
             const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null);
@@ -220,7 +220,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             };
 
             // 1. Check if AuthContext already fetched our data via /api/init
-            if (activeToken && typeof window !== 'undefined') {
+            if (!forceFetch && activeToken && typeof window !== 'undefined') {
                 try {
                     const stored = sessionStorage.getItem('platform_init_data');
                     if (stored) {
@@ -253,6 +253,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 (activeToken) ? api.get('/api/company-config').catch(() => ({ data: { config: null } })) : Promise.resolve({ data: { config: null } }),
                 api.get(`/api/public/branding${workspace ? `?workspace=${workspace}` : ''}`).catch(() => ({ data: null }))
             ]);
+
+            if (activeToken && typeof window !== 'undefined') {
+                try {
+                    const stored = sessionStorage.getItem('platform_init_data');
+                    let parsed = stored ? JSON.parse(stored) : {};
+                    parsed.settings = settingsRes.data.settings;
+                    parsed.companyConfig = companyRes.data.config;
+                    if (platformRes.data) parsed.platform = platformRes.data;
+                    sessionStorage.setItem('platform_init_data', JSON.stringify(parsed));
+                } catch(e) {}
+            }
 
             applyData(settingsRes.data.settings, companyRes.data.config, platformRes.data);
             

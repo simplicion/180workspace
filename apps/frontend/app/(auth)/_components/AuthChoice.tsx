@@ -1,7 +1,8 @@
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
-import { Mail, CheckCircle2, Loader2 } from 'lucide-react';
+import { Mail, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AuthChoice({ 
@@ -48,7 +49,7 @@ export default function AuthChoice({
                 <div className="relative opacity-100 transition-opacity" style={{ opacity: acceptedTerms ? 1 : 0.5, pointerEvents: acceptedTerms ? 'auto' : 'none' }}>
                     {googleLoading ? (
                         <div className="flex justify-center items-center py-2.5 border border-gray-200 rounded-2xl bg-gray-50 w-full">
-                            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                            <LogoLoader className="w-5 h-5 animate-spin text-blue-600" />
                         </div>
                     ) : (
                         <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden">

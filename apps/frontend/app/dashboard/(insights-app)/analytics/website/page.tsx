@@ -1,17 +1,14 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts';
-import {
-    Users, MousePointer2, Clock, ArrowDownRight,
-    Globe, ExternalLink, Calendar, Loader2, RefreshCcw,
-    AlertCircle, TrendingUp, TrendingDown
-} from 'lucide-react';
+import { Users, MousePointer2, Clock, ArrowDownRight, Globe, ExternalLink, Calendar, RefreshCcw, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
 
@@ -177,7 +174,7 @@ export default function WebsiteAnalyticsPage() {
                             </div>
 
                             {loading ? (
-                                <Loader2 className="w-6 h-6 animate-spin text-gray-300 mb-2" />
+                                <LogoLoader className="w-6 h-6 animate-spin text-gray-300 mb-2" />
                             ) : (
                                 <div className="space-y-1">
                                     <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{k.value}</h3>
@@ -217,7 +214,7 @@ export default function WebsiteAnalyticsPage() {
                     <div className="flex-1 w-full min-h-[300px]">
                         {loading ? (
                             <div className="w-full h-full flex items-center justify-center bg-gray-50/50 rounded-2xl animate-pulse">
-                                <Loader2 className="w-8 h-8 animate-spin text-indigo-200" />
+                                <LogoLoader className="w-8 h-8 animate-spin text-indigo-200" />
                             </div>
                         ) : stats?.timeseries ? (
                             <ResponsiveContainer width="100%" height="100%">

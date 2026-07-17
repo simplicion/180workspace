@@ -1,12 +1,10 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-    Building2, Save, Loader2, Mail, Phone, MapPin, Landmark,
-    PenTool, Hash, Globe, Image as ImageIcon, ArrowLeft, Upload, Clock
-} from 'lucide-react';
+import { Building2, Save, Mail, Phone, MapPin, Landmark, PenTool, Hash, Globe, Image as ImageIcon, ArrowLeft, Upload, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useSettings } from '@/lib/settings-context';
@@ -130,7 +128,7 @@ export default function CompanyLegalsPage() {
         setLoading(true);
         try {
             await api.put('/api/company-config', formData);
-            await refreshSettings();
+            await refreshSettings(true);
             toast.success('Company configuration saved successfully');
         } catch (error: any) {
             toast.error(error?.response?.data?.error || 'Failed to save');
@@ -163,7 +161,7 @@ export default function CompanyLegalsPage() {
                     title="Save all configuration changes"
                     className="btn-primary"
                 >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {loading ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>
@@ -206,7 +204,7 @@ export default function CompanyLegalsPage() {
                                 <input name="companyLogo" value={formData.companyLogo} onChange={handleChange} className={inputCls} placeholder="https://..." />
                             </div>
                             <label className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all text-xs font-bold text-gray-600">
-                                {uploading === 'companyLogo' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                {uploading === 'companyLogo' ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                                 <span>Upload</span>
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'companyLogo')} disabled={!!uploading} />
                             </label>
@@ -219,7 +217,7 @@ export default function CompanyLegalsPage() {
                                 <input name="emailLogo" value={formData.emailLogo} onChange={handleChange} className={inputCls} placeholder="https://..." />
                             </div>
                             <label className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all text-xs font-bold text-gray-600">
-                                {uploading === 'emailLogo' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                {uploading === 'emailLogo' ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                                 <span>Upload</span>
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'emailLogo')} disabled={!!uploading} />
                             </label>
@@ -338,7 +336,7 @@ export default function CompanyLegalsPage() {
                     title="Save current configuration"
                     className="flex items-center gap-2 px-10 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50"
                 >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {loading ? 'Saving Changes...' : 'Save Configuration'}
                 </button>
             </div>

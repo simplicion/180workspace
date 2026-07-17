@@ -1,9 +1,1 @@
-const { PrismaClient } = require('./generated/client');
-const prisma = new PrismaClient();
-
-async function main() {
-    const companies = await prisma.company.findMany();
-    console.log(JSON.stringify(companies.map(c => ({ id: c.id, metadata: c.metadata })), null, 2));
-}
-
-main().catch(console.error).finally(() => prisma.$disconnect());
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { try { const g = await prisma.emailLog.groupBy({ by: ['templateName', 'status'], _count: { _all: true }, orderBy: { _count: { templateName: 'desc' } } }); console.log(g); } catch (e) { console.error('ERROR:', e.message); } finally { await prisma.$disconnect(); } } main();

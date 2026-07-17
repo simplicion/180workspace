@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
+import { Shield, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../lib/superadmin-api';
 
@@ -113,7 +114,7 @@ export default function SuperAdminLoginPage() {
                             disabled={loading}
                             className="w-full py-4 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-extrabold rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 shadow-xl shadow-sky-600/20 active:scale-95 mt-4"
                         >
-                            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Shield className="w-6 h-6" />}
+                            {loading ? <LogoLoader className="w-6 h-6 animate-spin" /> : <Shield className="w-6 h-6" />}
                             <span className="text-lg tracking-tight">{loading ? 'Verifying...' : 'Initialize Access'}</span>
                         </button>
                     </form>

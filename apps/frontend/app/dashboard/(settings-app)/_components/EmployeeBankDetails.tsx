@@ -1,9 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Building2, CheckCircle2, AlertCircle, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { Building2, CheckCircle2, AlertCircle, Save, ShieldCheck } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function EmployeeBankDetails({ profileUser, currentUser, onUpdate }: { profileUser: any, currentUser: any, onUpdate: () => void }) {
@@ -139,7 +140,7 @@ export default function EmployeeBankDetails({ profileUser, currentUser, onUpdate
                         disabled={verifying || verificationStatus === 'verified' || !profileUser.bankDetails?.accountNumber}
                         className="btn items-center gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 font-semibold"
                     >
-                        {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-600" />}
+                        {verifying ? <LogoLoader className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-600" />}
                         {verifying ? 'Verifying via Penny Drop...' : 'Verify Bank Account'}
                     </button>
 
@@ -148,7 +149,7 @@ export default function EmployeeBankDetails({ profileUser, currentUser, onUpdate
                         disabled={saving}
                         className="btn-primary"
                     >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         {saving ? 'Saving...' : 'Save Bank Details'}
                     </button>
                 </div>

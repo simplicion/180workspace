@@ -1,6 +1,7 @@
 'use client';
 
-import { X, Target, Loader2, Save } from 'lucide-react';
+import { LogoLoader } from "@workspace/ui";
+import { X, Target, Save } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -211,7 +212,7 @@ export default function AddLeadModal({ isOpen, onClose, onSuccess, lead }: Props
                             disabled={loading}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
                         >
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {lead ? 'Update Lead' : 'Create Lead'}
                         </button>
                     </div>

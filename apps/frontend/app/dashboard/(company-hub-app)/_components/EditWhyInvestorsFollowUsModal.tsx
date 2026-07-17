@@ -1,5 +1,6 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, TrendingUp, DollarSign, Trophy, CheckCircle2, FileText } from 'lucide-react';
+import { X, TrendingUp, DollarSign, Trophy, CheckCircle2, FileText } from 'lucide-react';
 import { useUpdateCompanyFinanceTabMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
 
@@ -232,7 +233,7 @@ export function EditWhyInvestorsFollowUsModal({ isOpen, onClose, company, onSave
                             disabled={isLoading || isUploading}
                             className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            {(isLoading || isUploading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            {(isLoading || isUploading) && <LogoLoader className="h-4 w-4 mr-2 animate-spin" />}
                             {isUploading ? 'Uploading...' : isLoading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>

@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
-import { X, Shield, Save, Loader2, AlertCircle } from 'lucide-react';
+import { X, Shield, Save, AlertCircle } from 'lucide-react';
 import type { UserRoleData } from './UserRolesTable';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -182,7 +183,7 @@ export function ManageAccessModal({ user, onClose, onUpdated }: ManageAccessModa
                     >
                         {isSaving ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <LogoLoader className="w-4 h-4 animate-spin" />
                                 Saving...
                             </>
                         ) : (

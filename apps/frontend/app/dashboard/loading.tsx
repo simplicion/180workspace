@@ -1,4 +1,5 @@
-import { Loader2 } from 'lucide-react';
+import { LogoLoader } from "@workspace/ui";
+;
 
 export default function DashboardLoading() {
     return (
@@ -42,7 +43,7 @@ export default function DashboardLoading() {
 
             {/* Centered Loader for visibility */}
             <div className="fixed inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
+                <LogoLoader className="w-12 h-12 animate-spin text-indigo-500" />
             </div>
         </div>
     );

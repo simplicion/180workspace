@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { X, Loader2, FileText, CheckCircle, Target, Sparkles, Download, ExternalLink } from 'lucide-react';
+import { X, FileText, CheckCircle, Target, Sparkles, Download, ExternalLink } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -36,7 +37,7 @@ export default function MeetingSummaryModal({ roomId, onClose }: MeetingSummaryM
         return (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                 <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl">
-                    <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                    <LogoLoader className="w-10 h-10 animate-spin text-indigo-500" />
                     <p className="text-gray-600 font-medium">Fetching AI Summary...</p>
                 </div>
             </div>

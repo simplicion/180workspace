@@ -1,11 +1,12 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
-import { Loader2, Mic, MicOff, Video, VideoOff, PhoneOff, Settings, Users, MessageSquare, Radio, Circle, Download, X, Languages, FileText, Send, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Settings, Users, MessageSquare, Radio, Circle, Download, X, Languages, FileText, Send, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { useModal } from '@/lib/modal-context';
@@ -281,7 +282,7 @@ export default function MeetingRoom() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-                <Loader2 className="w-12 h-12 animate-spin text-indigo-500 mb-4" />
+                <LogoLoader className="w-12 h-12 animate-spin text-indigo-500 mb-4" />
                 <p className="text-xl font-medium">Preparing your meeting room...</p>
             </div>
         );

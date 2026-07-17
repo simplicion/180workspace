@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Calendar, Clock, CheckCheck, Home, Loader2, User } from 'lucide-react';
+import { X, Calendar, Clock, CheckCheck, Home, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -143,7 +144,7 @@ export default function MarkAttendanceModal({ onClose, onSuccess }: Props) {
                 <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
                     <button onClick={handleSubmit} disabled={loading} className="btn-primary">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Mark Attendance'}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Mark Attendance'}
                     </button>
                 </div>
             </div>

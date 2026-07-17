@@ -3,15 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import {
-    Receipt, Plus, Loader2, X, CheckCircle, XCircle,
-    Clock, Filter, TrendingUp, Trash2, Link, ExternalLink
-} from 'lucide-react';
+import { Receipt, Plus, X, CheckCircle, XCircle, Clock, Filter, TrendingUp, Trash2, Link, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { useModal } from '@/lib/modal-context';
 
 const CATEGORIES = ['Software/SaaS', 'Office Supplies', 'Travel & Meals', 'Marketing', 'Utilities', 'Professional Services', 'other'];
@@ -171,7 +168,7 @@ function AddExpenseModal({ onClose, onSuccess, projects, clients }: { onClose: (
                     <div className="flex justify-end gap-3 pt-2">
                         <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
                         <button type="submit" disabled={loading} className="btn-primary">
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Claim'}
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Submit Claim'}
                         </button>
                     </div>
                 </form>
@@ -310,7 +307,7 @@ export default function ExpensesPage() {
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                    <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
             ) : expenses.length === 0 ? (
                 <div className="text-center py-16">

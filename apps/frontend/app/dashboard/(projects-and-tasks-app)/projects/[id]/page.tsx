@@ -4,12 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import {
-    ArrowLeft, FolderKanban, Plus, Users, Calendar, Tag,
-    CheckSquare, Paperclip, Edit2, Loader2, MoreHorizontal,
-    Clock, AlertCircle, CheckCircle2, Play, Eye, MessageSquare, Sparkles,
-    Globe, ExternalLink, Building2, Trash2, Layout, Briefcase
-} from 'lucide-react';
+import { ArrowLeft, FolderKanban, Plus, Users, Calendar, Tag, CheckSquare, Paperclip, Edit2, MoreHorizontal, Clock, AlertCircle, CheckCircle2, Play, Eye, MessageSquare, Sparkles, Globe, ExternalLink, Building2, Trash2, Layout, Briefcase, Archive, List } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -18,7 +13,7 @@ import UserSelectionModal from '@/components/shared/UserSelectionModal';
 import CreateTaskModal from '@/app/dashboard/(projects-and-tasks-app)/_components/CreateTaskModal';
 import EditProjectModal from '@/app/dashboard/(projects-and-tasks-app)/_components/EditProjectModal';
 import TaskDetailModal from '@/app/dashboard/(projects-and-tasks-app)/_components/TaskDetailModal';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 import { FavoriteButton } from "@workspace/ui";
@@ -38,6 +33,8 @@ const TASK_STATUS_CONFIG: Record<string, { cls: string; icon: any; label: string
     in_progress: { cls: 'border-blue-200 bg-blue-50', icon: Play, label: 'In Progress' },
     in_review: { cls: 'border-amber-200 bg-amber-50', icon: Eye, label: 'In Review' },
     done: { cls: 'border-green-200 bg-green-50', icon: CheckCircle2, label: 'Done' },
+    backlog: { cls: 'border-purple-200 bg-purple-50', icon: Archive, label: 'Backlog' },
+    custom: { cls: 'border-indigo-200 bg-indigo-50', icon: List, label: 'Custom' },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -94,6 +91,8 @@ export default function ProjectDetailPage() {
     const [showMilestoneForm, setShowMilestoneForm] = useState(false);
     const [selectedMilestone, setSelectedMilestone] = useState<any>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [editingCustomStatus, setEditingCustomStatus] = useState(false);
+    const [customStatusValue, setCustomStatusValue] = useState('');
     const [aiInsight, setAiInsight] = useState('');
     const [loadingAI, setLoadingAI] = useState(false);
     const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
@@ -199,6 +198,23 @@ export default function ProjectDetailPage() {
             toast.error('Failed to update clients');
         } finally {
             setUpdatingSelection(false);
+        }
+    };
+
+    const handleUpdateCustomStatus = async () => {
+        if (!project || !customStatusValue.trim() || customStatusValue === project.customTaskStatusName) {
+            setEditingCustomStatus(false);
+            return;
+        }
+        try {
+            const { data } = await api.put(`/api/projects/${id}`, { customTaskStatusName: customStatusValue.trim() });
+            setProject(data.project);
+            toast.success('Custom status updated');
+        } catch (error) {
+            toast.error('Failed to update custom status');
+            setCustomStatusValue(project.customTaskStatusName || 'Custom');
+        } finally {
+            setEditingCustomStatus(false);
         }
     };
 
@@ -342,7 +358,7 @@ export default function ProjectDetailPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-32">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
             </div>
         );
     }
@@ -375,7 +391,7 @@ export default function ProjectDetailPage() {
         (t.assigneeId?.id || t.assigneeId) === userId
     );
 
-    const tasksByStatus = ['todo', 'in_progress', 'in_review', 'done'].reduce<Record<string, any[]>>((acc, s) => {
+    const tasksByStatus = ['todo', 'in_progress', 'in_review', 'done', 'backlog', 'custom'].reduce<Record<string, any[]>>((acc, s) => {
         acc[s] = visibleTasks.filter(t => t.status === s);
         return acc;
     }, {});
@@ -903,6 +919,10 @@ export default function ProjectDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                         {Object.entries(TASK_STATUS_CONFIG).map(([status, cfg]) => {
                             const Icon = cfg.icon;
+                            let displayLabel = cfg.label;
+                            if (status === 'custom' && project?.customTaskStatusName) {
+                                displayLabel = project.customTaskStatusName;
+                            }
                             return (
                                 <div 
                                     key={status} 
@@ -912,7 +932,24 @@ export default function ProjectDetailPage() {
                                 >
                                     <div className={clsx('px-4 py-3 border-b flex items-center gap-2', cfg.cls)}>
                                         <Icon className="w-4 h-4 opacity-70" />
-                                        <span className="text-sm font-semibold text-gray-700">{cfg.label}</span>
+                                        {status === 'custom' && editingCustomStatus ? (
+                                            <input 
+                                                autoFocus
+                                                type="text" 
+                                                className="text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded px-1 w-24 outline-none focus:ring-1 focus:ring-indigo-500"
+                                                value={customStatusValue}
+                                                onChange={e => setCustomStatusValue(e.target.value)}
+                                                onBlur={handleUpdateCustomStatus}
+                                                onKeyDown={e => e.key === 'Enter' && handleUpdateCustomStatus()}
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-semibold text-gray-700">{displayLabel}</span>
+                                        )}
+                                        {status === 'custom' && !editingCustomStatus && (
+                                            <button onClick={() => { setCustomStatusValue(displayLabel); setEditingCustomStatus(true); }} className="ml-1 text-gray-400 hover:text-indigo-600 transition-colors">
+                                                <Edit2 className="w-3 h-3" />
+                                            </button>
+                                        )}
                                         <span className="ml-auto text-xs text-gray-400 bg-white/60 px-1.5 py-0.5 rounded-full">{tasksByStatus[status]?.length || 0}</span>
                                     </div>
                                     <div className="p-2 space-y-1.5 min-h-[120px]">
@@ -1024,7 +1061,7 @@ export default function ProjectDetailPage() {
                                 className="btn-primary"
                                 disabled={!newNote.trim() || submittingNote}
                             >
-                                {submittingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Post Note'}
+                                {submittingNote ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Post Note'}
                             </button>
                         </div>
                     </form>
@@ -1080,7 +1117,7 @@ export default function ProjectDetailPage() {
                                             <div className="flex justify-end gap-2">
                                                 <button onClick={() => setEditingNoteId(null)} className="btn-secondary text-xs px-3 py-1.5" disabled={savingNoteId === note.id}>Cancel</button>
                                                 <button onClick={() => handleUpdateNote(note.id)} className="btn-primary text-xs px-3 py-1.5" disabled={savingNoteId === note.id}>
-                                                    {savingNoteId === note.id ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : 'Save'}
+                                                    {savingNoteId === note.id ? <LogoLoader className="w-3.5 h-3.5 animate-spin"/> : 'Save'}
                                                 </button>
                                             </div>
                                         </div>
@@ -1225,7 +1262,7 @@ export default function ProjectDetailPage() {
                         <div className="p-6 bg-gray-50 min-h-[200px]">
                             {loadingAI ? (
                                 <div className="flex flex-col items-center justify-center py-10">
-                                    <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
+                                    <LogoLoader className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
                                     <p className="text-indigo-900 font-medium">Analyzing project data with Gemini AI...</p>
                                     <p className="text-sm text-gray-500 mt-1">This may take a few seconds.</p>
                                 </div>
@@ -1467,7 +1504,7 @@ export default function ProjectDetailPage() {
                 <CreateTaskModal
                     projectId={id}
                     initialModuleId={selectedModuleFilter === 'all' || selectedModuleFilter === 'general' ? undefined : selectedModuleFilter}
-                    onClose={() => setShowAddTask(false)}
+                onClose={() => setShowAddTask(false)}
                     onSuccess={(newTask) => {
                         setTasks(prev => [newTask, ...prev]);
                         toast.success('Task added successfully');
@@ -1672,7 +1709,7 @@ function MilestoneModal({ projectId, milestone, onClose, onSuccess }: any) {
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-50">
                         <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
                         <button type="submit" disabled={loading} className="btn-primary">
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isEdit ? 'Save Changes' : 'Create Milestone')}
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : (isEdit ? 'Save Changes' : 'Create Milestone')}
                         </button>
                     </div>
                 </form>

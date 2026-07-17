@@ -8,6 +8,7 @@ const { upload, handleUpload } = require('../../../system-configs/middleware/sys
 const ctrl = require('../controllers/file.controller');
 
 router.post('/upload', protect, upload.single('file'), handleUpload('general'), ctrl.uploadFile);
+router.post('/upload-voice', protect, upload.single('file'), handleUpload('voice_notes', { forceR2: true }), ctrl.uploadFile);
 router.get('/presigned-url', protect, ctrl.getPresignedUrl);
 router.post('/link', protect, ctrl.addFileLink);
 router.post('/attach-existing', protect, ctrl.attachExistingFile);

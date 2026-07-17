@@ -1,10 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
-import {
-    X, FileText, Edit2, Loader2, Tags, Mail, Users, ChevronDown, Check,
-    Download, Printer, HardDrive, ExternalLink, ArrowLeft, Save, FileBadge2
-} from 'lucide-react';
+import { X, FileText, Edit2, Tags, Mail, Users, ChevronDown, Check, Download, Printer, HardDrive, ExternalLink, ArrowLeft, Save, FileBadge2 } from 'lucide-react';
 import { DOCUMENT_TEMPLATES, DocumentTemplate, BrandConfig } from './templatesData';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
@@ -117,7 +115,7 @@ function ExportBar({
                 title={driveConfigured ? 'Save to Google Drive' : 'Drive not configured — saves to cloud storage'}
             >
                 {saving
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ? <LogoLoader className="w-3.5 h-3.5 animate-spin" />
                     : driveConfigured
                         ? <HardDrive className="w-3.5 h-3.5" />
                         : <Save className="w-3.5 h-3.5" />
@@ -283,7 +281,7 @@ function TemplateEditor({
             toast.success(driveConfigured ? '✅ Saved to Google Drive!' : '✅ Saved to cloud storage!', { id: loading });
             onSuccess();
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Failed to save document', { id: loading });
+            toast.error(err?.response?.data?.message || err?.response?.data?.error || 'Failed to save document', { id: loading });
         } finally {
             setSaving(false);
         }
@@ -383,7 +381,7 @@ function TemplateEditor({
                                     </div>
                                     <div className="max-h-44 overflow-y-auto divide-y divide-gray-50">
                                         {loadingUsers ? (
-                                            <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-indigo-400" /></div>
+                                            <div className="flex justify-center py-4"><LogoLoader className="w-4 h-4 animate-spin text-indigo-400" /></div>
                                         ) : filteredUsers.length === 0 ? (
                                             <p className="text-xs text-gray-400 text-center py-4">No users found</p>
                                         ) : filteredUsers.map(u => (
@@ -489,7 +487,7 @@ function TemplateEditor({
                                         className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 group"
                                     >
                                         {sendingEmail ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <LogoLoader className="w-4 h-4 animate-spin" />
                                         ) : (
                                             <Mail className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                                         )}

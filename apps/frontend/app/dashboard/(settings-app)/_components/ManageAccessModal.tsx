@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
-import { X, Shield, Save, Loader2, AlertCircle } from 'lucide-react';
+import { X, Shield, Save, AlertCircle } from 'lucide-react';
 export interface UserRoleData {
     id: string;
     name: string;
@@ -193,7 +194,7 @@ export function ManageAccessModal({ user, onClose, onUpdated }: ManageAccessModa
                     >
                         {isSaving ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <LogoLoader className="w-4 h-4 animate-spin" />
                                 Saving...
                             </>
                         ) : (

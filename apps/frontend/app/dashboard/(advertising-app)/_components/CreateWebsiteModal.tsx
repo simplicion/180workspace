@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
-import { X, Globe, Type, Palette, Layout, Loader2, Save } from 'lucide-react';
+import { X, Globe, Type, Palette, Layout, Save } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -179,7 +180,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess }: Creat
                             disabled={loading}
                             className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
                         >
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             Create Website
                         </button>
                     </div>

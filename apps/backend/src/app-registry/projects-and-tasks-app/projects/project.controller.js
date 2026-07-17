@@ -214,6 +214,9 @@ exports.updateProject = async (req, res, next) => {
         if (data.memberIds && Array.isArray(data.memberIds)) {
             data.memberIds = data.memberIds.filter(id => id !== null && id !== undefined && id !== '');
         }
+        if (data.customTaskStatusName !== undefined) {
+            data.customTaskStatusName = data.customTaskStatusName;
+        }
 
         const project = await Project.update({
             where: { id: req.params.id },

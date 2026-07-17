@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const EmailService = require('../../productivity-tools-app/emails/email.service');
 const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
@@ -59,7 +59,7 @@ exports.createTask = async (req, res, next) => {
         }
 
         // Clean extra properties not in DB schema
-        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'assigneeId', 'creatorId'];
+        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'assigneeId', 'creatorId', 'voiceMessageUrl', 'attachments'];
         const data = {};
         allowedFields.forEach(f => {
             if (body[f] !== undefined) {
@@ -172,7 +172,7 @@ exports.updateTask = async (req, res, next) => {
         }
 
         const updateData = {};
-        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId'];
+        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'voiceMessageUrl', 'attachments'];
         allowedFields.forEach(f => {
             if (req.body[f] !== undefined) {
                 if (f === 'dueDate') {

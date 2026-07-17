@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, User, Loader2, Sparkles, MessageSquare, ClipboardList, RefreshCw } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, MessageSquare, ClipboardList, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -138,7 +139,7 @@ export default function DocumentAIChatModal({ document: doc, onClose }: Document
                                 <Bot className="w-4 h-4 text-indigo-400" />
                             </div>
                             <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
-                                <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                                <LogoLoader className="w-4 h-4 animate-spin text-indigo-500" />
                             </div>
                         </div>
                     )}

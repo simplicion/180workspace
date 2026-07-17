@@ -1,18 +1,13 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useRef, useState, FormEvent, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
-import {
-    MessageSquare, Send, Search, Users, Plus, Loader2,
-    CheckCheck, X, Hash, Settings, UserPlus, Trash2,
-    Reply, Pin, MoreVertical, AtSign, Smile, Bell, BellOff,
-    Shield, ChevronDown, LogOut, Menu, Video, Phone,
-    Rocket, BarChart2, Target, Lightbulb, Flame, Zap, Star, Megaphone, Wrench, PartyPopper, ChevronLeft
-} from 'lucide-react';
+import { MessageSquare, Send, Search, Users, Plus, CheckCheck, X, Hash, Settings, UserPlus, Trash2, Reply, Pin, MoreVertical, AtSign, Smile, Bell, BellOff, Shield, ChevronDown, LogOut, Menu, Video, Phone, Rocket, BarChart2, Target, Lightbulb, Flame, Zap, Star, Megaphone, Wrench, PartyPopper, ChevronLeft } from 'lucide-react';
 import clsx from 'clsx';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useSettings } from '@/lib/settings-context';
@@ -251,7 +246,7 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
                     {/* User list */}
                     <div className="space-y-1 max-h-56 overflow-y-auto">
                         {fetching ? (
-                            <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
+                            <div className="flex items-center justify-center py-6"><LogoLoader className="w-5 h-5 animate-spin text-indigo-400" /></div>
                         ) : filtered.length === 0 ? (
                             <p className="text-center text-gray-400 text-sm py-6">No users found</p>
                         ) : filtered.map(u => {
@@ -276,7 +271,7 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
 
                 <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
                     <button onClick={handleCreate} disabled={loading || selected.length === 0} className="btn-primary w-full">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === 'dm' ? <MessageSquare className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : mode === 'dm' ? <MessageSquare className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                         {loading ? 'Creating...' : mode === 'dm' ? 'Open Chat' : `Create Group (${selected.length})`}
                     </button>
                 </div>
@@ -435,7 +430,7 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
 export default function ChatPage({ mobileLayout = false }: { mobileLayout?: boolean }) {
     const { platform } = useSettings();
     return (
-        <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center py-20"><LogoLoader className="w-10 h-10 animate-spin text-indigo-500" /></div>}>
             <ChatPageContent platform={platform} mobileLayout={mobileLayout} />
         </Suspense>
     );
@@ -935,7 +930,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
                 <div className="flex-1 overflow-y-auto">
                     {loadingChats ? (
-                        <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-500" /></div>
+                        <div className="flex items-center justify-center py-10"><LogoLoader className="w-5 h-5 animate-spin text-indigo-500" /></div>
                     ) : filteredChats.length === 0 ? (
                         <div className="text-center py-10">
                             <MessageSquare className="w-8 h-8 text-gray-200 mx-auto mb-2" />
@@ -1023,7 +1018,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                             <div className="absolute inset-0 z-0 bg-slate-50/80 pointer-events-none" />
                             <div className="flex-1 overflow-y-auto p-5 space-y-4 relative z-10">
                                 {loadingMessages ? (
-                                    <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>
+                                    <div className="flex items-center justify-center py-10"><LogoLoader className="w-6 h-6 animate-spin text-indigo-500" /></div>
                                 ) : (
                                     messages.map(msg => renderMessage(msg))
                                 )}

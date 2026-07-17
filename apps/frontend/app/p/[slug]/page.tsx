@@ -1,13 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
-import { 
-    Loader2, CheckCircle2, ArrowRight, 
-    Mail, Phone, User, ShieldCheck, Layout,
-    Sparkles
-} from 'lucide-react';
+import { CheckCircle2, ArrowRight, Mail, Phone, User, ShieldCheck, Layout, Sparkles } from 'lucide-react';
 
 export default function PublicWebsitePage() {
     const { slug } = useParams();
@@ -101,7 +98,7 @@ export default function PublicWebsitePage() {
     if (loading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-                <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+                <LogoLoader className="w-10 h-10 animate-spin text-indigo-600" />
             </div>
         );
     }
@@ -314,7 +311,7 @@ function LeadForm({ handleSubmit, formData, setFormData, submitting, primaryColo
                 style={{ backgroundColor: 'var(--primary)' }}
             >
                 {submitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <LogoLoader className="w-5 h-5 animate-spin" />
                 ) : (
                     <>
                         {buttonText || 'Get Started Now'}

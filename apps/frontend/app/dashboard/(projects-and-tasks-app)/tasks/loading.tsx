@@ -1,4 +1,5 @@
-import { Loader2 } from 'lucide-react';
+import { LogoLoader } from "@workspace/ui";
+;
 
 export default function TasksLoading() {
     return (

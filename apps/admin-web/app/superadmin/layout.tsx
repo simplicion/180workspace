@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
     LayoutDashboard, Building2, Users, CreditCard, Tag, Receipt,
     Settings, FileText, Megaphone, LifeBuoy, Database,
-    LogOut, Bell, Shield, ChevronRight, Rocket, Globe, ToggleLeft
+    LogOut, Bell, Shield, ChevronRight, Rocket, Globe, ToggleLeft, Sparkles
 } from 'lucide-react';
 import { SuperAdminProvider, useSuperAdmin } from '../../lib/superadmin-context';
 import { useSettings } from '../../lib/settings-context';
@@ -26,6 +26,7 @@ const NAV = [
     { href: '/superadmin/logs', label: 'Logs', icon: FileText },
     { href: '/superadmin/databases', label: 'Databases', icon: Database },
     { href: '/superadmin/feature-flags', label: 'Feature Flags', icon: ToggleLeft },
+    { href: '/superadmin/ai', label: 'AI Assistant', icon: Sparkles },
     { href: '/superadmin/settings', label: 'Settings', icon: Settings },
 ];
 

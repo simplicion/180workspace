@@ -1,6 +1,7 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
 import BottomSheet from './BottomSheet';
-import { Send, Loader2, UserCircle2 } from 'lucide-react';
+import { Send, UserCircle2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { pitchInSocialApi } from "@/redux/api/pitchInSocialApi";
@@ -59,7 +60,7 @@ export default function CommentsBottomSheet({ isOpen, onClose, postId }: Comment
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (
             <div className="flex justify-center p-8">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+              <LogoLoader className="w-6 h-6 animate-spin text-gray-400" />
             </div>
           ) : replies.length === 0 ? (
             <div className="text-center py-8 text-gray-500 text-sm">
@@ -99,7 +100,7 @@ export default function CommentsBottomSheet({ isOpen, onClose, postId }: Comment
               disabled={submitting || !newComment.trim()}
               className="p-2.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {submitting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </form>
         </div>

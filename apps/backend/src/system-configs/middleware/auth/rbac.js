@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 /**
  * Role-based access control middleware factory.
@@ -10,7 +10,7 @@ function requireRole(...roles) {
             return res.status(401).json({ error: 'Authentication required' });
         }
         const userRoles = req.user.roles || [req.user.role || 'employee'];
-        const hasPermission = userRoles.includes('admin') || userRoles.includes('ceo') || roles.some(role => userRoles.includes(role));
+        const hasPermission = userRoles.includes('admin') || userRoles.includes('ceo') || userRoles.includes('BMSP_SUPER_ADMIN') || userRoles.includes('BMSP_ADMIN') || roles.some(role => userRoles.includes(role));
 
         if (!hasPermission) {
             return res.status(403).json({
@@ -34,7 +34,7 @@ function requireAccess(moduleName, action = 'read') {
         const userRoles = req.user.roles || [req.user.role || 'employee'];
         
         // Admins and CEOs have full access
-        if (userRoles.includes('admin') || userRoles.includes('ceo')) {
+        if (userRoles.includes('admin') || userRoles.includes('ceo') || userRoles.includes('BMSP_SUPER_ADMIN') || userRoles.includes('BMSP_ADMIN')) {
             return next();
         }
 

@@ -1,14 +1,10 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { 
-    Clock, Plus, Search, Filter, CheckCircle2, XCircle, Timer, 
-    Calendar, Briefcase, Layout, CheckSquare, ExternalLink, 
-    MessageSquare, ChevronRight, User, Loader2, BarChart3, TrendingUp, 
-    ChevronDown, Download, Users, Briefcase as ProjectIcon, Layers, CalendarDays, History
-} from 'lucide-react';
+import { Clock, Plus, Search, Filter, CheckCircle2, XCircle, Timer, Calendar, Briefcase, Layout, CheckSquare, ExternalLink, MessageSquare, ChevronRight, User, BarChart3, TrendingUp, ChevronDown, Download, Users, Briefcase as ProjectIcon, Layers, CalendarDays, History } from 'lucide-react';
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
     ResponsiveContainer, BarChart, Bar, Cell 
@@ -207,7 +203,7 @@ export default function WorkLogsPage() {
 
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100">
-                            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+                            <LogoLoader className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
                             <p className="text-gray-500 animate-pulse">Loading data...</p>
                         </div>
                     ) : activeTab === 'dashboard' ? (

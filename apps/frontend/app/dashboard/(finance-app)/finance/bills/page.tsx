@@ -1,12 +1,9 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
-import {
-    FileText, Plus, Search, Filter, Calendar,
-    CreditCard, CheckCircle2, AlertCircle, Clock,
-    Download, ArrowUpRight, Loader2, IndianRupee, ShieldAlert
-} from 'lucide-react';
+import { FileText, Plus, Search, Filter, Calendar, CreditCard, CheckCircle2, AlertCircle, Clock, Download, ArrowUpRight, IndianRupee, ShieldAlert } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -71,7 +68,7 @@ export default function VendorBillsPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
             </div>
         );
     }
@@ -181,7 +178,7 @@ export default function VendorBillsPage() {
                                                         className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow-md disabled:opacity-50"
                                                     >
                                                         {isProcessing === bill.id ? (
-                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                            <LogoLoader className="w-3 h-3 animate-spin" />
                                                         ) : (
                                                             <CreditCard className="w-3 h-3" />
                                                         )}

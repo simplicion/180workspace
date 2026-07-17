@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Database, ShieldCheck, ShieldAlert, Info, Save, Loader2, Check, ExternalLink, Activity, Eye, EyeOff, Trash2, AlertTriangle, Key, Terminal, Globe, Server, Hash, UserCircle, Lock, Database as DbIcon, Radio } from 'lucide-react';
+import { Database, ShieldCheck, ShieldAlert, Info, Save, Check, ExternalLink, Activity, Eye, EyeOff, Trash2, AlertTriangle, Key, Terminal, Globe, Server, Hash, UserCircle, Lock, Database as DbIcon, Radio } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useSettings } from '@/lib/settings-context';
@@ -9,7 +9,7 @@ import clsx from 'clsx';
 
 import MigrationProgressBar from './MigrationProgressBar';
 import MongoSetupGuide from './MongoSetupGuide';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 
 export default function DatabaseTab() {
     const { settings: globalSettings, refreshSettings: refreshGlobalSettings, platform } = useSettings();
@@ -107,7 +107,7 @@ export default function DatabaseTab() {
                     setMigrating(false);
                     if (data.status === 'completed') {
                         toast.success('Migration Completed Successfully!');
-                        await refreshGlobalSettings();
+                        await refreshGlobalSettings(true);
                     }
                 }
             } catch (err) {
@@ -156,7 +156,7 @@ export default function DatabaseTab() {
             });
 
             toast.success('Database configuration updated');
-            await refreshGlobalSettings();
+            await refreshGlobalSettings(true);
         } catch (e: any) {
             toast.error(e?.response?.data?.error || 'Failed to update database settings');
         } finally {
@@ -252,7 +252,7 @@ export default function DatabaseTab() {
 
             setTestResult({ status: 'success' });
             toast.success(data.message || 'Database connection successful!');
-            await refreshGlobalSettings();
+            await refreshGlobalSettings(true);
         } catch (e: any) {
             const errorMsg = e?.response?.data?.details || e?.response?.data?.error || 'Connection failed';
             setTestResult({ status: 'failure', error: errorMsg });
@@ -424,7 +424,7 @@ export default function DatabaseTab() {
                         disabled={testing || migrating || !dbHost}
                         className="px-5 py-2.5 text-[13px] bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
                     >
-                        {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                        {testing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
                         {testing ? 'Verifying Path...' : 'Test Connection'}
                     </button>
 
@@ -445,7 +445,7 @@ export default function DatabaseTab() {
                             disabled={saving || migrating}
                             className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
                         >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
                             {saving ? 'Saving...' : 'Save Configuration'}
                         </button>
                     )}
@@ -616,7 +616,7 @@ export default function DatabaseTab() {
                                         disabled={isClearing || !adminPass}
                                         className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-rose-700 transition-all disabled:opacity-50"
                                     >
-                                        {isClearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                        {isClearing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                                         Proceed
                                     </button>
                                 </div>

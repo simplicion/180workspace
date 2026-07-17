@@ -1,10 +1,12 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, CheckSquare, AlignLeft, FolderKanban, User, Flag, Calendar, Loader2, Layout } from 'lucide-react';
+import { X, CheckSquare, AlignLeft, FolderKanban, User, Flag, Calendar, Layout, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import VoiceRecorder from './VoiceRecorder';
 
 import { useAuth } from '@/lib/auth-context';
 
@@ -16,7 +18,7 @@ interface Props {
 }
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
-const STATUSES = ['todo', 'in_progress', 'in_review', 'done'];
+const STATUSES = ['todo', 'in_progress', 'in_review', 'done', 'backlog', 'custom'];
 
 export default function CreateTaskModal({ onClose, onSuccess, projectId, initialModuleId }: Props) {
     const { user } = useAuth();
@@ -31,9 +33,10 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         priority: 'medium',
         status: 'todo',
         dueDate: '',
-        estimatedHours: '',
         moduleId: initialModuleId || '',
         sendEmailNotification: true,
+        voiceMessageUrl: '',
+        attachments: [] as string[]
     });
 
     const [modules, setModules] = useState<any[]>([]);
@@ -85,12 +88,13 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         if (!form.title.trim()) return toast.error('Title is required');
         setLoading(true);
 
-        const { assigneeId, moduleId, dueDate, estimatedHours, ...rest } = form;
+        const { assigneeId, moduleId, dueDate, voiceMessageUrl, attachments, ...rest } = form;
         const payload: Record<string, unknown> = { ...rest };
         if (assigneeId) payload.assigneeId = assigneeId;
         if (moduleId) payload.moduleId = moduleId;
         if (dueDate) payload.dueDate = dueDate;
-        if (estimatedHours) payload.estimatedHours = estimatedHours;
+        if (voiceMessageUrl) payload.voiceMessageUrl = voiceMessageUrl;
+        if (attachments && attachments.length > 0) payload.attachments = attachments;
 
         try {
             const { data } = await api.post('/api/tasks', payload);
@@ -241,38 +245,36 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                         <div>
                             <label htmlFor="taskStatus" className="label">Status</label>
                             <select id="taskStatus" value={form.status} onChange={set('status')} className="select" title="Select status">
-                                {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                                {STATUSES.map(s => {
+                                let label = s.replace('_', ' ');
+                                if (s === 'custom' && selectedProject?.customTaskStatusName) {
+                                    label = selectedProject.customTaskStatusName;
+                                }
+                                return <option key={s} value={s}>{label}</option>
+                            })}
                             </select>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                         <div>
-                            <label htmlFor="taskDueDate" className="label">Due Date</label>
+                            <label htmlFor="taskDueDate" className="label">Deadline (Date & Time)</label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                                <input id="taskDueDate" value={form.dueDate} onChange={set('dueDate')} type="date" className="input pl-9" title="Due date" />
+                                <input id="taskDueDate" value={form.dueDate} onChange={set('dueDate')} type="datetime-local" className="input pl-9" title="Due date and time" />
                             </div>
                         </div>
-                        <div>
-                            <label htmlFor="taskEstHours" className="label">Est. Hours</label>
-                            <input
-                                id="taskEstHours"
-                                value={form.estimatedHours || ''}
-                                onChange={set('estimatedHours')}
-                                type="number"
-                                min="0"
-                                placeholder="e.g. 5"
-                                className="input"
-                            />
-                        </div>
+                    </div>
+
+                    <div className="pt-2">
+                        <VoiceRecorder onUploadComplete={(url) => setForm(prev => ({ ...prev, voiceMessageUrl: url }))} />
                     </div>
                 </form>
 
                 <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
                     <button onClick={handleSubmit} disabled={loading} className="btn-primary">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Task'}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Create Task'}
                     </button>
                 </div>
             </div>

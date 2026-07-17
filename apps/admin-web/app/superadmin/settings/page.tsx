@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
-import { Save, AlertTriangle, Loader2, User, Key, Server, Mail, Settings, Shield, Plus, Building2, Database, Globe, Lock, Info, Eye, EyeOff } from 'lucide-react';
+import { Save, AlertTriangle, User, Key, Server, Mail, Settings, Shield, Plus, Building2, Database, Globe, Lock, Info, Eye, EyeOff } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../lib/superadmin-api';
 import { useSuperAdmin } from '../../../lib/superadmin-context';
@@ -113,7 +114,7 @@ export default function SettingsPage() {
 
     if (loading) return (
         <div className="flex h-64 items-center justify-center">
-            <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
+            <LogoLoader className="w-8 h-8 text-sky-500 animate-spin" />
         </div>
     );
 
@@ -324,7 +325,7 @@ export default function SettingsPage() {
                         <div className="flex justify-end pt-4 pb-8">
                             <button type="submit" disabled={saving}
                                 className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[14px] font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
-                                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 text-white" />}
+                                {saving ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 text-white" />}
                                 Save Global Settings
                             </button>
                         </div>
@@ -444,7 +445,7 @@ export default function SettingsPage() {
                                 }}
                                 className="px-5 py-2 text-sm bg-white border border-sky-200 text-sky-600 hover:bg-sky-50 rounded-lg transition-colors flex items-center gap-2 font-medium"
                             >
-                                {testingDb ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4 text-sky-500" />}
+                                {testingDb ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4 text-sky-500" />}
                                 Test Connection
                             </button>
                             <button 
@@ -453,7 +454,7 @@ export default function SettingsPage() {
                                 onClick={saveSettings}
                                 className="px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 active:scale-95 shadow-sm"
                             >
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
+                                {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
                                 Save Infrastructure
                             </button>
                         </div>
@@ -554,12 +555,12 @@ export default function SettingsPage() {
                         <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center rounded-b-[20px] gap-4">
                             <button type="button" onClick={testEmailConnection} disabled={isTesting}
                                 className="px-5 py-2 text-sm bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-2 font-medium">
-                                {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4 text-indigo-500" />}
+                                {isTesting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4 text-indigo-500" />}
                                 Send Test Email
                             </button>
                             <button type="submit" disabled={saving}
                                 className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 active:scale-95 shadow-sm">
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
+                                {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
                                 Save Settings
                             </button>
                         </div>
@@ -600,7 +601,7 @@ export default function SettingsPage() {
                         <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-end rounded-b-[20px]">
                             <button type="submit" disabled={savingProfile}
                                 className="px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
-                                {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
+                                {savingProfile ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
                                 Update Profile
                             </button>
                         </div>
@@ -640,7 +641,7 @@ export default function SettingsPage() {
                         <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-end rounded-b-[20px]">
                             <button type="submit" disabled={savingPassword}
                                 className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
-                                {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
+                                {savingPassword ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
                                 Change Password
                             </button>
                         </div>

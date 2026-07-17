@@ -1,13 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import {
-    Search, Command, X, TrendingUp, FolderKanban,
-    CheckSquare, Users, PieChart, Target, FileText,
-    ChevronRight, Loader2, Sparkles, Building2
-} from 'lucide-react';
+import { Search, Command, X, TrendingUp, FolderKanban, CheckSquare, Users, PieChart, Target, FileText, ChevronRight, Sparkles, Building2 } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -208,7 +205,7 @@ export default function GlobalSearch() {
                                     autoComplete="off"
                                 />
                                 {loading ? (
-                                    <Loader2 className="w-5 h-5 text-indigo-500 animate-spin ml-3" aria-hidden="true" />
+                                    <LogoLoader className="w-5 h-5 text-indigo-500 animate-spin ml-3" aria-hidden="true" />
                                 ) : (
                                     <button
                                         onClick={() => setIsOpen(false)}

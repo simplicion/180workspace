@@ -1,5 +1,6 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Upload } from 'lucide-react';
 import { useAddCompanyProductMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
 
@@ -115,7 +116,7 @@ export function AddProductModal({ isOpen, onClose, companyId }: AddProductModalP
                                 ) : (
                                     <label className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors relative overflow-hidden group">
                                         {uploading ? (
-                                            <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                                            <LogoLoader className="w-6 h-6 text-blue-500 animate-spin" />
                                         ) : (
                                             <Upload className="w-6 h-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
                                         )}
@@ -171,7 +172,7 @@ export function AddProductModal({ isOpen, onClose, companyId }: AddProductModalP
                                 disabled={isLoading || uploading}
                                 className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                             >
-                                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                {isLoading && <LogoLoader className="w-4 h-4 mr-2 animate-spin" />}
                                 {isLoading ? 'Saving...' : 'Save Product'}
                             </button>
                         </div>

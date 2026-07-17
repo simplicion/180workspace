@@ -6,18 +6,14 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import {
-    Loader2, ChevronDown, ChevronLeft, Menu, Star, Clock, LogOut,
-    Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen,
-    CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye
-} from 'lucide-react';
+import { ChevronDown, ChevronLeft, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye } from 'lucide-react';
 import { navigation } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import PinnedItem from '@/app/dashboard/(dashboard)/_components/PinnedItem';
 import RecentItem from '@/app/dashboard/(dashboard)/_components/RecentItem';
 import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
-import { HelpIcon } from "@workspace/ui";
+import { HelpIcon , LogoLoader } from "@workspace/ui";
 import dynamic from 'next/dynamic';
 
 const safeImport = (importFn: () => Promise<any>) => {
@@ -37,11 +33,11 @@ const safeImport = (importFn: () => Promise<any>) => {
     });
 };
 
-const GlobalSearch = dynamic(() => safeImport(() => import('@/components/shared/GlobalSearch')), { ssr: false });
-const SystemSetupStatus = dynamic(() => safeImport(() => import('@/app/dashboard/(dashboard)/_components/SystemSetupStatus').then(mod => mod.SystemSetupStatus)), { ssr: false });
-const NotificationsPanel = dynamic(() => safeImport(() => import('@/components/shared/NotificationsPanel')), { ssr: false });
-const TrialBanner = dynamic(() => safeImport(() => import('@/components/shared/TrialBanner')), { ssr: false });
-const SubscriptionExpiredWall = dynamic(() => safeImport(() => import('@/components/shared/SubscriptionExpiredWall')), { ssr: false });
+import GlobalSearch from '@/components/shared/GlobalSearch';
+import SystemSetupStatus from '@/app/dashboard/(dashboard)/_components/SystemSetupStatus';
+import NotificationsPanel from '@/components/shared/NotificationsPanel';
+import TrialBanner from '@/components/shared/TrialBanner';
+import SubscriptionExpiredWall from '@/components/shared/SubscriptionExpiredWall';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { MODULE_MAP, APP_DEPENDENCIES } from '@/lib/module-map';
@@ -561,7 +557,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                                         {subItem.name}
                                                     </span>
                                                 ) : (
-                                                    <SubIcon className="w-4 h-4" />
+                                                    SubIcon ? <SubIcon className="w-4 h-4" /> : <div className="w-4 h-4 bg-gray-200 rounded-full" />
                                                 )}
                                             </Link>
                                         );
@@ -594,7 +590,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                         <span className="text-[8px] font-black tracking-tight leading-none">180</span>
                                     </div>
                                 ) : (
-                                    <Icon className="w-4 h-4" />
+                                    Icon ? <Icon className="w-4 h-4" /> : <div className="w-4 h-4 bg-gray-200 rounded-full" />
                                 )}
                             </div>
                             {isExpanded && item.name}
@@ -678,7 +674,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
+                    <LogoLoader className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
                     <p className="text-gray-500 text-sm">Initializing {authLoading ? 'Profile' : 'Workspace'}...</p>
                 </div>
             </div>
@@ -690,6 +686,21 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     // Force collapse on Apps & Settings screen as requested for "only show icon" look
     const isAppsScreen = pathname === '/dashboard/settings/apps';
     const effectiveIsCollapsed = isAppsScreen ? true : isCollapsed;
+
+    console.log('DashboardInner Components:', {
+        Sidebar: !!Sidebar,
+        Menu: !!Menu,
+        GlobalSearch: !!GlobalSearch,
+        SystemSetupStatus: !!SystemSetupStatus,
+        ToolsDropdown: !!ToolsDropdown,
+        HelpIcon: !!HelpIcon,
+        Link: !!Link,
+        Activity: !!Activity,
+        ProfileDropdown: !!ProfileDropdown,
+        TrialBanner: !!TrialBanner,
+        SubscriptionExpiredWall: !!SubscriptionExpiredWall,
+        LogoLoader: !!LogoLoader
+    });
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -753,7 +764,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><LogoLoader className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
             <DashboardInner>{children}</DashboardInner>
         </Suspense>
     );

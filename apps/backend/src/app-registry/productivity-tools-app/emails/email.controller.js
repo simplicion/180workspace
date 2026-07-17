@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const EmailService = require('./email.service');
 const nodemailer = require('nodemailer');
@@ -101,7 +101,15 @@ async function sendRawWithLogging(options, req) {
     const EmailLog = req.prisma.emailLog;
     const companyId = req.user?.companyId;
     
-    const settings = await req.prisma.companyConfig.findFirst({ where: { companyId } });
+    const settingsRecord = await Settings.findFirst({ where: { companyId } });
+    const company = await req.prisma.company.findUnique({ where: { id: companyId }, select: { metadata: true } });
+    const metadata = company?.metadata || {};
+    
+    // Merge settings with metadata to ensure we get credentials wherever they were saved
+    const settings = { ...settingsRecord };
+    ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom'].forEach(field => {
+        if (metadata[field] !== undefined) settings[field] = metadata[field];
+    });
     const log = await EmailLog.create({ data: {
         to: options.to,
         subject: options.subject,
@@ -352,12 +360,10 @@ exports.getEmailStats = async (req, res, next) => {
         });
         const statusStats = statusGroups.map(g => ({ _id: g.status, count: g._count._all }));
 
-        // Breakdown by template
         const templateGroups = await EmailLog.groupBy({
             by: ['templateName', 'status'],
             where: { companyId },
-            _count: { _all: true },
-            orderBy: { _count: { status: 'desc' } }
+            _count: { _all: true }
         });
         
         const templateMap = {};

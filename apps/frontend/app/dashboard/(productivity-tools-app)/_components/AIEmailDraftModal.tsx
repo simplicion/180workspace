@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
-import { Sparkles, X, Wand2, Loader2, RotateCcw, Check } from 'lucide-react';
+import { Sparkles, X, Wand2, RotateCcw, Check } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -100,7 +101,7 @@ export default function AIEmailDraftModal({ onClose, onApply, recipientName, con
                                 disabled={loading || !idea.trim()}
                                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 disabled:opacity-50 shadow-xl shadow-indigo-200 transition-all active:scale-[0.98]"
                             >
-                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                                {loading ? <LogoLoader className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
                                 {loading ? 'Generating Magic Draft...' : 'Generate Draft'}
                             </button>
                         </div>

@@ -4,18 +4,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import {
-    ArrowLeft, User, Mail, Phone, MapPin, Calendar, Briefcase,
-    Building2, Hash, CheckSquare, Clock, TrendingUp, Edit2,
-    Loader2, AlertCircle, DollarSign, ShieldCheck, PowerOff, Power,
-    CheckCircle2, XCircle
-} from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, Briefcase, Building2, Hash, CheckSquare, Clock, TrendingUp, Edit2, AlertCircle, DollarSign, ShieldCheck, PowerOff, Power, CheckCircle2, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import AddEmployeeModal from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeModal';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import toast from 'react-hot-toast';
 
 const ROLE_COLORS: Record<string, string> = {
@@ -136,7 +131,7 @@ export default function EmployeeProfilePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-32">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
             </div>
         );
     }
@@ -212,7 +207,7 @@ export default function EmployeeProfilePage() {
                                             disabled={deactivating}
                                             className={clsx('btn-secondary', emp.isActive === false ? 'text-emerald-600 border-emerald-200 hover:bg-emerald-50' : 'text-amber-500 border-amber-200 hover:bg-amber-50')}
                                         >
-                                            {deactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : emp.isActive === false ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+                                            {deactivating ? <LogoLoader className="w-4 h-4 animate-spin" /> : emp.isActive === false ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
                                             {emp.isActive === false ? 'Activate' : 'Deactivate'}
                                         </button>
                                         {(['admin', 'ceo'].includes(user?.role || '') || (user?.permissions && user.permissions.includes('can_manage_team'))) && (

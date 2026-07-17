@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
-import { Loader2, ScrollText, RefreshCw, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { ScrollText, RefreshCw, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import saApi from '@/lib/superadmin-api';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -83,7 +84,7 @@ export default function SuperAdminLogsPage() {
 
                 {loading ? (
                     <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                        <LogoLoader className="w-8 h-8 text-indigo-500 animate-spin" />
                     </div>
                 ) : logs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-slate-400">

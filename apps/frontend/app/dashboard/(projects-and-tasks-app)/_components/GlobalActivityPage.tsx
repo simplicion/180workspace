@@ -1,16 +1,11 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
-import {
-    Activity, Clock, Filter, Search, Calendar, User, 
-    ArrowUpRight, Bell, CheckCircle2, AlertCircle, 
-    DollarSign, Briefcase, Users, FileText, Settings,
-    RefreshCw, ChevronLeft, ChevronRight, Download, CalendarRange,
-    ClipboardList, Loader2, Info
-} from 'lucide-react';
+import { Activity, Clock, Filter, Search, Calendar, User, ArrowUpRight, Bell, CheckCircle2, AlertCircle, DollarSign, Briefcase, Users, FileText, Settings, RefreshCw, ChevronLeft, ChevronRight, Download, CalendarRange, ClipboardList, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -531,7 +526,7 @@ function TrendingUpIcon(props: any) {
 function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
     if (loading && logs.length === 0) return (
         <div className="flex flex-col items-center justify-center py-32 gap-4">
-            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+            <LogoLoader className="w-10 h-10 animate-spin text-indigo-500" />
             <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Fetching system logs...</p>
         </div>
     );
@@ -540,7 +535,7 @@ function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
         <div className="relative">
             {loading && (
                 <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                    <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
             )}
             <div className="overflow-x-auto">

@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Loader2, Calendar, MapPin, AlignLeft, Users } from 'lucide-react';
+import { X, Upload, Calendar, MapPin, AlignLeft, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCreateEventMutation, useUpdateEventMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
@@ -142,7 +143,7 @@ export function OrganizeEventModal({ isOpen, onClose, eventToEdit, companyId }: 
                                     />
                                 </div>
                                 <label className={`flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-xl cursor-pointer transition-colors ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                    {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin text-gray-600" /> : <Upload className="w-5 h-5 text-gray-600" />}
+                                    {isUploadingImage ? <LogoLoader className="w-5 h-5 animate-spin text-gray-600" /> : <Upload className="w-5 h-5 text-gray-600" />}
                                     <span className="ml-2 text-sm font-medium text-gray-700">Upload</span>
                                     <input 
                                         type="file" 
@@ -256,7 +257,7 @@ export function OrganizeEventModal({ isOpen, onClose, eventToEdit, companyId }: 
                         disabled={isLoading}
                         className="flex items-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
                     >
-                        {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        {isLoading && <LogoLoader className="w-4 h-4 mr-2 animate-spin" />}
                         {eventToEdit ? 'Save Changes' : 'Create Event'}
                     </button>
                 </div>

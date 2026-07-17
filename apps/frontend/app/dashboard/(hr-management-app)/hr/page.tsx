@@ -1,17 +1,18 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import dynamic_import from 'next/dynamic';
 import api from '@/lib/api';
-import { DollarSign, Loader2, CheckCircle, Clock, AlertCircle, Plus, FileText } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, AlertCircle, Plus, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 
 // Lazy load heavy components
 const PayslipModal = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/components/PayslipModal'), {
-    loading: () => <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>,
+    loading: () => <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm"><LogoLoader className="w-8 h-8 animate-spin text-white" /></div>,
     ssr: false
 });
 
@@ -144,7 +145,7 @@ export default function HRPage() {
                     </div>
 
                     {loading ? (
-                        <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                        <div className="flex items-center justify-center py-12"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
                     ) : (
                         <div className="card">
                             <div className="table-wrapper">
@@ -225,7 +226,7 @@ export default function HRPage() {
 
             {tab === 'leaves' && (
                 leavesLoading ? (
-                    <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                    <div className="flex items-center justify-center py-12"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
                 ) : (
                     <div className="card">
                         <div className="table-wrapper">

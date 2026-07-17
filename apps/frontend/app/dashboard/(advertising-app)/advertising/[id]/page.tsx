@@ -1,15 +1,11 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect, Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { 
-    Globe, MousePointer2, Users, 
-    Plus, Trash2, ArrowLeft, 
-    ExternalLink, Code, Loader2,
-    Activity, Clock, Sparkles
-} from 'lucide-react';
+import { Globe, MousePointer2, Users, Plus, Trash2, ArrowLeft, ExternalLink, Code, Activity, Clock, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -23,7 +19,7 @@ const WebsiteCharts = nextDynamic(() => import('./WebsiteCharts'), {
 
 export default function WebsiteDashboardPage() {
     return (
-        <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
             <WebsiteDashboardInner />
         </Suspense>
     );
@@ -73,7 +69,7 @@ function WebsiteDashboardInner() {
     if (loading || !website) {
         return (
             <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
                 <p className="text-gray-500 text-sm mt-4">Loading dashboard...</p>
             </div>
         );
@@ -276,7 +272,7 @@ function CustomizeTab({ website, onUpdate }: { website: any, onUpdate: () => voi
                         disabled={loading}
                         className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                     >
-                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {loading && <LogoLoader className="w-4 h-4 animate-spin" />}
                         Save Customizations
                     </button>
                 </div>
@@ -490,7 +486,7 @@ function TrackingTab({ website, onUpdate }: { website: any, onUpdate: () => void
                     disabled={loading}
                     className="px-12 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-3 disabled:opacity-50"
                 >
-                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {loading && <LogoLoader className="w-4 h-4 animate-spin" />}
                     Save Tracking Settings
                 </button>
             </div>

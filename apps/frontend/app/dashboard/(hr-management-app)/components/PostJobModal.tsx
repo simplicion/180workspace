@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import api from '@/lib/api';
-import { X, Briefcase, MapPin, Users, Calendar, AlignLeft, Tag, Loader2, Plus } from 'lucide-react';
+import { X, Briefcase, MapPin, Users, Calendar, AlignLeft, Tag, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -256,7 +257,7 @@ export default function PostJobModal({ onClose, onSuccess, editJob }: Props) {
                 <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
                     <button onClick={handleSubmit} disabled={loading} className="btn-primary">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Post Job'}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Post Job'}
                     </button>
                 </div>
             </div>

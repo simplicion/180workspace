@@ -17,11 +17,15 @@ export default function DocsPage() {
 
     return (
         <div className="w-full max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+            <div className="flex items-center justify-between">
+                <div>
+                    <Link href="/dashboard/help-support" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors mb-4">
+                        <ArrowLeft className="h-4 w-4 mr-1.5" />
+                        Back to Help & Support
+                    </Link>
+                </div>
+            </div>
             <div>
-                <Link href="/dashboard/help-support" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors mb-4">
-                    <ArrowLeft className="h-4 w-4 mr-1.5" />
-                    Back to Help & Support
-                </Link>
                 <h1 className="text-3xl font-bold tracking-tight text-gray-900">Documentation</h1>
                 <p className="text-gray-500 mt-2">Find guides, tutorials, and answers to common questions.</p>
             </div>
@@ -81,3 +85,4 @@ export default function DocsPage() {
         </div>
     );
 }
+

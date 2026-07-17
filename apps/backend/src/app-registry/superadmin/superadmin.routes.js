@@ -22,6 +22,7 @@ const releaseNoteCtrl = require('./system-operations/releasenote.controller');
 const forumCtrl = require('../community/forum.controller');
 const logCtrl = require('./system-operations/log.controller');
 const databaseCtrl = require('./tenant-management/database.controller');
+const aiCtrl = require('../productivity-tools-app/ai-assistant/ai.controller');
 
 const saLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many login attempts' } });
 
@@ -126,5 +127,11 @@ router.get('/logs/errors', logCtrl.failedLogins);
 // Databases
 router.get('/databases', databaseCtrl.list);
 router.post('/databases/:id/test', databaseCtrl.testConnection);
+
+// AI Assistant (Super Admin)
+router.get('/ai/sessions', aiCtrl.getChatSessions);
+router.get('/ai/sessions/:id', aiCtrl.getChatSession);
+router.delete('/ai/sessions/:id', aiCtrl.deleteChatSession);
+router.post('/ai/chat', aiCtrl.chatWithAI);
 
 module.exports = router;

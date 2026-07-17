@@ -3,18 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Plus, Search, Filter, MoreVertical,
-    MessageSquare, Clock, DollarSign, User,
-    TrendingUp, Activity, Star, Loader2,
-    Trash2, Edit, CheckSquare, Square, X,
-    ChevronDown, AlertCircle, ArrowRight, Briefcase
-} from 'lucide-react';
+import { Plus, Search, Filter, MoreVertical, MessageSquare, Clock, DollarSign, User, TrendingUp, Activity, Star, Trash2, Edit, CheckSquare, Square, X, ChevronDown, AlertCircle, ArrowRight, Briefcase } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import AddLeadModal from '@/app/dashboard/(dashboard)/_components/AddLeadModal';
-import { ConfirmModal } from "@workspace/ui";
+import { ConfirmModal , LogoLoader } from "@workspace/ui";
 
 const COLUMNS = [
     { id: 'new', title: 'New Leads', color: 'bg-blue-500' },

@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { X, Globe, Server, Code, Key, Github, Cloud, Loader2 } from 'lucide-react';
+import { X, Globe, Server, Code, Key, Github, Cloud } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -230,7 +231,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, asset }: Add
                         disabled={loading}
                         className="btn-primary flex-1 shadow-md shadow-indigo-100"
                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (asset ? 'Update Asset' : 'Add Asset')}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin mx-auto" /> : (asset ? 'Update Asset' : 'Add Asset')}
                     </button>
                 </div>
             </div>

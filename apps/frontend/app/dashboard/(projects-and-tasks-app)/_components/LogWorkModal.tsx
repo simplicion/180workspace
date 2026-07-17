@@ -1,10 +1,12 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, Loader2, FileText } from 'lucide-react';
+import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
+import VoiceRecorder from './VoiceRecorder';
 
 interface Props {
     onClose: () => void;
@@ -37,6 +39,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         hoursSpent: '',
         workDate: new Date().toISOString().split('T')[0],
         isWorkCompleted: false,
+        voiceMessageUrl: '',
     });
     
     const [links, setLinks] = useState<string[]>(['']);
@@ -187,7 +190,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                                     <option value="">General Project Work</option>
                                     {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                 </select>
-                                {loadingModules && <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
+                                {loadingModules && <LogoLoader className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
                             </div>
                         </div>
                     </div>
@@ -206,7 +209,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                                 <option value="">No specific task</option>
                                 {tasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.status})</option>)}
                             </select>
-                            {loadingTasks && <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
+                            {loadingTasks && <LogoLoader className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
                         </div>
                     </div>
 
@@ -294,6 +297,10 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                         </div>
                     </div>
 
+                    <div className="pt-2">
+                        <VoiceRecorder onUploadComplete={(url) => setForm(prev => ({ ...prev, voiceMessageUrl: url }))} label="Voice Log (Optional)" />
+                    </div>
+
                     {/* Automation Trigger */}
                     {form.taskId && (
                         <div className="bg-amber-50 rounded-xl p-4 flex items-start gap-3 border border-amber-100">
@@ -325,7 +332,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                     >
                         {submitting ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <LogoLoader className="w-4 h-4 animate-spin" />
                                 Submitting...
                             </>
                         ) : (

@@ -1,11 +1,13 @@
 "use client";
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
 import { useGetPrivateCompanyProfileQuery, useUpdateCompanyProfileMutation } from '@redux/api/companyApi';
 import toast from 'react-hot-toast';
-import { Loader2, ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import EmailTab from '@/app/dashboard/(settings-app)/_components/EmailTab';
 
 export default function EditCompanyProfilePage() {
     const router = useRouter();
@@ -85,7 +87,7 @@ export default function EditCompanyProfilePage() {
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <LogoLoader className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -107,7 +109,7 @@ export default function EditCompanyProfilePage() {
                     disabled={isUpdating}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
-                    {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {isUpdating ? <LogoLoader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Save Changes
                 </button>
             </div>
@@ -118,7 +120,8 @@ export default function EditCompanyProfilePage() {
                         { id: 'basic', label: 'Basic Info' },
                         { id: 'contact', label: 'Contact & Social' },
                         { id: 'financials', label: 'Financials & Stats' },
-                        { id: 'privacy', label: 'Privacy Settings' }
+                        { id: 'privacy', label: 'Privacy Settings' },
+                        { id: 'smtp', label: 'Email Integration' }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -275,6 +278,15 @@ export default function EditCompanyProfilePage() {
                                     <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.privacySettings.hideTeamSize ? 'translate-x-6' : 'translate-x-0'}`} />
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'smtp' && (
+                        <div className="space-y-6 -m-6">
+                            <EmailTab 
+                                title="Company Email Integration" 
+                                description="Configure your company's SMTP credentials. These will be used when sending emails on behalf of your company (e.g. sending candidate rejections, marketing emails, or client notifications)." 
+                            />
                         </div>
                     )}
                 </div>

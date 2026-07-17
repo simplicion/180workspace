@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, use } from 'react';
-import { Building2, Mail, Calendar, CreditCard, ArrowLeft, Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw, ShieldCheck, Database as DbIcon, Activity } from 'lucide-react';
+import { Building2, Mail, Calendar, CreditCard, ArrowLeft, CheckCircle2, XCircle, AlertCircle, RefreshCw, ShieldCheck, Database as DbIcon, Activity } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../../lib/superadmin-api';
@@ -62,7 +63,7 @@ export default function CompanyDetailsPage({ params: paramsPromise }: { params: 
 
     if (loading) return (
         <div className="flex flex-col h-[60vh] items-center justify-center gap-4">
-            <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
+            <LogoLoader className="w-10 h-10 text-sky-500 animate-spin" />
             <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Retrieving Organization Intel...</p>
         </div>
     );
@@ -155,7 +156,7 @@ export default function CompanyDetailsPage({ params: paramsPromise }: { params: 
                                 disabled={testing || !company.mongoUri}
                                 className="flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 disabled:opacity-50"
                             >
-                                {testing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+                                {testing ? <LogoLoader className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
                                 {testing ? 'Testing...' : 'Test Connection'}
                             </button>
                         </div>
@@ -193,7 +194,7 @@ export default function CompanyDetailsPage({ params: paramsPromise }: { params: 
                         </h2>
 
                         {historyLoading ? (
-                            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+                            <div className="flex justify-center py-12"><LogoLoader className="w-6 h-6 animate-spin text-indigo-400" /></div>
                         ) : history.length === 0 ? (
                             <div className="text-center py-12 px-6">
                                 <AlertCircle className="w-10 h-10 text-slate-700 mx-auto mb-4" />

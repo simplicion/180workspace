@@ -1,11 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import {
-    CreditCard, Check, Shield, ArrowLeft, Tag, Loader2,
-    AlertCircle, Users, Zap, Building2, Calendar, Lock, CheckCircle2
-} from 'lucide-react';
+import { CreditCard, Check, Shield, ArrowLeft, Tag, AlertCircle, Users, Zap, Building2, Calendar, Lock, CheckCircle2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
@@ -174,7 +172,7 @@ function CheckoutContent() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
             </div>
         );
     }
@@ -317,7 +315,7 @@ function CheckoutContent() {
                                             disabled={!coupon || couponLoading || paymentLoading}
                                             className="px-6 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-xl text-sm font-bold transition-all"
                                         >
-                                            {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                                            {couponLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Apply'}
                                         </button>
                                     </div>
                                 </div>
@@ -330,7 +328,7 @@ function CheckoutContent() {
                             >
                                 {paymentLoading ? (
                                     <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <LogoLoader className="w-5 h-5 animate-spin" />
                                         Activating...
                                     </>
                                 ) : (
@@ -366,7 +364,7 @@ export default function CheckoutPage() {
     return (
         <Suspense fallback={
             <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
             </div>
         }>
             <CheckoutContent />

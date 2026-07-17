@@ -1,5 +1,6 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { X, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { useAddCompanyCoreValueMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
 
@@ -181,7 +182,7 @@ export function AddCoreValueModal({ isOpen, onClose }: AddCoreValueModalProps) {
                             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
                         >
                             {(isLoading || isUploading) ? (
-                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+                                <><LogoLoader className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
                             ) : 'Add Core Value'}
                         </button>
                     </div>

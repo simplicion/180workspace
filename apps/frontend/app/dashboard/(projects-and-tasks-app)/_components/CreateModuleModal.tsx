@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
-import { X, Layout, User, AlignLeft, Loader2, Type } from 'lucide-react';
+import { X, Layout, User, AlignLeft, Type } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
@@ -148,7 +149,7 @@ export default function CreateModuleModal({ projectId, onClose, onSuccess }: Pro
                         Cancel
                     </button>
                     <button onClick={handleSubmit} disabled={loading || fetchingUsers} className="btn-primary">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Module'}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Create Module'}
                     </button>
                 </div>
 

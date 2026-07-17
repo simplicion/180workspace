@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { motion } from 'framer-motion';
-import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { Trash2, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ConfirmModalProps {
@@ -49,7 +50,7 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onCanc
                             variant === 'danger' ? "text-red-600 hover:bg-red-100" : "text-indigo-600 hover:bg-indigo-100"
                         )}
                     >
-                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
+                        {isLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : "Confirm"}
                     </button>
                 </div>
             </motion.div>

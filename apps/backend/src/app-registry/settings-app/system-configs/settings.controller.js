@@ -62,7 +62,28 @@ const METADATA_FIELDS = [
     'lastDbTestError',
     'customAiUrl',
     'customAiKey',
-    'customAiModel'
+    'customAiModel',
+    'smtpHost',
+    'smtpPort',
+    'smtpUser',
+    'smtpPass',
+    'smtpSecure',
+    'emailFrom',
+    'googleDriveServiceAccount',
+    'googleDriveFolderId',
+    'cloudinaryCloudName',
+    'cloudinaryApiKey',
+    'cloudinaryApiSecret',
+    'dbHost',
+    'dbPort',
+    'dbUser',
+    'dbPass',
+    'dbName',
+    'dbSrv',
+    'useManualUri',
+    'manualUri',
+    'plausibleApiKey',
+    'plausibleSiteId'
 ];
 
 exports.getSettings = async (req, res) => {
@@ -285,13 +306,14 @@ exports.testEmailConnection = async (req, res) => {
 
         const settings = await req.prisma.settings.findFirst();
         const companyId = req.user.companyId || settings?.companyId;
+        const metadata = companyId ? await getCompanyMetadata(companyId) : {};
         
-        const smtpHost = req.body.smtpHost || settings?.smtpHost;
-        const smtpPort = req.body.smtpPort || settings?.smtpPort;
-        const smtpUser = req.body.smtpUser || settings?.smtpUser;
-        const smtpPass = req.body.smtpPass || settings?.smtpPass;
-        const smtpSecure = req.body.smtpSecure !== undefined ? req.body.smtpSecure : settings?.smtpSecure;
-        const emailFrom = req.body.smtpFrom || settings?.emailFrom || req.body.emailFrom || smtpUser;
+        const smtpHost = req.body.smtpHost || metadata.smtpHost || settings?.smtpHost;
+        const smtpPort = req.body.smtpPort || metadata.smtpPort || settings?.smtpPort;
+        const smtpUser = req.body.smtpUser || metadata.smtpUser || settings?.smtpUser;
+        const smtpPass = req.body.smtpPass || metadata.smtpPass || settings?.smtpPass;
+        const smtpSecure = req.body.smtpSecure !== undefined ? req.body.smtpSecure : (metadata.smtpSecure !== undefined ? metadata.smtpSecure : settings?.smtpSecure);
+        const emailFrom = req.body.smtpFrom || metadata.emailFrom || settings?.emailFrom || req.body.emailFrom || smtpUser;
 
         if (!smtpHost || !smtpUser || !smtpPass) {
             return res.status(400).json({ error: 'SMTP settings are not fully configured' });
@@ -369,7 +391,10 @@ exports.testStorageConnection = async (req, res) => {
         }
 
         if (settings.storageMode === 'google_drive') {
-            const googleDriveService = require('./google-drive.service');
+            const googleDriveService = require('../../../platform-core/platform-storage/services/google-drive.service');
+            const metadata = await getCompanyMetadata(companyId);
+            settings.googleDriveServiceAccount = metadata.googleDriveServiceAccount || settings.googleDriveServiceAccount;
+            settings.googleDriveFolderId = metadata.googleDriveFolderId || settings.googleDriveFolderId;
             await googleDriveService.testConnection(settings);
 
             await updateCompanyMetadata(companyId, {

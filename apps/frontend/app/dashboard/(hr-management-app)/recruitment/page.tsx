@@ -1,9 +1,10 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Briefcase, Plus, Loader2, MapPin, Clock, Users, Pencil, ChevronRight, X, Mail, Phone, FileText, ChevronDown, CheckCircle, Key, Copy, RefreshCw, Link as LinkIcon, ExternalLink, Info, Sparkles, Bot, Terminal, Cpu } from 'lucide-react';
+import { Briefcase, Plus, MapPin, Clock, Users, Pencil, ChevronRight, X, Mail, Phone, FileText, ChevronDown, CheckCircle, Key, Copy, RefreshCw, Link as LinkIcon, ExternalLink, Info, Sparkles, Bot, Terminal, Cpu } from 'lucide-react';
 import clsx from 'clsx';
 import PostJobModal from '@/app/dashboard/(job-hunter-app)/_components/PostJobModal';
 import toast from 'react-hot-toast';
@@ -156,7 +157,7 @@ function ApplicationKanban({ jobId, onClose }: { jobId: string; onClose: () => v
         }
     }
 
-    if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+    if (loading) return <div className="flex items-center justify-center py-12"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>;
 
     return (
         <div>
@@ -585,7 +586,7 @@ export default function RecruitmentPage() {
                                         disabled={isSavingWhitelist || !newDomain.trim()}
                                         className="btn-primary py-1.5 text-[10px] px-4 h-auto"
                                     >
-                                        {isSavingWhitelist ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add Domain'}
+                                        {isSavingWhitelist ? <LogoLoader className="w-3 h-3 animate-spin" /> : 'Add Domain'}
                                     </button>
                                 </div>
 
@@ -627,7 +628,7 @@ export default function RecruitmentPage() {
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                <div className="flex items-center justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
             ) : tab === 'jobs' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {jobs.map((job) => (

@@ -1,7 +1,9 @@
+"use client";
+import { LogoLoader } from "./LogoLoader";
 'use strict';
 
 import React, { useState, useEffect } from 'react';
-import { Star, Loader2 } from 'lucide-react';
+import { Star } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { clsx } from 'clsx';
@@ -59,7 +61,7 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ recordId, type, label, 
         }
     };
 
-    if (loading) return <div className="w-8 h-8 flex items-center justify-center"><Loader2 className="w-4 h-4 animate-spin text-gray-300" /></div>;
+    if (loading) return <div className="w-8 h-8 flex items-center justify-center"><LogoLoader className="w-4 h-4 animate-spin text-gray-300" /></div>;
 
     return (
         <button

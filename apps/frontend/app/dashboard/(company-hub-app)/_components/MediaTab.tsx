@@ -1,5 +1,6 @@
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { Plus, MoreVertical, Trash2, Loader2 } from 'lucide-react';
+import { Plus, MoreVertical, Trash2 } from 'lucide-react';
 import { UploadMediaModal } from './UploadMediaModal';
 import { useDeleteCompanyMediaMutation } from '@/redux/api/companyApi';
 
@@ -75,7 +76,7 @@ export function MediaTab({ company, isOwner = true }: TabProps) {
                                                     className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                                                 >
                                                     {isDeleting && deletingId === item.id ? (
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        <LogoLoader className="w-4 h-4 mr-2 animate-spin" />
                                                     ) : (
                                                         <Trash2 className="w-4 h-4 mr-2" />
                                                     )}

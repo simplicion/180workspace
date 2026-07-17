@@ -1,13 +1,11 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import {
-    Calendar, Loader2, CheckCheck, X, Clock, Home,
-    Plus, FileText, CheckCircle, XCircle, Palmtree, Pencil, Trash2, Eye, ExternalLink
-} from 'lucide-react';
+import { Calendar, CheckCheck, X, Clock, Home, Plus, FileText, CheckCircle, XCircle, Palmtree, Pencil, Trash2, Eye, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 import MarkAttendanceModal from '@/app/dashboard/(hr-management-app)/_components/MarkAttendanceModal';
 import { useAuth } from '@/lib/auth-context';
@@ -313,7 +311,7 @@ function AttendancePageInner() {
                         
                         {trendLoading ? (
                             <div className="h-[260px] flex items-center justify-center">
-                                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                                <LogoLoader className="w-6 h-6 animate-spin text-indigo-500" />
                             </div>
                         ) : (
                             <div className="h-[260px] w-full">
@@ -378,7 +376,7 @@ function AttendancePageInner() {
                         <input type="month" value={month} onChange={e => setMonth(e.target.value)} className="input w-48" title="Filter by Month" aria-label="Select month and year" />
                     </div>
                     {loading ? (
-                        <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                        <div className="flex items-center justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
                     ) : (
                         <div className="card">
                             <div className="table-wrapper">
@@ -488,7 +486,7 @@ function AttendancePageInner() {
                         )}
                     </div>
                     {leavesLoading ? (
-                        <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                        <div className="flex items-center justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
                     ) : (
                         <div className="card">
                             <div className="table-wrapper">
@@ -583,7 +581,7 @@ function AttendancePageInner() {
                         <p className="text-sm text-gray-500 self-center">{holidays.length} holiday{holidays.length !== 1 ? 's' : ''} this year</p>
                     </div>
                     {holidaysLoading ? (
-                        <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                        <div className="flex items-center justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
                     ) : (
                         <div className="card">
                             <div className="table-wrapper">
@@ -652,7 +650,7 @@ function AttendancePageInner() {
 // ─── Wrapper with Suspense (required for useSearchParams) ─────────────────────
 export default function AttendancePage() {
     return (
-        <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>}>
             <AttendancePageInner />
         </Suspense>
     );

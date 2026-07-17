@@ -1,16 +1,26 @@
 'use client';
 
-import React from 'react';
-import { MessageSquare, Users, TrendingUp, ThumbsUp, ArrowLeft } from 'lucide-react';
+import { LogoLoader } from "@workspace/ui";
+import React, { useState } from 'react';
+import { MessageSquare, Users, TrendingUp, ThumbsUp, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-
-const discussions = [
-    { id: 1, title: 'Best practices for organizing team workflows', author: 'Sarah J.', replies: 24, likes: 45, category: 'Best Practices', time: '2h ago' },
-    { id: 2, title: 'Feature request: Custom dashboard widgets', author: 'Mike T.', replies: 12, likes: 89, category: 'Feature Requests', time: '5h ago' },
-    { id: 3, title: 'How do you handle client onboarding?', author: 'Elena R.', replies: 34, likes: 56, category: 'General Discussion', time: '1d ago' },
-];
+import { useGetPostsQuery, useToggleLikeMutation } from '@/redux/api/communityApi';
 
 export default function CommunityPage() {
+    const { data: postsData, isLoading, isError } = useGetPostsQuery({ limit: 10, sort: 'trending' });
+    const [toggleLike] = useToggleLikeMutation();
+
+    const posts = postsData?.data?.posts || [];
+
+    const handleLike = async (e: React.MouseEvent, postId: string) => {
+        e.preventDefault();
+        try {
+            await toggleLike(postId).unwrap();
+        } catch (error) {
+            console.error('Failed to toggle like', error);
+        }
+    };
+
     return (
         <div className="w-full max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
             <div className="flex items-center justify-between">
@@ -38,27 +48,53 @@ export default function CommunityPage() {
                         </div>
                         <div className="p-0">
                             <div className="divide-y divide-gray-100">
-                                {discussions.map((discussion) => (
-                                    <div key={discussion.id} className="p-6 hover:bg-gray-50 transition-colors cursor-pointer group">
+                                {isLoading && (
+                                    <div className="p-12 flex justify-center items-center">
+                                        <LogoLoader className="w-8 h-8 animate-spin text-gray-400" />
+                                    </div>
+                                )}
+                                
+                                {isError && (
+                                    <div className="p-12 text-center">
+                                        <div className="mx-auto h-12 w-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                                            <AlertCircle className="h-6 w-6 text-red-400" />
+                                        </div>
+                                        <h3 className="text-sm font-medium text-gray-900">Failed to load discussions</h3>
+                                        <p className="mt-1 text-sm text-gray-500">Please try again later.</p>
+                                    </div>
+                                )}
+
+                                {!isLoading && !isError && posts.length === 0 && (
+                                    <div className="p-12 text-center text-gray-500">
+                                        No discussions found. Be the first to start one!
+                                    </div>
+                                )}
+
+                                {!isLoading && !isError && posts.map((post: any) => (
+                                    <div key={post._id} className="p-6 hover:bg-gray-50 transition-colors cursor-pointer group">
                                         <div className="flex justify-between items-start">
-                                            <div>
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mb-2">
-                                                    {discussion.category}
-                                                </span>
-                                                <h3 className="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{discussion.title}</h3>
+                                            <div className="flex-1 mr-4">
+                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                    {post.hashtags?.map((tag: string) => (
+                                                        <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                                            #{tag}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                <h3 className="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{post.content || post.title}</h3>
                                                 <div className="flex items-center space-x-2 mt-2 text-sm text-gray-500">
-                                                    <span>By {discussion.author}</span>
+                                                    <span>By {post.author?.name || 'Anonymous'}</span>
                                                     <span>•</span>
-                                                    <span>{discussion.time}</span>
+                                                    <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-end space-y-2">
+                                            <div className="flex flex-col items-end space-y-2 shrink-0">
                                                 <div className="flex items-center text-gray-500 text-sm">
-                                                    <MessageSquare className="h-4 w-4 mr-1" /> {discussion.replies}
+                                                    <MessageSquare className="h-4 w-4 mr-1" /> {post.metrics?.replies || 0}
                                                 </div>
-                                                <div className="flex items-center text-gray-500 text-sm">
-                                                    <ThumbsUp className="h-4 w-4 mr-1" /> {discussion.likes}
-                                                </div>
+                                                <button onClick={(e) => handleLike(e, post._id)} className="flex items-center text-gray-500 text-sm hover:text-blue-600 transition-colors">
+                                                    <ThumbsUp className="h-4 w-4 mr-1" /> {post.metrics?.likes || 0}
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -97,3 +133,4 @@ export default function CommunityPage() {
         </div>
     );
 }
+

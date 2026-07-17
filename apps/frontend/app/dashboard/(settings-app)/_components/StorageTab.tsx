@@ -1,10 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { 
-    Cloud, ShieldCheck, ShieldAlert, Info, Eye, EyeOff, 
-    Loader2, Save, Activity, Globe, Palette, ExternalLink, FileSpreadsheet
-} from 'lucide-react';
+import { Cloud, ShieldCheck, ShieldAlert, Info, Eye, EyeOff, Save, Activity, Globe, Palette, ExternalLink, FileSpreadsheet } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -69,7 +67,7 @@ export default function StorageTab() {
                 googleSheetsId
             });
             toast.success('Storage configuration saved');
-            await refreshSettings();
+            await refreshSettings(true);
         } catch (e: any) {
             toast.error(e?.response?.data?.error || 'Failed to update storage settings');
         } finally {
@@ -90,7 +88,7 @@ export default function StorageTab() {
             const { data } = await api.post('/api/settings/test-storage');
             setTestStatus('success');
             toast.success(data.message || 'Storage connection verified!');
-            await refreshSettings();
+            await refreshSettings(true);
         } catch (e: any) {
             setTestStatus('failure');
             toast.error(e?.response?.data?.error || e?.response?.data?.details || 'Storage test failed');
@@ -279,7 +277,7 @@ export default function StorageTab() {
 
                     <div className="pt-4 flex gap-3">
                         <button onClick={handleSave} disabled={saving} className="btn-primary flex-1">
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Save Settings'}
                         </button>
                         {activeTab !== 'google_sheets' && (
@@ -291,7 +289,7 @@ export default function StorageTab() {
                                     testStatus === 'success' ? "border-green-200 bg-green-50 text-green-700 font-bold" : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
                                 )}
                             >
-                                {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                                {testing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
                                 {testing ? 'Testing...' : 'Connect & Test'}
                             </button>
                         )}

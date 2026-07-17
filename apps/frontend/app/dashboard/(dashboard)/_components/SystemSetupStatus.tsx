@@ -6,7 +6,7 @@ import { useSettings } from '@/lib/settings-context';
 import { AlertCircle, Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export function SystemSetupStatus() {
+export default function SystemSetupStatus() {
     const { settings, isLoading } = useSettings();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);

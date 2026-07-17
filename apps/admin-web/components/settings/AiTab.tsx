@@ -1,9 +1,10 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Brain, Cpu, Zap, Info, Loader2, Save, Activity, ShieldCheck, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import { Brain, Cpu, Zap, Info, Save, Activity, ShieldCheck, ShieldAlert, Eye, EyeOff } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
 import clsx from 'clsx';
 
@@ -53,17 +54,19 @@ export default function AiTab() {
     const saveAiSettings = async () => {
         setSaving(true);
         try {
-            const payload: any = { aiProvider };
-            if (openaiKey) payload.openaiKey = openaiKey;
-            if (claudeKey) payload.claudeKey = claudeKey;
-            if (geminiKey) payload.geminiKey = geminiKey;
-            if (customAiUrl) payload.customAiUrl = customAiUrl;
-            if (customAiKey) payload.customAiKey = customAiKey;
-            if (customAiModel) payload.customAiModel = customAiModel;
+            const payload: any = { 
+                aiProvider,
+                openaiKey: openaiKey || '',
+                claudeKey: claudeKey || '',
+                geminiKey: geminiKey || '',
+                customAiUrl: customAiUrl || '',
+                customAiKey: customAiKey || '',
+                customAiModel: customAiModel || ''
+            };
             
             await api.put('/api/settings', payload);
             toast.success('AI configuration saved successfully');
-            await refreshGlobalSettings();
+            await refreshGlobalSettings(true);
         } catch (e: any) {
             toast.error(e?.response?.data?.error || 'Failed to update AI settings');
         } finally {
@@ -75,20 +78,22 @@ export default function AiTab() {
         setTestingAi(true);
         try {
             // First save
-            const payload: any = { aiProvider };
-            if (openaiKey) payload.openaiKey = openaiKey;
-            if (claudeKey) payload.claudeKey = claudeKey;
-            if (geminiKey) payload.geminiKey = geminiKey;
-            if (customAiUrl) payload.customAiUrl = customAiUrl;
-            if (customAiKey) payload.customAiKey = customAiKey;
-            if (customAiModel) payload.customAiModel = customAiModel;
+            const payload: any = { 
+                aiProvider,
+                openaiKey: openaiKey || '',
+                claudeKey: claudeKey || '',
+                geminiKey: geminiKey || '',
+                customAiUrl: customAiUrl || '',
+                customAiKey: customAiKey || '',
+                customAiModel: customAiModel || ''
+            };
             
             await api.put('/api/settings', payload);
 
             const { data } = await api.post('/api/settings/test-ai');
             setAiTestStatus('success');
             toast.success(data.message || 'AI Connection verified!');
-            await refreshGlobalSettings();
+            await refreshGlobalSettings(true);
         } catch (e: any) {
             setAiTestStatus('failure');
             toast.error(e?.response?.data?.error || e?.response?.data?.details || 'AI Connection test failed');
@@ -224,7 +229,7 @@ export default function AiTab() {
 
                     <div className="pt-4 flex gap-3 mt-4 border-t border-gray-100">
                         <button onClick={saveAiSettings} disabled={saving} className="btn-primary flex-1">
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Save Settings'}
                         </button>
                         <button
@@ -235,7 +240,7 @@ export default function AiTab() {
                                 aiTestStatus === 'success' ? "border-green-200 bg-green-50 text-green-700 font-bold" : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
                             )}
                         >
-                            {testingAi ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                            {testingAi ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                             {testingAi ? 'Validating...' : 'Connect & Test'}
                         </button>
                     </div>

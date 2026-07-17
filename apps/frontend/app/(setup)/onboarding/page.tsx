@@ -1,11 +1,12 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2, CheckCircle, UploadCloud, UserCircle, ChevronRight, Check } from 'lucide-react';
+import { CheckCircle, UploadCloud, UserCircle, ChevronRight, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { format } from 'date-fns';
@@ -91,7 +92,7 @@ export default function OnboardingPage() {
     }
 
     if (loading) {
-        return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+        return <div className="flex justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>;
     }
 
     // HR / Admin View

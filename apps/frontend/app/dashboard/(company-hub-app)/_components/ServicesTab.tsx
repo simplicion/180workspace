@@ -1,6 +1,7 @@
 "use client";
+import { LogoLoader } from "@workspace/ui";
 import React, { useState } from 'react';
-import { Plus, X, ArrowRight, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Plus, X, ArrowRight, Image as ImageIcon } from 'lucide-react';
 import { AddServiceModal } from './AddServiceModal';
 import { useGetCompanyServicesQuery, useDeleteCompanyServiceMutation, useRequestServiceMutation } from '@/redux/api/companyApi';
 
@@ -187,7 +188,7 @@ export function ServicesTab({ company, isOwner = true }: TabProps) {
                                         disabled={isRequesting}
                                         className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
-                                        {isRequesting && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        {isRequesting && <LogoLoader className="w-4 h-4 animate-spin" />}
                                         Send Request
                                     </button>
                                 </div>

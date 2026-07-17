@@ -50,7 +50,7 @@ class AutomationService {
             });
 
             // 2. Offload processing to background queue
-            const { queueAutomation } = require('./queue.service');
+            const { queueAutomation } = require('../../platform-engine/services/queue.service');
             // Use companyId attached to connection for proper tenant identification in the queue
             const tenantId = tenantDb.companyId ? tenantDb.companyId.toString() : tenantDb.name;
 

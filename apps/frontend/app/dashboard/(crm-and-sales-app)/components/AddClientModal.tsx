@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import api from '@/lib/api';
-import { X, Building2, Mail, Phone, Globe, AlignLeft, Loader2 } from 'lucide-react';
+import { X, Building2, Mail, Phone, Globe, AlignLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -156,7 +157,7 @@ export default function AddClientModal({ onClose, onSuccess, editClient }: Props
                 <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
                     <button onClick={handleSubmit} disabled={loading} className="btn-primary">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Client'}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Client'}
                     </button>
                 </div>
             </div>

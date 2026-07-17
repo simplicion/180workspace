@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, User, Mail, Lock, Briefcase, Building2, DollarSign, Calendar, Loader2, Shield, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { X, User, Mail, Lock, Briefcase, Building2, DollarSign, Calendar, Shield, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import CreatableSelect from '@/components/shared/CreatableSelect';
@@ -394,7 +395,7 @@ export default function AddEmployeeModal({ onClose, onSuccess, editUser }: Props
                 <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
                     <button onClick={handleSubmit} disabled={loading} className="btn-primary">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Employee'}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Employee'}
                     </button>
                 </div>
             </div>

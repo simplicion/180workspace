@@ -1,5 +1,6 @@
+import { LogoLoader } from "@workspace/ui";
 import React from 'react';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export type UploadState = 'uploading' | 'processing' | 'success' | 'error';

@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const express = require('express');
 const router = express.Router();
@@ -6,7 +6,7 @@ const router = express.Router();
 // Enhanced health endpoint â€” reports DB, Redis and Queue status
 router.get('/', async (req, res) => {
     const { prisma } = require('@workspace/db');
-    const { getRedis, getEmailQueue, getNotificationQueue, getAutomationQueue } = require('./queue.service');
+    const { getRedis, getEmailQueue, getNotificationQueue, getAutomationQueue } = require('../services/queue.service');
 
     let dbStatus = 'disconnected';
     try {

@@ -5,12 +5,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import {
-    PieChart, Plus, Search, MoreHorizontal, Calendar,
-    ArrowUpCircle, AlertCircle, DollarSign, GripVertical,
-    Loader2, ExternalLink, Trash2, Eye, CheckCircle
-} from 'lucide-react';
-import { Skeleton } from "@workspace/ui";
+import { PieChart, Plus, Search, MoreHorizontal, Calendar, ArrowUpCircle, AlertCircle, DollarSign, GripVertical, ExternalLink, Trash2, Eye, CheckCircle } from 'lucide-react';
+import { Skeleton , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from "@workspace/ui";

@@ -1,8 +1,9 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import api from '@/lib/api';
-import { X, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const LEAVE_TYPE_COLORS: Record<string, string> = {
@@ -63,7 +64,7 @@ export function LeaveRequestModal({ onClose, onSuccess }: { onClose: () => void;
                     <div className="flex justify-end gap-3 pt-1">
                         <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
                         <button type="submit" disabled={loading} className="btn-primary">
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Request'}
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Submit Request'}
                         </button>
                     </div>
                 </form>

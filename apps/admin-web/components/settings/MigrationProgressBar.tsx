@@ -1,7 +1,8 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import React from 'react';
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 interface MigrationProgressBarProps {
@@ -27,7 +28,7 @@ const MigrationProgressBar = ({
         <div className="mt-6 p-6 border rounded-xl bg-white shadow-sm space-y-4">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    {status === 'in-progress' && <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />}
+                    {status === 'in-progress' && <LogoLoader className="w-5 h-5 animate-spin text-indigo-600" />}
                     {status === 'completed' && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
                     {status === 'failed' && <AlertCircle className="w-5 h-5 text-rose-500" />}
                     <h3 className="font-semibold text-lg">

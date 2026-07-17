@@ -1,6 +1,7 @@
 'use client';
 
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import {
@@ -8,7 +9,7 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Legend
 } from 'recharts';
-import { TrendingUp, Users, FolderKanban, CheckSquare, Loader2, DollarSign, ArrowUpRight, ArrowDownRight, PieChart as PieIcon } from 'lucide-react';
+import { TrendingUp, Users, FolderKanban, CheckSquare, DollarSign, ArrowUpRight, ArrowDownRight, PieChart as PieIcon } from 'lucide-react';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'];
 
@@ -172,7 +173,7 @@ export default function AnalyticsPage() {
                                 <Icon className={`w-5 h-5 ${k.color}`} />
                             </div>
                             {loading
-                                ? <Loader2 className="w-5 h-5 animate-spin text-gray-300 mb-1" />
+                                ? <LogoLoader className="w-5 h-5 animate-spin text-gray-300 mb-1" />
                                 : <p className="text-2xl font-bold text-gray-900">{k.value}</p>
                             }
                             <p className="text-sm font-medium text-gray-600">{k.label}</p>
@@ -183,7 +184,7 @@ export default function AnalyticsPage() {
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                <div className="flex items-center justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
             ) : activeTab === 'org' ? (
                 <>
                     {/* Charts row 1 */}

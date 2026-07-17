@@ -1,5 +1,6 @@
 'use client';
 
+import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -13,18 +14,7 @@ const motion = {
     section: 'section',
     span: 'span'
 } as any;
-import {
-    Globe,
-    ArrowRight,
-    ShieldCheck,
-    Zap,
-    Users,
-    LayoutDashboard,
-    ChevronRight,
-    Star,
-    CheckCircle2,
-    Loader2
-} from 'lucide-react';
+import { Globe, ArrowRight, ShieldCheck, Zap, Users, LayoutDashboard, ChevronRight, Star, CheckCircle2 } from 'lucide-react';
 import { useSettings } from '../lib/settings-context';
 import { useAuth } from '../lib/auth-context';
 
@@ -65,7 +55,7 @@ export default function HomePage() {
     if (!activeSubdomain) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <LogoLoader className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
