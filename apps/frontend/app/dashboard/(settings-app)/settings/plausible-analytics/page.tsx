@@ -1,11 +1,11 @@
 'use client';
 
 
-import IntegrationsTab from '@/app/dashboard/(settings-app)/_components/IntegrationsTab';
+import PlausibleAnalyticsTab from '@/app/dashboard/(settings-app)/_components/PlausibleAnalyticsTab';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default function IntegrationsPage() {
+export default function PlausibleAnalyticsPage() {
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-6">
             <Link 
@@ -17,12 +17,12 @@ export default function IntegrationsPage() {
             </Link>
 
             <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-black text-gray-900">External Integrations</h1>
-                <p className="text-gray-500 text-sm font-medium">Manage third-party analytics and platform extensions.</p>
+                <h1 className="text-2xl font-black text-gray-900">Plausible Analytics</h1>
+                <p className="text-gray-500 text-sm font-medium">Manage Plausible Analytics configuration and tracking.</p>
             </div>
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <IntegrationsTab />
+                <PlausibleAnalyticsTab />
             </div>
         </div>
     );

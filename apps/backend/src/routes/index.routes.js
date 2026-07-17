@@ -65,6 +65,7 @@ router.use('/release-notes', releaseNotesRoutes);
 router.use('/company-profile', require('../app-registry/company-hub-app/company-profile/company-profile.routes'));
 router.use('/events', require('../app-registry/company-hub-app/events/events.routes'));
 router.use('/services', require('../platform-core/platform-integrations/routes/services.routes'));
+router.use('/integrations/google', require('../platform-core/platform-integrations/routes/google-oauth.routes'));
 // ─── Subscription Guard (Protect business routes) ──────────────────────────
 // Merged init endpoint — returns user, settings, company-config, branding, billing, preferences in ONE call
 const { getInit } = require('../platform-core/platform-engine/controllers/init.controller');

@@ -63,8 +63,9 @@ function handleUpload(folder = 'general', options = {}) {
                 }
             }
             
+            settings.metadata = metadata;
             settings.googleDriveServiceAccount = metadata.googleDriveServiceAccount || settings.googleDriveServiceAccount;
-            settings.googleDriveFolderId = metadata.googleDriveFolderId || settings.googleDriveFolderId;
+            settings.googleDriveFolderId = req.body.folderId || metadata.googleDriveFolderId || settings.googleDriveFolderId;
             settings.cloudinaryCloudName = metadata.cloudinaryCloudName || settings.cloudinaryCloudName;
             settings.cloudinaryApiKey = metadata.cloudinaryApiKey || settings.cloudinaryApiKey;
             settings.cloudinaryApiSecret = metadata.cloudinaryApiSecret || settings.cloudinaryApiSecret;
@@ -82,7 +83,7 @@ function handleUpload(folder = 'general', options = {}) {
             // If it's NOT a system asset, verify tenant has configured their own storage
             if (!isSystemAsset) {
                 const isCloudinaryConfigured = !!(settings.cloudinaryCloudName && settings.cloudinaryApiKey && settings.cloudinaryApiSecret);
-                const isDriveConfigured = !!settings.googleDriveServiceAccount;
+                const isDriveConfigured = !!(settings.googleDriveServiceAccount || metadata.googleDriveTokens);
 
                 if ((preferredMode === 'cloudinary' && !isCloudinaryConfigured) || 
                     (preferredMode === 'google_drive' && !isDriveConfigured) ||
@@ -95,7 +96,7 @@ function handleUpload(folder = 'general', options = {}) {
             }
 
             // Attempt Preferred Storage for Non-System Assets
-            if (!isSystemAsset && preferredMode === 'google_drive' && settings.googleDriveServiceAccount) {
+            if (!isSystemAsset && preferredMode === 'google_drive' && (settings.googleDriveServiceAccount || metadata.googleDriveTokens)) {
                 try {
                     const driveResult = await googleDriveService.uploadFile(req.file.buffer, {
                         name: req.file.originalname,

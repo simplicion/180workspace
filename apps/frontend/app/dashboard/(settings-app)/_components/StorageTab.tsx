@@ -30,16 +30,11 @@ export default function StorageTab() {
 
     // Form State
     const [storageMode, setStorageMode] = useState<'cloudinary' | 'google_drive' | 'local'>(settings?.storageMode || 'cloudinary');
-    const [activeTab, setActiveTab] = useState<'cloudinary' | 'google_drive' | 'google_sheets'>(
-        settings?.storageMode === 'google_drive' ? 'google_drive' : 'cloudinary'
-    );
+    const [activeTab, setActiveTab] = useState<'cloudinary'>('cloudinary');
     
-    const [googleDriveServiceAccount, setGoogleDriveServiceAccount] = useState(settings?.googleDriveServiceAccount || '');
-    const [googleDriveFolderId, setGoogleDriveFolderId] = useState(settings?.googleDriveFolderId || '');
     const [cloudinaryCloudName, setCloudinaryCloudName] = useState(settings?.cloudinaryCloudName || '');
     const [cloudinaryApiKey, setCloudinaryApiKey] = useState(settings?.cloudinaryApiKey || '');
     const [cloudinaryApiSecret, setCloudinaryApiSecret] = useState(settings?.cloudinaryApiSecret || '');
-    const [googleSheetsId, setGoogleSheetsId] = useState(settings?.googleSheetsId || '');
     
     // Status State
     const [testStatus, setTestStatus] = useState<'success' | 'failure' | 'none'>(settings?.lastStorageTestStatus || 'none');
@@ -47,14 +42,11 @@ export default function StorageTab() {
     useEffect(() => {
         if (settings) {
             setStorageMode(settings.storageMode || 'cloudinary');
-            setActiveTab((settings.storageMode as any) === 'google_drive' ? 'google_drive' : 'cloudinary');
-            setGoogleDriveServiceAccount(settings.googleDriveServiceAccount || '');
-            setGoogleDriveFolderId(settings.googleDriveFolderId || '');
+            setActiveTab('cloudinary');
             setCloudinaryCloudName(settings.cloudinaryCloudName || '');
             setCloudinaryApiKey(settings.cloudinaryApiKey || '');
             setCloudinaryApiSecret(settings.cloudinaryApiSecret || '');
             setTestStatus(settings.lastStorageTestStatus || 'none');
-            setGoogleSheetsId(settings.googleSheetsId || '');
         }
     }, [settings]);
 
@@ -62,9 +54,8 @@ export default function StorageTab() {
         setSaving(true);
         try {
             await api.put('/api/settings', {
-                storageMode, googleDriveServiceAccount, googleDriveFolderId,
-                cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret,
-                googleSheetsId
+                storageMode,
+                cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret
             });
             toast.success('Storage configuration saved');
             await refreshSettings(true);
@@ -80,9 +71,8 @@ export default function StorageTab() {
         try {
             // First save
             await api.put('/api/settings', {
-                storageMode, googleDriveServiceAccount, googleDriveFolderId,
-                cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret,
-                googleSheetsId
+                storageMode,
+                cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret
             });
 
             const { data } = await api.post('/api/settings/test-storage');
@@ -103,13 +93,14 @@ export default function StorageTab() {
                 <div className="card-header flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Cloud className="w-5 h-5 text-blue-600" />
-                        <h2 className="font-semibold text-gray-900">Storage & Cloud Drive</h2>
+                        <h2 className="font-semibold text-gray-900">Cloudinary Storage</h2>
                     </div>
                     
                     <div className="flex items-center gap-2">
-                        {testStatus === 'success' && (
-                            <span className="badge badge-green flex items-center gap-1">
-                                <ShieldCheck className="w-3 h-3" /> Connected
+                        {testStatus === 'success' && cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                Connected
                             </span>
                         )}
                         {testStatus === 'failure' && (
@@ -130,18 +121,14 @@ export default function StorageTab() {
                         <label className="label">Configure Services</label>
                         <div className="grid grid-cols-3 gap-2">
                             {[
-                                { id: 'cloudinary', label: 'Cloudinary', icon: Palette },
-                                { id: 'google_drive', label: 'Google Drive', icon: Globe },
-                                { id: 'google_sheets', label: 'Google Sheets', icon: FileSpreadsheet },
+                                { id: 'cloudinary', label: 'Cloudinary', icon: Palette }
                             ].map((m) => (
                                 <button
                                     key={m.id}
                                     type="button"
                                     onClick={() => {
                                         setActiveTab(m.id as any);
-                                        if (m.id === 'cloudinary' || m.id === 'google_drive') {
-                                            setStorageMode(m.id as any);
-                                        }
+                                        setStorageMode(m.id as any);
                                     }}
                                     className={clsx(
                                         "flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-medium transition-all gap-2",
@@ -156,40 +143,6 @@ export default function StorageTab() {
                             ))}
                         </div>
                     </div>
-
-                    {/* Google Drive Configuration */}
-                    {activeTab === 'google_drive' && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
-                            <div>
-                                <label className="label">
-                                    Google Service Account (JSON)
-                                    <InfoLink href="https://console.cloud.google.com/iam-admin/serviceaccounts" label="IAM Console" />
-                                </label>
-                                <textarea
-                                    value={googleDriveServiceAccount}
-                                    onChange={e => setGoogleDriveServiceAccount(e.target.value)}
-                                    placeholder='{ "type": "service_account", ... }'
-                                    className="input font-mono text-[10px] h-32 bg-white resize-none"
-                                />
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    Create a Service Account in Google Cloud IAM, generate a JSON Key, and paste its entire content above.
-                                </p>
-                            </div>
-                            <div>
-                                <label className="label">Root Folder ID (Optional)</label>
-                                <input
-                                    value={googleDriveFolderId}
-                                    onChange={e => setGoogleDriveFolderId(e.target.value)}
-                                    placeholder="1A2B3C4D..."
-                                    className="input bg-white"
-                                />
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    The unique identifier from the Google Drive URL of your target folder.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Cloudinary Configuration */}
                     {activeTab === 'cloudinary' && (
                         <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
@@ -239,60 +192,22 @@ export default function StorageTab() {
                         </div>
                     )}
 
-                    {/* Google Sheets Configuration */}
-                    {activeTab === 'google_sheets' && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
-                            <div>
-                                <label className="label">
-                                    Google Service Account (JSON)
-                                    <InfoLink href="https://console.cloud.google.com/iam-admin/serviceaccounts" label="IAM Console" />
-                                </label>
-                                <textarea
-                                    value={googleDriveServiceAccount}
-                                    onChange={e => setGoogleDriveServiceAccount(e.target.value)}
-                                    placeholder='{ "type": "service_account", ... }'
-                                    className="input font-mono text-[10px] h-32 bg-white resize-none"
-                                />
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    Create a Service Account in Google Cloud IAM, generate a JSON Key, and paste its entire content above. This service account is shared with Google Drive.
-                                </p>
-                            </div>
-                            <div>
-                                <label className="label">
-                                    Google Sheets ID (for Meeting Notes)
-                                    <InfoLink href="https://docs.google.com/spreadsheets/u/0/" label="Open Sheets" />
-                                </label>
-                                <input
-                                    value={googleSheetsId}
-                                    onChange={e => setGoogleSheetsId(e.target.value)}
-                                    placeholder="1x2y3z... (ID from the URL)"
-                                    className="input bg-white"
-                                />
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    The ID of the spreadsheet where AI meeting summaries and action items will be stored. Ensure the service account defined above has <b>Editor</b> access to this sheet.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
                     <div className="pt-4 flex gap-3">
                         <button onClick={handleSave} disabled={saving} className="btn-primary flex-1">
                             {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'Saving...' : 'Save Settings'}
                         </button>
-                        {activeTab !== 'google_sheets' && (
-                            <button
-                                onClick={handleTest}
-                                disabled={testing || (activeTab === 'google_drive' && !googleDriveServiceAccount) || (activeTab === 'cloudinary' && !cloudinaryCloudName)}
-                                className={clsx(
-                                    "flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl border text-sm font-medium transition-all",
-                                    testStatus === 'success' ? "border-green-200 bg-green-50 text-green-700 font-bold" : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
-                                )}
-                            >
-                                {testing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
-                                {testing ? 'Testing...' : 'Connect & Test'}
-                            </button>
-                        )}
+                        <button
+                            onClick={handleTest}
+                            disabled={testing || (activeTab === 'cloudinary' && !cloudinaryCloudName)}
+                            className={clsx(
+                                "flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl border text-sm font-medium transition-all",
+                                (testStatus === 'success' && cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret) ? "border-green-200 bg-green-50 text-green-700 font-bold" : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
+                            )}
+                        >
+                            {testing ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                            {testing ? 'Testing...' : 'Connect & Test'}
+                        </button>
                     </div>
 
                     {settings?.lastStorageTestDate && (

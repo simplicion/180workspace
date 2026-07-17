@@ -8,7 +8,7 @@ A comprehensive, production-ready, white-labeled solution for managing organizat
 
 ```mermaid
 graph LR
-    A[admin-web: Next.js 14] <--> C[http-backend: Express]
+    A[admin-web: Next.js 14] <--> C[backend: Express]
     B[user-web: Next.js 14] <--> C
     C <--> D[(PostgreSQL via Prisma)]
     E[worker: Background Jobs] <--> D
@@ -88,7 +88,7 @@ pnpm dev
 ```
 - **Admin Web**: `http://localhost:3001`
 - **User Web**: `http://localhost:3000`
-- **HTTP Backend**: `http://localhost:5000`
+- **Backend API**: `http://localhost:4000`
 
 ---
 

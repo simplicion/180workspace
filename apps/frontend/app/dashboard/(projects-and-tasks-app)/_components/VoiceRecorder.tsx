@@ -213,21 +213,28 @@ export default function VoiceRecorder({ onUploadComplete, label = 'Record Voice 
             <div className="flex items-center justify-between">
                 <div 
                     className={clsx(
-                        "flex items-center gap-3 transition-all duration-300 ease-in-out",
+                        "flex items-center gap-3 transition-all duration-300 ease-in-out w-full",
                         isRecording ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none absolute"
                     )}
                 >
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-sm font-semibold text-gray-700 min-w-[40px]">
-                        {formatTime(recordingTime)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-sm font-semibold text-gray-700 min-w-[40px]">
+                            {formatTime(recordingTime)}
+                        </span>
+                    </div>
+
                     {isLocked ? (
-                        <button type="button" onClick={stopRecording} className="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors">
-                            <Square className="w-4 h-4" />
-                        </button>
+                        <div className="flex-1 flex justify-end">
+                            <button type="button" onClick={stopRecording} className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors text-xs font-bold gap-1.5 shadow-sm">
+                                <CheckCircle2 className="w-4 h-4" /> Save Recording
+                            </button>
+                        </div>
                     ) : (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium animate-bounce pr-4">
-                            <Lock className="w-3 h-3" /> Swipe up to lock
+                        <div className="flex-1 flex justify-end pr-4">
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium animate-bounce">
+                                <Lock className="w-3 h-3" /> Swipe up to lock
+                            </div>
                         </div>
                     )}
                 </div>
@@ -238,22 +245,23 @@ export default function VoiceRecorder({ onUploadComplete, label = 'Record Voice 
                     </div>
                 )}
 
-                <button
-                    type="button"
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
-                    className={clsx(
-                        "w-10 h-10 rounded-full flex items-center justify-center transition-all touch-none select-none",
-                        isRecording && !isLocked ? "bg-red-500 text-white scale-110 shadow-xl ml-4" : 
-                        isRecording && isLocked ? "bg-indigo-600 text-white ml-4" : 
-                        "bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600"
-                    )}
-                    title="Hold to record voice message"
-                >
-                    <Mic className="w-5 h-5" />
-                </button>
+                {(!isRecording || !isLocked) && (
+                    <button
+                        type="button"
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                        className={clsx(
+                            "w-10 h-10 rounded-full flex items-center justify-center transition-all touch-none select-none shrink-0",
+                            isRecording && !isLocked ? "bg-red-500 text-white scale-110 shadow-xl ml-4" : 
+                            "bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600"
+                        )}
+                        title="Hold to record voice message"
+                    >
+                        <Mic className="w-5 h-5" />
+                    </button>
+                )}
             </div>
         </div>
     );

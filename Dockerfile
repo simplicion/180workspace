@@ -1,4 +1,4 @@
-# ACTIVE DEPLOYMENT CONFIG: Used for deploying the apps/http-backend service.
+# ACTIVE DEPLOYMENT CONFIG: Used for deploying the apps/backend service.
 FROM node:20-slim
 
 # Install pnpm and openssl for Prisma, plus tsx for running TS imports
@@ -13,7 +13,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 
 # Copy packages and apps
 COPY packages ./packages
-COPY apps/http-backend ./apps/http-backend
+COPY apps/backend ./apps/backend
 
 # Install dependencies for the workspace
 RUN pnpm install --frozen-lockfile --prod=false
@@ -23,7 +23,7 @@ WORKDIR /app/packages/db
 RUN npx prisma generate
 
 # Switch to backend directory
-WORKDIR /app/apps/http-backend
+WORKDIR /app/apps/backend
 
 # Set environment variables
 ENV NODE_ENV=production

@@ -23,8 +23,8 @@ export default function StorageSettingsPage() {
                         <Cloud className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Storage & Cloud Drive</h1>
-                        <p className="text-sm text-gray-500">Configure AWS S3, Google Cloud, or Cloudinary buckets to store documents, assets, and system media securely.</p>
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Cloudinary Storage</h1>
+                        <p className="text-sm text-gray-500">Configure your Cloudinary bucket to store documents, assets, and system media securely.</p>
                     </div>
                 </div>
             </div>

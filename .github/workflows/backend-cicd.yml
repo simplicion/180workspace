@@ -5,11 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'apps/180workspace-backend/**'
-      - 'apps/180workspace-worker/**'
-      - 'apps/180workspace-ws/**'
-      - 'apps/pitchin180-backend/**'
-      - 'apps/pitchin180-worker/**'
+      - 'apps/backend/**'
+      - 'apps/worker/**'
+      - 'apps/ws/**'
       - '.github/workflows/backend-cicd.yml'
   workflow_dispatch:
 
@@ -24,18 +22,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - app: 180workspace-backend
+          - app: backend
             context: .
-            dockerfile: apps/180workspace-backend/Dockerfile
-            image-suffix: 180workspace-backend
-          - app: pitchin180-backend
+            dockerfile: apps/backend/Dockerfile
+            image-suffix: backend
+          - app: worker
             context: .
-            dockerfile: apps/pitchin180-backend/Dockerfile
-            image-suffix: pitchin180-backend
-          - app: 180workspace-ws
+            dockerfile: apps/worker/Dockerfile
+            image-suffix: worker
+          - app: ws
             context: .
-            dockerfile: apps/180workspace-ws/Dockerfile
-            image-suffix: 180workspace-ws
+            dockerfile: apps/ws/Dockerfile
+            image-suffix: ws
             
     permissions:
       contents: read

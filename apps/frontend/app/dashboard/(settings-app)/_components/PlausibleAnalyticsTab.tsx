@@ -4,12 +4,12 @@ import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
-import { BarChart3, Save, Eye, EyeOff, ShieldCheck, ShieldAlert, Info, Activity, Globe } from 'lucide-react';
+import { BarChart3, Save, Eye, EyeOff, ShieldCheck, ShieldAlert, Info, Activity } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
-export default function IntegrationsTab() {
+export default function PlausibleAnalyticsTab() {
     const { settings: globalSettings, platform, refreshSettings: refreshGlobalSettings } = useSettings();
     const [saving, setSaving] = useState(false);
     const [plausibleApiKey, setPlausibleApiKey] = useState(globalSettings?.plausibleApiKey || '');
@@ -66,8 +66,8 @@ export default function IntegrationsTab() {
                             <BarChart3 className="w-6 h-6 text-blue-600" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-gray-900">External Integrations</h2>
-                            <p className="text-sm text-gray-500 font-medium tracking-tight">Connect with third-party analytics & tools.</p>
+                            <h2 className="text-xl font-black text-gray-900">Plausible Analytics</h2>
+                            <p className="text-sm text-gray-500 font-medium tracking-tight">Configure your privacy-focused analytics.</p>
                         </div>
                     </div>
                     <div>
@@ -88,12 +88,12 @@ export default function IntegrationsTab() {
                     {/* Plausible Highlight Card */}
                     <div className="p-6 bg-indigo-50/50 border border-indigo-100 rounded-[24px] flex gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-indigo-100 flex-shrink-0">
-                            <BarChart3 className="w-6 h-6 text-indigo-600" />
+                            <Activity className="w-6 h-6 text-indigo-600" />
                         </div>
                         <div>
-                            <h4 className="text-sm font-black text-indigo-900 mb-1">Plausible Analytics</h4>
+                            <h4 className="text-sm font-black text-indigo-900 mb-1">Plausible Configuration</h4>
                             <p className="text-xs text-indigo-800/80 leading-relaxed font-medium">
-                                Lightweight, privacy-focused analytics. Sync your website traffic data directly to the {platform?.platformName}.
+                                Sync your website traffic data directly to the {platform?.platformName}.
                             </p>
                         </div>
                     </div>

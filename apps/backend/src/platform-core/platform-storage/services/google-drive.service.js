@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { google } = require('googleapis');
 const { Readable } = require('stream');
@@ -13,8 +13,28 @@ class GoogleDriveService {
      * @param {Object} settings - Tenant-specific settings
      */
     #getDriveClient(settings) {
+        // If metadata was passed directly or embedded inside settings
+        const metadata = settings.metadata || {};
+        
+        // Priority 1: OAuth Tokens
+        if (metadata.googleDriveTokens) {
+            try {
+                const oauth2Client = new google.auth.OAuth2(
+                    process.env.GOOGLE_CLIENT_ID,
+                    process.env.GOOGLE_CLIENT_SECRET,
+                    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3002/dashboard/settings/storage'
+                );
+                oauth2Client.setCredentials(metadata.googleDriveTokens);
+                return google.drive({ version: 'v3', auth: oauth2Client });
+            } catch (err) {
+                console.error('[GoogleDriveService] Failed to init OAuth client:', err.message);
+                throw new Error('Invalid Google Drive OAuth credentials');
+            }
+        }
+
+        // Priority 2: Service Account
         if (!settings || !settings.googleDriveServiceAccount) {
-            throw new Error('Google Drive service account credentials not configured in tenant settings');
+            throw new Error('Google Drive credentials not configured in tenant settings');
         }
 
         try {
@@ -26,7 +46,7 @@ class GoogleDriveService {
 
             return google.drive({ version: 'v3', auth });
         } catch (err) {
-            console.error('[GoogleDriveService] Failed to parse credentials:', err.message);
+            console.error('[GoogleDriveService] Failed to parse Service Account credentials:', err.message);
             throw new Error('Invalid Google Drive credentials format');
         }
     }

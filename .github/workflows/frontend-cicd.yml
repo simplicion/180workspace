@@ -5,10 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'apps/180workspace-frontend/**'
-      - 'apps/180workspace-admin-web/**'
-      - 'apps/pitchin180-frontend/**'
-      - 'apps/pitchin180-admin-web/**'
+      - 'apps/frontend/**'
+      - 'apps/admin-web/**'
       - '.github/workflows/frontend-cicd.yml'
   workflow_dispatch:
 
@@ -22,22 +20,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - app: 180workspace-frontend
+          - app: frontend
             context: .
-            dockerfile: apps/180workspace-frontend/Dockerfile
-            image-suffix: 180workspace-frontend
-          - app: 180workspace-admin-web
+            dockerfile: apps/frontend/Dockerfile
+            image-suffix: frontend
+          - app: admin-web
             context: .
-            dockerfile: apps/180workspace-admin-web/Dockerfile
-            image-suffix: 180workspace-admin-web
-          - app: pitchin180-frontend
-            context: .
-            dockerfile: apps/pitchin180-frontend/Dockerfile
-            image-suffix: pitchin180-frontend
-          - app: pitchin180-admin-web
-            context: .
-            dockerfile: apps/pitchin180-admin-web/Dockerfile
-            image-suffix: pitchin180-admin-web
+            dockerfile: apps/admin-web/Dockerfile
+            image-suffix: admin-web
 
     permissions:
       contents: read
