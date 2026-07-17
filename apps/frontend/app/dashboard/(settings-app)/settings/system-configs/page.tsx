@@ -70,7 +70,6 @@ const GLOBAL_TILES = [
     },
     {
         id: 'analytics',
-        id: 'analytics',
         name: 'Plausible Analytics',
         icon: Activity,
         desc: 'Lightweight, privacy-focused analytics.',

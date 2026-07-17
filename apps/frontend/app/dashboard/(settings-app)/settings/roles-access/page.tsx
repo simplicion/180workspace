@@ -86,10 +86,10 @@ export default function RolesAccessPage() {
     const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
     // Users state
-    const [users, setUsers] = useState<UserRoleData[]>([]);
+    const [users, setUsers] = useState<UserRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [selectedUser, setSelectedUser] = useState<UserRoleData | null>(null);
+    const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
 
     const roleMatrix = useMemo(() => buildRoleMatrix(), []);
 
