@@ -21,10 +21,13 @@ interface Settings {
     lastEmailTestError?: string;
 
     // AI Settings
-    aiProvider?: 'none' | 'openai' | 'claude' | 'gemini';
+    aiProvider?: 'none' | 'openai' | 'claude' | 'gemini' | 'custom';
     openaiKey?: string;
     claudeKey?: string;
     geminiKey?: string;
+    customAiUrl?: string;
+    customAiKey?: string;
+    customAiModel?: string;
     lastAiTestStatus?: 'success' | 'failure' | 'none';
     lastAiTestDate?: Date | string;
     lastAiTestError?: string;
