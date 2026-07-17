@@ -276,6 +276,9 @@ class AuthService {
                         err.status = 403; err.setupToken = unconfiguredCompany.metadata?.setupToken; throw err;
                     }
                     company = unconfiguredCompany;
+                } else {
+                    const err = new Error('Incorrect email or password. Please try again.');
+                    err.status = 401; throw err;
                 }
             }
         }
