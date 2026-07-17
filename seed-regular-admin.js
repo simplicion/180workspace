@@ -9,11 +9,14 @@ async function run() {
   // Create or find company
   const company = await prisma.company.upsert({
     where: { adminEmail: 'admin@workspace.pitchin180.com' },
-    update: {},
+    update: {
+      adminPasswordHash: passwordHash
+    },
     create: {
       name: 'PitchIn180',
       adminEmail: 'admin@workspace.pitchin180.com',
-      adminName: 'Prince Admin'
+      adminName: 'Prince Admin',
+      adminPasswordHash: passwordHash
     }
   });
 
