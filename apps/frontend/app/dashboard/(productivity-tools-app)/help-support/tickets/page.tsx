@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useGetTicketsQuery } from '@/redux/api/supportApi';
 
 export default function TicketsPage() {
-    const { data: ticketsData, isLoading, isError } = useGetTicketsQuery();
+    const { data: ticketsData, isLoading, isError } = useGetTicketsQuery(undefined);
 
     const tickets = ticketsData?.data?.tickets || [];
 
