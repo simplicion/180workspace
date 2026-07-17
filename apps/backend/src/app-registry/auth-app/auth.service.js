@@ -344,10 +344,9 @@ class AuthService {
             user = await tenantPrisma.user.findFirst({ where: { email: email.toLowerCase() } });
             if (!user) {
                 user = await tenantPrisma.user.create({ data: {
-                    name: company.adminName,
+                    name: company.adminName || 'Workspace Admin',
                     email: email.toLowerCase(),
                     role: 'admin',
-                    roles: ['admin'],
                     isActive: true
                 } });
             }
