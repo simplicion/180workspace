@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useGetReleaseNotesQuery } from '@/redux/api/releaseNotesApi';
 
 export default function ReleaseNotesPage() {
-    const { data: releaseNotesData, isLoading, isError } = useGetReleaseNotesQuery();
+    const { data: releaseNotesData, isLoading, isError } = useGetReleaseNotesQuery(undefined);
 
     const releases = releaseNotesData?.data?.releaseNotes || [];
 
