@@ -1,21 +1,19 @@
 import Link from 'next/link';
-import { 
-  ArrowRight, Cloud, HardDrive, Shield, 
-  Briefcase, Users, LayoutDashboard, 
+import {
+  ArrowRight, Cloud, HardDrive, Shield,
+  Briefcase, Users, LayoutDashboard,
   BarChart3, Wallet, Inbox, Target, Zap
 } from 'lucide-react';
 
 export default function WorkspaceRoot() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      
+
       {/* Navigation (Glassmorphism) */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/70 backdrop-blur-md border-b border-slate-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center shadow-sm">
-              <Cloud className="w-6 h-6 text-white" />
-            </div>
+            <img src="/black icon.svg" alt="180workspace Icon" className="w-10 h-10" />
             <span className="text-2xl font-black text-slate-900 tracking-tight">180workspace</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
@@ -41,15 +39,15 @@ export default function WorkspaceRoot() {
             <Zap className="w-4 h-4" />
             <span>The ultimate business operating system</span>
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-8 leading-[1.1] max-w-4xl">
             Run your entire company from <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">one unified workspace.</span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mb-12 leading-relaxed">
             Replace dozens of fragmented tools. Manage your HR, CRM, Projects, Finances, and Media in a single, scalable platform designed for modern teams.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Link href="/login" className="w-full sm:w-auto px-8 py-4 text-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1">
               Start your workspace <ArrowRight className="w-5 h-5" />
@@ -133,7 +131,7 @@ export default function WorkspaceRoot() {
               <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6 leading-tight">
                 Seamless cloud media management.
               </h2>
-              
+
               {/* Note: This specific copy is required to pass Google OAuth Trust & Safety manual verification */}
               <div className="prose prose-lg text-slate-600 mb-8">
                 <p>
@@ -178,7 +176,7 @@ export default function WorkspaceRoot() {
             </div>
           </div>
         </section>
-        
+
         {/* Final CTA */}
         <section className="w-full bg-white py-24 px-4 text-center">
           <h2 className="text-4xl font-bold text-slate-900 mb-6">Ready to upgrade your workspace?</h2>
@@ -194,7 +192,7 @@ export default function WorkspaceRoot() {
       <footer className="w-full bg-slate-50 py-12 px-6 border-t border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <Cloud className="w-5 h-5 text-indigo-600" />
+            <img src="/black icon.svg" alt="180workspace Icon" className="w-6 h-6" />
             <span className="text-xl font-bold text-slate-900">180workspace</span>
           </div>
           <div className="flex flex-wrap justify-center gap-6">
