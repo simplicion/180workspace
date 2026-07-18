@@ -171,7 +171,7 @@ exports.getFolders = async (req, res) => {
         res.json({ folders });
     } catch (error) {
         console.error('[GoogleOAuth] Get folders error:', error);
-        res.status(500).json({ error: 'Failed to fetch folders' });
+        res.status(500).json({ error: error.message || 'Failed to fetch folders' });
     }
 };
 
@@ -233,7 +233,7 @@ exports.getFiles = async (req, res) => {
         res.json({ files });
     } catch (error) {
         console.error('[GoogleOAuth] Get files error:', error);
-        res.status(500).json({ error: 'Failed to fetch files' });
+        res.status(500).json({ error: error.message || 'Failed to fetch files' });
     }
 };
 

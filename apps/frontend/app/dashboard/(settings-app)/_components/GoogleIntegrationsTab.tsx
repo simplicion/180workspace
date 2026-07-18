@@ -47,8 +47,9 @@ export default function GoogleIntegrationsTab() {
             if (data.files) {
                 setDriveFiles(data.files);
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to fetch files', e);
+            toast.error(e.response?.data?.error || 'Failed to fetch files from Google Drive');
         } finally {
             setLoadingFiles(false);
         }
