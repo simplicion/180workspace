@@ -36,16 +36,12 @@ export default function WorkspaceRoot() {
 
       <main className="flex-1 w-full pt-24 relative z-10">
         <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 md:pt-24 md:pb-28 flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-700 font-semibold text-sm mb-8 shadow-sm">
-            <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
-            The New Business Operating System
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black text-slate-950 tracking-tighter mb-8 leading-[1.05] max-w-5xl">
-            Stop losing time to fragmented tools. Run your business on <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">one unified engine.</span>
+          <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-6 leading-tight max-w-4xl">
+            Run your entire business on <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">one unified platform.</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mb-12 leading-relaxed font-medium">
-            Software sprawl is killing productivity and costing you thousands. 180workspace replaces dozens of chaotic apps with a single, powerful platform for your CRM, HR, Projects, and Finances.
+          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mb-10 leading-relaxed font-medium">
+            Replace dozens of fragmented apps with a single platform for CRM, HR, Projects, and Finance. Align your team and scale faster.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
