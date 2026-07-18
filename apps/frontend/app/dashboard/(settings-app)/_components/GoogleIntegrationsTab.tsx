@@ -3,7 +3,7 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/settings-context';
-import { Globe, ShieldCheck, HardDrive, FileText, Database, ChevronRight, Calendar, Users } from 'lucide-react';
+import { Globe, ShieldCheck, HardDrive, FileText, Database, ChevronRight, Calendar, Users, Folder, File, ArrowLeft, ExternalLink } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -20,12 +20,16 @@ const TABS = [
 export default function GoogleIntegrationsTab() {
     const { settings: globalSettings, refreshSettings: refreshGlobalSettings } = useSettings();
     const [activeGoogleTab, setActiveGoogleTab] = useState<'drive' | 'docs' | 'sheets' | 'calendar' | 'contacts'>('drive');
-    const [oauthFolders, setOauthFolders] = useState<any[]>([]);
-    const [loadingFolders, setLoadingFolders] = useState(false);
+    
+    // Drive file browser state
+    const [driveFiles, setDriveFiles] = useState<any[]>([]);
+    const [loadingFiles, setLoadingFiles] = useState(false);
+    const [folderHistory, setFolderHistory] = useState<{id: string, name: string}[]>([{ id: 'root', name: 'My Drive' }]);
+    
     const [newFolderName, setNewFolderName] = useState('');
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     
-    const grantedScopes = globalSettings?.metadata?.googleDriveTokens?.scope || '';
+    const grantedScopes = (globalSettings as any)?.googleDriveTokens?.scope || '';
     const isDriveConnected = grantedScopes.includes('drive');
     const isDocsConnected = grantedScopes.includes('documents');
     const isSheetsConnected = grantedScopes.includes('spreadsheets');
@@ -34,35 +38,39 @@ export default function GoogleIntegrationsTab() {
     
     const isAnyConnected = isDriveConnected || isDocsConnected || isSheetsConnected || isCalendarConnected || isContactsConnected;
 
-    const fetchOauthFolders = async () => {
-        setLoadingFolders(true);
+    const currentFolderId = folderHistory[folderHistory.length - 1].id;
+
+    const fetchDriveFiles = async (folderId: string) => {
+        setLoadingFiles(true);
         try {
-            const { data } = await api.get('/api/integrations/google/folders');
-            if (data.folders) {
-                setOauthFolders(data.folders);
+            const { data } = await api.get(`/api/integrations/google/files?folderId=${folderId}`);
+            if (data.files) {
+                setDriveFiles(data.files);
             }
         } catch (e) {
-            console.error('Failed to fetch folders', e);
+            console.error('Failed to fetch files', e);
         } finally {
-            setLoadingFolders(false);
+            setLoadingFiles(false);
         }
     };
 
     useEffect(() => {
         if (isDriveConnected) {
-            fetchOauthFolders();
+            fetchDriveFiles(currentFolderId);
         }
-    }, [isDriveConnected]);
+    }, [isDriveConnected, currentFolderId]);
 
     const handleCreateFolder = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newFolderName.trim()) return;
         setIsCreatingFolder(true);
         try {
-            await api.post('/api/integrations/google/folders', { name: newFolderName.trim() });
-            toast.success('Folder created successfully');
-            setNewFolderName('');
-            await fetchOauthFolders();
+            const { data } = await api.post('/api/integrations/google/folders', { name: newFolderName.trim() });
+            if (data.folder) {
+                toast.success('Folder created successfully');
+                setNewFolderName('');
+                fetchDriveFiles(currentFolderId);
+            }
         } catch (e) {
             toast.error('Failed to create folder');
         } finally {
@@ -76,8 +84,9 @@ export default function GoogleIntegrationsTab() {
             if (data.url) {
                 window.location.href = data.url;
             }
-        } catch (e) {
-            toast.error('Failed to initiate Google connection');
+        } catch (e: any) {
+            const errorMsg = e.response?.data?.error || 'Failed to initiate Google connection';
+            toast.error(errorMsg);
         }
     };
 
@@ -98,8 +107,9 @@ export default function GoogleIntegrationsTab() {
             toast.success('Google Services connected successfully');
             await refreshGlobalSettings(true);
             fetchOauthFolders();
-        } catch (e) {
-            toast.error('Failed to connect Google Services');
+        } catch (e: any) {
+            const errorMsg = e.response?.data?.error || 'Failed to connect Google Services';
+            toast.error(errorMsg);
         }
     };
 
@@ -220,25 +230,68 @@ export default function GoogleIntegrationsTab() {
                                         </form>
 
                                         <div>
-                                            <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Available Folders</h4>
-                                            {loadingFolders ? (
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Google Drive Contents</h4>
+                                                {folderHistory.length > 1 && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            const newHistory = [...folderHistory];
+                                                            newHistory.pop();
+                                                            setFolderHistory(newHistory);
+                                                        }}
+                                                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                                                    >
+                                                        <ArrowLeft className="w-3 h-3" /> Back
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-xs font-medium text-gray-500 mb-4 bg-gray-50 p-2 rounded-lg border border-gray-100 flex items-center gap-2">
+                                                <Folder className="w-4 h-4 text-indigo-400" />
+                                                {folderHistory.map(h => h.name).join(' / ')}
+                                            </p>
+                                            
+                                            {loadingFiles ? (
                                                 <div className="py-12 flex flex-col items-center justify-center text-gray-400 gap-3">
                                                     <LogoLoader className="w-6 h-6 animate-spin" />
-                                                    <span className="text-sm font-bold tracking-tight">Fetching folders...</span>
+                                                    <span className="text-sm font-bold tracking-tight">Fetching files...</span>
                                                 </div>
                                             ) : (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {oauthFolders.slice(0, 10).map((f: any) => (
-                                                        <div key={f.id} className="p-4 border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm hover:border-gray-200 transition-all rounded-2xl flex items-center gap-4 group cursor-default">
-                                                            <div className="p-2.5 bg-white border border-gray-100 rounded-xl group-hover:scale-110 transition-transform">
-                                                                <HardDrive className="w-5 h-5 text-indigo-500" />
+                                                    {driveFiles.map((f: any) => {
+                                                        const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+                                                        return (
+                                                            <div 
+                                                                key={f.id} 
+                                                                onClick={() => {
+                                                                    if (isFolder) {
+                                                                        setFolderHistory([...folderHistory, { id: f.id, name: f.name }]);
+                                                                    } else if (f.webViewLink) {
+                                                                        window.open(f.webViewLink, '_blank');
+                                                                    }
+                                                                }}
+                                                                className={clsx(
+                                                                    "p-4 border border-gray-100 transition-all rounded-2xl flex items-center gap-4 group",
+                                                                    isFolder ? "bg-indigo-50/30 hover:bg-indigo-50 hover:shadow-sm hover:border-indigo-100 cursor-pointer" : "bg-gray-50/50 hover:bg-white hover:shadow-sm cursor-pointer"
+                                                                )}
+                                                            >
+                                                                <div className="p-2.5 bg-white border border-gray-100 rounded-xl group-hover:scale-110 transition-transform flex-shrink-0">
+                                                                    {isFolder ? <Folder className="w-5 h-5 text-indigo-500" /> : <File className="w-5 h-5 text-gray-400" />}
+                                                                </div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-sm font-bold text-gray-900 truncate">{f.name}</p>
+                                                                    <p className="text-[10px] text-gray-400 font-mono mt-0.5 truncate">{isFolder ? 'Folder' : 'File'}</p>
+                                                                </div>
+                                                                {!isFolder && f.webViewLink && (
+                                                                    <ExternalLink className="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                                                )}
                                                             </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <p className="text-sm font-bold text-gray-900 truncate">{f.name}</p>
-                                                                <p className="text-[10px] text-gray-400 font-mono mt-0.5 truncate">{f.id}</p>
-                                                            </div>
+                                                        );
+                                                    })}
+                                                    {driveFiles.length === 0 && (
+                                                        <div className="col-span-1 md:col-span-2 py-8 text-center text-sm font-medium text-gray-400">
+                                                            This folder is empty.
                                                         </div>
-                                                    ))}
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

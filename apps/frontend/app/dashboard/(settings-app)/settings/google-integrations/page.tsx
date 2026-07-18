@@ -4,7 +4,7 @@ import { ArrowLeft, Globe } from 'lucide-react';
 
 export default function GoogleIntegrationsPage() {
     return (
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6 pb-16">
+        <div className="p-6 lg:p-8 w-full space-y-6 pb-16">
             <div className="flex flex-col gap-4">
                 <Link 
                     href="/dashboard/settings/system-configs" 

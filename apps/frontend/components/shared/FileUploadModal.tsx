@@ -60,25 +60,31 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
 
     const [settingsLoading, setSettingsLoading] = useState(true);
     const [driveConfigured, setDriveConfigured] = useState(false);
+    const [cloudinaryConfigured, setCloudinaryConfigured] = useState(false);
+    const [storageProvider, setStorageProvider] = useState<'cloudinary' | 'google_drive' | 'r2'>('r2');
+    const [googleDriveFolders, setGoogleDriveFolders] = useState<any[]>([]);
+    const [selectedDriveFolder, setSelectedDriveFolder] = useState('');
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
+    const [isSavingFolder, setIsSavingFolder] = useState(false);
 
     useEffect(() => {
         setLoadingUsers(true);
         Promise.all([
             api.get('/api/users?limit=200').catch(() => ({ data: { users: [] } })),
-            api.get('/api/settings').catch(() => ({ data: null }))
-        ]).then(([usersRes, settingsRes]) => {
+            api.get('/api/settings').catch(() => ({ data: null })),
+            api.get('/api/integrations/google/folders').catch(() => ({ data: { folders: [] } }))
+        ]).then(([usersRes, settingsRes, driveRes]) => {
             setAllUsers(usersRes.data.users || usersRes.data || []);
+            setGoogleDriveFolders(driveRes.data.folders || []);
             
             const settings = settingsRes.data?.settings;
             if (settings) {
-                const isDrive = settings.storageMode === 'google_drive';
-                const hasKeys = !!settings.googleDriveServiceAccount && !!settings.googleDriveFolderId;
-                const configured = isDrive && hasKeys;
-                setDriveConfigured(configured);
+                const isDriveConf = !!(settings.googleDriveServiceAccount || settings.googleDriveTokens);
+                const isCloudinaryConf = !!(settings.cloudinaryCloudName && settings.cloudinaryApiKey && settings.cloudinaryApiSecret);
                 
-                if (!configured) {
-                    setActiveTab('link');
-                }
+                setDriveConfigured(isDriveConf);
+                setCloudinaryConfigured(isCloudinaryConf);
             }
         }).catch(() => { }).finally(() => {
             setSettingsLoading(false);
@@ -104,15 +110,49 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
         }
     };
 
-    const addFiles = useCallback((files: File[]) => {
-        const newItems: FileItem[] = files
-            .filter(f => f.size <= MAX_SIZE_MB * 1024 * 1024)
-            .map((file) => ({
+    const handleCreateFolder = async () => {
+        if (!newFolderName.trim()) return;
+        setIsSavingFolder(true);
+        try {
+            const { data } = await api.post('/api/integrations/google/folders', { name: newFolderName });
+            setGoogleDriveFolders(prev => [data.folder, ...prev]);
+            setSelectedDriveFolder(data.folder.id);
+            setIsCreatingFolder(false);
+            setNewFolderName('');
+            toast.success('Folder created successfully');
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Failed to create folder');
+        }
+        setIsSavingFolder(false);
+    };
+
+    const addFiles = useCallback(async (files: File[]) => {
+        const newItems: FileItem[] = [];
+        for (const file of files) {
+            if (file.size > MAX_SIZE_MB * 1024 * 1024) continue;
+            
+            if (file.type.startsWith('video/')) {
+                const duration = await new Promise<number>((resolve) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    video.onloadedmetadata = () => resolve(video.duration);
+                    video.onerror = () => resolve(0);
+                    video.src = URL.createObjectURL(file);
+                });
+                
+                if (duration > 180) {
+                    toast.error(`Video "${file.name}" exceeds the 3 minute limit.`);
+                    continue;
+                }
+            }
+            
+            newItems.push({
                 file,
                 preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
                 status: 'pending',
                 progress: 0,
-            }));
+            });
+        }
         setItems((prev) => [...prev, ...newItems]);
     }, []);
 
@@ -154,6 +194,10 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                 form.append('sendEmail', sendEmail.toString());
                 if (taggedUsers.length > 0) {
                     form.append('taggedUsers', JSON.stringify(taggedUsers.map(u => u.id)));
+                }
+                form.append('storageProvider', storageProvider);
+                if (storageProvider === 'google_drive' && selectedDriveFolder) {
+                    form.append('folderId', selectedDriveFolder);
                 }
 
                 const { data } = await api.post('/api/files/upload', form, {
@@ -428,6 +472,68 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                         </div>
                                     </div>
                                 </div>
+
+                                <div className="mt-4">
+                                    <label className="label flex items-center gap-2">
+                                        <Database className="w-3.5 h-3.5 text-indigo-500" />
+                                        Storage Location
+                                    </label>
+                                    <select 
+                                        value={storageProvider} 
+                                        onChange={e => setStorageProvider(e.target.value as 'cloudinary' | 'google_drive' | 'r2')} 
+                                        className="input w-full"
+                                    >
+                                        <option value="r2">180workspace Cloud</option>
+                                        {cloudinaryConfigured && <option value="cloudinary">Cloudinary</option>}
+                                        {driveConfigured && <option value="google_drive">Google Drive</option>}
+                                    </select>
+                                </div>
+
+                                {storageProvider === 'google_drive' && googleDriveFolders.length > 0 && (
+                                    <div className="mt-4">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="label flex items-center gap-2 mb-0">
+                                                <Folder className="w-3.5 h-3.5 text-indigo-500" />
+                                                Google Drive Folder (Optional)
+                                            </label>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setIsCreatingFolder(true)} 
+                                                className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800"
+                                            >
+                                                + New Folder
+                                            </button>
+                                        </div>
+                                        {isCreatingFolder ? (
+                                            <div className="flex gap-2 items-center">
+                                                <input 
+                                                    value={newFolderName} 
+                                                    onChange={e => setNewFolderName(e.target.value)} 
+                                                    placeholder="Folder Name" 
+                                                    className="input w-full py-1.5"
+                                                    autoFocus
+                                                />
+                                                <button type="button" onClick={handleCreateFolder} disabled={isSavingFolder} className="btn-primary py-1.5 px-3 text-xs shrink-0">
+                                                    {isSavingFolder ? '...' : 'Create'}
+                                                </button>
+                                                <button type="button" onClick={() => setIsCreatingFolder(false)} disabled={isSavingFolder} className="btn-secondary py-1.5 px-3 text-xs shrink-0">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        ) : (
+                                        <select 
+                                            value={selectedDriveFolder} 
+                                            onChange={e => setSelectedDriveFolder(e.target.value)} 
+                                            className="input w-full"
+                                        >
+                                            <option value="">Default App Folder</option>
+                                            {googleDriveFolders.map(f => (
+                                                <option key={f.id} value={f.id}>{f.name}</option>
+                                            ))}
+                                        </select>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="flex gap-3 mt-5">
                                     <button onClick={onClose} className="btn-secondary flex-1">

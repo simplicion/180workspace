@@ -4,6 +4,9 @@ const { google } = require('googleapis');
 const { prisma } = require('@workspace/db');
 
 const getOauth2Client = () => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        throw new Error('MISSING_CREDENTIALS');
+    }
     return new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
@@ -47,6 +50,10 @@ exports.getAuthUrl = (req, res) => {
         });
         res.json({ url });
     } catch (error) {
+        if (error.message === 'MISSING_CREDENTIALS') {
+            console.error('[GoogleOAuth] Missing Google OAuth credentials in .env');
+            return res.status(500).json({ error: 'Google integrations are not fully configured. Missing Client Secret.' });
+        }
         console.error('[GoogleOAuth] Error generating URL:', error);
         res.status(500).json({ error: 'Failed to generate Auth URL' });
     }
@@ -83,11 +90,15 @@ exports.handleCallback = async (req, res) => {
         // Save back to DB
         await prisma.company.update({
             where: { id: companyId },
-            data: { metadata: JSON.stringify(metadata) }
+            data: { metadata }
         });
 
         res.json({ success: true });
     } catch (error) {
+        if (error.message === 'MISSING_CREDENTIALS') {
+            console.error('[GoogleOAuth] Missing Google OAuth credentials in .env');
+            return res.status(500).json({ error: 'Google integrations are not fully configured. Missing Client Secret.' });
+        }
         console.error('[GoogleOAuth] Callback error:', error);
         res.status(500).json({ error: 'Failed to authenticate with Google' });
     }
@@ -104,7 +115,13 @@ exports.getFolders = async (req, res) => {
             return res.status(400).json({ error: 'Google Drive not connected' });
         }
         
-        const metadata = typeof company.metadata === 'string' ? JSON.parse(company.metadata) : company.metadata;
+        let metadata = company.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
+        }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
+        }
         const tokens = metadata.googleDriveTokens;
 
         if (!tokens) {
@@ -116,16 +133,67 @@ exports.getFolders = async (req, res) => {
 
         const drive = google.drive({ version: 'v3', auth: oauth2Client });
         
+        const folderId = req.query.folderId;
+        const query = folderId 
+            ? `mimeType='application/vnd.google-apps.folder' and '${folderId}' in parents and trashed=false`
+            : `mimeType='application/vnd.google-apps.folder' and trashed=false`;
+            
         const response = await drive.files.list({
-            q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
+            q: query,
             fields: 'files(id, name)',
-            spaces: 'drive',
+            orderBy: 'name',
+            includeItemsFromAllDrives: true,
+            supportsAllDrives: true,
+            corpora: 'allDrives'
         });
 
         res.json({ folders: response.data.files });
     } catch (error) {
         console.error('[GoogleOAuth] Get folders error:', error);
         res.status(500).json({ error: 'Failed to fetch folders' });
+    }
+};
+
+exports.getFiles = async (req, res) => {
+    try {
+        const settings = await prisma.settings.findFirst();
+        const companyId = req.user?.companyId || settings.companyId;
+        const company = await prisma.company.findUnique({ where: { id: companyId } });
+        
+        let metadata = company?.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
+        }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
+        }
+        const tokens = metadata.googleDriveTokens;
+
+        if (!tokens) {
+            return res.status(400).json({ error: 'Google Drive not connected' });
+        }
+
+        const oauth2Client = getOauth2Client();
+        oauth2Client.setCredentials(tokens);
+
+        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+        
+        const folderId = req.query.folderId || 'root';
+        const query = `'${folderId}' in parents and trashed=false`;
+        
+        const response = await drive.files.list({
+            q: query,
+            fields: 'files(id, name, mimeType, webViewLink, iconLink, thumbnailLink)',
+            orderBy: 'folder, name',
+            includeItemsFromAllDrives: true,
+            supportsAllDrives: true,
+            corpora: 'allDrives'
+        });
+
+        res.json({ files: response.data.files });
+    } catch (error) {
+        console.error('[GoogleOAuth] Get files error:', error);
+        res.status(500).json({ error: 'Failed to fetch files' });
     }
 };
 
@@ -138,16 +206,20 @@ exports.createFolder = async (req, res) => {
         const companyId = req.user?.companyId || settings.companyId;
         const company = await prisma.company.findUnique({ where: { id: companyId } });
 
-        let tokens = null;
-        if (company && company.metadata) {
-            const metadata = typeof company.metadata === 'string' ? JSON.parse(company.metadata) : company.metadata;
-            tokens = metadata.googleDriveTokens;
+        let metadata = company.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
         }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
+        }
+        const tokens = metadata.googleDriveTokens;
 
         if (!tokens) {
-            return res.status(401).json({ error: 'Not authenticated with Google' });
+            return res.status(400).json({ error: 'Google Drive not connected' });
         }
 
+        const oauth2Client = getOauth2Client();
         oauth2Client.setCredentials(tokens);
         const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
@@ -174,15 +246,20 @@ exports.disconnect = async (req, res) => {
         const companyId = req.user?.companyId || settings.companyId;
         const company = await prisma.company.findUnique({ where: { id: companyId } });
         
-        if (company && company.metadata) {
-            let metadata = typeof company.metadata === 'string' ? JSON.parse(company.metadata) : company.metadata;
-            delete metadata.googleDriveTokens;
-            
-            await prisma.company.update({
-                where: { id: companyId },
-                data: { metadata: JSON.stringify(metadata) }
-            });
+        let metadata = company.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
         }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) {}
+        }
+        
+        delete metadata.googleDriveTokens;
+        
+        await prisma.company.update({
+            where: { id: companyId },
+            data: { metadata }
+        });
         res.json({ success: true });
     } catch (error) {
         console.error('[GoogleOAuth] Disconnect error:', error);

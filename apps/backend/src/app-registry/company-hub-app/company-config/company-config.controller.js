@@ -123,6 +123,19 @@ exports.updateEnabledApps = async (req, res, next) => {
             }
         });
 
+        const { redis } = require('../../../system-configs/config/redis');
+        if (redis) {
+            try {
+                await redis.del(`company:${companyId}`);
+                const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
+                if (initKeys && initKeys.length > 0) {
+                    await redis.del(...initKeys);
+                }
+            } catch (cacheErr) {
+                console.warn('[Cache] Failed to clear company apps cache:', cacheErr.message);
+            }
+        }
+
         const config = {
             id: updatedCompany.id,
             companyId: updatedCompany.id,
@@ -162,6 +175,19 @@ exports.updateEnabledModules = async (req, res, next) => {
                 }
             }
         });
+
+        const { redis } = require('../../../system-configs/config/redis');
+        if (redis) {
+            try {
+                await redis.del(`company:${companyId}`);
+                const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
+                if (initKeys && initKeys.length > 0) {
+                    await redis.del(...initKeys);
+                }
+            } catch (cacheErr) {
+                console.warn('[Cache] Failed to clear company modules cache:', cacheErr.message);
+            }
+        }
 
         const config = {
             id: updatedCompany.id,

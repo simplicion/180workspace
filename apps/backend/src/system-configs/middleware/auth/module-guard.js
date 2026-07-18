@@ -103,6 +103,7 @@ module.exports = function moduleGuard(appId, moduleId) {
                 console.log(`[Module Guard] Enabled Apps: ${JSON.stringify(config.enabledApps)}`);
                 console.log(`[Module Guard] Enabled Modules: ${JSON.stringify(config.enabledModules)}`);
             }
+            require('fs').appendFileSync('C:\\\\Users\\\\saavi\\\\OneDrive\\\\Desktop\\\\180workspace\\\\apps\\\\backend\\\\debug-module-guard.txt', `[DEBUG] appId=${appId}, config.enabledApps=${JSON.stringify(config.enabledApps)}, company.metadata=${JSON.stringify(company.metadata)}\n`);
 
             // GATE 5: App-level access check
             if (appId && config.enabledApps && !config.enabledApps.includes(appId)) {

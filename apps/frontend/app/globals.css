@@ -31,6 +31,11 @@
 
   body {
     @apply bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans antialiased leading-relaxed tracking-normal transition-colors duration-300;
+    cursor: url('/cursor.svg') 10 3, auto;
+  }
+
+  a, button, [role="button"], input, select, textarea, .cursor-pointer, .btn, .sidebar-link {
+    cursor: url('/cursor.svg') 10 3, pointer !important;
   }
 
   h1,

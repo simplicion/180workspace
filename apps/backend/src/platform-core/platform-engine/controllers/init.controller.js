@@ -90,17 +90,23 @@ exports.getInit = async (req, res) => {
                     
                     const safeSettings = s ? { ...s } : { companyName: 'Internal Management System', logoUrl: '', themeColor: '#4f46e5' };
                     
-                    // Merge safe AI keys (exclude actual private keys, but include provider info)
-                    safeSettings.aiProvider = metadata.aiProvider || 'none';
-                    safeSettings.googleSheetsId = metadata.googleSheetsId || '';
-                    safeSettings.lastAiTestStatus = metadata.lastAiTestStatus || 'none';
-                    safeSettings.lastAiTestDate = metadata.lastAiTestDate || null;
-                    safeSettings.lastEmailTestStatus = metadata.lastEmailTestStatus || 'none';
-                    safeSettings.lastEmailTestDate = metadata.lastEmailTestDate || null;
-                    safeSettings.lastStorageTestStatus = metadata.lastStorageTestStatus || 'none';
-                    safeSettings.lastStorageTestDate = metadata.lastStorageTestDate || null;
-                    safeSettings.lastDbTestStatus = metadata.lastDbTestStatus || 'none';
-                    safeSettings.lastDbTestDate = metadata.lastDbTestDate || null;
+                    const METADATA_FIELDS = [
+                        'aiProvider', 'openaiKey', 'geminiKey', 'claudeKey', 'googleSheetsId',
+                        'lastAiTestStatus', 'lastAiTestDate', 'lastAiTestError',
+                        'lastEmailTestStatus', 'lastEmailTestDate', 'lastEmailTestError',
+                        'lastStorageTestStatus', 'lastStorageTestDate', 'lastStorageTestError',
+                        'lastDbTestStatus', 'lastDbTestDate', 'lastDbTestError',
+                        'customAiUrl', 'customAiKey', 'customAiModel',
+                        'smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom',
+                        'googleDriveServiceAccount', 'googleDriveFolderId',
+                        'cloudinaryCloudName', 'cloudinaryApiKey', 'cloudinaryApiSecret',
+                        'dbHost', 'dbPort', 'dbUser', 'dbPass', 'dbName', 'dbSrv',
+                        'useManualUri', 'manualUri', 'plausibleApiKey', 'googleDriveTokens', 'plausibleSiteId'
+                    ];
+
+                    METADATA_FIELDS.forEach(field => {
+                        safeSettings[field] = metadata[field] !== undefined ? metadata[field] : (field.endsWith('Status') ? 'none' : '');
+                    });
 
                     // Ensure sensitive fields are stripped
                     delete safeSettings.webhookSecret;

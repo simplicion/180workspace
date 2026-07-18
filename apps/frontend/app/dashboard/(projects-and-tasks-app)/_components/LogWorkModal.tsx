@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
-import VoiceRecorder from './VoiceRecorder';
+import MultiVoiceRecorder from './MultiVoiceRecorder';
 
 interface Props {
     onClose: () => void;
@@ -41,6 +41,8 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         isWorkCompleted: false,
         voiceMessageUrl: '',
     });
+    
+    const [voiceBlobs, setVoiceBlobs] = useState<Blob[]>([]);
     
     const [links, setLinks] = useState<string[]>(['']);
 
@@ -132,8 +134,27 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
 
         setSubmitting(true);
         try {
+            let finalVoiceUrl = form.voiceMessageUrl;
+
+            // Upload multiple blobs if any
+            if (voiceBlobs.length > 0) {
+                const uploadedUrls = [];
+                for (let i = 0; i < voiceBlobs.length; i++) {
+                    const blob = voiceBlobs[i];
+                    const formData = new FormData();
+                    formData.append('file', blob, `voice-note-${Date.now()}-${i}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`);
+                    
+                    const { data: uploadData } = await api.post('/api/files/upload-voice', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    uploadedUrls.push(uploadData.url);
+                }
+                finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${uploadedUrls.join(',')}` : uploadedUrls.join(',');
+            }
+
             const payload = {
                 ...form,
+                voiceMessageUrl: finalVoiceUrl,
                 hoursSpent: parseFloat(form.hoursSpent),
                 links: links.filter(l => l.trim().length > 0)
             };
@@ -141,6 +162,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
             const { data } = await api.post('/api/work-logs', payload);
             toast.success('Work log submitted for review!');
             onSuccess(data.workLog);
+            setVoiceBlobs([]);
             onClose();
         } catch (err: any) {
             toast.error(err?.response?.data?.error || 'Failed to submit work log');
@@ -298,7 +320,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                     </div>
 
                     <div className="pt-2">
-                        <VoiceRecorder onUploadComplete={(url) => setForm(prev => ({ ...prev, voiceMessageUrl: url }))} label="Voice Log (Optional)" />
+                        <MultiVoiceRecorder onChangeBlobs={setVoiceBlobs} label="Voice Note (Optional)" />
                     </div>
 
                     {/* Automation Trigger */}

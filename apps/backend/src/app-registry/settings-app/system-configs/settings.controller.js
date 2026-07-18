@@ -17,6 +17,9 @@ async function getCompanyMetadata(companyId) {
     if (typeof currentMeta === 'string') {
         try { currentMeta = JSON.parse(currentMeta); } catch (e) { currentMeta = {}; }
     }
+    if (typeof currentMeta === 'string') {
+        try { currentMeta = JSON.parse(currentMeta); } catch (e) { currentMeta = {}; }
+    }
     return currentMeta;
 }
 
@@ -27,6 +30,9 @@ async function updateCompanyMetadata(companyId, updateData) {
         where: { id: companyId }
     });
     let currentMeta = company?.metadata || {};
+    if (typeof currentMeta === 'string') {
+        try { currentMeta = JSON.parse(currentMeta); } catch (e) { currentMeta = {}; }
+    }
     if (typeof currentMeta === 'string') {
         try { currentMeta = JSON.parse(currentMeta); } catch (e) { currentMeta = {}; }
     }
@@ -83,6 +89,7 @@ const METADATA_FIELDS = [
     'useManualUri',
     'manualUri',
     'plausibleApiKey',
+    'googleDriveTokens',
     'plausibleSiteId'
 ];
 

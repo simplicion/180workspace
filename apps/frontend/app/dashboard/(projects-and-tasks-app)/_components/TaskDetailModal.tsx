@@ -10,7 +10,7 @@ import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { useAuth } from '@/lib/auth-context';
 import { TimeProgressBar } from "@workspace/ui";
 import { toast } from 'react-hot-toast';
-import VoiceRecorder from './VoiceRecorder';
+import MultiVoiceRecorder from './MultiVoiceRecorder';
 
 interface Props {
     taskId: string;
@@ -45,6 +45,8 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
     const [dueDate, setDueDate] = useState('');
     const [voiceMessageUrl, setVoiceMessageUrl] = useState('');
     const [sendEmailNotification, setSendEmailNotification] = useState(true);
+    
+    const [voiceBlobs, setVoiceBlobs] = useState<Blob[]>([]);
 
 
     useEffect(() => {
@@ -69,11 +71,29 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
     const save = async () => {
         setSaving(true);
         try {
+            let finalVoiceUrl = voiceMessageUrl;
+
+            // Upload multiple blobs if any
+            if (voiceBlobs.length > 0) {
+                const uploadedUrls = [];
+                for (let i = 0; i < voiceBlobs.length; i++) {
+                    const blob = voiceBlobs[i];
+                    const formData = new FormData();
+                    formData.append('file', blob, `voice-note-${Date.now()}-${i}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`);
+                    
+                    const { data: uploadData } = await api.post('/api/files/upload-voice', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    uploadedUrls.push(uploadData.url);
+                }
+                finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${uploadedUrls.join(',')}` : uploadedUrls.join(',');
+            }
+
             const { data } = await api.put(`/api/tasks/${taskId}`, {
                 title, description, status, priority,
                 assigneeId: assigneeId || null,
                 dueDate: dueDate || null,
-                voiceMessageUrl: voiceMessageUrl || null,
+                voiceMessageUrl: finalVoiceUrl || null,
                 sendEmailNotification,
             });
 
@@ -91,6 +111,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
             }
 
             onUpdated?.(data.task);
+            setVoiceBlobs([]);
             onClose();
         } catch (err: any) {
             toast.error(err?.response?.data?.error || 'Failed to update task');
@@ -236,13 +257,17 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                     <div className="mt-4 pt-4 border-t border-gray-100">
                                         {canEdit ? (
                                             <div className="mb-2">
-                                                <VoiceRecorder label="Voice Note (Optional)" onUploadComplete={url => setVoiceMessageUrl(url)} />
+                                                <MultiVoiceRecorder onChangeBlobs={setVoiceBlobs} label="Voice Note (Optional)" />
                                             </div>
                                         ) : null}
                                         {voiceMessageUrl && (
-                                            <div className="flex flex-col gap-2 p-3 bg-amber-50/50 rounded-xl border border-amber-100 mt-2">
-                                                <div className="text-sm font-medium text-amber-900">Voice Note</div>
-                                                <audio controls src={voiceMessageUrl} className="w-full h-8" />
+                                            <div className="flex flex-col gap-2 mt-2">
+                                                {voiceMessageUrl.split(',').filter(url => url.trim().length > 0).map((url, i) => (
+                                                    <div key={i} className="flex flex-col gap-2 p-3 bg-amber-50/50 rounded-xl border border-amber-100">
+                                                        <div className="text-sm font-medium text-amber-900">Voice Note {i + 1}</div>
+                                                        <audio controls src={url} className="w-full h-8" />
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>

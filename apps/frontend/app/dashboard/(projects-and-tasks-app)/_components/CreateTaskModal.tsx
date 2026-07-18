@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { X, CheckSquare, AlignLeft, FolderKanban, User, Flag, Calendar, Layout, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import VoiceRecorder from './VoiceRecorder';
+import MultiVoiceRecorder from './MultiVoiceRecorder';
 
 import { useAuth } from '@/lib/auth-context';
 
@@ -38,6 +38,8 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         voiceMessageUrl: '',
         attachments: [] as string[]
     });
+    
+    const [voiceBlobs, setVoiceBlobs] = useState<Blob[]>([]);
 
     const [modules, setModules] = useState<any[]>([]);
     const [fetchingModules, setFetchingModules] = useState(false);
@@ -88,12 +90,39 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         if (!form.title.trim()) return toast.error('Title is required');
         setLoading(true);
 
+        let finalVoiceUrl = form.voiceMessageUrl;
+
+        // Upload multiple blobs if any
+        if (voiceBlobs.length > 0) {
+            try {
+                const uploadedUrls = [];
+                for (let i = 0; i < voiceBlobs.length; i++) {
+                    const blob = voiceBlobs[i];
+                    const formData = new FormData();
+                    formData.append('file', blob, `voice-note-${Date.now()}-${i}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`);
+                    
+                    const { data: uploadData } = await api.post('/api/files/upload-voice', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    uploadedUrls.push(uploadData.url);
+                }
+                
+                // Append to any existing voiceMessageUrl
+                finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${uploadedUrls.join(',')}` : uploadedUrls.join(',');
+            } catch (err: any) {
+                console.error('Failed to upload voice notes:', err);
+                toast.error('Failed to upload voice notes. Task creation aborted.');
+                setLoading(false);
+                return;
+            }
+        }
+
         const { assigneeId, moduleId, dueDate, voiceMessageUrl, attachments, ...rest } = form;
         const payload: Record<string, unknown> = { ...rest };
         if (assigneeId) payload.assigneeId = assigneeId;
         if (moduleId) payload.moduleId = moduleId;
         if (dueDate) payload.dueDate = dueDate;
-        if (voiceMessageUrl) payload.voiceMessageUrl = voiceMessageUrl;
+        if (finalVoiceUrl) payload.voiceMessageUrl = finalVoiceUrl;
         if (attachments && attachments.length > 0) payload.attachments = attachments;
 
         try {
@@ -112,6 +141,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
             }
 
             onSuccess(data.task);
+            setVoiceBlobs([]);
             onClose();
         } catch (err: any) {
             toast.error(err?.response?.data?.error || 'Failed to create task');
@@ -267,7 +297,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                     </div>
 
                     <div className="pt-2">
-                        <VoiceRecorder onUploadComplete={(url) => setForm(prev => ({ ...prev, voiceMessageUrl: url }))} />
+                        <MultiVoiceRecorder onChangeBlobs={setVoiceBlobs} label="Voice Note (Optional)" />
                     </div>
                 </form>
 

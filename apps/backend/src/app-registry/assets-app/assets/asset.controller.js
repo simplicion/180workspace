@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // GET all assets with filtering
 exports.getAssets = async (req, res, next) => {
@@ -86,10 +86,21 @@ exports.createAsset = async (req, res, next) => {
             return res.status(400).json({ error: 'Asset name and type are required' });
         }
 
+        let parsedRenewalDate = undefined;
+        if (req.body.renewalDate) {
+            parsedRenewalDate = new Date(req.body.renewalDate).toISOString();
+        } else if (req.body.renewalDate === null) {
+            parsedRenewalDate = null;
+        }
+
         const assetData = {
             ...req.body,
-            createdBy: req.user.id
+            createdById: req.user.id
         };
+
+        if (parsedRenewalDate !== undefined) {
+            assetData.renewalDate = parsedRenewalDate;
+        }
 
         const asset = await req.prisma.asset.create({
             data: assetData
@@ -118,9 +129,21 @@ exports.createAsset = async (req, res, next) => {
 // UPDATE asset
 exports.updateAsset = async (req, res, next) => {
     try {
+        let parsedRenewalDate = undefined;
+        if (req.body.renewalDate) {
+            parsedRenewalDate = new Date(req.body.renewalDate).toISOString();
+        } else if (req.body.renewalDate === null) {
+            parsedRenewalDate = null;
+        }
+
+        const updateData = { ...req.body, updatedAt: new Date() };
+        if (parsedRenewalDate !== undefined) {
+            updateData.renewalDate = parsedRenewalDate;
+        }
+
         const asset = await req.prisma.asset.update({
             where: { id: req.params.id },
-            data: { ...req.body, updatedAt: new Date() }
+            data: updateData
         });
         if (!asset) return res.status(404).json({ error: 'Asset not found' });
         res.json({ asset });

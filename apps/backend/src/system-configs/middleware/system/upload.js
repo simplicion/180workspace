@@ -73,15 +73,80 @@ function handleUpload(folder = 'general', options = {}) {
             // Check if it's a system asset that MUST go to R2
             const isSystemAsset = options.isLogo === true || folder === 'logos' || folder === 'employees' || options.forceR2 === true;
             
-            const preferredMode = settings?.storageMode || 'cloudinary';
+            const preferredMode = req.body.storageProvider || settings?.storageMode || 'cloudinary';
             
             console.log(`[Upload DEBUG] folder: ${folder}, isSystemAsset: ${isSystemAsset}, preferredMode: ${preferredMode}`);
 
             let result = null;
 
+            // --- FILE OPTIMIZATION ---
+            try {
+                if (req.file.mimetype.startsWith('image/') && req.file.mimetype !== 'image/gif') {
+                    const sharp = require('sharp');
+                    req.file.buffer = await sharp(req.file.buffer)
+                        .resize({ width: 1920, height: 1080, fit: 'inside', withoutEnlargement: true })
+                        .webp({ quality: 80 })
+                        .toBuffer();
+                    req.file.mimetype = 'image/webp';
+                    req.file.originalname = req.file.originalname.replace(/\.[^/.]+$/, "") + ".webp";
+                } else if (req.file.mimetype.startsWith('video/')) {
+                    const ffmpeg = require('fluent-ffmpeg');
+                    const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+                    const ffprobePath = require('@ffprobe-installer/ffprobe').path;
+                    ffmpeg.setFfmpegPath(ffmpegPath);
+                    ffmpeg.setFfprobePath(ffprobePath);
+
+                    const tmpDir = path.join(__dirname, '../../../../../../uploads/temp');
+                    if (!fs.existsSync(tmpDir)) {
+                        fs.mkdirSync(tmpDir, { recursive: true });
+                    }
+                    const inputPath = path.join(tmpDir, `${Date.now()}-input-${req.file.originalname}`);
+                    const outputPath = path.join(tmpDir, `${Date.now()}-output.mp4`);
+                    fs.writeFileSync(inputPath, req.file.buffer);
+
+                    const duration = await new Promise((resolve, reject) => {
+                        ffmpeg.ffprobe(inputPath, (err, metadata) => {
+                            if (err) resolve(0);
+                            else resolve(metadata.format.duration);
+                        });
+                    });
+
+                    if (duration > 180) { // 3 minutes limit
+                        fs.unlinkSync(inputPath);
+                        return res.status(400).json({ error: 'Video exceeds maximum duration of 3 minutes' });
+                    }
+
+                    await new Promise((resolve, reject) => {
+                        ffmpeg(inputPath)
+                            .outputOptions([
+                                '-vf scale=-2:360',
+                                '-c:v libx264',
+                                '-preset fast',
+                                '-crf 28',
+                                '-c:a aac',
+                                '-b:a 128k'
+                            ])
+                            .save(outputPath)
+                            .on('end', resolve)
+                            .on('error', reject);
+                    });
+
+                    req.file.buffer = fs.readFileSync(outputPath);
+                    req.file.mimetype = 'video/mp4';
+                    req.file.originalname = req.file.originalname.replace(/\.[^/.]+$/, "") + ".mp4";
+
+                    fs.unlinkSync(inputPath);
+                    fs.unlinkSync(outputPath);
+                }
+
+            } catch (optErr) {
+                console.warn('[Upload Middleware] Optimization failed, proceeding with original file:', optErr.message);
+            }
+
+            // --- STRICT ENFORCEMENT ---
             // --- STRICT ENFORCEMENT ---
             // If it's NOT a system asset, verify tenant has configured their own storage
-            if (!isSystemAsset) {
+            if (!isSystemAsset && preferredMode !== 'r2') {
                 const isCloudinaryConfigured = !!(settings.cloudinaryCloudName && settings.cloudinaryApiKey && settings.cloudinaryApiSecret);
                 const isDriveConfigured = !!(settings.googleDriveServiceAccount || metadata.googleDriveTokens);
 
