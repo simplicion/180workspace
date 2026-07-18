@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, Cloud, HardDrive, Shield } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Cloud, HardDrive, Shield } from 'lucide-react';
 
 export default function WorkspaceRoot() {
   return (
@@ -10,7 +12,7 @@ export default function WorkspaceRoot() {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
             <Cloud className="w-5 h-5 text-white" />
           </div>
-          <span className="text-xl font-bold text-slate-900">180Workspace</span>
+          <span className="text-xl font-bold text-slate-900">180workspace</span>
         </div>
         <div className="flex gap-4 items-center">
           <Link href="/privacy-policy" className="text-sm font-medium text-slate-600 hover:text-slate-900">Privacy Policy</Link>
@@ -26,9 +28,11 @@ export default function WorkspaceRoot() {
         <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-8">
           The ultimate media hub for <span className="text-indigo-600">your workspace.</span>
         </h1>
-        <p className="text-xl text-slate-600 max-w-2xl mb-12 leading-relaxed">
-          180Workspace is a powerful unified platform designed to help teams upload, organize, and compress media files effortlessly. 
-          Connect your favorite cloud storage providers like Google Drive to sync your workflow.
+        <p className="text-xl text-slate-600 max-w-2xl mb-6 leading-relaxed">
+          The core purpose of <strong>180workspace</strong> is to help teams seamlessly manage, organize, and compress their media files. 
+        </p>
+        <p className="text-lg text-slate-600 max-w-2xl mb-12 leading-relaxed">
+          Our application integrates directly with Google Drive, allowing users to effortlessly import their existing files into their projects, and automatically create new folders in their Google Drive to export and sync their compressed media.
         </p>
         
         <Link href="/login" className="px-8 py-4 text-base font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 mb-20">
@@ -43,7 +47,7 @@ export default function WorkspaceRoot() {
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-3">Google Drive Integration</h3>
             <p className="text-slate-600">
-              Securely connect your Google Drive account to browse, select, and upload files directly into your 180Workspace projects without downloading them first.
+              Securely connect your Google Drive account to browse, select, and upload files directly into your 180workspace projects without downloading them first.
             </p>
           </div>
 
@@ -70,7 +74,7 @@ export default function WorkspaceRoot() {
       </main>
 
       <footer className="w-full py-8 text-center text-sm text-slate-500 border-t border-slate-200">
-        &copy; {new Date().getFullYear()} 180Workspace. All rights reserved.
+        &copy; {new Date().getFullYear()} 180workspace. All rights reserved.
       </footer>
     </div>
   );
