@@ -44,9 +44,18 @@ export default function WorkspaceRoot() {
             Run your entire company from <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">one unified workspace.</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mb-12 leading-relaxed">
-            Replace dozens of fragmented tools. Manage your HR, CRM, Projects, Finances, and Media in a single, scalable platform designed for modern teams.
+          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mb-8 leading-relaxed">
+            Replace dozens of fragmented tools. 180workspace allows you to manage your HR, CRM, Projects, Finances, and Media in a single, scalable platform designed for modern teams.
           </p>
+          <div className="bg-indigo-50/80 border border-indigo-100 rounded-2xl p-6 mb-12 max-w-3xl text-left">
+            <h3 className="text-lg font-bold text-indigo-900 mb-2 flex items-center gap-2">
+              <Cloud className="w-5 h-5" />
+              Google Drive Integration
+            </h3>
+            <p className="text-base text-indigo-800 leading-relaxed">
+              <strong>Why we request your data:</strong> 180workspace requests access to your Google Drive to allow you to seamlessly import your existing media, documents, and assets directly into your projects, and to automatically sync exported files back to your Drive. Your data is used exclusively to power these integrations within your workspace.
+            </p>
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <Link href="/login" className="w-full sm:w-auto px-8 py-4 text-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1">
