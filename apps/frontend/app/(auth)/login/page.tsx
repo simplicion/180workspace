@@ -3,8 +3,9 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, FormEvent, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, Lock, Mail, Key, Globe, X, CheckCircle2, Zap, ShieldCheck, BarChart3, ArrowRight, Users, Bot, FolderKanban, MessageSquare, Cloud } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Key, Globe, X, CheckCircle2, Zap, ShieldCheck, BarChart3, ArrowRight, Users, Bot, FolderKanban, MessageSquare, Cloud, ArrowLeft } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
 import api from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
@@ -208,6 +209,18 @@ function LoginForm() {
                 <img src="/black icon.svg" alt="Watermark" className="w-[32rem] h-[32rem]" />
             </div>
 
+            {/* ── Back to Landing Page Button ─────────────────────────── */}
+            <Link href="/" className="absolute top-6 left-6 z-50">
+                <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center justify-center gap-2 bg-white/80 backdrop-blur-md border border-slate-200 text-slate-700 px-4 py-2.5 rounded-full shadow-sm hover:shadow text-sm font-bold transition-all duration-300 group"
+                >
+                    <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:-translate-x-1 transition-transform" />
+                    <span>Back</span>
+                </motion.button>
+            </Link>
+
             {/* Floating Workspace Icons */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
                 <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="absolute top-[15%] left-[15%] opacity-30">
@@ -331,14 +344,16 @@ function LoginForm() {
                                 </div>
                             </div>
 
-                            <button
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-4 rounded-2xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
+                                className="w-full py-3.5 rounded-2xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
                             >
                                 {loading ? <LogoLoader className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
                                 {loading ? 'Authenticating...' : 'Sign In'}
-                            </button>
+                            </motion.button>
 
                             <p className="text-center text-sm text-gray-500 font-medium pt-4">
                                 Don&apos;t have an account?{' '}

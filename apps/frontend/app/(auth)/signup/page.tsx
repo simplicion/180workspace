@@ -15,7 +15,7 @@ import AuthChoice from '@/app/(auth)/_components/AuthChoice';
 import OtpVerification from '@/app/(auth)/_components/OtpVerification';
 import PasswordSetup from '@/app/(auth)/_components/PasswordSetup';
 import BasicProfile from '@/app/(auth)/_components/BasicProfile';
-import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3 } from 'lucide-react';
+import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft } from 'lucide-react';
 
 export default function SignupFlow() {
     const router = useRouter();
@@ -250,6 +250,18 @@ export default function SignupFlow() {
             <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
                 <img src="/black icon.svg" alt="Watermark" className="w-[32rem] h-[32rem]" />
             </div>
+
+            {/* ── Back to Landing Page Button ─────────────────────────── */}
+            <Link href="/" className="absolute top-6 left-6 z-50">
+                <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center justify-center gap-2 bg-white/80 backdrop-blur-md border border-slate-200 text-slate-700 px-4 py-2.5 rounded-full shadow-sm hover:shadow text-sm font-bold transition-all duration-300 group"
+                >
+                    <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:-translate-x-1 transition-transform" />
+                    <span>Back</span>
+                </motion.button>
+            </Link>
 
             {/* Floating Workspace Icons */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">

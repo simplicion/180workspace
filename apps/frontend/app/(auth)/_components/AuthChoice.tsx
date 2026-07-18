@@ -86,7 +86,7 @@ export default function AuthChoice({
                         </div>
                         <button
                             type="submit"
-                            className="w-full py-4 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center"
+                            className="w-full py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all duration-300 active:scale-[0.98] hover:scale-[1.02] shadow-lg flex items-center justify-center"
                         >
                             Continue with Email
                         </button>
