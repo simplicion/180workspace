@@ -147,7 +147,28 @@ exports.getFolders = async (req, res) => {
             corpora: 'allDrives'
         });
 
-        res.json({ folders: response.data.files });
+        let folders = response.data.files || [];
+
+        // Explicitly fetch Shared Drives if at the root level or doing a global search
+        if (!folderId || folderId === 'root') {
+            try {
+                const drivesResponse = await drive.drives.list();
+                const sharedDrives = drivesResponse.data.drives || [];
+                const sharedDriveFolders = sharedDrives.map(d => ({
+                    id: d.id,
+                    name: `[Shared Drive] ${d.name}`
+                }));
+                // Remove duplicates if the global search already found them (rare but possible)
+                const existingIds = new Set(folders.map(f => f.id));
+                const newSharedDrives = sharedDriveFolders.filter(d => !existingIds.has(d.id));
+                
+                folders = [...newSharedDrives, ...folders];
+            } catch (err) {
+                console.error('[GoogleOAuth] Error fetching shared drives:', err);
+            }
+        }
+
+        res.json({ folders });
     } catch (error) {
         console.error('[GoogleOAuth] Get folders error:', error);
         res.status(500).json({ error: 'Failed to fetch folders' });
@@ -190,7 +211,26 @@ exports.getFiles = async (req, res) => {
             corpora: 'allDrives'
         });
 
-        res.json({ files: response.data.files });
+        let files = response.data.files || [];
+
+        // Explicitly fetch Shared Drives if at the root level
+        if (folderId === 'root') {
+            try {
+                const drivesResponse = await drive.drives.list();
+                const sharedDrives = drivesResponse.data.drives || [];
+                const sharedDriveFolders = sharedDrives.map(d => ({
+                    id: d.id,
+                    name: `[Shared Drive] ${d.name}`,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    iconLink: d.backgroundImageLink || null
+                }));
+                files = [...sharedDriveFolders, ...files];
+            } catch (err) {
+                console.error('[GoogleOAuth] Error fetching shared drives:', err);
+            }
+        }
+
+        res.json({ files });
     } catch (error) {
         console.error('[GoogleOAuth] Get files error:', error);
         res.status(500).json({ error: 'Failed to fetch files' });
