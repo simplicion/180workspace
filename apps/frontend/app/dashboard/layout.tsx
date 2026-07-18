@@ -612,6 +612,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
+    const { meeting } = useMeeting();
 
     // Contextual Help Slug Determination
     const getHelpSlug = () => {
@@ -687,8 +688,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
     // Force collapse on Apps & Settings screen as requested for "only show icon" look
     const isAppsScreen = pathname === '/dashboard/settings/apps';
-    const { meeting } = useMeeting();
-    const isMeetingFullscreen = meeting.isActive && !meeting.isMinimized;
+    const isMeetingFullscreen = meeting?.isActive && !meeting?.isMinimized;
     const effectiveIsCollapsed = isAppsScreen ? true : isCollapsed;
 
     console.log('DashboardInner Components:', {
