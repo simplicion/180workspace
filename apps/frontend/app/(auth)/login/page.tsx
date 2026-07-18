@@ -364,7 +364,6 @@ function LoginForm() {
                         </motion.form>
                     )}
                 </div>
-            </div>
 
             {/* ── Forgot Password Modal ─────────────────────────── */}
             <AnimatePresence>
