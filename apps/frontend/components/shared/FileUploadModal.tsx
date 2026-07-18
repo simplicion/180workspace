@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Upload, X, FileIcon, ImageIcon, AlertCircle, CheckCircle, Search, Database, ShieldAlert, Tags, Users, ChevronDown, Mail, UserPlus, Link2 } from 'lucide-react';
+import { Upload, X, FileIcon, ImageIcon, AlertCircle, CheckCircle, Search, Database, ShieldAlert, Tags, Users, ChevronDown, Mail, UserPlus, Link2, Folder } from 'lucide-react';
 import api from '@/lib/api';
 import clsx from 'clsx';
 import Link from 'next/link';
