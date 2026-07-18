@@ -984,11 +984,11 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-900 text-sm">{getChatName(activeChat)}</p>
-                            <p className="text-xs text-gray-400">
+                            <div className="text-xs text-gray-400">
                                 {!activeChat.isGroup && (isOtherOnline(activeChat) ? <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Online</span> : 'Offline')}
                                 {activeChat.isGroup && <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {activeChat.members.length} members</span>}
                                 {typingUsers.length > 0 && <span className="text-indigo-500 ml-2 animate-pulse">typing...</span>}
-                            </p>
+                            </div>
                         </div>
                         <div className="flex items-center gap-1">
                             {!activeChat.isGroup && (
