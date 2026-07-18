@@ -4,7 +4,7 @@ import { LogoLoader } from "@workspace/ui";
 import { useState, FormEvent, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, Lock, Mail, Key, Globe, X, CheckCircle2, Zap, ShieldCheck, BarChart3, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Key, Globe, X, CheckCircle2, Zap, ShieldCheck, BarChart3, ArrowRight, Users, Bot, FolderKanban, MessageSquare, Cloud } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
 import api from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
@@ -206,6 +206,28 @@ function LoginForm() {
             {/* Large Logo Watermark */}
             <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
                 <img src="/black icon.svg" alt="Watermark" className="w-[32rem] h-[32rem]" />
+            </div>
+
+            {/* Floating Workspace Icons */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
+                <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="absolute top-[15%] left-[15%] opacity-30">
+                    <Users className="w-12 h-12 text-blue-600" />
+                </motion.div>
+                <motion.div animate={{ y: [0, 25, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }} className="absolute top-[20%] right-[20%] opacity-20">
+                    <Bot className="w-16 h-16 text-indigo-600" />
+                </motion.div>
+                <motion.div animate={{ y: [0, -15, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute bottom-[25%] left-[20%] opacity-30">
+                    <FolderKanban className="w-14 h-14 text-purple-600" />
+                </motion.div>
+                <motion.div animate={{ y: [0, 20, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} className="absolute bottom-[20%] right-[15%] opacity-25">
+                    <BarChart3 className="w-12 h-12 text-blue-500" />
+                </motion.div>
+                <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }} className="absolute top-[45%] left-[8%] opacity-20">
+                    <MessageSquare className="w-10 h-10 text-indigo-500" />
+                </motion.div>
+                <motion.div animate={{ y: [0, 15, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2.5 }} className="absolute top-[60%] right-[8%] opacity-30">
+                    <Cloud className="w-14 h-14 text-purple-500" />
+                </motion.div>
             </div>
 
             {/* ── Login Form Container ─────────────────────────────────────────── */}
