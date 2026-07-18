@@ -1,5 +1,39 @@
 const { getTenantPrisma } = require('@workspace/db');
 
+function mapUser(user) {
+    if (!user) return null;
+    return {
+        _id: user.id,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        photoUrl: user.photoUrl || user.image || '',
+        role: user.role
+    };
+}
+
+function mapMessage(msg) {
+    if (!msg) return null;
+    return {
+        _id: msg.id,
+        id: msg.id,
+        chatId: msg.chatId,
+        content: msg.content,
+        attachmentUrl: msg.attachmentUrl,
+        attachmentType: msg.attachmentType,
+        isSystem: msg.isSystem,
+        readBy: (msg.readBy || []).map(u => u.id),
+        reactions: msg.reactions || {},
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt,
+        deletedAt: msg.deletedAt,
+        deletedBy: msg.deletedById,
+        senderId: mapUser(msg.sender),
+        replyTo: msg.replyTo ? mapMessage(msg.replyTo) : null,
+        mentions: (msg.mentions || []).map(mapUser)
+    };
+}
+
 module.exports = (io, socket, onlineUsers) => {
     const userId = socket.userId;
     const companyId = socket.companyId;
@@ -17,17 +51,18 @@ module.exports = (io, socket, onlineUsers) => {
                 data: {
                     chatId,
                     senderId: userId,
-                    content,
-                    attachmentUrl,
-                    attachmentType,
+                    content: content || '',
+                    attachmentUrl: attachmentUrl || '',
+                    attachmentType: attachmentType || 'none',
                     replyToId: replyTo || null,
                     readBy: { connect: [{ id: userId }] },
                     ...(mentionsConnect.length > 0 && { mentions: { connect: mentionsConnect } })
                 },
                 include: {
-                    sender: { select: { id: true, name: true, email: true, photoUrl: true } },
-                    replyTo: { include: { sender: { select: { id: true, name: true, email: true, photoUrl: true } } } },
-                    mentions: { select: { id: true, name: true, email: true } }
+                    sender: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                    replyTo: { include: { sender: { select: { id: true, name: true, email: true, photoUrl: true, role: true } } } },
+                    mentions: { select: { id: true, name: true, email: true, role: true } },
+                    readBy: { select: { id: true } }
                 }
             });
 
@@ -36,12 +71,14 @@ module.exports = (io, socket, onlineUsers) => {
                 select: { members: { select: { id: true } } }
             });
             
+            const mappedMsg = mapMessage(msg);
+
             if (chat && chat.members) {
                 chat.members.forEach(member => {
-                    io.to(`user:${member.id}`).emit('chat:message', msg);
+                    io.to(`user:${member.id}`).emit('chat:message', mappedMsg);
                 });
             } else {
-                io.to(`chat:${chatId}`).emit('chat:message', msg);
+                io.to(`chat:${chatId}`).emit('chat:message', mappedMsg);
             }
 
             await tenantPrisma.chat.update({

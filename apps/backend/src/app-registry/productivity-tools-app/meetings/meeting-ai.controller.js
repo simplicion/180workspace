@@ -168,6 +168,107 @@ class MeetingAIController {
             next(err);
         }
     }
+
+    /**
+     * Save live transcript from frontend
+     */
+    async saveTranscript(req, res, next) {
+        try {
+            const { meetingLogId, text } = req.body;
+            const prisma = req.prisma;
+            if (!prisma) return res.status(403).json({ error: 'Tenant DB not connected' });
+
+            const log = await prisma.meetingLog.findFirst({
+                where: { id: meetingLogId, companyId: req.user.companyId }
+            });
+
+            if (!log) return res.status(404).json({ error: 'Meeting not found' });
+
+            const transcript = await prisma.meetingTranscript.create({
+                data: {
+                    meetingLogId,
+                    userId: req.user.id,
+                    userName: req.user.name || 'Unknown',
+                    text,
+                    isAi: false
+                }
+            });
+
+            return res.json({ success: true, transcript });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Get all transcripts for a meeting
+     */
+    async getTranscripts(req, res, next) {
+        try {
+            const { meetingLogId } = req.params;
+            const prisma = req.prisma;
+            if (!prisma) return res.status(403).json({ error: 'Tenant DB not connected' });
+
+            const log = await prisma.meetingLog.findFirst({
+                where: { id: meetingLogId, companyId: req.user.companyId }
+            });
+
+            if (!log) return res.status(404).json({ error: 'Meeting not found' });
+
+            const transcripts = await prisma.meetingTranscript.findMany({
+                where: { meetingLogId },
+                orderBy: { timestamp: 'asc' }
+            });
+
+            return res.json({ transcripts });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Chat with AI about the meeting using the transcript as context
+     */
+    async chatWithMeetingAI(req, res, next) {
+        try {
+            const { meetingLogId, message } = req.body;
+            const prisma = req.prisma;
+            if (!prisma) return res.status(403).json({ error: 'Tenant DB not connected' });
+
+            const Settings = prisma.settings;
+            const settings = await Settings.findFirst();
+            if (!settings) return res.status(404).json({ error: 'Settings not found' });
+
+            const transcripts = await prisma.meetingTranscript.findMany({
+                where: { meetingLogId },
+                orderBy: { timestamp: 'asc' }
+            });
+
+            const transcriptText = transcripts.map(t => `${t.userName} (${t.timestamp.toISOString()}): ${t.text}`).join('\n');
+
+            const prompt = `
+                You are a helpful AI assistant representing a meeting. 
+                Below is the live transcript of the meeting so far. 
+                Answer the user's question based strictly on this transcript. If the answer is not in the transcript, say so.
+                
+                TRANSCRIPT:
+                ${transcriptText || '(No transcription available yet)'}
+                
+                USER'S QUESTION:
+                ${message}
+            `;
+
+            const aiResponse = await AIService.getInsights(prompt, settings);
+
+            // Save the user's question and AI's answer in the transcript log if needed?
+            // Actually, the user asked for a chat board *about* the meeting, not necessarily saving it to the transcript itself.
+            // But we can just return it.
+            
+            return res.json({ reply: aiResponse });
+        } catch (err) {
+            next(err);
+        }
+    }
 }
 
 module.exports = new MeetingAIController();

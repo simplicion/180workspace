@@ -12,6 +12,11 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 
+function getInitials(name?: string) {
+    if (!name) return '';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+}
+
 const COLUMNS = [
     { id: 'todo', label: 'To Do', color: 'border-gray-300', bg: 'bg-gray-50', badge: 'badge-gray' },
     { id: 'in_progress', label: 'In Progress', color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
@@ -146,7 +151,7 @@ export default function TasksPage() {
                 )
             ) : view === 'kanban' ? (
                 /* ✨ KANBAN VIEW ✨ */
-                <div className="flex gap-4 overflow-x-auto pb-4">
+                <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {COLUMNS.map(col => {
                         const colTasks = tasks.filter(t => t.status === col.id);
                         let displayLabel = col.label;
@@ -190,9 +195,13 @@ export default function TasksPage() {
                                                 {task.dueDate && (
                                                     <span className="text-xs text-gray-400">{format(new Date(task.dueDate), 'MMM d')}</span>
                                                 )}
-                                                {task.assigneeId && (
-                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center ml-auto">
-                                                        <span className="text-white text-[10px] font-bold">{task.assigneeId?.name?.[0]?.toUpperCase()}</span>
+                                                {task.assignee && (
+                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center ml-auto overflow-hidden">
+                                                        {task.assignee.photoUrl ? (
+                                                            <img src={task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-white text-[10px] font-bold">{getInitials(task.assignee.name) || <User className="w-3 h-3" />}</span>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -224,9 +233,13 @@ export default function TasksPage() {
                                 <span className={clsx('badge', PRIORITY_COLORS[task.priority] || 'badge-gray')}>{task.priority}</span>
                                 <span className="badge badge-gray">{task.status?.replace(/_/g, ' ')}</span>
                                 {task.dueDate && <span className="text-xs text-gray-400">{format(new Date(task.dueDate), 'MMM d')}</span>}
-                                {task.assigneeId && (
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center">
-                                        <span className="text-white text-xs font-bold">{task.assigneeId?.name?.[0]?.toUpperCase()}</span>
+                                {task.assignee && (
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center overflow-hidden">
+                                        {task.assignee.photoUrl ? (
+                                            <img src={task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-white text-xs font-bold">{getInitials(task.assignee.name) || <User className="w-4 h-4" />}</span>
+                                        )}
                                     </div>
                                 )}
                             </div>

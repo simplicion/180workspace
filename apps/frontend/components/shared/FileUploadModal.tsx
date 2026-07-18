@@ -24,7 +24,7 @@ interface FileItem {
     result?: any;
 }
 
-const MAX_SIZE_MB = 10;
+const MAX_SIZE_MB = 25;
 const ACCEPTED = ['image/*', 'audio/*', 'video/*', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.zip'];
 
 function formatBytes(bytes: number) {

@@ -8,7 +8,7 @@ FROM base AS builder
 WORKDIR /app
 RUN npm install -g turbo
 COPY . .
-RUN turbo prune backend --docker
+RUN turbo prune ws --docker
 
 FROM base AS installer
 WORKDIR /app
@@ -17,21 +17,21 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
-# Run build if there is a build script (often not needed for raw JS backends, but safe for turbo)
-RUN pnpm turbo run build --filter=backend... || true
+# WS doesn't have a build step, it's just raw JS. But turbo build won't hurt if we add one later.
+RUN pnpm turbo run build --filter=ws... || true
 
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 express
+RUN adduser --system --uid 1001 ws-server
 
-COPY --from=installer --chown=express:nodejs /app .
+COPY --from=installer --chown=ws-server:nodejs /app .
 
-USER express
-WORKDIR /app/apps/backend
+USER ws-server
+WORKDIR /app/apps/ws
 
-EXPOSE 4000
-ENV PORT=4000
+EXPOSE 4003
+ENV PORT=4003
 
-CMD ["node", "server.js"]
+CMD ["node", "src/index.js"]

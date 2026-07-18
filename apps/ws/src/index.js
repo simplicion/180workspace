@@ -49,10 +49,15 @@ io.on('connection', (socket) => {
 
     socket.join(`user:${userId}`);
 
+    // Send the list of currently online users to this socket
+    socket.emit('users:online_list', { onlineUsers: Array.from(onlineUsers.keys()) });
+
     if (companyId) {
         socket.join(`company:${companyId}`);
-        io.to(`company:${companyId}`).emit('user:online', { userId, isOnline: true });
     }
+    
+    // Always emit online status globally so cross-company (employer) users see it
+    io.emit('user:online', { userId, isOnline: true });
 
     // Register modular events
     registerChatEvents(io, socket, onlineUsers);
@@ -64,9 +69,7 @@ io.on('connection', (socket) => {
             sockets.delete(socket.id);
             if (sockets.size === 0) {
                 onlineUsers.delete(userId);
-                if (companyId) {
-                    io.to(`company:${companyId}`).emit('user:offline', { userId, isOnline: false });
-                }
+                io.emit('user:offline', { userId, isOnline: false });
             }
         }
         console.log(`[Socket] ${socket.user.name} disconnected`);

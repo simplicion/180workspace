@@ -1,5 +1,10 @@
 const { redis } = require('../../../system-configs/config/redis.js');
 const AIService = require('./ai.service');
+const axios = require('axios');
+let pdfParse;
+try { pdfParse = require('pdf-parse'); } catch (e) {}
+let mammoth;
+try { mammoth = require('mammoth'); } catch (e) {}
 
 async function getSettingsWithMetadata(req) {
     const settings = await req.prisma.settings.findFirst() || {};
@@ -278,7 +283,7 @@ exports.chatWithAI = async (req, res, next) => {
 
 exports.analyzeDocument = async (req, res, next) => {
     try {
-        const { documentId, message, summarizeOnly } = req.body;
+        const { documentId, message, summarizeOnly, history } = req.body;
         const Document = req.prisma.document;
         const Settings = req.prisma.settings;
 
@@ -299,21 +304,49 @@ exports.analyzeDocument = async (req, res, next) => {
                 console.warn('Failed to fetch from Drive, falling back to summary of meta:', err.message);
                 content = `Document Name: ${doc.name}\nDescription: ${doc.description || 'None'}`;
             }
-        } else if (doc.fileUrl && (doc.fileUrl.endsWith('.html') || doc.fileType === 'link')) {
+        } else if (doc.fileUrl) {
             try {
-                const response = await axios.get(doc.fileUrl);
-                content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-                content = content.replace(/<[^>]*>?/gm, ' ').slice(0, 10000);
+                let fileUrl = doc.fileUrl;
+                if (!fileUrl.startsWith('http')) {
+                    fileUrl = `http://localhost:${process.env.PORT || 4000}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                }
+                const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+                const buffer = Buffer.from(response.data);
+                
+                if (doc.fileUrl.endsWith('.pdf') && pdfParse) {
+                    const pdfData = await pdfParse(buffer);
+                    content = pdfData.text;
+                } else if (doc.fileUrl.endsWith('.docx') && mammoth) {
+                    const result = await mammoth.extractRawText({ buffer: buffer });
+                    content = result.value;
+                } else if (doc.fileUrl.endsWith('.html') || doc.fileType === 'link' || doc.fileType === 'html') {
+                    content = buffer.toString('utf-8');
+                    content = content.replace(/<[^>]*>?/gm, ' ');
+                } else {
+                    content = buffer.toString('utf-8');
+                }
+                content = content.slice(0, 30000); // Limit to ~30k characters for context
             } catch (err) {
-                content = `Document Name: ${doc.name}\nDescription: ${doc.description || 'None'}`;
+                console.warn('Failed to fetch/parse file content:', err.message);
+                content = `Document Name: ${doc.name}\nDescription: ${doc.description || 'None'}\nType: ${doc.fileType}`;
             }
         } else {
             content = `Document Name: ${doc.name}\nDescription: ${doc.description || 'None'}\nType: ${doc.fileType}`;
         }
 
+        let chatHistory = "";
+        if (history && Array.isArray(history) && history.length > 0) {
+            chatHistory = "RECENT CONVERSATION HISTORY:\n";
+            const recentHistory = history.slice(-6); // last few messages
+            recentHistory.forEach(msg => {
+                chatHistory += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+            });
+            chatHistory += "\n";
+        }
+
         const prompt = summarizeOnly
             ? `Please provide a concise, professional summary (3-5 bullet points) of the following document content:\n\n${content}`
-            : `You are a document assistant. Based on the following document content, answer the user's question accurately.\n\nDOCUMENT CONTENT:\n${content}\n\nUSER QUESTION: ${message}`;
+            : `You are a document assistant. Based on the following document content, answer the user's question accurately.\n\nDOCUMENT CONTENT:\n${content}\n\n${chatHistory}USER QUESTION: ${message}`;
 
         const reply = await AIService.getInsights(prompt, settings);
         return res.json({ reply });

@@ -151,9 +151,17 @@ router.post('/', protect, requireAdmin, async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-// PUT /api/calendar/:id - update event (admin only)
-router.put('/:id', protect, requireAdmin, async (req, res, next) => {
+// PUT /api/calendar/:id - update event (creator or admin)
+router.put('/:id', protect, async (req, res, next) => {
     try {
+        const eventToUpdate = await req.prisma.calendarEvent.findUnique({ where: { id: req.params.id } });
+        if (!eventToUpdate) return res.status(404).json({ error: 'Not found' });
+        
+        const isAdmin = req.user.role === 'BMSP_SUPER_ADMIN' || req.user.role === 'BMSP_ADMIN';
+        if (!isAdmin && eventToUpdate.createdById !== req.user.id) {
+            return res.status(403).json({ error: 'Not authorized to update this event' });
+        }
+
         const { attendees, meeting, ...restBody } = req.body;
         
         const flattenedData = { ...restBody };
@@ -185,8 +193,8 @@ router.put('/:id', protect, requireAdmin, async (req, res, next) => {
     }
 });
 
-// POST /api/calendar/:id/resend-invite - resend meeting invites
-router.post('/:id/resend-invite', protect, requireAdmin, async (req, res, next) => {
+// POST /api/calendar/:id/resend-invite - resend meeting invites (creator or admin)
+router.post('/:id/resend-invite', protect, async (req, res, next) => {
     try {
         const event = await req.prisma.calendarEvent.findUnique({
             where: { id: req.params.id },
@@ -198,6 +206,11 @@ router.post('/:id/resend-invite', protect, requireAdmin, async (req, res, next) 
         if (!event) return res.status(404).json({ error: 'Event not found' });
         if (event.type !== 'meeting') return res.status(400).json({ error: 'Not a meeting event' });
         
+        const isAdmin = req.user.role === 'BMSP_SUPER_ADMIN' || req.user.role === 'BMSP_ADMIN';
+        if (!isAdmin && event.createdById !== req.user.id) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+
         const creator = await req.prisma.user.findUnique({
             where: { id: req.user.id },
             select: { name: true, email: true }
@@ -208,9 +221,17 @@ router.post('/:id/resend-invite', protect, requireAdmin, async (req, res, next) 
     } catch (err) { next(err); }
 });
 
-// DELETE /api/calendar/:id - delete event (admin only)
-router.delete('/:id', protect, requireAdmin, async (req, res, next) => {
+// DELETE /api/calendar/:id - delete event (creator or admin)
+router.delete('/:id', protect, async (req, res, next) => {
     try {
+        const eventToDelete = await req.prisma.calendarEvent.findUnique({ where: { id: req.params.id } });
+        if (!eventToDelete) return res.status(404).json({ error: 'Not found' });
+        
+        const isAdmin = req.user.role === 'BMSP_SUPER_ADMIN' || req.user.role === 'BMSP_ADMIN';
+        if (!isAdmin && eventToDelete.createdById !== req.user.id) {
+            return res.status(403).json({ error: 'Not authorized to delete this event' });
+        }
+
         await req.prisma.calendarEvent.delete({
             where: { id: req.params.id }
         });

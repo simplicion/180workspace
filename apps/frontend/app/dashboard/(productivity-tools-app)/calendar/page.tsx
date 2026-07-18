@@ -619,6 +619,10 @@ export default function CalendarPage() {
                                                 {/* Meeting-specific display */}
                                                 {ev.type === 'meeting' && ev.meeting && (
                                                     <div className="mt-2 space-y-1.5">
+                                                        <div className="flex flex-col gap-0.5 mb-2 border-b border-gray-100 pb-2">
+                                                            <p className="text-[10px] text-gray-400">Created by <span className="font-medium text-gray-700">{ev.createdBy?.name || 'Unknown'}</span></p>
+                                                            {ev.createdAt && <p className="text-[10px] text-gray-400">on {format(new Date(ev.createdAt), 'MMM d, yyyy h:mm a')}</p>}
+                                                        </div>
                                                         {(ev.meeting.startTime || ev.meeting.endTime) && (
                                                             <p className="text-xs text-gray-600 flex items-center gap-1">
                                                                 <Clock className="w-3 h-3 text-sky-400" />
@@ -707,6 +711,18 @@ export default function CalendarPage() {
                     )}
                 </div>
             </div>
+
+            {/* Confirm Delete Modal */}
+            <ConfirmModal
+                isOpen={!!showDeleteConfirm}
+                title="Delete Event"
+                message="Are you sure you want to delete this event? This action cannot be undone."
+                confirmText="Delete"
+                variant="danger"
+                loading={deleting}
+                onConfirm={handleDeleteEvent}
+                onCancel={() => setShowDeleteConfirm(null)}
+            />
         </div>
     );
 }

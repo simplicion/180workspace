@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const express = require('express');
 const router = express.Router();
@@ -72,16 +72,36 @@ router.get('/validate/:roomId', protect, async (req, res) => {
         const userId = req.user.id;
         const companyId = req.user.companyId;
 
-        // 1. Strict Room ID Prefix Validation
-        const roomParts = roomId.split('-');
-        if (roomParts[0] === 'room' && roomParts[1]) {
-            const roomCompanyId = roomParts[1];
+        // 1. Room ID Company Validation
+        // Supported formats:
+        //   room-{companyId}-{short}           (from meeting page)
+        //   ims-{companyId}-meeting-{ts}       (from calendar)
+        //   v-{companyId}-meeting-{ts}         (from chat video call)
+        let roomCompanyId = null;
+        if (roomId.startsWith('room-')) {
+            // room-{companyId}-{short} — companyId could be UUID with dashes
+            const afterPrefix = roomId.slice('room-'.length);
+            // Last segment is the short id (8 chars), rest is companyId
+            const lastDash = afterPrefix.lastIndexOf('-');
+            roomCompanyId = lastDash > 0 ? afterPrefix.slice(0, lastDash) : null;
+        } else if (roomId.startsWith('ims-')) {
+            // ims-{companyId}-meeting-{ts}
+            const afterPrefix = roomId.slice('ims-'.length);
+            const meetingIdx = afterPrefix.indexOf('-meeting-');
+            roomCompanyId = meetingIdx > 0 ? afterPrefix.slice(0, meetingIdx) : null;
+        } else if (roomId.startsWith('v-')) {
+            // v-{companyId}-meeting-{ts}
+            const afterPrefix = roomId.slice('v-'.length);
+            const meetingIdx = afterPrefix.indexOf('-meeting-');
+            roomCompanyId = meetingIdx > 0 ? afterPrefix.slice(0, meetingIdx) : null;
+        }
+
+        if (roomCompanyId) {
             if (roomCompanyId !== companyId.toString()) {
                 return res.status(403).json({ error: 'Security Alert: Access denied to external company room' });
             }
         } else {
-            // For now, allow rooms without prefix for migration, but ideally enforce room-ID-
-            console.warn(`[Meeting] Room ID ${roomId} lacks company prefix`);
+            console.warn(`[Meeting] Room ID ${roomId} has unrecognized format`);
         }
 
         // 2. Check if it's a scheduled meeting
@@ -106,12 +126,29 @@ router.get('/validate/:roomId', protect, async (req, res) => {
             });
         }
 
-        // 3. Ad-hoc/Personal calls
+        // 3. Ad-hoc/Personal calls and check meeting log
         const config = await req.prisma.companyConfig.findFirst();
+        
+        let log = await req.prisma.meetingLog.findFirst({
+            where: { roomId: roomId, companyId },
+            include: { createdBy: { select: { id: true, name: true } } }
+        });
+
+        let isCreator = false;
+        if (event) {
+            isCreator = event.createdById === userId;
+        } else if (log) {
+            isCreator = log.createdById === userId;
+        } else {
+            isCreator = true; // brand new ad-hoc meeting they are about to create
+        }
+
         return res.json({
             success: true,
-            type: 'adhoc',
-            title: (config?.companyName || 'Platform') + ' Native Call'
+            type: event ? 'scheduled' : 'adhoc',
+            title: event?.title || log?.title || (config?.companyName || 'Platform') + ' Native Call',
+            meetingId: event?.id,
+            isCreator
         });
 
     } catch (err) {
@@ -223,5 +260,100 @@ router.post('/ai/process', protect, (req, res, next) => meetingAIController.proc
  * @route   GET /api/meeting/ai/summary/:roomId
  */
 router.get('/ai/summary/:roomId', protect, (req, res, next) => meetingAIController.getSummary(req, res, next));
+
+/**
+ * @desc    Save a new transcript line to the database
+ * @route   POST /api/meeting/transcript
+ */
+router.post('/transcript', protect, (req, res, next) => meetingAIController.saveTranscript(req, res, next));
+
+/**
+ * @desc    Get all transcripts for a meeting log
+ * @route   GET /api/meeting/transcript/:meetingLogId
+ */
+router.get('/transcript/:meetingLogId', protect, (req, res, next) => meetingAIController.getTranscripts(req, res, next));
+
+/**
+ * @desc    Chat with AI about the meeting
+ * @route   POST /api/meeting/ai-chat
+ */
+router.post('/ai-chat', protect, (req, res, next) => meetingAIController.chatWithMeetingAI(req, res, next));
+
+/**
+ * @desc    Get a single meeting log with participants
+ * @route   GET /api/meeting/log/:meetingLogId
+ */
+router.get('/log/:meetingLogId', protect, async (req, res, next) => {
+    try {
+        const { meetingLogId } = req.params;
+        const companyId = req.user.companyId;
+
+        const log = await req.prisma.meetingLog.findFirst({
+            where: { id: meetingLogId, companyId },
+            include: { createdBy: { select: { name: true } } }
+        });
+
+        if (!log) return res.status(404).json({ error: 'Meeting log not found' });
+
+        res.json({ log });
+    } catch (err) {
+        console.error('[Meeting Routes] Get log error:', err);
+        res.status(500).json({ error: 'Failed to fetch meeting log' });
+    }
+});
+
+/**
+ * @desc    Get meeting details by roomId
+ * @route   GET /api/meeting/room/:roomId/details
+ */
+router.get('/room/:roomId/details', protect, async (req, res, next) => {
+    try {
+        const { roomId } = req.params;
+        const companyId = req.user.companyId;
+
+        // Fetch the latest meeting log for this room
+        const log = await req.prisma.meetingLog.findFirst({
+            where: { roomId, companyId },
+            orderBy: { createdAt: 'desc' },
+            include: { createdBy: { select: { name: true, email: true } } }
+        });
+
+        if (!log) return res.status(404).json({ error: 'Meeting details not found' });
+
+        res.json({ log });
+    } catch (err) {
+        console.error('[Meeting Routes] Get room details error:', err);
+        res.status(500).json({ error: 'Failed to fetch room details' });
+    }
+});
+
+/**
+ * @desc    Delete a meeting
+ * @route   DELETE /api/meeting/:roomId
+ * @access  Protected
+ */
+router.delete('/:roomId', protect, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const companyId = req.user.companyId;
+
+        const log = await req.prisma.meetingLog.findFirst({
+            where: { roomId, companyId }
+        });
+
+        if (!log) {
+            return res.status(404).json({ error: 'Meeting not found' });
+        }
+
+        await req.prisma.meetingLog.delete({
+            where: { id: log.id }
+        });
+
+        res.json({ success: true, message: 'Meeting deleted successfully' });
+    } catch (err) {
+        console.error('[Meeting] Delete error:', err);
+        res.status(500).json({ error: 'Failed to delete meeting' });
+    }
+});
 
 module.exports = router;

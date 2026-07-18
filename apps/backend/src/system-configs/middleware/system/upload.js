@@ -12,7 +12,7 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    limits: { fileSize: 25 * 1024 * 1024 }, // increased to 25MB
     fileFilter: (req, file, cb) => {
         const allowed = [
             'image/jpeg', 'image/png', 'image/gif', 'image/webp',
@@ -20,6 +20,9 @@ const upload = multer({
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.ms-excel',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/zip', 'application/x-zip-compressed',
             'text/plain', 'text/csv',
             'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav',
             'video/webm', 'video/mp4'

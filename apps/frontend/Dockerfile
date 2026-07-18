@@ -9,7 +9,7 @@ FROM base AS builder
 WORKDIR /app
 RUN npm install -g turbo
 COPY . .
-RUN turbo prune user-web --docker
+RUN turbo prune frontend --docker
 
 FROM base AS installer
 WORKDIR /app
@@ -19,7 +19,7 @@ COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
 ENV BUILD_STANDALONE="true"
-RUN pnpm turbo run build --filter=user-web...
+RUN pnpm turbo run build --filter=frontend...
 
 FROM base AS runner
 WORKDIR /app
@@ -29,9 +29,9 @@ RUN adduser --system --uid 1001 nextjs
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=installer /app/apps/user-web/public ./apps/user-web/public
-COPY --from=installer --chown=nextjs:nodejs /app/apps/user-web/.next/standalone ./
-COPY --from=installer --chown=nextjs:nodejs /app/apps/user-web/.next/static ./apps/user-web/.next/static
+COPY --from=installer /app/apps/frontend/public ./apps/frontend/public
+COPY --from=installer --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
+COPY --from=installer --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
 
 USER nextjs
 
@@ -39,4 +39,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "apps/user-web/server.js"]
+CMD ["node", "apps/frontend/server.js"]

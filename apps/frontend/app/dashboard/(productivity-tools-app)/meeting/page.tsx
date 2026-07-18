@@ -1,11 +1,11 @@
 'use client';
 
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, ConfirmModal } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Video, Plus, Users, Calendar, ExternalLink, Clock, Copy } from 'lucide-react';
+import { Video, Plus, Users, Calendar, ExternalLink, Clock, Copy, FileText, Trash } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
@@ -32,6 +32,9 @@ export default function MeetingPage() {
     const [creating, setCreating] = useState(false);
     const [title, setTitle] = useState('');
     const [showNewForm, setShowNewForm] = useState(false);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [meetingToDelete, setMeetingToDelete] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         api.get('/api/meeting')
@@ -58,6 +61,27 @@ export default function MeetingPage() {
     function copyLink(roomId: string) {
         navigator.clipboard.writeText(`${window.location.origin}/dashboard/meeting/${roomId}`);
         toast.success('Meeting link copied!');
+    }
+
+    function handleDeleteClick(roomId: string) {
+        setMeetingToDelete(roomId);
+        setDeleteModalOpen(true);
+    }
+
+    async function confirmDelete() {
+        if (!meetingToDelete) return;
+        setDeleting(true);
+        try {
+            await api.delete(`/api/meeting/${meetingToDelete}`);
+            setMeetings(meetings.filter(m => m.roomId !== meetingToDelete));
+            toast.success('Meeting deleted successfully');
+            setDeleteModalOpen(false);
+            setMeetingToDelete(null);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Failed to delete meeting');
+        } finally {
+            setDeleting(false);
+        }
     }
 
     return (
@@ -164,42 +188,53 @@ export default function MeetingPage() {
                                         <th>Participants</th>
                                         <th>Started</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
+                                        <th style={{ textAlign: 'right' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {meetings.map((m) => (
                                         <tr key={m.id}>
-                                            <td>
+                                            <td className="w-full sm:w-auto">
                                                 <p className="font-medium text-gray-900 text-sm">{m.title || 'Untitled Meeting'}</p>
                                                 <p className="text-xs text-gray-400 font-mono">{m.roomId}</p>
                                             </td>
-                                            <td className="text-sm text-gray-600">{m.createdBy?.name || user?.name}</td>
-                                            <td className="text-sm text-gray-500">
+                                            <td className="text-sm text-gray-600 whitespace-nowrap">{m.createdBy?.name || user?.name}</td>
+                                            <td className="text-sm text-gray-500 whitespace-nowrap">
                                                 <div className="flex items-center gap-1">
                                                     <Users className="w-3.5 h-3.5" />
                                                     {m.participants?.length || 0}
                                                 </div>
                                             </td>
-                                            <td className="text-xs text-gray-500 flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                {m.startedAt ? new Date(m.startedAt).toLocaleString() : '—'}
+                                            <td className="text-xs text-gray-500 whitespace-nowrap">
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    {m.startedAt ? new Date(m.startedAt).toLocaleString() : '—'}
+                                                </div>
                                             </td>
-                                            <td>
+                                            <td className="whitespace-nowrap">
                                                 <span className={clsx('badge', m.status === 'active' || !m.endedAt ? 'badge-green' : 'badge-gray')}>
                                                     {m.status === 'active' || !m.endedAt ? 'Active' : 'Ended'}
                                                 </span>
                                             </td>
-                                            <td>
-                                                <div className="flex items-center gap-2">
+                                            <td className="text-right">
+                                                <div className="flex items-center justify-end gap-3">
                                                     <Link
                                                         href={`/dashboard/meeting/${m.roomId}`}
                                                         className="text-xs text-indigo-600 hover:underline font-medium flex items-center gap-1"
                                                     >
                                                         <ExternalLink className="w-3.5 h-3.5" /> Join
                                                     </Link>
+                                                    <Link
+                                                        href={`/dashboard/meeting/${m.roomId}/details`}
+                                                        className="text-xs text-slate-600 hover:text-indigo-600 hover:underline font-medium flex items-center gap-1"
+                                                    >
+                                                        <FileText className="w-3.5 h-3.5" /> Details
+                                                    </Link>
                                                     <button onClick={() => copyLink(m.roomId)} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
                                                         <Copy className="w-3.5 h-3.5" /> Copy
+                                                    </button>
+                                                    <button onClick={() => handleDeleteClick(m.roomId)} className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1">
+                                                        <Trash className="w-3.5 h-3.5" /> Delete
                                                     </button>
                                                 </div>
                                             </td>
@@ -211,6 +246,21 @@ export default function MeetingPage() {
                     </div>
                 )}
             </div>
+
+            {/* Confirm Delete Modal */}
+            <ConfirmModal
+                isOpen={deleteModalOpen}
+                title="Delete Meeting"
+                message="Are you sure you want to delete this meeting? This cannot be undone."
+                confirmText="Delete"
+                variant="danger"
+                loading={deleting}
+                onConfirm={confirmDelete}
+                onCancel={() => {
+                    setDeleteModalOpen(false);
+                    setMeetingToDelete(null);
+                }}
+            />
         </div>
     );
 }

@@ -15,6 +15,8 @@ import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
 import { HelpIcon , LogoLoader } from "@workspace/ui";
 import dynamic from 'next/dynamic';
+import { MeetingProvider, useMeeting } from '@/lib/meeting-context';
+import FloatingMeetingPiP from '@/components/shared/FloatingMeetingPiP';
 
 const safeImport = (importFn: () => Promise<any>) => {
     return importFn().catch((err) => {
@@ -685,6 +687,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
     // Force collapse on Apps & Settings screen as requested for "only show icon" look
     const isAppsScreen = pathname === '/dashboard/settings/apps';
+    const { meeting } = useMeeting();
+    const isMeetingFullscreen = meeting.isActive && !meeting.isMinimized;
     const effectiveIsCollapsed = isAppsScreen ? true : isCollapsed;
 
     console.log('DashboardInner Components:', {
@@ -703,27 +707,30 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     });
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className={clsx("min-h-screen bg-gray-50", isMeetingFullscreen && "overflow-hidden")}>
             {/* Mobile Overlay */}
-            {!effectiveIsCollapsed && (
+            {!isMeetingFullscreen && !effectiveIsCollapsed && (
                 <div
                     className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-20 lg:hidden"
                     onClick={() => setIsCollapsed(true)}
                 />
             )}
-            <Sidebar
-                isCollapsed={effectiveIsCollapsed}
-                setIsCollapsed={setIsCollapsed}
-                isHovered={isHovered}
-                setIsHovered={setIsHovered}
-            />
+            {!isMeetingFullscreen && (
+                <Sidebar
+                    isCollapsed={effectiveIsCollapsed}
+                    setIsCollapsed={setIsCollapsed}
+                    isHovered={isHovered}
+                    setIsHovered={setIsHovered}
+                />
+            )}
             <main
                 className={clsx(
                     "flex flex-col min-h-screen transition-all duration-300 ease-in-out w-full lg:w-auto",
-                    effectiveIsCollapsed ? "lg:ml-[80px]" : "lg:ml-[280px]"
+                    isMeetingFullscreen ? "lg:ml-0" : (effectiveIsCollapsed ? "lg:ml-[80px]" : "lg:ml-[280px]")
                 )}
             >
                 {/* Top bar */}
+                {!isMeetingFullscreen && (
                 <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
                     <div className="flex items-center gap-3 flex-1 lg:flex-none">
                         <button
@@ -751,22 +758,26 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                         <ProfileDropdown />
                     </div>
                 </header>
+                )}
 
-                <TrialBanner />
-                {showWall && <SubscriptionExpiredWall />}
-                <div className="flex-1 py-4 lg:p-6 overflow-x-hidden">
+                {!isMeetingFullscreen && <TrialBanner />}
+                {!isMeetingFullscreen && showWall && <SubscriptionExpiredWall />}
+                <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
                     {children}
                 </div>
             </main>
+            <FloatingMeetingPiP />
         </div>
     );
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><LogoLoader className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
-            <DashboardInner>{children}</DashboardInner>
-        </Suspense>
+        <MeetingProvider>
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><LogoLoader className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
+                <DashboardInner>{children}</DashboardInner>
+            </Suspense>
+        </MeetingProvider>
     );
 }
 

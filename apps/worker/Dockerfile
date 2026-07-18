@@ -1,26 +1,39 @@
-FROM node:20-alpine
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+RUN apk add --no-cache libc6-compat openssl
 
-# Set working directory
+FROM base AS builder
 WORKDIR /app
+RUN npm install -g turbo
+COPY . .
+# Worker depends on the backend source code to run server.js
+RUN turbo prune worker backend --docker
 
-# Install dependencies needed for pnpm and turbo
-RUN npm install -g pnpm turbo
-
-# Copy monorepo configuration
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY apps/worker/package.json ./apps/worker/
-
-# Install dependencies
+FROM base AS installer
+WORKDIR /app
+COPY --from=builder /app/out/json/ .
+# Copy prisma schema to ensure postinstall (prisma generate) succeeds
+COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 RUN pnpm install --frozen-lockfile
+COPY --from=builder /app/out/full/ .
+RUN pnpm turbo run build --filter=worker... --filter=backend... || true
 
-# Copy the worker source code
-COPY apps/worker/ ./apps/worker/
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV RUN_MODE=worker
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 worker-server
 
-# Build if necessary (though worker might just be raw Node)
-# RUN pnpm --filter worker-node build
+COPY --from=installer --chown=worker-server:nodejs /app .
 
-# Set the working directory to the worker package
+USER worker-server
 WORKDIR /app/apps/worker
 
-# Start the worker
-CMD ["npm", "start"]
+EXPOSE 4004
+ENV PORT=4004
+
+# Run the worker via the backend server file
+CMD ["node", "../backend/server.js"]

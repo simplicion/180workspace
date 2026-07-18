@@ -34,8 +34,10 @@ export default function DocumentAIChatModal({ document: doc, onClose }: Document
         const text = msg || input;
         if (!text.trim() && !summarizeOnly) return;
 
+        let currentMessages = messages;
         if (!summarizeOnly) {
-            setMessages(prev => [...prev, { role: 'user', content: text }]);
+            currentMessages = [...messages, { role: 'user', content: text }];
+            setMessages(currentMessages);
             setInput('');
         }
 
@@ -44,7 +46,8 @@ export default function DocumentAIChatModal({ document: doc, onClose }: Document
             const { data } = await api.post('/api/ai/analyze-document', {
                 documentId: doc.id,
                 message: text,
-                summarizeOnly
+                summarizeOnly,
+                history: summarizeOnly ? [] : currentMessages
             });
 
             setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
@@ -99,81 +102,97 @@ export default function DocumentAIChatModal({ document: doc, onClose }: Document
                             <p className="text-sm text-gray-500 leading-relaxed">
                                 I can help you understand the contents, extract key dates, summarize sections, or help you draft a reply. What would you like to know?
                             </p>
-                            <div className="grid grid-cols-2 gap-3 w-full max-w-sm mt-4">
-                                <button onClick={handleSummarize} className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm">
-                                    <ClipboardList className="w-4 h-4" /> Summarize
+                            
+                            <div className="grid grid-cols-2 gap-3 mt-6 w-full max-w-md">
+                                <button
+                                    onClick={handleSummarize}
+                                    className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-all text-gray-600 group"
+                                >
+                                    <ClipboardList className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                                    <span className="text-sm font-medium">Summarize Doc</span>
                                 </button>
-                                <button onClick={() => setInput('What are the key terms?')} className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm">
-                                    <MessageSquare className="w-4 h-4" /> Key Terms
+                                <button
+                                    onClick={() => {
+                                        setInput("What are the key action items?");
+                                    }}
+                                    className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-all text-gray-600 group"
+                                >
+                                    <MessageSquare className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                                    <span className="text-sm font-medium">Find Action Items</span>
                                 </button>
                             </div>
                         </div>
                     )}
 
-                    {messages.map((m, i) => (
-                        <div key={i} className={clsx('flex items-end gap-3', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                            {m.role === 'assistant' && (
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0 border border-indigo-200">
-                                    <Bot className="w-4 h-4 text-indigo-600" />
-                                </div>
+                    {messages.map((msg, idx) => (
+                        <div
+                            key={idx}
+                            className={clsx(
+                                "flex items-start gap-4",
+                                msg.role === 'user' ? "flex-row-reverse" : ""
                             )}
+                        >
                             <div className={clsx(
-                                'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm',
-                                m.role === 'user'
-                                    ? 'bg-indigo-600 text-white rounded-br-none'
-                                    : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
+                                "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm",
+                                msg.role === 'user' ? "bg-indigo-100 text-indigo-600" : "bg-white border border-gray-100 text-indigo-600"
                             )}>
-                                <div className="whitespace-pre-wrap">{m.content}</div>
+                                {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                             </div>
-                            {m.role === 'user' && (
-                                <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
-                                    <User className="w-4 h-4 text-gray-600" />
-                                </div>
-                            )}
+                            
+                            <div className={clsx(
+                                "px-5 py-3.5 rounded-2xl max-w-[85%] text-[15px] leading-relaxed shadow-sm",
+                                msg.role === 'user' 
+                                    ? "bg-indigo-600 text-white rounded-tr-sm" 
+                                    : "bg-white border border-gray-100 text-gray-700 rounded-tl-sm"
+                            )}>
+                                {msg.content.split('\n').map((line, i) => (
+                                    <p key={i} className={i > 0 ? "mt-2" : ""}>{line}</p>
+                                ))}
+                            </div>
                         </div>
                     ))}
 
                     {loading && (
-                        <div className="flex items-end gap-3 justify-start animate-pulse">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                <Bot className="w-4 h-4 text-indigo-400" />
+                        <div className="flex items-start gap-4">
+                            <div className="w-8 h-8 rounded-full bg-white border border-gray-100 text-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
+                                <Bot className="w-4 h-4" />
                             </div>
-                            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
-                                <LogoLoader className="w-4 h-4 animate-spin text-indigo-500" />
+                            <div className="px-5 py-4 rounded-2xl bg-white border border-gray-100 text-gray-500 rounded-tl-sm flex items-center gap-2 shadow-sm">
+                                <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+                                <span className="text-sm font-medium animate-pulse">Analyzing document...</span>
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 border-t border-gray-100 bg-white">
-                    <form
-                        onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                        className="relative flex items-center gap-3"
+                <div className="p-4 bg-white border-t border-gray-100">
+                    <form 
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            handleSend();
+                        }}
+                        className="relative flex items-center"
                     >
                         <input
+                            type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder="Ask me anything about this document..."
+                            placeholder="Ask anything about this document..."
+                            className="w-full pl-5 pr-14 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-gray-700 placeholder-gray-400"
                             disabled={loading}
-                            className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-5 py-3.5 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:opacity-50"
                         />
                         <button
                             type="submit"
-                            disabled={loading || !input.trim()}
-                            className="absolute right-2 p-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:bg-gray-400 transition-all"
+                            disabled={!input.trim() || loading}
+                            className="absolute right-2 p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
                         >
-                            {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                            <Send className="w-4 h-4" />
                         </button>
                     </form>
-                    <div className="mt-2 px-1 flex items-center justify-between">
-                        <p className="text-[10px] text-gray-400 font-medium">AI can make mistakes. Verify important info.</p>
-                        <div className="flex items-center gap-2">
-                            <button onClick={handleSummarize} className="text-[10px] font-bold text-indigo-600 hover:underline">Quick Summary</button>
-                            <span className="text-gray-300">|</span>
-                            <button onClick={() => setInput('Can you draft a reply to this?')} className="text-[10px] font-bold text-indigo-600 hover:underline">Draft Reply</button>
-                        </div>
-                    </div>
+                    <p className="text-center text-[11px] text-gray-400 mt-3 font-medium">
+                        AI can make mistakes. Verify important information from the document.
+                    </p>
                 </div>
 
             </div>

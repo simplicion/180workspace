@@ -73,7 +73,9 @@ function formatBytes(bytes: number) {
 
 // ─── Preview Modal ────────────────────────────────────────────────────────────
 function PreviewModal({ doc, onClose }: { doc: any; onClose: () => void }) {
-    const ext = doc.url?.split('.').pop()?.split('?')[0]?.toLowerCase();
+    const docUrl = doc.url || doc.fileUrl;
+    const docTitle = doc.title || doc.name;
+    const ext = docUrl?.split('.').pop()?.split('?')[0]?.toLowerCase();
     const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
     const isPDF = ext === 'pdf';
 
@@ -86,13 +88,13 @@ function PreviewModal({ doc, onClose }: { doc: any; onClose: () => void }) {
                             <FileText className="w-4 h-4 text-indigo-600" />
                         </div>
                         <div>
-                            <h2 className="text-base font-semibold text-gray-900 truncate max-w-[60vw]">{doc.title}</h2>
+                            <h2 className="text-base font-semibold text-gray-900 truncate max-w-[60vw]">{docTitle}</h2>
                             <p className="text-xs text-gray-400">{new Date(doc.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {doc.url && (
-                            <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                        {docUrl && (
+                            <a href={docUrl} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors">
                                 <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
                             </a>
@@ -104,9 +106,9 @@ function PreviewModal({ doc, onClose }: { doc: any; onClose: () => void }) {
                 </div>
                 <div className="flex-1 overflow-auto p-4 bg-gray-50">
                     {isImage ? (
-                        <img src={doc.url} alt={doc.title} className="max-w-full mx-auto rounded-xl shadow-lg" />
+                        <img src={docUrl} alt={docTitle} className="max-w-full mx-auto rounded-xl shadow-lg" />
                     ) : isPDF ? (
-                        <iframe src={doc.url} className="w-full h-[72vh] rounded-xl border border-gray-200" title={doc.title} />
+                        <iframe src={docUrl} className="w-full h-[72vh] rounded-xl border border-gray-200" title={docTitle} />
                     ) : (
                         <div className="flex flex-col items-center justify-center py-24 text-center">
                             <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center mb-5">
@@ -114,8 +116,8 @@ function PreviewModal({ doc, onClose }: { doc: any; onClose: () => void }) {
                             </div>
                             <p className="text-gray-600 font-semibold text-lg mb-1">Preview unavailable</p>
                             <p className="text-gray-400 text-sm mb-5">This file type cannot be previewed in-browser.</p>
-                            {doc.url && (
-                                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="btn-primary">
+                            {docUrl && (
+                                <a href={docUrl} target="_blank" rel="noopener noreferrer" className="btn-primary">
                                     <Download className="w-4 h-4" /> Download File
                                 </a>
                             )}
@@ -189,7 +191,10 @@ export default function DocumentsPage() {
         const isLink = (doc as any).isLinkOnly || (doc as any).fileType === 'link' || doc.type === 'link';
         const url = doc.url || (doc as any).fileUrl;
         
-        if (isLink && url) {
+        const ext = url?.split('.').pop()?.split('?')[0]?.toLowerCase();
+        const isPreviewable = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext || '');
+
+        if (url && (isLink || !isPreviewable)) {
             window.open(url, '_blank', 'noopener,noreferrer');
         } else {
             setSelectedDoc(doc);

@@ -555,6 +555,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         socket.on('chat:stop_typing', ({ userId }: { userId: string }) => setTypingUsers(p => p.filter(id => id !== userId)));
         socket.on('user:online', ({ userId }: { userId: string }) => setOnlineUsers(p => new Set([...p, userId])));
         socket.on('user:offline', ({ userId }: { userId: string }) => setOnlineUsers(p => { const s = new Set(p); s.delete(userId); return s; }));
+        socket.on('users:online_list', ({ onlineUsers: list }: { onlineUsers: string[] }) => setOnlineUsers(new Set(list)));
 
         // Call signaling
         socket.on('call:request', (data) => {
@@ -724,7 +725,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         return other?.name || 'Chat';
     };
     const getChatOther = (chat: Chat) => chat.members.find(m => (m._id || m.id) !== (user?._id || user?.id));
-    const isOtherOnline = (chat: Chat) => { const o = getChatOther(chat); return o ? onlineUsers.has(o.id) : false; };
+    const isOtherOnline = (chat: Chat) => { const o = getChatOther(chat); return o ? onlineUsers.has(o._id || o.id) : false; };
 
     const handleCallResponse = (accepted: boolean) => {
         if (!incomingCall) return;
