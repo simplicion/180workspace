@@ -35,14 +35,17 @@ export default function WorkspaceRoot() {
       </nav>
 
       <main className="flex-1 w-full pt-24 relative z-10">
-        {/* Hero Section */}
-        <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-20 md:pt-20 md:pb-24 flex flex-col items-center text-center">
-          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-8 leading-[1.1] max-w-4xl">
-            Run your entire company from <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">one unified workspace.</span>
+        <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 md:pt-24 md:pb-28 flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-700 font-semibold text-sm mb-8 shadow-sm">
+            <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
+            The New Business Operating System
+          </div>
+          <h1 className="text-5xl md:text-7xl font-black text-slate-950 tracking-tighter mb-8 leading-[1.05] max-w-5xl">
+            Stop losing time to fragmented tools. Run your business on <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">one unified engine.</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mb-12 leading-relaxed">
-            Replace dozens of fragmented tools. 180workspace allows you to manage your HR, CRM, Projects, Finances, and Media in a single, scalable platform designed for modern teams.
+          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mb-12 leading-relaxed font-medium">
+            Software sprawl is killing productivity and costing you thousands. 180workspace replaces dozens of chaotic apps with a single, powerful platform for your CRM, HR, Projects, and Finances.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
@@ -59,8 +62,8 @@ export default function WorkspaceRoot() {
         <section id="features" className="w-full py-24 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Everything you need to scale</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">180workspace comes fully loaded with enterprise-grade modules to handle every aspect of your business operations.</p>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-950 tracking-tight mb-4">Eliminate chaos. Scale with confidence.</h2>
+              <p className="text-xl text-slate-600 max-w-3xl mx-auto font-medium">Stop duct-taping your business together. 180workspace provides everything you need natively, so your team can focus on growth instead of managing software.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -70,8 +73,8 @@ export default function WorkspaceRoot() {
                 <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 border border-indigo-200">
                   <Briefcase className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">CRM & Sales Pipeline</h3>
-                <p className="text-slate-600 text-lg max-w-md">Track leads, manage client relationships, and close deals faster with our integrated CRM. Never let an opportunity slip through the cracks again.</p>
+                <h3 className="text-2xl font-bold text-slate-950 tracking-tight mb-3">CRM & Sales Pipeline</h3>
+                <p className="text-slate-600 text-lg max-w-md font-medium">Stop letting leads slip through the cracks. Manage client relationships, track pipelines, and close deals faster with a CRM that actually talks to the rest of your business.</p>
               </div>
 
               {/* Feature 2 */}
@@ -80,8 +83,8 @@ export default function WorkspaceRoot() {
                 <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-200">
                   <Users className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">HR Management</h3>
-                <p className="text-slate-600 text-lg">Manage your team, track time off, handle recruiting, and streamline employee onboarding.</p>
+                <h3 className="text-2xl font-bold text-slate-950 tracking-tight mb-3">HR Management</h3>
+                <p className="text-slate-600 text-lg font-medium">Say goodbye to messy spreadsheets. Automate onboarding, track time off, and manage your entire workforce seamlessly.</p>
               </div>
 
               {/* Feature 3 */}
@@ -90,8 +93,8 @@ export default function WorkspaceRoot() {
                 <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 border border-blue-200">
                   <LayoutDashboard className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">Projects & Tasks</h3>
-                <p className="text-slate-600 text-lg">Keep teams aligned and deliver on time with robust project tracking and kanban boards.</p>
+                <h3 className="text-2xl font-bold text-slate-950 tracking-tight mb-3">Projects & Tasks</h3>
+                <p className="text-slate-600 text-lg font-medium">End the status-update meetings. Keep your team aligned and deliver on time with robust kanban boards and project tracking.</p>
               </div>
 
               {/* Feature 4 */}
@@ -100,8 +103,8 @@ export default function WorkspaceRoot() {
                 <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6 border border-amber-200">
                   <Wallet className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">Finance & Assets</h3>
-                <p className="text-slate-600 text-lg">Monitor expenses, track revenue, and manage company assets from a centralized dashboard.</p>
+                <h3 className="text-2xl font-bold text-slate-950 tracking-tight mb-3">Finance & Assets</h3>
+                <p className="text-slate-600 text-lg font-medium">Take control of your cash flow. Monitor expenses, track revenue, and manage company assets without complex accounting software.</p>
               </div>
 
               {/* Feature 5 */}
@@ -110,8 +113,8 @@ export default function WorkspaceRoot() {
                 <div className="w-14 h-14 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center mb-6 border border-pink-200">
                   <BarChart3 className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">Deep Insights</h3>
-                <p className="text-slate-600 text-lg">Generate real-time reports and analytics across all your business operations.</p>
+                <h3 className="text-2xl font-bold text-slate-950 tracking-tight mb-3">Deep Insights</h3>
+                <p className="text-slate-600 text-lg font-medium">Stop guessing. Make data-driven decisions with real-time reports and analytics across all your operations.</p>
               </div>
             </div>
           </div>
@@ -119,8 +122,8 @@ export default function WorkspaceRoot() {
 
         {/* Final CTA */}
         <section className="w-full py-24 px-4 text-center">
-          <h2 className="text-4xl font-bold text-slate-900 mb-6">Ready to upgrade your workspace?</h2>
-          <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">Join thousands of teams running their entire business on 180workspace.</p>
+          <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-950 mb-6">Stop paying the fragmentation tax.</h2>
+          <p className="text-xl text-slate-600 font-medium mb-10 max-w-2xl mx-auto">Join forward-thinking businesses who have consolidated their tech stack and accelerated their growth.</p>
           <Link href="/login" className="inline-flex px-10 py-5 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1">
             Create your free account
           </Link>
