@@ -94,7 +94,8 @@ export default function GoogleIntegrationsTab() {
         try {
             await api.post('/api/integrations/google/disconnect');
             toast.success('Google Services disconnected');
-            setOauthFolders([]);
+            setDriveFiles([]);
+            setFolderHistory([{ id: 'root', name: 'My Drive' }]);
             await refreshGlobalSettings(true);
         } catch (e) {
             toast.error('Failed to disconnect Google Services');
@@ -106,7 +107,6 @@ export default function GoogleIntegrationsTab() {
             await api.post('/api/integrations/google/callback', { code });
             toast.success('Google Services connected successfully');
             await refreshGlobalSettings(true);
-            fetchOauthFolders();
         } catch (e: any) {
             const errorMsg = e.response?.data?.error || 'Failed to connect Google Services';
             toast.error(errorMsg);
