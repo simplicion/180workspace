@@ -252,7 +252,7 @@ export default function SignupFlow() {
             </div>
 
             {/* ── Signup Form Container ─────────────────────────────────────────── */}
-            <div className="w-full max-w-md relative z-10 bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl shadow-blue-900/10 border border-blue-100 my-12 overflow-y-auto max-h-[90vh]">
+            <div className="w-full max-w-md relative z-10 p-8 sm:p-10 my-12 overflow-y-auto max-h-[90vh]">
                 
                 {/* Logo */}
                 <div className="flex items-center justify-center gap-3 mb-10">

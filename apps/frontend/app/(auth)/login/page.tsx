@@ -209,7 +209,7 @@ function LoginForm() {
             </div>
 
             {/* ── Login Form Container ─────────────────────────────────────────── */}
-            <div className="w-full max-w-md relative z-10 bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl shadow-blue-900/10 border border-blue-100 my-12">
+            <div className="w-full max-w-md relative z-10 p-8 sm:p-10 my-12">
                 
                 {/* Logo */}
                 <div className="flex items-center justify-center gap-3 mb-10">
@@ -225,9 +225,8 @@ function LoginForm() {
                         )}
                     </div>
 
-                    <div className="text-center lg:text-left mb-10">
-                        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Welcome Back</h2>
-                        <p className="text-gray-500 font-medium">Please enter your credentials to access your workspace.</p>
+                    <div className="text-center mb-10">
+                        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Welcome Back</h2>
                     </div>
 
                     {/* Google Auth */}
