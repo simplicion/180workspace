@@ -14,9 +14,9 @@ export default function WorkspaceRoot() {
       {/* Navigation (Glassmorphism) */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/70 backdrop-blur-md border-b border-slate-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img src="/black icon.svg" alt="180workspace Icon" className="w-10 h-10" />
-            <span className="text-2xl font-black text-slate-900 tracking-tight">180workspace</span>
+          <div className="flex items-center gap-3 cursor-pointer">
+            <img src="/black icon.svg" alt="180workspace" className="w-8 h-8" />
+            <span className="text-2xl font-black text-slate-900 tracking-tight"><span className="text-blue-600">180</span>workspace</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <Link href="#features" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Features</Link>
@@ -131,9 +131,9 @@ export default function WorkspaceRoot() {
       {/* Footer */}
       <footer className="w-full bg-white/80 backdrop-blur-md py-12 px-6 border-t border-slate-200 relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <img src="/black icon.svg" alt="180workspace Icon" className="w-6 h-6" />
-            <span className="text-xl font-bold text-slate-900">180workspace</span>
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <img src="/black icon.svg" alt="180workspace" className="w-8 h-8 opacity-90" />
+            <span className="text-xl font-bold text-slate-900"><span className="text-blue-600">180</span>workspace</span>
           </div>
           <div className="flex flex-wrap justify-center gap-6">
             <Link href="/privacy-policy" className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Privacy Policy</Link>

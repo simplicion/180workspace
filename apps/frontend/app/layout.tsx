@@ -13,12 +13,12 @@ export const viewport = {
 
 export const metadata: Metadata = {
     title: {
-        default: 'Pitchin180',
-        template: '%s | Pitchin180',
+        default: '180workspace - The Ultimate Business Operating System',
+        template: '%s | 180workspace',
     },
-    description: 'Pitchin180 - Your ultimate networking and community platform.',
-    keywords: ['Networking', 'Community', 'Pitchin180', 'Professionals'],
-    authors: [{ name: 'Pitchin180 Team' }],
+    description: 'Replace dozens of fragmented tools. 180workspace allows you to manage your HR, CRM, Projects, Finances, and Media in a single, scalable platform.',
+    keywords: ['Business Operating System', 'HR', 'CRM', 'Project Management', 'Finance Management', '180workspace', 'Unified Workspace', 'Team Collaboration'],
+    authors: [{ name: '180workspace Team' }],
     robots: 'index, follow',
 };
 
@@ -37,9 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         __html: JSON.stringify({
                             "@context": "https://schema.org",
                             "@type": "WebSite",
-                            name: "Pitchin180",
-                            url: "https://pitchin180.com",
-                            description: "Your ultimate networking and community platform.",
+                            name: "180workspace",
+                            url: "https://180workspace.com",
+                            description: "The ultimate business operating system for modern teams.",
                         })
                     }}
                 />
@@ -49,9 +49,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         __html: JSON.stringify({
                             "@context": "https://schema.org",
                             "@type": "Organization",
-                            name: "Pitchin180",
-                            url: "https://pitchin180.com",
-                            logo: "https://pitchin180.com/black icon.svg",
+                            name: "180workspace",
+                            url: "https://180workspace.com",
+                            logo: "https://180workspace.com/black icon.svg",
                         })
                     }}
                 />
