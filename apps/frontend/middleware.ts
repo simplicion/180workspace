@@ -23,6 +23,14 @@ export default withAuth(
     const isPitchInUser = token?.role === 'USER';
     const isOnboardingDone = token?.isFirstLogin === false;  // isFirstLogin: true = NOT done
 
+    // 0. Redirect authenticated users hitting the landing page to their dashboard
+    if (isAuth && req.nextUrl.pathname === "/") {
+       if (!isOnboardingDone) {
+         return NextResponse.redirect(new URL("/signup", req.url));
+       }
+       return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
     // 1. Unauthenticated users
     if (!isAuth) {
       if (isPitchInRoute) {
@@ -54,8 +62,8 @@ export default withAuth(
         }
         return NextResponse.redirect(new URL("/signup", req.url));
       }
-      // Onboarding is done — redirect away from auth pages to their home (PitchIn App)
-      return NextResponse.redirect(new URL("/", req.url));
+      // Onboarding is done — redirect away from auth pages to their dashboard
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     // 3. User is trying to access 180workspace routes (Dashboard, CRM, etc.)
