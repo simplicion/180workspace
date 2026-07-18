@@ -1,7 +1,5 @@
 import Link from 'next/link';
 import { ArrowRight, Cloud, HardDrive, Shield } from 'lucide-react';
-import Link from 'next/link';
-import { ArrowRight, Cloud, HardDrive, Shield } from 'lucide-react';
 
 export default function WorkspaceRoot() {
   return (
