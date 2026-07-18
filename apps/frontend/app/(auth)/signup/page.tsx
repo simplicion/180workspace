@@ -238,40 +238,24 @@ export default function SignupFlow() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
-            {/* ── CRM Branding Showcase ──────────────────────────────────── */}
-            <div className="hidden lg:flex w-1/2 bg-slate-900 text-white relative overflow-hidden flex-col items-center justify-center border-r border-slate-800">
-                {/* Abstract Glowing Orbs */}
-                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-3xl -mr-64 -mt-64" />
-                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-3xl -ml-48 -mb-48" />
-                
-                {/* Subtle Grid Background */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-                
-                {/* Large Logo Watermark */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-                    <img src="/white icon.svg" alt="Watermark" className="w-[32rem] h-[32rem]" />
-                </div>
-                
-                {/* Center Branding */}
-                <div className="relative z-10 flex flex-col items-center text-center">
-                    <div className="w-24 h-24 bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 p-5 mb-8 flex items-center justify-center">
-                        <img src="/white icon.svg" alt="Icon" className="w-14 h-14" />
-                    </div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-white mb-3 uppercase">
-                        <span className="text-blue-500">180</span>workspace
-                    </h1>
-                    <p className="text-slate-400 font-medium tracking-widest text-sm uppercase">
-                        Enterprise Operations Platform
-                    </p>
-                </div>
+        <div className="min-h-screen bg-white flex items-center justify-center relative overflow-hidden">
+            {/* Full Page Blue Grid Background */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#3b82f61a_1px,transparent_1px),linear-gradient(to_bottom,#3b82f61a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+            
+            {/* Subtle blue orbs for depth */}
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
+
+            {/* Large Logo Watermark */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                <img src="/black icon.svg" alt="Watermark" className="w-[32rem] h-[32rem]" />
             </div>
 
-            {/* ── Right Column: Interactive Form ─────────────────────────────────────────── */}
-            <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 xl:p-24 relative overflow-y-auto min-h-screen bg-gray-50">
+            {/* ── Signup Form Container ─────────────────────────────────────────── */}
+            <div className="w-full max-w-md relative z-10 bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl shadow-blue-900/10 border border-blue-100 my-12 overflow-y-auto max-h-[90vh]">
                 
-                {/* Mobile Logo */}
-                <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
+                {/* Logo */}
+                <div className="flex items-center justify-center gap-3 mb-10">
                     {platform?.logo ? (
                         <img src={platform.logo} alt="Logo" className="w-10 h-10 bg-white rounded-lg shadow-sm p-1" />
                     ) : (
