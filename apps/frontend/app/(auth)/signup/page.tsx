@@ -239,84 +239,11 @@ export default function SignupFlow() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
-            {/* ── Left Column: Marketing Showcase ──────────────────────────────────── */}
-            <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-[#0f172a] via-blue-900 to-[#0f172a] text-white p-12 flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mr-32 -mt-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl opacity-50" />
-                <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl opacity-50" />
+            {/* ── Interactive Form ─────────────────────────────────────────── */}
+            <div className="w-full flex flex-col items-center justify-center p-8 sm:p-12 xl:p-24 relative overflow-y-auto min-h-screen">
                 
-                <div className="relative z-10">
-                    <motion.div 
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="flex items-center gap-3 mb-16"
-                    >
-                        {platform?.logo ? (
-                            <img src={platform.logo} alt="Logo" className="w-12 h-12 bg-white rounded-xl shadow-lg border-2 border-white/20 p-1" />
-                        ) : (
-                            <img src="/white icon.svg" alt="Icon" className="w-12 h-12" />
-                        )}
-                        {platform?.platformName ? (
-                            <span className="font-bold tracking-widest text-lg uppercase text-white">{platform.platformName}</span>
-                        ) : (
-                            <span className="font-bold tracking-tight text-2xl text-white uppercase"><span className="text-blue-500">180</span>workspace</span>
-                        )}
-                    </motion.div>
-
-                    <motion.div 
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                        className="max-w-xl"
-                    >
-                        <h1 className="text-5xl font-extrabold leading-tight tracking-tight mb-6 flex items-center flex-wrap">
-                            Join <span className="font-bold tracking-tight text-5xl text-white ml-4 mt-2"><span className="text-blue-500">180</span>workspace</span>.
-                        </h1>
-                        <p className="text-lg text-gray-300 leading-relaxed mb-12">
-                            Connect with founders, investors, and top talent. Showcase your ideas, build your network, and shape the future.
-                        </p>
-
-                        <div className="space-y-6">
-                            {[
-                                { icon: Rocket, title: "Discover Startups", desc: "Find the next big thing before anyone else." },
-                                { icon: Shield, title: "Secure Networking", desc: "Build meaningful connections safely." },
-                                { icon: Clock, title: "Fast-Track Growth", desc: "Access mentors and resources instantly." }
-                            ].map((feature, i) => (
-                                <motion.div 
-                                    key={i}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.4, delay: 0.4 + (i * 0.1) }}
-                                    className="flex items-center gap-4 bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors"
-                                >
-                                    <div className="flex-shrink-0 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center shadow-inner">
-                                        <feature.icon className="w-6 h-6 text-blue-300" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-white text-base">{feature.title}</h4>
-                                        <p className="text-sm text-gray-300">{feature.desc}</p>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </motion.div>
-                </div>
-                
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1, delay: 1 }}
-                    className="relative z-10 text-sm text-gray-500 font-medium"
-                >
-                    &copy; <span suppressHydrationWarning>{new Date().getFullYear()}</span> {platform?.platformName || 'Platform'}. All rights reserved.
-                </motion.div>
-            </div>
-
-            {/* ── Right Column: Interactive Form ─────────────────────────────────────────── */}
-            <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 xl:p-24 relative overflow-y-auto min-h-screen">
-                
-                {/* Mobile Logo */}
-                <div className="lg:hidden flex items-center justify-center gap-3 mb-10 absolute top-8">
+                {/* Logo */}
+                <div className="flex items-center justify-center gap-3 mb-10 absolute top-8">
                     {platform?.logo ? (
                         <img src={platform.logo} alt="Logo" className="w-10 h-10 bg-white rounded-lg shadow-sm p-1" />
                     ) : (

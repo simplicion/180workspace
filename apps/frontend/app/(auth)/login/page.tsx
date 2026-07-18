@@ -196,86 +196,13 @@ function LoginForm() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
-            {/* ── Left Column: Marketing Showcase ──────────────────────────────────── */}
-            <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-primary to-[#0f172a] text-white p-12 flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mr-32 -mt-32 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-96 h-96 bg-primary-dark/50 rounded-full blur-3xl" />
-                
-                <div className="relative z-10">
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="flex items-center gap-3 mb-16"
-                    >
-                        {platform?.logo ? (
-                            <img src={platform.logo} alt="Logo" className="w-12 h-12 bg-white rounded-xl shadow-lg border-2 border-white/20 p-1" />
-                        ) : (
-                            <img src="/white icon.svg" alt="Icon" className="w-12 h-12" />
-                        )}
-                        {platform?.name ? (
-                            <span className="font-bold tracking-widest text-lg uppercase text-white">{platform.name}</span>
-                        ) : (
-                            <span className="font-bold tracking-tight text-2xl text-white uppercase"><span className="text-blue-500">180</span>workspace</span>
-                        )}
-                    </motion.div>
-
-                    <motion.div 
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                        className="max-w-xl"
-                    >
-                        <h1 className="text-5xl font-extrabold leading-tight tracking-tight mb-6">
-                            Launch Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-emerald-300">Intelligence.</span>
-                        </h1>
-                        <p className="text-lg text-blue-100/80 leading-relaxed mb-12">
-                            The enterprise-grade management system designed to scale with your workspace. Experience seamless HR, project management, and real-time insights in one unified dashboard.
-                        </p>
-
-                        <div className="space-y-6">
-                            {[
-                                { icon: Zap, title: "AI-Powered Automation", desc: "Reduce manual effort with smart workflows." },
-                                { icon: ShieldCheck, title: "Enterprise Security", desc: "Bank-level encryption and secure tenant isolation." },
-                                { icon: BarChart3, title: "Real-time Insights", desc: "Live analytics to drive data-backed decisions." }
-                            ].map((feature, i) => (
-                                <motion.div 
-                                    key={i}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.4, delay: 0.4 + (i * 0.1) }}
-                                    className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm"
-                                >
-                                    <div className="flex-shrink-0 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                                        <feature.icon className="w-6 h-6 text-emerald-300" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-white">{feature.title}</h4>
-                                        <p className="text-sm text-blue-100/60">{feature.desc}</p>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </motion.div>
-                </div>
-                
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1, delay: 1 }}
-                    className="relative z-10 text-sm text-blue-100/40"
-                >
-                    &copy; {new Date().getFullYear()} {platform?.name || '180workspace'}. All rights reserved.
-                </motion.div>
-            </div>
-
-            {/* ── Right Column: Login Form ─────────────────────────────────────────── */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 xl:p-24 relative bg-gray-50">
+            {/* ── Login Form ─────────────────────────────────────────── */}
+            <div className="w-full flex items-center justify-center p-8 sm:p-12 xl:p-24 relative bg-gray-50">
                 <div className="absolute top-0 right-0 w-full h-1/2 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
 
                 <div className="w-full max-w-md relative z-10">
-                    {/* Mobile Logo */}
-                    <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
+                    {/* Logo */}
+                    <div className="flex items-center justify-center gap-3 mb-10">
                         {platform?.logo ? (
                             <img src={platform.logo} alt="Logo" className="w-10 h-10 bg-white rounded-lg shadow-sm p-1" />
                         ) : (
