@@ -185,6 +185,17 @@ export default function DocumentsPage() {
         } catch { toast.error('Failed to delete'); }
     }
 
+    const handleDocumentClick = (doc: Document) => {
+        const isLink = (doc as any).isLinkOnly || (doc as any).fileType === 'link' || doc.type === 'link';
+        const url = doc.url || (doc as any).fileUrl;
+        
+        if (isLink && url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        } else {
+            setSelectedDoc(doc);
+        }
+    };
+
     const HR_CATEGORIES = ['HR', 'ID Proof', 'Joining Letter', 'Experience Letter', 'Appraisal Letter'];
     const FINANCE_CATEGORIES = ['Finance', 'Payslip'];
 
@@ -319,7 +330,7 @@ export default function DocumentsPage() {
                         const typeBadge = TYPE_COLORS[(doc as any).folder] || TYPE_COLORS.Other;
                         return (
                             <div key={doc.id} className="card p-5 hover:shadow-lg hover:shadow-gray-100 transition-all duration-200 group flex flex-col">
-                                <div className="flex items-start gap-3 cursor-pointer" onClick={() => setSelectedDoc(doc)}>
+                                <div className="flex items-start gap-3 cursor-pointer" onClick={() => handleDocumentClick(doc)}>
                                     <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-600 transition-colors duration-300">
                                         <Icon className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
                                     </div>
@@ -366,7 +377,7 @@ export default function DocumentsPage() {
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-1 mt-4 pt-3 border-t border-gray-50">
-                                    <button onClick={() => setSelectedDoc(doc)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" title="Preview">
+                                    <button onClick={() => handleDocumentClick(doc)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" title="Preview / Open">
                                         <Eye className="w-4 h-4" />
                                     </button>
                                     {doc.url && (
