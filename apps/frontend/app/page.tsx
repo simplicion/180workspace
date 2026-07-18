@@ -19,26 +19,26 @@ export default function WorkspaceRoot() {
             <span className="text-2xl font-black text-slate-900 tracking-tight">180workspace</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <Link href="#features" className="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors">Features</Link>
-            <Link href="#integrations" className="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors">Integrations</Link>
-            <Link href="/privacy-policy" className="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors">Privacy</Link>
+            <Link href="#features" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Features</Link>
+            <Link href="#integrations" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Integrations</Link>
+            <Link href="/privacy-policy" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Privacy</Link>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login" className="hidden sm:inline-flex px-5 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-slate-900 rounded-full transition-all shadow-sm">
               Log in
             </Link>
-            <Link href="/login" className="px-5 py-2.5 text-sm font-bold text-white bg-slate-900 hover:bg-indigo-600 rounded-full transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+            <Link href="/login" className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
               Get Started
             </Link>
           </div>
         </div>
       </nav>
 
-      <main className="flex-1 w-full pt-28 relative z-10">
+      <main className="flex-1 w-full pt-24 relative z-10">
         {/* Hero Section */}
-        <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 md:pt-32 md:pb-32 flex flex-col items-center text-center">
-          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-8 leading-[1.1] max-w-4xl mt-12">
-            Run your entire company from <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">one unified workspace.</span>
+        <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-20 md:pt-20 md:pb-24 flex flex-col items-center text-center">
+          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-8 leading-[1.1] max-w-4xl">
+            Run your entire company from <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">one unified workspace.</span>
           </h1>
 
           <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mb-12 leading-relaxed">
@@ -46,7 +46,7 @@ export default function WorkspaceRoot() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <Link href="/login" className="w-full sm:w-auto px-8 py-4 text-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1">
+            <Link href="/login" className="w-full sm:w-auto px-8 py-4 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1">
               Start your workspace <ArrowRight className="w-5 h-5" />
             </Link>
             <Link href="#features" className="w-full sm:w-auto px-8 py-4 text-lg font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-full shadow-sm transition-all flex items-center justify-center">
@@ -121,7 +121,7 @@ export default function WorkspaceRoot() {
         <section className="w-full py-24 px-4 text-center">
           <h2 className="text-4xl font-bold text-slate-900 mb-6">Ready to upgrade your workspace?</h2>
           <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">Join thousands of teams running their entire business on 180workspace.</p>
-          <Link href="/login" className="inline-flex px-10 py-5 text-lg font-bold text-white bg-slate-900 hover:bg-indigo-600 rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1">
+          <Link href="/login" className="inline-flex px-10 py-5 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1">
             Create your free account
           </Link>
         </section>
@@ -136,9 +136,9 @@ export default function WorkspaceRoot() {
             <span className="text-xl font-bold text-slate-900">180workspace</span>
           </div>
           <div className="flex flex-wrap justify-center gap-6">
-            <Link href="/privacy-policy" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors">Privacy Policy</Link>
-            <Link href="/terms-of-service" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors">Terms of Service</Link>
-            <a href="mailto:support@180workspace.com" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors">Contact Support</a>
+            <Link href="/privacy-policy" className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Privacy Policy</Link>
+            <Link href="/terms-of-service" className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Terms of Service</Link>
+            <a href="mailto:support@180workspace.com" className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Contact Support</a>
           </div>
           <div className="text-sm text-slate-400 font-medium">
             &copy; {new Date().getFullYear()} 180workspace. All rights reserved.

@@ -334,7 +334,7 @@ function LoginForm() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-4 rounded-2xl font-bold text-sm text-white bg-gray-900 hover:bg-black transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-gray-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
+                                className="w-full py-4 rounded-2xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
                             >
                                 {loading ? <LogoLoader className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
                                 {loading ? 'Authenticating...' : 'Sign In'}
@@ -436,7 +436,7 @@ function LoginForm() {
                                         <button
                                             type="submit"
                                             disabled={forgotLoading || !forgotEmail}
-                                            className="w-full py-3.5 rounded-xl font-bold text-sm text-white bg-gray-900 hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                            className="w-full py-3.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                                         >
                                             {forgotLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Retrieve Password'}
                                         </button>
