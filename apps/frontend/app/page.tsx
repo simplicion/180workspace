@@ -61,62 +61,62 @@ export default function WorkspaceRoot() {
         </section>
 
         {/* Bento Box Features Grid */}
-        <section id="features" className="w-full bg-slate-900 py-24 px-4 sm:px-6 lg:px-8">
+        <section id="features" className="w-full bg-white py-24 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Everything you need to scale</h2>
-              <p className="text-lg text-slate-400 max-w-2xl mx-auto">180workspace comes fully loaded with enterprise-grade modules to handle every aspect of your business operations.</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Everything you need to scale</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto">180workspace comes fully loaded with enterprise-grade modules to handle every aspect of your business operations.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Feature 1 */}
-              <div className="col-span-1 md:col-span-2 lg:col-span-2 bg-slate-800 rounded-3xl p-8 border border-slate-700 hover:border-indigo-500/50 transition-colors group overflow-hidden relative">
+              <div className="col-span-1 md:col-span-2 lg:col-span-2 bg-slate-50 rounded-3xl p-8 border border-slate-200 hover:border-indigo-300 transition-colors group overflow-hidden relative shadow-sm">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-indigo-500/20 transition-all"></div>
-                <div className="w-14 h-14 bg-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center mb-6 border border-indigo-500/20">
+                <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 border border-indigo-200">
                   <Briefcase className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">CRM & Sales Pipeline</h3>
-                <p className="text-slate-400 text-lg max-w-md">Track leads, manage client relationships, and close deals faster with our integrated CRM. Never let an opportunity slip through the cracks again.</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">CRM & Sales Pipeline</h3>
+                <p className="text-slate-600 text-lg max-w-md">Track leads, manage client relationships, and close deals faster with our integrated CRM. Never let an opportunity slip through the cracks again.</p>
               </div>
 
               {/* Feature 2 */}
-              <div className="bg-slate-800 rounded-3xl p-8 border border-slate-700 hover:border-emerald-500/50 transition-colors group relative overflow-hidden">
+              <div className="bg-slate-50 rounded-3xl p-8 border border-slate-200 hover:border-emerald-300 transition-colors group relative overflow-hidden shadow-sm">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-emerald-500/20 transition-all"></div>
-                <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-200">
                   <Users className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">HR Management</h3>
-                <p className="text-slate-400 text-lg">Manage your team, track time off, handle recruiting, and streamline employee onboarding.</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">HR Management</h3>
+                <p className="text-slate-600 text-lg">Manage your team, track time off, handle recruiting, and streamline employee onboarding.</p>
               </div>
 
               {/* Feature 3 */}
-              <div className="bg-slate-800 rounded-3xl p-8 border border-slate-700 hover:border-blue-500/50 transition-colors group relative overflow-hidden">
+              <div className="bg-slate-50 rounded-3xl p-8 border border-slate-200 hover:border-blue-300 transition-colors group relative overflow-hidden shadow-sm">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-blue-500/20 transition-all"></div>
-                <div className="w-14 h-14 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
+                <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 border border-blue-200">
                   <LayoutDashboard className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Projects & Tasks</h3>
-                <p className="text-slate-400 text-lg">Keep teams aligned and deliver on time with robust project tracking and kanban boards.</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Projects & Tasks</h3>
+                <p className="text-slate-600 text-lg">Keep teams aligned and deliver on time with robust project tracking and kanban boards.</p>
               </div>
 
               {/* Feature 4 */}
-              <div className="bg-slate-800 rounded-3xl p-8 border border-slate-700 hover:border-amber-500/50 transition-colors group relative overflow-hidden">
+              <div className="bg-slate-50 rounded-3xl p-8 border border-slate-200 hover:border-amber-300 transition-colors group relative overflow-hidden shadow-sm">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-amber-500/20 transition-all"></div>
-                <div className="w-14 h-14 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mb-6 border border-amber-500/20">
+                <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6 border border-amber-200">
                   <Wallet className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Finance & Assets</h3>
-                <p className="text-slate-400 text-lg">Monitor expenses, track revenue, and manage company assets from a centralized dashboard.</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Finance & Assets</h3>
+                <p className="text-slate-600 text-lg">Monitor expenses, track revenue, and manage company assets from a centralized dashboard.</p>
               </div>
 
               {/* Feature 5 */}
-              <div className="bg-slate-800 rounded-3xl p-8 border border-slate-700 hover:border-pink-500/50 transition-colors group relative overflow-hidden">
+              <div className="bg-slate-50 rounded-3xl p-8 border border-slate-200 hover:border-pink-300 transition-colors group relative overflow-hidden shadow-sm">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-pink-500/20 transition-all"></div>
-                <div className="w-14 h-14 bg-pink-500/20 text-pink-400 rounded-2xl flex items-center justify-center mb-6 border border-pink-500/20">
+                <div className="w-14 h-14 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center mb-6 border border-pink-200">
                   <BarChart3 className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Deep Insights</h3>
-                <p className="text-slate-400 text-lg">Generate real-time reports and analytics across all your business operations.</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Deep Insights</h3>
+                <p className="text-slate-600 text-lg">Generate real-time reports and analytics across all your business operations.</p>
               </div>
             </div>
           </div>
