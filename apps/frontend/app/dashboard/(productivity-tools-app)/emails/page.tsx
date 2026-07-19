@@ -59,7 +59,7 @@ export default function EmailManagementPage() {
     // ── Template Preview Mode ─────────────────────────────────────────────────
     const [templatePreview, setTemplatePreview] = useState<{ show: boolean, loading: boolean, subject: string, html: string, mode: 'edit' | 'view' } | null>(null);
 
-    const isHR = user && ['admin', 'hr'].includes(user.role);
+    const isHR = user && ['admin', 'manager', 'hr'].includes(user.role);
 
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true);

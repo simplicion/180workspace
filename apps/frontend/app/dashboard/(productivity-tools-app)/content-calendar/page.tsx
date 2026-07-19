@@ -33,6 +33,18 @@ export default function ContentCalendarPage() {
     const { user } = useAuth();
     const canCreateCalendar = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team')); // Adjust permissions as needed
 
+    if (user && !['admin', 'manager', 'hr'].includes(user.role)) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <CalendarDays className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">Access Denied</p>
+                    <p className="text-gray-400 text-sm mt-1">You do not have permission to view the Content Calendar.</p>
+                </div>
+            </div>
+        );
+    }
+
     const fetchCalendars = async () => {
         setLoading(true);
         try {
