@@ -51,6 +51,7 @@ exports.login = async (req, res, next) => {
                 databaseConfigured: result.company.databaseConfigured,
                 isSuspended: result.company.isSuspended,
                 suspendedReason: result.company.suspendedReason,
+                isOnboardingComplete: result.company.isOnboardingComplete,
                 metadata: typeof result.company.metadata === 'string' ? JSON.parse(result.company.metadata) : (result.company.metadata || {}),
             }
         });
@@ -108,6 +109,7 @@ exports.getMe = async (req, res, next) => {
                 databaseConfigured: result.company.databaseConfigured,
                 isSuspended: result.company.isSuspended,
                 suspendedReason: result.company.suspendedReason,
+                isOnboardingComplete: result.company.isOnboardingComplete,
                 metadata: meta,
                 enabledApps: meta.enabledApps || [],
                 enabledModules: meta.enabledModules || []
