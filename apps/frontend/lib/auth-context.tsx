@@ -171,6 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCompany(null);
         delete api.defaults.headers.common['Authorization'];
         disconnectSocket();
+        
+        window.location.href = '/login';
     };
 
     const loginWithGoogle = async (tokenId: string) => {
