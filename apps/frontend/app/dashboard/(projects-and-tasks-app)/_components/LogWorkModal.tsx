@@ -49,7 +49,14 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
     // Fetch Projects on mount
     useEffect(() => {
         api.get('/api/projects', { params: { limit: 100 } })
-            .then(({ data }) => setProjects(data.projects || []))
+            .then(({ data }) => {
+                const fetchedProjects = data.projects || [];
+                setProjects(fetchedProjects);
+                // Auto-select if there's at least 1 project and no project is currently selected
+                if (fetchedProjects.length > 0 && !form.projectId) {
+                    setForm(prev => ({ ...prev, projectId: fetchedProjects[0].id }));
+                }
+            })
             .catch(err => console.error('Error fetching projects:', err));
     }, []);
 
@@ -92,8 +99,10 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                 // Fetch tasks assigned to the user in this project/module
                 // The backend /api/tasks doesn't have a perfect "filter by project AND module AND assignee" 
                 // but we can pass params
-                const params: any = { projectId: form.projectId, limit: 200, assigneeId: user?.id };
-                params.moduleId = form.moduleId || 'null';
+                const params: any = { projectId: form.projectId, limit: 200 };
+                if (form.moduleId) {
+                    params.moduleId = form.moduleId;
+                }
                 
                 const { data } = await api.get('/api/tasks', { params });
                 setTasks(data.tasks || []);
@@ -128,8 +137,9 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!form.projectId) return toast.error('Project is required');
-        if (!form.description.trim()) return toast.error('Description is required');
+        if (!form.projectId) return toast.error('Please select a project');
+        if (!form.taskId) return toast.error('Please select a specific task');
+        if (!form.description) return toast.error('Please describe what you worked on');
         if (!form.hoursSpent) return toast.error('Hours spent is required');
 
         setSubmitting(true);
@@ -219,7 +229,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
 
                     {/* Task Selection */}
                     <div>
-                        <label className="label">Specific Task (Optional)</label>
+                        <label className="label">Specific Task *</label>
                         <div className="relative">
                             <CheckSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <select 
@@ -227,8 +237,9 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                                 onChange={set('taskId')} 
                                 className="select pl-9"
                                 disabled={!form.projectId || loadingTasks}
+                                required
                             >
-                                <option value="">No specific task</option>
+                                <option value="">Select Task</option>
                                 {tasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.status})</option>)}
                             </select>
                             {loadingTasks && <LogoLoader className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}

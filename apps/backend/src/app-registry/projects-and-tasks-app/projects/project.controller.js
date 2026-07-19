@@ -9,10 +9,25 @@ exports.getProjects = async (req, res, next) => {
     try {
         const Project = req.prisma.project;
         const { search, status, page = 1, limit = 50 } = req.query;
-        const query = {};
+        const query = { deletedAt: null };
+
+        if (req.user.companyId) {
+            query.companyId = req.user.companyId;
+        }
 
         if (status) query.status = status;
         if (search) query.name = { contains: search, mode: 'insensitive' };
+
+        const userRoles = req.user.roles || [req.user.role || 'employee'];
+        const isAdminOrCeo = userRoles.includes('admin') || userRoles.includes('ceo') || userRoles.includes('BMSP_SUPER_ADMIN') || userRoles.includes('BMSP_ADMIN');
+
+        if (!isAdminOrCeo) {
+            query.OR = [
+                { ownerId: req.user.id },
+                { memberIds: { has: req.user.id } },
+                { tasks: { some: { assigneeId: req.user.id } } }
+            ];
+        }
 
         const skip = (Number(page) - 1) * Number(limit);
         const [projects, total] = await Promise.all([
@@ -327,17 +342,154 @@ exports.getProjectTasks = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+exports.getProjectActivity = async (req, res, next) => {
+    try {
+        const projectId = req.params.id;
+
+        // Get all task IDs and module IDs for this project
+        const tasks = await req.prisma.task.findMany({
+            where: { projectId, deletedAt: null },
+            select: { id: true, title: true }
+        });
+        const modules = await req.prisma.module.findMany({
+            where: { projectId },
+            select: { id: true, title: true }
+        });
+        const taskIds = tasks.map(t => t.id);
+        const moduleIds = modules.map(m => m.id);
+
+        // Build lookup maps for resource names
+        const taskMap = {};
+        tasks.forEach(t => { taskMap[t.id] = t.title; });
+        const moduleMap = {};
+        modules.forEach(m => { moduleMap[m.id] = m.title; });
+
+        // Fetch audit logs for this project + its tasks + its modules
+        const resourceFilters = [
+            { resourceType: 'project', resourceId: projectId }
+        ];
+        if (taskIds.length > 0) {
+            resourceFilters.push({ resourceType: 'task', resourceId: { in: taskIds } });
+        }
+        if (moduleIds.length > 0) {
+            resourceFilters.push({ resourceType: 'module', resourceId: { in: moduleIds } });
+        }
+
+        const auditLogs = await req.prisma.auditLog.findMany({
+            where: { OR: resourceFilters },
+            include: {
+                user: { select: { id: true, name: true, email: true, photoUrl: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 200
+        });
+
+        // Fetch time logs for this project
+        const timeLogs = await req.prisma.timeLog.findMany({
+            where: { projectId },
+            include: {
+                user: { select: { id: true, name: true, email: true, photoUrl: true } },
+                task: { select: { id: true, title: true } }
+            },
+            orderBy: { startTime: 'desc' }
+        });
+
+        // Format audit logs into activity items
+        const actionLabels = {
+            'CREATE_PROJECT': 'Created project',
+            'UPDATE_PROJECT': 'Updated project',
+            'DELETE_PROJECT': 'Deleted project',
+            'CREATE_TASK': 'Created task',
+            'UPDATE_TASK': 'Updated task',
+            'DELETE_TASK': 'Deleted task',
+            'CREATE_MODULE': 'Created module',
+            'UPDATE_MODULE': 'Updated module',
+            'DELETE_MODULE': 'Deleted module',
+            'CREATE_NOTE': 'Added note',
+            'UPDATE_NOTE': 'Updated note',
+            'DELETE_NOTE': 'Deleted note',
+            'ASSIGN_TASK': 'Assigned task',
+            'SUBMIT_WORKLOG': 'Submitted work log',
+            'REVIEW_WORKLOG': 'Reviewed work log'
+        };
+
+        const activities = auditLogs.map(log => {
+            const details = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {});
+            let resourceName = details.title || details.name || '';
+            
+            // If no name in details, try lookup maps
+            if (!resourceName && log.resourceType === 'task') {
+                resourceName = taskMap[log.resourceId] || '';
+            }
+            if (!resourceName && log.resourceType === 'module') {
+                resourceName = moduleMap[log.resourceId] || '';
+            }
+
+            return {
+                id: log.id,
+                type: 'audit',
+                action: log.action,
+                actionLabel: actionLabels[log.action] || log.action,
+                resourceType: log.resourceType,
+                resourceId: log.resourceId,
+                resourceName,
+                user: log.user,
+                details,
+                timestamp: log.createdAt
+            };
+        });
+
+        // Format time logs into activity items
+        const timeActivities = timeLogs.map(tl => ({
+            id: tl.id,
+            type: 'timelog',
+            action: 'TIME_LOG',
+            actionLabel: 'Logged time',
+            resourceType: 'task',
+            resourceId: tl.taskId,
+            resourceName: tl.task?.title || '',
+            user: tl.user,
+            details: {
+                description: tl.description,
+                durationMinutes: tl.durationMinutes,
+                hours: (tl.durationMinutes / 60).toFixed(1),
+                startTime: tl.startTime,
+                endTime: tl.endTime,
+                status: tl.status
+            },
+            timestamp: tl.startTime
+        }));
+
+        // Merge and sort by timestamp descending
+        const allActivities = [...activities, ...timeActivities]
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        // Summary stats
+        const totalTimeLogged = timeLogs.reduce((acc, tl) => acc + (tl.durationMinutes || 0), 0);
+
+        res.json({
+            success: true,
+            activities: allActivities,
+            summary: {
+                totalActivities: allActivities.length,
+                totalTimeLoggedMinutes: totalTimeLogged,
+                totalTimeLoggedHours: (totalTimeLogged / 60).toFixed(1)
+            }
+        });
+    } catch (err) { next(err); }
+};
+
 exports.getProjectNotes = async (req, res, next) => {
     try {
         const Note = req.prisma.note;
         if (!Note) return res.json({ notes: [] });
 
         const notes = await Note.findMany({
-            where: { projectId: req.params.id },
-            include: { createdByUser: { select: { id: true, name: true, email: true, photoUrl: true, role: true } } },
+            where: { relatedType: 'project', relatedId: req.params.id },
+            include: { createdBy: { select: { id: true, name: true, email: true, photoUrl: true, role: true } } },
             orderBy: { createdAt: 'desc' }
         });
-        notes.forEach(n => { n._id = n.id; n.createdBy = n.createdByUser; });
+        notes.forEach(n => { n._id = n.id; });
         res.json({ notes });
     } catch (err) { next(err); }
 };
@@ -350,14 +502,14 @@ exports.createProjectNote = async (req, res, next) => {
         const note = await Note.create({
             data: {
                 content: req.body.content,
-                projectId: req.params.id,
+                relatedType: 'project',
+                relatedId: req.params.id,
                 createdById: req.user.id,
             },
-            include: { createdByUser: { select: { id: true, name: true, email: true, photoUrl: true, role: true } } }
+            include: { createdBy: { select: { id: true, name: true, email: true, photoUrl: true, role: true } } }
         });
         
         note._id = note.id;
-        note.createdBy = note.createdByUser;
 
         await logAction(req.user.id, 'CREATE_NOTE', 'project', req.params.id, {}, req);
         res.status(201).json({ note });
@@ -379,11 +531,10 @@ exports.updateProjectNote = async (req, res, next) => {
         const updatedNote = await Note.update({
             where: { id: req.params.noteId },
             data: { content: req.body.content },
-            include: { createdByUser: { select: { id: true, name: true, email: true, photoUrl: true, role: true } } }
+            include: { createdBy: { select: { id: true, name: true, email: true, photoUrl: true, role: true } } }
         });
 
         updatedNote._id = updatedNote.id;
-        updatedNote.createdBy = updatedNote.createdByUser;
 
         await logAction(req.user.id, 'UPDATE_NOTE', 'project', req.params.id, {}, req);
         res.json({ note: updatedNote });

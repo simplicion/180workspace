@@ -13,9 +13,14 @@ exports.getTasks = async (req, res, next) => {
         const query = { deletedAt: null };
         if (projectId) query.projectId = projectId;
         if (assigneeId) query.assigneeId = assigneeId;
-        if (moduleId) query.moduleId = moduleId === 'null' ? null : moduleId;
+        if (moduleId) query.moduleId = moduleId;
         if (status) query.status = status;
-        if (req.user.role === 'employee') query.assigneeId = req.user.id;
+        const userRoles = req.user.roles || [req.user.role || 'employee'];
+        const isAdminOrCeo = userRoles.includes('admin') || userRoles.includes('ceo');
+
+        if (!isAdminOrCeo) {
+            query.assigneeId = req.user.id;
+        }
 
         const skip = (Number(page) - 1) * Number(limit);
         const [tasks, total] = await Promise.all([
@@ -38,8 +43,13 @@ exports.getTasks = async (req, res, next) => {
             }),
             Task.count({ where: query })
         ]);
+        const mappedTasks = tasks.map(t => ({
+            ...t,
+            projectId: t.project ? { id: t.projectId, name: t.project.name, status: t.project.status } : t.projectId,
+            project: undefined
+        }));
 
-        res.json({ tasks, total });
+        res.json({ tasks: mappedTasks, total });
     } catch (err) { next(err); }
 };
 
@@ -59,7 +69,7 @@ exports.createTask = async (req, res, next) => {
         }
 
         // Clean extra properties not in DB schema
-        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'assigneeId', 'creatorId', 'voiceMessageUrl', 'attachments'];
+        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'creatorId', 'voiceMessageUrl', 'attachments'];
         const data = {};
         allowedFields.forEach(f => {
             if (body[f] !== undefined) {
@@ -81,7 +91,7 @@ exports.createTask = async (req, res, next) => {
             }
         });
 
-        await logAction(req.user.id, 'CREATE_TASK', 'task', task.id, { title: task.title }, req);
+        await logAction(req.user.id, 'CREATE_TASK', 'task', task.id, { title: task.title, projectId: task.projectId, assignee: task.assignee?.name, status: task.status, priority: task.priority }, req);
 
         let notificationResult = null;
         if (task.assigneeId && task.assigneeId.toString() !== req.user.id.toString()) {
@@ -131,18 +141,33 @@ exports.getTaskById = async (req, res, next) => {
             where: { id: req.params.id },
             include: {
                 assignee: { select: { id: true, name: true, email: true, photoUrl: true } },
-                project: { select: { id: true, name: true, status: true, description: true, progress: true } }
+                creator: { select: { id: true, name: true, email: true, photoUrl: true } },
+                project: { select: { id: true, name: true, status: true, description: true, progress: true } },
+                module: { select: { id: true, title: true } },
+                workLogs_TaskWorkLogs: {
+                    orderBy: { workDate: 'desc' },
+                    include: {
+                        user: { select: { id: true, name: true, photoUrl: true } }
+                    }
+                }
             }
         });
             
         if (!task) return res.status(404).json({ error: 'Task not found' });
         
+        const mappedTask = {
+            ...task,
+            project: task.project ? { id: task.project.id, name: task.project.name, status: task.project.status, description: task.project.description, progress: task.project.progress } : null,
+            module: task.module ? { id: task.module.id, name: task.module.title } : null,
+            assignee: task.assignee ? { id: task.assignee.id, name: task.assignee.name, photoUrl: task.assignee.photoUrl } : null,
+        };
+
         const attachments = await Document.findMany({
             where: { relatedId: task.id, relatedModel: 'Task' }
         });
-        task.attachments = attachments || [];
+        mappedTask.attachments = attachments || [];
         
-        res.json({ task });
+        res.json({ task: mappedTask });
     } catch (err) { next(err); }
 };
 
@@ -194,7 +219,7 @@ exports.updateTask = async (req, res, next) => {
             }
         });
 
-        await logAction(req.user.id, 'UPDATE_TASK', 'task', task.id, {}, req);
+        await logAction(req.user.id, 'UPDATE_TASK', 'task', task.id, { title: task.title, projectId: task.projectId, assignee: task.assignee?.name, status: task.status, priority: task.priority, changes: Object.keys(updateData) }, req);
 
         // Trigger reassignment automation
         let notificationResult = null;
@@ -313,7 +338,7 @@ exports.deleteTask = async (req, res, next) => {
         if (task && task.projectId) {
             await updateProjectAndModuleProgress(task.projectId, task.moduleId, req.prisma);
         }
-        await logAction(req.user.id, 'DELETE_TASK', 'task', req.params.id, {}, req);
+        await logAction(req.user.id, 'DELETE_TASK', 'task', req.params.id, { title: task.title }, req);
 
         const io = getIo();
         if (io) {

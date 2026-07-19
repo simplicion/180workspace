@@ -75,7 +75,27 @@ export default function ProjectDetailPage() {
     const [newNote, setNewNote] = useState('');
     const [submittingNote, setSubmittingNote] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'tasks' | 'files' | 'notes' | 'milestones' | 'timelogs' | 'work-logs'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'tasks' | 'work-logs' | 'milestones' | 'files' | 'notes' | 'timelogs' | 'team' | 'clients'>('overview');
+    
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            if (tab && ['overview', 'modules', 'tasks', 'work-logs', 'milestones', 'files', 'notes', 'timelogs', 'team', 'clients'].includes(tab)) {
+                setActiveTab(tab as any);
+            }
+        }
+    }, []);
+
+    const handleTabChange = (tab: typeof activeTab) => {
+        setActiveTab(tab);
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            window.history.replaceState(null, '', url.toString());
+        }
+    };
+
     const [modules, setModules] = useState<any[]>([]);
     const [workLogs, setWorkLogs] = useState<any[]>([]);
     const [showLogWork, setShowLogWork] = useState(false);
@@ -124,7 +144,7 @@ export default function ProjectDetailPage() {
             api.get(`/api/milestones/project/${id}`).catch(() => ({ data: { milestones: [] } })),
             api.get(`/api/modules/project/${id}`).catch(() => ({ data: { modules: [] } })),
             api.get('/api/invoices', { params: { projectId: id } }).catch(() => ({ data: { invoices: [] } })),
-            api.get('/api/timelogs', { params: { projectId: id } }).catch(() => ({ data: { logs: [] } })),
+            api.get(`/api/projects/${id}/activity`).catch(() => ({ data: { activities: [], summary: {} } })),
             api.get('/api/work-logs', { params: { projectId: id } }).catch(() => ({ data: { logs: [] } }))
         ])
             .then(([pRes, tRes, fRes, nRes, mRes, modRes, iRes, tlRes, wlRes]) => {
@@ -136,7 +156,7 @@ export default function ProjectDetailPage() {
                 setMilestones(mRes.data.milestones || []);
                 setModules(modRes.data.modules || []);
                 setInvoices(iRes.data.invoices || []);
-                setProjectLogs(tlRes.data.logs || []);
+                setProjectLogs(tlRes.data.activities || []);
                 setWorkLogs(wlRes.data.logs || []);
 
                 // Track Visit (Phase 6)
@@ -492,15 +512,19 @@ export default function ProjectDetailPage() {
                         <Paperclip className="w-4 h-4 text-gray-400" />
                         {files.length} file{files.length !== 1 ? 's' : ''}
                     </div>
+                    <div className="flex items-center gap-1.5">
+                        <Layout className="w-4 h-4 text-gray-400" />
+                        {project.totalModules || modules.length} module{project.totalModules !== 1 && modules.length !== 1 ? 's' : ''}
+                    </div>
                 </div>
             </div>
 
             {/* Tabs */}
             <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1 w-max overflow-x-auto">
-                {(['overview', 'modules', 'tasks', 'work-logs', 'milestones', 'files', 'notes', 'timelogs'] as const).map((t) => (
+                {(['overview', 'modules', 'tasks', 'work-logs', 'milestones', 'files', 'notes', 'team', 'clients', 'timelogs'] as const).map((t) => (
                     <button
                         key={t}
-                        onClick={() => setActiveTab(t)}
+                        onClick={() => handleTabChange(t)}
                         className={clsx(
                             'px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 capitalize whitespace-nowrap',
                             activeTab === t 
@@ -508,12 +532,14 @@ export default function ProjectDetailPage() {
                                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                         )}
                     >
-                        {t === 'timelogs' ? 'Time Logs' : t === 'work-logs' ? 'Work Logs' : t}
+                        {t === 'timelogs' ? 'Activity Log' : t === 'work-logs' ? 'Work Logs' : t}
                         {t === 'tasks' && <span className="ml-1.5 text-xs text-gray-400">{visibleTasks.length}</span>}
                         {t === 'work-logs' && <span className="ml-1.5 text-xs text-gray-400">{workLogs.length}</span>}
                         {t === 'milestones' && <span className="ml-1.5 text-xs text-gray-400">{milestones.length}</span>}
                         {t === 'files' && <span className="ml-1.5 text-xs text-gray-400">{files.length}</span>}
                         {t === 'notes' && <span className="ml-1.5 text-xs text-gray-400">{notes.length}</span>}
+                        {t === 'team' && <span className="ml-1.5 text-xs text-gray-400">{project.members?.length || 0}</span>}
+                        {t === 'clients' && <span className="ml-1.5 text-xs text-gray-400">{project.clientIds?.length || 0}</span>}
                         {t === 'timelogs' && <span className="ml-1.5 text-xs text-gray-400">{projectLogs.length}</span>}
                     </button>
                 ))}
@@ -623,110 +649,40 @@ export default function ProjectDetailPage() {
 
                     {/* Sidebar: CRM Link + Members + Tags */}
                     <div className="space-y-4">
-                        {/* CRM Link (Phase 12 Integration) */}
-                        {project.opportunityId && (
-                            <div className="card p-5 border-indigo-100 bg-indigo-50/30">
-                                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-indigo-500" />
-                                    CRM Context
-                                </h3>
-                                <div className="space-y-3">
+                        {/* Project Info Block */}
+                        <div className="card p-5 border-indigo-100 bg-indigo-50/30">
+                            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <Briefcase className="w-4 h-4 text-indigo-500" />
+                                Project Details
+                            </h3>
+                            <div className="space-y-3">
+                                {project.description && (
                                     <div className="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm">
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Origin Opportunity</p>
-                                        <p className="text-sm font-semibold text-gray-900 truncate">{typeof project.opportunityId === 'object' ? project.opportunityId.title : 'Linked Deal'}</p>
-                                        <Link
-                                            href={`/dashboard/sales/opportunities?id=${typeof project.opportunityId === 'object' ? project.opportunityId.id : project.opportunityId}`}
-                                            className="text-xs text-indigo-600 hover:underline flex items-center gap-1 mt-2"
-                                        >
-                                            View Sales Pipeline <ExternalLink className="w-3 h-3" />
-                                        </Link>
+                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Description</p>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{project.description}</p>
                                     </div>
-                                    {project.accountId && (
-                                        <div className="flex items-center gap-3 px-1">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                                                <Building2 className="w-4 h-4 text-indigo-600" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-xs text-gray-500">Account</p>
-                                                <p className="text-sm font-medium text-gray-900 truncate">{typeof project.accountId === 'object' ? (project.accountId as any).companyName : 'Linked Account'}</p>
-                                            </div>
-                                        </div>
-                                    )}
+                                )}
+                                <div className="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm grid grid-cols-2 gap-3">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Type</p>
+                                        <p className="text-sm font-semibold text-gray-900 capitalize">{project.projectType || 'Internal'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Billing</p>
+                                        <p className="text-sm font-semibold text-gray-900 capitalize">{(project.billingType || 'non_billable').replace('_', ' ')}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Visibility</p>
+                                        <p className="text-sm font-semibold text-gray-900 capitalize">{project.visibility || 'Public'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Progress</p>
+                                        <p className="text-sm font-semibold text-gray-900">{project.progress || 0}%</p>
+                                    </div>
                                 </div>
                             </div>
-                        )}
-                        <div className="card p-5">
-                            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                <Users className="w-4 h-4 text-indigo-500" />
-                                Members <span className="text-gray-400 text-sm font-normal">({project.memberIds?.length || 0})</span>
-                            </h3>
-                            <div className="space-y-2.5">
-                                {(project.members || []).map((m: any) => (
-                                    <div key={m.id || m._id} className="flex items-center justify-between group/m">
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
-                                                {m.photoUrl
-                                                    ? <img src={m.photoUrl} className="w-full h-full rounded-full object-cover" alt="" />
-                                                    : <span className="text-white text-xs font-bold">{m.name?.[0]?.toUpperCase()}</span>
-                                                }
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
-                                                {m.role && ROLE_CONFIG[m.role] ? (
-                                                    <span className={clsx('inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border mt-0.5', ROLE_CONFIG[m.role].cls)}>
-                                                        {ROLE_CONFIG[m.role].label}
-                                                    </span>
-                                                ) : (
-                                                    <p className="text-xs text-gray-400 truncate capitalize">{m.role}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            {(user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'))) && (
-                                <button
-                                    onClick={() => setShowMembersModal(true)}
-                                    className="mt-3 w-full py-2 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center justify-center gap-1"
-                                >
-                                    <Plus className="w-3.5 h-3.5" /> Manage Members
-                                </button>
-                            )}
                         </div>
 
-                        {/* Clients Section */}
-                        {isPrivileged && (
-                            <div className="card p-5">
-                                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                    <Building2 className="w-4 h-4 text-amber-500" />
-                                    Clients <span className="text-gray-400 text-sm font-normal">({project.clientIds?.length || 0})</span>
-                                </h3>
-                                <div className="space-y-2.5">
-                                    {(project.clientIds || []).map((c: any) => (
-                                        <div key={c.id} className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                                <Building2 className="w-4 h-4 text-amber-600" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
-                                                <p className="text-xs text-gray-400 truncate">{c.company || 'Individual Client'}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {(!project.clientIds || project.clientIds.length === 0) && (
-                                        <p className="text-xs text-gray-400 italic">No clients linked</p>
-                                    )}
-                                </div>
-                                {(user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'))) && (
-                                    <button
-                                        onClick={() => setShowClientsModal(true)}
-                                        className="mt-3 w-full py-2 text-xs text-amber-600 hover:bg-amber-50 rounded-lg transition-colors flex items-center justify-center gap-1"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" /> Manage Clients
-                                    </button>
-                                )}
-                            </div>
-                        )}
 
                         {project.tags?.length > 0 && (
                             <div className="card p-5">
@@ -772,15 +728,15 @@ export default function ProjectDetailPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {modules.map((mod) => (
-                                <div key={mod.id} className="card p-6 flex flex-col group relative overflow-hidden">
+                                <div key={mod.id} className="card p-4 flex flex-col group relative overflow-hidden">
                                      {/* Background Decor */}
                                     <div className="absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 bg-blue-50/50 rounded-full blur-2xl group-hover:bg-blue-100/50 transition-colors" />
 
                                     <div className="flex items-start justify-between relative">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xl shadow-sm border border-blue-100/50">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg shadow-sm border border-blue-100/50">
                                                 {mod.name[0].toUpperCase()}
                                             </div>
                                             <div>
@@ -1324,19 +1280,130 @@ export default function ProjectDetailPage() {
                 onSelect={handleUpdateClients}
             />
 
+            {/* Tab: Team */}
+            {activeTab === 'team' && (
+                <div className="card p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <Users className="w-5 h-5 text-indigo-500" /> Project Team
+                            </h3>
+                            <p className="text-sm text-gray-500">Manage members and their roles in this project</p>
+                        </div>
+                        {(user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'))) && (
+                            <button onClick={() => setShowMembersModal(true)} className="btn-primary flex items-center gap-2">
+                                <Plus className="w-4 h-4" /> Add Members
+                            </button>
+                        )}
+                    </div>
+
+                    {!project.members || project.members.length === 0 ? (
+                        <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                            <Users className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                            <p className="text-gray-400 font-medium">No team members added</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {project.members.map((m: any) => (
+                                <div key={m.id || m._id} className="bg-white border rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                                        {m.photoUrl
+                                            ? <img src={m.photoUrl} className="w-full h-full rounded-full object-cover" alt="" />
+                                            : <span className="text-white font-bold">{m.name?.[0]?.toUpperCase()}</span>
+                                        }
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-gray-900 truncate">{m.name}</p>
+                                        <p className="text-xs text-gray-500 truncate mb-1">{m.email}</p>
+                                        {m.role && ROLE_CONFIG[m.role] ? (
+                                            <span className={clsx('inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border', ROLE_CONFIG[m.role].cls)}>
+                                                {ROLE_CONFIG[m.role].label}
+                                            </span>
+                                        ) : (
+                                            <p className="text-xs text-gray-400 truncate capitalize">{m.role}</p>
+                                        )}
+                                    </div>
+                                    {(user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'))) && (
+                                        <button 
+                                            onClick={() => handleUpdateMembers(project.memberIds.filter((id: any) => (id.id || id) !== (m.id || m._id)).map((id: any) => id.id || id))}
+                                            className="w-8 h-8 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors"
+                                            title="Remove Member"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Tab: Clients */}
+            {activeTab === 'clients' && (
+                <div className="card p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <Building2 className="w-5 h-5 text-amber-500" /> Project Clients
+                            </h3>
+                            <p className="text-sm text-gray-500">Manage clients associated with this project</p>
+                        </div>
+                        {isPrivileged && (
+                            <button onClick={() => setShowClientsModal(true)} className="btn-primary flex items-center gap-2 bg-amber-600 hover:bg-amber-700 border-amber-600">
+                                <Plus className="w-4 h-4" /> Add Clients
+                            </button>
+                        )}
+                    </div>
+
+                    {!project.clientIds || project.clientIds.length === 0 ? (
+                        <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                            <Building2 className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                            <p className="text-gray-400 font-medium">No clients added</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {project.clientIds.map((c: any) => (
+                                <div key={c.id || c._id} className="bg-white border border-amber-100 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+                                    <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                        <Building2 className="w-6 h-6 text-amber-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-gray-900 truncate">{c.name}</p>
+                                        <p className="text-xs text-gray-500 truncate mb-1">{c.email}</p>
+                                        <p className="text-xs text-gray-400 truncate flex items-center gap-1">
+                                            <Briefcase className="w-3 h-3" /> {c.company || 'Individual'}
+                                        </p>
+                                    </div>
+                                    {isPrivileged && (
+                                        <button 
+                                            onClick={() => handleUpdateClients(project.clientIds.filter((id: any) => (id.id || id) !== (c.id || c._id)).map((id: any) => id.id || id))}
+                                            className="w-8 h-8 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors"
+                                            title="Remove Client"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {activeTab === 'timelogs' && (
                 <div className="card p-6">
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-indigo-500" /> Project Time Logs
+                                <Clock className="w-5 h-5 text-indigo-500" /> Project Activity Log
                             </h3>
-                            <p className="text-sm text-gray-500">All time recorded for this project across all tasks</p>
+                            <p className="text-sm text-gray-500">All actions, updates, and time tracked across this project</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Total Time Logged</p>
+                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Total Activities</p>
                             <p className="text-2xl font-black text-indigo-600">
-                                {projectLogs.reduce((acc, l) => acc + (l.durationMinutes / 60), 0).toFixed(1)}h
+                                {projectLogs.length}
                             </p>
                         </div>
                     </div>
@@ -1344,55 +1411,104 @@ export default function ProjectDetailPage() {
                     {projectLogs.length === 0 ? (
                         <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
                             <Clock className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                            <p className="text-gray-400 font-medium">No time logs recorded yet</p>
-                            <p className="text-xs text-gray-400 mt-1">Time logs will appear here once tasks are worked on</p>
+                            <p className="text-gray-400 font-medium">No activity recorded yet</p>
+                            <p className="text-xs text-gray-400 mt-1">Activity logs will appear here as tasks and modules are created and updated</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-gray-100">
-                                        <th className="pb-3 text-xs font-bold text-gray-400 uppercase tracking-wider">User</th>
-                                        <th className="pb-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Task</th>
-                                        <th className="pb-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Description</th>
-                                        <th className="pb-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Hours</th>
-                                        <th className="pb-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {projectLogs.map((log: any) => (
-                                        <tr key={log.id} className="group hover:bg-gray-50/50 transition-colors">
-                                            <td className="py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
-                                                        {log.userId?.photoUrl ? (
-                                                            <img src={log.userId.photoUrl} alt="" className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <span className="text-xs font-bold text-indigo-600">{log.userId?.name?.[0]?.toUpperCase()}</span>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-sm font-medium text-gray-900">{log.userId?.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <CheckSquare className="w-3.5 h-3.5 text-gray-400" />
-                                                    <span className="text-sm text-gray-600 truncate max-w-[200px]">{log.taskId?.title}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-4">
-                                                <p className="text-sm text-gray-500 line-clamp-1">{log.description}</p>
-                                            </td>
-                                            <td className="py-4 text-right">
-                                                <span className="text-sm font-bold text-gray-900">{(log.durationMinutes / 60).toFixed(1)}h</span>
-                                            </td>
-                                            <td className="py-4 text-right">
-                                                <span className="text-xs text-gray-400">{format(new Date(log.startTime), 'MMM d, yyyy')}</span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="space-y-1">
+                            {projectLogs.map((activity: any, idx: number) => {
+                                const actionColorMap: Record<string, string> = {
+                                    'CREATE_PROJECT': 'bg-green-100 text-green-700',
+                                    'UPDATE_PROJECT': 'bg-blue-100 text-blue-700',
+                                    'DELETE_PROJECT': 'bg-red-100 text-red-700',
+                                    'CREATE_TASK': 'bg-emerald-100 text-emerald-700',
+                                    'UPDATE_TASK': 'bg-sky-100 text-sky-700',
+                                    'DELETE_TASK': 'bg-red-100 text-red-700',
+                                    'CREATE_MODULE': 'bg-purple-100 text-purple-700',
+                                    'UPDATE_MODULE': 'bg-violet-100 text-violet-700',
+                                    'DELETE_MODULE': 'bg-red-100 text-red-700',
+                                    'CREATE_NOTE': 'bg-amber-100 text-amber-700',
+                                    'UPDATE_NOTE': 'bg-amber-100 text-amber-700',
+                                    'DELETE_NOTE': 'bg-red-100 text-red-700',
+                                    'TIME_LOG': 'bg-indigo-100 text-indigo-700',
+                                };
+                                const badgeColor = actionColorMap[activity.action] || 'bg-gray-100 text-gray-600';
+                                const isTimelog = activity.type === 'timelog';
+
+                                return (
+                                    <div key={activity.id} className="flex gap-4 py-3 px-4 rounded-xl hover:bg-gray-50/80 transition-colors group">
+                                        {/* Timeline line */}
+                                        <div className="flex flex-col items-center">
+                                            <div className="w-9 h-9 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0 group-hover:border-indigo-300 transition-colors">
+                                                {activity.user?.photoUrl ? (
+                                                    <img src={activity.user.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xs font-bold text-gray-500">{activity.user?.name?.[0]?.toUpperCase() || '?'}</span>
+                                                )}
+                                            </div>
+                                            {idx < projectLogs.length - 1 && (
+                                                <div className="w-px flex-1 bg-gray-100 mt-1" />
+                                            )}
+                                        </div>
+                                        
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0 pb-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-semibold text-sm text-gray-900">{activity.user?.name || 'System'}</span>
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${badgeColor}`}>
+                                                    {activity.actionLabel}
+                                                </span>
+                                                {activity.resourceName && (
+                                                    <span className="text-sm text-gray-600 font-medium truncate max-w-[300px]">
+                                                        &quot;{activity.resourceName}&quot;
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Details row */}
+                                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                                <span className="text-xs text-gray-400">
+                                                    {format(new Date(activity.timestamp), 'MMM d, yyyy · h:mm a')}
+                                                </span>
+                                                {activity.resourceType && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium uppercase">
+                                                        {activity.resourceType}
+                                                    </span>
+                                                )}
+                                                {isTimelog && activity.details?.hours && (
+                                                    <span className="text-xs font-bold text-indigo-600">
+                                                        ⏱ {activity.details.hours}h logged
+                                                    </span>
+                                                )}
+                                                {activity.details?.assignee && (
+                                                    <span className="text-xs text-gray-500">
+                                                        → Assigned to {activity.details.assignee}
+                                                    </span>
+                                                )}
+                                                {activity.details?.status && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-500 font-medium">
+                                                        Status: {activity.details.status}
+                                                    </span>
+                                                )}
+                                                {activity.details?.priority && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-500 font-medium">
+                                                        Priority: {activity.details.priority}
+                                                    </span>
+                                                )}
+                                                {activity.details?.changes && Array.isArray(activity.details.changes) && (
+                                                    <span className="text-xs text-gray-400">
+                                                        Changed: {activity.details.changes.join(', ')}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {activity.details?.description && isTimelog && (
+                                                <p className="text-xs text-gray-500 mt-1 italic">&quot;{activity.details.description}&quot;</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -1492,10 +1608,9 @@ export default function ProjectDetailPage() {
                 <LogWorkModal 
                     projectId={id}
                     onClose={() => setShowLogWork(false)}
-                    onSuccess={() => {
+                    onSuccess={(newLog) => {
                         setShowLogWork(false);
-                        api.get('/api/work-logs', { params: { projectId: id } }).then(res => setWorkLogs(res.data.logs || []));
-                        toast.success('Work log submitted for review');
+                        if (newLog) setWorkLogs(prev => [newLog, ...prev]);
                     }}
                 />
             )}

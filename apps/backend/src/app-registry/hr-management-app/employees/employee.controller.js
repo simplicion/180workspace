@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 /**
  * Employee Dashboard Controller
@@ -33,8 +33,11 @@ exports.getDashboardStats = async (req, res) => {
         ] = await Promise.all([
             // My tasks
             Task.findMany({ 
-                where: { assigneeId: userId },
-                include: { project: { select: { name: true } } },
+                where: { 
+                    assigneeId: userId,
+                    deletedAt: null 
+                },
+                include: { project: { select: { id: true, name: true } } },
                 orderBy: { dueDate: 'asc' },
                 take: 20
             }),
@@ -42,8 +45,13 @@ exports.getDashboardStats = async (req, res) => {
             // Projects I have tasks in (no limit for stats)
             Project.findMany({ 
                 where: { 
-                    tasks: { some: { assigneeId: userId } }, 
-                    status: { not: 'cancelled' } 
+                    OR: [
+                        { ownerId: userId },
+                        { memberIds: { has: userId } },
+                        { tasks: { some: { assigneeId: userId } } }
+                    ],
+                    status: { not: 'cancelled' },
+                    deletedAt: null
                 },
                 orderBy: { updatedAt: 'desc' }
             }),
@@ -92,8 +100,14 @@ exports.getDashboardStats = async (req, res) => {
             }).catch(() => []),
         ]);
 
-        const pendingTasks = myTasks.filter(t => t.status !== 'done');
-        const completedTasks = myTasks.filter(t => t.status === 'done');
+        const mappedTasks = myTasks.map(t => ({
+            ...t,
+            projectId: t.project ? { id: t.projectId, name: t.project.name } : t.projectId,
+            project: undefined // remove the original Prisma populated field to avoid confusion
+        }));
+
+        const pendingTasks = mappedTasks.filter(t => t.status !== 'done');
+        const completedTasks = mappedTasks.filter(t => t.status === 'done');
         const overdueTasks = pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < now);
 
         const activeProjects = myProjects.filter(p => p.status === 'in_progress' || p.status === 'active');

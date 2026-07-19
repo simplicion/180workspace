@@ -15,7 +15,7 @@ const upload = multer({
     limits: { fileSize: 25 * 1024 * 1024 }, // increased to 25MB
     fileFilter: (req, file, cb) => {
         const allowed = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
             'application/pdf', 'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.ms-excel',
@@ -84,7 +84,7 @@ function handleUpload(folder = 'general', options = {}) {
 
             // --- FILE OPTIMIZATION ---
             try {
-                if (req.file.mimetype.startsWith('image/') && req.file.mimetype !== 'image/gif') {
+                if (req.file.mimetype.startsWith('image/') && req.file.mimetype !== 'image/gif' && req.file.mimetype !== 'image/svg+xml') {
                     const sharp = require('sharp');
                     req.file.buffer = await sharp(req.file.buffer)
                         .resize({ width: 1920, height: 1080, fit: 'inside', withoutEnlargement: true })

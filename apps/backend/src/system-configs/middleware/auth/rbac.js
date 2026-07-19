@@ -53,6 +53,9 @@ function requireAccess(moduleName, action = 'read') {
         if (moduleName === 'hr') {
             defaultRead = true; // All employees can read basic HR info
         }
+        if (moduleName === 'projects') {
+            defaultRead = true; // Employees can read projects (filtered by membership in controller)
+        }
 
         const hasWrite = permissions.includes(`${moduleName}:write`);
         const hasRead = permissions.includes(`${moduleName}:read`) || hasWrite; // write implies read

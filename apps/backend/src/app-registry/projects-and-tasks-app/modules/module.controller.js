@@ -11,7 +11,10 @@ exports.getModulesByProject = async (req, res, next) => {
 
         const modules = await Module.findMany({
             where: { projectId },
-            include: { tasks: { where: { deletedAt: null } } },
+            include: {
+                tasks: { where: { deletedAt: null }, select: { id: true, status: true, title: true } },
+                owner: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+            },
             orderBy: { createdAt: 'asc' }
         });
 
@@ -28,6 +31,7 @@ exports.getModulesByProject = async (req, res, next) => {
             // Map keys to match expected response (ownerId -> owner, etc.)
             return {
                 ...moduleData,
+                name: moduleData.title,
                 ownerId: moduleData.owner,
                 taskStats: { total, completed },
                 calculatedProgress: progress
@@ -46,20 +50,22 @@ exports.createModule = async (req, res, next) => {
         const project = await Project.findUnique({ where: { id: req.body.projectId } });
         if (!project) return res.status(404).json({ error: 'Project not found' });
 
+        const userRoles = req.user.roles || [req.user.role || 'employee'];
+        const isAdminOrManager = userRoles.some(role => ['admin', 'manager', 'ceo', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(role)) || (req.user.permissions && req.user.permissions.includes('can_manage_team'));
+
         // Permission: Admin, Manager, or Project Owner
-        if (req.user.role !== 'admin' && req.user.role !== 'manager' && project.ownerId?.toString() !== req.user.id.toString()) {
+        if (!isAdminOrManager && project.ownerId?.toString() !== req.user.id.toString()) {
             return res.status(403).json({ error: 'Only project owners, managers, or admins can create modules' });
         }
 
         const newModule = await Module.create({
             data: {
-                name: req.body.name,
+                title: req.body.name,
                 description: req.body.description,
                 status: req.body.status || 'not_started',
                 projectId: req.body.projectId,
                 ownerId: req.body.ownerId || null,
-                createdById: req.user.id,
-                companyId: req.user.companyId
+                createdById: req.user.id
             },
             include: {
                 owner: {
@@ -74,7 +80,7 @@ exports.createModule = async (req, res, next) => {
             }
         });
 
-        await logAction(req.user.id, 'CREATE_MODULE', 'module', newModule.id, { name: newModule.name }, req);
+        await logAction(req.user.id, 'CREATE_MODULE', 'module', newModule.id, { name: newModule.title }, req);
 
         if (newModule.ownerId) {
             AutomationService.trigger({
@@ -83,15 +89,15 @@ exports.createModule = async (req, res, next) => {
                 targetUser: newModule.ownerId,
                 targetClient: req.user.companyId,
                 relatedItem: { itemType: 'module', itemId: newModule.id, projectId: newModule.projectId },
-                description: `You have been assigned as the owner of the module: ${newModule.name}`,
+                description: `You have been assigned as the owner of the module: ${newModule.title}`,
                 metadata: {
-                    moduleName: newModule.name,
+                    moduleName: newModule.title,
                     projectName: project.name
                 }
             }, req.prisma);
         }
 
-        res.status(201).json({ module: { ...newModule, ownerId: newModule.owner } });
+        res.status(201).json({ module: { ...newModule, name: newModule.title, ownerId: newModule.owner } });
     } catch (err) { next(err); }
 };
 
@@ -107,7 +113,8 @@ exports.updateModule = async (req, res, next) => {
         
         const isOwner = mod.ownerId?.toString() === req.user.id.toString();
         const isProjectOwner = project?.ownerId?.toString() === req.user.id.toString();
-        const isAdminOrManager = req.user.role === 'admin' || req.user.role === 'ceo' || (req.user.permissions && req.user.permissions.includes('can_manage_team'));
+        const userRoles = req.user.roles || [req.user.role || 'employee'];
+        const isAdminOrManager = userRoles.some(role => ['admin', 'manager', 'ceo', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(role)) || (req.user.permissions && req.user.permissions.includes('can_manage_team'));
 
         if (!isAdminOrManager && !isOwner && !isProjectOwner) {
             return res.status(403).json({ error: 'Not authorized to update this module' });
@@ -115,9 +122,15 @@ exports.updateModule = async (req, res, next) => {
 
         const oldOwnerId = mod.ownerId?.toString();
 
+        const updateData = { ...req.body };
+        if (updateData.name) {
+            updateData.title = updateData.name;
+            delete updateData.name;
+        }
+
         const updatedModule = await Module.update({
             where: { id: req.params.id },
-            data: req.body,
+            data: updateData,
             include: {
                 owner: {
                     select: {
@@ -131,7 +144,7 @@ exports.updateModule = async (req, res, next) => {
             }
         });
 
-        await logAction(req.user.id, 'UPDATE_MODULE', 'module', mod.id, {}, req);
+        await logAction(req.user.id, 'UPDATE_MODULE', 'module', mod.id, { title: updatedModule.title }, req);
 
         if (updatedModule.ownerId && updatedModule.ownerId.toString() !== oldOwnerId) {
             AutomationService.trigger({
@@ -140,15 +153,15 @@ exports.updateModule = async (req, res, next) => {
                 targetUser: updatedModule.ownerId,
                 targetClient: req.user.companyId,
                 relatedItem: { itemType: 'module', itemId: updatedModule.id, projectId: updatedModule.projectId },
-                description: `You have been assigned as the owner of the module: ${updatedModule.name}`,
+                description: `You have been assigned as the owner of the module: ${updatedModule.title}`,
                 metadata: {
-                    moduleName: updatedModule.name,
+                    moduleName: updatedModule.title,
                     projectName: project.name
                 }
             }, req.prisma);
         }
 
-        res.json({ module: { ...updatedModule, ownerId: updatedModule.owner } });
+        res.json({ module: { ...updatedModule, name: updatedModule.title, ownerId: updatedModule.owner } });
     } catch (err) { next(err); }
 };
 
@@ -162,7 +175,10 @@ exports.deleteModule = async (req, res, next) => {
         if (!mod) return res.status(404).json({ error: 'Module not found' });
 
         const project = await Project.findUnique({ where: { id: mod.projectId } });
-        if (req.user.role !== 'admin' && req.user.role !== 'manager' && project?.ownerId?.toString() !== req.user.id.toString()) {
+        const userRoles = req.user.roles || [req.user.role || 'employee'];
+        const isAdminOrManager = userRoles.some(role => ['admin', 'manager', 'ceo', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(role)) || (req.user.permissions && req.user.permissions.includes('can_manage_team'));
+
+        if (!isAdminOrManager && project?.ownerId?.toString() !== req.user.id.toString()) {
             return res.status(403).json({ error: 'Only project owners, managers, or admins can delete modules' });
         }
 
@@ -186,7 +202,7 @@ exports.deleteModule = async (req, res, next) => {
         
         await updateProjectProgress(mod.projectId, req.prisma);
 
-        await logAction(req.user.id, 'DELETE_MODULE', 'module', req.params.id, { mode }, req);
+        await logAction(req.user.id, 'DELETE_MODULE', 'module', req.params.id, { title: mod.title, mode }, req);
         res.json({ message: 'Module deleted successfully' });
     } catch (err) { next(err); }
 };

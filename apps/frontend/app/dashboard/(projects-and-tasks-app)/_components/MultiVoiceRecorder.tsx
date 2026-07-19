@@ -21,7 +21,16 @@ function VoiceNoteItem({ blob, index, onRemove }: { blob: Blob, index: number, o
         audioPlayerRef.current = audio;
 
         audio.onloadedmetadata = () => {
-            if (audio.duration !== Infinity && !isNaN(audio.duration)) {
+            if (audio.duration === Infinity) {
+                audio.currentTime = Number.MAX_SAFE_INTEGER;
+                audio.onseeked = () => {
+                    audio.onseeked = null;
+                    if (!isNaN(audio.duration) && audio.duration !== Infinity) {
+                        setDuration(audio.duration);
+                    }
+                    audio.currentTime = 0;
+                };
+            } else if (!isNaN(audio.duration)) {
                 setDuration(audio.duration);
             }
         };
@@ -130,7 +139,7 @@ export default function MultiVoiceRecorder({ onChangeBlobs, label = 'Record Voic
                 
                 setBlobs(prev => {
                     const newBlobs = [...prev, blob];
-                    onChangeBlobs(newBlobs);
+                    setTimeout(() => onChangeBlobs(newBlobs), 0);
                     return newBlobs;
                 });
                 
@@ -169,7 +178,7 @@ export default function MultiVoiceRecorder({ onChangeBlobs, label = 'Record Voic
         setBlobs(prev => {
             const newBlobs = [...prev];
             newBlobs.splice(index, 1);
-            onChangeBlobs(newBlobs);
+            setTimeout(() => onChangeBlobs(newBlobs), 0);
             return newBlobs;
         });
     };

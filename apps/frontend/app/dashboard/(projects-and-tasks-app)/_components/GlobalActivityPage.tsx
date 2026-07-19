@@ -579,11 +579,11 @@ function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
                                         <td className="py-4 px-8">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                                                    {log.userId?.name?.[0]?.toUpperCase() || '?'}
+                                                    {log.user?.name?.[0]?.toUpperCase() || '?'}
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-gray-700">{log.userId?.name || 'Unknown'}</span>
-                                                    <span className="text-[10px] text-gray-400">{log.userId?.role || 'user'}</span>
+                                                    <span className="text-xs font-bold text-gray-700">{log.user?.name || 'Unknown'}</span>
+                                                    <span className="text-[10px] text-gray-400">{log.user?.role || 'user'}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -598,7 +598,11 @@ function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
                                         <td className="py-4 px-8">
                                             <div className="flex flex-col">
                                                 <span className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">{log.resourceType || '-'}</span>
-                                                <span className="text-[9px] font-mono text-gray-400 truncate max-w-[100px]">{log.resourceId}</span>
+                                                {(log.details?.title || log.details?.name) ? (
+                                                    <span className="text-xs font-bold text-gray-700 truncate max-w-[200px]">{log.details.title || log.details.name}</span>
+                                                ) : (
+                                                    <span className="text-[9px] font-mono text-gray-400 truncate max-w-[100px]">{log.resourceId}</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="py-4 px-8">

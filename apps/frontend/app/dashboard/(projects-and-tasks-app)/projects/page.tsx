@@ -175,7 +175,7 @@ export default function ProjectsPage() {
                                         <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center">
                                             <User className="w-3 h-3 text-indigo-600" />
                                         </div>
-                                        <span className="truncate">{project.ownerId?.name || 'Unassigned'}</span>
+                                        <span className="truncate">{project.owner?.name || 'Unassigned'}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-gray-500" title="Client">
                                         <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center">
@@ -206,18 +206,29 @@ export default function ProjectsPage() {
                                 </div>
 
                                 <div className="flex items-center justify-between mt-auto mb-1">
-                                    <span className={clsx('badge px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold', PRIORITY_COLORS[project.priority] || 'badge-gray')}>
-                                        {project.priority}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={clsx('badge px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold', PRIORITY_COLORS[project.priority] || 'badge-gray')}>
+                                            {project.priority}
+                                        </span>
+                                        {project.projectType && (
+                                            <span className="badge badge-gray px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold">
+                                                {project.projectType.replace('_', ' ')}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="flex -space-x-2">
-                                        {(project.memberIds || []).slice(0, 3).map((m: any, idx: number) => (
-                                            <div key={m?.id || idx} title={m.name} className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border-2 border-white flex items-center justify-center cursor-help">
-                                                <span className="text-white text-[10px] font-bold">{m.name?.[0]?.toUpperCase()}</span>
+                                        {(project.members || []).slice(0, 3).map((m: any, idx: number) => (
+                                            <div key={m?.id || idx} title={m.name} className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border-2 border-white flex items-center justify-center cursor-help overflow-hidden">
+                                                {m.photoUrl ? (
+                                                    <img src={m.photoUrl} alt={m.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-white text-[10px] font-bold">{m.name?.[0]?.toUpperCase()}</span>
+                                                )}
                                             </div>
                                         ))}
-                                        {(project.memberIds || []).length > 3 && (
+                                        {(project.members || []).length > 3 && (
                                             <div className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
-                                                <span className="text-gray-500 text-[10px] font-bold">+{project.memberIds.length - 3}</span>
+                                                <span className="text-gray-500 text-[10px] font-bold">+{project.members.length - 3}</span>
                                             </div>
                                         )}
                                     </div>

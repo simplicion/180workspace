@@ -60,7 +60,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
             setDescription(t.description || '');
             setStatus(t.status);
             setPriority(t.priority);
-            setAssigneeId(t.assigneeId?.id || '');
+            setAssigneeId(t.assigneeId || '');
             setDueDate(t.dueDate ? t.dueDate.slice(0, 16) : '');
             setVoiceMessageUrl(t.voiceMessageUrl || '');
             setMembers(uRes.data.users);
@@ -148,7 +148,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
     const statusCfg = STATUS_OPTIONS.find(s => s.value === status);
     const priorityCfg = PRIORITY_OPTIONS.find(p => p.value === priority);
 
-    const canEdit = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'));
+    const canEdit = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team')) || task?.assigneeId === user?.id || assigneeId === user?.id || task?.creator?.id === user?.id || task?.creatorId === user?.id;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -262,7 +262,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                         ) : null}
                                         {voiceMessageUrl && (
                                             <div className="flex flex-col gap-2 mt-2">
-                                                {voiceMessageUrl.split(',').filter(url => url.trim().length > 0).map((url, i) => (
+                                                {voiceMessageUrl.split(',').filter((url: string) => url.trim().length > 0).map((url: string, i: number) => (
                                                     <div key={i} className="flex flex-col gap-2 p-3 bg-amber-50/50 rounded-xl border border-amber-100">
                                                         <div className="text-sm font-medium text-amber-900">Voice Note {i + 1}</div>
                                                         <audio controls src={url} className="w-full h-8" />
@@ -271,6 +271,38 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Work Logs History */}
+                                    {task?.workLogs_TaskWorkLogs?.length > 0 && (
+                                        <div className="mt-6 pt-5 border-t border-gray-100">
+                                            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+                                                <Clock className="w-3.5 h-3.5" /> Work Logs History
+                                            </label>
+                                            <div className="space-y-3">
+                                                {task.workLogs_TaskWorkLogs.map((log: any) => (
+                                                    <div key={log.id} className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col gap-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center">
+                                                                    <span className="text-indigo-600 text-[10px] font-bold">{log.employee?.name?.[0]?.toUpperCase()}</span>
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-gray-900">{log.employee?.name}</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-gray-500 font-medium">
+                                                                {log.workDate ? format(new Date(log.workDate), 'MMM d, yyyy') : ''}
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-xs text-gray-700 whitespace-pre-wrap">{log.description}</p>
+                                                        {log.hoursSpent > 0 && (
+                                                            <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded w-fit">
+                                                                <Clock className="w-3 h-3" /> {log.hoursSpent} hrs
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -278,7 +310,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                             <div className="w-full lg:w-64 p-6 space-y-5 flex-shrink-0">
 
                                 {/* Project Summary (if associated) */}
-                                {task?.projectId && (
+                                {task?.projectId?.name && (
                                     <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
                                         <div className="flex items-center justify-between mb-2 border-b border-indigo-100/50 pb-2">
                                             <div className="font-semibold text-sm text-indigo-900 flex items-center gap-2 truncate">
@@ -415,9 +447,23 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                 </div>
 
                                 {/* Created info */}
-                                {task?.createdAt && (
-                                    <div className="text-xs text-gray-400 pt-2 border-t border-gray-50">
-                                        Created {format(new Date(task.createdAt), 'MMM d, yyyy')}
+                                {(task?.createdAt || task?.creator) && (
+                                    <div className="text-xs text-gray-500 pt-3 border-t border-gray-50 flex flex-col gap-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-semibold uppercase tracking-wider text-gray-400">Created:</span>
+                                            <span>{task?.createdAt ? format(new Date(task.createdAt), 'MMM d, yyyy h:mm a') : 'Unknown Date'}</span>
+                                        </div>
+                                        {task?.creator && (
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="font-semibold uppercase tracking-wider text-gray-400">By:</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-4 h-4 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                                                        <span className="text-white text-[8px] font-bold">{task.creator.name?.[0]?.toUpperCase()}</span>
+                                                    </div>
+                                                    <span>{task.creator.name}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

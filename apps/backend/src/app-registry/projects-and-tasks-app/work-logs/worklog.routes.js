@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const express = require('express');
 const router = express.Router();
@@ -8,6 +8,7 @@ const { protect } = require('../../../system-configs/middleware/auth/auth.js');
 router.use(protect);
 
 router.post('/', workLogController.submitWorkLog);
+router.get('/', workLogController.getLogs);
 router.get('/my', workLogController.getMyLogs);
 router.get('/all', workLogController.getAllLogs);
 router.get('/reviews', workLogController.getPendingReviews);
