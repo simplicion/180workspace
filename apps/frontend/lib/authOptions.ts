@@ -70,7 +70,11 @@ export const authOptions: NextAuthOptions = {
                Authorization: `Bearer ${credentials.token}`
              }
            });
-           if (!res.ok) return null;
+           if (!res.ok) {
+             const errorText = await res.text();
+             console.error(`[NextAuth platform-token] /api/auth/me failed: ${res.status} ${res.statusText}`, errorText);
+             return null;
+           }
            
            const data = await res.json();
            const userId = data?.user?.id || data?.user?.id;
