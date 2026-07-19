@@ -70,6 +70,10 @@ async function protect(req, res, next) {
  */
 function signAccessToken(userId, companyId) {
     const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
+    if (!secret) {
+        console.error('[Auth] ERROR: JWT_SECRET or JWT_ACCESS_SECRET is missing from environment variables!');
+        throw new Error('Server configuration error: missing JWT secret');
+    }
     return jwt.sign({ id: userId, companyId }, secret, {
         expiresIn: `${process.env.ACCESS_TOKEN_EXPIRE_MINUTES || 15}m`,
     });
@@ -79,7 +83,12 @@ function signAccessToken(userId, companyId) {
  * Sign a refresh token
  */
 function signRefreshToken(userId, companyId) {
-    return jwt.sign({ id: userId, companyId }, process.env.JWT_REFRESH_SECRET, {
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret) {
+        console.error('[Auth] ERROR: JWT_REFRESH_SECRET is missing from environment variables!');
+        throw new Error('Server configuration error: missing JWT refresh secret');
+    }
+    return jwt.sign({ id: userId, companyId }, secret, {
         expiresIn: `${process.env.REFRESH_TOKEN_EXPIRE_DAYS || 7}d`,
     });
 }

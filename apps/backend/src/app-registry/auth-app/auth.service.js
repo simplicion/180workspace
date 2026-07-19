@@ -661,10 +661,19 @@ class AuthService {
         const { OAuth2Client } = require('google-auth-library');
         const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-        const ticket = await client.verifyIdToken({
-            idToken: tokenId,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
+        let ticket;
+        try {
+            ticket = await client.verifyIdToken({
+                idToken: tokenId,
+                audience: process.env.GOOGLE_CLIENT_ID,
+            });
+        } catch (error) {
+            console.error('[GoogleLogin] verifyIdToken error:', error.message);
+            const err = new Error('Google authentication failed: ' + error.message);
+            err.status = 401; 
+            throw err;
+        }
+        
         const payload = ticket.getPayload();
         const email = payload.email.toLowerCase();
         
