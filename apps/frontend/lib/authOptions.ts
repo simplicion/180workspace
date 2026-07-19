@@ -78,26 +78,21 @@ export const authOptions: NextAuthOptions = {
            }
            
            const data = await res.json();
-           const userId = data?.user?.id || data?.user?.id;
-           if (!userId) return null;
+           const backendUser = data?.user;
+           if (!backendUser || !backendUser.id) return null;
            
-           const user = await prisma.user.findUnique({
-              where: { id: userId },
-              include: { company: true }
-           });
-           
-           if (user && user.isActive) {
-             const isLegacyOrAdmin = !!user.companyId || (user.role && user.role !== 'employee' && user.role !== 'USER');
+           if (backendUser.isActive) {
+             const isLegacyOrAdmin = !!backendUser.companyId || (backendUser.role && backendUser.role !== 'employee' && backendUser.role !== 'USER');
              return { 
-               id: user.id, 
-               name: user.name,
-               username: user.username,
-               email: user.email, 
-               companyId: user.companyId,
-               role: user.role,
-               permissions: user.permissions || [],
-               isOnboardingComplete: user.company?.isOnboardingComplete || false,
-               isFirstLogin: isLegacyOrAdmin ? false : user.isFirstLogin
+               id: backendUser.id, 
+               name: backendUser.name,
+               username: backendUser.username,
+               email: backendUser.email, 
+               companyId: backendUser.companyId,
+               role: backendUser.role,
+               permissions: backendUser.permissions || [],
+               isOnboardingComplete: data.company?.isOnboardingComplete || false,
+               isFirstLogin: isLegacyOrAdmin ? false : backendUser.isFirstLogin
              } as any;
            }
         } catch(e) {
@@ -132,39 +127,11 @@ export const authOptions: NextAuthOptions = {
         if (session.username !== undefined) token.username = session.username;
       }
 
-      // Always verify user against database to ensure server-side security and session validity
+      // In a fully decoupled frontend, we trust the JWT contents (which are signed).
+      // Backend API calls will enforce security (e.g. if user is disabled, API returns 401).
       if (token.id || token.email) {
-        try {
-          const dbUser = await prisma.user.findUnique({ 
-            where: token.id ? { id: token.id as string } : { email: token.email as string },
-            include: { company: true }
-          });
-          
-          if (!dbUser || !dbUser.isActive || dbUser.deletedAt) {
-            // User disabled or deleted, invalidate token
-            return {};
-          }
-          
-          // Ensure token.id is set correctly to the DB id
-          token.id = dbUser.id;
-          token.companyId = dbUser.companyId;
-          token.username = dbUser.username;
-          token.role = dbUser.role;
-          token.permissions = dbUser.permissions || [];
-          
-          // Only trust DB for onboarding if it's true or if token isn't already true (prevent race condition)
-          const dbOnboardingComplete = dbUser.company?.isOnboardingComplete || false;
-          if (dbOnboardingComplete) token.isOnboardingComplete = true;
-          
-          const isLegacyOrAdmin = !!dbUser.companyId || (dbUser.role && dbUser.role !== 'employee' && dbUser.role !== 'USER');
-          const dbIsFirstLogin = isLegacyOrAdmin ? false : dbUser.isFirstLogin;
-          // Prevent race condition: if token is already false due to manual update, keep it false
-          if (!dbIsFirstLogin) token.isFirstLogin = false;
-          
-        } catch(e) {
-          console.error("Session DB verification error:", e);
-          // Don't crash the session, keep existing token values
-        }
+        // We no longer query Prisma here to avoid DB connection issues on Vercel.
+        // The token already contains the user data we need.
       }
 
       return token;

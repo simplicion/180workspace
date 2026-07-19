@@ -138,9 +138,8 @@ function LoginForm() {
             }
 
             // 2. Authenticate with NextAuth
-            const result = await signIn('credentials', { 
-                email, 
-                password, 
+            const result = await signIn('platform-token', { 
+                token: token,
                 redirect: false 
             });
             

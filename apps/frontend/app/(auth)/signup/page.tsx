@@ -178,16 +178,19 @@ export default function SignupFlow() {
             
             const data = await res.json();
             if (res.ok || data.success) {
+                let platformToken = '';
                 // Log them in so they get the JWT token
                 await api.post('/api/auth/login', { email, password: newPassword }).then(authRes => {
-                    const token = authRes.data.token;
-                    localStorage.setItem('platform_auth_token', token);
-                    document.cookie = `platform_auth_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
-                    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    platformToken = authRes.data.token;
+                    localStorage.setItem('platform_auth_token', platformToken);
+                    document.cookie = `platform_auth_token=${platformToken}; path=/; max-age=${60 * 60 * 24 * 7}`;
+                    api.defaults.headers.common['Authorization'] = `Bearer ${platformToken}`;
                 }).catch(e => console.error("Auto login failed", e));
 
                 // Also establish NextAuth session
-                await signIn('credentials', { email, password: newPassword, redirect: false });
+                if (platformToken) {
+                    await signIn('platform-token', { token: platformToken, redirect: false });
+                }
                 
                 setStep(4); // Go to Role selection
             } else {
