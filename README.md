@@ -57,14 +57,22 @@ This project is a **Turborepo** monorepo using **pnpm**, structured as follows:
 - PostgreSQL and Redis running locally or via Docker
 
 ### 1. Configure Environment Variables
-Environment files have been streamlined for all apps:
+Environment files have been streamlined for all apps. 
+
+#### Local Development
+For local development, copy the examples to create your local `.env` files:
 ```bash
-# For local development, copy the examples:
 cp apps/frontend/.env.example apps/frontend/.env
 cp apps/admin-web/.env.example apps/admin-web/.env
 cp apps/backend/.env.example apps/backend/.env
 cp apps/worker/.env.example apps/worker/.env
 ```
+
+#### Production Deployment (Vercel & Render)
+For production deployments, you must manually configure the environment variables in your hosting provider's dashboard using the `.env.production` files as a reference:
+- **Frontend (Vercel)**: Copy variables from `apps/frontend/.env.production` into your Vercel project settings.
+- **Backend (Render)**: Copy variables from `apps/backend/.env.production` into your Render web service settings (ensure `GOOGLE_CLIENT_ID`, `JWT_SECRET`, and `JWT_REFRESH_SECRET` are set!).
+- **Admin Web (Vercel)**: Copy variables from `apps/admin-web/.env.production` into Vercel.
 
 ### 2. Install Dependencies
 From the root of the workspace, run:
