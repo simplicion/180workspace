@@ -18,6 +18,8 @@ graph LR
 
 This project is a **Turborepo** monorepo using **pnpm**, structured as follows:
 
+**Note on NextAuth & Vercel**: The frontend uses a decoupled `platform-token` authentication provider. It does not connect directly to the database via Prisma within NextAuth callbacks. Instead, all session, login, and registration flows communicate with the backend API. This prevents Vercel serverless function connection timeouts and properly isolates the database to the backend.
+
 - `apps/frontend`: Next.js user app for 180workspace.
 - `apps/admin-web`: Next.js internal admin for 180workspace.
 - `apps/backend`: Core API for 180workspace.
