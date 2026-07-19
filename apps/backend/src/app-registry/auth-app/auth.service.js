@@ -658,17 +658,25 @@ class AuthService {
             err.status = 400; throw err;
         }
 
+        // Clean the client ID in case it was pasted into Render with quotes
+        const clientId = (process.env.GOOGLE_CLIENT_ID || '').replace(/"/g, '').replace(/'/g, '').trim();
+
         const { OAuth2Client } = require('google-auth-library');
-        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        const client = new OAuth2Client(clientId);
 
         let ticket;
         try {
             ticket = await client.verifyIdToken({
                 idToken: tokenId,
-                audience: process.env.GOOGLE_CLIENT_ID,
+                audience: clientId,
             });
         } catch (error) {
+            // Log the decoded token's audience for easier debugging
+            const decoded = jwt.decode(tokenId);
             console.error('[GoogleLogin] verifyIdToken error:', error.message);
+            console.error('[GoogleLogin] Expected Audience:', clientId);
+            console.error('[GoogleLogin] Actual Token Audience:', decoded?.aud);
+            
             const err = new Error('Google authentication failed: ' + error.message);
             err.status = 401; 
             throw err;
