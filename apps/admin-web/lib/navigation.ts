@@ -64,7 +64,7 @@ export const navigation = [
             { id: 'projects', name: 'Active Projects', href: '/dashboard/projects', icon: FolderKanban, roles: ['admin', 'manager', 'hr', 'employee', 'client'] },
             { id: 'tasks', name: 'Task Board', href: '/dashboard/tasks', icon: CheckSquare, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'work-logs', name: 'Work Logs', href: '/dashboard/work-logs', icon: Clock, roles: ['admin', 'manager', 'hr', 'employee'] },
-            { id: 'goals', name: 'Milestone Goals', href: '/dashboard/goals', icon: Target, roles: ['admin', 'manager', 'hr', 'employee'] },
+            { id: 'goals', name: 'Milestone Goals', href: '/dashboard/goals', icon: Target, roles: ['admin', 'manager', 'hr'] },
         ]
     },
 
@@ -127,9 +127,9 @@ export const navigation = [
         items: [
             { id: 'chat', name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'calendar', name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, roles: ['admin', 'manager', 'hr', 'employee'] },
-            { id: 'content-calendar', name: 'Content Calendar', href: '/dashboard/content-calendar', icon: CalendarDays, roles: ['admin', 'manager', 'hr', 'employee'] },
+            { id: 'content-calendar', name: 'Content Calendar', href: '/dashboard/content-calendar', icon: CalendarDays, roles: ['admin', 'manager', 'hr'] },
             { id: 'meeting', name: 'Meetings', href: '/dashboard/meeting', icon: Video, roles: ['admin', 'manager', 'hr', 'employee'] },
-            { id: 'emails', name: 'Emails', href: '/dashboard/emails', icon: Mail, roles: ['admin', 'manager', 'hr', 'employee'] },
+            { id: 'emails', name: 'Emails', href: '/dashboard/emails', icon: Mail, roles: ['admin', 'manager', 'hr'] },
             { id: 'documents', name: 'Documents', href: '/dashboard/documents', icon: FolderOpen, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'ai-assistant', name: 'AI Assistant', href: '/dashboard/ai', icon: Bot, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'help-support', name: 'Help & Support', href: '/dashboard/help-support', icon: LifeBuoy, roles: ['admin', 'manager', 'hr', 'employee', 'client'] },
