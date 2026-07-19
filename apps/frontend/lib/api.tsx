@@ -16,7 +16,8 @@ const getBaseURL = () => {
     const isServer = typeof window === 'undefined';
     
     if (isServer) {
-        const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const rawUrl = process.env.NEXT_PUBLIC_API_URL || 
+          (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:5000');
         if (isBuildPhase && rawUrl.includes('localhost')) {
             return 'http://127.0.0.1:0'; // Immediate connection refusal to avoid hang
         }
@@ -38,7 +39,8 @@ const getBaseURL = () => {
     const isSubdomain = !!subdomain && !['www', 'ims', 'api', 'admin', 'app', 'localhost', 'vercel'].includes(subdomain);
 
     if (isSubdomain) {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 
+          (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:5000');
         try {
             const url = new URL(apiBase);
             const port = url.port ? `:${url.port}` : '';
@@ -57,7 +59,8 @@ const getBaseURL = () => {
             return apiBase;
         }
     }
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    return process.env.NEXT_PUBLIC_API_URL || 
+      (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:5000');
 };
 
 const api = axios.create({
