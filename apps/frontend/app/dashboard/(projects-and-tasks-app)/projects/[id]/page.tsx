@@ -1267,7 +1267,7 @@ export default function ProjectDetailPage() {
                 onClose={() => setShowMembersModal(false)}
                 title="Manage Project Members"
                 type="employee"
-                currentIds={project.memberIds?.map((m: any) => m.id) || []}
+                currentIds={project.memberIds || []}
                 onSelect={handleUpdateMembers}
             />
 
@@ -1276,7 +1276,7 @@ export default function ProjectDetailPage() {
                 onClose={() => setShowClientsModal(false)}
                 title="Manage Project Clients"
                 type="client"
-                currentIds={project.clientIds?.map((c: any) => c.id) || []}
+                currentIds={project.clientIds || []}
                 onSelect={handleUpdateClients}
             />
 

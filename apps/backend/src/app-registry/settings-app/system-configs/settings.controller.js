@@ -306,13 +306,14 @@ exports.testAiConnection = async (req, res) => {
 };
 
 exports.testEmailConnection = async (req, res) => {
+    let companyId = null;
     try {
         if (!['admin', 'manager'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Only admins/managers can test email connection' });
         }
 
         const settings = await req.prisma.settings.findFirst();
-        const companyId = req.user.companyId || settings?.companyId;
+        companyId = req.user.companyId || settings?.companyId;
         const metadata = companyId ? await getCompanyMetadata(companyId) : {};
         
         const smtpHost = req.body.smtpHost || metadata.smtpHost || settings?.smtpHost;
@@ -330,8 +331,8 @@ exports.testEmailConnection = async (req, res) => {
 
         const transporter = nodemailer.createTransport({
             host: smtpHost,
-            port: smtpPort,
-            secure: smtpSecure,
+            port: parseInt(smtpPort, 10) || 587,
+            secure: smtpSecure === true || smtpSecure === 'true' || parseInt(smtpPort, 10) === 465,
             auth: {
                 user: smtpUser,
                 pass: smtpPass,
@@ -363,18 +364,26 @@ exports.testEmailConnection = async (req, res) => {
         res.json({ message: 'Test email sent successfully! Please check your inbox.', settings: merged });
     } catch (error) {
         console.error('Email connection test failed:', error);
-        await updateCompanyMetadata(companyId, {
-            lastEmailTestStatus: 'failure',
-            lastEmailTestDate: new Date(),
-            lastEmailTestError: error.message
-        });
-
-        const settings = await req.prisma.settings.findFirst();
-        const freshMeta = await getCompanyMetadata(companyId);
-        const merged = { ...settings };
-        METADATA_FIELDS.forEach(field => {
-            merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
-        });
+        
+        let merged = { ...req.body };
+        try {
+            if (companyId) {
+                await updateCompanyMetadata(companyId, {
+                    lastEmailTestStatus: 'failure',
+                    lastEmailTestDate: new Date(),
+                    lastEmailTestError: error.message
+                });
+                
+                const settings = await req.prisma.settings.findFirst();
+                const freshMeta = await getCompanyMetadata(companyId);
+                merged = { ...settings };
+                METADATA_FIELDS.forEach(field => {
+                    merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
+                });
+            }
+        } catch (innerError) {
+            console.error('Failed to log email test error:', innerError);
+        }
 
         res.status(500).json({
             error: 'Email connection test failed',
@@ -385,13 +394,14 @@ exports.testEmailConnection = async (req, res) => {
 };
 
 exports.testStorageConnection = async (req, res) => {
+    let companyId = null;
     try {
         if (!['admin', 'manager'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Only admins/managers can test storage connection' });
         }
 
         const settings = await req.prisma.settings.findFirst();
-        const companyId = req.user.companyId || settings?.companyId;
+        companyId = req.user.companyId || settings?.companyId;
 
         if (!settings || settings.storageMode === 'local') {
             return res.status(400).json({ error: 'Storage mode is set to local or not configured' });

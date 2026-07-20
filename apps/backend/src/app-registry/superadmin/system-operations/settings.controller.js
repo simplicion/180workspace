@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { prisma } = require('@workspace/db');
 
@@ -75,6 +75,7 @@ exports.testDbConnection = async (req, res) => {
 };
 
 exports.testEmailConnection = async (req, res) => {
+    let companyId = null;
     try {
         const settings = await getPlatformSettingsInstance();
         
@@ -93,8 +94,8 @@ exports.testEmailConnection = async (req, res) => {
 
         const transporter = nodemailer.createTransport({
             host: smtpHost,
-            port: smtpPort,
-            secure: smtpSecure !== undefined ? smtpSecure : (smtpPort === 465),
+            port: parseInt(smtpPort, 10) || 587,
+            secure: smtpSecure === true || smtpSecure === 'true' || parseInt(smtpPort, 10) === 465,
             auth: {
                 user: smtpUser,
                 pass: smtpPass,

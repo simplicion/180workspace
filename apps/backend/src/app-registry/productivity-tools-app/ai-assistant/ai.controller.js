@@ -16,6 +16,9 @@ async function getSettingsWithMetadata(req) {
             if (typeof metadata === 'string') {
                 try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
             }
+            if (typeof metadata === 'string') {
+                try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+            }
         }
     }
     return { ...settings, ...metadata };
@@ -226,12 +229,12 @@ exports.chatWithAI = async (req, res, next) => {
                 myTasks, myProjects, myLeaves, myAttendance,
                 recentTasks, recentProjects
             ] = await Promise.all([
-                Task.count({ where: {assignees: user.id, status: { not: 'done' }} }),
-                Project.count({ where: {members: user.id, status: { not: 'completed' }} }),
+                Task.count({ where: {assigneeId: user.id, status: { not: 'done' }} }),
+                Project.count({ where: {memberIds: { has: user.id }, status: { not: 'completed' }} }),
                 Leave.count({ where: {employeeId: user.id, status: 'pending'} }),
                 Attendance.findFirst({ where: { employeeId: user.id, date: todayStr } }),
-                Task.findMany({ where: {assignees: user.id, status: { not: 'done' }}, take: 10, select: { title: true, status: true } }),
-                Project.findMany({ where: {members: user.id, status: { not: 'completed' }}, take: 10, select: { name: true, status: true } })
+                Task.findMany({ where: {assigneeId: user.id, status: { not: 'done' }}, take: 10, select: { title: true, status: true } }),
+                Project.findMany({ where: {memberIds: { has: user.id }, status: { not: 'completed' }}, take: 10, select: { name: true, status: true } })
             ]);
             const attStatus = myAttendance ? myAttendance.status : 'Not marked yet';
             contextText += `Your Current Status:\n- Your Pending Tasks: ${myTasks}\n- Your Active Projects: ${myProjects}\n- Your Pending Leave Requests: ${myLeaves}\n- Your Attendance Today: ${attStatus}\n\n`;

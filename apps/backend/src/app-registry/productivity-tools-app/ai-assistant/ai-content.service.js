@@ -15,7 +15,13 @@ class AiContentService {
         const company = await prisma.company.findUnique({
             where: { id: companyId }
         });
-        const metadata = company?.metadata || {};
+        let metadata = company?.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
         
         if (!metadata || !metadata.aiProvider || metadata.aiProvider === 'none') {
             return null;

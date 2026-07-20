@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, User, RefreshCw, Copy, Check, MessageSquare, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, Send, User, RefreshCw, Copy, Check, MessageSquare, Plus, Trash2, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
 
@@ -173,19 +173,19 @@ export default function AIAssistantPage() {
     }
 
     return (
-        <div className="flex h-[calc(100vh-112px)] overflow-hidden bg-gray-50/50 rounded-2xl border border-gray-100 relative">
-            {/* Sidebar toggle button (mobile) */}
-            <button 
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="md:hidden absolute top-4 left-4 z-20 p-2 bg-white rounded-lg shadow-sm border border-gray-200"
-            >
-                <MessageSquare className="w-5 h-5 text-gray-600" />
-            </button>
+        <div className="flex h-[calc(100vh-64px)] -m-4 md:-m-6 overflow-hidden bg-white relative">
+            {/* Mobile Overlay */}
+            {isSidebarOpen && (
+                <div 
+                    className="absolute inset-0 bg-gray-900/20 z-20 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
 
             {/* Sidebar */}
             <div className={clsx(
-                "absolute md:relative z-10 h-full bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out w-72 flex-shrink-0",
-                isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-0 md:border-none"
+                "absolute md:relative z-30 h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden shadow-xl md:shadow-none",
+                isSidebarOpen ? "translate-x-0 w-72" : "-translate-x-full w-72 md:w-0 md:translate-x-0 md:border-none"
             )}>
                 <div className={clsx("flex flex-col h-full", !isSidebarOpen && "md:hidden")}>
                     <div className="p-4 border-b border-gray-100 flex items-center justify-between">
@@ -249,19 +249,19 @@ export default function AIAssistantPage() {
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col h-full bg-white relative">
-                {/* Desktop sidebar toggle */}
-                <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="hidden md:flex absolute top-1/2 -left-3 -translate-y-1/2 z-20 w-6 h-12 bg-white border border-gray-200 rounded-r-xl items-center justify-center shadow-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
-                >
-                    {isSidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
+            <div className="flex-1 flex flex-col h-full bg-white relative min-w-0">
 
-                <div className="page-header flex items-center justify-between flex-shrink-0 border-b border-gray-100 bg-white md:pl-8 pl-16 py-4 px-6">
+                <div className="page-header flex items-center justify-between flex-shrink-0 border-b border-gray-100 bg-white py-3 px-4 md:px-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-white" />
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer z-10"
+                            title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+                        >
+                            <Menu className="w-5 h-5" />
+                        </button>
+                        <div className="hidden md:flex w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 items-center justify-center">
+                            <Sparkles className="w-4 h-4 text-white" />
                         </div>
                         <div>
                             <h1 className="page-title !mb-0 text-xl font-bold">AI Assistant</h1>
