@@ -137,8 +137,14 @@ class PayrollService {
         const totalDeductions = ptDeduction + lateDeduction;
         const netSalary = grossSalary + employeeBonuses - totalDeductions;
 
+        let totalTenureDays = 0;
+        if (employee.joinDate) {
+            totalTenureDays = moment().diff(moment(employee.joinDate), 'days');
+        }
+
         return {
             employeeId: employee.id,
+            totalTenureDays,
             employeeName: employee.name,
             month,
             baseSalary,

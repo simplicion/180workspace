@@ -289,10 +289,14 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                                     <div key={log.id} className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col gap-2">
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center">
-                                                                    <span className="text-indigo-600 text-[10px] font-bold">{log.employee?.name?.[0]?.toUpperCase()}</span>
-                                                                </div>
-                                                                <span className="text-xs font-semibold text-gray-900">{log.employee?.name}</span>
+                                                                {log.user?.photoUrl || log.user?.profilePicture ? (
+                                                                    <img src={log.user?.photoUrl || log.user?.profilePicture} alt={log.user?.name || log.employee?.name || 'User'} className="w-6 h-6 rounded-full object-cover border border-gray-200" />
+                                                                ) : (
+                                                                    <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center">
+                                                                        <span className="text-indigo-600 text-[10px] font-bold">{(log.user?.name || log.employee?.name)?.[0]?.toUpperCase()}</span>
+                                                                    </div>
+                                                                )}
+                                                                <span className="text-xs font-semibold text-gray-900">{log.user?.name || log.employee?.name || 'Unknown User'}</span>
                                                             </div>
                                                             <div className="text-[10px] text-gray-500 font-medium">
                                                                 {log.workDate ? format(new Date(log.workDate), 'MMM d, yyyy') : ''}

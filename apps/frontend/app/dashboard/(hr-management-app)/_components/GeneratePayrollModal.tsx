@@ -223,6 +223,7 @@ export default function GeneratePayrollModal({ onClose, onSuccess }: Props) {
                                 <div className="bg-gray-50/80 px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attendance & Leave Breakdown</span>
                                     <div className="flex gap-2">
+                                        {preview.totalTenureDays > 0 && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full" title="Total days employee has been working since joining">Total Days Worked: {preview.totalTenureDays}</span>}
                                         {preview.holidayCount > 0 && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">{preview.holidayCount} Holidays Credited</span>}
                                         <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">Pro-rata calc</span>
                                     </div>
