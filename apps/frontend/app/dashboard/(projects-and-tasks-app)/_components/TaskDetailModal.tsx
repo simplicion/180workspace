@@ -228,6 +228,8 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                                 const size = file.fileSize ? `${(file.fileSize / 1024 / 1024).toFixed(2)} MB • ` : '';
                                                 const date = file.createdAt ? format(new Date(file.createdAt), 'MMM d, yyyy') : '';
                                                 
+                                                const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i) != null;
+                                                
                                                 return (
                                                 <a
                                                     key={file.id || i}
@@ -236,9 +238,13 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                                     rel="noopener noreferrer"
                                                     className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all group"
                                                 >
-                                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                                                        <Paperclip className="w-4 h-4 text-indigo-600" />
-                                                    </div>
+                                                    {isImage ? (
+                                                        <img src={url} alt={name} className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200 flex-shrink-0" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                                                            <Paperclip className="w-4 h-4 text-indigo-600" />
+                                                        </div>
+                                                    )}
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
                                                             {name}
@@ -404,9 +410,13 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                     )}
                                     {assignee && (
                                         <div className="flex items-center gap-2 mt-1.5">
-                                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-white text-[9px] font-bold">{assignee.name?.[0]?.toUpperCase()}</span>
-                                            </div>
+                                            {assignee.profilePicture || assignee.photoUrl ? (
+                                                <img src={assignee.profilePicture || assignee.photoUrl} alt={assignee.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0 border border-gray-200" />
+                                            ) : (
+                                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-white text-[9px] font-bold">{assignee.name?.[0]?.toUpperCase()}</span>
+                                                </div>
+                                            )}
                                             <span className="text-xs text-gray-500">{assignee.name}</span>
                                         </div>
                                     )}

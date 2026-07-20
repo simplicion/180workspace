@@ -45,7 +45,7 @@ export default function AIAssistantPage() {
     // Sidebar state
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [loadingSessions, setLoadingSessions] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -184,10 +184,10 @@ export default function AIAssistantPage() {
 
             {/* Sidebar */}
             <div className={clsx(
-                "absolute md:relative z-30 h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden shadow-xl md:shadow-none",
-                isSidebarOpen ? "translate-x-0 w-72" : "-translate-x-full w-72 md:w-0 md:translate-x-0 md:border-none"
+                "absolute z-30 h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden shadow-xl",
+                isSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"
             )}>
-                <div className={clsx("flex flex-col h-full", !isSidebarOpen && "md:hidden")}>
+                <div className="flex flex-col h-full">
                     <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                         <h2 className="font-semibold text-gray-800 flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-indigo-500" />
@@ -255,7 +255,7 @@ export default function AIAssistantPage() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer z-10"
+                            className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer z-10 flex items-center justify-center"
                             title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
                         >
                             <Menu className="w-5 h-5" />

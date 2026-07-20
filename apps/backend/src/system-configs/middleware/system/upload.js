@@ -23,7 +23,7 @@ const upload = multer({
             'application/vnd.ms-powerpoint',
             'application/vnd.openxmlformats-officedocument.presentationml.presentation',
             'application/zip', 'application/x-zip-compressed',
-            'text/plain', 'text/csv',
+            'text/plain', 'text/csv', 'text/markdown', 'application/rtf',
             'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav',
             'video/webm', 'video/mp4'
         ];

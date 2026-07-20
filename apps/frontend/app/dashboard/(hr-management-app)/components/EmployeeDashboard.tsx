@@ -501,31 +501,42 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                                                 )}
                                             </div>
                                                 <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedTask(task);
-                                                            setShowLogWorkModal(true);
-                                                        }}
-                                                        className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                                                        title="Log work for this task"
-                                                    >
-                                                        <ClipboardCheck className="w-4 h-4" />
-                                                    </button>
-                                                    <select
-                                                        value={task.status}
-                                                        onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                                                        className={clsx(
-                                                            'text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg border-none cursor-pointer outline-none transition-all hover:ring-1 hover:ring-indigo-300',
-                                                            STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50'
-                                                        )}
-                                                        title="Change status"
-                                                    >
-                                                        <option value="todo">Todo</option>
-                                                        <option value="in_progress">In Progress</option>
-                                                        {/* Employees cannot manually select Done/Review */}
-                                                        {task.status === 'in_review' && <option value="in_review">In Review</option>}
-                                                        {task.status === 'done' && <option value="done">Done</option>}
-                                                    </select>
+                                                    {task.status === 'in_progress' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedTask(task);
+                                                                setShowLogWorkModal(true);
+                                                            }}
+                                                            className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                                            title="Log work for this task"
+                                                        >
+                                                            <ClipboardCheck className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    {task.status === 'in_review' || task.status === 'done' ? (
+                                                        <span
+                                                            className={clsx(
+                                                                'text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg border-none inline-block',
+                                                                STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50'
+                                                            )}
+                                                            title="Status cannot be changed"
+                                                        >
+                                                            {task.status.replace('_', ' ')}
+                                                        </span>
+                                                    ) : (
+                                                        <select
+                                                            value={task.status}
+                                                            onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                                                            className={clsx(
+                                                                'text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg border-none cursor-pointer outline-none transition-all hover:ring-1 hover:ring-indigo-300',
+                                                                STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50'
+                                                            )}
+                                                            title="Change status"
+                                                        >
+                                                            <option value="todo">Todo</option>
+                                                            <option value="in_progress">In Progress</option>
+                                                        </select>
+                                                    )}
                                                 </div>
                                         </div>
                                     );

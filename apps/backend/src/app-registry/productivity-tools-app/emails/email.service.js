@@ -97,29 +97,30 @@ async function getTransporter(category = CATEGORIES.WORK, tenantPrisma = null) {
         }
 
         try {
+            const company = await tenantPrisma.company.findFirst({ select: { id: true, metadata: true } });
+            if (!company) throw new Error("Could not find company in tenant context.");
+            
+            let metadata = company.metadata || {};
+            if (typeof metadata === 'string') {
+                try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
+            }
+            
             const settingsRecord = await tenantPrisma.settings.findFirst();
-            if (settingsRecord) {
-                const company = await tenantPrisma.company.findUnique({ where: { id: settingsRecord.companyId }, select: { metadata: true } });
-                let metadata = company?.metadata || {};
-                if (typeof metadata === 'string') {
-                    try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
-                }
-                
-                // Merge settings with metadata
-                const settings = { ...settingsRecord };
-                ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom'].forEach(field => {
-                    if (metadata[field] !== undefined) settings[field] = metadata[field];
-                });
+            const settings = { ...(settingsRecord || {}) };
 
-                if (settings.smtpHost && settings.smtpUser && settings.smtpPass) {
-                    console.log(`[EmailService] [ISOLATION:WORK] Using Tenant SMTP: ${settings.smtpHost}`);
-                    return nodemailer.createTransport({
-                        host: settings.smtpHost,
-                        port: settings.smtpPort || 587,
-                        secure: settings.smtpSecure || (settings.smtpPort === 465),
-                        auth: { user: settings.smtpUser, pass: settings.smtpPass },
-                    });
-                }
+            ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom'].forEach(field => {
+                if (metadata[field] !== undefined) settings[field] = metadata[field];
+            });
+
+            if (settings.smtpHost && settings.smtpUser && settings.smtpPass) {
+                console.log(`[EmailService] [ISOLATION:WORK] Using Tenant SMTP: ${settings.smtpHost}`);
+                const port = Number(settings.smtpPort) || 587;
+                return nodemailer.createTransport({
+                    host: settings.smtpHost,
+                    port: port,
+                    secure: settings.smtpSecure !== undefined ? settings.smtpSecure : (port === 465),
+                    auth: { user: settings.smtpUser, pass: settings.smtpPass },
+                });
             }
             console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for tenant. Throwing error.`);
             throw new Error("Tenant SMTP is not configured. Please configure your email settings in the dashboard to send work emails.");

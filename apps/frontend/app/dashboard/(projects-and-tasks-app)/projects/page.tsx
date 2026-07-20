@@ -244,23 +244,23 @@ export default function ProjectsPage() {
                                             onClick: () => router.push(`/dashboard/projects/${project.id}`),
                                             variant: 'primary'
                                         },
-                                        {
+                                        canCreateProject && {
                                             label: 'Add Task',
                                             icon: PlusCircle,
                                             onClick: () => router.push(`/dashboard/tasks?create=true&projectId=${project.id}&projectName=${encodeURIComponent(project.name)}`)
                                         },
-                                        {
+                                        canCreateProject && {
                                             label: 'Archive',
                                             icon: Archive,
                                             onClick: () => setProjectToArchive(project)
                                         },
-                                        {
+                                        canCreateProject && {
                                             label: 'Delete',
                                             icon: Trash2,
                                             onClick: () => setProjectToDelete(project),
                                             variant: 'danger'
                                         }
-                                    ]}
+                                    ].filter(Boolean) as any}
                                 />
                             </div>
                         </div>

@@ -3,8 +3,9 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
+import TaskDetailModal from '@/app/dashboard/(projects-and-tasks-app)/_components/TaskDetailModal';
 import api from '@/lib/api';
-import { Clock, Plus, Search, Filter, CheckCircle2, XCircle, Timer, Calendar, Briefcase, Layout, CheckSquare, ExternalLink, MessageSquare, ChevronRight, User, BarChart3, TrendingUp, ChevronDown, Download, Users, Briefcase as ProjectIcon, Layers, CalendarDays, History } from 'lucide-react';
+import { Clock, Plus, Search, Filter, CheckCircle2, XCircle, Timer, Calendar, Briefcase, Layout, CheckSquare, ExternalLink, MessageSquare, ChevronRight, User, BarChart3, TrendingUp, ChevronDown, Download, Users, Briefcase as ProjectIcon, Layers, CalendarDays, History, Paperclip } from 'lucide-react';
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
     ResponsiveContainer, BarChart, Bar, Cell 
@@ -48,6 +49,7 @@ export default function WorkLogsPage() {
     
     // Review related
     const [reviewingLog, setReviewingLog] = useState<any>(null);
+    const [viewTaskId, setViewTaskId] = useState<string | null>(null);
     const [reviewComment, setReviewComment] = useState('');
     const [isReviewLoading, setIsReviewLoading] = useState(false);
 
@@ -432,7 +434,7 @@ export default function WorkLogsPage() {
                                                                 className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
                                                             >
                                                                 <ExternalLink className="w-3 h-3" />
-                                                                {new URL(link).hostname}
+                                                                {(() => { try { return new URL(link).hostname; } catch(e) { return link; } })()}
                                                             </a>
                                                         ))}
                                                     </div>
@@ -660,6 +662,8 @@ export default function WorkLogsPage() {
                 </div>
             </div>
 
+            {viewTaskId && <TaskDetailModal taskId={viewTaskId} onClose={() => setViewTaskId(null)} />}
+
             {/* Review Modal */}
             {reviewingLog && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -689,6 +693,72 @@ export default function WorkLogsPage() {
                                 <p className="text-sm text-indigo-800 italic leading-relaxed break-words break-all whitespace-pre-wrap">
                                     &quot;{reviewingLog.description}&quot;
                                 </p>
+                                
+                                {reviewingLog.links && reviewingLog.links.length > 0 && (
+                                    <div className="mt-3">
+                                        <span className="text-xs font-bold text-indigo-400 mb-1 block">Proof Links</span>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                            {reviewingLog.links.map((link: string, i: number) => (
+                                                <a 
+                                                    key={i} 
+                                                    href={link} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1 text-xs font-medium text-indigo-600 bg-white border border-indigo-100 px-2 py-1 rounded hover:bg-indigo-50"
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    {(() => { try { return new URL(link).hostname; } catch(e) { return link; } })()}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {reviewingLog.attachmentUrls && reviewingLog.attachmentUrls.length > 0 && (
+                                    <div className="mt-3">
+                                        <span className="text-xs font-bold text-indigo-400 mb-1 block">Attachments</span>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                            {reviewingLog.attachmentUrls.map((url: string, i: number) => (
+                                                <a 
+                                                    key={i} 
+                                                    href={url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1 text-xs font-medium text-indigo-600 bg-white border border-indigo-100 px-2 py-1 rounded hover:bg-indigo-50"
+                                                >
+                                                    <Paperclip className="w-3 h-3" />
+                                                    Attachment {i + 1}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {reviewingLog.taskId && (
+                                    <div className="mt-4 pt-4 border-t border-indigo-100/50">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div>
+                                                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1 block">Task Information</span>
+                                                <div className="font-semibold text-indigo-900 text-sm">{reviewingLog.taskId?.title}</div>
+                                                <div className="text-xs text-indigo-600 mt-1 flex items-center gap-2">
+                                                    <span className="flex items-center gap-1"><Timer className="w-3 h-3"/> {reviewingLog.taskId?.estimatedHours || 0}h est.</span>
+                                                    {reviewingLog.taskId?.priority && (
+                                                        <span className="capitalize px-1.5 py-0.5 bg-indigo-100 rounded text-[10px] font-bold">
+                                                            {reviewingLog.taskId.priority}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => setViewTaskId(reviewingLog.taskId?.id)}
+                                                className="shrink-0 text-xs flex items-center gap-1 bg-white border border-indigo-200 text-indigo-700 font-semibold px-2 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm"
+                                            >
+                                                <ExternalLink className="w-3 h-3" />
+                                                View Details
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div>

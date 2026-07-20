@@ -94,7 +94,7 @@ exports.createTask = async (req, res, next) => {
         await logAction(req.user.id, 'CREATE_TASK', 'task', task.id, { title: task.title, projectId: task.projectId, assignee: task.assignee?.name, status: task.status, priority: task.priority }, req);
 
         let notificationResult = null;
-        if (task.assigneeId && task.assigneeId.toString() !== req.user.id.toString()) {
+        if (task.assigneeId) {
             const project = task.projectId ? await Project.findUnique({ where: { id: task.projectId }, select: { name: true } }) : null;
             const triggerResult = await AutomationService.trigger({
                 eventType: 'task_assigned',
@@ -109,7 +109,10 @@ exports.createTask = async (req, res, next) => {
                     priority: task.priority || 'medium',
                     dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date',
                     description: task.description || 'No description provided.',
-                    assignedBy: req.user.name || 'System'
+                    assignedBy: req.user.name || 'System',
+                    taskUrl: task.projectId 
+                        ? `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || req.headers.origin || 'http://localhost:3000'}/dashboard/projects/${task.projectId}?tab=tasks&taskId=${task.id}`
+                        : `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || req.headers.origin || 'http://localhost:3000'}/dashboard/tasks?taskId=${task.id}`
                 }
             }, req.prisma);
             notificationResult = triggerResult?.notificationResult;
@@ -196,6 +199,10 @@ exports.updateTask = async (req, res, next) => {
             return res.status(403).json({ error: 'Access denied. You do not have permission to edit this task.' });
         }
 
+        if (req.body.status && req.body.status !== oldTask.status && oldTask.status === 'in_review') {
+            return res.status(400).json({ error: 'Cannot change status of a task that is currently in review. It must be approved or rejected via work logs.' });
+        }
+
         const updateData = {};
         const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'voiceMessageUrl', 'attachments'];
         allowedFields.forEach(f => {
@@ -257,7 +264,7 @@ exports.updateTask = async (req, res, next) => {
                 }
             });
 
-            if (!oldTask.pointAwarded && oldTask.assigneeId) {
+            if (!oldTask.pointAwarded && oldTask.assigneeId && isOnTime) {
                 const User = req.prisma.user;
                 const assignee = await User.findUnique({ where: { id: oldTask.assigneeId } });
                 if (assignee) {

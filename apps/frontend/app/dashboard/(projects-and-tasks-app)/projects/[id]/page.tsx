@@ -84,6 +84,11 @@ export default function ProjectDetailPage() {
             if (tab && ['overview', 'modules', 'tasks', 'work-logs', 'milestones', 'files', 'notes', 'timelogs', 'team', 'clients'].includes(tab)) {
                 setActiveTab(tab as any);
             }
+            const taskId = params.get('taskId');
+            if (taskId) {
+                setSelectedTaskId(taskId);
+                setActiveTab('tasks');
+            }
         }
     }, []);
 
@@ -936,7 +941,11 @@ export default function ProjectDetailPage() {
                                                             "w-5 h-5 rounded-full flex items-center justify-center relative shadow-sm ring-1 ring-white",
                                                             task.assigneeId.role && ROLE_CONFIG[task.assigneeId.role] ? ROLE_CONFIG[task.assigneeId.role].bg : "bg-gray-400"
                                                         )}>
-                                                            <span className="text-white text-[9px] font-bold">{task.assigneeId?.name?.[0]?.toUpperCase()}</span>
+                                                            {task.assigneeId.profilePicture || task.assigneeId.photoUrl ? (
+                                                                <img src={task.assigneeId.profilePicture || task.assigneeId.photoUrl} alt={task.assigneeId.name} className="w-5 h-5 rounded-full object-cover" />
+                                                            ) : (
+                                                                <span className="text-white text-[9px] font-bold">{task.assigneeId?.name?.[0]?.toUpperCase()}</span>
+                                                            )}
                                                             {/* Tiny Role Dot */}
                                                             <div className={clsx(
                                                                 "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white shadow-xs",

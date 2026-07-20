@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const moment = require('moment');
 
@@ -18,27 +18,45 @@ class PayrollService {
         // 1. Fetch Employee details
         const employee = await User.findUnique({
             where: { id: employeeId },
-            select: { id: true, name: true, salary: true, bonuses: true }
+            select: { id: true, name: true, salary: true, joinDate: true }
         });
         if (!employee) {
             throw new Error('Employee not found');
         }
 
-        const baseSalary = employee.salary || 0; // Allow 0-salary employees â€” HR will set before generating
-        const employeeBonuses = employee.bonuses || 0;
+        const baseSalary = employee.salary || 0; // Allow 0-salary employees — HR will set before generating
+        const employeeBonuses = 0; // Removing since it's not in schema
         const daysInMonth = moment(month, 'YYYY-MM').daysInMonth();
         
-        // Use ISO string formats for Prisma date comparisons if fields are DateTime
-        // Or if fields are String, string comparison works. Assuming DateTime:
-        const startOfMonth = new Date(`${month}-01T00:00:00Z`);
-        const endOfMonth = new Date(`${month}-${daysInMonth}T23:59:59Z`);
+        let cycleDays = daysInMonth;
+        const today = moment();
+        if (today.format('YYYY-MM') === month) {
+            cycleDays = today.date();
+        }
+        if (employee.joinDate) {
+            const joinM = moment(employee.joinDate);
+            if (joinM.format('YYYY-MM') === month) {
+                const maxDate = (today.format('YYYY-MM') === month) ? today.date() : daysInMonth;
+                if (joinM.date() <= maxDate) {
+                    cycleDays = maxDate - joinM.date() + 1;
+                }
+            } else if (joinM.isAfter(moment(month, 'YYYY-MM').endOf('month'))) {
+                cycleDays = 0; // Joined after this month
+            }
+        }
+        
+        // Use ISO string formats for Prisma date comparisons
+        const startOfMonthStr = `${month}-01`;
+        const endOfMonthStr = `${month}-${daysInMonth}`;
+        const startOfMonthDate = new Date(`${month}-01T00:00:00Z`);
+        const endOfMonthDate = new Date(`${month}-${daysInMonth}T23:59:59Z`);
 
         // 2. Parallel Data Fetching
         const [attendanceRecords, leaves, monthlyHolidays] = await Promise.all([
             Attendance.findMany({ 
                 where: { 
                     employeeId, 
-                    date: { gte: startOfMonth, lte: endOfMonth } 
+                    date: { gte: startOfMonthStr, lte: endOfMonthStr } 
                 } 
             }),
             Leave.findMany({ 
@@ -46,14 +64,14 @@ class PayrollService {
                     employeeId, 
                     status: 'approved', 
                     OR: [
-                        { startDate: { gte: startOfMonth, lte: endOfMonth } },
-                        { endDate: { gte: startOfMonth, lte: endOfMonth } }
+                        { startDate: { gte: startOfMonthStr, lte: endOfMonthStr } },
+                        { endDate: { gte: startOfMonthStr, lte: endOfMonthStr } }
                     ]
                 }
             }),
             Holiday.findMany({ 
                 where: { 
-                    date: { gte: startOfMonth, lte: endOfMonth } 
+                    date: { gte: startOfMonthDate, lte: endOfMonthDate } 
                 } 
             })
         ]);
@@ -73,8 +91,8 @@ class PayrollService {
             else if (rec.status === 'absent') absentDays++;
         });
 
-        const mStart = moment(startOfMonth);
-        const mEnd = moment(endOfMonth);
+        const mStart = moment(startOfMonthDate);
+        const mEnd = moment(endOfMonthDate);
 
         leaves.forEach(l => {
             const lStart = moment(l.startDate);
@@ -94,19 +112,19 @@ class PayrollService {
         const holidayCount = monthlyHolidays.length;
 
         // 4. Enterprise Calculation Logic
-        const perDaySalary = baseSalary / daysInMonth;
+        const perDaySalary = cycleDays > 0 ? baseSalary / cycleDays : 0;
         
         // Effective days = (Present + HalfDay*0.5 + PaidLeave + Holidays)
         // Note: Holidays are usually paid for full-time employees.
         let effectiveDays = presentDays + (halfDays * 0.5) + paidLeaveDays + holidayCount;
         
         // Cap effective days to total days in month to prevent logic errors/double counting
-        effectiveDays = Math.min(daysInMonth, effectiveDays);
+        effectiveDays = Math.min(cycleDays, effectiveDays);
         
         const grossSalary = Math.round(effectiveDays * perDaySalary);
         
         // Deductions
-        // Professional Tax (PT) - Simplistic Enterprise Rule (e.g. â‚¹200 if Gross > 15k)
+        // Professional Tax (PT) - Simplistic Enterprise Rule (e.g. ₹200 if Gross > 15k)
         let ptDeduction = 0;
         if (grossSalary > 15000) ptDeduction = 200;
 
@@ -125,7 +143,7 @@ class PayrollService {
             month,
             baseSalary,
             perDaySalary: Math.round(perDaySalary),
-            totalDays: daysInMonth,
+            totalDays: cycleDays,
             presentDays,
             halfDays,
             holidayCount,

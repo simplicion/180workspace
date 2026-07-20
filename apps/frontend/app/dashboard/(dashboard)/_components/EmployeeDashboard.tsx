@@ -86,7 +86,13 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
 
     const handleAutoCheckIn = async () => {
         try {
-            await api.post('/api/attendance/auto-checkin');
+            const now = new Date();
+            const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const res = await api.post('/api/attendance/auto-checkin', { date, time });
+            if (res.data?.message === 'Checked in successfully') {
+                toast.success(`Automatically checked in for today at ${time}`);
+            }
             fetchData();
         } catch (err) {
             // Silently fail or log
@@ -98,7 +104,10 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
         if (!confirm) return;
 
         try {
-            await api.post('/api/attendance/auto-checkout');
+            const now = new Date();
+            const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            await api.post('/api/attendance/auto-checkout', { date, time });
             fetchData();
             toast.success('Work off recorded! Good work today.');
         } catch (err: any) {
@@ -196,7 +205,7 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                         </div>
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Monthly Presence</span>
                     </div>
-                    <p className="text-3xl font-black text-gray-900">{attendance?.stats?.present ?? 0}</p>
+                    <p className="text-3xl font-black text-gray-900">{(attendance?.stats?.present ?? 0) + (attendance?.stats?.late ?? 0)}</p>
                     <p className="text-xs text-gray-400 mt-1">{attendance?.stats?.late ?? 0} late • {attendance?.stats?.absent ?? 0} absent</p>
                 </div>
 
@@ -241,9 +250,9 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                         })
                         : Array.from({ length: 7 }, (_, i) => ({
                             day: format(subDays(new Date(), 6 - i), 'EEE'),
-                            Present: i < 5 ? 1 : 0,
-                            Late: i === 1 ? 1 : 0,
-                            Absent: i >= 5 ? 1 : 0,
+                            Present: 0,
+                            Late: 0,
+                            Absent: 0,
                         }));
                     return (
                         <div className="card p-5">
@@ -383,11 +392,16 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                     ];
                     const currentTier = [...TIERS].reverse().find(t => score >= t.min) || TIERS[0];
                     const now = new Date();
-                    const pointsData = Array.from({ length: 8 }, (_, i) => ({
-                        period: format(subDays(now, (7 - i) * 7), 'dd MMM'),
-                        Points: i < 7 ? Math.round(score * ((i + 1) / 7) * (0.75 + Math.random() * 0.25)) : score,
-                    }));
-                    pointsData[7].Points = score;
+                    const pointsData = data?.pointsHistory?.length === 8 
+                        ? data.pointsHistory.map((p: any) => ({
+                            period: format(new Date(p.period), 'dd MMM'),
+                            Points: p.Points
+                        }))
+                        : Array.from({ length: 8 }, (_, i) => ({
+                            period: format(subDays(now, (7 - i) * 7), 'dd MMM'),
+                            Points: i < 7 ? Math.round(score * ((i + 1) / 7) * (0.75 + Math.random() * 0.25)) : score,
+                        }));
+                    if (!data?.pointsHistory) pointsData[7].Points = score;
                     return (
                         <div className="card p-5">
                             <div className="flex items-start justify-between mb-3">
@@ -493,6 +507,11 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                                                     {task.projectId?.name && (
                                                         <span className="text-[10px] text-gray-400 truncate">{task.projectId.name}</span>
                                                     )}
+                                                    {task.workLogs_TaskWorkLogs?.length > 0 && (
+                                                        <span className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-200 font-semibold" title="Rejection Count">
+                                                            Rejected {task.workLogs_TaskWorkLogs.length}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 {task.dueDate && (
                                                     <TimeProgressBar
@@ -506,31 +525,43 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                                                 )}
                                             </div>
                                                 <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedTask(task);
-                                                            setShowLogWorkModal(true);
-                                                        }}
-                                                        className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                                                        title="Log work for this task"
-                                                    >
-                                                        <ClipboardCheck className="w-4 h-4" />
-                                                    </button>
-                                                    <select
-                                                        value={task.status}
-                                                        onChange={(e) => handleStatusChange(task.id || task.id, e.target.value)}
-                                                        className={clsx(
-                                                            'text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg border-none cursor-pointer outline-none transition-all hover:ring-1 hover:ring-indigo-300',
-                                                            STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50'
-                                                        )}
-                                                        title="Change status"
-                                                    >
-                                                        <option value="todo">Todo</option>
-                                                        <option value="in_progress">In Progress</option>
-                                                        {/* Employees cannot manually select Done/Review */}
-                                                        {task.status === 'in_review' && <option value="in_review">In Review</option>}
-                                                        {task.status === 'done' && <option value="done">Done</option>}
-                                                    </select>
+                                                    {task.status === 'in_progress' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedTask(task);
+                                                                setShowLogWorkModal(true);
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-xs font-semibold border border-indigo-100"
+                                                            title="Submit work log for review"
+                                                        >
+                                                            <ClipboardCheck className="w-3.5 h-3.5" />
+                                                            Log Work
+                                                        </button>
+                                                    )}
+                                                    {task.status === 'in_review' || task.status === 'done' ? (
+                                                        <span
+                                                            className={clsx(
+                                                                'text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg border-none inline-block',
+                                                                STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50'
+                                                            )}
+                                                            title="Status cannot be changed"
+                                                        >
+                                                            {task.status.replace('_', ' ')}
+                                                        </span>
+                                                    ) : (
+                                                        <select
+                                                            value={task.status}
+                                                            onChange={(e) => handleStatusChange(task.id || task.id, e.target.value)}
+                                                            className={clsx(
+                                                                'text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg border-none cursor-pointer outline-none transition-all hover:ring-1 hover:ring-indigo-300',
+                                                                STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50'
+                                                            )}
+                                                            title="Change status"
+                                                        >
+                                                            <option value="todo">Todo</option>
+                                                            <option value="in_progress">In Progress</option>
+                                                        </select>
+                                                    )}
                                                 </div>
                                         </div>
                                     );

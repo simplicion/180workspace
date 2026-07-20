@@ -187,9 +187,9 @@ exports.autoCheckIn = async (req, res, next) => {
         const CompanyConfig = req.prisma.companyConfig;
         const config = await CompanyConfig.findFirst({ where: { companyId: req.user.companyId } }) || {};
         
-        const date = new Date().toISOString().split('T')[0];
         const now = new Date();
-        const checkInTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const date = req.body.date || now.toISOString().split('T')[0];
+        const checkInTime = req.body.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const userId = req.user.id;
 
         // Check if already checked in today
@@ -227,9 +227,9 @@ exports.autoCheckIn = async (req, res, next) => {
 exports.autoCheckOut = async (req, res, next) => {
     try {
         const Attendance = req.prisma.attendance;
-        const date = new Date().toISOString().split('T')[0];
         const now = new Date();
-        const checkOutTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const date = req.body.date || now.toISOString().split('T')[0];
+        const checkOutTime = req.body.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const userId = req.user.id;
 
         const record = await Attendance.findFirst({ where: { employeeId: userId, date } });

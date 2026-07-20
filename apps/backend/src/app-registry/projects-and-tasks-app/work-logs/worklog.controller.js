@@ -1,3 +1,5 @@
+const AutomationService = require('../../../platform-core/platform-communications/services/automation.service');
+
 exports.submitWorkLog = async (req, res, next) => { 
     try {
         const WorkLog = req.prisma.workLog;
@@ -21,20 +23,31 @@ exports.submitWorkLog = async (req, res, next) => {
             },
             include: {
                 user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true } },
-                module: { select: { id: true, title: true } }
+                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                module: { select: { id: true, title: true } },
+                project: { select: { id: true, name: true } }
             }
         });
+        
+        // Update task status to in_review
+        if (taskId) {
+            await req.prisma.task.update({
+                where: { id: taskId },
+                data: { status: 'in_review' }
+            });
+        }
         
         const mappedLog = {
             ...workLog,
             userId: workLog.user,
             taskId: workLog.task,
-            moduleId: workLog.module
+            moduleId: workLog.module,
+            projectId: workLog.project
         };
         delete mappedLog.user;
         delete mappedLog.task;
         delete mappedLog.module;
+        delete mappedLog.project;
 
         res.status(201).json({ success: true, workLog: mappedLog });
     } catch (err) {
@@ -53,8 +66,9 @@ exports.getLogs = async (req, res, next) => {
             where: { projectId },
             include: {
                 user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true } },
-                module: { select: { id: true, title: true } }
+                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                module: { select: { id: true, title: true } },
+                project: { select: { id: true, name: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -64,11 +78,13 @@ exports.getLogs = async (req, res, next) => {
                 ...log,
                 userId: log.user,
                 taskId: log.task,
-                moduleId: log.module
+        moduleId: log.module,
+        projectId: log.project
             };
             delete mapped.user;
             delete mapped.task;
             delete mapped.module;
+    delete mapped.project;
             return mapped;
         });
         
@@ -83,11 +99,13 @@ const mapLogs = (logs) => logs.map(log => {
         ...log,
         userId: log.user,
         taskId: log.task,
-        moduleId: log.module
+        moduleId: log.module,
+        projectId: log.project
     };
     delete mapped.user;
     delete mapped.task;
     delete mapped.module;
+    delete mapped.project;
     return mapped;
 });
 
@@ -116,8 +134,9 @@ exports.getMyLogs = async (req, res, next) => {
             where,
             include: {
                 user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true } },
-                module: { select: { id: true, title: true } }
+                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                module: { select: { id: true, title: true } },
+                project: { select: { id: true, name: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -134,8 +153,9 @@ exports.getAllLogs = async (req, res, next) => {
             where,
             include: {
                 user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true } },
-                module: { select: { id: true, title: true } }
+                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                module: { select: { id: true, title: true } },
+                project: { select: { id: true, name: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -152,8 +172,9 @@ exports.getPendingReviews = async (req, res, next) => {
             where,
             include: {
                 user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true } },
-                module: { select: { id: true, title: true } }
+                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                module: { select: { id: true, title: true } },
+                project: { select: { id: true, name: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -173,8 +194,9 @@ exports.getDashboardStats = async (req, res, next) => {
             where,
             include: {
                 user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true } },
-                module: { select: { id: true, title: true } }
+                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                module: { select: { id: true, title: true } },
+                project: { select: { id: true, name: true } }
             },
             orderBy: { workDate: 'desc' }
         });
@@ -234,8 +256,49 @@ exports.reviewWorkLog = async (req, res, next) => {
         
         const workLog = await req.prisma.workLog.update({
             where: { id },
-            data: { status, reviewComment }
+            data: { status, reviewComment },
+            include: { task: true }
         });
+        
+        if (status === 'rejected' && workLog.taskId) {
+            await req.prisma.task.update({
+                where: { id: workLog.taskId },
+                data: { status: 'in_progress' }
+            });
+        }
+        
+        if (status === 'approved' && workLog.taskId) {
+            const oldTask = workLog.task;
+            if (oldTask && oldTask.status !== 'done') {
+                const now = new Date();
+                const isOnTime = oldTask.dueDate ? now <= new Date(oldTask.dueDate) : true;
+                
+                await req.prisma.task.update({
+                    where: { id: oldTask.id },
+                    data: {
+                        status: 'done',
+                        completedOnTime: isOnTime
+                    }
+                });
+
+                if (oldTask.assigneeId && isOnTime) {
+                    const User = req.prisma.user;
+                    const assignee = await User.findUnique({ where: { id: oldTask.assigneeId } });
+                    if (assignee) {
+                        const newScore = Math.min((assignee.performanceScore || 100) + 1, 500);
+                        await User.update({ where: { id: oldTask.assigneeId }, data: { performanceScore: newScore } });
+                    }
+                }
+
+                await AutomationService.trigger({
+                    eventType: 'task_completed',
+                    triggeredBy: req.user.id,
+                    relatedItem: { itemId: oldTask.id, itemModel: 'Task' },
+                    description: `Task "${oldTask.title}" has been completed! +1 achievement point awarded.`,
+                    metadata: { taskName: oldTask.title, completedOnTime: isOnTime }
+                }, req.prisma);
+            }
+        }
         
         res.json({ success: true, data: workLog });
     } catch (err) {

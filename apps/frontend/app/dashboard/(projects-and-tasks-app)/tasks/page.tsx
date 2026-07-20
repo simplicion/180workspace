@@ -53,6 +53,16 @@ export default function TasksPage() {
 
     useEffect(() => { loadTasks(); }, [loadTasks]);
 
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const taskId = params.get('taskId');
+            if (taskId) {
+                setSelectedTask(taskId);
+            }
+        }
+    }, []);
+
     const handleUpdated = (updated: any) =>
         setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
 
@@ -197,11 +207,11 @@ export default function TasksPage() {
                                                 )}
                                                 {task.assignee && (
                                                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center ml-auto overflow-hidden">
-                                                        {task.assignee.photoUrl ? (
-                                                            <img src={task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <span className="text-white text-[10px] font-bold">{getInitials(task.assignee.name) || <User className="w-3 h-3" />}</span>
-                                                        )}
+                                                        {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                            <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-white text-[10px] font-bold">{getInitials(task.assignee.name) || <User className="w-3 h-3" />}</span>
+                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -235,8 +245,8 @@ export default function TasksPage() {
                                 {task.dueDate && <span className="text-xs text-gray-400">{format(new Date(task.dueDate), 'MMM d')}</span>}
                                 {task.assignee && (
                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center overflow-hidden">
-                                        {task.assignee.photoUrl ? (
-                                            <img src={task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
+                                        {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                            <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
                                         ) : (
                                             <span className="text-white text-xs font-bold">{getInitials(task.assignee.name) || <User className="w-4 h-4" />}</span>
                                         )}

@@ -3,7 +3,7 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, CheckSquare, AlignLeft, FolderKanban, User, Flag, Calendar, Layout, Paperclip } from 'lucide-react';
+import { X, CheckSquare, AlignLeft, FolderKanban, User, Flag, Calendar, Layout, Paperclip, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import MultiVoiceRecorder from './MultiVoiceRecorder';
@@ -40,6 +40,9 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
     });
     
     const [voiceBlobs, setVoiceBlobs] = useState<Blob[]>([]);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [linkInput, setLinkInput] = useState('');
+    const [links, setLinks] = useState<string[]>([]);
 
     const [modules, setModules] = useState<any[]>([]);
     const [fetchingModules, setFetchingModules] = useState(false);
@@ -60,6 +63,30 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
             }
             return next;
         });
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files) return;
+        const files = Array.from(e.target.files);
+        
+        const validFiles = files.filter(file => {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error(`File ${file.name} exceeds 5MB limit`);
+                return false;
+            }
+            return true;
+        });
+
+        if (validFiles.length > 0) {
+            setSelectedFiles(prev => [...prev, ...validFiles]);
+        }
+        
+        // Reset input so the same file can be selected again if needed
+        e.target.value = '';
+    };
+
+    const removeFile = (index: number) => {
+        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     // Fetch modules when project changes
@@ -92,6 +119,28 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
 
         let finalVoiceUrl = form.voiceMessageUrl;
 
+        // Upload general files
+        let uploadedFileUrls: string[] = [];
+        if (selectedFiles.length > 0) {
+            try {
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const { data: uploadData } = await api.post('/api/files/upload', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    uploadedFileUrls.push(uploadData.url);
+                }
+            } catch (err: any) {
+                console.error('Failed to upload files:', err);
+                toast.error('Failed to upload files. Task creation aborted.');
+                setLoading(false);
+                return;
+            }
+        }
+
         // Upload multiple blobs if any
         if (voiceBlobs.length > 0) {
             try {
@@ -123,7 +172,9 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         if (moduleId) payload.moduleId = moduleId;
         if (dueDate) payload.dueDate = dueDate;
         if (finalVoiceUrl) payload.voiceMessageUrl = finalVoiceUrl;
-        if (attachments && attachments.length > 0) payload.attachments = attachments;
+        
+        const allAttachments = [...(attachments || []), ...uploadedFileUrls, ...links];
+        if (allAttachments.length > 0) payload.attachments = allAttachments;
 
         try {
             const { data } = await api.post('/api/tasks', payload);
@@ -142,6 +193,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
 
             onSuccess(data.task);
             setVoiceBlobs([]);
+            setSelectedFiles([]);
             onClose();
         } catch (err: any) {
             toast.error(err?.response?.data?.error || 'Failed to create task');
@@ -298,6 +350,107 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
 
                     <div className="pt-2">
                         <MultiVoiceRecorder onChangeBlobs={setVoiceBlobs} label="Voice Note (Optional)" />
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-100">
+                        <label className="label mb-2 flex items-center justify-between">
+                            <span>Attachments (Optional)</span>
+                            <span className="text-xs text-gray-500 font-normal">Max 5MB per file</span>
+                        </label>
+                        
+                        <div className="flex flex-col gap-3">
+                            <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-xl hover:bg-gray-50 hover:border-indigo-300 transition-colors cursor-pointer group">
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                        <Paperclip className="w-4 h-4 text-indigo-600" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700">Click to upload files</span>
+                                    <span className="text-xs text-gray-500">Images, PDFs, Docs</span>
+                                </div>
+                                <input type="file" multiple className="hidden" onChange={handleFileSelect} />
+                            </label>
+
+                            {selectedFiles.length > 0 && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {selectedFiles.map((file, i) => {
+                                        const isImage = file.type.startsWith('image/');
+                                        const url = isImage ? URL.createObjectURL(file) : null;
+                                        
+                                        return (
+                                            <div key={i} className="flex items-center justify-between p-2 rounded-lg border border-gray-100 bg-gray-50/50">
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    {isImage && url ? (
+                                                        <img src={url} alt={file.name} className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 flex-shrink-0 bg-blue-50 rounded flex items-center justify-center border border-blue-100">
+                                                            <FileText className="w-4 h-4 text-blue-500" />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-xs font-medium text-gray-700 truncate">{file.name}</span>
+                                                        <span className="text-[10px] text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => removeFile(i)}
+                                                    className="w-6 h-6 flex-shrink-0 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-2 mt-2">
+                                <input
+                                    type="url"
+                                    placeholder="Paste a link here..."
+                                    value={linkInput}
+                                    onChange={(e) => setLinkInput(e.target.value)}
+                                    className="input flex-1 text-sm py-2 px-3"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (linkInput.trim()) {
+                                            setLinks(prev => [...prev, linkInput.trim()]);
+                                            setLinkInput('');
+                                        }
+                                    }}
+                                    disabled={!linkInput.trim()}
+                                    className="btn-secondary whitespace-nowrap text-xs py-2"
+                                >
+                                    Add Link
+                                </button>
+                            </div>
+
+                            {links.length > 0 && (
+                                <div className="grid grid-cols-1 gap-2 mt-2">
+                                    {links.map((link, i) => (
+                                        <div key={`link-${i}`} className="flex items-center justify-between p-2 rounded-lg border border-gray-100 bg-gray-50/50">
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                <div className="w-8 h-8 flex-shrink-0 bg-indigo-50 rounded flex items-center justify-center border border-indigo-100">
+                                                    <Paperclip className="w-4 h-4 text-indigo-500" />
+                                                </div>
+                                                <a href={link} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-indigo-600 truncate hover:underline">
+                                                    {link}
+                                                </a>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setLinks(prev => prev.filter((_, idx) => idx !== i))}
+                                                className="w-6 h-6 flex-shrink-0 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </form>
 

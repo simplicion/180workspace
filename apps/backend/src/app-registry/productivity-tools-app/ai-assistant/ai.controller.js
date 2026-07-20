@@ -205,17 +205,17 @@ exports.chatWithAI = async (req, res, next) => {
                 openJobs, pendingCandidates, pendingLeaves, unpaidInvoices,
                 recentProjects, recentTasks, recentJobs, employees
             ] = await Promise.all([
-                User.count({ where: {isActive: true} }),
-                Project.count({ where: {status: { not: 'completed' }} }),
-                Task.count({ where: {status: { not: 'done' }} }),
-                Job.count({ where: {status: 'open'} }),
-                JobApplication.count({ where: {status: { in: ['applied', 'screening', 'interview'] }} }),
-                Leave.count({ where: {status: 'pending'} }),
-                Invoice.count({ where: {status: { in: ['sent', 'overdue'] }} }),
-                Project.findMany({ where: {status: { not: 'completed' }}, take: 10, select: { name: true, status: true } }),
-                Task.findMany({ where: {status: { not: 'done' }}, take: 10, select: { title: true, status: true } }),
-                Job.findMany({ where: {status: 'open'}, take: 10, select: { title: true, department: true } }),
-                User.findMany({ where: {isActive: true}, take: 10, select: { name: true, role: true } })
+                User ? User.count({ where: {isActive: true} }) : 0,
+                Project ? Project.count({ where: {status: { not: 'completed' }} }) : 0,
+                Task ? Task.count({ where: {status: { not: 'done' }} }) : 0,
+                Job ? Job.count({ where: {status: 'open'} }) : 0,
+                JobApplication ? JobApplication.count({ where: {status: { in: ['applied', 'screening', 'interview'] }} }) : 0,
+                Leave ? Leave.count({ where: {status: 'pending'} }) : 0,
+                Invoice ? Invoice.count({ where: {status: { in: ['sent', 'overdue'] }} }) : 0,
+                Project ? Project.findMany({ where: {status: { not: 'completed' }}, take: 10, select: { name: true, status: true } }) : [],
+                Task ? Task.findMany({ where: {status: { not: 'done' }}, take: 10, select: { title: true, status: true } }) : [],
+                Job ? Job.findMany({ where: {status: 'open'}, take: 10, select: { title: true, department: true } }) : [],
+                User ? User.findMany({ where: {isActive: true}, take: 10, select: { name: true, role: true } }) : []
             ]);
             contextText += `Company Overview:\n- Total Active Employees: ${empCount}\n- Active Projects: ${activeProjects}\n- Pending/In-Progress Tasks: ${pendingTasks}\n- Open Jobs: ${openJobs} (with ${pendingCandidates} pending candidates)\n- Pending Leave Requests: ${pendingLeaves}\n- Unpaid Invoices: ${unpaidInvoices}\n\n`;
             contextText += `Data Samples (max 10 shown):\n`;
@@ -229,12 +229,12 @@ exports.chatWithAI = async (req, res, next) => {
                 myTasks, myProjects, myLeaves, myAttendance,
                 recentTasks, recentProjects
             ] = await Promise.all([
-                Task.count({ where: {assigneeId: user.id, status: { not: 'done' }} }),
-                Project.count({ where: {memberIds: { has: user.id }, status: { not: 'completed' }} }),
-                Leave.count({ where: {employeeId: user.id, status: 'pending'} }),
-                Attendance.findFirst({ where: { employeeId: user.id, date: todayStr } }),
-                Task.findMany({ where: {assigneeId: user.id, status: { not: 'done' }}, take: 10, select: { title: true, status: true } }),
-                Project.findMany({ where: {memberIds: { has: user.id }, status: { not: 'completed' }}, take: 10, select: { name: true, status: true } })
+                Task ? Task.count({ where: {assigneeId: user.id, status: { not: 'done' }} }) : 0,
+                Project ? Project.count({ where: {memberIds: { has: user.id }, status: { not: 'completed' }} }) : 0,
+                Leave ? Leave.count({ where: {employeeId: user.id, status: 'pending'} }) : 0,
+                Attendance ? Attendance.findFirst({ where: { employeeId: user.id, date: todayStr } }) : null,
+                Task ? Task.findMany({ where: {assigneeId: user.id, status: { not: 'done' }}, take: 10, select: { title: true, status: true } }) : [],
+                Project ? Project.findMany({ where: {memberIds: { has: user.id }, status: { not: 'completed' }}, take: 10, select: { name: true, status: true } }) : []
             ]);
             const attStatus = myAttendance ? myAttendance.status : 'Not marked yet';
             contextText += `Your Current Status:\n- Your Pending Tasks: ${myTasks}\n- Your Active Projects: ${myProjects}\n- Your Pending Leave Requests: ${myLeaves}\n- Your Attendance Today: ${attStatus}\n\n`;

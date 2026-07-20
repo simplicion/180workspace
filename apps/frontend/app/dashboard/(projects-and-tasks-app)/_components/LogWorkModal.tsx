@@ -3,7 +3,7 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, FileText } from 'lucide-react';
+import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, FileText, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import MultiVoiceRecorder from './MultiVoiceRecorder';
@@ -43,6 +43,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
     });
     
     const [voiceBlobs, setVoiceBlobs] = useState<Blob[]>([]);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     
     const [links, setLinks] = useState<string[]>(['']);
 
@@ -127,6 +128,29 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         setForm(prev => ({ ...prev, [k]: val }));
     };
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files) return;
+        const files = Array.from(e.target.files);
+        
+        const validFiles = files.filter(file => {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error(`File ${file.name} exceeds 5MB limit`);
+                return false;
+            }
+            return true;
+        });
+
+        if (validFiles.length > 0) {
+            setSelectedFiles(prev => [...prev, ...validFiles]);
+        }
+        
+        e.target.value = '';
+    };
+
+    const removeFile = (index: number) => {
+        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
     const addLink = () => setLinks([...links, '']);
     const removeLink = (index: number) => setLinks(links.filter((_, i) => i !== index));
     const updateLink = (index: number, val: string) => {
@@ -145,6 +169,20 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         setSubmitting(true);
         try {
             let finalVoiceUrl = form.voiceMessageUrl;
+
+            let uploadedFileUrls: string[] = [];
+            if (selectedFiles.length > 0) {
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const { data: uploadData } = await api.post('/api/files/upload', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    uploadedFileUrls.push(uploadData.url);
+                }
+            }
 
             // Upload multiple blobs if any
             if (voiceBlobs.length > 0) {
@@ -166,7 +204,8 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                 ...form,
                 voiceMessageUrl: finalVoiceUrl,
                 hoursSpent: parseFloat(form.hoursSpent),
-                links: links.filter(l => l.trim().length > 0)
+                links: links.filter(l => l.trim().length > 0),
+                attachmentUrls: uploadedFileUrls
             };
 
             const { data } = await api.post('/api/work-logs', payload);
@@ -240,7 +279,11 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                                 required
                             >
                                 <option value="">Select Task</option>
-                                {tasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.status})</option>)}
+                                {tasks.map(t => (
+                                    <option key={t.id} value={t.id} disabled={t.status !== 'in_progress'}>
+                                        {t.title} ({t.status.replace('_', ' ')})
+                                    </option>
+                                ))}
                             </select>
                             {loadingTasks && <LogoLoader className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
                         </div>
@@ -330,6 +373,60 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                         </div>
                     </div>
 
+                    <div className="pt-2 border-t border-gray-100">
+                        <label className="label mb-2 flex items-center justify-between">
+                            <span>Attachments (Optional)</span>
+                            <span className="text-xs text-gray-500 font-normal">Max 5MB per file</span>
+                        </label>
+                        
+                        <div className="flex flex-col gap-3">
+                            <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-xl hover:bg-gray-50 hover:border-indigo-300 transition-colors cursor-pointer group">
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                        <Paperclip className="w-4 h-4 text-indigo-600" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700">Click to upload files</span>
+                                    <span className="text-xs text-gray-500">Images, PDFs, Docs</span>
+                                </div>
+                                <input type="file" multiple className="hidden" onChange={handleFileSelect} />
+                            </label>
+
+                            {selectedFiles.length > 0 && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {selectedFiles.map((file, i) => {
+                                        const isImage = file.type.startsWith('image/');
+                                        const url = isImage ? URL.createObjectURL(file) : null;
+                                        
+                                        return (
+                                            <div key={i} className="flex items-center justify-between p-2 rounded-lg border border-gray-100 bg-gray-50/50">
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    {isImage && url ? (
+                                                        <img src={url} alt={file.name} className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 flex-shrink-0 bg-blue-50 rounded flex items-center justify-center border border-blue-100">
+                                                            <FileText className="w-4 h-4 text-blue-500" />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-xs font-medium text-gray-700 truncate">{file.name}</span>
+                                                        <span className="text-[10px] text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => removeFile(i)}
+                                                    className="w-6 h-6 flex-shrink-0 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="pt-2">
                         <MultiVoiceRecorder onChangeBlobs={setVoiceBlobs} label="Voice Note (Optional)" />
                     </div>
@@ -337,18 +434,9 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                     {/* Automation Trigger */}
                     {form.taskId && (
                         <div className="bg-amber-50 rounded-xl p-4 flex items-start gap-3 border border-amber-100">
-                            <div className="pt-0.5">
-                                <input 
-                                    id="completed" 
-                                    type="checkbox" 
-                                    checked={form.isWorkCompleted} 
-                                    onChange={(e) => setForm(prev => ({ ...prev, isWorkCompleted: e.target.checked }))}
-                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
-                                />
-                            </div>
-                            <label htmlFor="completed" className="text-sm text-amber-900 leading-tight">
-                                <span className="font-semibold block">Mark Task as Done</span>
-                                If selected, approving this log will automatically update the selected task&apos;s status to <strong>Done</strong>.
+                            <label className="text-sm text-amber-900 leading-tight">
+                                <span className="font-semibold block">Automatic Status Update</span>
+                                Upon submission, this task will be marked as <strong>In Review</strong>. Once your work log is approved, the task will automatically be marked as <strong>Done</strong>.
                             </label>
                         </div>
                     )}

@@ -30,6 +30,7 @@ exports.getDashboardStats = async (req, res) => {
             upcomingHolidays,
             monthAttendance,
             allMyLeaves,
+            completedPointTasksData,
         ] = await Promise.all([
             // My tasks
             Task.findMany({ 
@@ -37,7 +38,13 @@ exports.getDashboardStats = async (req, res) => {
                     assigneeId: userId,
                     deletedAt: null 
                 },
-                include: { project: { select: { id: true, name: true } } },
+                include: { 
+                    project: { select: { id: true, name: true } },
+                    workLogs_TaskWorkLogs: {
+                        where: { status: 'rejected' },
+                        select: { id: true }
+                    }
+                },
                 orderBy: { dueDate: 'asc' },
                 take: 20
             }),
@@ -98,6 +105,18 @@ exports.getDashboardStats = async (req, res) => {
             Leave.findMany({
                 where: { employeeId: userId }
             }).catch(() => []),
+
+            // Completed tasks with points awarded
+            Task.findMany({
+                where: {
+                    assigneeId: userId,
+                    pointAwarded: true,
+                    completedAt: { not: null },
+                    deletedAt: null
+                },
+                select: { completedAt: true },
+                orderBy: { completedAt: 'desc' }
+            }).catch(() => []),
         ]);
 
         const mappedTasks = myTasks.map(t => ({
@@ -135,6 +154,22 @@ exports.getDashboardStats = async (req, res) => {
             upcoming: activeLeaves,
         };
 
+        // Calculate real points history
+        const score = profileUser?.performanceScore ?? 100;
+        const nowMs = now.getTime();
+        const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+        const completedPointTasks = (completedPointTasksData || []).map(t => new Date(t.completedAt).getTime());
+        const pointsHistory = [];
+        for (let i = 7; i >= 0; i--) {
+            const periodEnd = nowMs - (i * ONE_WEEK);
+            // Count how many points were earned AFTER this periodEnd
+            const pointsEarnedSince = completedPointTasks.filter(t => t > periodEnd).length;
+            pointsHistory.push({
+                period: new Date(periodEnd).toISOString(),
+                Points: Math.max(100, score - pointsEarnedSince) // assuming base score is 100
+            });
+        }
+
         return res.json({
             tasks: {
                 total: myTasks.length,
@@ -152,10 +187,12 @@ exports.getDashboardStats = async (req, res) => {
                 today: todayAttendance || null,
                 status: todayAttendance?.status || 'not_checked_in',
                 stats: attStats,
+                monthly: monthAttendance,
             },
             leaves: leaveStats,
             holidays: upcomingHolidays,
-            performanceScore: profileUser?.performanceScore ?? 100,
+            performanceScore: score,
+            pointsHistory: pointsHistory,
             profile: {
                 name: profileUser?.name,
                 role: profileUser?.role,
