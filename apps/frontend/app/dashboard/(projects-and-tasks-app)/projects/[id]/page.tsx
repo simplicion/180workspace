@@ -517,6 +517,14 @@ export default function ProjectDetailPage() {
                         <Paperclip className="w-4 h-4 text-gray-400" />
                         {files.length} file{files.length !== 1 ? 's' : ''}
                     </div>
+                    <div className="flex items-center gap-1.5 capitalize">
+                        <Briefcase className="w-4 h-4 text-gray-400" />
+                        {project.projectType || 'Internal'}
+                    </div>
+                    <div className="flex items-center gap-1.5 capitalize">
+                        <Globe className="w-4 h-4 text-gray-400" />
+                        {project.visibility || 'Public'}
+                    </div>
                     <div className="flex items-center gap-1.5">
                         <Layout className="w-4 h-4 text-gray-400" />
                         {project.totalModules || modules.length} module{project.totalModules !== 1 && modules.length !== 1 ? 's' : ''}
@@ -654,41 +662,6 @@ export default function ProjectDetailPage() {
 
                     {/* Sidebar: CRM Link + Members + Tags */}
                     <div className="space-y-4">
-                        {/* Project Info Block */}
-                        <div className="card p-5 border-indigo-100 bg-indigo-50/30">
-                            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                <Briefcase className="w-4 h-4 text-indigo-500" />
-                                Project Details
-                            </h3>
-                            <div className="space-y-3">
-                                {project.description && (
-                                    <div className="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm">
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Description</p>
-                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{project.description}</p>
-                                    </div>
-                                )}
-                                <div className="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm grid grid-cols-2 gap-3">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Type</p>
-                                        <p className="text-sm font-semibold text-gray-900 capitalize">{project.projectType || 'Internal'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Billing</p>
-                                        <p className="text-sm font-semibold text-gray-900 capitalize">{(project.billingType || 'non_billable').replace('_', ' ')}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Visibility</p>
-                                        <p className="text-sm font-semibold text-gray-900 capitalize">{project.visibility || 'Public'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Progress</p>
-                                        <p className="text-sm font-semibold text-gray-900">{project.progress || 0}%</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-
                         {project.tags?.length > 0 && (
                             <div className="card p-5">
                                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -936,20 +909,20 @@ export default function ProjectDetailPage() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    {task.assigneeId && (
+                                                    {task.assignee && (
                                                         <div className={clsx(
                                                             "w-5 h-5 rounded-full flex items-center justify-center relative shadow-sm ring-1 ring-white",
-                                                            task.assigneeId.role && ROLE_CONFIG[task.assigneeId.role] ? ROLE_CONFIG[task.assigneeId.role].bg : "bg-gray-400"
+                                                            task.assignee.role && ROLE_CONFIG[task.assignee.role] ? ROLE_CONFIG[task.assignee.role].bg : "bg-gray-400"
                                                         )}>
-                                                            {task.assigneeId.profilePicture || task.assigneeId.photoUrl ? (
-                                                                <img src={task.assigneeId.profilePicture || task.assigneeId.photoUrl} alt={task.assigneeId.name} className="w-5 h-5 rounded-full object-cover" />
+                                                            {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                                                <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt={task.assignee.name} className="w-5 h-5 rounded-full object-cover" />
                                                             ) : (
-                                                                <span className="text-white text-[9px] font-bold">{task.assigneeId?.name?.[0]?.toUpperCase()}</span>
+                                                                <span className="text-white text-[9px] font-bold">{task.assignee?.name?.[0]?.toUpperCase()}</span>
                                                             )}
                                                             {/* Tiny Role Dot */}
                                                             <div className={clsx(
                                                                 "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white shadow-xs",
-                                                                task.assigneeId.role && ROLE_CONFIG[task.assigneeId.role] ? ROLE_CONFIG[task.assigneeId.role].bg : "bg-gray-400"
+                                                                task.assignee.role && ROLE_CONFIG[task.assignee.role] ? ROLE_CONFIG[task.assignee.role].bg : "bg-gray-400"
                                                             )} />
                                                         </div>
                                                     )}
@@ -1722,10 +1695,15 @@ function FileCard({ file }: { file: any }) {
             </div>
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{file.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                    {file.fileSize > 0 ? `${(file.fileSize / 1024).toFixed(1)} KB` : isLink ? 'External Link' : ''}
-                    {file.uploadedBy?.name && ` · ${file.uploadedBy.name}`}
-                </p>
+                <div className="text-xs text-gray-400 mt-0.5 flex flex-col gap-0.5">
+                    <span>
+                        {file.fileSize > 0 ? `${(file.fileSize / 1024).toFixed(1)} KB` : isLink ? 'External Link' : ''}
+                        {file.uploadedBy?.name && ` · Uploaded by ${file.uploadedBy.name}`}
+                    </span>
+                    {file.createdAt && (
+                        <span>{format(new Date(file.createdAt), 'MMM dd, yyyy h:mm a')}</span>
+                    )}
+                </div>
             </div>
             {isLink && <ExternalLink className="w-3.5 h-3.5 text-gray-300 group-hover:text-amber-500 transition-colors" />}
         </a>

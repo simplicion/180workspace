@@ -739,7 +739,12 @@ export default function WorkLogsPage() {
                                         <div className="flex items-start justify-between gap-4">
                                             <div>
                                                 <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1 block">Task Information</span>
-                                                <div className="font-semibold text-indigo-900 text-sm">{reviewingLog.taskId?.title}</div>
+                                                <div 
+                                                    className="font-semibold text-indigo-900 text-sm cursor-pointer hover:underline"
+                                                    onClick={() => setViewTaskId(reviewingLog.taskId?.id)}
+                                                >
+                                                    {reviewingLog.taskId?.title}
+                                                </div>
                                                 <div className="text-xs text-indigo-600 mt-1 flex items-center gap-2">
                                                     <span className="flex items-center gap-1"><Timer className="w-3 h-3"/> {reviewingLog.taskId?.estimatedHours || 0}h est.</span>
                                                     {reviewingLog.taskId?.priority && (
@@ -803,6 +808,15 @@ export default function WorkLogsPage() {
                         setShowLogModal(false);
                         fetchLogs();
                     }}
+                />
+            )}
+
+            {/* Task Detail Modal */}
+            {viewTaskId && (
+                <TaskDetailModal 
+                    taskId={viewTaskId}
+                    onClose={() => setViewTaskId(null)}
+                    onUpdate={() => {}} 
                 />
             )}
         </div>

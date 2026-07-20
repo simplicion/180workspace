@@ -112,7 +112,7 @@ class PayrollService {
         const holidayCount = monthlyHolidays.length;
 
         // 4. Enterprise Calculation Logic
-        const perDaySalary = cycleDays > 0 ? baseSalary / cycleDays : 0;
+        const perDaySalary = daysInMonth > 0 ? baseSalary / daysInMonth : 0;
         
         // Effective days = (Present + HalfDay*0.5 + PaidLeave + Holidays)
         // Note: Holidays are usually paid for full-time employees.
@@ -149,6 +149,7 @@ class PayrollService {
             holidayCount,
             paidLeaves: paidLeaveDays,
             unpaidLeaves: unpaidLeaveDays,
+            absentDays: Math.max(0, cycleDays - Math.floor(effectiveDays)),
             lateDays,
             bonuses: employeeBonuses,
             deductions: totalDeductions,
