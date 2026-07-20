@@ -816,7 +816,7 @@ export default function WorkLogsPage() {
                 <TaskDetailModal 
                     taskId={viewTaskId}
                     onClose={() => setViewTaskId(null)}
-                    onUpdate={() => {}} 
+                    onUpdated={() => {}} 
                 />
             )}
         </div>
