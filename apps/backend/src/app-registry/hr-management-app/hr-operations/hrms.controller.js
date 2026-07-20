@@ -211,6 +211,7 @@ exports.getCEOInsights = async (req, res, next) => {
         const Task = req.prisma.task;
         const User = req.prisma.user;
         const Review = req.prisma.review;
+        const Asset = req.prisma.asset;
 
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -221,33 +222,83 @@ exports.getCEOInsights = async (req, res, next) => {
         startOfTrajectory.setHours(0, 0, 0, 0);
         const monthStrLimit = startOfTrajectory.toISOString().slice(0, 7);
 
-        const [invoices, expenses, salaries] = await Promise.all([
+        const [invoices, expenses, salaries, assets] = await Promise.all([
             Invoice.findMany({
                 where: { issueDate: { gte: startOfTrajectory }, status: 'paid' },
-                select: { issueDate: true, totalAmount: true }
+                select: { id: true, issueDate: true, totalAmount: true, invoiceNumber: true, clientName: true, client: { select: { name: true } } }
             }),
             Expense.findMany({
                 where: { date: { gte: startOfTrajectory }, status: 'approved' },
-                select: { date: true, amount: true }
+                select: { id: true, date: true, amount: true, title: true, employee: { select: { name: true } }, project: { select: { name: true } } }
             }),
             Salary.findMany({
                 where: { effectiveDate: { gte: startOfTrajectory }, status: 'active' },
-                select: { effectiveDate: true, amount: true }
+                select: { id: true, effectiveDate: true, amount: true, employee: { select: { name: true } } }
+            }),
+            Asset.findMany({
+                where: { createdAt: { gte: startOfTrajectory }, cost: { gt: 0 } },
+                select: { id: true, createdAt: true, cost: true, name: true, provider: true, owner: { select: { name: true } } }
             })
         ]);
 
         const revMap = {}, exMap = {}, salMap = {};
+        const transactions = [];
+
         for (const inv of invoices) {
             const m = inv.issueDate.toISOString().slice(0, 7);
             revMap[m] = (revMap[m] || 0) + (inv.totalAmount || 0);
+            transactions.push({
+                id: inv.id,
+                type: 'income',
+                date: inv.issueDate.toISOString(),
+                amount: inv.totalAmount || 0,
+                what: `Invoice #${inv.invoiceNumber}`,
+                who: inv.client?.name || inv.clientName || 'Unknown Client',
+                where: 'Sales',
+                url: `/dashboard/invoices`
+            });
         }
         for (const ex of expenses) {
             const m = ex.date.toISOString().slice(0, 7);
             exMap[m] = (exMap[m] || 0) + (ex.amount || 0);
+            transactions.push({
+                id: ex.id,
+                type: 'expense',
+                date: ex.date.toISOString(),
+                amount: ex.amount || 0,
+                what: ex.title,
+                who: ex.employee?.name || 'Employee',
+                where: ex.project?.name || 'General',
+                url: `/dashboard/expenses`
+            });
         }
         for (const sal of salaries) {
             const m = sal.effectiveDate.toISOString().slice(0, 7);
             salMap[m] = (salMap[m] || 0) + (sal.amount || 0);
+            transactions.push({
+                id: sal.id,
+                type: 'salary',
+                date: sal.effectiveDate.toISOString(),
+                amount: sal.amount || 0,
+                what: 'Salary Payment',
+                who: sal.employee?.name || 'Employee',
+                where: 'HR / Payroll',
+                url: `/dashboard/hr`
+            });
+        }
+        for (const ast of assets) {
+            const m = ast.createdAt.toISOString().slice(0, 7);
+            exMap[m] = (exMap[m] || 0) + (ast.cost || 0);
+            transactions.push({
+                id: ast.id,
+                type: 'asset',
+                date: ast.createdAt.toISOString(),
+                amount: ast.cost || 0,
+                what: ast.name,
+                who: ast.owner?.name || 'Company',
+                where: ast.provider || 'Internal',
+                url: `/dashboard/assets`
+            });
         }
         
         const revenueData = Object.keys(revMap).map(k => ({ _id: k, total: revMap[k] }));
@@ -312,6 +363,7 @@ exports.getCEOInsights = async (req, res, next) => {
 
         res.json({
             financialTrajectory: financialData,
+            transactions,
             taskVelocity,
             retentionRate,
             satisfactionScore,

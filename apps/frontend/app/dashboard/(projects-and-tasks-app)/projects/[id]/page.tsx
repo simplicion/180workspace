@@ -72,6 +72,7 @@ export default function ProjectDetailPage() {
     const [milestones, setMilestones] = useState<any[]>([]);
     const [invoices, setInvoices] = useState<any[]>([]);
     const [projectLogs, setProjectLogs] = useState<any[]>([]);
+    const [projectExpenses, setProjectExpenses] = useState<any[]>([]);
     const [newNote, setNewNote] = useState('');
     const [submittingNote, setSubmittingNote] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -150,9 +151,10 @@ export default function ProjectDetailPage() {
             api.get(`/api/modules/project/${id}`).catch(() => ({ data: { modules: [] } })),
             api.get('/api/invoices', { params: { projectId: id } }).catch(() => ({ data: { invoices: [] } })),
             api.get(`/api/projects/${id}/activity`).catch(() => ({ data: { activities: [], summary: {} } })),
-            api.get('/api/work-logs', { params: { projectId: id } }).catch(() => ({ data: { logs: [] } }))
+            api.get('/api/work-logs', { params: { projectId: id } }).catch(() => ({ data: { logs: [] } })),
+            api.get('/api/expenses', { params: { projectId: id } }).catch(() => ({ data: { expenses: [] } }))
         ])
-            .then(([pRes, tRes, fRes, nRes, mRes, modRes, iRes, tlRes, wlRes]) => {
+            .then(([pRes, tRes, fRes, nRes, mRes, modRes, iRes, tlRes, wlRes, eRes]) => {
                 const projectData = pRes.data.project;
                 setProject(projectData);
                 setTasks(tRes.data.tasks || []);
@@ -163,6 +165,8 @@ export default function ProjectDetailPage() {
                 setInvoices(iRes.data.invoices || []);
                 setProjectLogs(tlRes.data.activities || []);
                 setWorkLogs(wlRes.data.logs || []);
+                setProjectExpenses(eRes.data.expenses || []);
+                setLoading(false);
 
                 // Track Visit (Phase 6)
                 api.post('/api/user-preferences/recent', {
@@ -517,14 +521,6 @@ export default function ProjectDetailPage() {
                         <Paperclip className="w-4 h-4 text-gray-400" />
                         {files.length} file{files.length !== 1 ? 's' : ''}
                     </div>
-                    <div className="flex items-center gap-1.5 capitalize">
-                        <Briefcase className="w-4 h-4 text-gray-400" />
-                        {project.projectType || 'Internal'}
-                    </div>
-                    <div className="flex items-center gap-1.5 capitalize">
-                        <Globe className="w-4 h-4 text-gray-400" />
-                        {project.visibility || 'Public'}
-                    </div>
                     <div className="flex items-center gap-1.5">
                         <Layout className="w-4 h-4 text-gray-400" />
                         {project.totalModules || modules.length} module{project.totalModules !== 1 && modules.length !== 1 ? 's' : ''}
@@ -570,7 +566,7 @@ export default function ProjectDetailPage() {
                                     <span>Financial Summary</span>
                                     <Building2 className="w-4 h-4 text-gray-400" />
                                 </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                                     <div className="bg-gray-50 rounded-xl p-4">
                                         <p className="text-xs text-gray-500 mb-1">Total Budget</p>
                                         <p className="text-xl font-bold text-gray-900">₹{project.budget?.toLocaleString() || 0}</p>
@@ -582,6 +578,10 @@ export default function ProjectDetailPage() {
                                     <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
                                         <p className="text-xs text-amber-600 mb-1">Pending Milestones</p>
                                         <p className="text-xl font-bold text-amber-700">₹{milestones.filter(m => !m.completed).reduce((s, m) => s + (m.invoiceAmount || 0), 0).toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-red-50 rounded-xl p-4 border border-red-100">
+                                        <p className="text-xs text-red-600 mb-1">Total Expenses</p>
+                                        <p className="text-xl font-bold text-red-700">₹{projectExpenses.filter(e => e.status === 'approved').reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}</p>
                                     </div>
                                 </div>
                             </div>
@@ -662,6 +662,24 @@ export default function ProjectDetailPage() {
 
                     {/* Sidebar: CRM Link + Members + Tags */}
                     <div className="space-y-4">
+                        <div className="card p-5">
+                            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                <Briefcase className="w-4 h-4 text-indigo-500" />
+                                Project Details
+                            </h3>
+                            <div className="space-y-3 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500">Project Type</span>
+                                    <span className="font-medium text-gray-900 capitalize">{project.projectType || 'Internal'}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500">Visibility</span>
+                                    <span className="font-medium text-gray-900 capitalize">{project.visibility || 'Public'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+
                         {project.tags?.length > 0 && (
                             <div className="card p-5">
                                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">

@@ -88,7 +88,7 @@ function AddExpenseModal({ onClose, onSuccess, projects, clients }: { onClose: (
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="label" htmlFor="amount">Amount (â‚¹) *</label>
+                            <label className="label" htmlFor="amount">Amount (₹) *</label>
                             <input type="number" id="amount" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className="input" placeholder="0.00" min="0" step="0.01" required />
                         </div>
                         <div>
@@ -268,8 +268,8 @@ export default function ExpensesPage() {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 {[
-                    { label: 'Pending', value: `â‚¹${totalPending.toLocaleString('en-IN')}`, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { label: 'Approved', value: `â‚¹${totalApproved.toLocaleString('en-IN')}`, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+                    { label: 'Pending', value: `₹${totalPending.toLocaleString('en-IN')}`, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: 'Approved', value: `₹${totalApproved.toLocaleString('en-IN')}`, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
                     { label: 'Total Claims', value: expenses.length, icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50' },
                 ].map(k => (
                     <div key={k.label} className="card p-4 flex items-center gap-3">
@@ -367,12 +367,12 @@ export default function ExpensesPage() {
                                                     {exp.clientId && <p className="text-[10px] text-gray-400">{exp.clientId.company}</p>}
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-gray-300">â€”</span>
+                                                <span className="text-xs text-gray-300">—</span>
                                             )}
                                         </td>
                                         {isHR && (
                                             <td className="text-sm text-gray-600">
-                                                {exp.employeeId?.name || 'â€”'}
+                                                {exp.employeeId?.name || '—'}
                                                 <p className="text-xs text-gray-400">{exp.employeeId?.department || ''}</p>
                                             </td>
                                         )}
@@ -381,8 +381,8 @@ export default function ExpensesPage() {
                                                 {exp.category}
                                             </span>
                                         </td>
-                                        <td className="font-bold text-gray-900">â‚¹{exp.amount?.toLocaleString('en-IN')}</td>
-                                        <td className="text-sm text-gray-500">{exp.date ? format(new Date(exp.date), 'MMM d, yyyy') : 'â€”'}</td>
+                                        <td className="font-bold text-gray-900">₹{exp.amount?.toLocaleString('en-IN')}</td>
+                                        <td className="text-sm text-gray-500">{exp.date ? format(new Date(exp.date), 'MMM d, yyyy') : '—'}</td>
                                         <td>
                                             <span className={clsx('badge text-xs capitalize', STATUS_STYLES[exp.status] || 'badge-gray')}>
                                                 {exp.status}

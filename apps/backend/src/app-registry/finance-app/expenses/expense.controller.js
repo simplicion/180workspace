@@ -60,7 +60,11 @@ exports.createExpense = async (req, res, next) => {
             if (suggested) expenseData.category = suggested;
         }
 
-        const expense = await Expense.create({ data: expenseData });
+        // Clean up data for Prisma
+        const { isBillable, ...cleanExpenseData } = expenseData;
+        cleanExpenseData.date = new Date(cleanExpenseData.date).toISOString();
+
+        const expense = await Expense.create({ data: cleanExpenseData });
         res.status(201).json({ success: true, expense });
     } catch (err) { next(err); }
 };

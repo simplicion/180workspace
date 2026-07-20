@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { X, CheckSquare, Calendar, User, Tag, AlignLeft, Paperclip, Save, Trash2, Clock, Flag, FolderKanban } from 'lucide-react';
-import clsx from 'clsx';
 import { format } from 'date-fns';
+import { X, CheckSquare, Calendar, User, Tag, AlignLeft, Paperclip, Save, Trash2, Clock, Flag, FolderKanban, CheckCircle2, Link, AlertCircle, CalendarClock } from 'lucide-react';
+import clsx from 'clsx';
 import FileUploadModal from '@/components/shared/FileUploadModal';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { useAuth } from '@/lib/auth-context';
@@ -302,10 +302,48 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                                                 {log.workDate ? format(new Date(log.workDate), 'MMM d, yyyy') : ''}
                                                             </div>
                                                         </div>
-                                                        <p className="text-xs text-gray-700 whitespace-pre-wrap">{log.description}</p>
-                                                        {log.hoursSpent > 0 && (
-                                                            <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded w-fit">
-                                                                <Clock className="w-3 h-3" /> {log.hoursSpent} hrs
+                                                        
+                                                        {/* Status & Timing Metadata */}
+                                                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                            <div className="flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded border border-gray-100" title="Created At">
+                                                                <CalendarClock className="w-3 h-3" /> {log.createdAt ? format(new Date(log.createdAt), 'MMM d, yyyy h:mm a') : 'Unknown time'}
+                                                            </div>
+                                                            {log.status && (
+                                                                <div className={clsx("flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded capitalize", 
+                                                                    log.status === 'approved' ? 'text-emerald-700 bg-emerald-50' : 
+                                                                    log.status === 'rejected' ? 'text-red-700 bg-red-50' : 'text-amber-700 bg-amber-50'
+                                                                )}>
+                                                                    {log.status === 'approved' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                                                                    {log.status}
+                                                                </div>
+                                                            )}
+                                                            {log.isWorkCompleted && (
+                                                                <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                                                    <CheckCircle2 className="w-3 h-3" /> Marked Completed
+                                                                </div>
+                                                            )}
+                                                            {log.hoursSpent > 0 && (
+                                                                <div className="flex items-center gap-1 text-[10px] text-indigo-700 font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                                                    <Clock className="w-3 h-3" /> {log.hoursSpent} hrs
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <p className="text-xs text-gray-700 whitespace-pre-wrap mt-1">{log.description}</p>
+                                                        
+                                                        {/* Links & Attachments */}
+                                                        {(log.links?.length > 0 || log.attachmentUrls?.length > 0) && (
+                                                            <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-gray-50">
+                                                                {log.links?.map((link: string, i: number) => (
+                                                                    <a key={i} href={link} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[11px] text-indigo-600 hover:underline truncate">
+                                                                        <Link className="w-3 h-3 flex-shrink-0" /> {link}
+                                                                    </a>
+                                                                ))}
+                                                                {log.attachmentUrls?.map((url: string, i: number) => (
+                                                                    <a key={i} href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[11px] text-indigo-600 hover:underline truncate">
+                                                                        <Paperclip className="w-3 h-3 flex-shrink-0" /> Attachment {i + 1}
+                                                                    </a>
+                                                                ))}
                                                             </div>
                                                         )}
                                                     </div>

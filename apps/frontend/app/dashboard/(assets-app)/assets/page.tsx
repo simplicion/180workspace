@@ -119,22 +119,22 @@ export default function AssetsPage() {
                     ))}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <StatCard
                         label="Domains"
-                        value={stats?.stats?.find((s: any) => s.id === 'domain')?.count || 0}
+                        value={stats?.stats?.find((s: any) => s._id === 'domain' || s.id === 'domain')?.count || 0}
                         icon={Globe}
                         color="blue"
                     />
                     <StatCard
                         label="Servers"
-                        value={stats?.stats?.find((s: any) => s.id === 'server')?.count || 0}
+                        value={stats?.stats?.find((s: any) => s._id === 'server' || s.id === 'server')?.count || 0}
                         icon={Server}
                         color="purple"
                     />
                     <StatCard
                         label="APIs"
-                        value={stats?.stats?.find((s: any) => s.id === 'api')?.count || 0}
+                        value={stats?.stats?.find((s: any) => s._id === 'api' || s.id === 'api')?.count || 0}
                         icon={Code}
                         color="amber"
                     />
@@ -143,6 +143,12 @@ export default function AssetsPage() {
                         value={stats?.activeIntegrationsCount || 0}
                         icon={ShieldCheck}
                         color="indigo"
+                    />
+                    <StatCard
+                        label="Total Expenses"
+                        value={`₹${(stats?.stats?.reduce((sum: number, s: any) => sum + (s.totalCost || 0), 0) || 0).toLocaleString()}`}
+                        icon={DollarSign}
+                        color="emerald"
                     />
                 </div>
             )}
@@ -305,12 +311,13 @@ export default function AssetsPage() {
     );
 }
 
-function StatCard({ label, value, icon: Icon, color }: { label: string, value: number, icon: any, color: 'blue' | 'purple' | 'amber' | 'indigo' }) {
+function StatCard({ label, value, icon: Icon, color }: { label: string, value: number | string, icon: any, color: 'blue' | 'purple' | 'amber' | 'indigo' | 'emerald' }) {
     const colors = {
         blue: 'bg-blue-50 text-blue-600',
         purple: 'bg-purple-50 text-purple-600',
         amber: 'bg-amber-50 text-amber-600',
         indigo: 'bg-indigo-50 text-indigo-600',
+        emerald: 'bg-emerald-50 text-emerald-600',
     };
 
     return (
@@ -320,7 +327,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string, value: n
             </div>
             <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
-                <p className="text-2xl font-black text-gray-900">{value}</p>
+                <p className="text-xl font-black text-gray-900">{value}</p>
             </div>
         </div>
     );
