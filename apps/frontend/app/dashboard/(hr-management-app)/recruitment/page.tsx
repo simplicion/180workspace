@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Briefcase, Plus, MapPin, Clock, Users, Pencil, ChevronRight, X, Mail, Phone, FileText, ChevronDown, CheckCircle, Key, Copy, RefreshCw, Link as LinkIcon, ExternalLink, Info, Sparkles, Bot, Terminal, Cpu } from 'lucide-react';
 import clsx from 'clsx';
-import PostJobModal from '@/app/dashboard/(job-hunter-app)/_components/PostJobModal';
+import PostJobModal from './_components/PostJobModal';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 
