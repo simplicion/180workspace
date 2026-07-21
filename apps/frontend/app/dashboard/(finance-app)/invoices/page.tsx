@@ -141,7 +141,7 @@ function CreateInvoiceModal({ onClose, onSuccess, clients }: { onClose: () => vo
                                                 <input aria-label="Line item unit price" type="number" value={line.unitPrice} onChange={e => updateLine(i, 'unitPrice', e.target.value)} className="w-full input py-1 text-sm text-right" min="0" step="0.01" />
                                             </td>
                                             <td className="px-3 py-2 text-right font-semibold text-gray-800">
-                                                â‚¹{(line.quantity * line.unitPrice).toLocaleString('en-IN')}
+                                                ₹{(line.quantity * line.unitPrice).toLocaleString('en-IN')}
                                             </td>
                                             <td className="px-2">
                                                 {lineItems.length > 1 && (
@@ -159,22 +159,22 @@ function CreateInvoiceModal({ onClose, onSuccess, clients }: { onClose: () => vo
                         {/* Totals */}
                         <div className="mt-3 space-y-1.5 text-sm">
                             <div className="flex justify-between text-gray-500">
-                                <span>Subtotal</span><span className="font-medium text-gray-800">â‚¹{subtotal.toLocaleString('en-IN')}</span>
+                                <span>Subtotal</span><span className="font-medium text-gray-800">₹{subtotal.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex items-center justify-between text-gray-500">
                                 <span className="flex items-center gap-2">Tax
                                     <input aria-label="Tax percentage" type="number" value={form.taxPercent} onChange={e => setForm(p => ({ ...p, taxPercent: Number(e.target.value) }))} className="w-16 input py-0.5 text-xs text-center" min="0" max="100" />%
                                 </span>
-                                <span className="font-medium text-gray-800">â‚¹{tax.toLocaleString('en-IN')}</span>
+                                <span className="font-medium text-gray-800">₹{tax.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex items-center justify-between text-gray-500">
                                 <span className="flex items-center gap-2">Discount
                                     <input aria-label="Discount amount" type="number" value={form.discount} onChange={e => setForm(p => ({ ...p, discount: Number(e.target.value) }))} className="w-20 input py-0.5 text-xs text-center" min="0" />
                                 </span>
-                                <span className="font-medium text-red-500">-â‚¹{form.discount.toLocaleString('en-IN')}</span>
+                                <span className="font-medium text-red-500">-₹{form.discount.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex justify-between border-t border-gray-100 pt-2 text-base font-bold text-gray-900">
-                                <span>Total</span><span>â‚¹{total.toLocaleString('en-IN')}</span>
+                                <span>Total</span><span>₹{total.toLocaleString('en-IN')}</span>
                             </div>
                         </div>
                     </div>
@@ -320,8 +320,8 @@ function InvoiceViewModal({ invoice, onClose }: { invoice: any; onClose: () => v
                                             <p className="font-bold text-gray-900 border-l-4 border-transparent group-hover:border-indigo-500 pl-2 transition-all">{item.description}</p>
                                         </td>
                                         <td className="px-6 py-5 text-center text-gray-600 font-medium">{item.quantity}</td>
-                                        <td className="px-6 py-5 text-right text-gray-600 font-medium">â‚¹{item.unitPrice?.toLocaleString('en-IN')}</td>
-                                        <td className="px-6 py-5 text-right font-black text-gray-900">â‚¹{(item.quantity * item.unitPrice).toLocaleString('en-IN')}</td>
+                                        <td className="px-6 py-5 text-right text-gray-600 font-medium">₹{item.unitPrice?.toLocaleString('en-IN')}</td>
+                                        <td className="px-6 py-5 text-right font-black text-gray-900">₹{(item.quantity * item.unitPrice).toLocaleString('en-IN')}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -340,11 +340,11 @@ function InvoiceViewModal({ invoice, onClose }: { invoice: any; onClose: () => v
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center text-sm font-medium">
                                     <span className="text-gray-400">Subtotal</span>
-                                    <span className="text-gray-900 font-bold">â‚¹{invoice.subtotal?.toLocaleString('en-IN')}</span>
+                                    <span className="text-gray-900 font-bold">₹{invoice.subtotal?.toLocaleString('en-IN')}</span>
                                 </div>
                                 <div className="pt-6 border-t border-gray-100 flex justify-between items-center">
                                     <span className="text-sm font-black text-gray-900 uppercase tracking-widest">Total Amount</span>
-                                    <span className="text-4xl font-black tracking-tighter" style={{ color: brandColor }}>â‚¹{invoice.totalAmount?.toLocaleString('en-IN')}</span>
+                                    <span className="text-4xl font-black tracking-tighter" style={{ color: brandColor }}>₹{invoice.totalAmount?.toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
 
@@ -465,8 +465,8 @@ export default function InvoicesPage() {
             {/* KPI */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 {[
-                    { label: user?.role === 'client' ? 'Total Paid' : 'Paid Revenue', value: `â‚¹${totalRevenue.toLocaleString('en-IN')}`, color: 'text-green-600', icon: Banknote, bg: 'bg-green-50' },
-                    { label: user?.role === 'client' ? 'To Be Paid' : 'Outstanding', value: `â‚¹${totalPending.toLocaleString('en-IN')}`, color: 'text-blue-600', icon: Send, bg: 'bg-blue-50' },
+                    { label: user?.role === 'client' ? 'Total Paid' : 'Paid Revenue', value: `₹${totalRevenue.toLocaleString('en-IN')}`, color: 'text-green-600', icon: Banknote, bg: 'bg-green-50' },
+                    { label: user?.role === 'client' ? 'To Be Paid' : 'Outstanding', value: `₹${totalPending.toLocaleString('en-IN')}`, color: 'text-blue-600', icon: Send, bg: 'bg-blue-50' },
                     { label: 'Total Invoices', value: invoices.length, color: 'text-indigo-600', icon: FileText, bg: 'bg-indigo-50' },
                     { label: 'Overdue', value: invoices.filter(i => i.status === 'overdue').length, color: 'text-red-600', icon: AlertCircle, bg: 'bg-red-50' },
                 ].map(k => (
@@ -533,7 +533,7 @@ export default function InvoicesPage() {
                                                 </td>
                                                 <td className="font-bold text-gray-900">
                                                     <div className="flex flex-col gap-1">
-                                                        <span>â‚¹{inv.totalAmount?.toLocaleString('en-IN')}</span>
+                                                        <span>₹{inv.totalAmount?.toLocaleString('en-IN')}</span>
                                                         {inv.riskScore !== undefined && inv.riskScore > 20 && (
                                                             <span className={clsx(
                                                                 "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border w-fit",
