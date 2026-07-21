@@ -105,10 +105,13 @@ exports.getSettings = async (req, res) => {
             });
         }
 
-        let settings = await req.prisma.settings.findFirst();
+        const companyId = req.user?.companyId || req.company?.id;
+        let settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
 
         // Auto-create initial settings if they don't exist yet
-        if (!settings) {
+        if (!settings && companyId) {
             settings = await req.prisma.settings.create({
                 data: {
                     companyName: req.company?.name || '',
@@ -119,7 +122,6 @@ exports.getSettings = async (req, res) => {
         }
 
         // Merge company metadata settings
-        const companyId = req.user?.companyId || req.company?.id || settings?.companyId;
         const metadata = companyId ? await getCompanyMetadata(companyId) : {};
         const mergedSettings = { ...settings };
         METADATA_FIELDS.forEach(field => {
@@ -158,10 +160,20 @@ exports.updateSettings = async (req, res) => {
             }
         });
 
-        let settings = await req.prisma.settings.findFirst();
+        const maskedFields = ['openaiKey', 'geminiKey', 'claudeKey', 'customAiKey', 'smtpPass', 'cloudinaryApiSecret', 'dbPass', 'recruitmentApiKey'];
+        maskedFields.forEach(field => {
+            if (metadataUpdate[field] === '********') {
+                delete metadataUpdate[field];
+            }
+        });
+
+        const companyId = req.user.companyId || req.company?.id;
+        let settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
         let updatedSettings;
 
-        if (!settings) {
+        if (!settings && companyId) {
             updatedSettings = await req.prisma.settings.create({
                 data: {
                     ...settingsUpdate,
@@ -180,7 +192,6 @@ exports.updateSettings = async (req, res) => {
         }
 
         // Save metadata fields
-        const companyId = req.user.companyId || req.company?.id || (settings ? settings.companyId : null) || (updatedSettings ? updatedSettings.companyId : null);
         console.log('[DEBUG updateSettings] bodyData:', bodyData);
         console.log('[DEBUG updateSettings] metadataUpdate:', metadataUpdate);
         console.log('[DEBUG updateSettings] resolved companyId:', companyId);
@@ -191,6 +202,19 @@ exports.updateSettings = async (req, res) => {
             console.log('[DEBUG updateSettings] Done updateCompanyMetadata.');
         } else {
             console.log('[DEBUG updateSettings] Skipping metadata update. keys len:', Object.keys(metadataUpdate).length, 'companyId:', companyId);
+        }
+
+        const { redis } = require('../../../system-configs/config/redis');
+        if (redis) {
+            try {
+                await redis.del(`company:${companyId}`);
+                const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
+                if (initKeys && initKeys.length > 0) {
+                    await redis.del(...initKeys);
+                }
+            } catch (cacheErr) {
+                console.warn('[Cache] Failed to clear settings cache:', cacheErr.message);
+            }
         }
 
         // Return merged updated settings
@@ -213,8 +237,10 @@ exports.testAiConnection = async (req, res) => {
             return res.status(403).json({ error: 'Only admins/managers can test AI connection' });
         }
 
-        const settings = await req.prisma.settings.findFirst();
-        const companyId = req.user.companyId || settings?.companyId;
+        const companyId = req.user.companyId;
+        const settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
 
         const metadata = await getCompanyMetadata(companyId);
         if (!metadata || !metadata.aiProvider || metadata.aiProvider === 'none') {
@@ -267,7 +293,9 @@ exports.testAiConnection = async (req, res) => {
             if (completion.choices[0].message.content) testSuccess = true;
         }
 
-        let updatedSettings = await req.prisma.settings.findFirst();
+        let updatedSettings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
         if (testSuccess) {
             await updateCompanyMetadata(companyId, {
                 lastAiTestStatus: 'success',
@@ -294,7 +322,9 @@ exports.testAiConnection = async (req, res) => {
             lastAiTestError: error.message
         });
 
-        const updatedSettings = await req.prisma.settings.findFirst();
+        const updatedSettings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
         const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...updatedSettings };
         METADATA_FIELDS.forEach(field => {
@@ -312,8 +342,10 @@ exports.testEmailConnection = async (req, res) => {
             return res.status(403).json({ error: 'Only admins/managers can test email connection' });
         }
 
-        const settings = await req.prisma.settings.findFirst();
-        companyId = req.user.companyId || settings?.companyId;
+        companyId = req.user.companyId;
+        const settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
         const metadata = companyId ? await getCompanyMetadata(companyId) : {};
         
         const smtpHost = req.body.smtpHost || metadata.smtpHost || settings?.smtpHost;
@@ -341,10 +373,17 @@ exports.testEmailConnection = async (req, res) => {
 
         await transporter.verify();
 
+        let formattedFrom = emailFrom;
+        if (formattedFrom && !formattedFrom.includes('@')) {
+            formattedFrom = `"${formattedFrom}" <${smtpUser}>`;
+        } else if (!formattedFrom) {
+            formattedFrom = smtpUser;
+        }
+
         await transporter.sendMail({
-            from: emailFrom,
+            from: formattedFrom,
             to: smtpUser,
-            subject: `${settings?.companyName || 'Your Company'} â€” SMTP Connection Test`,
+            subject: `${settings?.companyName || 'Your Company'} — SMTP Connection Test`,
             text: `Connection test successful! Date: ${new Date().toLocaleString()}`,
             html: `<h3>Connection successful!</h3><p>Your SMTP settings are correctly configured for <b>${settings?.companyName || 'Your Company'}</b>.</p><p>Tested on: ${new Date().toLocaleString()}</p>`,
         });
@@ -374,7 +413,9 @@ exports.testEmailConnection = async (req, res) => {
                     lastEmailTestError: error.message
                 });
                 
-                const settings = await req.prisma.settings.findFirst();
+                const settings = companyId ? await req.prisma.settings.findFirst({
+                    where: { companyId }
+                }) : null;
                 const freshMeta = await getCompanyMetadata(companyId);
                 merged = { ...settings };
                 METADATA_FIELDS.forEach(field => {
@@ -400,8 +441,10 @@ exports.testStorageConnection = async (req, res) => {
             return res.status(403).json({ error: 'Only admins/managers can test storage connection' });
         }
 
-        const settings = await req.prisma.settings.findFirst();
-        companyId = req.user.companyId || settings?.companyId;
+        companyId = req.user.companyId;
+        const settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
 
         if (!settings || settings.storageMode === 'local') {
             return res.status(400).json({ error: 'Storage mode is set to local or not configured' });
@@ -475,7 +518,9 @@ exports.testStorageConnection = async (req, res) => {
             lastStorageTestError: error.message
         });
 
-        const settings = await req.prisma.settings.findFirst();
+        const settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
         const freshMeta = await getCompanyMetadata(companyId);
         const merged = { ...settings };
         METADATA_FIELDS.forEach(field => {
@@ -494,8 +539,10 @@ exports.testDatabaseConnection = async (req, res) => {
 
         await req.prisma.$queryRaw`SELECT 1`;
 
-        const settings = await req.prisma.settings.findFirst();
-        const companyId = req.user.companyId || settings?.companyId;
+        const companyId = req.user.companyId;
+        const settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
 
         await updateCompanyMetadata(companyId, {
             lastDbTestStatus: 'success',
@@ -512,8 +559,9 @@ exports.testDatabaseConnection = async (req, res) => {
         res.json({ message: 'Database connection successful!', settings: merged });
     } catch (error) {
         console.error('Database connection test failed:', error);
-        const settings = await req.prisma.settings.findFirst();
-        const companyId = req.user.companyId || settings?.companyId;
+        const settings = companyId ? await req.prisma.settings.findFirst({
+            where: { companyId }
+        }) : null;
 
         await updateCompanyMetadata(companyId, {
             lastDbTestStatus: 'failure',

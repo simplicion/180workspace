@@ -19,7 +19,13 @@ exports.getCompanyConfig = async (req, res, next) => {
             return res.status(404).json({ error: 'Company not found' });
         }
 
-        const metadata = company.metadata || {};
+        let metadata = company.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
         const safeCompany = { ...company };
         delete safeCompany.adminPasswordHash;
         
@@ -66,7 +72,13 @@ exports.updateCompanyConfig = async (req, res, next) => {
             return res.status(404).json({ error: 'Company not found' });
         }
 
-        const metadata = company.metadata || {};
+        let metadata = company.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
         const updatedCompany = await prisma.company.update({
             where: { id: companyId },
             data: {
@@ -81,6 +93,20 @@ exports.updateCompanyConfig = async (req, res, next) => {
 
         const safeCompany = { ...updatedCompany };
         delete safeCompany.adminPasswordHash;
+
+        // Clear redis cache to prevent stale data
+        const { redis } = require('../../../system-configs/config/redis');
+        if (redis) {
+            try {
+                await redis.del(`company:${companyId}`);
+                const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
+                if (initKeys && initKeys.length > 0) {
+                    await redis.del(...initKeys);
+                }
+            } catch (cacheErr) {
+                console.warn('[Cache] Failed to clear company config cache:', cacheErr.message);
+            }
+        }
 
         const config = {
             ...safeCompany,
@@ -112,7 +138,13 @@ exports.updateEnabledApps = async (req, res, next) => {
             return res.status(404).json({ error: 'Company not found' });
         }
 
-        const metadata = company.metadata || {};
+        let metadata = company.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
         const updatedCompany = await prisma.company.update({
             where: { id: companyId },
             data: {

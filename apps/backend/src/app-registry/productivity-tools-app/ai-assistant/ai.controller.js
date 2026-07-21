@@ -7,7 +7,8 @@ let mammoth;
 try { mammoth = require('mammoth'); } catch (e) {}
 
 async function getSettingsWithMetadata(req) {
-    const settings = await req.prisma.settings.findFirst() || {};
+    const companyId = req.user?.companyId || req.company?.id;
+    const settings = companyId ? (await req.prisma.settings.findFirst({ where: { companyId } }) || {}) : {};
     let metadata = {};
     if (req.user && req.user.companyId) {
         const company = await req.prisma.company.findUnique({ where: { id: req.user.companyId } });

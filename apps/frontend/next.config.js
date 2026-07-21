@@ -1,3 +1,4 @@
+// Cache bust comment to force Vercel to rebuild and drop deleted job-hunter-app components
 const path = require('path');
 const fs = require('fs');
 

@@ -103,9 +103,14 @@ export default function CompanyLegalsPage() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'companyLogo' | 'emailLogo') => {
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'companyLogo' | 'emailLogo' | 'signatureImage') => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size must be less than 5MB');
+            return;
+        }
 
         setUploading(field);
         const data = new FormData();
@@ -116,7 +121,7 @@ export default function CompanyLegalsPage() {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setFormData(prev => ({ ...prev, [field]: res.data.url }));
-            toast.success('Logo uploaded and linked');
+            toast.success('Image uploaded successfully');
         } catch (error: any) {
             toast.error(error?.response?.data?.message || 'Upload failed');
         } finally {
@@ -318,8 +323,17 @@ export default function CompanyLegalsPage() {
                         <input name="designation" value={formData.designation} onChange={handleChange} className={inputCls} placeholder="Operations Manager" />
                     </Field>
                     <div className="col-span-full">
-                        <Field label="Signature Image URL (Transparent PNG)">
-                            <input name="signatureImage" value={formData.signatureImage} onChange={handleChange} className={inputCls} placeholder="https://..." />
+                        <Field label="Signature Image (Accepts all image files, max 5MB)">
+                            <div className="flex gap-3 mt-1 items-start">
+                                <label className="cursor-pointer bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shrink-0">
+                                    {uploading === 'signatureImage' ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                    Upload Signature
+                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'signatureImage')} disabled={!!uploading} />
+                                </label>
+                                <div className="flex-1">
+                                    <input name="signatureImage" value={formData.signatureImage} onChange={handleChange} className={inputCls} placeholder="Or enter image URL (https://...)" />
+                                </div>
+                            </div>
                             {formData.signatureImage && <img src={formData.signatureImage} alt="Signature Preview" className="h-16 mt-2 object-contain rounded-lg bg-white border border-gray-100 p-1" />}
                             <p className="text-[10px] text-gray-400 font-medium mt-1">Used for automated salary slips and invoice generation.</p>
                         </Field>
@@ -328,18 +342,7 @@ export default function CompanyLegalsPage() {
 
             </div>
 
-            {/* Footer Save */}
-            <div className="flex justify-end pt-6">
-                <button
-                    onClick={handleSave}
-                    disabled={loading}
-                    title="Save current configuration"
-                    className="flex items-center gap-2 px-10 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50"
-                >
-                    {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {loading ? 'Saving Changes...' : 'Save Configuration'}
-                </button>
-            </div>
+            {/* Save is handled in header */}
         </div>
     );
 }

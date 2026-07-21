@@ -82,11 +82,19 @@ exports.getInit = async (req, res) => {
             (async () => {
                 try {
                     const Settings = req.prisma.settings;
-                    const s = await Settings.findFirst();
+                    const s = await Settings.findFirst({
+                        where: { companyId }
+                    });
                     const companyRec = await req.prisma.company.findUnique({
                         where: { id: companyId }
                     });
-                    const metadata = companyRec?.metadata || {};
+                    let metadata = companyRec?.metadata || {};
+                    if (typeof metadata === 'string') {
+                        try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+                    }
+                    if (typeof metadata === 'string') {
+                        try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+                    }
                     
                     const safeSettings = s ? { ...s } : { companyName: 'Internal Management System', logoUrl: '', themeColor: '#4f46e5' };
                     
@@ -108,15 +116,17 @@ exports.getInit = async (req, res) => {
                         safeSettings[field] = metadata[field] !== undefined ? metadata[field] : (field.endsWith('Status') ? 'none' : '');
                     });
 
-                    // Ensure sensitive fields are stripped
+                    // Ensure sensitive fields are masked so the frontend knows they are configured
+                    safeSettings.openaiKey = safeSettings.openaiKey ? '********' : '';
+                    safeSettings.claudeKey = safeSettings.claudeKey ? '********' : '';
+                    safeSettings.geminiKey = safeSettings.geminiKey ? '********' : '';
+                    safeSettings.smtpPass = safeSettings.smtpPass ? '********' : '';
+                    safeSettings.customAiKey = safeSettings.customAiKey ? '********' : '';
+                    safeSettings.cloudinaryApiSecret = safeSettings.cloudinaryApiSecret ? '********' : '';
+                    safeSettings.dbPass = safeSettings.dbPass ? '********' : '';
+                    safeSettings.recruitmentApiKey = safeSettings.recruitmentApiKey ? '********' : '';
+
                     delete safeSettings.webhookSecret;
-                    delete safeSettings.smtpPass;
-                    delete safeSettings.openaiKey;
-                    delete safeSettings.claudeKey;
-                    delete safeSettings.geminiKey;
-                    delete safeSettings.cloudinaryApiSecret;
-                    delete safeSettings.dbPass;
-                    delete safeSettings.recruitmentApiKey;
                     delete safeSettings.googleDriveServiceAccount;
                     
                     return safeSettings;
@@ -134,7 +144,31 @@ exports.getInit = async (req, res) => {
                     });
                     if (!companyRec) return null;
                     
-                    const metadata = companyRec.metadata || {};
+                    let metadata = companyRec.metadata || {};
+                    if (typeof metadata === 'string') {
+                        try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+                    }
+                    if (typeof metadata === 'string') {
+                        try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+                    }
+                    
+                    // Do not leak secrets in companyConfig
+                    const safeCompanyMetadata = { ...metadata };
+                    const METADATA_SECRET_FIELDS = [
+                        'aiProvider', 'openaiKey', 'geminiKey', 'claudeKey', 'googleSheetsId',
+                        'lastAiTestStatus', 'lastAiTestDate', 'lastAiTestError',
+                        'lastEmailTestStatus', 'lastEmailTestDate', 'lastEmailTestError',
+                        'lastStorageTestStatus', 'lastStorageTestDate', 'lastStorageTestError',
+                        'lastDbTestStatus', 'lastDbTestDate', 'lastDbTestError',
+                        'customAiUrl', 'customAiKey', 'customAiModel',
+                        'smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom',
+                        'googleDriveServiceAccount', 'googleDriveFolderId',
+                        'cloudinaryCloudName', 'cloudinaryApiKey', 'cloudinaryApiSecret',
+                        'dbHost', 'dbPort', 'dbUser', 'dbPass', 'dbName', 'dbSrv',
+                        'useManualUri', 'manualUri', 'plausibleApiKey', 'googleDriveTokens', 'plausibleSiteId'
+                    ];
+                    METADATA_SECRET_FIELDS.forEach(field => delete safeCompanyMetadata[field]);
+
                     return {
                         id: companyRec.id,
                         companyId: companyRec.id,
@@ -142,7 +176,8 @@ exports.getInit = async (req, res) => {
                         companyEmail: companyRec.adminEmail,
                         companyLogo: companyRec.logoUrl,
                         enabledApps: metadata.enabledApps || [],
-                        enabledModules: metadata.enabledModules || []
+                        enabledModules: metadata.enabledModules || [],
+                        ...safeCompanyMetadata
                     };
                 } catch (e) {
                     console.error('Init company config error:', e);
