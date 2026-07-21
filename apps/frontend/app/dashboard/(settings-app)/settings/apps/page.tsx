@@ -21,8 +21,6 @@ const APP_COLORS: Record<string, { bg: string; text: string; light: string; tagB
     assets:        { bg: 'bg-orange-600',  text: 'text-orange-600',  light: 'bg-orange-50',  tagBg: 'bg-orange-50',  tagText: 'text-orange-700' },
     insights:      { bg: 'bg-rose-600',    text: 'text-rose-600',    light: 'bg-rose-50',    tagBg: 'bg-rose-50',    tagText: 'text-rose-700' },
     tools:         { bg: 'bg-violet-600',  text: 'text-violet-600',  light: 'bg-violet-50',  tagBg: 'bg-violet-50',  tagText: 'text-violet-700' },
-    jobhunter:     { bg: 'bg-teal-600',    text: 'text-teal-600',    light: 'bg-teal-50',    tagBg: 'bg-teal-50',    tagText: 'text-teal-700' },
-    integrations:  { bg: 'bg-gray-700',    text: 'text-gray-600',    light: 'bg-gray-50',    tagBg: 'bg-gray-100',   tagText: 'text-gray-700' },
 };
 
 // ─── Filter Tab Definitions ───

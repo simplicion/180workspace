@@ -122,7 +122,7 @@ router.use('/user-preferences', protect, require('../app-registry/user-identity-
 router.use('/docs', protect, require('../app-registry/productivity-tools-app/documents/doc.routes'));
 router.use('/work-logs', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/work-logs/worklog.routes'));
 router.use('/apikey', require('../platform-core/platform-integrations/routes/apikey.routes'));
-router.use('/job-hunter', protect, require('../app-registry/job-hunter-app/job-discovery/job-hunter.routes'));
+
 router.use('/employee', protect, require('../app-registry/hr-management-app/employees/employee.routes'));
 router.use('/designations', protect, require('../app-registry/hr-management-app/employees/designation.routes'));
 router.use('/roles-access', protect, require('../app-registry/settings-app/roles-access/roles-access.routes'));

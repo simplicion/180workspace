@@ -123,16 +123,6 @@ export const navigation = [
         ]
     },
 
-    {
-        group: 'Job Hunter AI',
-        appId: 'jobhunter',
-        icon: Search,
-        roles: ['admin', 'manager', 'employee'],
-        items: [
-            { id: 'job-dashboard', name: 'Job Dashboard', href: '/dashboard/job-hunter', icon: LayoutDashboard, roles: ['admin', 'manager', 'employee'] },
-            { id: 'job-discovery', name: 'Job Discovery', href: '/dashboard/job-hunter/discovery', icon: Search, roles: ['admin', 'manager', 'employee'] },
-        ]
-    },
 
 
     {

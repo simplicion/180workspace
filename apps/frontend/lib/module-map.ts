@@ -60,11 +60,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/dashboard/documents': { appId: 'tools', moduleId: 'documents' },
   '/user-preference': { appId: 'tools', moduleId: 'ai-assistant' }, // AI Assistant lives in prefs for now
   '/dashboard/ai': { appId: 'tools', moduleId: 'ai-assistant', isShared: true }, // Add AI Assistant to dashboard
-  
-  // Job Hunter
-  '/dashboard/job-hunter': { appId: 'jobhunter', moduleId: 'job-dashboard' },
-  '/dashboard/job-hunter/jobs': { appId: 'jobhunter', moduleId: 'job-discovery' },
-  '/dashboard/job-hunter/onboarding': { appId: 'jobhunter', moduleId: 'job-profile' },
 };
 
 export interface ModuleConfig {
@@ -203,30 +198,6 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'documents', name: 'Document Cloud' },
             { id: 'ai-assistant', name: 'AI Assistant' }
         ]
-    },
-    {
-        id: 'jobhunter',
-        name: 'Job Hunter AI',
-        icon: Search,
-        tag: 'HR',
-        description: 'AI-powered job search and automated applications.',
-        modules: [
-            { id: 'job-dashboard', name: 'Job Dashboard' },
-            { id: 'job-discovery', name: 'Job Discovery' },
-            { id: 'job-profile', name: 'Candidate Profile' }
-        ]
-    },
-    {
-        id: 'integrations',
-        name: 'Custom Integrations',
-        icon: Plug2,
-        tag: 'Custom',
-        description: 'Connect external tools, webhooks, and API endpoints.',
-        modules: [
-            { id: 'webhooks', name: 'Webhook Endpoints' },
-            { id: 'api-keys', name: 'API Key Management' },
-            { id: 'connected-apps', name: 'Connected Apps' }
-        ]
     }
 ];
 
@@ -262,5 +233,4 @@ export const ALL_APPS = [
     { id: 'documents', name: 'Documents', description: 'Cloud storage and document management.', icon: FilePlus2 },
     { id: 'analytics', name: 'Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
-    { id: 'jobhunter', name: 'Job Hunter AI', description: 'AI-powered job search and automated applications.', icon: Search },
 ];

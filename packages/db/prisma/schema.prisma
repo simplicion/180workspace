@@ -90,9 +90,7 @@ model Company {
   goals                                         Goal[]
   holidays_CompanyHolidays                      Holiday[]             @relation("CompanyHolidays")
   jobs_CompanyJobs                              Job[]                 @relation("CompanyJobs")
-  jobApplications_CompanyJobApplications        JobApplication[]      @relation("CompanyJobApplications")
-  jobCandidateProfiles_CompanyCandidateProfiles JobCandidateProfile[] @relation("CompanyCandidateProfiles")
-  jobOpportunitys_CompanyJobOpportunities       JobOpportunity[]      @relation("CompanyJobOpportunities")
+
   Leave                                         Leave[]
   meetingLogs_CompanyMeetingLogs                MeetingLog[]          @relation("CompanyMeetingLogs")
   projects                                      Project[]
@@ -106,6 +104,7 @@ model Company {
   vendors_CompanyVendors                        Vendor[]              @relation("CompanyVendors")
   vendorBills_CompanyVendorBills                VendorBill[]          @relation("CompanyVendorBills")
   workLogs_CompanyWorkLogs                      WorkLog[]             @relation("CompanyWorkLogs")
+  assets                                        Asset[]
 }
 
 model CompanyCoreValue {
@@ -264,8 +263,7 @@ model User {
   forumReplys_UserForumReplies               ForumReply[]          @relation("UserForumReplies")
   goalsOwned                                 Goal[]                @relation("GoalOwner")
   invoicesCreated                            Invoice[]
-  jobApplications_UserJobApplications        JobApplication[]      @relation("UserJobApplications")
-  jobCandidateProfiles_UserCandidateProfiles JobCandidateProfile[] @relation("UserCandidateProfiles")
+
   leavesRequested                            Leave[]               @relation("LeaveEmployee")
   leavesReviewed                             Leave[]               @relation("LeaveReviewer")
   meetingLogs_UserMeetingLogsCreated         MeetingLog[]          @relation("UserMeetingLogsCreated")
@@ -571,12 +569,15 @@ model Asset {
   credentials  Json?
   ownerId      String?
   createdById  String
+  companyId    String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   createdBy    User      @relation("AssetCreator", fields: [createdById], references: [id])
   owner        User?     @relation("AssetOwner", fields: [ownerId], references: [id])
+  company      Company?  @relation(fields: [companyId], references: [id])
 
   @@index([status])
+  @@index([companyId])
 }
 
 model Chat {
@@ -1154,76 +1155,6 @@ model Application {
   @@index([applicantEmail])
 }
 
-model JobApplication {
-  id                    String              @id @default(uuid())
-  candidateProfileId    String
-  jobOpportunityId      String
-  userId                String
-  matchScore            Float               @default(0)
-  missingSkills         String[]            @default([])
-  customizedResumeUrl   String              @default("")
-  customizedCoverLetter String              @default("")
-  status                String              @default("Pending")
-  appliedDate           DateTime?
-  emailThreadId         String              @default("")
-  deletedAt             DateTime?
-  companyId             String?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  candidateProfile      JobCandidateProfile @relation(fields: [candidateProfileId], references: [id])
-  company               Company?            @relation("CompanyJobApplications", fields: [companyId], references: [id])
-  jobOpportunity        JobOpportunity      @relation(fields: [jobOpportunityId], references: [id])
-  user                  User                @relation("UserJobApplications", fields: [userId], references: [id])
-
-  @@index([companyId, status])
-  @@index([companyId])
-}
-
-model JobCandidateProfile {
-  id              String           @id @default(uuid())
-  userId          String
-  headline        String           @default("")
-  summary         String           @default("")
-  skills          String[]         @default([])
-  experience      Json?            @default("[]")
-  education       Json?            @default("[]")
-  projects        Json?            @default("[]")
-  preferences     Json?            @default("{}")
-  gmailConnected  Boolean          @default(false)
-  credits         Int              @default(10)
-  deletedAt       DateTime?
-  companyId       String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  jobApplications JobApplication[]
-  company         Company?         @relation("CompanyCandidateProfiles", fields: [companyId], references: [id])
-  user            User             @relation("UserCandidateProfiles", fields: [userId], references: [id])
-
-  @@index([companyId])
-}
-
-model JobOpportunity {
-  id              String           @id @default(uuid())
-  title           String
-  companyName     String
-  description     String           @default("")
-  sourceUrl       String           @default("")
-  hrEmail         String           @default("")
-  salaryRangeMin  Int?
-  salaryRangeMax  Int?
-  salaryCurrency  String           @default("USD")
-  location        String           @default("")
-  workType        String           @default("Unknown")
-  sourcePlatform  String           @default("Manual")
-  deletedAt       DateTime?
-  companyId       String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  jobApplications JobApplication[]
-  company         Company?         @relation("CompanyJobOpportunities", fields: [companyId], references: [id])
-
-  @@index([companyId])
-}
 
 model MeetingLog {
   id           String              @id @default(uuid())

@@ -71,7 +71,7 @@ const GLOBAL_MODELS = new Set([
   'Company', 'PlatformSettings', 'Plan', 'Coupon', 'SuperAdmin',
   'TenantUserMapping', 'ActivityLog', 'Announcement', 'DeletionLog',
   'FeatureFlag', 'ReleaseNote', 'SupportTicket', 'DocumentPage',
-  'ForumPost', 'ForumReply', 'Chat', 'Message', 'Asset',
+  'ForumPost', 'ForumReply', 'Chat', 'Message',
   'CalendarContentPiece', 'AiRequestLog', 'CalendarEvent'
 ]);
 
