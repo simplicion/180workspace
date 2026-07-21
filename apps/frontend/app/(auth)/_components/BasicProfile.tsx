@@ -82,7 +82,7 @@ export default function BasicProfile({
                 <p className="text-gray-500 text-sm">Tell us a bit about yourself.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto p-1 pr-2">
+            <form onSubmit={handleSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto p-1 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <div className="relative group/input">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within/input:text-blue-600 transition-colors" />
                     <input

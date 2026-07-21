@@ -190,6 +190,8 @@ export default function SignupFlow() {
                 // Also establish NextAuth session
                 if (platformToken) {
                     await signIn('platform-token', { token: platformToken, redirect: false });
+                } else {
+                    await signIn('credentials', { email, password: newPassword, redirect: false });
                 }
                 
                 setStep(4); // Go to Role selection
@@ -289,7 +291,7 @@ export default function SignupFlow() {
             </div>
 
             {/* ── Signup Form Container ─────────────────────────────────────────── */}
-            <div className="w-full max-w-md relative z-10 p-8 sm:p-10 my-12 overflow-y-auto max-h-[90vh]">
+            <div className="w-full max-w-md relative z-10 p-8 sm:p-10 my-12 overflow-y-auto max-h-[90vh] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 
                 {/* Logo */}
                 <div className="flex items-center justify-center gap-3 mb-10">
