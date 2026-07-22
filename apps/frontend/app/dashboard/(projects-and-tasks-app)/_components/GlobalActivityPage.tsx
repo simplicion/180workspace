@@ -608,7 +608,7 @@ function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
                     <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
             )}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto hidden-scrollbar">
                 <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                         <tr className="border-b border-gray-100 bg-gray-50/50">

@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     }}
                 />
             </head>
-            <body className="font-sans antialiased" suppressHydrationWarning>
+            <body className="font-sans antialiased hidden-scrollbar" suppressHydrationWarning>
                 <Providers>
                     <DesktopSplitView>
                         {children}
