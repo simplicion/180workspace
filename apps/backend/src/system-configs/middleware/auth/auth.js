@@ -51,6 +51,17 @@ async function protect(req, res, next) {
         }
         req.user.companyId = decoded.companyId || req.company?.id || user.companyId;
         
+        // Critical Fix: If tenant-db.js fell back to the global Prisma client because it couldn't extract companyId
+        // from the request before verification, but we now know the user's companyId, upgrade the connection
+        // to prevent cross-company data leakage.
+        if (req.user.companyId && !req.prisma.companyId) {
+            const { getTenantPrisma } = require('@workspace/db');
+            req.prisma = getTenantPrisma(req.user.companyId);
+            if (process.env.DEBUG_AUTH === 'true') {
+                console.log(`[Auth] Upgraded global Prisma client to tenant client for companyId: ${req.user.companyId}`);
+            }
+        }
+        
         if (req.performanceData) req.performanceData.mark('authenticationDuration');
         next();
     } catch (err) {

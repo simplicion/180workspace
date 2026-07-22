@@ -23,6 +23,8 @@ exports.getDashboard = async (req, res, next) => {
         lastMonthEnd.setDate(0);
         lastMonthEnd.setHours(23, 59, 59, 999);
 
+        const companyWhere = req.user?.companyId ? { companyId: req.user.companyId } : {};
+
         const [
             totalEmployees, activeEmployees,
             totalProjects, activeProjects,
@@ -30,17 +32,17 @@ exports.getDashboard = async (req, res, next) => {
             todayAttendance, totalClients,
             prevMonthActive, pendingExpenses,
         ] = await Promise.all([
-            User.count({ where: {role: 'employee'} }),
-            User.count({ where: {role: 'employee', isActive: true} }),
-            Project.count(),
-            Project.count({ where: {status: 'in_progress'} }),
-            Task.count(),
-            Task.count({ where: {status: { in: ['todo', 'in_progress'] }} }),
-            Attendance.count({ where: {date: today, 
-                status: { in: ['present', 'late', 'work_from_home', 'half_day'] }} }),
-            Client.count(),
-            Project.count({ where: {status: 'in_progress', updatedAt: { gte: lastMonthStart, lte: lastMonthEnd }} }),
-            Expense.count({ where: {status: 'pending'} })
+            User.count({ where: { ...companyWhere, role: 'employee' } }),
+            User.count({ where: { ...companyWhere, role: 'employee', isActive: true } }),
+            Project.count({ where: companyWhere }),
+            Project.count({ where: { ...companyWhere, status: 'in_progress' } }),
+            Task.count({ where: companyWhere }),
+            Task.count({ where: { ...companyWhere, status: { in: ['todo', 'in_progress'] } } }),
+            Attendance.count({ where: { ...companyWhere, date: today, 
+                status: { in: ['present', 'late', 'work_from_home', 'half_day'] } } }),
+            Client.count({ where: companyWhere }),
+            Project.count({ where: { ...companyWhere, status: 'in_progress', updatedAt: { gte: lastMonthStart, lte: lastMonthEnd } } }),
+            Expense.count({ where: { ...companyWhere, status: 'pending' } })
         ]);
 
         const pendingSalaries = 0; // Salary tracking for monthly payouts is not fully migrated
@@ -68,9 +70,11 @@ exports.getAttendanceReport = async (req, res, next) => {
         const { month } = req.query;
         if (!month) return res.status(400).json({ error: 'month param required (YYYY-MM)' });
 
+        const companyWhere = req.user?.companyId ? { companyId: req.user.companyId } : {};
+
         const stats = await Attendance.groupBy({
             by: ['status'],
-            where: { date: { startsWith: month } },
+            where: { ...companyWhere, date: { startsWith: month } },
             _count: { status: true }
         });
         const summary = stats.reduce((acc, s) => { acc[s.status] = s._count.status; return acc; }, {});
@@ -84,7 +88,10 @@ exports.getSalaryReport = async (req, res, next) => {
         const { month } = req.query;
         if (!month) return res.status(400).json({ error: 'month param required (YYYY-MM)' });
 
+        const companyWhere = req.user?.companyId ? { companyId: req.user.companyId } : {};
+
         const salaries = await Salary.findMany({
+            where: companyWhere,
             include: {
                 employee: {
                     select: { name: true, id: true }
@@ -119,13 +126,15 @@ exports.getWeeklyTrends = async (req, res, next) => {
         const Project = req.prisma.project;
         const Task = req.prisma.task;
 
+        const companyWhere = req.user?.companyId ? { companyId: req.user.companyId } : {};
+
         const [projects, tasks] = await Promise.all([
             Project.findMany({
-                where: { createdAt: { gte: startDate } },
+                where: { ...companyWhere, createdAt: { gte: startDate } },
                 select: { createdAt: true }
             }),
             Task.findMany({
-                where: { createdAt: { gte: startDate } },
+                where: { ...companyWhere, createdAt: { gte: startDate } },
                 select: { createdAt: true }
             })
         ]);
@@ -222,21 +231,23 @@ exports.getCEOInsights = async (req, res, next) => {
         startOfTrajectory.setHours(0, 0, 0, 0);
         const monthStrLimit = startOfTrajectory.toISOString().slice(0, 7);
 
+        const companyWhere = req.user?.companyId ? { companyId: req.user.companyId } : {};
+
         const [invoices, expenses, salaries, assets] = await Promise.all([
             Invoice.findMany({
-                where: { issueDate: { gte: startOfTrajectory }, status: 'paid' },
+                where: { ...companyWhere, issueDate: { gte: startOfTrajectory }, status: 'paid' },
                 select: { id: true, issueDate: true, totalAmount: true, invoiceNumber: true, clientName: true, client: { select: { name: true } } }
             }),
             Expense.findMany({
-                where: { date: { gte: startOfTrajectory }, status: 'approved' },
+                where: { ...companyWhere, date: { gte: startOfTrajectory }, status: 'approved' },
                 select: { id: true, date: true, amount: true, title: true, employee: { select: { name: true } }, project: { select: { name: true } } }
             }),
             Salary.findMany({
-                where: { effectiveDate: { gte: startOfTrajectory }, status: 'active' },
+                where: { ...companyWhere, effectiveDate: { gte: startOfTrajectory }, status: 'active' },
                 select: { id: true, effectiveDate: true, amount: true, employee: { select: { name: true } } }
             }),
             Asset.findMany({
-                where: { createdAt: { gte: startOfTrajectory }, cost: { gt: 0 } },
+                where: { ...companyWhere, createdAt: { gte: startOfTrajectory }, cost: { gt: 0 } },
                 select: { id: true, createdAt: true, cost: true, name: true, provider: true, owner: { select: { name: true } } }
             })
         ]);
@@ -325,10 +336,10 @@ exports.getCEOInsights = async (req, res, next) => {
 
         // 2. Task Velocity
         const [todo, inProgress, inReview, done] = await Promise.all([
-            Task.count({ where: {status: 'todo'} }),
-            Task.count({ where: {status: 'in_progress'} }),
-            Task.count({ where: {status: 'in_review'} }),
-            Task.count({ where: {status: 'done'} })
+            Task.count({ where: { ...companyWhere, status: 'todo' } }),
+            Task.count({ where: { ...companyWhere, status: 'in_progress' } }),
+            Task.count({ where: { ...companyWhere, status: 'in_review' } }),
+            Task.count({ where: { ...companyWhere, status: 'done' } })
         ]);
 
         const taskVelocity = [
@@ -340,10 +351,10 @@ exports.getCEOInsights = async (req, res, next) => {
 
         // 3. Performance Metrics
         const [totalUser, inactiveUser, reviews] = await Promise.all([
-            User.count({ where: {role: 'employee'} }),
-            User.count({ where: {role: 'employee', isActive: false} }),
+            User.count({ where: { ...companyWhere, role: 'employee' } }),
+            User.count({ where: { ...companyWhere, role: 'employee', isActive: false } }),
             Review.aggregate({
-                where: { overallRating: { not: null } },
+                where: { ...companyWhere, overallRating: { not: null } },
                 _avg: { overallRating: true }
             }).then(res => [{ avg: res._avg.overallRating }])
         ]);
@@ -394,10 +405,11 @@ exports.getAttendanceTrend = async (req, res, next) => {
         startDate.setHours(0, 0, 0, 0);
         
         const startDateStr = startDate.toISOString().split('T')[0];
-        const activeEmployees = await User.count({ where: {role: 'employee', isActive: true} });
+        const companyWhere = req.user?.companyId ? { companyId: req.user.companyId } : {};
+        const activeEmployees = await User.count({ where: { ...companyWhere, role: 'employee', isActive: true } });
 
         const attendances = await Attendance.findMany({
-            where: { date: { gte: startDateStr } },
+            where: { ...companyWhere, date: { gte: startDateStr } },
             select: { date: true, status: true },
             orderBy: { date: 'asc' }
         });

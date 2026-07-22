@@ -9,6 +9,10 @@ exports.getAssets = async (req, res, next) => {
         const { type, status, search } = req.query;
         let query = {};
 
+        if (req.user && req.user.companyId) {
+            query.companyId = req.user.companyId;
+        }
+
         if (type) query.type = type;
         if (status) query.status = status;
         if (search) {
@@ -42,6 +46,7 @@ exports.getAssetStats = async (req, res, next) => {
         // Prisma doesn't have an exact equivalent to $group sum, so we use groupBy
         const groupStats = await req.prisma.asset.groupBy({
             by: ['type'],
+            where: req.user && req.user.companyId ? { companyId: req.user.companyId } : {},
             _count: { _all: true },
             _sum: { cost: true }
         });
@@ -55,7 +60,8 @@ exports.getAssetStats = async (req, res, next) => {
         const activeIntegrationsCount = await req.prisma.asset.count({
             where: {
                 type: { in: ['api', 'service'] },
-                status: 'active'
+                status: 'active',
+                ...(req.user && req.user.companyId ? { companyId: req.user.companyId } : {})
             }
         });
 
@@ -66,8 +72,11 @@ exports.getAssetStats = async (req, res, next) => {
 // GET single asset
 exports.getAssetById = async (req, res, next) => {
     try {
-        const asset = await req.prisma.asset.findUnique({
-            where: { id: req.params.id },
+        const asset = await req.prisma.asset.findFirst({
+            where: { 
+                id: req.params.id,
+                ...(req.user && req.user.companyId ? { companyId: req.user.companyId } : {})
+            },
             include: { owner: { select: { name: true } } }
         });
         if (!asset) return res.status(404).json({ error: 'Asset not found' });
@@ -95,7 +104,8 @@ exports.createAsset = async (req, res, next) => {
 
         const assetData = {
             ...req.body,
-            createdById: req.user.id
+            createdById: req.user.id,
+            ...(req.user && req.user.companyId ? { companyId: req.user.companyId } : {})
         };
 
         if (parsedRenewalDate !== undefined) {
@@ -141,11 +151,16 @@ exports.updateAsset = async (req, res, next) => {
             updateData.renewalDate = parsedRenewalDate;
         }
 
-        const asset = await req.prisma.asset.update({
-            where: { id: req.params.id },
+        const assetInfo = await req.prisma.asset.updateMany({
+            where: { 
+                id: req.params.id,
+                ...(req.user && req.user.companyId ? { companyId: req.user.companyId } : {})
+            },
             data: updateData
         });
-        if (!asset) return res.status(404).json({ error: 'Asset not found' });
+        if (assetInfo.count === 0) return res.status(404).json({ error: 'Asset not found' });
+        
+        const asset = await req.prisma.asset.findFirst({ where: { id: req.params.id } });
         res.json({ asset });
     } catch (err) { 
         if (err.code === 'P2025') {
@@ -158,10 +173,13 @@ exports.updateAsset = async (req, res, next) => {
 // DELETE asset
 exports.deleteAsset = async (req, res, next) => {
     try {
-        const asset = await req.prisma.asset.delete({
-            where: { id: req.params.id }
+        const asset = await req.prisma.asset.deleteMany({
+            where: { 
+                id: req.params.id,
+                ...(req.user && req.user.companyId ? { companyId: req.user.companyId } : {})
+            }
         });
-        if (!asset) return res.status(404).json({ error: 'Asset not found' });
+        if (asset.count === 0) return res.status(404).json({ error: 'Asset not found' });
         res.json({ success: true, message: 'Asset deleted successfully' });
     } catch (err) { 
         if (err.code === 'P2025') {
