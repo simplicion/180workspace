@@ -1,8 +1,16 @@
-﻿'use strict';
+'use strict';
 
 const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
 const { triggerN8nWebhook } = require('../../../platform-core/platform-integrations/webhooks/webhook.routes');
 const AutomationService = require('../../../platform-core/platform-communications/services/automation.service');
+const { cacheDel } = require('../../../system-configs/middleware/system/cache.js');
+
+const clearCRMCache = async (companyId) => {
+    if (!companyId) return;
+    await cacheDel(`tenant:${companyId}:dashboard_metrics_v2`);
+    await cacheDel(`tenant:${companyId}:forecasting`);
+    await cacheDel(`tenant:${companyId}:productivity`);
+};
 
 exports.getClients = async (req, res, next) => {
     try {
@@ -42,13 +50,23 @@ exports.getClients = async (req, res, next) => {
 exports.createClient = async (req, res, next) => {
     try {
         const Client = req.prisma.client;
-        if (!req.body.clientId) {
+        
+        const createData = { ...req.body };
+        if (!createData.clientId) {
             const count = await Client.count();
-            req.body.clientId = `CLT-${String(count + 1).padStart(4, '0')}`;
+            createData.clientId = `CLT-${String(count + 1).padStart(4, '0')}`;
+        }
+        
+        if (createData.company !== undefined) {
+            createData.companyName = createData.company;
+            delete createData.company;
+        }
+        if (req.company && req.company.id) {
+            createData.companyId = req.company.id;
         }
 
         const client = await Client.create({
-            data: req.body
+            data: createData
         });
 
         await logAction(req.user.id, 'CREATE_CLIENT', 'client', client.id, { name: client.name }, req);
@@ -69,6 +87,10 @@ exports.createClient = async (req, res, next) => {
             name: client.name,
             email: client.email
         }).catch(() => { });
+
+        if (req.company && req.company.id && typeof clearCRMCache === 'function') {
+            await clearCRMCache(req.company.id);
+        }
 
         res.status(201).json({ client: { ...client, _id: client.id } });
     } catch (err) { next(err); }
@@ -104,10 +126,19 @@ exports.updateClient = async (req, res, next) => {
         delete updateData.id;
         delete updateData._id;
 
+        if (updateData.company !== undefined) {
+            updateData.companyName = updateData.company;
+            delete updateData.company;
+        }
+
         const client = await Client.update({
             where: { id: req.params.id },
             data: updateData
         });
+
+        if (req.company && req.company.id && typeof clearCRMCache === 'function') {
+            await clearCRMCache(req.company.id);
+        }
 
         res.json({ client: { ...client, _id: client.id } });
     } catch (err) { next(err); }
@@ -120,6 +151,11 @@ exports.deleteClient = async (req, res, next) => {
             where: { id: req.params.id }
         });
         await logAction(req.user.id, 'DELETE_CLIENT', 'client', req.params.id, {}, req);
+        
+        if (req.company && req.company.id && typeof clearCRMCache === 'function') {
+            await clearCRMCache(req.company.id);
+        }
+        
         res.json({ message: 'Client deleted' });
     } catch (err) { next(err); }
 };
@@ -169,6 +205,11 @@ exports.createCommunication = async (req, res, next) => {
         });
 
         await logAction(req.user.id, 'CREATE_CLIENT_COMM', 'client', req.params.id, { subject }, req);
+        
+        if (req.company && req.company.id && typeof clearCRMCache === 'function') {
+            await clearCRMCache(req.company.id);
+        }
+
         res.status(201).json({ communication: { ...comm, _id: comm.id } });
     } catch (err) { next(err); }
 };
@@ -179,6 +220,12 @@ exports.deleteCommunication = async (req, res, next) => {
         await Comm.delete({
             where: { id: req.params.commId }
         });
+        await logAction(req.user.id, 'DELETE_CLIENT_COMM', 'client', req.params.id, {}, req);
+        
+        if (req.company && req.company.id && typeof clearCRMCache === 'function') {
+            await clearCRMCache(req.company.id);
+        }
+
         res.json({ message: 'Communication deleted' });
     } catch (err) { next(err); }
 };

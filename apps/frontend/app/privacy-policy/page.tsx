@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
                 <p><strong>Last updated:</strong> {new Date().toLocaleDateString()}</p>
                 
                 <p>
-                    Welcome to 180Workspace ("we", "our", or "us"). We are committed to protecting your personal information and your right to privacy. 
+                    Welcome to 180Workspace (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;). We are committed to protecting your personal information and your right to privacy. 
                     If you have any questions or concerns about this privacy notice, or our practices with regards to your personal information, please contact us at princegupta3641@gmail.com.
                 </p>
 
@@ -48,7 +48,7 @@ export default function PrivacyPolicy() {
                 
                 <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Google API Services User Data Policy</h2>
                 <p>
-                    180Workspace's use and transfer to any other app of information received from Google APIs will adhere to <a href="https://developers.google.com/terms/api-services-user-data-policy" className="text-indigo-600 hover:underline">Google API Services User Data Policy</a>, including the Limited Use requirements.
+                    180Workspace&apos;s use and transfer to any other app of information received from Google APIs will adhere to <a href="https://developers.google.com/terms/api-services-user-data-policy" className="text-indigo-600 hover:underline">Google API Services User Data Policy</a>, including the Limited Use requirements.
                 </p>
 
                 <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. How can you contact us about this notice?</h2>

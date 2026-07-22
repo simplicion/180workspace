@@ -1363,8 +1363,8 @@ export default function ProjectDetailPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {project.clientIds.map((c: any) => (
-                                <div key={c.id || c._id} className="bg-white border border-amber-100 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            {project.clientIds.map((c: any, idx: number) => (
+                                <div key={c.id || c._id || (typeof c === 'string' ? c : idx)} className="bg-white border border-amber-100 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
                                     <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
                                         <Building2 className="w-6 h-6 text-amber-500" />
                                     </div>

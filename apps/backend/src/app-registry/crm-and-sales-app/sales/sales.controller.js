@@ -9,7 +9,15 @@ const {
     calculateCustomerRiskIndex,
     calculateRepProductivity
 } = require('../../company-hub-app/crm/CrmCalculationService.js');
-const { cacheGet, cacheSet } = require('../../../system-configs/middleware/system/cache.js');
+const { cacheGet, cacheSet, cacheDel } = require('../../../system-configs/middleware/system/cache.js');
+
+const clearCRMCache = async (companyId) => {
+    if (!companyId) return;
+    await cacheDel(`tenant:${companyId}:dashboard_metrics_v2`);
+    await cacheDel(`tenant:${companyId}:forecasting`);
+    await cacheDel(`tenant:${companyId}:productivity`);
+};
+
 const AIAutomationService = require('../../productivity-tools-app/ai-assistant/ai-automation.service');
 const SalesRuleEngine = require('./sales-rule-engine.service');
 const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
@@ -89,6 +97,8 @@ exports.getLeads = async (req, res, next) => {
 exports.createLead = async (req, res, next) => {
     try {
         const lead = await SalesService.createLead(req.prisma, req.body, req.user.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ lead });
     } catch (err) { next(err); }
 };
@@ -163,6 +173,8 @@ exports.importLeads = async (req, res, next) => {
 exports.updateLead = async (req, res, next) => {
     try {
         const lead = await SalesService.updateLead(req.prisma, req.params.id, req.body);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ lead });
     } catch (err) { next(err); }
 };
@@ -171,6 +183,8 @@ exports.updateLead = async (req, res, next) => {
 exports.deleteLead = async (req, res, next) => {
     try {
         await SalesService.deleteLead(req.prisma, req.params.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ message: 'Lead deleted' });
     } catch (err) { next(err); }
 };
@@ -178,6 +192,8 @@ exports.deleteLead = async (req, res, next) => {
 exports.convertLead = async (req, res, next) => {
     try {
         const result = await SalesService.convertLead(req.prisma, req.params.id, req.user.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ 
             message: 'Lead converted successfully', 
             ...result 
@@ -192,7 +208,8 @@ exports.getOpportunities = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
-        const result = await SalesService.getOpportunities(req.prisma, page, limit);
+        const pipelineType = req.query.pipelineType;
+        const result = await SalesService.getOpportunities(req.prisma, page, limit, pipelineType);
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -200,6 +217,8 @@ exports.getOpportunities = async (req, res, next) => {
 exports.createOpportunity = async (req, res, next) => {
     try {
         const result = await SalesService.createOpportunity(req.prisma, req.body, req.user.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ opportunity: result });
     } catch (err) { next(err); }
 };
@@ -207,6 +226,8 @@ exports.createOpportunity = async (req, res, next) => {
 exports.updateOpportunity = async (req, res, next) => {
     try {
         const result = await SalesService.updateOpportunity(req.prisma, req.params.id, req.body);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -214,6 +235,8 @@ exports.updateOpportunity = async (req, res, next) => {
 exports.createProjectFromOpportunity = async (req, res, next) => {
     try {
         const result = await SalesService.createProjectFromOpportunity(req.prisma, req.params.id, req.user.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json(result);
     } catch (err) { next(err); }
 };
@@ -235,6 +258,8 @@ exports.createAccount = async (req, res, next) => {
         const account = await SalesService.createAccount(req.prisma, req.body, req.user.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'CREATE_ACCOUNT', 'account', account.id, { companyName: account.companyName }, req);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ account });
     } catch (err) { next(err); }
 };
@@ -244,6 +269,8 @@ exports.updateAccount = async (req, res, next) => {
         const account = await SalesService.updateAccount(req.prisma, req.params.id, req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'UPDATE_ACCOUNT', 'account', account.id, { companyName: account.companyName }, req);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ account });
     } catch (err) { next(err); }
 };
@@ -253,6 +280,8 @@ exports.deleteAccount = async (req, res, next) => {
         const account = await SalesService.deleteAccount(req.prisma, req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_ACCOUNT', 'account', account.id, { companyName: account.companyName }, req);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ message: 'Account deleted' });
     } catch (err) { next(err); }
 };
@@ -278,6 +307,8 @@ exports.createContact = async (req, res, next) => {
         const contact = await SalesService.createContact(req.prisma, req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'CREATE_CONTACT', 'contact', contact.id, { name: contact.name }, req);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ contact });
     } catch (err) { 
         console.error('[Sales Controller] createContact error:', err);
@@ -293,6 +324,8 @@ exports.updateContact = async (req, res, next) => {
         const contact = await SalesService.updateContact(req.prisma, req.params.id, req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'UPDATE_CONTACT', 'contact', contact.id, { name: contact.name }, req);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ contact });
     } catch (err) { next(err); }
 };
@@ -302,6 +335,8 @@ exports.deleteContact = async (req, res, next) => {
         const contact = await SalesService.deleteContact(req.prisma, req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_CONTACT', 'contact', contact.id, { name: contact.name }, req);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ message: 'Contact deleted' });
     } catch (err) { next(err); }
 };
@@ -321,6 +356,8 @@ exports.getActivities = async (req, res, next) => {
 exports.createActivity = async (req, res, next) => {
     try {
         const result = await SalesService.createActivity(req.prisma, req.body, req.user.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ activity: result });
     } catch (err) { next(err); }
 };
@@ -370,6 +407,8 @@ exports.deleteOpportunity = async (req, res, next) => {
         const opp = await SalesService.deleteOpportunity(req.prisma, req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_OPPORTUNITY', 'opportunity', opp.id, { title: opp.title }, req);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ message: 'Opportunity deleted' });
     } catch (err) { next(err); }
 };
@@ -391,6 +430,8 @@ exports.createQuote = async (req, res, next) => {
         const quote = await SalesService.createQuote(req.prisma, req.body, req.user.id, req.company.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'CREATE_QUOTE', 'quote', quote.id, { quoteNumber: quote.quoteNumber }, req).catch(() => {});
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ quote });
     } catch (err) { next(err); }
 };
@@ -400,7 +441,8 @@ exports.createQuote = async (req, res, next) => {
 // -------------------------------------------------------------
 exports.getRevenueStats = async (req, res, next) => {
     try {
-        const result = await SalesService.getRevenueStats(req.prisma);
+        const timeframe = req.query.timeframe || 'all';
+        const result = await SalesService.getRevenueStats(req.prisma, timeframe);
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -414,6 +456,8 @@ exports.updateQuote = async (req, res, next) => {
         const quote = await SalesService.updateQuote(req.prisma, req.params.id, req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'UPDATE_QUOTE', 'quote', quote.id, { quoteNumber: quote.quoteNumber }, req).catch(() => {});
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ quote });
     } catch (err) { next(err); }
 };
@@ -423,6 +467,8 @@ exports.deleteQuote = async (req, res, next) => {
         const quote = await SalesService.deleteQuote(req.prisma, req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_QUOTE', 'quote', quote.id, { quoteNumber: quote.quoteNumber }, req).catch(() => {});
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
+        if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ message: 'Quote deleted successfully' });
     } catch (err) { next(err); }
 };

@@ -67,6 +67,9 @@ exports.updateProfile = async (req, res) => {
             data: updateData
         });
 
+        const tenantDbMiddleware = require('../../../system-configs/middleware/tenant/tenant-db');
+        await tenantDbMiddleware.clearCompanyCache(companyId);
+
         res.json({ success: true, data: updatedCompany });
     } catch (error) {
         console.error('Update company profile error:', error);

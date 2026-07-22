@@ -84,31 +84,62 @@ export function RevenueDealsLineChart({ monthlyTrend }: { monthlyTrend: any[] })
     );
 }
 
-export function RevenuePipelineBarChart({ pipelineByStage }: { pipelineByStage: any[] }) {
+export function RevenuePipelineBarChart({ pipelineTrend }: { pipelineTrend: any[] }) {
+    if (!pipelineTrend || pipelineTrend.length === 0) return null;
+    
+    // Extract unique stages
+    const stageSet = new Set<string>();
+    pipelineTrend.forEach(item => {
+        Object.keys(item).forEach(k => {
+            if (k !== 'date') stageSet.add(k);
+        });
+    });
+    const stages = Array.from(stageSet);
+
     return (
         <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={pipelineByStage} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f3f4f6" />
-                <XAxis type="number" 
-                        tick={{ fill: '#6b7280', fontSize: 12 }} 
-                        tickFormatter={(val) => `$${val/1000}k`} 
-                        axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="stage" 
-                        tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }} 
-                        width={120} axisLine={false} tickLine={false} />
-                <RechartsTooltip 
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Pipeline Value']}
-                    cursor={{fill: '#f3f4f6'}}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 15px -3px rgb(0 0 0 / 0.1)' }}
+            <AreaChart data={pipelineTrend} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <defs>
+                   {stages.map((stage, idx) => (
+                       <linearGradient key={`grad-${stage}`} id={`color-pipe-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                           <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
+                           <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0} />
+                       </linearGradient>
+                   ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis 
+                    dataKey="date" 
+                    tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 500 }} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    dy={10} 
                 />
-                <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]}>
-                    {
-                        pipelineByStage.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))
-                    }
-                </Bar>
-            </BarChart>
+                <YAxis 
+                    tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 500 }} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tickFormatter={(val) => `$${val/1000}k`} 
+                    dx={-10} 
+                />
+                <RechartsTooltip 
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} 
+                    labelStyle={{ color: '#374151', fontWeight: 600, marginBottom: '4px' }}
+                    formatter={(val: number, name: string) => [`$${val.toLocaleString()}`, name]} 
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
+                {stages.map((stage, idx) => (
+                    <Area 
+                        key={stage} 
+                        type="monotone" 
+                        dataKey={stage} 
+                        stackId="1" 
+                        stroke={COLORS[idx % COLORS.length]} 
+                        fill={`url(#color-pipe-${idx})`} 
+                        strokeWidth={2} 
+                    />
+                ))}
+            </AreaChart>
         </ResponsiveContainer>
     );
 }

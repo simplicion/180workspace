@@ -230,7 +230,7 @@ export default function RolesAccessPage() {
                         <p className="text-sm text-indigo-700 font-medium">
                             This matrix shows which sidebar modules each role can access.
                             The <span className="font-bold">admin</span> role has full access to everything.
-                            Switch to the "User Permissions" tab to customize individual users.
+                            Switch to the &quot;User Permissions&quot; tab to customize individual users.
                         </p>
                     </div>
 

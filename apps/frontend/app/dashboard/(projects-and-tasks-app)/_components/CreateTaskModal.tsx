@@ -120,7 +120,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         let finalVoiceUrl = form.voiceMessageUrl;
 
         // Upload general files
-        let uploadedFileUrls: string[] = [];
+        const uploadedFileUrls: string[] = [];
         if (selectedFiles.length > 0) {
             try {
                 for (let i = 0; i < selectedFiles.length; i++) {

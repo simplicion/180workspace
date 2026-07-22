@@ -34,4 +34,33 @@ async function cacheSet(key, value, ttlSeconds = 60) {
     }
 }
 
-module.exports = { cacheGet, cacheSet };
+/**
+ * Deletes a key from Redis.
+ * @param {string} key - Redis key.
+ */
+async function cacheDel(key) {
+    if (!redis) return;
+    try {
+        await redis.del(key);
+    } catch (err) {
+        console.error(`[Redis cacheDel Error] key: ${key}`, err);
+    }
+}
+
+/**
+ * Deletes multiple keys from Redis matching a pattern.
+ * @param {string} pattern - Redis key pattern.
+ */
+async function cacheDelPattern(pattern) {
+    if (!redis) return;
+    try {
+        const keys = await redis.keys(pattern);
+        if (keys.length > 0) {
+            await redis.del(...keys);
+        }
+    } catch (err) {
+        console.error(`[Redis cacheDelPattern Error] pattern: ${pattern}`, err);
+    }
+}
+
+module.exports = { cacheGet, cacheSet, cacheDel, cacheDelPattern };

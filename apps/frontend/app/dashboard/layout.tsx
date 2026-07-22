@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import { ChevronDown, ChevronLeft, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye } from 'lucide-react';
 import { navigation } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import PinnedItem from '@/app/dashboard/(dashboard)/_components/PinnedItem';
@@ -49,7 +49,6 @@ import { MODULE_MAP, APP_DEPENDENCIES } from '@/lib/module-map';
 
 const TOOLS = [
     { name: 'AI Assistant', desc: 'Chat with your AI', href: '/dashboard/ai', icon: Bot, color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', text: 'text-violet-700' },
-    { name: 'Contract Analyzer', desc: 'Analyze legal docs with AI', href: '/dashboard/sales/contracts', icon: FileSignature, color: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50', text: 'text-indigo-700' },
     { name: 'Analytics', desc: 'Reports & insights', href: '/dashboard/analytics', icon: BarChart3, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-700' },
     { name: 'Chat', desc: 'Team messaging', href: '/dashboard/chat', icon: MessageSquare, color: 'from-sky-500 to-cyan-600', bg: 'bg-sky-50', text: 'text-sky-700' },
     { name: 'Documents', desc: 'Files & documents', href: '/dashboard/documents', icon: FolderOpen, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-700' },
@@ -229,6 +228,85 @@ function ProfileDropdown() {
     );
 }
 
+function RecentDropdown({ recentItems, isExpanded }: { recentItems: any[], isExpanded: boolean }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClick(e: MouseEvent) {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        }
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, []);
+
+    if (recentItems.length === 0) return null;
+
+    return (
+        <div ref={ref} className="relative mb-6">
+            <button
+                onClick={() => setOpen(v => !v)}
+                className={clsx(
+                    "w-full flex items-center p-2 rounded-xl hover:bg-gray-50 transition-colors group border border-transparent",
+                    open ? "bg-gray-50 border-gray-200/50" : "",
+                    isExpanded ? "justify-between" : "justify-center"
+                )}
+            >
+                <div className="flex items-center gap-2.5">
+                    <div className={clsx(
+                        "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
+                        open ? "bg-indigo-50 text-indigo-600" : "bg-gray-50 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                    )}>
+                        <Clock className="w-4 h-4" />
+                    </div>
+                    {isExpanded && (
+                        <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-900 transition-colors">Recent Items</span>
+                    )}
+                </div>
+                {isExpanded && (
+                    <ChevronDown 
+                        className={clsx(
+                            "w-3.5 h-3.5 text-gray-400 transition-transform duration-200 group-hover:text-gray-600",
+                            open ? "rotate-180" : ""
+                        )}
+                    />
+                )}
+            </button>
+
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 8, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className={clsx(
+                            "absolute z-50 w-[260px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden py-2",
+                            isExpanded ? "left-0 top-full" : "left-full top-0 ml-4"
+                        )}
+                    >
+                        <div className="px-4 pb-2 mb-2 border-b border-gray-100 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <Clock className="w-3 h-3" />
+                                Recent Activity
+                            </span>
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto hidden-scrollbar px-2 space-y-1">
+                            {recentItems.slice(0, 5).map((item) => (
+                                <RecentItem
+                                    key={`${item.recordId}-${item.type}`}
+                                    {...item}
+                                    isExpanded={true}
+                                />
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
 interface SidebarProps {
     isCollapsed: boolean;
     setIsCollapsed: (v: boolean) => void;
@@ -265,6 +343,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
     const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
     const [favorites, setFavorites] = useState<any[]>([]);
     const [recentItems, setRecentItems] = useState<any[]>([]);
+    const [isRecentOpen, setIsRecentOpen] = useState(true);
     const [isLoadingFavs, setIsLoadingFavs] = useState(true);
 
 
@@ -395,7 +474,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
             onMouseEnter={() => isCollapsed && setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             className={clsx(
-                "h-full flex flex-col bg-white/80 backdrop-blur-xl border-r border-gray-200/50 overflow-y-auto fixed top-0 left-0 z-30 transition-all duration-300 ease-in-out shadow-sm overflow-x-hidden",
+                "h-full flex flex-col bg-white/80 backdrop-blur-xl border-r border-gray-200/50 overflow-y-auto fixed top-0 left-0 z-30 transition-all duration-300 ease-in-out shadow-sm overflow-x-hidden hidden-scrollbar",
                 isExpanded ? "w-[280px] translate-x-0" : "w-[280px] lg:w-[80px] -translate-x-full lg:translate-x-0"
             )}
         >
@@ -438,7 +517,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 
 
             {/* Nav Area */}
-            <nav className="flex-1 p-4 space-y-1.5 custom-scrollbar overflow-x-hidden">
+            <nav className="flex-1 p-4 space-y-1.5 hidden-scrollbar overflow-y-auto overflow-x-hidden">
                 {/* Favorites Section */}
                 {favorites.length > 0 && (
                     <div className="mb-6 space-y-2">
@@ -468,31 +547,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 )}
 
                 {/* Recent Section */}
-                {recentItems.length > 0 && (
-                    <div className="mb-6 space-y-2">
-                        {isExpanded && (
-                            <div className="flex items-center justify-between px-1 mb-2">
-                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <Clock className="w-3 h-3" />
-                                    Recent
-                                </h3>
-                            </div>
-                        )}
-                        {!isExpanded && (
-                            <div className="h-px bg-gray-100/50 mx-2 mb-2" />
-                        )}
-                        <div className="space-y-0.5 animate-in fade-in slide-in-from-left-2 duration-700">
-                            {recentItems.slice(0, 5).map((item) => (
-                                <RecentItem
-                                    key={`${item.recordId}-${item.type}`}
-                                    {...item}
-                                    isExpanded={isExpanded}
-                                />
-                            ))}
-                        </div>
-                        {isExpanded && <div className="h-px bg-gray-50/50 mx-1" />}
-                    </div>
-                )}
+                <RecentDropdown recentItems={recentItems} isExpanded={isExpanded} />
 
                 {filteredNav.map((item, idx) => {
                     if ('group' in item) {
@@ -619,10 +674,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         if (pathname === '/dashboard') return 'dashboard';
         if (pathname?.includes('/projects')) return 'projects';
         if (pathname?.includes('/tasks')) return 'tasks';
-        if (pathname?.includes('/sales/leads')) return 'crm-leads';
+        if (pathname?.includes('/sales/deals')) return 'crm-leads';
         if (pathname?.includes('/sales/contacts')) return 'crm-contacts';
         if (pathname?.includes('/sales/accounts')) return 'crm-accounts';
-        if (pathname?.includes('/sales/opportunities')) return 'crm-opportunities';
+        if (pathname?.includes('/sales/leads-pipeline')) return 'crm-opportunities';
         if (pathname?.includes('/attendance')) return 'attendance';
         if (pathname?.includes('/leaves')) return 'leaves';
         if (pathname?.includes('/invoices')) return 'finance-invoices';

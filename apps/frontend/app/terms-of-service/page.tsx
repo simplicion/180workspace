@@ -12,7 +12,7 @@ export default function TermsOfService() {
                 <p><strong>Last updated:</strong> {new Date().toLocaleDateString()}</p>
                 
                 <p>
-                    These Terms of Service ("Terms") govern your access to and use of the 180Workspace website and services ("Services"). 
+                    These Terms of Service (&quot;Terms&quot;) govern your access to and use of the 180Workspace website and services (&quot;Services&quot;). 
                     By accessing or using the Services, you agree to be bound by these Terms.
                 </p>
 
@@ -30,12 +30,12 @@ export default function TermsOfService() {
 
                 <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">3. User Conduct</h2>
                 <p>
-                    You understand that all information, data, text, software, music, sound, photographs, graphics, video, messages, tags, or other materials ("Content"), whether publicly posted or privately transmitted, are the sole responsibility of the person from whom such Content originated.
+                    You understand that all information, data, text, software, music, sound, photographs, graphics, video, messages, tags, or other materials (&quot;Content&quot;), whether publicly posted or privately transmitted, are the sole responsibility of the person from whom such Content originated.
                 </p>
 
                 <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Indemnity</h2>
                 <p>
-                    You agree to indemnify and hold 180Workspace and its subsidiaries, affiliates, officers, agents, employees, partners and licensors harmless from any claim or demand, including reasonable attorneys' fees, made by any third party due to or arising out of Content you submit, post, transmit, modify or otherwise make available through the Service.
+                    You agree to indemnify and hold 180Workspace and its subsidiaries, affiliates, officers, agents, employees, partners and licensors harmless from any claim or demand, including reasonable attorneys&apos; fees, made by any third party due to or arising out of Content you submit, post, transmit, modify or otherwise make available through the Service.
                 </p>
 
                 <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Modifications to Service</h2>

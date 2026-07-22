@@ -551,17 +551,11 @@ export default function SettingsPage() {
                             </div>
                         </div>
 
-                        {/* Footer (implicit auto-save or standalone save btn if needed) */}
-                        <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center rounded-b-[20px] gap-4">
+                        <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-end items-center rounded-b-[20px] gap-4">
                             <button type="button" onClick={testEmailConnection} disabled={isTesting}
                                 className="px-5 py-2 text-sm bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-2 font-medium">
                                 {isTesting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4 text-indigo-500" />}
                                 Send Test Email
-                            </button>
-                            <button type="submit" disabled={saving}
-                                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 active:scale-95 shadow-sm">
-                                {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 text-white" />}
-                                Save Settings
                             </button>
                         </div>
                     </form>

@@ -26,6 +26,8 @@ const rateLimit = require('express-rate-limit');
 const { connectDB } = require('./src/system-configs/config/db');
 const { initSocket } = require('./src/system-configs/sockets');
 const { initQueues } = require('./src/platform-core/platform-engine/services/queue.service');
+const AiJobsService = require('./src/app-registry/productivity-tools-app/ai-assistant/ai-jobs.service');
+const { initCronJobs } = require('./src/app-registry/productivity-tools-app/ai-assistant/ai.cron');
 const errorHandler = require('./src/system-configs/middleware/system/error');
 
 // Routes are managed in src/routes/index.routes.js
@@ -163,7 +165,8 @@ async function bootstrap() {
         if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
             console.log('👷 Starting Worker Services (Delegated to external worker app)');
             // CronService.init(); -> Moved to apps/worker
-            
+            AiJobsService.init(); // Phase 6: Proactive AI Alerts
+            initCronJobs(); // AI Background Processes
         }
         
         if (RUN_MODE === 'both' || RUN_MODE === 'api') {

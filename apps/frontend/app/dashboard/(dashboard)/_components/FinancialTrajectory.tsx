@@ -9,6 +9,7 @@ import api from '@/lib/api';
 export default function FinancialTrajectory() {
     const [ceoInsights, setCeoInsights] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | '6M' | '1Y' | 'ALL'>('1W');
 
     const router = useRouter();
 
@@ -75,27 +76,81 @@ export default function FinancialTrajectory() {
 
     // Map time data
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentMonth = new Date().getMonth();
     
-    const areaData = (ceoInsights?.financialTrajectory || []).map((d: any) => {
-        const monthIndex = months.indexOf(d.name);
-        let year = new Date().getFullYear();
-        if (currentMonth < monthIndex) {
-            year -= 1; // It's from last year
+    const allTransactions = ceoInsights?.transactions || [];
+    
+    // Determine start date based on timeRange
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    if (timeRange === '1W') startDate.setDate(startDate.getDate() - 7);
+    else if (timeRange === '1M') startDate.setDate(startDate.getDate() - 30);
+    else if (timeRange === '3M') startDate.setDate(startDate.getDate() - 90);
+    else if (timeRange === '6M') startDate.setDate(startDate.getDate() - 180);
+    else if (timeRange === '1Y') startDate.setFullYear(startDate.getFullYear() - 1);
+    else startDate.setFullYear(startDate.getFullYear() - 10); // ALL
+
+    const isMonthly = timeRange === '6M' || timeRange === '1Y' || timeRange === 'ALL';
+    
+    // Generate area data based on transactions (daily or monthly)
+    const aggregatedDataMap = new Map<string, { timestamp: number; rev: number; cost: number; name: string }>();
+    
+    let currDate = new Date(startDate);
+    if (isMonthly) {
+        currDate.setDate(1); // Start at the beginning of the month
+    }
+    
+    while (currDate <= endDate) {
+        if (isMonthly) {
+            const key = `${currDate.getFullYear()}-${currDate.getMonth()}`;
+            aggregatedDataMap.set(key, {
+                timestamp: new Date(currDate.getFullYear(), currDate.getMonth(), 15).getTime(), // mid month
+                rev: 0,
+                cost: 0,
+                name: `${months[currDate.getMonth()]} '${currDate.getFullYear().toString().slice(-2)}`, 
+            });
+            currDate.setMonth(currDate.getMonth() + 1);
+        } else {
+            const key = currDate.toISOString().split('T')[0];
+            aggregatedDataMap.set(key, {
+                timestamp: currDate.getTime(),
+                rev: 0,
+                cost: 0,
+                name: `${currDate.getDate()} ${months[currDate.getMonth()]}`, 
+            });
+            currDate.setDate(currDate.getDate() + 1);
         }
-        const timestamp = new Date(year, monthIndex, 15).getTime(); // middle of the month
-        return { ...d, timestamp };
+    }
+
+    allTransactions.forEach((t: any) => {
+        const tDate = new Date(t.date);
+        if (tDate >= startDate && tDate <= endDate) {
+            let key;
+            if (isMonthly) {
+                key = `${tDate.getFullYear()}-${tDate.getMonth()}`;
+            } else {
+                key = tDate.toISOString().split('T')[0];
+            }
+            const entry = aggregatedDataMap.get(key);
+            if (entry) {
+                if (t.type === 'income') entry.rev += (t.amount || 0);
+                else entry.cost += (t.amount || 0);
+            }
+        }
     });
 
-    const incomeTransactions = (ceoInsights?.transactions || []).filter((t: any) => t.type === 'income').map((t: any) => ({
-        ...t,
-        timestamp: new Date(t.date).getTime()
-    }));
+    const filteredAreaData = Array.from(aggregatedDataMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+    const minTimestamp = startDate.getTime();
 
-    const costTransactions = (ceoInsights?.transactions || []).filter((t: any) => t.type !== 'income').map((t: any) => ({
-        ...t,
-        timestamp: new Date(t.date).getTime()
-    }));
+    const filteredIncome = allTransactions
+        .filter((t: any) => t.type === 'income' && new Date(t.date).getTime() >= minTimestamp)
+        .map((t: any) => ({ ...t, timestamp: new Date(t.date).getTime() }));
+        
+    const filteredCost = allTransactions
+        .filter((t: any) => t.type !== 'income' && new Date(t.date).getTime() >= minTimestamp)
+        .map((t: any) => ({ ...t, timestamp: new Date(t.date).getTime() }));
 
     const handleDotClick = (data: any) => {
         if (data && data.payload && data.payload.url) {
@@ -157,7 +212,8 @@ export default function FinancialTrajectory() {
     return (
         <div className="card overflow-hidden">
             {/* Header + KPIs */}
-            <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col gap-4">
+        <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-emerald-50 rounded-xl shrink-0">
                         <DollarSign className="w-4 h-4 text-emerald-600" />
@@ -167,6 +223,19 @@ export default function FinancialTrajectory() {
                         <p className="text-[11px] text-gray-400 font-medium">Revenue, burn rate & runway overview</p>
                     </div>
                 </div>
+                <select 
+                    value={timeRange}
+                    onChange={(e) => setTimeRange(e.target.value as any)}
+                    className="text-xs py-1.5 px-2.5 pr-8 bg-gray-50 border-gray-200 rounded-lg text-gray-600 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                    <option value="1W">1 Week</option>
+                    <option value="1M">1 Month</option>
+                    <option value="3M">3 Months</option>
+                    <option value="6M">6 Months</option>
+                    <option value="1Y">1 Year</option>
+                    <option value="ALL">All Time</option>
+                </select>
+            </div>
 
                 <div className="grid grid-cols-3 gap-2 w-full">
                     {kpis.map((kpi, i) => (
@@ -209,7 +278,10 @@ export default function FinancialTrajectory() {
                                     dy={8}
                                     tickFormatter={(time) => {
                                         const d = new Date(time);
-                                        return months[d.getMonth()];
+                                        if (timeRange === '1W' || timeRange === '1M' || timeRange === '3M') {
+                                            return `${d.getDate()} ${months[d.getMonth()]}`;
+                                        }
+                                        return `${months[d.getMonth()]} '${d.getFullYear().toString().slice(-2)}`;
                                     }} 
                                 />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dx={-5} tickFormatter={(val) => val >= 1000 ? `₹${val / 1000}k` : `₹${val}`} />
@@ -221,11 +293,11 @@ export default function FinancialTrajectory() {
                                     iconSize={6}
                                     formatter={(value) => <span className="text-xs font-medium text-gray-500">{value}</span>}
                                 />
-                                <Area data={areaData} type="monotone" dataKey="rev" name="Gross Revenue" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
-                                <Area data={areaData} type="monotone" dataKey="cost" name="Operating Costs" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCost)" dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
+                                <Area data={filteredAreaData} type="monotone" dataKey="rev" name="Gross Revenue" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
+                                <Area data={filteredAreaData} type="monotone" dataKey="cost" name="Operating Costs" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCost)" dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
                                 
-                                <Scatter data={incomeTransactions} name="Incomes (Detailed)" dataKey="amount" fill="#10b981" shape="circle" onClick={handleDotClick} cursor="pointer" />
-                                <Scatter data={costTransactions} name="Costs (Detailed)" dataKey="amount" fill="#ef4444" shape="circle" onClick={handleDotClick} cursor="pointer" />
+                                <Scatter data={filteredIncome} name="Incomes (Detailed)" dataKey="amount" fill="#10b981" shape="circle" onClick={handleDotClick} cursor="pointer" />
+                                <Scatter data={filteredCost} name="Costs (Detailed)" dataKey="amount" fill="#ef4444" shape="circle" onClick={handleDotClick} cursor="pointer" />
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>

@@ -11,7 +11,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
-import OpportunityModal from '@/app/dashboard/(dashboard)/_components/sales/OpportunityModal';
+import LeadPipelineModal from '@/app/dashboard/(crm-and-sales-app)/components/LeadPipelineModal';
 import {
     DndContext,
     DragOverlay,
@@ -35,9 +35,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const STAGES = ['Lead', 'Qualified', 'Demo', 'Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'];
+const STAGES = ['Lead', 'Contacted', 'Qualified', 'Demo', 'Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'];
 const STAGE_LABELS: Record<string, string> = {
     'Lead': 'New Leads',
+    'Contacted': 'Contacted',
     'Qualified': 'Qualified',
     'Demo': 'Demo/Meeting',
     'Proposal': 'Proposal',
@@ -46,19 +47,20 @@ const STAGE_LABELS: Record<string, string> = {
     'ClosedLost': 'Lost'
 };
 
-const STAGE_COLORS: Record<string, string> = {
-    'Lead': 'bg-gray-100 text-gray-800 border-gray-200',
-    'Qualified': 'bg-blue-50 text-blue-700 border-blue-200',
-    'Demo': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    'Proposal': 'bg-purple-50 text-purple-700 border-purple-200',
-    'Negotiation': 'bg-orange-50 text-orange-700 border-orange-200',
-    'ClosedWon': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'ClosedLost': 'bg-red-50 text-red-700 border-red-200'
+const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }> = {
+    'Lead': { color: 'border-gray-300', bg: 'bg-gray-50', badge: 'badge-gray' },
+    'Contacted': { color: 'border-cyan-400', bg: 'bg-cyan-50', badge: 'badge-cyan' },
+    'Qualified': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
+    'Demo': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
+    'Proposal': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
+    'Negotiation': { color: 'border-orange-400', bg: 'bg-orange-50', badge: 'badge-orange' },
+    'ClosedWon': { color: 'border-green-400', bg: 'bg-green-50', badge: 'badge-green' },
+    'ClosedLost': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' }
 };
 
-export default function OpportunitiesKanbanPage() {
+export default function leadPipelinesKanbanPage() {
     const { user } = useAuth();
-    const [opportunities, setOpportunities] = useState<any[]>([]);
+    const [leadPipelines, setleadPipelines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +68,7 @@ export default function OpportunitiesKanbanPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<any>(null);
     const [deleting, setDeleting] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingOpportunity, setEditingOpportunity] = useState<any>(null);
+    const [editingLeadPipeline, setEditingleadPipeline] = useState<any>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
     
     const router = useRouter();
@@ -95,83 +97,79 @@ export default function OpportunitiesKanbanPage() {
         const activeId = active.id as string;
         const overId = over.id as string;
 
-        // Find the opportunity and the new stage
-        const opp = opportunities.find(o => o.id === activeId);
+        // Find the leadPipeline and the new stage
+        const opp = leadPipelines.find(o => o.id === activeId);
         if (!opp) return;
 
         let newStage = overId;
         if (!STAGES.includes(newStage)) {
             // If dropped over a card instead of a column, find the column of that card
-            const overOpp = opportunities.find(o => o.id === overId);
+            const overOpp = leadPipelines.find(o => o.id === overId);
             if (overOpp) newStage = overOpp.stage;
         }
 
         if (opp.stage === newStage) return;
 
         // Optimistic UI update
-        const updatedOpps = opportunities.map(o => 
+        const updatedOpps = leadPipelines.map(o => 
             o.id === activeId ? { ...o, stage: newStage } : o
         );
-        setOpportunities(updatedOpps);
+        setleadPipelines(updatedOpps);
 
         try {
-            await api.put(`/api/sales/opportunities/${activeId}`, { stage: newStage });
+            await api.put(`/api/sales/leads-pipeline/${activeId}`, { stage: newStage });
             toast.success(`Moved to ${STAGE_LABELS[newStage]}`);
         } catch (error) {
-            toast.error('Failed to move opportunity');
-            fetchOpportunities(); // Revert on failure
+            toast.error('Failed to move leadPipeline');
+            fetchleadPipelines(); // Revert on failure
         }
     };
 
-    const handleDeleteOpportunity = async () => {
+    const handleDeleteleadPipeline = async () => {
         if (!showDeleteConfirm) return;
         setDeleting(true);
         try {
-            await api.delete(`/api/sales/opportunities/${showDeleteConfirm.id}`);
-            toast.success('Opportunity deleted');
-            setOpportunities(prev => prev.filter(o => o.id !== showDeleteConfirm.id));
+            await api.delete(`/api/sales/leads-pipeline/${showDeleteConfirm.id}`);
+            toast.success('leadPipeline deleted');
+            setleadPipelines(prev => prev.filter(o => o.id !== showDeleteConfirm.id));
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to delete opportunity');
+            toast.error(error.response?.data?.error || 'Failed to delete leadPipeline');
         } finally {
             setDeleting(false);
             setShowDeleteConfirm(null);
         }
     };
 
-    const handleConvertToProject = async (id: string) => {
+    const handleConvertToDeal = async (id: string) => {
         setConvertingId(id);
         try {
-            const { data } = await api.post(`/api/sales/opportunities/${id}/convert`);
-            toast.success(data.message || 'Project created successfully!');
-            // Refresh list or redirect
-            setOpportunities(prev => prev.map(o => o.id === id ? data.opportunity : o));
-            if (confirm('Project created. Would you like to view it now?')) {
-                router.push(`/dashboard/projects/${data.project.id}`);
-            }
+            await api.put(`/api/sales/leads-pipeline/${id}`, { convertToDeal: true });
+            toast.success('Converted to Deal!');
+            fetchleadPipelines();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to convert to project');
+            toast.error(error.response?.data?.error || 'Failed to convert to deal');
         } finally {
             setConvertingId(null);
         }
     };
 
-    const fetchOpportunities = async () => {
+    const fetchleadPipelines = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/api/sales/opportunities');
-            setOpportunities(data.opportunities || data);
+            const { data } = await api.get('/api/sales/leads-pipeline?pipelineType=DEAL');
+            setleadPipelines(data.opportunities || data.leadPipelines || (Array.isArray(data) ? data : []));
         } catch (err) {
-            setError('Failed to load opportunities');
+            setError('Failed to load leadPipelines');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchOpportunities();
+        fetchleadPipelines();
     }, []);
 
-    const filteredOpps = opportunities.filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredOpps = leadPipelines.filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
     // Group by stage
     const grouped = STAGES.reduce((acc, stage) => {
@@ -187,17 +185,17 @@ export default function OpportunitiesKanbanPage() {
                 <div>
                     <h1 className="page-title text-indigo-900 flex items-center gap-2">
                         <PieChart className="w-6 h-6 text-indigo-600" />
-                        Deal Pipeline
+                        Lead Pipeline
                     </h1>
-                    <p className="page-subtitle mt-1">Manage sales opportunities via Kanban board prioritized by algorithm.</p>
+                    <p className="page-subtitle mt-1">Manage sales leads via Kanban board prioritized by algorithm.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative w-64">
                         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
-                            placeholder="Search deals..."
-                            aria-label="Search deals"
+                            placeholder="Search leads..."
+                            aria-label="Search leads"
                             className="input pl-10 w-full"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
@@ -205,13 +203,13 @@ export default function OpportunitiesKanbanPage() {
                     </div>
                     <button 
                         onClick={() => {
-                            setEditingOpportunity(null);
+                            setEditingleadPipeline(null);
                             setIsModalOpen(true);
                         }}
                         className="btn btn-primary flex items-center gap-2 px-5 py-2 rounded-xl shadow-lg shadow-indigo-100 border-2 border-transparent hover:scale-105 transition-all text-sm"
                     >
                         <Plus className="w-4 h-4" />
-                        New Deal
+                        New Lead
                     </button>
                 </div>
             </div>
@@ -244,14 +242,14 @@ export default function OpportunitiesKanbanPage() {
                             <Column
                                 key={stage}
                                 id={stage}
-                                title={STAGE_LABELS[stage]}
-                                opportunities={grouped[stage]}
+                                title={stage.replace(/([A-Z])/g, ' $1').trim()}
+                                leadPipelines={grouped[stage]}
                                 onEdit={(opp) => {
-                                    setEditingOpportunity(opp);
+                                    setEditingleadPipeline(opp);
                                     setIsModalOpen(true);
                                 }}
                                 onDelete={(opp) => setShowDeleteConfirm(opp)}
-                                onConvert={handleConvertToProject}
+                                onConvert={handleConvertToDeal}
                             />
                         ))}
                     </div>
@@ -259,7 +257,7 @@ export default function OpportunitiesKanbanPage() {
                     <DragOverlay dropAnimation={dropAnimation}>
                         {activeId ? (
                             <DealCard
-                                opp={opportunities.find(o => o.id === activeId)}
+                                opp={leadPipelines.find(o => o.id === activeId)}
                                 isDragging
                             />
                         ) : null}
@@ -267,18 +265,18 @@ export default function OpportunitiesKanbanPage() {
                 </DndContext>
             )}
 
-            <OpportunityModal
+            <LeadPipelineModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                onSuccess={fetchOpportunities}
-                editingOpportunity={editingOpportunity}
+                onSuccess={fetchleadPipelines}
+                editingLeadPipeline={editingLeadPipeline}
             />
             <ConfirmModal
                 isOpen={!!showDeleteConfirm}
-                title="Delete Opportunity"
+                title="Delete leadPipeline"
                 message={`Are you sure you want to delete "${showDeleteConfirm?.title}"? This action cannot be undone.`}
                 confirmText="Delete"
-                onConfirm={handleDeleteOpportunity}
+                onConfirm={handleDeleteleadPipeline}
                 onCancel={() => setShowDeleteConfirm(null)}
                 loading={deleting}
                 variant="danger"
@@ -292,32 +290,31 @@ export default function OpportunitiesKanbanPage() {
 interface ColumnProps {
     id: string;
     title: string;
-    opportunities: any[];
+    leadPipelines: any[];
     onEdit: (opp: any) => void;
     onDelete: (opp: any) => void;
     onConvert: (id: string) => void;
 }
 
-function Column({ id, title, opportunities, onEdit, onDelete, onConvert }: ColumnProps) {
+function Column({ id, title, leadPipelines, onEdit, onDelete, onConvert }: ColumnProps) {
     const { setNodeRef } = useSortable({ id });
+    const styles = STAGE_STYLES[id] || STAGE_STYLES['Lead'];
 
     return (
-        <div className="min-w-[320px] w-[320px] flex flex-col h-full overflow-hidden">
-            <div className="flex items-center justify-between mb-3 px-1 shrink-0">
+        <div 
+            ref={setNodeRef}
+            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] min-h-[420px] flex-shrink-0 flex flex-col', styles.bg, styles.color)}
+        >
+            <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-indigo-900 tracking-tight">{title}</h3>
-                    <span className="bg-indigo-50 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-indigo-100">
-                        {opportunities.length}
-                    </span>
-                </div>
-                <div className="text-xs font-bold text-gray-400">
-                    ${opportunities.reduce((sum, o) => sum + (o.value || 0), 0).toLocaleString()}
+                    <span className="font-semibold text-sm text-gray-700">{title}</span>
+                    <span className={clsx('badge text-xs', styles.badge)}>{leadPipelines.length}</span>
                 </div>
             </div>
 
-            <div ref={setNodeRef} className="flex flex-col gap-2.5 overflow-y-auto hidden-scrollbar pb-20 flex-1 min-h-[200px]">
-                <SortableContext items={opportunities.map(o => o.id)} strategy={verticalListSortingStrategy}>
-                    {opportunities.map(opp => (
+            <div className="flex flex-col gap-2.5 overflow-y-auto hidden-scrollbar pb-10 flex-1 min-h-[200px]">
+                <SortableContext items={leadPipelines.map(o => o.id)} strategy={verticalListSortingStrategy}>
+                    {leadPipelines.map(opp => (
                         <SortableDealCard 
                             key={opp.id} 
                             opp={opp} 
@@ -328,10 +325,9 @@ function Column({ id, title, opportunities, onEdit, onDelete, onConvert }: Colum
                     ))}
                 </SortableContext>
 
-                {opportunities.length === 0 && (
-                    <div className="h-32 rounded-2xl border-2 border-dashed border-gray-100 bg-gray-50/30 flex flex-col items-center justify-center text-gray-400 text-xs italic gap-2 transition-colors hover:bg-gray-50/50">
-                        <Plus className="w-4 h-4 opacity-20" />
-                        Move deals here
+                {leadPipelines.length === 0 && (
+                    <div className="flex-1 flex items-center justify-center text-gray-300 text-xs select-none">
+                        Drop deals here
                     </div>
                 )}
             </div>
@@ -367,6 +363,7 @@ function SortableDealCard({ opp, onEdit, onDelete, onConvert }: any) {
             <DealCard 
                 opp={opp} 
                 dragHandleProps={{ ...attributes, ...listeners }} 
+                isDragging={isDragging}
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onConvert={onConvert}
@@ -378,84 +375,48 @@ function SortableDealCard({ opp, onEdit, onDelete, onConvert }: any) {
 function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConvert }: any) {
     if (!opp) return null;
 
+    const dotColor = opp.priorityScore >= 80 ? 'bg-orange-500' : opp.priorityScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
+
     return (
-        <div className={clsx(
-            "bg-white rounded-xl border border-gray-100 p-3.5 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all cursor-default relative group flex flex-col gap-2",
-            isDragging && "shadow-2xl border-indigo-200 ring-2 ring-indigo-500/10 cursor-grabbing rotate-2"
-        )}>
-            {/* Color Strip */}
-            <div className={clsx("absolute top-0 left-0 w-1.5 h-full rounded-l-2xl opacity-40 transition-opacity group-hover:opacity-100", 
-                STAGE_COLORS[opp.stage]?.split(' ')[0] || 'bg-gray-200'
-            )} />
-
-            <div className="flex justify-between items-start mb-2 gap-4">
-                <h4 className="font-bold text-gray-900 leading-snug group-hover:text-indigo-600 transition-colors">{opp.title}</h4>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                        onClick={() => onEdit(opp)}
-                        aria-label="Edit Deal"
-                        className="p-1.5 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
-                    >
-                        <Edit2 className="w-3 h-3" />
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-2 bg-gray-50/50 w-fit px-2 py-0.5 rounded-lg border border-gray-100/50">
-                <span className="font-semibold text-gray-700">{opp.accountId?.companyName || opp.accountId?.name || 'Private Account'}</span>
-            </div>
-
-            <div className="mt-auto space-y-2">
-                <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Value</span>
-                        <div className="font-black text-gray-900 tracking-tight flex items-baseline gap-0.5">
-                            <span className="text-xs text-gray-400">$</span>
-                            {opp.value?.toLocaleString()}
-                        </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Score</span>
-                        <div className={clsx(
-                            "text-xs font-black px-2 py-0.5 rounded-md",
-                            opp.priorityScore >= 80 ? "bg-orange-100 text-orange-700" :
-                            opp.priorityScore >= 50 ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
-                        )}>
-                            {opp.priorityScore || 0}%
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                    <div className="flex -space-x-2">
-                        {opp.owner && (
-                            <div className="w-7 h-7 rounded-full border-2 border-white bg-indigo-500 text-white flex items-center justify-center text-[10px] font-bold shadow-sm" title={opp.owner.name}>
-                                {opp.owner.name.charAt(0)}
-                            </div>
-                        )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2" {...dragHandleProps}>
-                        <div 
-                            aria-label="Drag to reorder"
-                            className="p-1.5 text-gray-300 hover:text-indigo-400 cursor-grab active:cursor-grabbing transition-colors"
-                        >
-                            <GripVertical className="w-4 h-4" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Quick Actions Footer - Context sensitive */}
-            {opp.stage === 'ClosedWon' && !opp.projectId && (
-                <button
-                    onClick={() => onConvert(opp.id)}
-                    aria-label={`Convert ${opp.title} to Project`}
-                    className="mt-4 w-full bg-indigo-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2"
-                >
-                    <CheckCircle className="w-3 h-3" /> Convert to Project
-                </button>
+        <div 
+            className={clsx(
+                "card p-3.5 hover:shadow-xl transition-all cursor-default relative group flex flex-col gap-2",
+                isDragging && "shadow-2xl ring-2 ring-indigo-500/10 cursor-grabbing rotate-2"
             )}
+            {...dragHandleProps}
+            onClick={() => onEdit && onEdit(opp)}
+        >
+            <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-start gap-2">
+                    <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor)} />
+                    <p className="text-sm font-medium text-gray-900 leading-snug">{opp.title}</p>
+                </div>
+            </div>
+            
+            <p className="text-xs text-gray-500 mb-3 truncate">
+                {opp.accountId?.companyName || opp.accountId?.name || opp.companyName || opp.contactName || 'Private Deal'}
+            </p>
+
+            <div className="flex items-center justify-between mt-auto">
+                <div className="flex items-center gap-2">
+                    {opp.owner ? (
+                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold" title={opp.owner.name}>
+                            {(opp.owner.name || '').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                        </div>
+                    ) : <div />}
+                    {opp.stage === 'ClosedWon' && onConvert && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onConvert(opp.id); }}
+                            className="text-[10px] bg-green-500 hover:bg-green-600 text-white px-2 py-0.5 rounded shadow-sm font-semibold transition-colors"
+                        >
+                            Convert
+                        </button>
+                    )}
+                </div>
+                <div className="text-xs font-bold text-gray-400">
+                    ${opp.value?.toLocaleString() || '0'}
+                </div>
+            </div>
         </div>
     );
 }

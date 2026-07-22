@@ -99,6 +99,9 @@ exports.updateCompanyConfig = async (req, res, next) => {
         if (redis) {
             try {
                 await redis.del(`company:${companyId}`);
+                if (req.user && req.user.id) {
+                    await redis.del(`init:user:${req.user.id}:company:${companyId}`);
+                }
                 const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
                 if (initKeys && initKeys.length > 0) {
                     await redis.del(...initKeys);
@@ -159,6 +162,9 @@ exports.updateEnabledApps = async (req, res, next) => {
         if (redis) {
             try {
                 await redis.del(`company:${companyId}`);
+                if (req.user && req.user.id) {
+                    await redis.del(`init:user:${req.user.id}:company:${companyId}`);
+                }
                 const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
                 if (initKeys && initKeys.length > 0) {
                     await redis.del(...initKeys);
@@ -212,6 +218,9 @@ exports.updateEnabledModules = async (req, res, next) => {
         if (redis) {
             try {
                 await redis.del(`company:${companyId}`);
+                if (req.user && req.user.id) {
+                    await redis.del(`init:user:${req.user.id}:company:${companyId}`);
+                }
                 const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
                 if (initKeys && initKeys.length > 0) {
                     await redis.del(...initKeys);

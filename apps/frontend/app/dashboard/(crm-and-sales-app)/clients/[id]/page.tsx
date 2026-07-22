@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Building2, Mail, Phone, Globe, MapPin, Briefcase, Receipt, Activity, Clock, TrendingUp, ArrowUpRight, DollarSign, FileText, ExternalLink, ChevronRight, Edit3, Plus, MoreVertical, LayoutGrid, Users, MessageSquare, CalendarIcon, PhoneCall, Trash2, X, CheckCircle, FolderOpen, Video, CalendarDays, Receipt as ReceiptIcon } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, Briefcase, Receipt, Activity, Clock, TrendingUp, ArrowUpRight, DollarSign, FileText, ExternalLink, ChevronRight, Edit3, Plus, MoreVertical, LayoutGrid, Users, User, MessageSquare, CalendarIcon, PhoneCall, Trash2, X, CheckCircle, FolderOpen, Video, CalendarDays, Receipt as ReceiptIcon } from 'lucide-react';
 import { Skeleton,  SkeletonTable  , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
@@ -293,6 +293,17 @@ function ClientOverview({ client, onCreateInvoice }: any) {
                     </div>
                 )}
             </div>
+                <div className="card p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Company & Account Details</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-12">
+                        <InfoItem icon={Briefcase} label="Client Type" value={client.clientType || 'Standard'} />
+                        <InfoItem icon={Users} label="Employee Count" value={client.employeeCount || 'Not specified'} />
+                        <InfoItem icon={DollarSign} label="Annual Revenue" value={client.annualRevenue ? `$${client.annualRevenue.toLocaleString()}` : 'Not specified'} />
+                        <InfoItem icon={Activity} label="Health Status" value={client.healthStatus || 'Healthy'} />
+                        <InfoItem icon={TrendingUp} label="Lifetime Value (CLV)" value={client.clv ? `$${client.clv.toLocaleString()}` : 'Not calculated'} />
+                        <InfoItem icon={User} label="Assigned Manager" value={client.assignedManager || 'Unassigned'} />
+                    </div>
+                </div>
 
             {/* Quick Actions — 180workspace themed */}
             <div>

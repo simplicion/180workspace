@@ -93,12 +93,12 @@ export default function AiTab() {
             const { data } = await api.post('/api/settings/test-ai');
             setAiTestStatus('success');
             toast.success(data.message || 'AI Connection verified!');
-            await refreshGlobalSettings(true);
         } catch (e: any) {
             setAiTestStatus('failure');
             toast.error(e?.response?.data?.error || e?.response?.data?.details || 'AI Connection test failed');
         } finally {
             setTestingAi(false);
+            await refreshGlobalSettings(true);
         }
     };
 

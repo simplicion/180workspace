@@ -160,6 +160,30 @@ model Client {
   id                                      String                @id @default(uuid())
   name                                    String
   companyId                               String?
+  
+  email                                   String?
+  phone                                   String?
+  website                                 String?
+  industry                                String?
+  clientType                              String?
+  taxId                                   String?
+  billingAddress                          String?
+  status                                  String?
+  notes                                   String?
+  clientId                                String?
+  companyName                             String?
+  title                                   String?
+  lastContacted                           DateTime?
+  employeeCount                           String?
+  annualRevenue                           Float?          @default(0)
+  clv                                     Float?          @default(0)
+  healthStatus                            String?         @default("Healthy")
+  assignedManager                         String?
+  customIndustry                          String?
+  country                                 String?
+  leadSource                              String?
+  clientTier                              String?
+
   automationLogs_AutomationTargetClient   AutomationLog[]       @relation("AutomationTargetClient")
   company                                 Company?              @relation("CompanyClients", fields: [companyId], references: [id])
   ClientCommunication                     ClientCommunication[]
@@ -167,6 +191,8 @@ model Client {
   expenses                                Expense[]
   invoices                                Invoice[]
   TenantTransaction                       TenantTransaction[]   @relation("TransactionClient")
+  leads                                   Lead[]                @relation("ClientLeads")
+  salesActivities                         SalesActivity[]       @relation("ActivityClient")
 
   @@index([companyId])
 }
@@ -263,7 +289,7 @@ model User {
   forumReplys_UserForumReplies               ForumReply[]          @relation("UserForumReplies")
   goalsOwned                                 Goal[]                @relation("GoalOwner")
   invoicesCreated                            Invoice[]
-
+  
   leavesRequested                            Leave[]               @relation("LeaveEmployee")
   leavesReviewed                             Leave[]               @relation("LeaveReviewer")
   meetingLogs_UserMeetingLogsCreated         MeetingLog[]          @relation("UserMeetingLogsCreated")
@@ -309,6 +335,10 @@ model User {
   postMentions                               ForumPost[]           @relation("PostMentions")
   User_UserFollows_A                         User[]                @relation("UserFollows")
   User_UserFollows_B                         User[]                @relation("UserFollows")
+  assignedDeals                              Deal[]                @relation("DealAssignedRep")
+  ownedLeads                                 Lead[]                @relation("LeadOwner")
+  salesActivitiesOwned                       SalesActivity[]       @relation("SalesActivityOwner")
+  quotesCreated                              Quote[]               @relation("QuoteCreator")
 
   @@index([companyId])
 }
@@ -1872,4 +1902,147 @@ model EventRegistration {
   event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
+}
+
+// =============================================================================
+// CRM & SALES MODELS
+// =============================================================================
+
+model Deal {
+  id                  String          @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  company             String?
+  companyName         String?
+  industry            String?
+  companySize         Int?
+  source              String?
+  status              String          @default("new")
+  value               Float?          @default(0)
+  leadScore           Int?            @default(0)
+  engagementScore     Int?            @default(0)
+  assignedSalesRepId  String?
+  assignedSalesRep    User?           @relation("DealAssignedRep", fields: [assignedSalesRepId], references: [id])
+  deletedAt           DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  leads               Lead[]          @relation("LeadDeal")
+  salesActivities     SalesActivity[] @relation("ActivityDeal")
+  salesTasks          SalesTask[]     @relation("TaskDeal")
+
+  @@index([status])
+  @@index([assignedSalesRepId])
+  @@map("Lead")
+}
+
+
+
+model Lead {
+  id                String          @id @default(uuid())
+  title             String
+  contactName       String?
+  contactEmail      String?
+  contactPhone      String?
+  companyName       String?
+  industry          String?
+  source            String?
+  clientId          String?
+  client            Client?         @relation("ClientLeads", fields: [clientId], references: [id], onDelete: SetNull)
+  dealId            String?         @map("leadId")
+  deal              Deal?           @relation("LeadDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  ownerId           String?
+  owner             User?           @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  value             Float?          @default(0)
+  stage             String          @default("Lead")
+  pipelineType      String          @default("DEAL")
+  probability       Float?          @default(0)
+  engagementScore   Int?            @default(0)
+  priorityScore     Float?          @default(0)
+  expectedCloseDate DateTime?
+  tags              Json?           @default("[]")
+  projectId         String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  salesActivities   SalesActivity[] @relation("ActivityLead")
+  salesTasks        SalesTask[]     @relation("TaskLead")
+
+  @@index([stage])
+  @@index([ownerId])
+  @@index([clientId])
+  @@map("Opportunity")
+}
+
+model SalesActivity {
+  id               String        @id @default(uuid())
+  type             String        @default("note")
+  notes            String?
+  timestamp        DateTime      @default(now())
+  ownerId          String?
+  owner            User?         @relation("SalesActivityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  dealId           String?       @map("relatedLeadId")
+  deal             Deal?         @relation("ActivityDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  leadId           String?       @map("relatedDealId")
+  lead             Lead?         @relation("ActivityLead", fields: [leadId], references: [id], onDelete: SetNull)
+  relatedClientId  String?
+  relatedClient    Client?       @relation("ActivityClient", fields: [relatedClientId], references: [id], onDelete: SetNull)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([ownerId])
+  @@index([dealId])
+  @@index([leadId])
+}
+
+model SalesForecast {
+  id              String   @id @default(uuid())
+  period          String
+  type            String   @default("monthly")
+  expectedRevenue Float?   @default(0)
+  weightedRevenue Float?   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([period, type], name: "period_type")
+}
+
+model SalesTask {
+  id            String       @id @default(uuid())
+  description   String?
+  status        String       @default("pending")
+  dueDate       DateTime?
+  assignedTo    String?
+  dealId        String?      @map("relatedLeadId")
+  deal          Deal?        @relation("TaskDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  leadId        String?      @map("relatedDealId")
+  lead          Lead?        @relation("TaskLead", fields: [leadId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([assignedTo, status])
+}
+
+model Quote {
+  id             String   @id @default(uuid())
+  quoteNumber    String   @unique
+  clientId       String?
+  opportunityId  String?
+  companyId      String?
+  createdById    String?
+  createdBy      User?    @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items          Json?    @default("[]")
+  subtotal       Float?   @default(0)
+  tax            Float?   @default(0)
+  discount       Float?   @default(0)
+  grandTotal     Float?   @default(0)
+  validUntil     DateTime?
+  status         String   @default("draft")
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
 }

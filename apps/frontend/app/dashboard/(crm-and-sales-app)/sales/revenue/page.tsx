@@ -3,26 +3,30 @@
 
 import { useState, useEffect } from 'react';
 import {
-    DollarSign, TrendingUp, Download, ArrowRight, Target, Activity,
-    Layers, Users, Calendar, Award, AlertCircle
-} from 'lucide-react';
+    MoneyRecive, TrendUp, DocumentDownload, ArrowRight2, ArchiveBook, Activity,
+    Layer, People, Calendar, Cup, InfoCircle
+} from 'iconsax-react';
+import { Download } from 'lucide-react';
+import { SkeletonStatsCard, SkeletonChart } from '@workspace/ui';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import nextDynamic from 'next/dynamic';
 
-const RevenueTrendAreaChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenueTrendAreaChart), { ssr: false });
-const RevenueDealsLineChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenueDealsLineChart), { ssr: false });
-const RevenuePipelineBarChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenuePipelineBarChart), { ssr: false });
-const RevenueWinLossPieChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenueWinLossPieChart), { ssr: false });
+const RevenueTrendAreaChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenueTrendAreaChart), { ssr: false, loading: () => <SkeletonChart /> });
+const RevenueDealsLineChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenueDealsLineChart), { ssr: false, loading: () => <SkeletonChart /> });
+const RevenuePipelineBarChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenuePipelineBarChart), { ssr: false, loading: () => <SkeletonChart /> });
+const RevenueWinLossPieChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueCharts').then(mod => mod.RevenueWinLossPieChart), { ssr: false, loading: () => <SkeletonChart /> });
 
 export default function RevenueDashboard() {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<any>(null);
+    const [timeframe, setTimeframe] = useState('months');
 
     useEffect(() => {
         const fetchRevenue = async () => {
+            setLoading(true);
             try {
-                const res = await api.get('/api/sales/revenue');
+                const res = await api.get(`/api/sales/revenue?timeframe=${timeframe}`);
                 setStats(res.data);
             } catch (error) {
                 toast.error('Failed to load revenue metrics');
@@ -31,19 +35,73 @@ export default function RevenueDashboard() {
             }
         };
         fetchRevenue();
-    }, []);
+    }, [timeframe]);
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-[calc(100vh-120px)]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+                {/* Header Skeleton */}
+                <div className="page-header flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse" />
+                        <div className="space-y-2">
+                            <div className="h-6 w-48 bg-gray-200 rounded-lg animate-pulse" />
+                            <div className="h-3 w-64 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-32 bg-gray-200 rounded-xl animate-pulse" />
+                        <div className="h-10 w-36 bg-gray-200 rounded-xl animate-pulse" />
+                    </div>
+                </div>
+
+                {/* KPI Cards Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {Array(4).fill(0).map((_, i) => <SkeletonStatsCard key={i} />)}
+                </div>
+
+                {/* Charts Row Skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 card p-4">
+                        <div className="space-y-3 mb-4">
+                            <div className="h-5 w-48 bg-gray-200 rounded-lg animate-pulse" />
+                            <div className="h-3 w-72 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <SkeletonChart />
+                    </div>
+                    <div className="card p-4">
+                        <div className="space-y-3 mb-4">
+                            <div className="h-5 w-32 bg-gray-200 rounded-lg animate-pulse" />
+                            <div className="h-3 w-48 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <SkeletonChart />
+                    </div>
+                </div>
+
+                {/* Secondary Row Skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 card p-4">
+                        <div className="space-y-3 mb-4">
+                            <div className="h-5 w-40 bg-gray-200 rounded-lg animate-pulse" />
+                            <div className="h-3 w-64 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <SkeletonChart />
+                    </div>
+                    <div className="card p-4">
+                        <div className="space-y-3 mb-4">
+                            <div className="h-5 w-36 bg-gray-200 rounded-lg animate-pulse" />
+                            <div className="h-3 w-52 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <SkeletonChart />
+                    </div>
+                </div>
             </div>
         );
     }
 
     if (!stats) return null;
 
-    const { overview, monthlyTrend, pipelineByStage, topDeals } = stats;
+    const { overview, monthlyTrend, pipelineByStage, pipelineTrend, topDeals } = stats;
     
     // Win/Loss Chart Data
     const totalDeals = (overview.wonDeals || 0) + (overview.lostDeals || 0);
@@ -58,95 +116,100 @@ export default function RevenueDashboard() {
     return (
         <div className="space-y-6 pb-20">
             {/* Header */}
-            <div className="page-header flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="page-header flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                        <DollarSign className="w-7 h-7" />
+                        <MoneyRecive size="28" variant="TwoTone" color="#fff" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Revenue Analytics</h1>
-                        <p className="text-sm text-gray-500 mt-1">Real-time financial performance and deal tracking</p>
+                        <h1 className="page-title">Revenue Analytics</h1>
+                        <p className="page-subtitle">Real-time financial performance and deal tracking</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <select className="input h-10 py-0 px-3 bg-gray-50 text-sm border-gray-200 text-gray-700 rounded-lg focus:ring-emerald-500 focus:border-emerald-500">
-                        <option>Last 6 Months</option>
-                        <option>This Year</option>
-                        <option>All Time</option>
+                    <select 
+                        className="input h-10 py-0 px-3"
+                        value={timeframe}
+                        onChange={(e) => setTimeframe(e.target.value)}
+                    >
+                        <option value="7days">Last 7 Days</option>
+                        <option value="weekly">This Week</option>
+                        <option value="months">Last 6 Months</option>
+                        <option value="all">All Time</option>
                     </select>
-                    <button className="btn bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center gap-2 rounded-lg py-2 px-4 shadow-sm transition-all">
-                        <Download className="w-4 h-4" /> Export Report
+                    <button className="btn btn-secondary flex items-center gap-2">
+                        <DocumentDownload size="18" variant="TwoTone" /> Export Report
                     </button>
                 </div>
             </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                <div className="card p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+                    <div className="flex justify-between items-start mb-3 relative z-10">
                         <div>
-                            <p className="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Total Revenue</p>
-                            <h3 className="text-3xl font-black text-gray-900 tracking-tight">
+                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Total Revenue</p>
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
                                 ${overview.totalRevenue?.toLocaleString()}
                             </h3>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-inner">
-                            <TrendingUp className="w-6 h-6" />
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-inner">
+                            <TrendUp size="20" variant="TwoTone" color="#059669" />
                         </div>
                     </div>
-                    <div className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" /> +12.5% vs last period
+                    <div className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                        <TrendUp size="14" variant="TwoTone" color="#059669" /> +12.5% vs last period
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                <div className="card p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-blue-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+                    <div className="flex justify-between items-start mb-3 relative z-10">
                         <div>
-                            <p className="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Estimated ARR</p>
-                            <h3 className="text-3xl font-black text-gray-900 tracking-tight">
+                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Estimated ARR</p>
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
                                 ${(overview.arr || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </h3>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner">
-                            <Activity className="w-6 h-6" />
+                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner">
+                            <Activity size="20" variant="TwoTone" color="#2563eb" />
                         </div>
                     </div>
-                    <div className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                    <div className="text-[11px] text-blue-600 font-medium flex items-center gap-1">
                         Based on total won deals
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                <div className="card p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+                    <div className="flex justify-between items-start mb-3 relative z-10">
                         <div>
-                            <p className="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Estimated MRR</p>
-                            <h3 className="text-3xl font-black text-gray-900 tracking-tight">
+                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Estimated MRR</p>
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
                                 ${(overview.mrr || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </h3>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-inner">
-                            <Layers className="w-6 h-6" />
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-inner">
+                            <Layer size="20" variant="TwoTone" color="#4f46e5" />
                         </div>
                     </div>
-                    <div className="text-xs text-indigo-600 font-medium flex items-center gap-1">
+                    <div className="text-[11px] text-indigo-600 font-medium flex items-center gap-1">
                         Simulated recurring average
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-amber-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                <div className="card p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-amber-50 rounded-bl-full -z-0 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+                    <div className="flex justify-between items-start mb-3 relative z-10">
                         <div>
-                            <p className="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Open Pipeline</p>
-                            <h3 className="text-3xl font-black text-gray-900 tracking-tight">
+                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Open Pipeline</p>
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
                                 ${(overview.pipelineValue || 0).toLocaleString()}
                             </h3>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-inner">
-                            <Target className="w-6 h-6" />
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-inner">
+                            <ArchiveBook size="22" variant="TwoTone" color="#d97706" />
                         </div>
                     </div>
                     <div className="text-xs text-amber-600 font-medium flex items-center gap-1">
@@ -159,8 +222,8 @@ export default function RevenueDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Main Trend Chart */}
-                <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
+                <div className="lg:col-span-2 card p-4">
+                    <div className="flex justify-between items-center mb-4">
                         <div>
                             <h2 className="text-lg font-bold text-gray-900">Revenue Realization Trend</h2>
                             <p className="text-sm text-gray-500">Total revenue generated from won deals over time</p>
@@ -168,10 +231,25 @@ export default function RevenueDashboard() {
                     </div>
                     
                     {!hasTrendData ? (
-                        <div className="w-full h-80 flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                            <AlertCircle className="w-8 h-8 text-gray-400 mb-3" />
-                            <p className="text-gray-500 font-medium text-sm">Not enough data to display trend</p>
-                            <p className="text-gray-400 text-xs mt-1">Close some deals to see your revenue over time.</p>
+                        <div className="w-full h-80 relative rounded-xl overflow-hidden bg-gray-50/50 flex items-center justify-center">
+                            {/* Abstract Chart Background Graphic */}
+                            <div className="absolute inset-0 opacity-10 flex items-end px-4 pb-4 gap-2">
+                                <div className="w-1/6 bg-indigo-600 rounded-t-md h-1/4"></div>
+                                <div className="w-1/6 bg-indigo-600 rounded-t-md h-2/4"></div>
+                                <div className="w-1/6 bg-indigo-600 rounded-t-md h-1/3"></div>
+                                <div className="w-1/6 bg-indigo-600 rounded-t-md h-3/4"></div>
+                                <div className="w-1/6 bg-indigo-600 rounded-t-md h-full"></div>
+                                <div className="w-1/6 bg-indigo-600 rounded-t-md h-2/3"></div>
+                            </div>
+                            
+                            {/* Glassmorphism Foreground Card */}
+                            <div className="relative z-10 flex flex-col items-center justify-center bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-64 text-center">
+                                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                                    <InfoCircle size="24" variant="TwoTone" color="#6366f1" />
+                                </div>
+                                <p className="text-gray-900 font-bold text-sm mb-1">No Trend Data</p>
+                                <p className="text-gray-500 text-xs">Close some deals to see your revenue trend.</p>
+                            </div>
                         </div>
                     ) : (
                         <div className="w-full h-80">
@@ -181,16 +259,27 @@ export default function RevenueDashboard() {
                 </div>
 
                 {/* Deals Won Line Chart */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col">
-                    <div className="mb-6">
+                <div className="card p-4 flex flex-col">
+                    <div className="mb-4">
                         <h2 className="text-lg font-bold text-gray-900">Deals Won</h2>
                         <p className="text-sm text-gray-500">Monthly conversion volume</p>
                     </div>
                     
                     {!hasTrendData ? (
-                        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200 min-h-[320px]">
-                            <Target className="w-8 h-8 text-gray-400 mb-3" />
-                            <p className="text-gray-500 font-medium text-sm">No deals won yet</p>
+                        <div className="flex-1 relative rounded-xl overflow-hidden bg-gray-50/50 flex items-center justify-center min-h-[320px]">
+                            {/* Decorative Line Chart Graphic */}
+                            <div className="absolute inset-0 opacity-10">
+                                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                    <path d="M0 100 L 20 80 L 40 90 L 60 40 L 80 60 L 100 10" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500" />
+                                </svg>
+                            </div>
+                            
+                            <div className="relative z-10 flex flex-col items-center justify-center bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-56 text-center">
+                                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                                    <Cup size="24" variant="TwoTone" color="#10b981" />
+                                </div>
+                                <p className="text-gray-900 font-bold text-sm mb-1">No Deals Won</p>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex-1 min-h-[250px]">
@@ -205,36 +294,55 @@ export default function RevenueDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Pipeline by Stage Bar Chart */}
-                <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                    <div className="mb-6">
+                <div className="lg:col-span-2 card p-4">
+                    <div className="mb-4">
                         <h2 className="text-lg font-bold text-gray-900">Pipeline by Stage</h2>
                         <p className="text-sm text-gray-500">Value of open opportunities in each pipeline stage</p>
                     </div>
 
                     {!hasPipelineData ? (
-                         <div className="w-full h-72 flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                             <Layers className="w-8 h-8 text-gray-400 mb-3" />
-                             <p className="text-gray-500 font-medium text-sm">No open pipeline data</p>
-                             <p className="text-gray-400 text-xs mt-1">Create deals to see pipeline distribution.</p>
-                         </div>
+                        <div className="w-full h-72 relative rounded-xl overflow-hidden bg-gray-50/50 flex items-center justify-center">
+                            <div className="absolute inset-0 opacity-10 flex flex-col justify-end p-4 gap-2">
+                                <div className="w-full h-4 bg-blue-600 rounded-full"></div>
+                                <div className="w-3/4 h-4 bg-blue-500 rounded-full"></div>
+                                <div className="w-1/2 h-4 bg-blue-400 rounded-full"></div>
+                                <div className="w-1/4 h-4 bg-blue-300 rounded-full"></div>
+                            </div>
+                            
+                            <div className="relative z-10 flex flex-col items-center justify-center bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-64 text-center">
+                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                                    <Layer size="24" variant="TwoTone" color="#3b82f6" />
+                                </div>
+                                <p className="text-gray-900 font-bold text-sm mb-1">Empty Pipeline</p>
+                                <p className="text-gray-500 text-xs">Create deals to build your pipeline.</p>
+                            </div>
+                        </div>
                     ) : (
                         <div className="w-full h-72">
-                            <RevenuePipelineBarChart pipelineByStage={pipelineByStage} />
+                            <RevenuePipelineBarChart pipelineTrend={pipelineTrend} />
                         </div>
                     )}
                 </div>
 
                 {/* Win / Loss Ratio Pie Chart */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col">
+                <div className="card p-4 flex flex-col">
                     <div className="mb-2">
                         <h2 className="text-lg font-bold text-gray-900">Win vs Loss Ratio</h2>
                         <p className="text-sm text-gray-500">Overall closing performance</p>
                     </div>
 
                     {winLossData.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200 mt-4 min-h-[250px]">
-                            <Award className="w-8 h-8 text-gray-400 mb-3" />
-                            <p className="text-gray-500 font-medium text-sm">No closed deals yet</p>
+                        <div className="flex-1 relative rounded-xl overflow-hidden bg-gray-50/50 flex items-center justify-center mt-4 min-h-[250px]">
+                            <div className="absolute inset-0 flex items-center justify-center opacity-10">
+                                <div className="w-32 h-32 rounded-full border-[16px] border-amber-500 border-r-emerald-500 transform rotate-45"></div>
+                            </div>
+                            
+                            <div className="relative z-10 flex flex-col items-center justify-center bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-56 text-center">
+                                <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                                    <Cup size="24" variant="TwoTone" color="#f59e0b" />
+                                </div>
+                                <p className="text-gray-900 font-bold text-sm mb-1">No Closed Deals</p>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex-1 min-h-[250px] relative">
@@ -251,8 +359,8 @@ export default function RevenueDashboard() {
             
             {/* Top Deals Section - Optional added value */}
             {topDeals && topDeals.length > 0 && (
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                    <div className="mb-6 flex justify-between items-center">
+                <div className="card p-4">
+                    <div className="mb-4 flex justify-between items-center">
                         <div>
                             <h2 className="text-lg font-bold text-gray-900">Recent Big Wins</h2>
                             <p className="text-sm text-gray-500">Top closed won deals</p>
@@ -272,7 +380,7 @@ export default function RevenueDashboard() {
                                     <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                                         <td className="py-4 font-medium text-gray-900 flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                                                <Award className="w-4 h-4" />
+                                                <Cup size="16" variant="TwoTone" color="#059669" />
                                             </div>
                                             {deal.title}
                                         </td>

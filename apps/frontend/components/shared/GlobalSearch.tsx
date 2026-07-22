@@ -106,8 +106,8 @@ export default function GlobalSearch() {
 
         results.projects?.forEach(p => flat.push({ id: p.id || p.id!, type: 'Project', label: p.name!, sublabel: p.status, href: `/dashboard/projects` }));
         results.tasks?.forEach(t => flat.push({ id: t.id || t.id!, type: 'Task', label: t.title!, sublabel: t.status, href: `/dashboard/tasks` }));
-        results.leads?.forEach(l => flat.push({ id: l.id || l.id!, type: 'Lead', label: l.name || `${l.firstName} ${l.lastName}`, sublabel: l.company, href: `/dashboard/sales/leads` }));
-        results.opportunities?.forEach(o => flat.push({ id: o.id || o.id!, type: 'Opportunity', label: o.title!, sublabel: o.stage, href: `/dashboard/sales/opportunities` }));
+        results.leads?.forEach(l => flat.push({ id: l.id || l.id!, type: 'Lead', label: l.name || `${l.firstName} ${l.lastName}`, sublabel: l.company, href: `/dashboard/sales/deals` }));
+        results.opportunities?.forEach(o => flat.push({ id: o.id || o.id!, type: 'Opportunity', label: o.title!, sublabel: o.stage, href: `/dashboard/sales/leads-pipeline` }));
         results.clients?.forEach(c => flat.push({ id: c.id || c.id!, type: 'Client', label: c.name!, sublabel: c.company, href: `/dashboard/clients` }));
         results.companies?.forEach(c => flat.push({ id: c.id || c.id!, type: 'Company', label: c.companyName || c.name!, sublabel: c.industry, href: `/dashboard/clients` }));
         results.invoices?.forEach(i => flat.push({ id: i.id || i.id!, type: 'Invoice', label: i.invoiceNumber!, sublabel: `$${i.totalAmount}`, href: `/dashboard/invoices` }));

@@ -274,7 +274,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             if (activeToken && typeof window !== 'undefined') {
                 try {
                     const stored = sessionStorage.getItem('platform_init_data');
-                    let parsed = stored ? JSON.parse(stored) : {};
+                    const parsed = stored ? JSON.parse(stored) : {};
                     parsed.settings = settingsRes.data.settings;
                     parsed.companyConfig = companyRes.data.config;
                     if (platformRes.data) parsed.platform = platformRes.data;

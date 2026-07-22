@@ -388,4 +388,21 @@ async function tenantDbMiddleware(req, res, next) {
     }
 }
 
+/**
+ * Clear cached company data from memory and redis.
+ * Required after updating company profile or metadata.
+ */
+tenantDbMiddleware.clearCompanyCache = async (companyId) => {
+    if (!companyId) return;
+    memoryCache.delete(`company:${companyId}`);
+    try {
+        const { redis } = require('../../config/redis');
+        if (redis) {
+            await redis.del(`company:${companyId}`);
+        }
+    } catch (e) {
+        console.warn('[Cache] Failed to clear company cache from Redis:', e.message);
+    }
+};
+
 module.exports = tenantDbMiddleware;

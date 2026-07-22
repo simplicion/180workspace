@@ -36,7 +36,13 @@ exports.update = async (req, res) => {
         
         const updateData = {};
         allowed.forEach(k => {
-            if (req.body[k] !== undefined) updateData[k] = req.body[k];
+            if (req.body[k] !== undefined) {
+                if (req.body[k] === '********') {
+                    // Do not update masked fields
+                } else {
+                    updateData[k] = req.body[k];
+                }
+            }
         });
 
         const updatedSettings = await prisma.platformSettings.update({
@@ -82,7 +88,8 @@ exports.testEmailConnection = async (req, res) => {
         const smtpHost = req.body.smtpHost || settings?.smtpHost;
         const smtpPort = req.body.smtpPort || settings?.smtpPort;
         const smtpUser = req.body.smtpUser || settings?.smtpUser;
-        const smtpPass = req.body.smtpPass || settings?.smtpPass;
+        let smtpPass = req.body.smtpPass || settings?.smtpPass;
+        if (smtpPass === '********') smtpPass = settings?.smtpPass;
         const smtpSecure = req.body.smtpSecure !== undefined ? req.body.smtpSecure : settings?.smtpSecure;
         const emailFrom = req.body.smtpFrom || settings?.emailFrom || req.body.emailFrom || smtpUser;
 

@@ -46,6 +46,9 @@ async function updateCompanyMetadata(companyId, updateData) {
             }
         }
     });
+
+    const tenantDbMiddleware = require('../../../system-configs/middleware/tenant/tenant-db');
+    await tenantDbMiddleware.clearCompanyCache(companyId);
 }
 
 const METADATA_FIELDS = [
@@ -165,6 +168,9 @@ exports.updateSettings = async (req, res) => {
             if (metadataUpdate[field] === '********') {
                 delete metadataUpdate[field];
             }
+            if (settingsUpdate[field] === '********') {
+                delete settingsUpdate[field];
+            }
         });
 
         const companyId = req.user.companyId || req.company?.id;
@@ -208,6 +214,9 @@ exports.updateSettings = async (req, res) => {
         if (redis) {
             try {
                 await redis.del(`company:${companyId}`);
+                if (req.user && req.user.id) {
+                    await redis.del(`init:user:${req.user.id}:company:${companyId}`);
+                }
                 const initKeys = await redis.keys(`init:user:*:company:${companyId}`);
                 if (initKeys && initKeys.length > 0) {
                     await redis.del(...initKeys);
@@ -232,12 +241,13 @@ exports.updateSettings = async (req, res) => {
 };
 
 exports.testAiConnection = async (req, res) => {
+    let companyId = null;
     try {
         if (!['admin', 'manager'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Only admins/managers can test AI connection' });
         }
 
-        const companyId = req.user.companyId;
+        companyId = req.user.companyId;
         const settings = companyId ? await req.prisma.settings.findFirst({
             where: { companyId }
         }) : null;
@@ -316,20 +326,28 @@ exports.testAiConnection = async (req, res) => {
         }
     } catch (error) {
         console.error('AI connection test failed:', error);
-        await updateCompanyMetadata(companyId, {
-            lastAiTestStatus: 'failure',
-            lastAiTestDate: new Date(),
-            lastAiTestError: error.message
-        });
+        
+        let merged = { ...req.body };
+        try {
+            if (companyId) {
+                await updateCompanyMetadata(companyId, {
+                    lastAiTestStatus: 'failure',
+                    lastAiTestDate: new Date(),
+                    lastAiTestError: error.message
+                });
 
-        const updatedSettings = companyId ? await req.prisma.settings.findFirst({
-            where: { companyId }
-        }) : null;
-        const freshMeta = await getCompanyMetadata(companyId);
-        const merged = { ...updatedSettings };
-        METADATA_FIELDS.forEach(field => {
-            merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
-        });
+                const updatedSettings = await req.prisma.settings.findFirst({
+                    where: { companyId }
+                });
+                const freshMeta = await getCompanyMetadata(companyId);
+                merged = { ...updatedSettings };
+                METADATA_FIELDS.forEach(field => {
+                    merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
+                });
+            }
+        } catch (innerError) {
+            console.error('Failed to log AI test error:', innerError);
+        }
 
         res.status(500).json({ error: 'AI connection test failed', details: error.message, settings: merged });
     }
@@ -351,7 +369,8 @@ exports.testEmailConnection = async (req, res) => {
         const smtpHost = req.body.smtpHost || metadata.smtpHost || settings?.smtpHost;
         const smtpPort = req.body.smtpPort || metadata.smtpPort || settings?.smtpPort;
         const smtpUser = req.body.smtpUser || metadata.smtpUser || settings?.smtpUser;
-        const smtpPass = req.body.smtpPass || metadata.smtpPass || settings?.smtpPass;
+        let smtpPass = req.body.smtpPass || metadata.smtpPass || settings?.smtpPass;
+        if (smtpPass === '********') smtpPass = metadata.smtpPass || settings?.smtpPass;
         const smtpSecure = req.body.smtpSecure !== undefined ? req.body.smtpSecure : (metadata.smtpSecure !== undefined ? metadata.smtpSecure : settings?.smtpSecure);
         const emailFrom = req.body.smtpFrom || metadata.emailFrom || settings?.emailFrom || req.body.emailFrom || smtpUser;
 
@@ -532,6 +551,7 @@ exports.testStorageConnection = async (req, res) => {
 };
 
 exports.testDatabaseConnection = async (req, res) => {
+    let companyId = null;
     try {
         if (!['admin', 'manager'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Only admins/managers can test database connection' });
@@ -539,7 +559,7 @@ exports.testDatabaseConnection = async (req, res) => {
 
         await req.prisma.$queryRaw`SELECT 1`;
 
-        const companyId = req.user.companyId;
+        companyId = req.user.companyId;
         const settings = companyId ? await req.prisma.settings.findFirst({
             where: { companyId }
         }) : null;
@@ -559,21 +579,29 @@ exports.testDatabaseConnection = async (req, res) => {
         res.json({ message: 'Database connection successful!', settings: merged });
     } catch (error) {
         console.error('Database connection test failed:', error);
-        const settings = companyId ? await req.prisma.settings.findFirst({
-            where: { companyId }
-        }) : null;
+        
+        let merged = { ...req.body };
+        try {
+            if (companyId) {
+                const settings = await req.prisma.settings.findFirst({
+                    where: { companyId }
+                });
 
-        await updateCompanyMetadata(companyId, {
-            lastDbTestStatus: 'failure',
-            lastDbTestDate: new Date(),
-            lastDbTestError: error.message
-        });
+                await updateCompanyMetadata(companyId, {
+                    lastDbTestStatus: 'failure',
+                    lastDbTestDate: new Date(),
+                    lastDbTestError: error.message
+                });
 
-        const freshMeta = await getCompanyMetadata(companyId);
-        const merged = { ...settings };
-        METADATA_FIELDS.forEach(field => {
-            merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
-        });
+                const freshMeta = await getCompanyMetadata(companyId);
+                merged = { ...settings };
+                METADATA_FIELDS.forEach(field => {
+                    merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
+                });
+            }
+        } catch (innerError) {
+            console.error('Failed to log DB test error:', innerError);
+        }
 
         res.status(500).json({ 
             error: 'Database connection test failed', 

@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { Building2, Save, Mail, Phone, MapPin, Landmark, PenTool, Hash, Globe, Image as ImageIcon } from 'lucide-react';
+import { Building2, Save, Mail, Phone, MapPin, Landmark, PenTool, Hash, Globe, Image as ImageIcon, Upload, ArrowLeft } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import { useSettings } from '../../lib/settings-context';
@@ -10,6 +10,7 @@ import { useSettings } from '../../lib/settings-context';
 export default function CompanyTab() {
     const { company, refreshSettings } = useSettings();
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         companyName: '',
         companyLogo: '',
@@ -73,6 +74,32 @@ export default function CompanyTab() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'signatureImage') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size must be less than 5MB');
+            return;
+        }
+
+        setUploading(field);
+        const data = new FormData();
+        data.append('file', file);
+
+        try {
+            const res = await api.post('/api/branding/logo', data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            setFormData(prev => ({ ...prev, [field]: res.data.url }));
+            toast.success('Image uploaded successfully');
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Upload failed');
+        } finally {
+            setUploading(null);
+        }
     };
 
     const handleSave = async () => {
@@ -260,20 +287,23 @@ export default function CompanyTab() {
                             <input name="designation" value={formData.designation} onChange={handleChange} className="input" placeholder="Operations Manager" />
                         </div>
                         <div className="col-span-full space-y-1.5">
-                            <label className="label">Signature Image URL (Transparent PNG)</label>
-                            <input name="signatureImage" value={formData.signatureImage} onChange={handleChange} className="input" placeholder="https://..." />
+                            <label className="label">Signature Image URL (Transparent PNG) - Accepts all image files, max 5MB</label>
+                            <div className="flex gap-3 mt-1 items-start">
+                                <label className="cursor-pointer bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shrink-0">
+                                    {uploading === 'signatureImage' ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                    Upload Signature
+                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'signatureImage')} disabled={!!uploading} />
+                                </label>
+                                <div className="flex-1">
+                                    <input name="signatureImage" value={formData.signatureImage} onChange={handleChange} className="input" placeholder="Or enter image URL (https://...)" />
+                                </div>
+                            </div>
                             {formData.signatureImage && <img src={formData.signatureImage} alt="Signature Preview" className="h-16 mt-2 object-contain rounded bg-white border border-gray-100 p-1" />}
-                            <p className="text-[10px] text-gray-400">Used for automated generation of salary slips and invoices.</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Used for automated generation of salary slips and invoices.</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="card-footer bg-gray-50 flex justify-end gap-3 p-4">
-                    <button onClick={handleSave} disabled={loading} className="btn-primary w-full md:w-auto px-12">
-                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        {loading ? 'Saving Changes...' : 'Save Configuration'}
-                    </button>
-                </div>
             </div>
         </div>
     );

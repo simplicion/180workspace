@@ -66,7 +66,39 @@ export default function WorkLogsPage() {
             if (filters.userId) params.append('userId', filters.userId);
 
             const { data } = await api.get(`${endpoint}?${params.toString()}`);
-            setLogs(data?.logs || []);
+            let mergedLogs = data?.logs || [];
+            
+            if (activeTab === 'my_logs' || activeTab === 'all_logs') {
+                try {
+                    const salesEndpoint = activeTab === 'all_logs' ? '/api/sales/activities?all=true' : '/api/sales/activities';
+                    const salesRes = await api.get(salesEndpoint);
+                    const salesLogs = salesRes.data?.activities || [];
+                    
+                    const formattedSales = salesLogs.map((s: any) => ({
+                        id: s.id,
+                        isSalesActivity: true,
+                        workDate: s.timestamp || s.createdAt,
+                        hoursSpent: 0,
+                        description: s.notes || 'No description',
+                        status: 'approved',
+                        type: s.type,
+                        projectId: { name: 'Sales Activity' },
+                        taskId: { title: `Sales ${s.type.charAt(0).toUpperCase() + s.type.slice(1)}` },
+                        user: s.owner,
+                        relatedLead: s.relatedLead,
+                        relatedDeal: s.relatedDeal,
+                        relatedClient: s.relatedClient
+                    }));
+                    
+                    mergedLogs = [...mergedLogs, ...formattedSales].sort((a: any, b: any) => 
+                        new Date(b.workDate).getTime() - new Date(a.workDate).getTime()
+                    );
+                } catch (e) {
+                    console.error('Failed to fetch sales activities', e);
+                }
+            }
+            
+            setLogs(mergedLogs);
         } catch (err) {
             toast.error('Failed to fetch work logs');
         } finally {
@@ -352,7 +384,10 @@ export default function WorkLogsPage() {
                                                     {log.status}
                                                 </span>
                                                 <span className="block text-[10px] font-bold text-gray-400 mt-1 uppercase leading-none">
-                                                    {log.hoursSpent}h • {format(new Date(log.workDate), 'MMM dd')}
+                                                    {log.isSalesActivity 
+                                                        ? format(new Date(log.workDate), 'MMM dd')
+                                                        : `${log.hoursSpent}h • ${format(new Date(log.workDate), 'MMM dd')}`
+                                                    }
                                                 </span>
                                             </div>
                                         </div>
@@ -416,6 +451,19 @@ export default function WorkLogsPage() {
                                                         <CheckSquare className="w-4 h-4 text-amber-500 flex-shrink-0" />
                                                         <span className="font-medium flex-shrink-0">Task:</span>
                                                         <span className="truncate max-w-[200px] md:max-w-xs">{log.taskId.title}</span>
+                                                    </div>
+                                                )}
+
+                                                {log.isSalesActivity && (
+                                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                        {(log.relatedLead || log.relatedDeal || log.relatedAccount || log.relatedContact) && (
+                                                            <div className="flex items-center gap-2 text-sm text-indigo-700 bg-indigo-50 w-fit px-3 py-1.5 rounded-lg border border-indigo-100">
+                                                                <span className="font-medium flex-shrink-0">Related to:</span>
+                                                                <span className="truncate max-w-[200px] md:max-w-xs">
+                                                                    {log.relatedLead?.name || log.relatedDeal?.title || log.relatedDeal?.name || log.relatedAccount?.name || log.relatedContact?.name}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
 

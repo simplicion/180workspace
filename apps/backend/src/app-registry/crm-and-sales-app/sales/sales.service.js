@@ -13,7 +13,7 @@ class SalesService {
         let lead;
 
         if (typeof leadIdOrDoc === 'string') {
-            lead = await tenantPrisma.lead.findUnique({ where: { id: leadIdOrDoc } });
+            lead = await tenantPrisma.deal.findUnique({ where: { id: leadIdOrDoc } });
         } else {
             lead = leadIdOrDoc;
         }
@@ -36,7 +36,7 @@ class SalesService {
         ) || 0;
 
         if (typeof leadIdOrDoc === 'string') {
-            await tenantPrisma.lead.update({
+            await tenantPrisma.deal.update({
                 where: { id: leadIdOrDoc },
                 data: { leadScore: calculatedScore }
             });
@@ -49,7 +49,7 @@ class SalesService {
 
     // [2] Win Probability: StageWeight Ã— EngagementScore
     static async calculateWinProbability(tenantPrisma, opportunityId, settings) {
-        const opp = await tenantPrisma.opportunity.findUnique({ where: { id: opportunityId } });
+        const opp = await tenantPrisma.lead.findUnique({ where: { id: opportunityId } });
         if (!opp) throw new Error('Opportunity not found');
 
         const stages = settings?.salesConfig?.opportunityStages || {
@@ -73,7 +73,7 @@ class SalesService {
         if (opp.stage === 'ClosedWon') calcProb = 100;
         if (opp.stage === 'ClosedLost') calcProb = 0;
 
-        await tenantPrisma.opportunity.update({
+        await tenantPrisma.lead.update({
             where: { id: opportunityId },
             data: { probability: calcProb }
         });
@@ -82,7 +82,7 @@ class SalesService {
 
     // [3] Weighted Forecast: Î£ (DealValue Ã— WinProbability)
     static async calculateWeightedForecast(tenantPrisma, periodStr) {
-        const opps = await tenantPrisma.opportunity.findMany({
+        const opps = await tenantPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
 
@@ -124,7 +124,7 @@ class SalesService {
 
     // [4] Customer Lifetime Value (CLV)
     static async calculateCLV(tenantPrisma, accountId) {
-        const wonDeals = await tenantPrisma.opportunity.findMany({
+        const wonDeals = await tenantPrisma.lead.findMany({
             where: { accountId, stage: 'ClosedWon' }
         });
 
@@ -147,7 +147,7 @@ class SalesService {
 
         const segments = [];
         for (let acc of accounts) {
-            const deals = await tenantPrisma.opportunity.findMany({
+            const deals = await tenantPrisma.lead.findMany({
                 where: { accountId: acc.id, stage: 'ClosedWon' },
                 orderBy: { expectedCloseDate: 'desc' }
             });
@@ -168,15 +168,15 @@ class SalesService {
 
     // [6] Funnel Conversion Rate
     static async calculateFunnelConversion(tenantPrisma) {
-        const totalLeads = await tenantPrisma.lead.count() || 1;
-        const qualifiedLeads = await tenantPrisma.lead.count({
+        const totalLeads = await tenantPrisma.deal.count() || 1;
+        const qualifiedLeads = await tenantPrisma.deal.count({
             where: { status: { in: ['qualified', 'converted'] } }
         });
 
-        const totalProposals = await tenantPrisma.opportunity.count({
+        const totalProposals = await tenantPrisma.lead.count({
             where: { stage: { in: ['Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'] } }
         }) || 1;
-        const wonDeals = await tenantPrisma.opportunity.count({
+        const wonDeals = await tenantPrisma.lead.count({
             where: { stage: 'ClosedWon' }
         });
 
@@ -191,7 +191,7 @@ class SalesService {
     static async calculateDashboardCharts(tenantPrisma) {
         try {
             // Pipeline by stage
-            const opps = await tenantPrisma.opportunity.findMany({
+            const opps = await tenantPrisma.lead.findMany({
                 where: { stage: { not: 'ClosedLost' } },
                 select: { stage: true, value: true }
             });
@@ -210,7 +210,7 @@ class SalesService {
             }));
 
             // Revenue by rep
-            const wonOpps = await tenantPrisma.opportunity.findMany({
+            const wonOpps = await tenantPrisma.lead.findMany({
                 where: { stage: 'ClosedWon' },
                 include: { owner: true }
             });
@@ -238,7 +238,7 @@ class SalesService {
                 const startDate = moment(m, 'YYYY-MM').startOf('month').toDate();
                 const endDate = moment(m, 'YYYY-MM').endOf('month').toDate();
 
-                const wonMonth = await tenantPrisma.opportunity.findMany({
+                const wonMonth = await tenantPrisma.lead.findMany({
                     where: {
                         stage: 'ClosedWon',
                         expectedCloseDate: { gte: startDate, lte: endDate }
@@ -247,7 +247,7 @@ class SalesService {
                 });
                 const wonTotal = wonMonth.reduce((sum, o) => sum + (o.value || 0), 0);
 
-                const pipeMonth = await tenantPrisma.opportunity.findMany({
+                const pipeMonth = await tenantPrisma.lead.findMany({
                     where: {
                         stage: { notIn: ['ClosedWon', 'ClosedLost'] },
                         expectedCloseDate: { gte: startDate, lte: endDate }
@@ -276,7 +276,7 @@ class SalesService {
 
     // [7] Sales Cycle Length
     static async calculateSalesCycleLength(tenantPrisma) {
-        const wonDeals = await tenantPrisma.opportunity.findMany({
+        const wonDeals = await tenantPrisma.lead.findMany({
             where: { stage: 'ClosedWon' }
         });
         if (!wonDeals.length) return 0;
@@ -296,7 +296,7 @@ class SalesService {
 
     // [8] Lead Deduplication (Levenshtein)
     static async findDuplicateLeads(tenantPrisma, leadName, email) {
-        const leads = await tenantPrisma.lead.findMany({
+        const leads = await tenantPrisma.deal.findMany({
             where: { status: { not: 'converted' } }
         });
         let duplicates = [];
@@ -310,19 +310,19 @@ class SalesService {
 
     // [9] Priority Ranking
     static async rankOpportunities(tenantPrisma) {
-        const opps = await tenantPrisma.opportunity.findMany({
+        const opps = await tenantPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
 
         for (const opp of opps) {
             const priorityScore = ((opp.value || 0) * (opp.probability || 0) * (opp.engagementScore || 1)) / 10000;
-            await tenantPrisma.opportunity.update({
+            await tenantPrisma.lead.update({
                 where: { id: opp.id },
                 data: { priorityScore }
             });
         }
 
-        const updatedOpps = await tenantPrisma.opportunity.findMany({
+        const updatedOpps = await tenantPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } },
             orderBy: { priorityScore: 'desc' }
         });
@@ -345,7 +345,7 @@ class SalesService {
 
     // [11] Stagnation Detection for Deals
     static async detectStagnantOpportunities(tenantPrisma, thresholdDays = 14) {
-        const opps = await tenantPrisma.opportunity.findMany({
+        const opps = await tenantPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
         const stagnant = [];
@@ -366,11 +366,11 @@ class SalesService {
             dealsClosedWeight: 0.5, revenueGeneratedWeight: 0.3, activitiesCompletedWeight: 0.2
         };
 
-        const dealsClosed = await tenantPrisma.opportunity.count({
+        const dealsClosed = await tenantPrisma.lead.count({
             where: { ownerId: userId, stage: 'ClosedWon' }
         });
 
-        const revenue = await tenantPrisma.opportunity.findMany({
+        const revenue = await tenantPrisma.lead.findMany({
             where: { ownerId: userId, stage: 'ClosedWon' },
             select: { value: true }
         });
@@ -390,7 +390,7 @@ class SalesService {
 
     // [13] Workload Balancing
     static async suggestRepForLead(tenantPrisma) {
-        const leads = await tenantPrisma.lead.findMany({
+        const leads = await tenantPrisma.deal.findMany({
             where: { status: { in: ['new', 'contacted'] } }
         });
 
@@ -427,7 +427,7 @@ class SalesService {
 
     // [15] Logistic Regression Approximation for Win Likelihood
     static async calculateWinLikelihoodLogistic(tenantPrisma, opportunityId) {
-        const opp = await tenantPrisma.opportunity.findUnique({ where: { id: opportunityId } });
+        const opp = await tenantPrisma.lead.findUnique({ where: { id: opportunityId } });
         if (!opp) return 0;
 
         const z = -2.0 + ((opp.engagementScore || 0) * 0.05) + ((opp.priorityScore || 0) * 0.1);
@@ -445,7 +445,7 @@ class SalesService {
 
     // [17] Next Best Action Engine
     static async determineNextBestAction(tenantPrisma, opportunityId) {
-        const opp = await tenantPrisma.opportunity.findUnique({ where: { id: opportunityId } });
+        const opp = await tenantPrisma.lead.findUnique({ where: { id: opportunityId } });
         if (!opp) return 'No action';
 
         const daysSinceUpdate = moment().diff(moment(opp.updatedAt), 'days');
@@ -464,7 +464,7 @@ class SalesService {
     // [19] Customer Risk Index
     static async calculateCustomerRiskIndex(tenantPrisma, accountId) {
         let riskScore = 0;
-        const lostDeals = await tenantPrisma.opportunity.count({
+        const lostDeals = await tenantPrisma.lead.count({
             where: { accountId, stage: 'ClosedLost' }
         });
         riskScore += lostDeals * 20;
@@ -498,7 +498,7 @@ class SalesService {
     // [21] Market Basket Analysis
     static async performMarketBasketAnalysis(tenantPrisma) {
         // Concept/placeholder: assume Opportunity has a tags array representing products (stored in JSON or relation)
-        const wonDeals = await tenantPrisma.opportunity.findMany({
+        const wonDeals = await tenantPrisma.lead.findMany({
             where: { stage: 'ClosedWon' }
         });
         const baskets = wonDeals
@@ -575,9 +575,9 @@ class SalesService {
 
     static async getDashboardMetrics(tenantDb, userId, companyId) {
         const Settings = tenantDb.settings;
-        const Lead = tenantDb.lead;
-        const Opportunity = tenantDb.opportunity;
-        const Account = tenantDb.account;
+        const Lead = tenantDb.deal;
+        const Opportunity = tenantDb.lead;
+        const Account = tenantDb.salesAccount;
         const SalesActivity = tenantDb.salesActivity;
         const SalesTask = tenantDb.salesTask;
 
@@ -657,7 +657,7 @@ class SalesService {
     }
 
     static async getForecasting(tenantDb, companyId) {
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
         const moment = require('moment');
         const { forecastPipeline } = require('../../company-hub-app/crm/CrmCalculationService.js');
 
@@ -722,8 +722,8 @@ class SalesService {
         const leaderboard = [];
         for (const rep of allReps) {
             const [dealsClosed, revenue, activities] = await Promise.all([
-                tenantDb.opportunity.count({ where: { owner: rep.id, stage: 'ClosedWon' } }),
-                tenantDb.opportunity.aggregate({ where: { owner: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
+                tenantDb.lead.count({ where: { owner: rep.id, stage: 'ClosedWon' } }),
+                tenantDb.lead.aggregate({ where: { owner: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
                 tenantDb.salesActivity.count({ where: { owner: rep.id } })
             ]);
 
@@ -771,7 +771,7 @@ class SalesService {
 
     static async getLeads(tenantDb, page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const Lead = tenantDb.lead;
+        const Lead = tenantDb.deal;
         
         const leads = await Lead.findMany({
             include: { assignedSalesRep: { select: { name: true, email: true } } },
@@ -785,7 +785,7 @@ class SalesService {
     }
 
     static async createLead(tenantDb, leadData, userId) {
-        const Lead = tenantDb.lead;
+        const Lead = tenantDb.deal;
         const lead = await Lead.create({ data: leadData });
 
         await tenantDb.salesActivity.create({ data: {
@@ -821,7 +821,7 @@ class SalesService {
             throw new Error('No leads provided');
         }
 
-        const Lead = tenantDb.lead;
+        const Lead = tenantDb.deal;
         const newLeads = leads.map(l => ({
             ...l,
             assignedSalesRep: l.assignedSalesRep || userId,
@@ -839,7 +839,7 @@ class SalesService {
     }
 
     static async updateLead(tenantDb, id, updateData) {
-        const Lead = tenantDb.lead;
+        const Lead = tenantDb.deal;
         
         let lead = await Lead.findUnique({ where: { id } });
         if (!lead) throw new Error('Lead not found');
@@ -869,14 +869,14 @@ class SalesService {
     }
 
     static async deleteLead(tenantDb, id) {
-        await tenantDb.lead.update({ where: { id }, data: { deletedAt: new Date() } });
+        await tenantDb.deal.update({ where: { id }, data: { deletedAt: new Date() } });
     }
 
     static async convertLead(tenantDb, id, userId) {
-        const Lead = tenantDb.lead;
-        const Account = tenantDb.account;
+        const Lead = tenantDb.deal;
+        const Account = tenantDb.salesAccount;
         const Contact = tenantDb.contact;
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
 
         const lead = await Lead.findUnique({ where: { id } });
         if (!lead) throw new Error('Lead not found');
@@ -884,10 +884,10 @@ class SalesService {
 
         // Use interactive transaction
         return await tenantDb.$transaction(async (prisma) => {
-            let account = await prisma.account.findFirst({ where: { companyName: { equals: lead.company.trim(), mode: 'insensitive' } } });
+            let account = await prisma.salesAccount.findFirst({ where: { companyName: { equals: lead.company.trim(), mode: 'insensitive' } } });
             
             if (!account) {
-                account = await prisma.account.create({ data: {
+                account = await prisma.salesAccount.create({ data: {
                     companyName: lead.company.trim(),
                     industry: lead.industry,
                     employeeCount: lead.companySize,
@@ -1038,8 +1038,8 @@ class SalesService {
         let clientContext = '';
         let clientObj = null;
         if (clientId) {
-            const Lead = tenantDb.lead;
-            const Account = tenantDb.account;
+            const Lead = tenantDb.deal;
+            const Account = tenantDb.salesAccount;
             const Contact = tenantDb.contact;
             
             clientObj = await Lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
@@ -1105,8 +1105,8 @@ class SalesService {
 
     static async getClientObjForContract(tenantDb, clientId) {
         if (!clientId) return null;
-        const Lead = tenantDb.lead;
-        const Account = tenantDb.account;
+        const Lead = tenantDb.deal;
+        const Account = tenantDb.salesAccount;
         const Contact = tenantDb.contact;
         return await Lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
     }
@@ -1171,30 +1171,43 @@ class SalesService {
     // OPPORTUNITIES
     // ------------------------------------------------------------------------
 
-    static async getOpportunities(tenantDb, page = 1, limit = 100) {
+    static async getOpportunities(tenantDb, page = 1, limit = 100, pipelineType) {
         const skip = (page - 1) * limit;
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
+        
+        const whereClause = {};
+        if (pipelineType) {
+            whereClause.pipelineType = pipelineType;
+        }
+
         const opportunities = await Opportunity.findMany({ 
-            include: { accountId: { select: { companyName: true } }, owner: { select: { name: true, email: true } } }, 
+            where: whereClause,
+            include: { owner: { select: { name: true, email: true } } }, 
             orderBy: { priorityScore: 'desc' },
             skip: skip,
             take: limit
         });
 
-        const total = await Opportunity.count();
+        const total = await Opportunity.count({ where: whereClause });
         return { opportunities, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
     static async createOpportunity(tenantDb, data, userId) {
-        const Opportunity = tenantDb.opportunity;
-        const opp = await Opportunity.create({ data: { ...data, owner: userId } });
+        const Opportunity = tenantDb.lead;
+        if (data.owner) {
+            data.ownerId = data.owner;
+            delete data.owner;
+        } else {
+            data.ownerId = userId;
+        }
+        const opp = await Opportunity.create({ data: { ...data } });
 
         await tenantDb.salesActivity.create({ data: {
             type: 'task',
-            relatedDeal: opp.id,
-            relatedAccount: opp.accountId,
+            leadId: opp.id,
+            relatedClientId: opp.clientId,
             notes: `New opportunity created: ${opp.title}`,
-            owner: userId
+            ownerId: userId
         } });
 
         const settings = await tenantDb.settings.findFirst();
@@ -1207,9 +1220,35 @@ class SalesService {
     }
 
     static async updateOpportunity(tenantDb, id, data) {
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
+        const Deal = tenantDb.deal;
         const oldOpp = await Opportunity.findUnique({ where: { id } });
         if (!oldOpp) throw new Error('Opportunity not found');
+
+        if (data.convertToDeal) {
+            data.pipelineType = 'ACTIVE_CLIENT';
+            
+            await Deal.create({
+                data: {
+                    name: oldOpp.contactName || oldOpp.title,
+                    email: oldOpp.contactEmail || '',
+                    phone: oldOpp.contactPhone || '',
+                    company: oldOpp.companyName || '',
+                    industry: oldOpp.industry || '',
+                    source: oldOpp.source || 'outbound',
+                    status: 'new',
+                    value: oldOpp.value || 0,
+                    assignedSalesRepId: oldOpp.ownerId,
+                    notes: `Automatically created from won lead: ${oldOpp.title}`
+                }
+            });
+            delete data.convertToDeal;
+        }
+
+        if (data.owner) {
+            data.ownerId = data.owner;
+            delete data.owner;
+        }
 
         const opp = await Opportunity.update({ where: { id }, data });
 
@@ -1221,14 +1260,14 @@ class SalesService {
 
         let message = 'Opportunity updated successfully';
         if (data.stage === 'ClosedWon' && oldOpp.stage !== 'ClosedWon' && !opp.projectId) {
-            message = 'Opportunity marked as Closed Won. You can now convert it to a project.';
+            message = 'Opportunity marked as Closed Won and converted to Deal. You can now convert it to a project.';
         }
 
         return { opportunity: opp, message };
     }
 
     static async createProjectFromOpportunity(tenantDb, id, userId) {
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
         const Project = tenantDb.project;
 
         const opp = await Opportunity.findUnique({ where: { id } });
@@ -1256,7 +1295,7 @@ class SalesService {
     }
 
     static async deleteOpportunity(tenantDb, id) {
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
         const opp = await Opportunity.delete({ where: { id } });
         if (!opp) throw new Error('Opportunity not found');
         return opp;
@@ -1268,14 +1307,14 @@ class SalesService {
 
     static async getAccounts(tenantDb, page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const Account = tenantDb.account;
+        const Account = tenantDb.salesAccount;
         const accountsRaw = await Account.findMany({
             orderBy: { clv: 'desc' },
             skip: skip,
             take: limit
         });
 
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
         const Contact = tenantDb.contact;
         const moment = require('moment');
         const { calculateCustomerRiskIndex } = require('../../company-hub-app/crm/CrmCalculationService.js');
@@ -1302,7 +1341,7 @@ class SalesService {
     }
 
     static async createAccount(tenantDb, data, userId) {
-        const Account = tenantDb.account;
+        const Account = tenantDb.salesAccount;
         const account = await Account.create({ data: {
             ...data,
             assignedManager: userId
@@ -1311,14 +1350,14 @@ class SalesService {
     }
 
     static async updateAccount(tenantDb, id, data) {
-        const Account = tenantDb.account;
+        const Account = tenantDb.salesAccount;
         const account = await Account.update({ where: { id }, data });
         if (!account) throw new Error('Account not found');
         return account;
     }
 
     static async deleteAccount(tenantDb, id) {
-        const Account = tenantDb.account;
+        const Account = tenantDb.salesAccount;
         const account = await Account.delete({ where: { id } });
         if (!account) throw new Error('Account not found');
         return account;
@@ -1346,7 +1385,7 @@ class SalesService {
 
         if (!contact) throw new Error('Contact not found');
 
-        const Opportunity = tenantDb.opportunity;
+        const Opportunity = tenantDb.lead;
         const opportunities = await Opportunity.findMany({
             where: { accountId: contact.accountId },
             select: { title: true, value: true, stage: true, probability: true, expectedCloseDate: true }
@@ -1467,14 +1506,31 @@ class SalesService {
 
         const quotes = await Quote.findMany({
             include: { 
-                clientId: { select: { name: true, company: true } },
-                opportunityId: { select: { title: true } },
                 createdBy: { select: { name: true } }
             },
             orderBy: { createdAt: 'desc' },
             skip: skip,
             take: limit
         });
+
+        // Manually populate client and opportunity data
+        const Client = tenantDb.client;
+        const Opportunity = tenantDb.lead;
+        
+        for (const q of quotes) {
+            if (q.clientId) {
+                const c = await Client.findUnique({ where: { id: q.clientId } });
+                if (c) {
+                    q.clientId = { id: c.id, name: c.name, company: c.company, email: c.email };
+                }
+            }
+            if (q.opportunityId) {
+                const opp = await Opportunity.findUnique({ where: { id: q.opportunityId } });
+                if (opp) {
+                    q.opportunityId = { id: opp.id, title: opp.title };
+                }
+            }
+        }
 
         const total = await Quote.count();
         return { quotes, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
@@ -1510,14 +1566,22 @@ class SalesService {
 
     static async getQuoteForPdf(tenantDb, id) {
         const Quote = tenantDb.quote;
-        const quote = await Quote.findUnique({ where: { id }, include: { clientId: true } });
+        const Client = tenantDb.client;
+        const quote = await Quote.findUnique({ where: { id } });
         if (!quote) throw new Error('Quote not found');
+        if (quote.clientId) {
+            const client = await Client.findUnique({ where: { id: quote.clientId } });
+            if (client) {
+                quote.clientId = { id: client.id, name: client.name, company: client.company, email: client.email };
+            }
+        }
         return quote;
     }
 
     static async sendQuoteEmail(tenantDb, id, user, emailOverride, reqCompany) {
         const Settings = tenantDb.settings;
         const Quote = tenantDb.quote;
+        const Client = tenantDb.client;
         const PDFDocument = require('pdfkit');
         const { generateQuotationPDF } = require('../../../platform-core/platform-engine/pdf/pdf.utils.js');
 
@@ -1535,8 +1599,15 @@ class SalesService {
             throw err;
         }
 
-        const quote = await Quote.findUnique({ where: { id }, include: { clientId: true } });
+        const quote = await Quote.findUnique({ where: { id } });
         if (!quote) throw new Error('Quote not found');
+        
+        if (quote.clientId) {
+            const client = await Client.findUnique({ where: { id: quote.clientId } });
+            if (client) {
+                quote.clientId = { id: client.id, name: client.name, company: client.company, email: client.email };
+            }
+        }
 
         const recipientEmail = emailOverride || quote.clientId?.email;
         if (!recipientEmail) {
@@ -1592,49 +1663,102 @@ class SalesService {
     // REVENUE STATS
     // ------------------------------------------------------------------------
 
-    static async getRevenueStats(tenantDb) {
-        const Opportunity = tenantDb.opportunity;
+    static async getRevenueStats(tenantDb, timeframe = 'all') {
+        const Opportunity = tenantDb.lead;
         const moment = require('moment');
 
-        const closedWonAgg = await Opportunity.aggregate({ where: { stage: 'ClosedWon' }, _sum: { value: true } });
+        let dateFilter = undefined;
+        let groupByFormat = 'YYYY-MM';
+        let displayFormat = 'MMM YYYY';
+        
+        if (timeframe === '7days') {
+            dateFilter = { gte: moment().subtract(7, 'days').startOf('day').toDate() };
+            groupByFormat = 'YYYY-MM-DD';
+            displayFormat = 'MMM DD';
+        } else if (timeframe === 'weekly') {
+            dateFilter = { gte: moment().startOf('week').toDate() };
+            groupByFormat = 'YYYY-MM-DD';
+            displayFormat = 'MMM DD';
+        } else if (timeframe === 'months') {
+            dateFilter = { gte: moment().subtract(6, 'months').startOf('month').toDate() };
+        } else if (timeframe === 'month') {
+            dateFilter = { gte: moment().subtract(1, 'month').startOf('month').toDate() };
+        }
+
+        const closedWonWhere = { stage: 'ClosedWon' };
+        if (dateFilter) closedWonWhere.expectedCloseDate = dateFilter;
+
+        const closedWonAgg = await Opportunity.aggregate({ where: closedWonWhere, _sum: { value: true } });
         const closedWonValue = closedWonAgg._sum.value || 0;
 
-        const sixMonthsAgo = moment().subtract(6, 'months').startOf('month').toDate();
         const rawOpps = await Opportunity.findMany({
-            where: { stage: 'ClosedWon', expectedCloseDate: { gte: sixMonthsAgo } },
+            where: closedWonWhere,
             select: { expectedCloseDate: true, value: true }
         });
         
         const trendMap = {};
         rawOpps.forEach(opp => {
             if(!opp.expectedCloseDate) return;
-            const m = moment(opp.expectedCloseDate).format('YYYY-MM');
+            const m = moment(opp.expectedCloseDate).format(groupByFormat);
             if(!trendMap[m]) trendMap[m] = { _id: m, revenue: 0, deals: 0 };
             trendMap[m].revenue += (opp.value || 0);
             trendMap[m].deals += 1;
         });
         const monthlyTrendData = Object.values(trendMap).sort((a,b) => a._id.localeCompare(b._id));
 
-        const pipelineAgg = await Opportunity.aggregate({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }, _sum: { value: true } });
+        const openOppsWhere = { stage: { notIn: ['ClosedWon', 'ClosedLost'] } };
+        if (dateFilter) openOppsWhere.expectedCloseDate = dateFilter;
+
+        const pipelineAgg = await Opportunity.aggregate({ where: openOppsWhere, _sum: { value: true } });
         const pipelineValue = pipelineAgg._sum.value || 0;
 
+        // Group Pipeline by Stage AND Time for graph-based view
+        const rawOpenOpps = await Opportunity.findMany({
+            where: openOppsWhere,
+            select: { stage: true, value: true, expectedCloseDate: true }
+        });
+
+        const pipelineTrendMap = {};
+        rawOpenOpps.forEach(opp => {
+            if(!opp.expectedCloseDate) return;
+            const m = moment(opp.expectedCloseDate).format(groupByFormat);
+            if(!pipelineTrendMap[m]) pipelineTrendMap[m] = { date: m };
+            if(!pipelineTrendMap[m][opp.stage]) pipelineTrendMap[m][opp.stage] = 0;
+            pipelineTrendMap[m][opp.stage] += (opp.value || 0);
+        });
+
+        const pipelineTrendData = Object.values(pipelineTrendMap)
+            .sort((a,b) => a.date.localeCompare(b.date))
+            .map(item => {
+                const formatted = { date: moment(item.date, groupByFormat).format(displayFormat) };
+                Object.keys(item).forEach(k => {
+                    if (k !== 'date') formatted[k] = item[k];
+                });
+                return formatted;
+            });
+
+        // Also get the old static pipeline by stage for the pie/bar chart if they still need it
         const pbsRaw = await Opportunity.groupBy({
             by: ['stage'],
-            where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } },
+            where: openOppsWhere,
             _count: { _all: true },
             _sum: { value: true }
         });
         const pipelineByStage = pbsRaw.map(p => ({ _id: p.stage, count: p._count._all, totalValue: p._sum.value || 0 })).sort((a,b) => b.totalValue - a.totalValue);
 
-        const winLoss = await Opportunity.aggregate({
-            where: { stage: { in: ['ClosedWon', 'ClosedLost'] } },
-            _group: { by: ['stage'], _count: { _all: true } }
+        const winLossWhere = { stage: { in: ['ClosedWon', 'ClosedLost'] } };
+        if (dateFilter) winLossWhere.expectedCloseDate = dateFilter;
+
+        const winLoss = await Opportunity.groupBy({
+            by: ['stage'],
+            where: winLossWhere,
+            _count: { _all: true }
         });
 
         let wonCount = 0; let lostCount = 0;
         winLoss.forEach(st => {
-            if (st._id === 'ClosedWon') wonCount = st.count;
-            if (st._id === 'ClosedLost') lostCount = st.count;
+            if (st.stage === 'ClosedWon') wonCount = st._count._all;
+            if (st.stage === 'ClosedLost') lostCount = st._count._all;
         });
 
         const topDeals = await Opportunity.findMany({ 
@@ -1659,6 +1783,7 @@ class SalesService {
                 deals: t.deals
             })),
             pipelineByStage: pipelineByStage.map(s => ({ stage: s._id, count: s.count, value: s.totalValue })),
+            pipelineTrend: pipelineTrendData,
             topDeals
         };
     }

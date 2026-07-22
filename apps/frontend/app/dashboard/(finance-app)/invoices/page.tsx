@@ -169,7 +169,7 @@ function CreateInvoiceModal({ onClose, onSuccess, clients }: { onClose: () => vo
                             </div>
                             <div className="flex items-center justify-between text-gray-500">
                                 <span className="flex items-center gap-2">Discount
-                                    <input aria-label="Discount amount" type="number" value={form.discount} onChange={e => setForm(p => ({ ...p, discount: Number(e.target.value) }))} className="w-20 input py-0.5 text-xs text-center" min="0" />
+                        <input aria-label="Discount amount" type="number" value={form.discount} onChange={e => setForm(p => ({ ...p, discount: Number(e.target.value) }))} className="w-20 input py-0.5 text-xs text-center" min="0" />
                                 </span>
                                 <span className="font-medium text-red-500">-₹{form.discount.toLocaleString('en-IN')}</span>
                             </div>

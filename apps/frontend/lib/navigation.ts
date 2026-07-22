@@ -17,16 +17,13 @@ export const navigation = [
         roles: ['admin', 'manager', 'hr', 'sales'],
         items: [
             { id: 'sales', name: 'Sales Overview', href: '/dashboard/sales', icon: TrendingUp, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'leads', name: 'Leads', href: '/dashboard/sales/leads', icon: Magnet, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'pipeline', name: 'Pipeline', href: '/dashboard/sales/pipeline', icon: PieChart, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'accounts', name: 'Accounts', href: '/dashboard/sales/accounts', icon: Landmark, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'contacts', name: 'Contacts', href: '/dashboard/sales/contacts', icon: UserSquare, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'opportunities', name: 'Opportunities', href: '/dashboard/sales/opportunities', icon: Target, roles: ['admin', 'manager', 'hr', 'sales'] },
+            { id: 'leads', name: 'Leads Pipeline', href: '/dashboard/sales/leads-pipeline', icon: Magnet, roles: ['admin', 'manager', 'hr', 'sales'] },
+            { id: 'opportunities', name: 'Deals Pipeline', href: '/dashboard/sales/deals', icon: PieChart, roles: ['admin', 'manager', 'hr', 'sales'] },
+            { id: 'active-clients', name: 'Active Client Pipeline', href: '/dashboard/sales/active-clients', icon: Users, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'quotes', name: 'Quotations', href: '/dashboard/sales/quotes', icon: FileText, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'activities', name: 'Activities', href: '/dashboard/sales/activities', icon: Activity, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'contracts', name: 'Contracts', href: '/dashboard/sales/contracts', icon: FileSignature, roles: ['admin', 'manager', 'hr', 'sales'] },
+
             { id: 'revenue', name: 'Revenue', href: '/dashboard/sales/revenue', icon: DollarSign, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'forecasting', name: 'Forecasting', href: '/dashboard/sales/forecasting', icon: BarChart3, roles: ['admin', 'manager', 'hr', 'sales'] },
+
             { id: 'ai-insights', name: 'AI Insights', href: '/dashboard/sales/ai-insights', icon: Sparkles, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'productivity', name: 'Productivity', href: '/dashboard/sales/productivity', icon: ClipboardList, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'clients', name: 'Clients', href: '/dashboard/clients', icon: Building2, roles: ['admin', 'manager', 'hr'] },

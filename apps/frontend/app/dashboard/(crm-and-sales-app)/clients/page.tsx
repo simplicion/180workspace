@@ -79,14 +79,19 @@ export default function ClientsPage() {
     };
 
     const exportToCSV = () => {
-        const headers = ['Name', 'Company', 'Email', 'Phone', 'Industry', 'Status'];
+        const headers = ['Name', 'Title', 'Company', 'Email', 'Phone', 'Industry', 'Size', 'Annual Revenue', 'CLV', 'Status', 'Health'];
         const rows = clients.map(c => [
             c.name,
+            c.title || '',
             c.company || '',
             c.email,
             c.phone || '',
             c.industry || '',
-            c.status
+            c.companySize || '',
+            c.annualRevenue?.toString() || '',
+            c.customerLifetimeValue?.toString() || '',
+            c.status,
+            c.healthStatus || ''
         ]);
 
         const csvContent = [
@@ -211,9 +216,9 @@ export default function ClientsPage() {
                                     </th>
                                     <th>Client / Company</th>
                                     <th>Contact Info</th>
-                                    <th>Industry</th>
+                                    <th>Business Insights</th>
                                     <th>Projects</th>
-                                    <th>Status</th>
+                                    <th>Status / Health</th>
                                     <th className="text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -246,7 +251,7 @@ export default function ClientsPage() {
                                                 </div>
                                                 <div>
                                                     <p className="font-semibold text-gray-900 leading-none mb-1">{client.name}</p>
-                                                    <p className="text-xs text-gray-500 font-medium">{client.company || 'Individual'}</p>
+                                                    <p className="text-xs text-gray-500 font-medium">{client.title ? `${client.title} at ` : ''}{client.company || 'Individual'}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -265,7 +270,13 @@ export default function ClientsPage() {
                                             </div>
                                         </td>
                                         <td>
-                                            <span className="text-sm text-gray-600">{client.industry || 'â€”'}</span>
+                                            <div className="space-y-1">
+                                                <span className="text-sm font-medium text-gray-800">{client.industry || '—'}</span>
+                                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                    {client.companySize && <span>{client.companySize}</span>}
+                                                    {client.annualRevenue && <span>• ${client.annualRevenue.toLocaleString()}</span>}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td>
                                             <div className="flex items-center gap-2">
@@ -275,9 +286,22 @@ export default function ClientsPage() {
                                             </div>
                                         </td>
                                         <td>
-                                            <span className={clsx('badge capitalize', STATUS_COLORS[client.status] || 'badge-gray')}>
-                                                {client.status}
-                                            </span>
+                                            <div className="space-y-1.5">
+                                                <span className={clsx('badge capitalize', STATUS_COLORS[client.status] || 'badge-gray')}>
+                                                    {client.status}
+                                                </span>
+                                                {client.healthStatus && (
+                                                    <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                                                        <div className={clsx('w-1.5 h-1.5 rounded-full', {
+                                                            'bg-green-500': client.healthStatus === 'Excellent',
+                                                            'bg-blue-500': client.healthStatus === 'Good',
+                                                            'bg-orange-500': client.healthStatus === 'Average',
+                                                            'bg-red-500': client.healthStatus === 'Poor' || client.healthStatus === 'At Risk'
+                                                        })} />
+                                                        {client.healthStatus}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <ContextActions
@@ -301,7 +325,7 @@ export default function ClientsPage() {
                                 ))}
                                 {clients.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="py-20 text-center">
+                                        <td colSpan={7} className="py-20 text-center">
                                             <div className="flex flex-col items-center justify-center opacity-40">
                                                 <Building2 className="w-12 h-12 mb-3" />
                                                 <p className="text-lg font-medium">No clients found</p>

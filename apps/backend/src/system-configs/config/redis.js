@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { Redis } = require('ioredis');
 
@@ -8,13 +8,13 @@ if (!REDIS_URL) {
     console.warn('âš ï¸  REDIS_URL not set â€” queue features will be disabled');
 }
 
-const redis = REDIS_URL
-    ? new Redis(REDIS_URL, {
+const redis = REDIS_URL || 'redis://127.0.0.1:6379'
+    ? new Redis(REDIS_URL || 'redis://127.0.0.1:6379', {
         maxRetriesPerRequest: null, // Required by BullMQ
         enableReadyCheck: false,
         enableOfflineQueue: false, // Don't hang requests if disconnected
         commandTimeout: 15000,     // Increase to 15s for stability
-        tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+        tls: (REDIS_URL || '').startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
         retryStrategy: (times) => {
             const delay = Math.min(times * 100, 5000);
             if (times > 10) {

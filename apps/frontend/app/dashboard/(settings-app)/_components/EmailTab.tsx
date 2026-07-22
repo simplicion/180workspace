@@ -188,7 +188,7 @@ export default function EmailTab({
                     </div>
 
                     <div>
-                        <label className="label">"From" Name / Display Name</label>
+                        <label className="label">&quot;From&quot; Name / Display Name</label>
                         <input 
                             value={emailFrom} 
                             onChange={e => setEmailFrom(e.target.value)} 

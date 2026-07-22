@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { format, formatDistanceToNow, parseISO, addDays } from 'date-fns';
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
+import { PlatformModal } from '@/components/shared/PlatformModal';
 
 export default function QuotesPage() {
     const { user } = useAuth();
@@ -54,7 +55,7 @@ export default function QuotesPage() {
 
     const fetchOpportunities = async () => {
         try {
-            const res = await api.get('/api/sales/opportunities');
+            const res = await api.get('/api/sales/leads-pipeline');
             setOpportunities(res.data.opportunities || []);
         } catch (error) { console.error('Failed to load opportunities'); }
     };
@@ -230,7 +231,7 @@ export default function QuotesPage() {
                 </button>
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
+            <div className="card flex flex-wrap gap-4 items-center justify-between">
                 <div className="relative flex-1 min-w-[250px] max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -238,16 +239,16 @@ export default function QuotesPage() {
                         placeholder="Search quote number, creator..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="input pl-10 w-full bg-white border-gray-200"
+                        className="input pl-10 w-full"
                     />
                 </div>
-                <button className="btn bg-gray-50 text-gray-700 hover:bg-gray-100 flex items-center gap-2 border border-gray-200">
+                <button className="btn btn-secondary flex items-center gap-2">
                     <Filter className="w-4 h-4" /> Filter
                 </button>
             </div>
 
             {/* Table */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+            <div className="card p-0 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -348,251 +349,236 @@ export default function QuotesPage() {
             </div>
 
             {/* Create Quote Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col pt-6 pb-0 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-6 flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-900">
-                                {editingId ? 'Edit Quotation' : 'Create New Quote'}
-                            </h2>
-                            <button onClick={() => setIsModalOpen(false)} title="Close Modal" aria-label="Close" className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
+            <PlatformModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={editingId ? 'Edit Quotation' : 'Create New Quote'}
+                maxWidthClass="max-w-4xl"
+                footer={
+                    <>
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancel</button>
+                        <button type="button" onClick={handleSubmitQuote} disabled={saving} className="btn-primary px-6">
+                            {saving ? 'Saving...' : editingId ? 'Update & Save' : 'Generate Quote'}
+                        </button>
+                    </>
+                }
+            >
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b pb-1">Client Information</h3>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Select Client *</label>
+                                <select
+                                    value={formData.clientId}
+                                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                                    className="input w-full"
+                                    required
+                                    aria-label="Select Client"
+                                    title="Select Client"
+                                >
+                                    <option value="">-- Choose Client --</option>
+                                    {clients.map(c => (
+                                        <option key={c.id} value={c.id}>{c.company || c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Link to Deal (Optional)</label>
+                                <select
+                                    value={formData.opportunityId}
+                                    onChange={(e) => setFormData({ ...formData, opportunityId: e.target.value })}
+                                    className="input w-full"
+                                    aria-label="Link to Deal"
+                                    title="Link to Deal"
+                                >
+                                    <option value="">-- No Deal Linked --</option>
+                                    {opportunities.map(o => (
+                                        <option key={o.id} value={o.id}>{o.title} (${o.value?.toLocaleString()})</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6 custom-scrollbar">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b pb-1">Client Information</h3>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Select Client *</label>
-                                        <select
-                                            value={formData.clientId}
-                                            onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                                            className="input w-full bg-white border-gray-200"
-                                            required
-                                            aria-label="Select Client"
-                                            title="Select Client"
-                                        >
-                                            <option value="">-- Choose Client --</option>
-                                            {clients.map(c => (
-                                                <option key={c.id} value={c.id}>{c.company || c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Link to Deal (Optional)</label>
-                                        <select
-                                            value={formData.opportunityId}
-                                            onChange={(e) => setFormData({ ...formData, opportunityId: e.target.value })}
-                                            className="input w-full bg-white border-gray-200"
-                                            aria-label="Link to Deal"
-                                            title="Link to Deal"
-                                        >
-                                            <option value="">-- No Deal Linked --</option>
-                                            {opportunities.map(o => (
-                                                <option key={o.id} value={o.id}>{o.title} (${o.value?.toLocaleString()})</option>
-                                            ))}
-                                        </select>
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b pb-1">Quote Meta</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Valid Until *</label>
+                                    <input
+                                        type="date"
+                                        value={formData.validUntil}
+                                        onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                                        className="input w-full"
+                                        title="Valid Until Date"
+                                        aria-label="Valid Until"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Reference</label>
+                                    <div className="input w-full bg-gray-50 text-gray-400 italic">
+                                        Auto-generated
                                     </div>
                                 </div>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Discount ($)</label>
+                                <div className="relative">
+                                    <DollarSign className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="number" min="0"
+                                        value={formData.discount}
+                                        onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
+                                        className="input w-full pl-7"
+                                        aria-label="Total Discount Amount"
+                                        title="Total Discount Amount"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                                <div className="space-y-4">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b pb-1">Quote Meta</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Valid Until *</label>
-                                            <input
-                                                type="date"
-                                                value={formData.validUntil}
-                                                onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                                                className="input w-full bg-white border-gray-200"
-                                                title="Valid Until Date"
-                                                aria-label="Valid Until"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Reference</label>
-                                            <div className="input w-full bg-gray-50 border-gray-100 text-gray-400 italic">
-                                                Auto-generated
-                                            </div>
-                                        </div>
+                    <div className="border border-gray-200 rounded-xl overflow-hidden mt-6 shadow-sm">
+                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                            <h3 className="font-semibold text-gray-700">Line Items</h3>
+                            <button type="button" onClick={addItem} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                                <Plus className="w-4 h-4" /> Add Item
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            {formData.items.map((item, index) => (
+                                <div key={index} className="flex gap-4 items-start relative group">
+                                    <div className="flex-1">
+                                        <input
+                                            type="text" placeholder="Item description"
+                                            value={item.description}
+                                            onChange={e => updateItem(index, 'description', e.target.value)}
+                                            className="input w-full"
+                                            title="Item Description"
+                                            aria-label="Description"
+                                        />
                                     </div>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Discount ($)</label>
+                                    <div className="w-24">
+                                        <input
+                                            type="number" placeholder="Qty" min="1"
+                                            title="Quantity"
+                                            value={item.quantity}
+                                            onChange={e => updateItem(index, 'quantity', Number(e.target.value))}
+                                            className="input w-full"
+                                        />
+                                    </div>
+                                    <div className="w-32">
                                         <div className="relative">
                                             <DollarSign className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                             <input
-                                                type="number" min="0"
-                                                value={formData.discount}
-                                                onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
-                                                className="input w-full pl-7 bg-white border-gray-200"
-                                                aria-label="Total Discount Amount"
-                                                title="Total Discount Amount"
+                                                type="number" placeholder="Price" min="0" step="0.01"
+                                                value={item.unitPrice} title="Unit Price"
+                                                onChange={e => updateItem(index, 'unitPrice', Number(e.target.value))}
+                                                className="input w-full pl-7"
                                             />
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-
-                            <div className="border border-gray-200 rounded-xl overflow-hidden mt-6 shadow-sm">
-                                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                                    <h3 className="font-semibold text-gray-700">Line Items</h3>
-                                    <button onClick={addItem} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
-                                        <Plus className="w-4 h-4" /> Add Item
+                                    <div className="w-24">
+                                        <div className="relative">
+                                            <input
+                                                type="number" placeholder="Tax" min="0" max="100"
+                                                value={item.tax} title="Tax %"
+                                                onChange={e => updateItem(index, 'tax', Number(e.target.value))}
+                                                className="input w-full pr-7"
+                                            />
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                                        </div>
+                                    </div>
+                                    <div className="w-24 flex items-center h-10 text-gray-900 font-semibold justify-end">
+                                        ${item.total.toFixed(2)}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeItem(index)}
+                                        className="mt-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-50"
+                                        title="Remove Item"
+                                        aria-label="Remove Item"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
-                                <div className="p-4 space-y-4">
-                                    {formData.items.map((item, index) => (
-                                        <div key={index} className="flex gap-4 items-start relative group">
-                                            <div className="flex-1">
-                                                <input
-                                                    type="text" placeholder="Item description"
-                                                    value={item.description}
-                                                    onChange={e => updateItem(index, 'description', e.target.value)}
-                                                    className="input w-full border-gray-200"
-                                                    title="Item Description"
-                                                    aria-label="Description"
-                                                />
-                                            </div>
-                                            <div className="w-24">
-                                                <input
-                                                    type="number" placeholder="Qty" min="1"
-                                                    title="Quantity"
-                                                    value={item.quantity}
-                                                    onChange={e => updateItem(index, 'quantity', Number(e.target.value))}
-                                                    className="input w-full border-gray-200"
-                                                />
-                                            </div>
-                                            <div className="w-32">
-                                                <div className="relative">
-                                                    <DollarSign className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                    <input
-                                                        type="number" placeholder="Price" min="0" step="0.01"
-                                                        value={item.unitPrice} title="Unit Price"
-                                                        onChange={e => updateItem(index, 'unitPrice', Number(e.target.value))}
-                                                        className="input w-full pl-7 border-gray-200"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="w-24">
-                                                <div className="relative">
-                                                    <input
-                                                        type="number" placeholder="Tax" min="0" max="100"
-                                                        value={item.tax} title="Tax %"
-                                                        onChange={e => updateItem(index, 'tax', Number(e.target.value))}
-                                                        className="input w-full pr-7 border-gray-200"
-                                                    />
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
-                                                </div>
-                                            </div>
-                                            <div className="w-24 flex items-center h-10 text-gray-900 font-semibold justify-end">
-                                                ${item.total.toFixed(2)}
-                                            </div>
-                                            <button
-                                                onClick={() => removeItem(index)}
-                                                className="mt-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-50"
-                                                title="Remove Item"
-                                                aria-label="Remove Item"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
-                                <textarea
-                                    rows={3}
-                                    value={formData.notes}
-                                    placeholder="Terms, conditions, or extra information..."
-                                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                    className="input w-full py-3 resize-none border-gray-200"
-                                />
-                            </div>
+                            ))}
                         </div>
+                    </div>
 
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-end justify-between mt-auto">
-                            <div className="space-y-1">
-                                <div className="flex justify-between text-xs text-gray-500 gap-8">
-                                    <span>Subtotal:</span>
-                                    <span>${formData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                                <div className="flex justify-between text-xs text-gray-500 gap-8">
-                                    <span>Tax:</span>
-                                    <span>+ ${formData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.tax / 100)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                                <div className="flex justify-between text-xs text-rose-500 gap-8">
-                                    <span>Discount:</span>
-                                    <span>- ${Number(formData.discount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                                <div className="text-xl pt-1 flex gap-4 items-baseline">
-                                    <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Total:</span>
-                                    <span className="font-black text-indigo-600">${(formData.items.reduce((sum, item) => sum + item.total, 0) - formData.discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+                        <textarea
+                            rows={3}
+                            value={formData.notes}
+                            placeholder="Terms, conditions, or extra information..."
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            className="input w-full py-3 resize-none"
+                        />
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex items-end justify-between mt-6">
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-gray-500 gap-8">
+                                <span>Subtotal:</span>
+                                <span>${formData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div className="flex gap-3">
-                                <button onClick={() => setIsModalOpen(false)} className="btn bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">Cancel</button>
-                                <button onClick={handleSubmitQuote} disabled={saving} className="btn bg-indigo-600 text-white rounded-xl shadow-lg border-2 border-transparent px-6 hover:bg-indigo-700 transition-colors">
-                                    {saving ? 'Saving...' : editingId ? 'Update & Save' : 'Generate Quote'}
-                                </button>
+                            <div className="flex justify-between text-xs text-gray-500 gap-8">
+                                <span>Tax:</span>
+                                <span>+ ${formData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.tax / 100)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-rose-500 gap-8">
+                                <span>Discount:</span>
+                                <span>- ${Number(formData.discount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="text-xl pt-1 flex gap-4 items-baseline">
+                                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Total:</span>
+                                <span className="font-black text-indigo-600">${(formData.items.reduce((sum, item) => sum + item.total, 0) - formData.discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                         </div>
                     </div>
                 </div>
-            )}
+            </PlatformModal>
 
             {/* Email Confirmation Modal */}
-            {isEmailModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                <Mail className="w-5 h-5 text-blue-600" /> Send Quotation
-                            </h2>
-                            <button onClick={() => setIsEmailModalOpen(false)} title="Close" className="text-gray-400 hover:text-gray-600 rounded-full p-1 hover:bg-gray-100">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            <p className="text-sm text-gray-600">
-                                This will send <strong>{activeQuote?.quoteNumber}</strong> as a PDF attachment to the following address:
-                            </p>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Recipient Email</label>
-                                <input 
-                                    type="email"
-                                    value={emailRecipient}
-                                    onChange={(e) => setEmailRecipient(e.target.value)}
-                                    placeholder="client@example.com"
-                                    className="input w-full bg-white border-gray-200"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-8">
-                            <button onClick={() => setIsEmailModalOpen(false)} className="btn flex-1 bg-white border border-gray-200 text-gray-700">Cancel</button>
-                            <button 
-                                onClick={handleSendEmail} 
-                                disabled={sendingEmail}
-                                className="btn flex-1 bg-blue-600 text-white shadow-lg shadow-blue-100 disabled:opacity-50"
-                            >
-                                {sendingEmail ? 'Sending...' : 'Send Now'}
-                            </button>
-                        </div>
+            <PlatformModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                title="Send Quotation"
+                icon={Mail}
+                iconColorClass="text-blue-600"
+                iconBgClass="bg-blue-50"
+                maxWidthClass="max-w-md"
+                footer={
+                    <>
+                        <button type="button" onClick={() => setIsEmailModalOpen(false)} className="btn-secondary flex-1">Cancel</button>
+                        <button 
+                            type="button"
+                            onClick={handleSendEmail} 
+                            disabled={sendingEmail}
+                            className="btn-primary flex-1"
+                        >
+                            {sendingEmail ? 'Sending...' : 'Send Now'}
+                        </button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                        This will send <strong>{activeQuote?.quoteNumber}</strong> as a PDF attachment to the following address:
+                    </p>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Recipient Email</label>
+                        <input 
+                            type="email"
+                            value={emailRecipient}
+                            onChange={(e) => setEmailRecipient(e.target.value)}
+                            placeholder="client@example.com"
+                            className="input w-full"
+                        />
                     </div>
                 </div>
-            )}
-
-            <style jsx>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
-            `}</style>
+            </PlatformModal>
         </div>
     );
 }

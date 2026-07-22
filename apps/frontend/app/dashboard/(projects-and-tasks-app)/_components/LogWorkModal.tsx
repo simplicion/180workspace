@@ -3,7 +3,7 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, FileText, Paperclip } from 'lucide-react';
+import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, FileText, Paperclip, Phone, Mail, Users as UsersIcon, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import MultiVoiceRecorder from './MultiVoiceRecorder';
@@ -41,6 +41,58 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         isWorkCompleted: false,
         voiceMessageUrl: '',
     });
+    
+    // Sales Activity State
+    const [isSalesActivity, setIsSalesActivity] = useState(false);
+    const [salesType, setSalesType] = useState('call');
+    const [salesRelationType, setSalesRelationType] = useState<'lead' | 'deal' | 'client' | 'account' | 'contact'>('lead');
+    const [selectedRelationId, setSelectedRelationId] = useState('');
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [fetchingData, setFetchingData] = useState(false);
+
+    useEffect(() => {
+        const delayDebounce = setTimeout(() => {
+            if (searchTerm.length >= 2) {
+                fetchSuggestions();
+            } else {
+                setSuggestions([]);
+            }
+        }, 300);
+        return () => clearTimeout(delayDebounce);
+    }, [searchTerm, salesRelationType]);
+
+    async function fetchSuggestions() {
+        setFetchingData(true);
+        try {
+            let endpoint = '';
+            if (salesRelationType === 'lead') endpoint = '/api/sales/deals';
+            else if (salesRelationType === 'deal') endpoint = '/api/sales/leads-pipeline';
+            else if (salesRelationType === 'client') endpoint = '/api/sales/clients';
+
+            const { data } = await api.get(endpoint);
+            const list = data.leads || data.opportunities || data.clients || [];
+            
+            const filtered = list.filter((item: any) => {
+                const searchStr = (item.name || item.title || item.companyName || '').toLowerCase();
+                return searchStr.includes(searchTerm.toLowerCase());
+            });
+
+            setSuggestions(filtered.slice(0, 5));
+        } catch (err) {
+            console.error('Failed to fetch suggestions', err);
+        } finally {
+            setFetchingData(false);
+        }
+    }
+
+    const activityTypes = [
+        { id: 'call', icon: Phone, label: 'Call', color: 'bg-blue-50 text-blue-600' },
+        { id: 'email', icon: Mail, label: 'Email', color: 'bg-orange-50 text-orange-600' },
+        { id: 'meeting', icon: UsersIcon, label: 'Meeting', color: 'bg-purple-50 text-purple-600' },
+        { id: 'note', icon: MessageSquare, label: 'Note', color: 'bg-emerald-50 text-emerald-600' },
+        { id: 'task', icon: CheckSquare, label: 'Task', color: 'bg-rose-50 text-rose-600' },
+    ];
     
     const [voiceBlobs, setVoiceBlobs] = useState<Blob[]>([]);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -161,10 +213,12 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!form.projectId) return toast.error('Please select a project');
-        if (!form.taskId) return toast.error('Please select a specific task');
+        if (!isSalesActivity) {
+            if (!form.projectId) return toast.error('Please select a project');
+            if (!form.taskId) return toast.error('Please select a specific task');
+            if (!form.hoursSpent) return toast.error('Hours spent is required');
+        }
         if (!form.description) return toast.error('Please describe what you worked on');
-        if (!form.hoursSpent) return toast.error('Hours spent is required');
 
         setSubmitting(true);
         try {
@@ -200,13 +254,35 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                 finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${uploadedUrls.join(',')}` : uploadedUrls.join(',');
             }
 
-            const payload = {
+            let payload: any = {
                 ...form,
                 voiceMessageUrl: finalVoiceUrl,
-                hoursSpent: parseFloat(form.hoursSpent),
+                hoursSpent: parseFloat(form.hoursSpent || '0'),
                 links: links.filter(l => l.trim().length > 0),
                 attachmentUrls: uploadedFileUrls
             };
+
+            if (isSalesActivity) {
+                const salesPayload: any = {
+                    type: salesType,
+                    notes: form.description,
+                    timestamp: form.workDate ? new Date(form.workDate).toISOString() : new Date().toISOString()
+                };
+
+                if (selectedRelationId) {
+                    if (salesRelationType === 'lead') salesPayload.relatedLead = selectedRelationId;
+                    else if (salesRelationType === 'deal') salesPayload.relatedDeal = selectedRelationId;
+                    else if (salesRelationType === 'account') salesPayload.relatedAccount = selectedRelationId;
+                    else if (salesRelationType === 'contact') salesPayload.relatedContact = selectedRelationId;
+                }
+                
+                await api.post('/api/sales/activities', salesPayload);
+                toast.success('Sales Activity logged successfully!');
+                onSuccess(salesPayload);
+                setVoiceBlobs([]);
+                onClose();
+                return;
+            }
 
             const { data } = await api.post('/api/work-logs', payload);
             toast.success('Work log submitted for review!');
@@ -235,7 +311,113 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto hidden-scrollbar px-6 py-5 space-y-6">
+                    
+                    <div className="flex items-center gap-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                        <input
+                            type="checkbox"
+                            id="sales-activity-toggle"
+                            checked={isSalesActivity}
+                            onChange={(e) => setIsSalesActivity(e.target.checked)}
+                            className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-600"
+                        />
+                        <label htmlFor="sales-activity-toggle" className="text-sm font-semibold text-indigo-900 cursor-pointer">
+                            Log as a Sales Activity (Call, Email, Meeting)
+                        </label>
+                    </div>
+
+                    {isSalesActivity && (
+                        <div className="space-y-6 p-5 bg-gray-50 border border-gray-100 rounded-xl">
+                            <div>
+                                <label className="label">Activity Type</label>
+                                <div className="grid grid-cols-5 gap-3 mt-1.5">
+                                    {activityTypes.map(t => (
+                                        <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => setSalesType(t.id)}
+                                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                                                salesType === t.id 
+                                                    ? 'border-indigo-600 bg-white shadow-sm' 
+                                                    : 'border-transparent bg-white hover:border-indigo-200 shadow-sm'
+                                            }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg mb-2 flex items-center justify-center ${
+                                                salesType === t.id ? t.color : 'bg-gray-50 text-gray-400'
+                                            }`}>
+                                                <t.icon className="w-4 h-4" />
+                                            </div>
+                                            <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+                                                salesType === t.id ? 'text-indigo-900' : 'text-gray-500'
+                                            }`}>
+                                                {t.label}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="label mb-0">Relate To</label>
+                                    <div className="flex bg-gray-200/50 p-1 rounded-lg">
+                                        {['lead', 'deal', 'client'].map(rt => (
+                                            <button
+                                                key={rt}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSalesRelationType(rt as any);
+                                                    setSearchTerm('');
+                                                    setSelectedRelationId('');
+                                                }}
+                                                className={`px-3 py-1 rounded-md text-xs font-semibold uppercase tracking-wider transition-all ${
+                                                    salesRelationType === rt 
+                                                        ? 'bg-white text-indigo-700 shadow-sm' 
+                                                        : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                            >
+                                                {rt}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="relative mt-2">
+                                    <input 
+                                        type="text" 
+                                        placeholder={`Search for a ${salesRelationType}...`}
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                        className="select"
+                                    />
+                                    {fetchingData && <LogoLoader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin" />}
+                                    
+                                    {suggestions.length > 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden z-20">
+                                            {suggestions.map(item => (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedRelationId(item.id);
+                                                        setSearchTerm(item.name || item.title || item.companyName);
+                                                        setSuggestions([]);
+                                                    }}
+                                                    className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                                                >
+                                                    <div className="font-medium text-gray-900 text-sm">
+                                                        {item.name || item.title || item.companyName}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!isSalesActivity && (
+                    <>
                     {/* Project & Module Selection */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -288,6 +470,8 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                             {loadingTasks && <LogoLoader className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
                         </div>
                     </div>
+                    </>
+                    )}
 
                     {/* Description */}
                     <div>

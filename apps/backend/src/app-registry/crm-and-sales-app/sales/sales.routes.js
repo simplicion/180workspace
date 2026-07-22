@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const express = require('express');
 const router = express.Router();
@@ -27,29 +27,29 @@ router.get('/recommendations', salesController.getRecommendations);
 router.get('/forecasting', salesController.getForecasting);
 router.get('/productivity', salesController.getProductivity);
 
-// Leads
-router.route('/leads')
+// Deals
+router.route('/deals')
     .get(salesController.getLeads)
     .post(salesController.createLead);
 
-router.post('/leads/import', salesController.importLeads);
+router.post('/deals/import', salesController.importLeads);
 
-router.route('/leads/:id')
+router.route('/deals/:id')
     .put(salesController.updateLead)
     .delete(salesController.deleteLead);
 
-router.post('/leads/:id/convert', salesController.convertLead);
+router.post('/deals/:id/convert', salesController.convertLead);
 
-// Opportunities
-router.route('/opportunities')
+// Leads Pipeline
+router.route('/leads-pipeline')
     .get(salesController.getOpportunities)
     .post(salesController.createOpportunity);
 
-router.route('/opportunities/:id')
+router.route('/leads-pipeline/:id')
     .put(salesController.updateOpportunity)
     .delete(salesController.deleteOpportunity);
 
-router.post('/opportunities/:id/convert', salesController.createProjectFromOpportunity);
+router.post('/leads-pipeline/:id/convert', salesController.createProjectFromOpportunity);
 
 // Accounts & Contacts
 router.route('/accounts')
