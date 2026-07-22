@@ -213,19 +213,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     const themeColor = newCompany?.brandColor || platformBranding?.themeColor || newSettings?.themeColor;
                     if (themeColor) applyThemeColor(themeColor);
 
-                    const title = newCompany?.companyName || platformBranding?.name || newSettings?.companyName || 'Platform';
-                    document.title = `${title} — Management System`;
-
-                    const favicon = newCompany?.companyLogo || platformBranding?.favicon || platformBranding?.logo || newSettings?.logoUrl;
-                    if (favicon) {
-                        let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
-                        if (!link) {
-                            link = document.createElement('link');
-                            link.rel = 'icon';
-                            document.getElementsByTagName('head')[0].appendChild(link);
-                        }
-                        link.href = favicon;
-                    }
+                    // Note: document.title and favicon are now hardcoded via Next.js Metadata in layout.tsx 
+                    // to ensure platform branding (180workspace) is always displayed instead of tenant branding.
                 }
                 setIsLoading(false);
             };
