@@ -64,48 +64,7 @@ jobs:
         run: pnpm turbo run build --filter=backend --filter=worker
 
   # ==========================================
-  # Phase 3: Build Frontend
-  # ==========================================
-  build-frontend:
-    name: Build Frontend Apps for Cloudflare
-    needs: prepare
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Frontend (next-on-pages)
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          cd apps/frontend
-          pnpm dlx @cloudflare/next-on-pages
-
-      - name: Build Admin Web (next-on-pages)
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          cd apps/admin-web
-          pnpm dlx @cloudflare/next-on-pages
-      
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-builds
-          path: |
-            apps/frontend/.vercel/output/static
-            apps/admin-web/.vercel/output/static
-
-  # ==========================================
-  # Phase 4: Deploy Backend to AWS EC2
+  # Phase 3: Deploy Backend to AWS EC2
   # ==========================================
   deploy-backend:
     name: Deploy to AWS EC2
@@ -126,39 +85,3 @@ jobs:
             pnpm turbo run build --filter=backend --filter=worker
             pm2 restart all --update-env
             pm2 save
-
-  # ==========================================
-  # Phase 5: Deploy Frontend to Cloudflare
-  # ==========================================
-  deploy-frontend:
-    name: Deploy to Cloudflare Pages
-    needs: build-frontend
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-    steps:
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-builds
-          
-      - name: Deploy Frontend to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: 180workspace-frontend
-          directory: apps/frontend/.vercel/output/static
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: production
-
-      - name: Deploy Admin Web to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: 180workspace-admin
-          directory: apps/admin-web/.vercel/output/static
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: production
