@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getToken } from 'next-auth/jwt';
 import { prisma } from '@workspace/db';
 
 export async function PUT(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    console.log('[Workspace Setup] Session:', JSON.stringify(session, null, 2));
+    const token = await getToken({ req: req as any });
+    console.log('[Workspace Setup] Token:', JSON.stringify(token, null, 2));
 
-    if (!session || !session.user) {
+    if (!token || !token.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,7 +23,7 @@ export async function PUT(req: Request) {
       enabledModules 
     } = await req.json();
 
-    let companyId = (session.user as any).companyId;
+    let companyId = (token as any).companyId;
 
     if (!companyId) {
       // Create a new company since the user doesn't have one
@@ -51,7 +50,7 @@ export async function PUT(req: Request) {
 
       // Link the new company to the user and make them an admin
       await prisma.user.update({
-        where: { id: (session.user as any).id },
+        where: { id: (token as any).id },
         data: {
           companyId,
           role: 'admin',
