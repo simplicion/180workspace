@@ -100,3 +100,5 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'Failed to complete setup' }, { status: 500 });
   }
 }
+
+export const runtime = 'edge';

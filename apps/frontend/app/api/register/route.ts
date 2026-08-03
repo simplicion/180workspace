@@ -64,3 +64,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error?.message || 'Failed to register user', details: error?.toString() }, { status: 500 });
   }
 }
+
+export const runtime = 'edge';

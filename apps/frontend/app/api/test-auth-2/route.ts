@@ -1,1 +1,3 @@
 export async function GET() { try { require('@workspace/db'); require('next-auth/providers/google'); require('next-auth/providers/credentials'); require('@auth/prisma-adapter'); require('bcryptjs'); return Response.json({ success: true }); } catch (e: any) { return Response.json({ error: e.message, stack: e.stack }); } }
+
+export const runtime = 'edge';

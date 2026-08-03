@@ -11,6 +11,8 @@ export const viewport = {
     userScalable: process.env.NODE_ENV !== 'production',
 };
 
+export const runtime = 'edge';
+
 export const metadata: Metadata = {
     title: {
         default: '180workspace - The Ultimate Business Operating System',

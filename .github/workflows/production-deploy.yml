@@ -83,11 +83,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Frontend (next-on-pages)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd apps/frontend
           pnpm dlx @cloudflare/next-on-pages
 
       - name: Build Admin Web (next-on-pages)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd apps/admin-web
           pnpm dlx @cloudflare/next-on-pages
