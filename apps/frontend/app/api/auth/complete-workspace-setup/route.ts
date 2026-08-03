@@ -100,4 +100,3 @@ export async function PUT(req: Request) {
   }
 }
 
-export const runtime = 'edge';
