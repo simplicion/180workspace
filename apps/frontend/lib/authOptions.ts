@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
+import EmailProvider from "next-auth/providers/email"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@workspace/db"
 import bcrypt from "bcryptjs"
@@ -15,6 +16,17 @@ export const authOptions: NextAuthOptions = {
     newUser: '/workspace-setup'
   },
   providers: [
+    EmailProvider({
+      server: {
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        }
+      },
+      from: process.env.EMAIL_FROM || 'noreply@pitchin180.com',
+    }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
