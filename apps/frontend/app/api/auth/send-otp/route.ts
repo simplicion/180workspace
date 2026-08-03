@@ -1,9 +1,5 @@
-
-
 import { NextResponse } from "next/server";
 import { prisma } from "@workspace/db";
-import nodemailer from "nodemailer";
-import crypto from "crypto";
 
 export async function POST(req: Request) {
     try {
@@ -22,7 +18,6 @@ export async function POST(req: Request) {
 
         // Upsert user to store OTP (or use a dedicated OTP table)
         // Since we added otpCode to User model, we'll upsert there.
-        // But what if it's a completely new user? We'll create a stub user.
         // Let's check if user exists.
         const user = await prisma.user.findUnique({ where: { email } });
         
@@ -52,33 +47,35 @@ export async function POST(req: Request) {
             });
         }
 
-        // Setup Nodemailer
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
+        const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-        // Send Email
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || '"PitchIn Auth" <noreply@pitchin.com>',
-            to: email,
-            subject: "Your PitchIn Verification Code",
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>Welcome to PitchIn!</h2>
-                    <p>Your verification code is: <strong>${otpCode}</strong></p>
-                    <p>This code will expire in 10 minutes.</p>
-                   </div>`,
-        };
+        const emailHtml = `<div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>Welcome to PitchIn!</h2>
+                <p>Your verification code is: <strong>${otpCode}</strong></p>
+                <p>This code will expire in 10 minutes.</p>
+               </div>`;
 
-        if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-            await transporter.sendMail(mailOptions);
+        if (RESEND_API_KEY) {
+            const res = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${RESEND_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    from: process.env.EMAIL_FROM || "PitchIn Auth <noreply@pitchin.com>",
+                    to: email,
+                    subject: "Your PitchIn Verification Code",
+                    html: emailHtml,
+                }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.text();
+                console.error("Error from Resend API:", errData);
+            }
         } else {
-            console.log(`[Development Mode] OTP for ${email} is ${otpCode}`);
+            console.log(`[Development Mode] OTP for ${email} is ${otpCode}. Please set RESEND_API_KEY to send real emails.`);
         }
 
         return NextResponse.json({ success: true, message: "OTP sent successfully" });
