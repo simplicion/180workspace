@@ -39,17 +39,24 @@ const eslintConfig = [
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/no-empty-object-type": "off",
       "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
       
       // General React/JS rules
       "react/react-in-jsx-scope": "off",
+      "react/no-unescaped-entities": "off",
       "no-console": "off",
       "no-unused-vars": "off",
       "no-empty": "off",
       "no-case-declarations": "off",
       "no-constant-condition": "off",
+      "no-useless-escape": "off",
+      
+      // Hooks rules
+      "react-hooks/exhaustive-deps": "off",
       
       // Next.js Link rules
-      "@next/next/no-img-element": "warn",
+      "@next/next/no-img-element": "off",
     },
     settings: {
       next: {

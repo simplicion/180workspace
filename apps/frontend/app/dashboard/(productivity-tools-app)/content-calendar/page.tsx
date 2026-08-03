@@ -98,8 +98,6 @@ export default function ContentCalendarPage() {
         }
     };
 
-    useEffect(() => { fetchCalendars(); }, [search, status]);
-
     return (
         <div>
             <div className="page-header flex items-center justify-between">
