@@ -11,7 +11,7 @@ export const viewport = {
     userScalable: process.env.NODE_ENV !== 'production',
 };
 
-export const runtime = 'edge';
+
 
 export const metadata: Metadata = {
     title: {
