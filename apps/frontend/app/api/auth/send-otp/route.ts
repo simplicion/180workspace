@@ -47,35 +47,24 @@ export async function POST(req: Request) {
             });
         }
 
-        const RESEND_API_KEY = process.env.RESEND_API_KEY;
-
-        const emailHtml = `<div style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Welcome to PitchIn!</h2>
-                <p>Your verification code is: <strong>${otpCode}</strong></p>
-                <p>This code will expire in 10 minutes.</p>
-               </div>`;
-
-        if (RESEND_API_KEY) {
-            const res = await fetch("https://api.resend.com/emails", {
+        // Delegate email sending to the Node.js backend to bypass Edge runtime limitations with nodemailer
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+        
+        try {
+            const res = await fetch(`${apiUrl}/auth/send-otp-email`, {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${RESEND_API_KEY}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    from: process.env.EMAIL_FROM || "PitchIn Auth <noreply@pitchin.com>",
-                    to: email,
-                    subject: "Your PitchIn Verification Code",
-                    html: emailHtml,
-                }),
+                body: JSON.stringify({ email, otpCode }),
             });
 
             if (!res.ok) {
                 const errData = await res.text();
-                console.error("Error from Resend API:", errData);
+                console.error("Error from Backend Email API:", errData);
             }
-        } else {
-            console.log(`[Development Mode] OTP for ${email} is ${otpCode}. Please set RESEND_API_KEY to send real emails.`);
+        } catch (fetchError) {
+            console.error("Failed to call backend email service:", fetchError);
         }
 
         return NextResponse.json({ success: true, message: "OTP sent successfully" });

@@ -211,4 +211,50 @@ exports.googleLogin = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+const nodemailer = require('nodemailer');
+
+exports.sendOtpEmail = async (req, res, next) => {
+    try {
+        const { email, otpCode } = req.body;
+        
+        if (!email || !otpCode) {
+            return res.status(400).json({ success: false, message: "Email and OTP are required" });
+        }
+
+        // Setup Nodemailer
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: parseInt(process.env.SMTP_PORT || '587'),
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+            },
+        });
+
+        // Send Email
+        const mailOptions = {
+            from: process.env.EMAIL_FROM || '"PitchIn Auth" <noreply@pitchin180.com>',
+            to: email,
+            subject: "Your PitchIn Verification Code",
+            html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2>Welcome to PitchIn!</h2>
+                    <p>Your verification code is: <strong>${otpCode}</strong></p>
+                    <p>This code will expire in 10 minutes.</p>
+                   </div>`,
+        };
+
+        if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+            await transporter.sendMail(mailOptions);
+        } else {
+            console.log(`[Development Mode] OTP for ${email} is ${otpCode}`);
+        }
+
+        res.json({ success: true, message: "OTP email sent successfully" });
+    } catch (err) {
+        console.error("Error sending OTP email:", err);
+        next(err);
+    }
+};
+
 module.exports = exports;

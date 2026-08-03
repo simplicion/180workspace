@@ -8,9 +8,11 @@ const {
     getMe, changePassword,
     setupMFA, enableMFA,
     completeWorkspaceSetup, googleLogin,
-    findWorkspaces, forgotPassword, checkForgotEligibility
+    findWorkspaces, forgotPassword, checkForgotEligibility,
+    sendOtpEmail
 } = require('./auth.controller');
 
+router.post('/send-otp-email', sendOtpEmail);
 router.post('/register', register);
 router.post('/login', login);
 router.post('/google', googleLogin);
