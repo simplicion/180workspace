@@ -1,0 +1,160 @@
+name: Master CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "production" ]
+
+jobs:
+  # ==========================================
+  # Phase 1: Preparation
+  # ==========================================
+  prepare:
+    name: Prepare & Setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup pnpm cache
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Restore Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+  # ==========================================
+  # Phase 2: Build Backend
+  # ==========================================
+  build-backend:
+    name: Build Backend Services
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Database & Packages
+        run: pnpm turbo run build --filter=backend --filter=worker
+
+  # ==========================================
+  # Phase 3: Build Frontend
+  # ==========================================
+  build-frontend:
+    name: Build Frontend Apps for Cloudflare
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Frontend (next-on-pages)
+        run: |
+          cd apps/frontend
+          npx @cloudflare/next-on-pages
+
+      - name: Build Admin Web (next-on-pages)
+        run: |
+          cd apps/admin-web
+          npx @cloudflare/next-on-pages
+      
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-builds
+          path: |
+            apps/frontend/.vercel/output/static
+            apps/admin-web/.vercel/output/static
+
+  # ==========================================
+  # Phase 4: Deploy Backend to AWS EC2
+  # ==========================================
+  deploy-backend:
+    name: Deploy to AWS EC2
+    needs: build-backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Remote SSH Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/app
+            git fetch origin production
+            git reset --hard origin/production
+            pnpm install --frozen-lockfile
+            pnpm turbo run build --filter=backend --filter=worker
+            pm2 restart all --update-env
+            pm2 save
+
+  # ==========================================
+  # Phase 5: Deploy Frontend to Cloudflare
+  # ==========================================
+  deploy-frontend:
+    name: Deploy to Cloudflare Pages
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-builds
+          
+      - name: Deploy Frontend to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: 180workspace-frontend
+          directory: apps/frontend/.vercel/output/static
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: production
+
+      - name: Deploy Admin Web to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: 180workspace-admin
+          directory: apps/admin-web/.vercel/output/static
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: production
