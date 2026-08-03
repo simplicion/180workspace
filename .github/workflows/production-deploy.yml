@@ -85,12 +85,12 @@ jobs:
       - name: Build Frontend (next-on-pages)
         run: |
           cd apps/frontend
-          npx @cloudflare/next-on-pages
+          pnpm dlx @cloudflare/next-on-pages
 
       - name: Build Admin Web (next-on-pages)
         run: |
           cd apps/admin-web
-          npx @cloudflare/next-on-pages
+          pnpm dlx @cloudflare/next-on-pages
       
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
