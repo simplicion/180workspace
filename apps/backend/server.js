@@ -161,6 +161,9 @@ async function bootstrap() {
         // Always initialize queues (API needs Queues to add jobs, Worker needs Workers to process)
         await initQueues();
         
+        // Initialize WebSockets on HTTP server
+        initSocket(server);
+        
         
         if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
             console.log('👷 Starting Worker Services (Delegated to external worker app)');

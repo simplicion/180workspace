@@ -61,7 +61,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        app: [admin-web, backend, frontend, worker, ws]
+        app: [admin-web, backend, frontend, worker]
     
     steps:
       - name: Checkout repository

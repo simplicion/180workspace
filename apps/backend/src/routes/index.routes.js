@@ -58,6 +58,7 @@ router.use('/auth', authLimiter, authRoutes);
 router.use('/public', require('../app-registry/public/public.routes'));
 router.use('/public/websites', require('../app-registry/advertising-app/websites/website-public.routes'));
 router.use('/setup', setupRoutes);
+router.use('/health', healthRoutes);
 router.use('/branding', require('../platform-core/platform-security-audit/routes/branding.routes'));
 router.use('/webhooks', webhookRoutes);
 router.use('/community', forumRoutes);

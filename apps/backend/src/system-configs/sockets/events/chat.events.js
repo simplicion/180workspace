@@ -1,3 +1,5 @@
+'use strict';
+
 const { getTenantPrisma } = require('@workspace/db');
 
 function mapUser(user) {

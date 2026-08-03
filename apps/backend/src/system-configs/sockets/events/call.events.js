@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = (io, socket, onlineUsers) => {
     const userId = socket.userId;
 

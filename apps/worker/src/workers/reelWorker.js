@@ -7,7 +7,7 @@ const path = require("path");
 const fs = require("fs-extra");
 const os = require("os");
 const axios = require("axios");
-const { uploadDirectoryToR2, uploadToR2 } = require('../../../backend/src/platform-core/platform-storage/r2');
+const { uploadDirectoryToR2, uploadToR2 } = require('../../../backend/src/platform-core/platform-storage/services/r2');
 const { getIo } = require('../../../backend/src/system-configs/sockets/index');
 
 // Tell fluent-ffmpeg where to find the static binaries
