@@ -58,7 +58,7 @@ const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }>
     'ClosedLost': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' }
 };
 
-export default function leadPipelinesKanbanPage() {
+export default function LeadPipelinesKanbanPage() {
     const { user } = useAuth();
     const [leadPipelines, setleadPipelines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);

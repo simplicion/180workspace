@@ -24,7 +24,7 @@ export async function POST(req: Request) {
         // Since we added otpCode to User model, we'll upsert there.
         // But what if it's a completely new user? We'll create a stub user.
         // Let's check if user exists.
-        let user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({ where: { email } });
         
         if (user) {
             // Check if user is fully registered (has completed onboarding and set a username)

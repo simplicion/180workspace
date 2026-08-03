@@ -224,7 +224,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         try {
             let finalVoiceUrl = form.voiceMessageUrl;
 
-            let uploadedFileUrls: string[] = [];
+            const uploadedFileUrls: string[] = [];
             if (selectedFiles.length > 0) {
                 for (let i = 0; i < selectedFiles.length; i++) {
                     const file = selectedFiles[i];
@@ -254,7 +254,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                 finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${uploadedUrls.join(',')}` : uploadedUrls.join(',');
             }
 
-            let payload: any = {
+            const payload: any = {
                 ...form,
                 voiceMessageUrl: finalVoiceUrl,
                 hoursSpent: parseFloat(form.hoursSpent || '0'),

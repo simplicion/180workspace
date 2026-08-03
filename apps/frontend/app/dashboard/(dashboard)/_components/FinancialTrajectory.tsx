@@ -97,7 +97,7 @@ export default function FinancialTrajectory() {
     // Generate area data based on transactions (daily or monthly)
     const aggregatedDataMap = new Map<string, { timestamp: number; rev: number; cost: number; name: string }>();
     
-    let currDate = new Date(startDate);
+    const currDate = new Date(startDate);
     if (isMonthly) {
         currDate.setDate(1); // Start at the beginning of the month
     }

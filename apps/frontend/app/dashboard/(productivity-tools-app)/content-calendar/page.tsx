@@ -33,24 +33,11 @@ export default function ContentCalendarPage() {
     const { user } = useAuth();
     const canCreateCalendar = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team')); // Adjust permissions as needed
 
-    if (user && !['admin', 'manager', 'hr'].includes(user.role)) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                    <CalendarDays className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-gray-500 font-medium">Access Denied</p>
-                    <p className="text-gray-400 text-sm mt-1">You do not have permission to view the Content Calendar.</p>
-                </div>
-            </div>
-        );
-    }
-
     const fetchCalendars = async () => {
         setLoading(true);
         try {
-            const { calendars } = await contentCalendarService.getCalendars(50, 0); // Need to add search/status filters to service if handled by backend
+            const { calendars } = await contentCalendarService.getCalendars(50, 0);
             
-            // Basic frontend filtering if backend doesn't support it yet
             let filtered = calendars;
             if (search) {
                 filtered = filtered.filter(c => c.brandName.toLowerCase().includes(search.toLowerCase()) || (c.industry || '').toLowerCase().includes(search.toLowerCase()));
@@ -66,6 +53,20 @@ export default function ContentCalendarPage() {
             setLoading(false);
         }
     };
+
+    useEffect(() => { fetchCalendars(); }, [search, status]);
+
+    if (user && !['admin', 'manager', 'hr'].includes(user.role)) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <CalendarDays className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">Access Denied</p>
+                    <p className="text-gray-400 text-sm mt-1">You do not have permission to view the Content Calendar.</p>
+                </div>
+            </div>
+        );
+    }
 
     const handleArchive = async () => {
         if (!calendarToArchive) return;
