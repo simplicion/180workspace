@@ -25,6 +25,7 @@ router.use(protect);
 router.get('/private', companyProfileController.getPrivateProfile);
 router.get('/private/milestones', companyProfileController.getCompanyMilestones);
 router.put('/', companyProfileController.updateProfile);
+router.post('/private/verify-domain', companyProfileController.verifyDomain);
 router.put('/private/finance', companyProfileController.updateFinanceTab);
 // Service Routes
 router.post('/private/services', companyServicesController.createService);

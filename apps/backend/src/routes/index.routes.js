@@ -40,6 +40,8 @@ const releaseNotesRoutes = require('../platform-core/platform-communications/rou
 const jobRoutes = require('../app-registry/hr-management-app/recruitment/job.routes');
 const websiteRoutes = require('../app-registry/advertising-app/websites/website.routes');
 
+// Initialize CRM listeners
+require('../app-registry/crm-and-sales-app/sales/listeners')();
 
 const setupRoutes = require('../app-registry/setup-app/setup.routes');
 const healthRoutes = require('../platform-core/platform-engine/routes/health.routes');
@@ -51,11 +53,13 @@ const superAdminRoutes = require('../app-registry/superadmin/superadmin.routes')
 const supportRoutes = require('../app-registry/productivity-tools-app/help-support/support.routes');
 const billingRoutes = require('../app-registry/finance-app/bills/billing.routes');
 const salesRoutes = require('../app-registry/crm-and-sales-app/sales/sales.routes');
+const formBuilderRoutes = require('../app-registry/advertising-app/forms/form-builder.routes');
 const analyticsRoutes = require('../app-registry/insights-app/analytics/analytics.routes');
 
 // ─── Public & Core ─────────────────────────────────────────────────────────
 router.use('/auth', authLimiter, authRoutes);
 router.use('/public', require('../app-registry/public/public.routes'));
+router.use('/public/forms', require('../app-registry/advertising-app/forms/public-forms.routes'));
 router.use('/public/websites', require('../app-registry/advertising-app/websites/website-public.routes'));
 router.use('/setup', setupRoutes);
 router.use('/health', healthRoutes);
@@ -111,10 +115,12 @@ router.use('/invoices', protect, moduleGuard('crm'), require('../app-registry/fi
 router.use('/onboarding', protect, moduleGuard('hr'), require('../app-registry/setup-app/onboarding.routes'));
 router.use('/milestones', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/milestones/milestone.routes'));
 router.use('/assets', protect, require('../app-registry/assets-app/assets/asset.routes'));
-router.use('/content-calendar', protect, moduleGuard('tools'), require('../app-registry/productivity-tools-app/content-calendar/content-calendar.routes'));
+router.use('/content-calendar', protect, moduleGuard('tools'), require('../app-registry/social-media-management-app/content-calendar/content-calendar.routes'));
+router.use('/social-media', protect, moduleGuard('tools'), require('../app-registry/social-media-management-app/social-media.routes'));
 router.use('/company-config', protect, require('../app-registry/company-hub-app/company-config/company-config.routes'));
 router.use('/analytics', protect, moduleGuard('insights'), analyticsRoutes);
 router.use('/sales', protect, moduleGuard('crm'), salesRoutes);
+router.use('/forms', protect, moduleGuard('advertising'), formBuilderRoutes);
 router.use('/websites', protect, moduleGuard('advertising'), websiteRoutes);
 router.use('/finance', protect, moduleGuard('finance'), require('../app-registry/finance-app/finance-overview/finance.routes'));
 router.use('/vendors', protect, moduleGuard('finance'), require('../app-registry/finance-app/vendors/vendor.routes'));

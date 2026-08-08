@@ -78,7 +78,7 @@ export default function SignupFlow() {
                 
                 await signIn('platform-token', { token, redirect: false });
                 toast.success('Welcome back!');
-                router.push('/dashboard');
+                window.location.href = '/dashboard';
                 return;
             }
         } catch (err: any) {
@@ -231,7 +231,7 @@ export default function SignupFlow() {
                 // Update session to reflect new role before redirecting
                 await updateSession({ role: 'admin', isFirstLogin: false });
 
-                router.push('/workspace-setup');
+                window.location.href = '/workspace-setup';
             } else {
                 toast.error(data.message || 'Failed to complete onboarding');
             }

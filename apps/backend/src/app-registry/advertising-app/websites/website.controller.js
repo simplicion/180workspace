@@ -1,6 +1,7 @@
-﻿'use strict';
+'use strict';
 
 const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
+const { prisma: globalPrisma, getTenantPrisma } = require('@workspace/db');
 
 /**
  * GET /api/websites
@@ -10,7 +11,19 @@ exports.getWebsites = async (req, res, next) => {
     try {
         const Website = req.prisma.website;
         const websites = await Website.findMany({ orderBy: { createdAt: 'desc' } });
-        res.json({ websites });
+        
+        // Fetch company to get slug/customDomain for URL generation
+        let companySlug = '';
+        let customDomain = null;
+        try {
+            const company = await globalPrisma.company.findUnique({ where: { id: req.user.companyId } });
+            if (company) {
+                companySlug = company.slug;
+                customDomain = company.customDomain;
+            }
+        } catch (e) {}
+
+        res.json({ websites, company: { slug: companySlug, customDomain } });
     } catch (err) {
         next(err);
     }
@@ -31,12 +44,29 @@ exports.createWebsite = async (req, res, next) => {
             return res.status(400).json({ error: 'A website with this slug already exists.' });
         }
 
+        // Data-First Auto-Fill: Initialize with default structured sections
+        const initialConfig = {
+            brand: { primaryColor: '#4f46e5', font: 'inter' },
+            sections: [
+                { id: 'sec-' + Date.now() + '-1', type: 'hero', data: { title: name, subtitle: 'Welcome to our business.', buttonText: 'Contact Us' } },
+                { id: 'sec-' + Date.now() + '-2', type: 'services', data: { items: [{ title: 'Our Core Service', description: 'Description of what we do best.' }] } },
+                { id: 'sec-' + Date.now() + '-3', type: 'about', data: { content: 'We are a dedicated team providing top-notch services.' } },
+                { id: 'sec-' + Date.now() + '-4', type: 'contact', data: { email: 'hello@example.com', phone: '1-800-000-0000' } }
+            ]
+        };
+
+        const count = await Website.count({ where: { companyId: req.user.companyId } });
+        const isFirstWebsite = count === 0;
+
         const website = await Website.create({ data: {
             name,
             slug,
-            template,
+            template: template || 'default',
+            config: initialConfig,
             owner: req.user.id,
-            status: 'active'
+            companyId: req.user.companyId,
+            status: 'active',
+            isPrimary: isFirstWebsite
         } });
 
         await logAction(req.user.id, 'CREATE_WEBSITE', 'website', website.id, { name: website.name }, req);
@@ -53,7 +83,10 @@ exports.createWebsite = async (req, res, next) => {
 exports.getWebsite = async (req, res, next) => {
     try {
         const Website = req.prisma.website;
-        const website = await Website.findUnique({ where: { id: req.params.id } });
+        const website = await Website.findUnique({ 
+            where: { id: req.params.id },
+            include: { company: true } // Include company for subdomain resolution
+        });
         if (!website) return res.status(404).json({ error: 'Website not found' });
         res.json({ website });
     } catch (err) {
@@ -67,7 +100,33 @@ exports.getWebsite = async (req, res, next) => {
 exports.updateWebsite = async (req, res, next) => {
     try {
         const Website = req.prisma.website;
-        const website = await Website.update({ where: { id: req.params.id }, data: req.body });
+        const { name, slug, template, config, status, isPrimary } = req.body;
+        
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (slug !== undefined) updateData.slug = slug;
+        if (template !== undefined) updateData.template = template;
+        if (config !== undefined) updateData.config = config;
+        if (status !== undefined) updateData.status = status;
+
+        if (isPrimary === true) {
+            updateData.isPrimary = true;
+            // Get the website to know its companyId
+            const currentWebsite = await Website.findUnique({ where: { id: req.params.id } });
+            if (currentWebsite) {
+                // Set all other websites for this company to not be primary
+                await Website.updateMany({
+                    where: { companyId: currentWebsite.companyId, id: { not: req.params.id } },
+                    data: { isPrimary: false }
+                });
+            }
+        }
+
+        const website = await Website.update({ 
+            where: { id: req.params.id }, 
+            data: updateData 
+        });
+        
         if (!website) return res.status(404).json({ error: 'Website not found' });
 
         await logAction(req.user.id, 'UPDATE_WEBSITE', 'website', website.id, { name: website.name }, req);
@@ -100,8 +159,8 @@ exports.deleteWebsite = async (req, res, next) => {
  */
 exports.getWebsiteLeads = async (req, res, next) => {
     try {
-        const WebsiteLead = req.prisma.websiteLead;
-        const leads = await WebsiteLead.findMany({ where: { websiteId: req.params.id }, orderBy: { createdAt: 'desc' } });
+        const WebsiteFormSubmission = req.prisma.websiteFormSubmission;
+        const leads = await WebsiteFormSubmission.findMany({ where: { websiteId: req.params.id }, orderBy: { createdAt: 'desc' } });
         res.json({ leads });
     } catch (err) {
         next(err);
@@ -145,7 +204,7 @@ exports.getWebsiteStats = async (req, res, next) => {
         if (!req.prisma) return res.status(500).json({ error: 'Database connection not available.' });
         
         const Website = req.prisma.website;
-        const WebsiteLead = req.prisma.websiteLead;
+        const WebsiteFormSubmission = req.prisma.websiteFormSubmission;
         const websiteId = req.params.id;
 
         const website = await Website.findUnique({ where: { id: websiteId } });
@@ -155,7 +214,7 @@ exports.getWebsiteStats = async (req, res, next) => {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const recentLeads = await WebsiteLead.findMany({
+        const recentLeads = await WebsiteFormSubmission.findMany({
             where: { websiteId: website.id, createdAt: { gte: thirtyDaysAgo } },
             select: { createdAt: true },
             orderBy: { createdAt: 'asc' }
@@ -173,7 +232,7 @@ exports.getWebsiteStats = async (req, res, next) => {
         }));
 
         // Status breakdown
-        const groupedStatus = await WebsiteLead.groupBy({
+        const groupedStatus = await WebsiteFormSubmission.groupBy({
             by: ['status'],
             where: { websiteId: website.id },
             _count: { _all: true }
@@ -198,36 +257,74 @@ exports.getWebsiteStats = async (req, res, next) => {
 // --- Public Endpoints ---
 
 /**
- * GET /api/public/websites/:slug
+ * GET /api/public/websites/resolve
  * Used by the public template engine to fetch config.
  */
 exports.publicGetWebsite = async (req, res, next) => {
     try {
-        if (!req.prisma) {
-            return res.status(404).json({ error: 'Workspace not found. Please access this site via your workspace subdomain.' });
+        const prismaClient = req.prisma || globalPrisma;
+        const { domain, slug } = req.query;
+        
+        if (!domain) return res.status(400).json({ error: 'Domain is required' });
+
+        let resolvedSlug = slug;
+        
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com';
+        const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
+        const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
+
+        let company = await prismaClient.company.findFirst({
+            where: {
+                OR: [
+                    { customDomain: domain },
+                    { slug: subdomainSlug }
+                ]
+            }
+        });
+
+        // If not found by exact match, check for wildcard subdomain on custom domain
+        if (!company && !isSubdomain) {
+            const parts = domain.split('.');
+            if (parts.length > 2) {
+                const baseDomain = parts.slice(1).join('.');
+                company = await prismaClient.company.findFirst({ where: { customDomain: baseDomain }});
+                if (company && !resolvedSlug) {
+                    // Extract the subdomain as the website slug
+                    resolvedSlug = parts[0];
+                }
+            }
         }
 
-        const Website = req.prisma.website;
-        const Pixel = req.prisma.pixel;
+        if (!company) return res.status(404).json({ error: 'Company not found for this domain' });
 
-        const website = await Website.findFirst({ where: { slug: req.params.slug, status: 'active' } });
+        let website;
+        if (resolvedSlug) {
+            website = await prismaClient.website.findFirst({
+                where: { companyId: company.id, slug: resolvedSlug, status: 'active' }
+            });
+        } else {
+            website = await prismaClient.website.findFirst({
+                where: { companyId: company.id, isPrimary: true, status: 'active' }
+            });
+        }
+
         if (!website) return res.status(404).json({ error: 'Website not found' });
 
         // Increment view count (fire and forget)
-        // Prisma Json update is complex for incrementing nested fields; just read/write or ignore for now, this was a fire and forget
-        // Doing a manual fetch and update:
         (async () => {
             try {
-                const w = await Website.findUnique({ where: { id: website.id } });
+                const w = await prismaClient.website.findUnique({ where: { id: website.id } });
                 if (w) {
                     const stats = w.stats || { views: 0, leads: 0 };
                     stats.views = (stats.views || 0) + 1;
-                    await Website.update({ where: { id: website.id }, data: { stats } });
+                    await prismaClient.website.update({ where: { id: website.id }, data: { stats } });
                 }
             } catch(e) {}
         })();
 
-        const pixels = await Pixel.findMany({ where: { websiteId: website.id, status: 'active' } });
+        const pixels = await prismaClient.pixel.findMany({
+            where: { websiteId: website.id, status: 'active' }
+        });
 
         res.json({ website, pixels });
     } catch (err) {
@@ -235,23 +332,68 @@ exports.publicGetWebsite = async (req, res, next) => {
     }
 };
 
+const rateLimitCache = new Map();
+
 /**
- * POST /api/public/websites/:slug/lead
+ * POST /api/public/websites/resolve/lead
  * Used by the public website to submit a lead.
  */
 exports.publicSubmitLead = async (req, res, next) => {
     try {
-        if (!req.prisma) {
-            return res.status(404).json({ error: 'Workspace not found. Please access this site via your workspace subdomain.' });
+        const ip = req.ip || req.connection.remoteAddress || 'unknown';
+        const now = Date.now();
+        const limitInfo = rateLimitCache.get(ip) || { count: 0, firstRequest: now };
+
+        if (now - limitInfo.firstRequest > 60000) {
+            limitInfo.count = 0;
+            limitInfo.firstRequest = now;
         }
 
-        const Website = req.prisma.website;
-        const WebsiteLead = req.prisma.websiteLead;
+        if (limitInfo.count >= 10) {
+            return res.status(429).json({ error: 'Too many submissions. Please try again later.' });
+        }
 
-        const website = await Website.findFirst({ where: { slug: req.params.slug, status: 'active' } });
-        if (!website) return res.status(404).json({ error: 'Website not found' });
+        limitInfo.count++;
+        rateLimitCache.set(ip, limitInfo);
 
-        const lead = await WebsiteLead.create({ data: {
+        const prismaClient = req.prisma || globalPrisma;
+        const { domain, slug } = req.query;
+        
+        if (!domain) return res.status(400).json({ error: 'Domain is required' });
+
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com';
+        const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
+        const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
+
+        const company = await prismaClient.company.findFirst({
+            where: {
+                OR: [
+                    { customDomain: domain },
+                    { slug: subdomainSlug }
+                ]
+            }
+        });
+
+        if (!company) return res.status(404).json({ error: 'Company not found for this domain' });
+
+        let website;
+        if (slug) {
+            website = await prismaClient.website.findFirst({
+                where: { companyId: company.id, slug, status: 'active' }
+            });
+        } else {
+            website = await prismaClient.website.findFirst({
+                where: { companyId: company.id, isPrimary: true, status: 'active' }
+            });
+        }
+
+        if (!website) {
+            return res.status(404).json({ error: 'Website not found' });
+        }
+        
+        const tenantPrisma = req.prisma || getTenantPrisma(website.companyId);
+
+        const lead = await tenantPrisma.websiteFormSubmission.create({ data: {
             ...req.body,
             websiteId: website.id,
             ipAddress: req.ip,
@@ -261,12 +403,47 @@ exports.publicSubmitLead = async (req, res, next) => {
         // Increment lead count
         const stats = website.stats || { views: 0, leads: 0 };
         stats.leads = (stats.leads || 0) + 1;
-        await Website.update({ where: { id: website.id }, data: { stats } });
+        await prismaClient.website.update({ where: { id: website.id }, data: { stats } });
 
-        // Optional: Trigger notification or CRM sync here
+        // Emit global event for CRM Integration
+        const eventBus = require('../../../system-configs/utils/eventBus');
+        eventBus.emit('website.lead.captured', { lead, website });
 
         res.status(201).json({ success: true, leadId: lead.id });
     } catch (err) {
         next(err);
+    }
+};
+
+exports.setPrimaryWebsite = async (req, res, next) => {
+    try {
+        const prismaClient = req.prisma || globalPrisma;
+        const websiteId = req.params.id;
+        const companyId = req.user.companyId;
+
+        // First verify the website exists and belongs to the company
+        const website = await prismaClient.website.findUnique({
+            where: { id: websiteId }
+        });
+
+        if (!website || website.companyId !== companyId) {
+            return res.status(404).json({ error: 'Website not found or unauthorized' });
+        }
+
+        // Set all other websites in this company to isPrimary: false
+        await prismaClient.website.updateMany({
+            where: { companyId },
+            data: { isPrimary: false }
+        });
+
+        // Set this website to isPrimary: true
+        const updated = await prismaClient.website.update({
+            where: { id: websiteId },
+            data: { isPrimary: true }
+        });
+
+        res.json({ message: 'Primary website updated successfully', website: updated });
+    } catch (error) {
+        next(error);
     }
 };

@@ -1,9 +1,9 @@
 'use client';
 
 import { LogoLoader } from "@workspace/ui";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useSettings } from '@/lib/settings-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, Users, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, TrendingUp, Briefcase, Globe, Info, Target, FileText } from 'lucide-react';
@@ -121,6 +121,43 @@ function WorkspaceSetup() {
     const [website, setWebsite] = useState('');
     const [oneLineDescription, setOneLineDescription] = useState('');
     
+    const [slug, setSlug] = useState('');
+    const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+    const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+
+    useEffect(() => {
+        if (!companyName.trim()) {
+            setSlug('');
+            setSlugAvailable(null);
+            return;
+        }
+        
+        const generatedSlug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        setSlug(generatedSlug);
+        
+        if (!generatedSlug) {
+            setSlugAvailable(null);
+            return;
+        }
+
+        setIsCheckingSlug(true);
+        setSlugAvailable(null);
+
+        const timeoutId = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/check-company?slug=${generatedSlug}`);
+                const data = await res.json();
+                setSlugAvailable(data.available);
+            } catch (err) {
+                setSlugAvailable(null);
+            } finally {
+                setIsCheckingSlug(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [companyName]);
+
     // Step 2: Industry & Stage
     const [industry, setIndustry] = useState('saas');
     const [startupStage, setStartupStage] = useState('Idea');
@@ -141,6 +178,10 @@ function WorkspaceSetup() {
         if (step === 1) {
             if (!companyName.trim()) {
                 toast.error("Company name is required.");
+                return;
+            }
+            if (slugAvailable === false) {
+                toast.error("Company URL is already taken. Please try another name.");
                 return;
             }
         }
@@ -180,6 +221,7 @@ function WorkspaceSetup() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     companyName,
+                    slug,
                     website,
                     oneLineDescription,
                     industry,
@@ -196,8 +238,13 @@ function WorkspaceSetup() {
                     companyId: data.companyId || (session?.user as any)?.companyId,
                     role: data.role || (session?.user as any)?.role,
                     isOnboardingComplete: true,
+                    companySlug: data.companySlug,
+                    companyCustomDomain: data.companyCustomDomain,
                 });
                 setStep(5); // Success screen is now step 5
+            } else if (res.status === 401) {
+                toast.error(data.error || 'Session invalid. Logging out...');
+                setTimeout(() => signOut({ callbackUrl: '/login' }), 2000);
             } else {
                 toast.error(data.error || 'Failed to complete setup');
             }
@@ -209,7 +256,7 @@ function WorkspaceSetup() {
     };
 
     const navigateToDashboard = async () => {
-        router.replace('/dashboard');
+        window.location.href = '/dashboard';
     };
 
     if (isSessionLoading) {
@@ -224,7 +271,7 @@ function WorkspaceSetup() {
                 {step < 5 && (
                     <button
                         onClick={() => {
-                            router.push('/dashboard');
+                            window.location.href = '/dashboard';
                         }}
                         className="absolute top-0 left-0 flex items-center text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium z-10"
                     >
@@ -268,6 +315,23 @@ function WorkspaceSetup() {
                                                 placeholder="Acme Corp"
                                                 className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all"
                                             />
+                                        </div>
+                                        <div className="mt-2 text-sm flex items-center">
+                                            <span className="text-gray-500">Your workspace URL: </span>
+                                            <span className="font-medium text-gray-900 ml-1">
+                                                {slug || 'acme'}.{platform.domain || '180workspace.com'}
+                                            </span>
+                                            {slug && (
+                                                <div className="ml-2 flex items-center">
+                                                    {isCheckingSlug ? (
+                                                        <span className="text-gray-400 text-xs">Checking...</span>
+                                                    ) : slugAvailable ? (
+                                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                                    ) : (
+                                                        <span className="text-red-500 text-xs font-medium">Not available</span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     

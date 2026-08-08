@@ -93,13 +93,26 @@ function WebsiteDashboardInner() {
                                 "w-2 h-2 rounded-full",
                                 website.status === 'active' ? "bg-emerald-500" : "bg-gray-300"
                             )} />
-                            <p className="text-sm text-gray-500 font-medium">ims.com/p/{website.slug}</p>
+                            <p className="text-sm text-gray-500 font-medium">
+                                {website.company?.customDomain 
+                                    ? `${website.company.customDomain}${website.isPrimary ? '' : `/${website.slug}`}`
+                                    : `${website.company?.slug || 'company'}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002')}${website.isPrimary ? '' : `/${website.slug}`}`}
+                            </p>
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <a 
-                        href={`/p/${website.slug}`} 
+                        href={(() => {
+                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002');
+                            const isLocal = rootDomain.includes('localhost');
+                            if (website.company?.customDomain) {
+                                return website.isPrimary 
+                                    ? `https://${website.company.customDomain}`
+                                    : `https://${website.slug}.${website.company.customDomain}`;
+                            }
+                            return `http${isLocal ? '' : 's'}://${website.company?.slug || 'company'}.${rootDomain}${website.isPrimary ? '' : `/${website.slug}`}`;
+                        })()}
                         target="_blank"
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all"
                     >
@@ -111,7 +124,7 @@ function WebsiteDashboardInner() {
 
             {/* Tabs */}
             <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-2xl w-fit">
-                {['overview', 'customize', 'leads', 'tracking', 'tools', 'settings'].map(tab => (
+                {['overview', 'leads', 'tools', 'tracking', 'settings'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => {
@@ -143,7 +156,6 @@ function WebsiteDashboardInner() {
                     transition={{ duration: 0.2 }}
                 >
                     {activeTab === 'overview' && <OverviewTab website={website} leads={leads} stats={stats} />}
-                    {activeTab === 'customize' && <CustomizeTab website={website} onUpdate={fetchWebsiteData} />}
                     {activeTab === 'leads' && <LeadsTab leads={leads} />}
                     {activeTab === 'tracking' && <TrackingTab website={website} onUpdate={fetchWebsiteData} />}
                     {activeTab === 'tools' && <ToolsTab website={website} />}
@@ -542,6 +554,20 @@ function SettingsTab({ website, onUpdate }: { website: any, onUpdate: () => void
         }
     };
 
+    const handleSetPrimary = async () => {
+        if (website.isPrimary) return;
+        try {
+            setLoading(true);
+            await api.put(`/api/websites/${website.id}/primary`);
+            toast.success('Website set as primary');
+            onUpdate();
+        } catch (error) {
+            toast.error('Failed to set primary website');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDelete = async () => {
         if (!confirm('Are you sure you want to delete this website? All data and leads will be permanently removed.')) return;
         try {
@@ -583,6 +609,34 @@ function SettingsTab({ website, onUpdate }: { website: any, onUpdate: () => void
                             <div className={clsx(
                                 "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
                                 website.status === 'active' ? "left-7" : "left-1"
+                            )} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div>
+                        <p className="font-bold text-gray-900">Primary Website</p>
+                        <p className="text-xs text-gray-500 mt-1">Set this website to load when visiting your company&apos;s root domain.</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <span className={clsx(
+                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                            website.isPrimary ? "bg-indigo-50 text-indigo-600" : "bg-gray-100 text-gray-400"
+                        )}>
+                            {website.isPrimary ? 'PRIMARY' : 'STANDARD'}
+                        </span>
+                        <button 
+                            onClick={handleSetPrimary}
+                            disabled={loading || website.isPrimary}
+                            className={clsx(
+                                "w-12 h-6 rounded-full relative transition-all",
+                                website.isPrimary ? "bg-indigo-600 cursor-default" : "bg-gray-300"
+                            )}
+                        >
+                            <div className={clsx(
+                                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                                website.isPrimary ? "left-7" : "left-1"
                             )} />
                         </button>
                     </div>
@@ -730,3 +784,4 @@ function UTMBuilder({ website }: any) {
         </div>
     );
 }
+

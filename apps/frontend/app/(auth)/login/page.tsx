@@ -65,7 +65,7 @@ function LoginForm() {
                 }
 
                 const returnUrl = searchParams.get('returnUrl');
-                router.replace(returnUrl ? decodeURIComponent(returnUrl) : '/');
+                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
             }
         }
     }, [isLoading, user, router, searchParams]);
@@ -152,7 +152,7 @@ function LoginForm() {
                 toast.success('Logged in successfully!');
                 const returnUrl = searchParams.get('returnUrl');
                 // The Next.js middleware will automatically redirect if onboarding is not complete
-                router.replace(returnUrl ? decodeURIComponent(returnUrl) : '/');
+                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
             }
         } catch (err: any) {
             console.error('Login error:', err);

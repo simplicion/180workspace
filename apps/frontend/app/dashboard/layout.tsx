@@ -571,7 +571,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                         )}>
                                             <GroupIcon className="w-4 h-4" />
                                         </div>
-                                        {isExpanded && <span>{item.group}</span>}
+                                        {isExpanded && <span className="whitespace-nowrap">{item.group}</span>}
                                     </div>
                                     {isExpanded && (
                                         <ChevronDown className={clsx(
@@ -650,7 +650,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                     Icon ? <Icon className="w-4 h-4" /> : <div className="w-4 h-4 bg-gray-200 rounded-full" />
                                 )}
                             </div>
-                            {isExpanded && item.name}
+                            {isExpanded && <span className="whitespace-nowrap">{item.name}</span>}
                         </Link>
                     );
                 })}

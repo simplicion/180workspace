@@ -1,5 +1,5 @@
 import { LogoLoader } from "@workspace/ui";
-import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark } from 'lucide-react';
 
 export const navigation = [
     {
@@ -36,6 +36,7 @@ export const navigation = [
         roles: ['admin', 'manager', 'sales'],
         items: [
             { id: 'ad-websites', name: 'Ad Websites', href: '/dashboard/advertising', icon: Globe, roles: ['admin', 'manager', 'sales'] },
+            { id: 'forms', name: 'Form Builder', href: '/dashboard/forms', icon: FileText, roles: ['admin', 'manager', 'sales'] },
         ]
     },
 
@@ -111,7 +112,6 @@ export const navigation = [
         items: [
             { id: 'chat', name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'calendar', name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, roles: ['admin', 'manager', 'hr', 'employee'] },
-            { id: 'content-calendar', name: 'Content Calendar', href: '/dashboard/content-calendar', icon: CalendarDays, roles: ['admin', 'manager', 'hr'] },
             { id: 'meeting', name: 'Meetings', href: '/dashboard/meeting', icon: Video, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'emails', name: 'Emails', href: '/dashboard/emails', icon: Mail, roles: ['admin', 'manager', 'hr'] },
             { id: 'documents', name: 'Documents', href: '/dashboard/documents', icon: FolderOpen, roles: ['admin', 'manager', 'hr', 'employee'] },
@@ -120,7 +120,17 @@ export const navigation = [
         ]
     },
 
-
+    {
+        group: 'Social Media',
+        appId: 'social-media',
+        icon: Share2,
+        roles: ['admin', 'manager', 'marketing'],
+        items: [
+            { id: 'content-calendar', name: 'Content Calendar', href: '/dashboard/content-calendar', icon: CalendarDays, roles: ['admin', 'manager', 'marketing'] },
+            { id: 'asset-hub', name: 'Asset Hub', href: '/dashboard/asset-hub', icon: FolderOpen, roles: ['admin', 'manager', 'marketing'] },
+            { id: 'saved-banks', name: 'Saved Banks', href: '/dashboard/saved-banks', icon: Bookmark, roles: ['admin', 'manager', 'marketing'] },
+        ]
+    },
 
     {
         group: 'Settings',

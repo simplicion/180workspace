@@ -35,24 +35,25 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const STAGES = ['new', 'contacted', 'qualified', 'converted', 'lost', 'disqualified'];
+const STAGES = ['kickoff', 'onboarding', 'in-progress', 'review', 'completed', 'churned'];
 const STAGE_LABELS: Record<string, string> = {
-    'new': 'New',
-    'contacted': 'Contacted',
-    'qualified': 'Qualified',
-    'converted': 'Converted',
-    'lost': 'Lost',
-    'disqualified': 'Disqualified'
+    'kickoff': 'Getting Started',
+    'onboarding': 'Setting Up',
+    'in-progress': 'Working On It',
+    'review': 'Under Review',
+    'completed': 'Finished',
+    'churned': 'Cancelled'
 };
 
 const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }> = {
-    'new': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
-    'contacted': { color: 'border-amber-400', bg: 'bg-amber-50', badge: 'badge-amber' },
-    'qualified': { color: 'border-emerald-400', bg: 'bg-emerald-50', badge: 'badge-emerald' },
-    'converted': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
-    'lost': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' },
-    'disqualified': { color: 'border-gray-400', bg: 'bg-gray-50', badge: 'badge-gray' }
+    'kickoff': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
+    'onboarding': { color: 'border-amber-400', bg: 'bg-amber-50', badge: 'badge-amber' },
+    'in-progress': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
+    'review': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
+    'completed': { color: 'border-emerald-400', bg: 'bg-emerald-50', badge: 'badge-emerald' },
+    'churned': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' }
 };
+
 
 export default function LeadsPage() {
     const { user } = useAuth();
@@ -178,7 +179,7 @@ export default function LeadsPage() {
         if (!STAGES.includes(newStatus)) {
             // If dropped over a card instead of a column, find the column of that card
             const overDeal = leads.find(o => o.id === overId);
-            if (overDeal) newStatus = overDeal.status || 'new';
+            if (overDeal) newStatus = overDeal.status || 'kickoff';
         }
 
         if (deal.status === newStatus) return;
@@ -205,7 +206,16 @@ export default function LeadsPage() {
 
     // Group by status
     const grouped = STAGES.reduce((acc, stage) => {
-        acc[stage] = filteredLeads.filter(o => (o.status || 'new').toLowerCase() === stage)
+        acc[stage] = filteredLeads.filter(o => {
+            let s = (o.status || 'kickoff').toLowerCase();
+            // Map legacy stages to new stages
+            if (s === 'new') s = 'kickoff';
+            if (s === 'contacted') s = 'onboarding';
+            if (s === 'qualified') s = 'in-progress';
+            if (s === 'converted') s = 'review';
+            if (s === 'lost' || s === 'disqualified') s = 'churned';
+            return s === stage;
+        })
             // Sort by leadScore (highest first), then by value
             .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0) || (b.value || 0) - (a.value || 0));
         return acc;
@@ -328,7 +338,7 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
     return (
         <div 
             ref={setNodeRef}
-            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] min-h-[420px] flex-shrink-0 flex flex-col', styles.bg, styles.color)}
+            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] flex-1 min-h-[420px] flex flex-col', styles.bg, styles.color)}
         >
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
+import { Toaster as SonnerToaster } from 'sonner';
 import { Providers } from './providers';
 import DesktopSplitView from '@/components/shared/DesktopSplitView';
 
@@ -25,7 +26,11 @@ export const metadata: Metadata = {
 };
 
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/authOptions');
+    const session = await getServerSession(authOptions);
+
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
@@ -40,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             "@context": "https://schema.org",
                             "@type": "WebSite",
                             name: "180workspace",
-                            url: "https://180workspace.com",
+                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'}`,
                             description: "The ultimate business operating system for modern teams.",
                         })
                     }}
@@ -52,14 +57,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             "@context": "https://schema.org",
                             "@type": "Organization",
                             name: "180workspace",
-                            url: "https://180workspace.com",
-                            logo: "https://180workspace.com/black icon.svg",
+                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'}`,
+                            logo: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'}/black icon.svg`,
                         })
                     }}
                 />
             </head>
             <body className="font-sans antialiased hidden-scrollbar" suppressHydrationWarning>
-                <Providers>
+                <Providers session={session}>
                     <DesktopSplitView>
                         {children}
                     </DesktopSplitView>
@@ -72,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             error: { style: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fee2e2' } },
                         }}
                     />
+                    <SonnerToaster position="top-right" richColors />
                 </Providers>
             </body>
         </html>

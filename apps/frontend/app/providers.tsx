@@ -12,14 +12,14 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../redux/store';
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children, session }: { children: ReactNode, session?: any }) {
     // Safely get the client id, handle cases where it might not be defined during build
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'dummy-client-id-for-build';
 
     return (
         <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
-                <SessionProvider refetchOnWindowFocus={false}>
+                <SessionProvider session={session} refetchOnWindowFocus={false}>
                     <GoogleOAuthProvider clientId={clientId}>
                         <AuthProvider>
                             <SettingsProvider>

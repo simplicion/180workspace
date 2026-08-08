@@ -6,8 +6,24 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@workspace/db"
 import bcrypt from "bcryptjs"
 
+const useSecureCookies = process.env.NODE_ENV === "production"
+const cookiePrefix = useSecureCookies ? "__Secure-" : ""
+const cookieDomain = process.env.NODE_ENV === "production" ? ".180workspace.com" : ".localhost"
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
+  cookies: {
+    sessionToken: {
+      name: `${cookiePrefix}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: useSecureCookies,
+        domain: cookieDomain,
+      }
+    }
+  },
   session: {
     strategy: "jwt",
   },
@@ -59,7 +75,9 @@ export const authOptions: NextAuthOptions = {
                 companyId: user.companyId,
                 role: user.role,
                 isOnboardingComplete: user.company?.isOnboardingComplete || false,
-                isFirstLogin: isLegacyOrAdmin ? false : user.isFirstLogin
+                isFirstLogin: isLegacyOrAdmin ? false : user.isFirstLogin,
+                companySlug: user.company?.slug,
+                companyCustomDomain: user.company?.customDomain
               } as any
           }
         }
@@ -81,7 +99,8 @@ export const authOptions: NextAuthOptions = {
            const res = await fetch(`${apiUrl}/api/auth/me`, {
              headers: {
                Authorization: `Bearer ${credentials.token}`
-             }
+             },
+             cache: 'no-store'
            });
            if (!res.ok) {
              const errorText = await res.text();
@@ -104,8 +123,10 @@ export const authOptions: NextAuthOptions = {
                role: backendUser.role,
                permissions: backendUser.permissions || [],
                isOnboardingComplete: data.company?.isOnboardingComplete || false,
-               isFirstLogin: isLegacyOrAdmin ? false : backendUser.isFirstLogin
-             } as any;
+               isFirstLogin: isLegacyOrAdmin ? false : backendUser.isFirstLogin,
+               companySlug: data.company?.slug,
+               companyCustomDomain: data.company?.customDomain
+             } as any
            }
         } catch(e) {
            console.error("Platform token auth error:", e);
@@ -127,6 +148,8 @@ export const authOptions: NextAuthOptions = {
         token.permissions = (user as any).permissions || [];
         token.isOnboardingComplete = (user as any).isOnboardingComplete;
         token.isFirstLogin = (user as any).isFirstLogin;
+        token.companySlug = (user as any).companySlug;
+        token.companyCustomDomain = (user as any).companyCustomDomain;
       }
       
       // Handle manual session updates (e.g., after workspace setup is completed)
@@ -137,6 +160,8 @@ export const authOptions: NextAuthOptions = {
         if (session.isOnboardingComplete !== undefined) token.isOnboardingComplete = session.isOnboardingComplete;
         if (session.isFirstLogin !== undefined) token.isFirstLogin = session.isFirstLogin;
         if (session.username !== undefined) token.username = session.username;
+        if (session.companySlug !== undefined) token.companySlug = session.companySlug;
+        if (session.companyCustomDomain !== undefined) token.companyCustomDomain = session.companyCustomDomain;
       }
 
       // In a fully decoupled frontend, we trust the JWT contents (which are signed).
@@ -158,6 +183,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).permissions = token.permissions || [];
         (session.user as any).isOnboardingComplete = token.isOnboardingComplete;
         (session.user as any).isFirstLogin = token.isFirstLogin;
+        (session.user as any).companySlug = token.companySlug;
+        (session.user as any).companyCustomDomain = token.companyCustomDomain;
       }
       return session;
     }

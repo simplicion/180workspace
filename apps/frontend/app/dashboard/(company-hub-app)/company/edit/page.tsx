@@ -3,11 +3,13 @@
 import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
 import { useGetPrivateCompanyProfileQuery, useUpdateCompanyProfileMutation } from '@redux/api/companyApi';
+
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import EmailTab from '@/app/dashboard/(settings-app)/_components/EmailTab';
+import api from '@/lib/api';
 
 export default function EditCompanyProfilePage() {
     const router = useRouter();
@@ -15,13 +17,15 @@ export default function EditCompanyProfilePage() {
     const [updateProfile, { isLoading: isUpdating }] = useUpdateCompanyProfileMutation();
 
     const [activeTab, setActiveTab] = useState('basic');
+    const [isVerifyingDomain, setIsVerifyingDomain] = useState(false);
     const [formData, setFormData] = useState<any>({
         name: '', oneLineDescription: '', aboutUs: '', industry: '', startupStage: '',
         headquarters: '', website: '', email: '', phone: '',
         companyType: 'B2B', foundedDate: '', teamSize: '', logoUrl: '', bannerUrl: '',
         totalFunding: '', fundingStage: '', annualRevenue: '', burnRate: '',
         topRecognition: '', productsBuilt: '', happyClients: '',
-        privacySettings: { hideFinancials: false, hideTeamSize: false }
+        privacySettings: { hideFinancials: false, hideTeamSize: false },
+        slug: '', customDomain: ''
     });
 
     useEffect(() => {
@@ -49,7 +53,9 @@ export default function EditCompanyProfilePage() {
                 topRecognition: c.topRecognition || '',
                 productsBuilt: c.productsBuilt || '',
                 happyClients: c.happyClients || '',
-                privacySettings: c.privacySettings || { hideFinancials: false, hideTeamSize: false }
+                privacySettings: c.privacySettings || { hideFinancials: false, hideTeamSize: false },
+                slug: c.slug || '',
+                customDomain: c.customDomain || ''
             });
         }
     }, [profileResponse]);
@@ -67,6 +73,21 @@ export default function EditCompanyProfilePage() {
                 [field]: !prev.privacySettings[field]
             }
         }));
+    };
+
+    const handleVerifyDomain = async () => {
+        if (!formData.customDomain) return;
+        setIsVerifyingDomain(true);
+        try {
+            const res = await api.post('/api/company-profile/private/verify-domain', { domain: formData.customDomain });
+            if (res.data.success) {
+                toast.success(res.data.message || 'Domain verified successfully!');
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to verify domain. Check DNS settings.');
+        } finally {
+            setIsVerifyingDomain(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -121,7 +142,8 @@ export default function EditCompanyProfilePage() {
                         { id: 'contact', label: 'Contact & Social' },
                         { id: 'financials', label: 'Financials & Stats' },
                         { id: 'privacy', label: 'Privacy Settings' },
-                        { id: 'smtp', label: 'Email Integration' }
+                        { id: 'smtp', label: 'Email Integration' },
+                        { id: 'web', label: 'Web Configuration' }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -287,6 +309,65 @@ export default function EditCompanyProfilePage() {
                                 title="Company Email Integration" 
                                 description="Configure your company's SMTP credentials. These will be used when sending emails on behalf of your company (e.g. sending candidate rejections, marketing emails, or client notifications)." 
                             />
+                        </div>
+                    )}
+
+                    {activeTab === 'web' && (
+                        <div className="space-y-4">
+                            <h2 className="text-lg font-semibold mb-4">Web Configuration</h2>
+                            <p className="text-sm text-gray-500 mb-6">Manage how your workspace and websites are accessed.</p>
+                            
+                            <div className="space-y-6">
+                                <div className="space-y-2 p-4 border rounded-xl bg-gray-50">
+                                    <label className="block text-sm font-bold">Workspace Subdomain (Company ID)</label>
+                                    <p className="text-xs text-gray-500 mb-2">This is the unique identifier for your workspace. It serves as your subdomain.</p>
+                                    <div className="flex items-center">
+                                        <input 
+                                            name="slug" 
+                                            value={formData.slug} 
+                                            onChange={handleInputChange} 
+                                            className="flex-1 p-2 border rounded-l focus:outline-none focus:border-blue-500" 
+                                            placeholder="your-company-name"
+                                            pattern="[a-z0-9-]+"
+                                            title="Only lowercase letters, numbers, and hyphens are allowed."
+                                        />
+                                        <span className="bg-gray-200 border border-l-0 rounded-r px-3 py-2 text-sm text-gray-600 font-mono">
+                                            .{process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002')}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-2 p-4 border rounded-xl bg-blue-50/50">
+                                    <label className="block text-sm font-bold">Custom Domain</label>
+                                    <p className="text-xs text-gray-500 mb-2">Connect your own domain to serve your websites directly from it.</p>
+                                    <input 
+                                        name="customDomain" 
+                                        value={formData.customDomain} 
+                                        onChange={handleInputChange} 
+                                        className="w-full p-2 border rounded focus:outline-none focus:border-blue-500" 
+                                        placeholder="e.g. www.yourbrand.com" 
+                                    />
+                                    {formData.customDomain && (
+                                        <div className="mt-4 p-4 bg-blue-100/50 rounded-lg text-sm text-blue-800 space-y-3 border border-blue-200">
+                                            <div>
+                                                <p className="font-semibold mb-1">DNS Configuration Instructions:</p>
+                                                <ul className="list-disc pl-5 space-y-1 text-xs text-blue-700">
+                                                    <li>Add a CNAME record pointing <strong>{formData.customDomain.replace(/^www\./, '')}</strong> (or www) to <strong>cname.{process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002')}</strong></li>
+                                                    <li>Note: SSL certificates are automatically provisioned by Cloudflare for SaaS.</li>
+                                                </ul>
+                                            </div>
+                                            <button 
+                                                onClick={handleVerifyDomain}
+                                                disabled={isVerifyingDomain}
+                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                type="button"
+                                            >
+                                                {isVerifyingDomain ? 'Verifying...' : 'Verify Domain'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

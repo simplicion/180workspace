@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const express = require('express');
 const router = express.Router();
@@ -8,6 +8,7 @@ router.get('/', websiteController.getWebsites);
 router.post('/', websiteController.createWebsite);
 router.get('/:id', websiteController.getWebsite);
 router.patch('/:id', websiteController.updateWebsite);
+router.put('/:id/primary', websiteController.setPrimaryWebsite);
 router.delete('/:id', websiteController.deleteWebsite);
 
 router.get('/:id/stats', websiteController.getWebsiteStats);

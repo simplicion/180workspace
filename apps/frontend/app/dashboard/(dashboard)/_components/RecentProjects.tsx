@@ -128,6 +128,36 @@ export default function RecentProjects({ projects, loading }: RecentProjectsProp
                                                 <h4 className="font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors text-sm">
                                                     {project.name}
                                                 </h4>
+                                                
+                                                {/* Project Health Indicator */}
+                                                {(() => {
+                                                    let health = '🟢 Healthy';
+                                                    let healthClass = 'bg-emerald-50 text-emerald-600';
+                                                    
+                                                    if (project.status !== 'completed' && project.deadline) {
+                                                        const deadlineDate = new Date(project.deadline);
+                                                        const today = new Date();
+                                                        const diffDays = (deadlineDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
+                                                        
+                                                        if (diffDays < 0) {
+                                                            health = '🔴 Critical';
+                                                            healthClass = 'bg-rose-50 text-rose-600';
+                                                        } else if (diffDays <= 3 && completionRate < 80) {
+                                                            health = '🔴 Critical';
+                                                            healthClass = 'bg-rose-50 text-rose-600';
+                                                        } else if (diffDays <= 7 && completionRate < 80) {
+                                                            health = '🟡 Risk';
+                                                            healthClass = 'bg-amber-50 text-amber-600';
+                                                        }
+                                                    }
+                                                    
+                                                    return (
+                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${healthClass}`}>
+                                                            {health}
+                                                        </span>
+                                                    );
+                                                })()}
+
                                                 {project.priority === 'critical' || project.priority === 'high' ? (
                                                     <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 text-[9px] font-bold uppercase tracking-widest">
                                                         {getPriorityIcon(project.priority)}

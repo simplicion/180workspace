@@ -21,6 +21,7 @@ model Company {
   teamSize                                      String?
   country                                       String?
   website                                       String?
+  customDomain                                  String?               @unique
   foundedDate                                   DateTime?
   companyType                                   String?
   tagline                                       String?
@@ -105,6 +106,7 @@ model Company {
   vendorBills_CompanyVendorBills                VendorBill[]          @relation("CompanyVendorBills")
   workLogs_CompanyWorkLogs                      WorkLog[]             @relation("CompanyWorkLogs")
   assets                                        Asset[]
+  forms                                         Form[]
 }
 
 model CompanyCoreValue {
@@ -2045,4 +2047,119 @@ model Quote {
 
   @@index([companyId])
   @@index([clientId])
+}
+
+
+model Form {
+  id          String   @id @default(uuid())
+  companyId   String
+  title       String
+  description String?
+  slug        String   @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  fields      FormField[]
+  submissions FormSubmission[]
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model FormField {
+  id          String   @id @default(uuid())
+  formId      String
+  label       String
+  type        String   // TEXT, EMAIL, PHONE, NUMBER, TEXTAREA, RADIO, SELECT, CHECKBOX
+  required    Boolean  @default(false)
+  options     Json?    // For SELECT, RADIO, CHECKBOX
+  order       Int      @default(0)
+  mapping     String?  // e.g. "contactName", "contactEmail", "companyName", "industry", "source", "phone"
+  
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  values      FormSubmissionValue[]
+
+  @@index([formId])
+}
+
+model FormSubmission {
+  id          String   @id @default(uuid())
+  formId      String
+  companyId   String
+  submittedAt DateTime @default(now())
+  
+  leadId      String?  // Reference to the created Lead
+  clientId    String?  // Reference to the created Client
+  
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  values      FormSubmissionValue[]
+
+  @@index([formId])
+  @@index([companyId])
+}
+
+model FormSubmissionValue {
+  id             String   @id @default(uuid())
+  submissionId   String
+  fieldId        String
+  value          String?  @db.Text
+  
+  submission     FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field          FormField      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([fieldId])
+}
+
+// -----------------------------------------------------------------------------
+// Advertising & Website Module
+// -----------------------------------------------------------------------------
+
+model Website {
+  id          String   @id @default(uuid())
+  companyId   String?  // Optional for now to not break existing data, strict data isolation
+  isPrimary   Boolean  @default(false)
+  name        String
+  slug        String   @unique
+  template    String?
+  config      Json?    @default("{}") // Stores hero, colors, etc.
+  owner       String
+  status      String   @default("active")
+  stats       Json?    @default("{}") // { views: number, leads: number }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  pixels      Pixel[]
+  submissions WebsiteFormSubmission[]
+}
+
+model Pixel {
+  id          String   @id @default(uuid())
+  websiteId   String
+  provider    String   // e.g., facebook, google, tiktok
+  pixelId     String
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+}
+
+model WebsiteFormSubmission {
+  id          String   @id @default(uuid())
+  websiteId   String
+  name        String?
+  email       String?
+  phone       String?
+  message     String?  @db.Text
+  data        Json?
+  status      String   @default("new")
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
 }

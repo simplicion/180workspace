@@ -20,6 +20,7 @@ const STAGES = ['Lead', 'Contacted', 'Qualified', 'Demo', 'Proposal', 'Negotiati
 
 export default function LeadPipelineModal({ isOpen, onClose, onSuccess, editingLeadPipeline, pipelineType }: LeadPipelineModalProps) {
     const [accounts, setAccounts] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
     const [loadingAccounts, setLoadingAccounts] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -39,12 +40,16 @@ export default function LeadPipelineModal({ isOpen, onClose, onSuccess, editingL
         contactPhone: '',
         companyName: '',
         industry: '',
-        source: ''
+        source: '',
+        owner: '',
+        followUpDate: '',
+        followUpTime: ''
     });
 
     useEffect(() => {
         if (isOpen) {
             fetchAccounts();
+            fetchUsers();
             if (editingLeadPipeline) {
                 setFormData({
                     title: editingLeadPipeline.title || '',
@@ -62,7 +67,10 @@ export default function LeadPipelineModal({ isOpen, onClose, onSuccess, editingL
                     contactPhone: editingLeadPipeline.contactPhone || '',
                     companyName: editingLeadPipeline.companyName || '',
                     industry: editingLeadPipeline.industry || '',
-                    source: editingLeadPipeline.source || ''
+                    source: editingLeadPipeline.source || '',
+                    owner: editingLeadPipeline.ownerId || '',
+                    followUpDate: '',
+                    followUpTime: ''
                 });
             } else {
                 setFormData({
@@ -81,7 +89,10 @@ export default function LeadPipelineModal({ isOpen, onClose, onSuccess, editingL
                     contactPhone: '',
                     companyName: '',
                     industry: '',
-                    source: ''
+                    source: '',
+                    owner: '',
+                    followUpDate: '',
+                    followUpTime: ''
                 });
             }
         }
@@ -99,6 +110,15 @@ export default function LeadPipelineModal({ isOpen, onClose, onSuccess, editingL
         }
     };
 
+    const fetchUsers = async () => {
+        try {
+            const { data } = await api.get('/api/users', { params: { limit: 100 } });
+            setUsers(data.users || []);
+        } catch (error) {
+            console.error('Failed to fetch users');
+        }
+    };
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.title || !formData.value) {
@@ -111,8 +131,6 @@ export default function LeadPipelineModal({ isOpen, onClose, onSuccess, editingL
         const tags = formData.type === 'Lead' ? ['Lead'] : ['lead pipeline'];
         const submissionData = { ...formData, tags, pipelineType: pipelineType || 'DEAL' };
         if (!submissionData.accountId) delete (submissionData as any).accountId;
-        delete (submissionData as any).expectedCloseDate;
-        delete (submissionData as any).notes;
         delete (submissionData as any).type;
         
         setSaving(true);
@@ -222,6 +240,31 @@ export default function LeadPipelineModal({ isOpen, onClose, onSuccess, editingL
                             onChange={e => setFormData({ ...formData, value: Number(e.target.value) })}
                         />
                     </div>
+                </div>
+                <div>
+                    <label htmlFor="stage" className="label">Stage</label>
+                    <select id="stage" className="select" value={formData.stage} onChange={e => setFormData({ ...formData, stage: e.target.value })}>
+                        {STAGES.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor="owner" className="label">Assign To</label>
+                    <select id="owner" className="select" value={formData.owner} onChange={e => setFormData({ ...formData, owner: e.target.value })}>
+                        <option value="">Unassigned</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor="followUpDate" className="label">Follow-up Date</label>
+                    <input id="followUpDate" type="date" className="input" value={formData.followUpDate} onChange={e => setFormData({ ...formData, followUpDate: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="followUpTime" className="label">Follow-up Time</label>
+                    <input id="followUpTime" type="time" className="input" value={formData.followUpTime} onChange={e => setFormData({ ...formData, followUpTime: e.target.value })} />
                 </div>
             </div>
 

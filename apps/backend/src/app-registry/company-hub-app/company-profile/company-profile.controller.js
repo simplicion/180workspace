@@ -39,7 +39,7 @@ exports.updateProfile = async (req, res) => {
 
         // We only allow updating these specific fields to prevent overwriting sensitive admin fields
         const allowedFields = [
-            'name', 'logoUrl', 'bannerUrl', 'oneLineDescription', 'industry', 'startupStage', 'teamSize', 'website',
+            'name', 'slug', 'logoUrl', 'bannerUrl', 'oneLineDescription', 'industry', 'startupStage', 'teamSize', 'website', 'customDomain',
             'foundedDate', 'companyType', 'tagline', 'headquarters', 'otherOffices', 'aboutUs', 'socialLinks',
             'totalFunding', 'fundingStage', 'businessStatus', 'burnRate', 'runway', 'annualRevenue', 'revenueGrowth',
             'lastRound', 'lastValued', 'leadInvestor', 'productsBuilt', 'happyClients', 'countriesActive',
@@ -60,6 +60,14 @@ exports.updateProfile = async (req, res) => {
             } else {
                 updateData.foundedDate = new Date(updateData.foundedDate);
             }
+        }
+
+        if (updateData.customDomain === '') {
+            updateData.customDomain = null;
+        }
+
+        if (updateData.slug === '') {
+            updateData.slug = null;
         }
 
         const updatedCompany = await req.prisma.company.update({
@@ -573,5 +581,49 @@ exports.getCompanyMilestones = async (req, res) => {
     } catch (error) {
         console.error('Get company milestones error:', error);
         res.status(500).json({ success: false, message: 'Server error retrieving milestones.' });
+    }
+};
+
+exports.verifyDomain = async (req, res) => {
+    try {
+        const { domain } = req.body;
+        const prismaClient = req.prisma || globalPrisma;
+        const companyId = req.user.companyId;
+
+        if (!domain) {
+            return res.status(400).json({ success: false, message: 'Domain is required' });
+        }
+
+        // Verify if the domain is actually a CNAME pointing to our root domain
+        const dns = require('dns').promises;
+        try {
+            const records = await dns.resolveCname(domain);
+            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com';
+            const isVerified = records.some(r => r.includes(`cname.${rootDomain}`) || r.includes(rootDomain));
+            
+            if (!isVerified) {
+                return res.status(400).json({ 
+                    error: 'DNS Verification Failed',
+                    message: `Domain is not pointing to cname.${rootDomain}. Please check your DNS settings.` 
+                });
+            }
+        } catch (error) {
+            console.error('DNS Lookup Error:', error);
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Could not verify DNS records. Ensure you added the CNAME record and try again.' 
+            });
+        }
+
+        // If verified, save it to the company
+        await prismaClient.company.update({
+            where: { id: companyId },
+            data: { customDomain: domain }
+        });
+
+        res.status(200).json({ success: true, message: 'Domain successfully verified and linked' });
+    } catch (error) {
+        console.error('Error in verifyDomain:', error);
+        res.status(500).json({ success: false, message: 'Server error verifying domain', error: error.message });
     }
 };

@@ -20,17 +20,19 @@ export async function PUT(req: Request) {
       startupStage, 
       teamSize, 
       enabledApps, 
-      enabledModules 
+      enabledModules,
+      slug
     } = await req.json();
 
     let companyId = (token as any).companyId;
 
     if (!companyId) {
       // Create a new company since the user doesn't have one
+      const generatedSlug = slug || (companyName || 'My Startup').toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random() * 10000);
       const newCompany = await prisma.company.create({
         data: {
           name: companyName || 'My Startup',
-          slug: (companyName || 'My Startup').toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random() * 10000),
+          slug: generatedSlug,
           databaseConfigured: true,
           isOnboardingComplete: true,
           oneLineDescription,
@@ -73,6 +75,7 @@ export async function PUT(req: Request) {
         data: {
           isOnboardingComplete: true,
           name: companyName || currentCompany?.name || 'My Startup',
+          slug: slug || currentCompany?.slug,
           oneLineDescription,
           website,
           logoUrl: logoUrl || currentCompany?.logoUrl,
@@ -88,15 +91,29 @@ export async function PUT(req: Request) {
       });
     }
 
+    // Fetch the company to return its slug for subdomain routing
+    const finalCompany = await prisma.company.findUnique({ where: { id: companyId }, select: { slug: true, customDomain: true } });
+
     return NextResponse.json({
       success: true,
       message: 'Workspace configuration completed successfully.',
       companyId: companyId,
+      companySlug: finalCompany?.slug || null,
+      companyCustomDomain: finalCompany?.customDomain || null,
       role: 'admin',
     });
   } catch (error: any) {
     console.error('Workspace Setup Error:', error);
-    return NextResponse.json({ error: 'Failed to complete setup' }, { status: 500 });
+
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Session invalid. User or company record was deleted.' },
+        { status: 401 }
+      );
+    }
+
+    require('fs').appendFileSync('C:/Users/saavi/OneDrive/Desktop/180workspace/setup_error.log', error?.stack + '\\n');
+    return NextResponse.json({ error: error?.message || 'Failed to complete setup' }, { status: 500 });
   }
 }
 

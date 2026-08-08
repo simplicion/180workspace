@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { Plus, Globe, MousePointer2, Users, MoreVertical, ExternalLink, Settings, Trash2, Search, Filter } from 'lucide-react';
+import { Plus, Globe, MousePointer2, Users, MoreVertical, ExternalLink, Settings, Trash2, Search, Filter, Edit3 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -11,6 +11,7 @@ import CreateWebsiteModal from '@/app/dashboard/(advertising-app)/_components/Cr
 
 export default function AdvertisingPage() {
     const [websites, setWebsites] = useState<any[]>([]);
+    const [companyData, setCompanyData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -24,6 +25,7 @@ export default function AdvertisingPage() {
             setLoading(true);
             const res = await api.get('/api/websites');
             setWebsites(res.data.websites || []);
+            setCompanyData(res.data.company || null);
         } catch (error) {
             console.error('Failed to fetch websites:', error);
             toast.error('Failed to load websites');
@@ -54,6 +56,13 @@ export default function AdvertisingPage() {
                     <p className="text-sm text-gray-500 mt-1">Manage your marketing landing pages and track performance.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Link 
+                        href="/dashboard/advertising/settings"
+                        className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2.5 rounded-xl font-bold hover:bg-gray-50 border border-gray-200 transition-all shadow-sm"
+                    >
+                        <Settings className="w-4 h-4" />
+                        Settings
+                    </Link>
                     <button 
                         className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
                         onClick={() => setIsCreateModalOpen(true)}
@@ -122,7 +131,7 @@ export default function AdvertisingPage() {
             ) : filteredWebsites.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredWebsites.map((website) => (
-                        <WebsiteCard key={website.id} website={website} />
+                        <WebsiteCard key={website.id} website={website} companyData={companyData} />
                     ))}
                 </div>
             ) : (
@@ -147,7 +156,16 @@ export default function AdvertisingPage() {
     );
 }
 
-function WebsiteCard({ website }: { website: any }) {
+function WebsiteCard({ website, companyData }: { website: any, companyData: any }) {
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002');
+    const isLocal = rootDomain.includes('localhost');
+    let liveUrl = `http${isLocal ? '' : 's'}://${companyData?.slug || 'company'}.${rootDomain}${website.isPrimary ? '' : `/${website.slug}`}`;
+    if (companyData?.customDomain) {
+        liveUrl = website.isPrimary 
+            ? `https://${companyData.customDomain}`
+            : `https://${website.slug}.${companyData.customDomain}`;
+    }
+
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -208,23 +226,32 @@ function WebsiteCard({ website }: { website: any }) {
             {/* Footer Actions */}
             <div className="px-5 py-4 bg-gray-50/50 flex items-center gap-2">
                 <a 
-                    href={`/p/${website.slug}`} 
+                    href={liveUrl} 
                     target="_blank"
                     className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
                 >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    View Site
+                    Live Site
                 </a>
+                <Link 
+                    href={`/dashboard/advertising/${website.id}/edit`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 border border-transparent rounded-xl text-xs font-bold text-white hover:bg-indigo-700 transition-all shadow-sm"
+                >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    Edit
+                </Link>
                 <div className="flex items-center gap-2">
                     <Link 
                         href={`/dashboard/advertising/${website.id}?tab=leads`}
                         className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+                        title="Leads"
                     >
                         <Users className="w-3.5 h-3.5" />
                     </Link>
                     <Link 
                         href={`/dashboard/advertising/${website.id}?tab=settings`}
                         className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+                        title="Settings"
                     >
                         <Settings className="w-3.5 h-3.5" />
                     </Link>

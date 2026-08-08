@@ -1,1 +1,0 @@
-const { prisma } = require('@workspace/db'); async function run() { const company = await prisma.company.findUnique({ where: { id: '98fc1d01-91d4-4183-b2c3-0733eae7ae90' } }); console.log(JSON.stringify(company.metadata, null, 2)); await prisma.$disconnect(); } run();

@@ -305,7 +305,7 @@ function Column({ id, title, opportunities, onEdit, onDelete, onConvert }: Colum
     const { setNodeRef } = useSortable({ id });
 
     return (
-        <div className="min-w-[320px] w-[320px] flex flex-col h-full overflow-hidden">
+        <div className="min-w-[320px] flex-1 flex flex-col h-full overflow-hidden">
             <div className="flex items-center justify-between mb-3 px-1 shrink-0">
                 <div className="flex items-center gap-2">
                     <h3 className="font-bold text-indigo-900 tracking-tight">{title}</h3>

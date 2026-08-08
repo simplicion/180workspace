@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { PieChart, Plus, Search, MoreHorizontal, Calendar, ArrowUpCircle, AlertCircle, DollarSign, GripVertical, ExternalLink, Trash2, Eye, CheckCircle } from 'lucide-react';
+import { PieChart, Plus, Search, MoreHorizontal, Calendar, ArrowUpCircle, AlertCircle, DollarSign, GripVertical, ExternalLink, Trash2, Eye, CheckCircle, Download, Upload, Settings, CheckSquare, Target, User, Phone, Mail, Hash, PhoneCall } from 'lucide-react';
 import { Skeleton , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
@@ -171,6 +171,44 @@ export default function LeadPipelinesKanbanPage() {
 
     const filteredOpps = leadPipelines.filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
+    // KPI Metrics
+    const totalLeads = leadPipelines.length;
+    const wonLeads = leadPipelines.filter(l => l.stage === 'ClosedWon').length;
+    const lostLeads = leadPipelines.filter(l => l.stage === 'ClosedLost').length;
+    const openLeads = totalLeads - wonLeads - lostLeads;
+    const pipelineValue = leadPipelines
+        .filter(l => l.stage !== 'ClosedWon' && l.stage !== 'ClosedLost')
+        .reduce((sum, l) => sum + (Number(l.value) || 0), 0);
+    const winRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
+
+    const handleExportCSV = () => {
+        if (leadPipelines.length === 0) {
+            toast.error("No leads to export");
+            return;
+        }
+        const headers = ["Title", "Stage", "Value", "Company", "Contact", "Email", "Phone", "Score"];
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + headers.join(",") + "\n"
+            + leadPipelines.map(e => [
+                `"${(e.title || '').replace(/"/g, '""')}"`,
+                `"${(e.stage || '').replace(/"/g, '""')}"`,
+                e.value || 0,
+                `"${(e.companyName || e.accountId?.name || '').replace(/"/g, '""')}"`,
+                `"${(e.contactName || '').replace(/"/g, '""')}"`,
+                `"${(e.email || '').replace(/"/g, '""')}"`,
+                `"${(e.phone || '').replace(/"/g, '""')}"`,
+                e.priorityScore || 0
+            ].join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `leads_export_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Exported successfully");
+    };
+
     // Group by stage
     const grouped = STAGES.reduce((acc, stage) => {
         acc[stage] = filteredOpps.filter(o => o.stage === stage)
@@ -181,36 +219,88 @@ export default function LeadPipelinesKanbanPage() {
 
     return (
         <div className="h-[calc(100vh-100px)] flex flex-col gap-4">
-            <div className="page-header flex justify-between items-start shrink-0 mb-0">
-                <div>
-                    <h1 className="page-title text-indigo-900 flex items-center gap-2">
-                        <PieChart className="w-6 h-6 text-indigo-600" />
-                        Lead Pipeline
-                    </h1>
-                    <p className="page-subtitle mt-1">Manage sales leads via Kanban board prioritized by algorithm.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative w-64">
-                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                            type="text"
-                            placeholder="Search leads..."
-                            aria-label="Search leads"
-                            className="input pl-10 w-full"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
+            {/* Top Bar with Title, KPIs and Main Actions */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <Target className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-gray-900 leading-tight">Leads</h1>
+                            <p className="text-xs text-gray-500 font-medium">Your sales pipeline</p>
+                        </div>
                     </div>
+
+                    <div className="hidden lg:flex items-center gap-4 pl-6 border-l border-gray-100 h-10">
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] uppercase font-bold text-gray-400">Open</span>
+                            <span className="text-sm font-black text-gray-900">{openLeads}</span>
+                        </div>
+                        <div className="w-px h-6 bg-gray-100" />
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] uppercase font-bold text-gray-400">Pipeline</span>
+                            <span className="text-sm font-black text-indigo-600">₹{pipelineValue.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="w-px h-6 bg-gray-100" />
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] uppercase font-bold text-gray-400">Won / mo</span>
+                            <span className="text-sm font-black text-emerald-600">{wonLeads}</span>
+                        </div>
+                        <div className="w-px h-6 bg-gray-100" />
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] uppercase font-bold text-gray-400">Win Rate</span>
+                            <span className="text-sm font-black text-emerald-600">{winRate}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <button className="btn btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5" onClick={() => toast.success("Select mode active")}>
+                        <CheckSquare className="w-3.5 h-3.5" /> Select
+                    </button>
+                    <button className="btn btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-gray-500 hover:text-red-600" onClick={() => toast('Trash opened')}>
+                        <Trash2 className="w-3.5 h-3.5" /> Trash
+                    </button>
+                    <button className="btn btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5" onClick={() => toast('Stages configuration opened')}>
+                        <Settings className="w-3.5 h-3.5" /> Stages
+                    </button>
                     <button 
                         onClick={() => {
                             setEditingleadPipeline(null);
                             setIsModalOpen(true);
                         }}
-                        className="btn btn-primary flex items-center gap-2 px-5 py-2 rounded-xl shadow-lg shadow-indigo-100 border-2 border-transparent hover:scale-105 transition-all text-sm"
+                        className="btn btn-primary flex items-center gap-1.5 px-4 py-1.5 rounded-lg shadow shadow-indigo-100 border border-transparent hover:scale-105 transition-all text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white"
                     >
                         <Plus className="w-4 h-4" />
                         New Lead
                     </button>
+                </div>
+            </div>
+
+            {/* Utility Bar with Search and Import/Export */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                <div className="relative w-full sm:w-80">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                        type="text"
+                        placeholder="Search leads..."
+                        className="input pl-9 w-full bg-white text-sm py-2"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                    <button className="btn btn-secondary px-3 py-2 bg-white rounded-lg text-xs font-semibold flex items-center gap-1.5" onClick={() => toast('Import dialog opened')}>
+                        <Upload className="w-3.5 h-3.5" /> Import
+                    </button>
+                    <button className="btn btn-secondary px-3 py-2 bg-white rounded-lg text-xs font-semibold flex items-center gap-1.5" onClick={handleExportCSV}>
+                        <Download className="w-3.5 h-3.5" /> Export
+                    </button>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-semibold text-gray-500 ml-2">
+                        Active leads <span className="text-gray-900 font-bold ml-1">{openLeads}</span>
+                    </div>
                 </div>
             </div>
 
@@ -303,7 +393,7 @@ function Column({ id, title, leadPipelines, onEdit, onDelete, onConvert }: Colum
     return (
         <div 
             ref={setNodeRef}
-            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] min-h-[420px] flex-shrink-0 flex flex-col', styles.bg, styles.color)}
+            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] flex-1 min-h-[420px] flex flex-col', styles.bg, styles.color)}
         >
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -380,41 +470,70 @@ function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConver
     return (
         <div 
             className={clsx(
-                "card p-3.5 hover:shadow-xl transition-all cursor-default relative group flex flex-col gap-2",
+                "card p-3.5 hover:shadow-xl transition-all cursor-default relative group flex flex-col gap-2 bg-white",
                 isDragging && "shadow-2xl ring-2 ring-indigo-500/10 cursor-grabbing rotate-2"
             )}
             {...dragHandleProps}
             onClick={() => onEdit && onEdit(opp)}
         >
-            <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
                     <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor)} />
-                    <p className="text-sm font-medium text-gray-900 leading-snug">{opp.title}</p>
+                    <p className="text-sm font-bold text-gray-900 leading-snug">{opp.title}</p>
                 </div>
             </div>
             
-            <p className="text-xs text-gray-500 mb-3 truncate">
-                {opp.accountId?.companyName || opp.accountId?.name || opp.companyName || opp.contactName || 'Private Deal'}
-            </p>
+            <div className="flex flex-col gap-1 mt-1">
+                {(opp.contactName || opp.companyName || opp.accountId?.name) && (
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
+                        <User className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="truncate">{opp.contactName || opp.companyName || opp.accountId?.name}</span>
+                    </div>
+                )}
+                {opp.phone && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        <span className="truncate">{opp.phone}</span>
+                    </div>
+                )}
+                {opp.email && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                        <Mail className="w-3 h-3 text-gray-400" />
+                        <span className="truncate">{opp.email}</span>
+                    </div>
+                )}
+            </div>
 
-            <div className="flex items-center justify-between mt-auto">
+            {/* Added By & Tags (mocked for now, if no tags exist) */}
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
+                <div className="flex items-center gap-1.5">
+                    <User className="w-3 h-3 text-gray-300" />
+                    <span className="text-[10px] font-medium text-gray-400">Added by {opp.owner?.name?.split(' ')[0] || 'System'}</span>
+                </div>
+                <div className="bg-gray-100 text-gray-600 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    {opp.source || 'Other'}
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
                 <div className="flex items-center gap-2">
-                    {opp.owner ? (
-                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold" title={opp.owner.name}>
-                            {(opp.owner.name || '').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
-                        </div>
-                    ) : <div />}
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); toast.success("Opening WhatsApp"); }}
+                        className="text-[10px] bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 px-2 py-1 rounded font-bold transition-colors flex items-center gap-1"
+                    >
+                        <PhoneCall className="w-3 h-3" /> Follow up
+                    </button>
                     {opp.stage === 'ClosedWon' && onConvert && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); onConvert(opp.id); }}
-                            className="text-[10px] bg-green-500 hover:bg-green-600 text-white px-2 py-0.5 rounded shadow-sm font-semibold transition-colors"
+                            className="text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded font-bold shadow-sm transition-colors"
                         >
                             Convert
                         </button>
                     )}
                 </div>
-                <div className="text-xs font-bold text-gray-400">
-                    ${opp.value?.toLocaleString() || '0'}
+                <div className="text-xs font-black text-gray-700 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    ₹{opp.value?.toLocaleString() || '0'}
                 </div>
             </div>
         </div>

@@ -19,6 +19,9 @@ import FinancialSnapshot from '@/app/dashboard/(dashboard)/_components/Financial
 import OperationsOverview from '@/app/dashboard/(dashboard)/_components/OperationsOverview';
 import TeamPulse from '@/app/dashboard/(dashboard)/_components/TeamPulse';
 import ActivityAnalytics from '@/app/dashboard/(dashboard)/_components/ActivityAnalytics';
+import LiveActivityFeed from '@/app/dashboard/(dashboard)/_components/LiveActivityFeed';
+import ClientActivityFeed from '@/app/dashboard/(dashboard)/_components/ClientActivityFeed';
+import SalesOverview from '@/app/dashboard/(dashboard)/_components/SalesOverview';
 
 interface DashboardStats {
     employees: { total: number; active: number };
@@ -97,7 +100,7 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
         setFetchingProjects(true);
         api.get('/api/projects?limit=5')
             .then((res) => setRecentProjects(res.data.projects || []))
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setFetchingProjects(false));
     }, [isAdmin]);
 
@@ -176,10 +179,10 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 </div>
             )}
 
-            {/* CEO Overview */}
+            {/* 1. Executive Briefing */}
             <CeoOverview />
 
-            {/* Grid Layout for Operations, Team, Ecosystem */}
+            {/* 2. The Engine (Operations & Sales - Urgent & Actionable) */}
             {loading ? (
                 <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
                     <Skeleton variant="rounded" height={400} className="w-full" />
@@ -187,35 +190,42 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 </div>
             ) : (
                 <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    
-                    {/* Left Column: Operations */}
                     <OperationsOverview stats={stats} getStatValue={getStatValue} />
-
-                    {/* Right Column: Team & Ecosystem */}
-                    <div className="space-y-6">
-                        <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
-                    </div>
+                    <SalesOverview />
                 </div>
             )}
 
-            {/* Activity Analytics */}
-            <ActivityAnalytics 
-                chartData={chartData} 
-                loading={loading} 
-                fetchingTrends={fetchingTrends} 
-                range={range} 
-                setRange={setRange} 
-                grouping={grouping} 
-                setGrouping={setGrouping} 
-            />
-
-            {/* Financial Trajectory */}
-            <FinancialTrajectory />
-
-            {/* Recent Projects */}
+            {/* 3. Execution & Risk (Projects) */}
             {!loading && (
                 <RecentProjects projects={recentProjects} loading={fetchingProjects} />
             )}
+
+            {/* 4. Health & Money (Team Pulse & Financials) */}
+            {!loading && (
+                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                    <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
+                    <FinancialTrajectory />
+                </div>
+            )}
+
+            {/* 5. Live Awareness (Activity Feeds) */}
+            {!loading && (
+                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                    <ClientActivityFeed />
+                    <LiveActivityFeed />
+                </div>
+            )}
+
+            {/* 6. Deep Analytics (Historical/Trends - Least Urgent) */}
+            <ActivityAnalytics
+                chartData={chartData}
+                loading={loading}
+                fetchingTrends={fetchingTrends}
+                range={range}
+                setRange={setRange}
+                grouping={grouping}
+                setGrouping={setGrouping}
+            />
         </div>
     );
 }

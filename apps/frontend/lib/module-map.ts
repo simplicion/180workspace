@@ -54,7 +54,11 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // Communication & Productivity Tools
   '/dashboard/chat': { appId: 'tools', moduleId: 'chat' },
   '/dashboard/calendar': { appId: 'tools', moduleId: 'calendar' },
-  '/dashboard/content-calendar': { appId: 'tools', moduleId: 'content-calendar' },
+  
+  // Social Media Management
+  '/dashboard/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
+  '/dashboard/asset-hub': { appId: 'social-media', moduleId: 'asset-hub' },
+  '/dashboard/saved-banks': { appId: 'social-media', moduleId: 'saved-banks' },
   '/dashboard/meeting': { appId: 'tools', moduleId: 'meeting' },
   '/dashboard/emails': { appId: 'tools', moduleId: 'emails' },
   '/dashboard/documents': { appId: 'tools', moduleId: 'documents' },
@@ -81,7 +85,7 @@ export interface AppConfig {
 
 import { 
     LayoutGrid, Smartphone, Globe, ShieldCheck, Database, CreditCard, Bell,
-    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2
+    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2
 } from 'lucide-react';
 
 export const APPS_CONFIG: AppConfig[] = [
@@ -115,7 +119,8 @@ export const APPS_CONFIG: AppConfig[] = [
         modules: [
             { id: 'ad-websites', name: 'Ad Websites' },
             { id: 'pixels', name: 'Pixel Tracking' },
-            { id: 'campaigns', name: 'Campaign Stats' }
+            { id: 'campaigns', name: 'Campaign Stats' },
+            { id: 'forms', name: 'Form Builder' }
         ]
     },
     { 
@@ -192,24 +197,36 @@ export const APPS_CONFIG: AppConfig[] = [
         modules: [
             { id: 'chat', name: 'Internal Chat' },
             { id: 'calendar', name: 'Shared Calendar' },
-            { id: 'content-calendar', name: 'AI Content Calendar' },
             { id: 'meeting', name: 'Video Meetings' },
             { id: 'emails', name: 'Email Integration' },
             { id: 'documents', name: 'Document Cloud' },
             { id: 'ai-assistant', name: 'AI Assistant' }
         ]
+    },
+    {
+        id: 'social-media',
+        name: 'Social Media Management',
+        icon: Share2,
+        tag: 'Marketing',
+        description: 'Content calendar, asset hub, and social post visualizer',
+        modules: [
+            { id: 'content-calendar', name: 'Content Calendar' },
+            { id: 'asset-hub', name: 'Client Asset Hub' },
+            { id: 'saved-banks', name: 'Saved Banks' }
+        ]
     }
 ];
 
 export const STARTER_SET = {
-    apps: ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising'],
+    apps: ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising', 'social-media'],
     modules: [
         'sales', 'leads', 'pipeline', 'accounts', 'contacts', 'clients',
         'projects', 'tasks', 'work-logs',
         'employees', 'attendance', 'leaves', 'holidays',
         'finance-overview', 'invoices', 'expenses',
         'analytics', 'reports',
-        'chat', 'calendar', 'emails', 'documents', 'ai-assistant'
+        'chat', 'calendar', 'emails', 'documents', 'ai-assistant',
+        'content-calendar', 'asset-hub', 'saved-banks'
     ]
 };
 
@@ -233,4 +250,5 @@ export const ALL_APPS = [
     { id: 'documents', name: 'Documents', description: 'Cloud storage and document management.', icon: FilePlus2 },
     { id: 'analytics', name: 'Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
+    { id: 'social-media', name: 'Social Media Management', description: 'Content calendar, asset hub, and social post visualizer.', icon: Share2 },
 ];

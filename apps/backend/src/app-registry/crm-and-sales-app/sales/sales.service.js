@@ -1194,13 +1194,47 @@ class SalesService {
 
     static async createOpportunity(tenantDb, data, userId) {
         const Opportunity = tenantDb.lead;
+        
+        const followUpDate = data.followUpDate;
+        const followUpTime = data.followUpTime;
+        const notes = data.notes;
+        
+        delete data.followUpDate;
+        delete data.followUpTime;
+        delete data.notes;
+
         if (data.owner) {
             data.ownerId = data.owner;
             delete data.owner;
         } else {
             data.ownerId = userId;
         }
+        
         const opp = await Opportunity.create({ data: { ...data } });
+
+        if (notes) {
+            await tenantDb.salesActivity.create({ data: {
+                type: 'note',
+                leadId: opp.id,
+                relatedClientId: opp.clientId,
+                notes: notes,
+                ownerId: userId
+            } });
+        }
+
+        if (followUpDate) {
+            let combinedDate = followUpDate;
+            if (followUpTime) combinedDate += 'T' + followUpTime;
+            await tenantDb.salesTask.create({
+                data: {
+                    description: `Follow up on deal: ${opp.title}`,
+                    dueDate: new Date(combinedDate),
+                    assignedTo: opp.ownerId || userId,
+                    leadId: opp.id,
+                }
+            });
+        }
+
 
         await tenantDb.salesActivity.create({ data: {
             type: 'task',
@@ -1236,7 +1270,7 @@ class SalesService {
                     company: oldOpp.companyName || '',
                     industry: oldOpp.industry || '',
                     source: oldOpp.source || 'outbound',
-                    status: 'new',
+                    status: 'kickoff',
                     value: oldOpp.value || 0,
                     assignedSalesRepId: oldOpp.ownerId,
                     notes: `Automatically created from won lead: ${oldOpp.title}`
@@ -1250,7 +1284,39 @@ class SalesService {
             delete data.owner;
         }
 
+        const followUpDate = data.followUpDate;
+        const followUpTime = data.followUpTime;
+        const notes = data.notes;
+        
+        delete data.followUpDate;
+        delete data.followUpTime;
+        delete data.notes;
+
+
         const opp = await Opportunity.update({ where: { id }, data });
+
+        if (notes) {
+            await tenantDb.salesActivity.create({ data: {
+                type: 'note',
+                leadId: opp.id,
+                relatedClientId: opp.clientId,
+                notes: notes,
+                ownerId: opp.ownerId
+            } });
+        }
+
+        if (followUpDate) {
+            let combinedDate = followUpDate;
+            if (followUpTime) combinedDate += 'T' + followUpTime;
+            await tenantDb.salesTask.create({
+                data: {
+                    description: `Follow up on deal: ${opp.title}`,
+                    dueDate: new Date(combinedDate),
+                    assignedTo: opp.ownerId,
+                    leadId: opp.id,
+                }
+            });
+        }
 
         const settings = await tenantDb.settings.findFirst();
         const { calculateWinProbability } = require('../../company-hub-app/crm/CrmCalculationService.js');
