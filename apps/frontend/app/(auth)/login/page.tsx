@@ -156,7 +156,11 @@ function LoginForm() {
             }
         } catch (err: any) {
             console.error('Login error:', err);
-            toast.error(err?.response?.data?.error || 'Login failed. Please check your credentials.');
+            if (err?.message === 'Network Error' || !err?.response) {
+                toast.error('Cannot connect to backend server. Please verify the backend is running on port 4002.');
+            } else {
+                toast.error(err?.response?.data?.error || err?.response?.data?.message || 'Login failed. Please check your credentials.');
+            }
         } finally {
             setLoading(false);
         }

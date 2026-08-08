@@ -2,12 +2,12 @@
 
 /**
  * AI Service for dynamic provider management
- * Supports multi-tenancy by accepting tenant-specific settings
+ * Supports multi-tenancy by accepting company-specific settings
  */
 class AIService {
     /**
      * Gets a configured AI client
-     * @param {Object} settings - Tenant-specific settings (optional)
+     * @param {Object} settings - Company-specific settings (optional)
      */
     async getClient(settings) {
         if (!settings || !settings.aiProvider || settings.aiProvider === 'none') {
@@ -164,7 +164,7 @@ class AIService {
     /**
      * Generates insights using the configured provider
      * @param {string} prompt 
-     * @param {Object} settings - Tenant-specific settings
+     * @param {Object} settings - Company-specific settings
      * @param {Object} options - Additional AI generation options
      */
     async getInsights(prompt, settings, options = {}) {
@@ -184,7 +184,7 @@ class AIService {
     /**
      * Generates insights using the configured provider via Streaming
      * @param {string} prompt 
-     * @param {Object} settings - Tenant-specific settings
+     * @param {Object} settings - Company-specific settings
      * @param {Object} options - Additional AI generation options
      * @param {Function} onChunk - Callback when a chunk arrives
      */

@@ -5,7 +5,8 @@
  */
 const companyFinancialsService = require('./company-financials.service');
 const companyEvaluationService = require('./company-evaluation.service');
-const { getTenantPrisma } = require('@workspace/db');
+const { getCompanyPrisma } = require('@workspace/db');
+
 
 // We use Prisma from req.prisma
 
@@ -75,8 +76,8 @@ exports.updateProfile = async (req, res) => {
             data: updateData
         });
 
-        const tenantDbMiddleware = require('../../../system-configs/middleware/tenant/tenant-db');
-        await tenantDbMiddleware.clearCompanyCache(companyId);
+        const companyPrismaMiddleware = require('../../../system-configs/middleware/company/company-db');
+        await companyPrismaMiddleware.clearCompanyCache(companyId);
 
         res.json({ success: true, data: updatedCompany });
     } catch (error) {
@@ -129,10 +130,11 @@ exports.getPrivateProfile = async (req, res) => {
         company.evaluatedStartupStage = startupStage;
 
         try {
-            const tenantDb = getTenantPrisma(companyId);
-            const jobs = await tenantDb.job.findMany({ where: { status: 'open' } });
+            const companyPrisma = getCompanyPrisma(companyId);
+            const jobs = await companyPrisma.job.findMany({ where: { status: 'open' } });
             company.jobs = jobs;
         } catch (e) {
+
             console.error('Failed to fetch jobs for private profile:', e);
             company.jobs = [];
         }
@@ -230,10 +232,11 @@ exports.getPublicProfile = async (req, res) => {
         publicCompany.evaluatedStartupStage = startupStage;
 
         try {
-            const tenantDb = getTenantPrisma(company.id);
-            const jobs = await tenantDb.job.findMany({ where: { status: 'open' } });
+            const companyPrisma = getCompanyPrisma(company.id);
+            const jobs = await companyPrisma.job.findMany({ where: { status: 'open' } });
             publicCompany.jobs = jobs;
         } catch (e) {
+
             console.error('Failed to fetch jobs for public profile:', e);
             publicCompany.jobs = [];
         }

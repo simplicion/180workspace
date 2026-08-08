@@ -9,7 +9,7 @@ exports.getFinancialStats = async (req, res, next) => {
     const companyId = req.user.companyId;
     const { startDate, endDate } = req.query;
     
-    // Create a cache key based on tenant and date range
+    // Create a cache key based on company and date range
     const cacheKey = `analytics:financial:${companyId}:${startDate || 'default'}:${endDate || 'default'}`;
 
     try {
@@ -96,7 +96,7 @@ exports.getAllProjectsProfitability = async (req, res, next) => {
 const PLAUSIBLE_API_BASE = 'https://plausible.io/api/v1';
 
 /**
- * Get Plausible Analytics stats for the tenant
+ * Get Plausible Analytics stats for the company
  */
 exports.getPlausibleStats = async (req, res) => {
     try {

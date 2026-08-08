@@ -7,7 +7,7 @@ The 180workspace platform delegates routing uniquely depending on the environmen
 
 ## Route Hierarchy
 ### Public Routes
-These routes bypass heavy tenant validation to allow access for incoming leads and administrative logons.
+These routes bypass heavy company validation to allow access for incoming leads and administrative logons.
 *   `/` (Root Landing Page)
 *   `/login` (Platform entry gate, OAuth, and credential processing)
 *   `/signup` (SaaS boarding workflow)
@@ -21,10 +21,10 @@ Wrapped completely by a generic `<DashboardLayout>` which ensures strict authent
 *   `/dashboard/sales/*` (Granular CRM tooling: Leads, Pipeline, Accounts, Opportunities, Quotes)
 *   `/dashboard/finance/*` (Financial Ops: Invoices, Expenses, Bills, Salary LEDGER)
 *   `/dashboard/hr/*` (Internal management: Employees, Attendance, Reviews)
-*   `/dashboard/settings/*` (Workspace/Tenant config rules and custom apps)
+*   `/dashboard/settings/*` (Workspace/Company config rules and custom apps)
 
 ### Super Administrator Routes (`/superadmin/*`)
-A tightly isolated zone mapped only to the platform maintainers, distinct from tenant-company admins.
+A tightly isolated zone mapped only to the platform maintainers, distinct from company-company admins.
 *   `/superadmin/companies`
 *   `/superadmin/users`
 *   `/superadmin/subscriptions`

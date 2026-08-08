@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { logAction } = require('../../system-configs/middleware/audit/audit.js');
 const { deleteFromCloudinary } = require('../../system-configs/config/cloudinary.js');
@@ -164,18 +164,6 @@ exports.deleteUser = async (req, res, next) => {
         };
 
         await User.update({ where: { id }, data: scrubbed });
-
-        // 3. Remove from global TenantUserMapping so they can no longer log in
-        try {
-            await globalPrisma.tenantUserMapping.deleteMany({
-                where: {
-                    email: originalEmail.toLowerCase(),
-                    companyId: req.company.id || req.company._id
-                }
-            });
-        } catch (mappingErr) {
-            console.warn('[deleteUser] Could not remove TenantUserMapping:', mappingErr.message);
-        }
 
         await logAction(reqUserId, 'DELETE_USER', 'user', id, { originalEmail }, req);
         res.json({ message: 'User account and personal data deleted successfully. Company data has been retained.' });

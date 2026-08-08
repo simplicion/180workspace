@@ -2,7 +2,7 @@
 
 /**
  * TimeLog Controller
- * Handles manual logging, timers, and auto-logging with multi-tenant support.
+ * Handles manual logging, timers, and auto-logging with multi-company support.
  */
 
 exports.getTimeLogs = async (req, res, next) => {

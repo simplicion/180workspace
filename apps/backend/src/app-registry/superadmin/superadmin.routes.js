@@ -8,7 +8,7 @@ const superAdminAudit = require('../../system-configs/middleware/audit/superadmi
 
 const authCtrl = require('./identity-and-access/auth.controller');
 const overviewCtrl = require('./system-operations/overview.controller');
-const companyCtrl = require('./tenant-management/company.controller');
+const companyCtrl = require('./company-management/company.controller');
 const userCtrl = require('./identity-and-access/user.controller');
 const planCtrl = require('./monetization/plan.controller');
 const couponCtrl = require('./monetization/coupon.controller');
@@ -21,7 +21,7 @@ const ticketCtrl = require('./communications/supportticket.controller');
 const releaseNoteCtrl = require('./system-operations/releasenote.controller');
 const forumCtrl = require('../community/forum.controller');
 const logCtrl = require('./system-operations/log.controller');
-const databaseCtrl = require('./tenant-management/database.controller');
+const databaseCtrl = require('./company-management/database.controller');
 const aiCtrl = require('../productivity-tools-app/ai-assistant/ai.controller');
 
 const saLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many login attempts' } });

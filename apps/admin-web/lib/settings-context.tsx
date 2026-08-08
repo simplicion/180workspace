@@ -114,7 +114,7 @@ export interface PlatformBranding {
     address: string;
     website: string;
     supportEmail?: string;
-    isTenant: boolean;
+    isCompany: boolean;
 }
 
 interface SettingsContextType {

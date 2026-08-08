@@ -62,17 +62,6 @@ export async function PUT(req: Request) {
           position: 'Admin'
         }
       });
-
-      // Create TenantUserMapping to ensure backend can resolve it
-      await prisma.tenantUserMapping.create({
-        data: {
-          userId: (token as any).id,
-          email: token.email as string,
-          companyId,
-          role: 'admin',
-          subdomain: slug || currentCompany?.slug || 'default'
-        }
-      });
     } else {
       // 1. Fetch current company to get existing metadata
       const currentCompany = await prisma.company.findUnique({

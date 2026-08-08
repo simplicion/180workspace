@@ -10,7 +10,7 @@ export default withAuth(
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "180workspace.com";
     const mainDomains = [rootDomain, `www.${rootDomain}`, `app.${rootDomain}`];
     
-    // Check if the request is for a custom domain or a tenant subdomain
+    // Check if the request is for a custom domain or a company subdomain
     // It is a custom domain/subdomain if it doesn't match mainDomains and isn't the base localhost (with or without port)
     const isLocalhostBase = /^localhost(:\d+)?$/.test(hostname) || /^127\.0\.0\.1(:\d+)?$/.test(hostname);
     const isCustomDomain = !mainDomains.includes(hostname) && !isLocalhostBase;

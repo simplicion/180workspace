@@ -48,12 +48,12 @@ async function getPlatformBranding() {
 /**
  * Get company configuration with defaults, falling back to platform settings
  */
-async function getCompanyInfo(tenantPrisma) {
+async function getCompanyInfo(companyPrisma) {
     const platform = await getPlatformBranding();
-    if (!tenantPrisma) return platform;
+    if (!companyPrisma) return platform;
 
     try {
-        const config = await tenantPrisma.settings.findFirst();
+        const config = await companyPrisma.settings.findFirst();
 
         if (!config) {
             return platform;
@@ -84,28 +84,28 @@ const CATEGORIES = {
 };
 
 /**
- * Get dynamic transporter based on category and tenant isolation rules
+ * Get dynamic transporter based on category and company isolation rules
  * @param {string} category - 'system' or 'work'
- * @param {Object} tenantPrisma - Tenant database connection
+ * @param {Object} companyPrisma - Company database connection
  */
-async function getTransporter(category = CATEGORIES.WORK, tenantPrisma = null) {
-    // 1. If it's a WORK email, we ONLY use Tenant SMTP
+async function getTransporter(category = CATEGORIES.WORK, companyPrisma = null) {
+    // 1. If it's a WORK email, we ONLY use Company SMTP
     if (category === CATEGORIES.WORK) {
-        if (!tenantPrisma) {
-            console.error('[EmailService] WORK category requires tenantPrisma context. Aborting.');
+        if (!companyPrisma) {
+            console.error('[EmailService] WORK category requires companyPrisma context. Aborting.');
             return null;
         }
 
         try {
-            const company = await tenantPrisma.company.findFirst({ select: { id: true, metadata: true } });
-            if (!company) throw new Error("Could not find company in tenant context.");
+            const company = await companyPrisma.company.findFirst({ select: { id: true, metadata: true } });
+            if (!company) throw new Error("Could not find company in company context.");
             
             let metadata = company.metadata || {};
             if (typeof metadata === 'string') {
                 try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
             }
             
-            const settingsRecord = await tenantPrisma.settings.findFirst();
+            const settingsRecord = await companyPrisma.settings.findFirst();
             const settings = { ...(settingsRecord || {}) };
 
             ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom'].forEach(field => {
@@ -113,7 +113,7 @@ async function getTransporter(category = CATEGORIES.WORK, tenantPrisma = null) {
             });
 
             if (settings.smtpHost && settings.smtpUser && settings.smtpPass) {
-                console.log(`[EmailService] [ISOLATION:WORK] Using Tenant SMTP: ${settings.smtpHost}`);
+                console.log(`[EmailService] [ISOLATION:WORK] Using Company SMTP: ${settings.smtpHost}`);
                 const port = Number(settings.smtpPort) || 587;
                 return nodemailer.createTransport({
                     host: settings.smtpHost,
@@ -122,10 +122,10 @@ async function getTransporter(category = CATEGORIES.WORK, tenantPrisma = null) {
                     auth: { user: settings.smtpUser, pass: settings.smtpPass },
                 });
             }
-            console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for tenant. Throwing error.`);
-            throw new Error("Tenant SMTP is not configured. Please configure your email settings in the dashboard to send work emails.");
+            console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for company. Throwing error.`);
+            throw new Error("Company SMTP is not configured. Please configure your email settings in the dashboard to send work emails.");
         } catch (e) {
-            console.error('[EmailService] [ISOLATION:WORK] Error loading tenant SMTP:', e.message);
+            console.error('[EmailService] [ISOLATION:WORK] Error loading company SMTP:', e.message);
             return null;
         }
     }
@@ -169,15 +169,15 @@ async function getTransporter(category = CATEGORIES.WORK, tenantPrisma = null) {
 /**
  * Helper to send email using dynamic settings and log the transaction
  */
-async function dispatchEmail(options, tenantPrisma) {
+async function dispatchEmail(options, companyPrisma) {
     let logId = null;
     const category = options.category || CATEGORIES.WORK;
     try {
-        const transporter = await getTransporter(category, tenantPrisma);
+        const transporter = await getTransporter(category, companyPrisma);
 
-        // Logging only if tenantPrisma provided
-        if (tenantPrisma) {
-            const log = await tenantPrisma.emailLog.create({
+        // Logging only if companyPrisma provided
+        if (companyPrisma) {
+            const log = await companyPrisma.emailLog.create({
                 data: {
                     to: options.to,
                     subject: options.subject,
@@ -192,10 +192,10 @@ async function dispatchEmail(options, tenantPrisma) {
 
         if (!transporter) {
             const errorMsg = category === CATEGORIES.WORK 
-                ? 'Tenant SMTP is not configured. Please configure your email settings in the dashboard to send work emails.' 
+                ? 'Company SMTP is not configured. Please configure your email settings in the dashboard to send work emails.' 
                 : 'SMTP not configured. Please check your .env or Platform Settings.';
-            if (logId && tenantPrisma) {
-                await tenantPrisma.emailLog.update({
+            if (logId && companyPrisma) {
+                await companyPrisma.emailLog.update({
                     where: { id: logId },
                     data: { errorMessage: errorMsg }
                 });
@@ -224,8 +224,8 @@ async function dispatchEmail(options, tenantPrisma) {
             if (ps && ps.smtpFrom) fromAddress = ps.smtpFrom;
         } catch (e) {}
 
-        if (tenantPrisma) {
-            const settings = await tenantPrisma.settings.findFirst();
+        if (companyPrisma) {
+            const settings = await companyPrisma.settings.findFirst();
             if (settings && settings.emailFrom) fromAddress = settings.emailFrom;
         }
 
@@ -238,8 +238,8 @@ async function dispatchEmail(options, tenantPrisma) {
         });
 
         console.log('Email sent:', info.messageId);
-        if (logId && tenantPrisma) {
-            await tenantPrisma.emailLog.update({
+        if (logId && companyPrisma) {
+            await companyPrisma.emailLog.update({
                 where: { id: logId },
                 data: { status: 'sent' }
             });
@@ -247,8 +247,8 @@ async function dispatchEmail(options, tenantPrisma) {
         return { success: true, messageId: info.messageId };
     } catch (error) {
         console.error('Email send error:', error);
-        if (logId && tenantPrisma) {
-            await tenantPrisma.emailLog.update({
+        if (logId && companyPrisma) {
+            await companyPrisma.emailLog.update({
                 where: { id: logId },
                 data: { status: 'failed', errorMessage: error.message }
             });
@@ -257,10 +257,10 @@ async function dispatchEmail(options, tenantPrisma) {
     }
 }
 
-async function send(options, tenantPrisma) {
+async function send(options, companyPrisma) {
     const { queueEmail } = require('../../../platform-core/platform-engine/services/queue.service');
-    const tenantId = tenantPrisma?.companyId || 'global';
-    return queueEmail({ ...options, tenantId });
+    const companyId = companyPrisma?.companyId || 'global';
+    return queueEmail({ ...options, companyId });
 }
 
 // ─── Email templates HTML constructor ─────────────────────────────────────────────────────────â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -429,8 +429,8 @@ function baseLayout(title, content, company) {
 </html>`;
 }
 
-async function buildTemplate(templateId, data, tenantDb) {
-    const company = await getCompanyInfo(tenantDb);
+async function buildTemplate(templateId, data, companyPrisma) {
+    const company = await getCompanyInfo(companyPrisma);
     let subject = '';
     let content = '';
 
@@ -986,7 +986,7 @@ function mapEventToTemplate(event) {
  * Unified entry point for all system notifications.
  * Handles template resolution, branding injection, and SMTP routing.
  */
-async function notify(recipient, event, data, tenantDb, options = {}) {
+async function notify(recipient, event, data, companyPrisma, options = {}) {
     const to = typeof recipient === 'string' ? recipient : recipient?.email;
     const name = typeof recipient === 'string' ? 'User' : (recipient?.name || 'User');
     
@@ -1001,7 +1001,7 @@ async function notify(recipient, event, data, tenantDb, options = {}) {
         
         let subject, html;
         if (templateId === 'transitional') {
-             const company = await getCompanyInfo(tenantDb);
+             const company = await getCompanyInfo(companyPrisma);
              const sub = data.subject || `${company.companyName} Update`;
              html = baseLayout(sub, `
                 <p>Hi ${name},</p>
@@ -1010,7 +1010,7 @@ async function notify(recipient, event, data, tenantDb, options = {}) {
              `, company);
              subject = data.subject || `${company.companyName} â€” ${sub}`;
         } else {
-             const result = await buildTemplate(templateId, { ...data, name, email: to }, tenantDb);
+             const result = await buildTemplate(templateId, { ...data, name, email: to }, companyPrisma);
              subject = data.subject || result.subject;
              html = result.html;
         }
@@ -1026,18 +1026,18 @@ async function notify(recipient, event, data, tenantDb, options = {}) {
             templateData: data,
             category,
             attachments: options.attachments || data.attachments || []
-        }, tenantDb);
+        }, companyPrisma);
     } catch (err) {
         console.error(`[EmailService] Notification Dispatch Error [${event}]:`, err.message);
         return { success: false, error: err.message };
     }
 }
 
-async function sendEmailTemplate(to, templateName, templateData, tenantPrisma, category = CATEGORIES.WORK) {
+async function sendEmailTemplate(to, templateName, templateData, companyPrisma, category = CATEGORIES.WORK) {
     const { queueEmail } = require('../../../platform-core/platform-engine/services/queue.service');
-    const { subject, html } = await buildTemplate(templateName, templateData, tenantPrisma);
-    const tenantId = tenantPrisma?.companyId || 'global';
-    return queueEmail({ to, subject, html, template: templateName, data: templateData, tenantId, category });
+    const { subject, html } = await buildTemplate(templateName, templateData, companyPrisma);
+    const companyId = companyPrisma?.companyId || 'global';
+    return queueEmail({ to, subject, html, template: templateName, data: templateData, companyId, category });
 }
 
 module.exports = {
@@ -1046,18 +1046,18 @@ module.exports = {
     dispatchEmail,
     CATEGORIES,
     
-    verifyConfig: async (category, tenantDb) => {
-        const transporter = await getTransporter(category, tenantDb);
+    verifyConfig: async (category, companyPrisma) => {
+        const transporter = await getTransporter(category, companyPrisma);
         return !!transporter;
     },
 
-    getTemplatePreview: async (templateId, templateData, tenantDb) => {
-        return buildTemplate(templateId, templateData, tenantDb);
+    getTemplatePreview: async (templateId, templateData, companyPrisma) => {
+        return buildTemplate(templateId, templateData, companyPrisma);
     },
 
-    sendEmail: async function(options, tenantDb) {
+    sendEmail: async function(options, companyPrisma) {
         if (typeof options === 'string') {
-            // Support legacy: sendEmail(to, subject, template, data, tenantDb)
+            // Support legacy: sendEmail(to, subject, template, data, companyPrisma)
             const to = arguments[0];
             const subject = arguments[1];
             const template = arguments[2];
@@ -1065,54 +1065,54 @@ module.exports = {
             const db = arguments[4];
             return sendEmailTemplate(to, template, data, db);
         }
-        return send({ ...options, category: options.category || CATEGORIES.WORK }, tenantDb);
+        return send({ ...options, category: options.category || CATEGORIES.WORK }, companyPrisma);
     },
 
-    sendTransactEmail: async (options, tenantDb) => {
+    sendTransactEmail: async (options, companyPrisma) => {
         const { to, template, data, category } = options;
-        return sendEmailTemplate(to, template, data, tenantDb, category || CATEGORIES.WORK);
+        return sendEmailTemplate(to, template, data, companyPrisma, category || CATEGORIES.WORK);
     },
 
     // Specific legacy functions used across the app
-    sendVerificationEmail: (to, name, verificationUrl, tenantDb) => sendEmailTemplate(to, 'verification', { name, verificationUrl }, tenantDb, CATEGORIES.WORK),
-    sendPasswordResetEmail: (to, name, resetUrl, tenantDb) => sendEmailTemplate(to, 'password_reset', { name, resetUrl }, tenantDb, CATEGORIES.WORK),
-    sendProjectAssignedEmail: (to, name, projectName, projectUrl, tenantDb) => sendEmailTemplate(to, 'project_assigned', { name, projectName, projectUrl }, tenantDb, CATEGORIES.WORK),
-    sendTaskAssignedEmail: (to, name, taskTitle, projectName, taskUrl, tenantDb) => sendEmailTemplate(to, 'task_assigned', { name, taskTitle, projectName, taskUrl }, tenantDb, CATEGORIES.WORK),
-    sendSalaryGeneratedEmail: (to, name, month, netSalary, tenantDb) => sendEmailTemplate(to, 'salary_generated', { name, month, netSalary }, tenantDb, CATEGORIES.WORK),
-    sendSystemAlert: (to, subject, message, tenantDb) => sendEmailTemplate(to, 'system_alert', { subject, message }, tenantDb, CATEGORIES.SYSTEM),
-    sendWelcomeEmail: (user, password, tenantDb) => sendEmailTemplate(user.email, 'welcome', { name: user.name, email: user.email, password }, tenantDb, CATEGORIES.WORK),
-    sendDocumentTagEmail: (to, name, documentName, documentUrl, senderName, tenantDb) => sendEmailTemplate(to, 'document_tagged', { name, documentName, documentUrl, senderName }, tenantDb, CATEGORIES.WORK),
-    sendSalarySlip: (employee, salary, tenantDb) => sendEmailTemplate(employee.email, 'salary_generated', { name: employee.name, month: salary.month, netSalary: salary.netSalary }, tenantDb, CATEGORIES.WORK),
-    sendTaskOverdueEmail: (to, name, taskTitle, dueDate, ctaUrl, tenantDb) => sendEmailTemplate(to, 'task_overdue', { name, taskTitle, dueDate, ctaUrl }, tenantDb, CATEGORIES.WORK),
-    sendCompanyWelcomeEmail: (to, name, loginUrl, tenantDb) => sendEmailTemplate(to, 'company_welcome', { name, loginUrl }, tenantDb, CATEGORIES.SYSTEM),
+    sendVerificationEmail: (to, name, verificationUrl, companyPrisma) => sendEmailTemplate(to, 'verification', { name, verificationUrl }, companyPrisma, CATEGORIES.WORK),
+    sendPasswordResetEmail: (to, name, resetUrl, companyPrisma) => sendEmailTemplate(to, 'password_reset', { name, resetUrl }, companyPrisma, CATEGORIES.WORK),
+    sendProjectAssignedEmail: (to, name, projectName, projectUrl, companyPrisma) => sendEmailTemplate(to, 'project_assigned', { name, projectName, projectUrl }, companyPrisma, CATEGORIES.WORK),
+    sendTaskAssignedEmail: (to, name, taskTitle, projectName, taskUrl, companyPrisma) => sendEmailTemplate(to, 'task_assigned', { name, taskTitle, projectName, taskUrl }, companyPrisma, CATEGORIES.WORK),
+    sendSalaryGeneratedEmail: (to, name, month, netSalary, companyPrisma) => sendEmailTemplate(to, 'salary_generated', { name, month, netSalary }, companyPrisma, CATEGORIES.WORK),
+    sendSystemAlert: (to, subject, message, companyPrisma) => sendEmailTemplate(to, 'system_alert', { subject, message }, companyPrisma, CATEGORIES.SYSTEM),
+    sendWelcomeEmail: (user, password, companyPrisma) => sendEmailTemplate(user.email, 'welcome', { name: user.name, email: user.email, password }, companyPrisma, CATEGORIES.WORK),
+    sendDocumentTagEmail: (to, name, documentName, documentUrl, senderName, companyPrisma) => sendEmailTemplate(to, 'document_tagged', { name, documentName, documentUrl, senderName }, companyPrisma, CATEGORIES.WORK),
+    sendSalarySlip: (employee, salary, companyPrisma) => sendEmailTemplate(employee.email, 'salary_generated', { name: employee.name, month: salary.month, netSalary: salary.netSalary }, companyPrisma, CATEGORIES.WORK),
+    sendTaskOverdueEmail: (to, name, taskTitle, dueDate, ctaUrl, companyPrisma) => sendEmailTemplate(to, 'task_overdue', { name, taskTitle, dueDate, ctaUrl }, companyPrisma, CATEGORIES.WORK),
+    sendCompanyWelcomeEmail: (to, name, loginUrl, companyPrisma) => sendEmailTemplate(to, 'company_welcome', { name, loginUrl }, companyPrisma, CATEGORIES.SYSTEM),
     
-    sendQuotationEmail: async (to, data, attachments, tenantDb) => {
-        const { subject, html } = await buildTemplate('quotation', data, tenantDb);
-        return send({ to, subject, html, attachments, templateName: 'quotation', templateData: data }, tenantDb);
+    sendQuotationEmail: async (to, data, attachments, companyPrisma) => {
+        const { subject, html } = await buildTemplate('quotation', data, companyPrisma);
+        return send({ to, subject, html, attachments, templateName: 'quotation', templateData: data }, companyPrisma);
     },
 
-    sendTransitionalEmail: async (to, subject, data, tenantDb) => {
+    sendTransitionalEmail: async (to, subject, data, companyPrisma) => {
 
-        const company = await getCompanyInfo(tenantDb);
+        const company = await getCompanyInfo(companyPrisma);
         const html = baseLayout(subject, `
       <h2>${subject}</h2>
       <p>Hi ${data.name},</p>
       <p>${data.message}</p>
       ${data.ctaLink ? `<a href="${data.ctaLink}" class="button">${data.ctaText || 'View Details'}</a>` : ''}
     `, company);
-        return send({ to, subject: `${company.companyName} â€” ${subject}`, html, templateName: 'transitional', templateData: data }, tenantDb);
+        return send({ to, subject: `${company.companyName} â€” ${subject}`, html, templateName: 'transitional', templateData: data }, companyPrisma);
     },
 
-    sendMeetingEmail: (to, name, meetingTitle, startTime, ctaUrl, tenantDb) => sendEmailTemplate(to, 'meeting_scheduled', { name, meetingTitle, startTime, ctaUrl }, tenantDb, CATEGORIES.WORK),
+    sendMeetingEmail: (to, name, meetingTitle, startTime, ctaUrl, companyPrisma) => sendEmailTemplate(to, 'meeting_scheduled', { name, meetingTitle, startTime, ctaUrl }, companyPrisma, CATEGORIES.WORK),
 
-    sendDocumentWithAttachment: async (to, name, documentName, message, attachment, tenantDb) => {
-        const { subject, html } = await buildTemplate('document_attachment', { name, documentName, message }, tenantDb);
-        return send({ to, subject, html, templateName: 'document_attachment', templateData: { name, documentName, message }, attachments: [attachment], category: CATEGORIES.WORK }, tenantDb);
+    sendDocumentWithAttachment: async (to, name, documentName, message, attachment, companyPrisma) => {
+        const { subject, html } = await buildTemplate('document_attachment', { name, documentName, message }, companyPrisma);
+        return send({ to, subject, html, templateName: 'document_attachment', templateData: { name, documentName, message }, attachments: [attachment], category: CATEGORIES.WORK }, companyPrisma);
     },
 
     // â”€â”€ Billing / Subscription Emails â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    sendTrialStartedEmail: async (to, adminName, trialDays, tenantDb) => {
-        const company = await getCompanyInfo(tenantDb);
+    sendTrialStartedEmail: async (to, adminName, trialDays, companyPrisma) => {
+        const company = await getCompanyInfo(companyPrisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const platformName = ps.platformName || company.companyName || 'Your Platform';
         const loginUrl = ps.platformApiUrl || process.env.CLIENT_URL || '';
@@ -1127,11 +1127,11 @@ module.exports = {
             ${upgradeUrl ? `<p style="margin-top:24px;font-size:13px;color:#9ca3af;">When your trial ends, upgrade from your <a href="${upgradeUrl}">Billing page</a> to keep access.</p>` : ''}
         `;
         const html = baseLayout(subject, content, company);
-        return send({ to, subject, html, templateName: 'trial_started' }, tenantDb);
+        return send({ to, subject, html, templateName: 'trial_started' }, companyPrisma);
     },
 
-    sendTrialReminderEmail: async (to, adminName, daysLeft, tenantDb) => {
-        const company = await getCompanyInfo(tenantDb);
+    sendTrialReminderEmail: async (to, adminName, daysLeft, companyPrisma) => {
+        const company = await getCompanyInfo(companyPrisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
         const subject = `âš ï¸ Your trial expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} â€” Action required`;
@@ -1147,11 +1147,11 @@ module.exports = {
             <a href="${upgradeUrl}" class="button">Upgrade My Plan â†’</a>
         `;
         const html = baseLayout(subject, content, company);
-        return send({ to, subject, html, templateName: 'trial_reminder' }, tenantDb);
+        return send({ to, subject, html, templateName: 'trial_reminder' }, companyPrisma);
     },
 
-    sendTrialExpiredEmail: async (to, adminName, tenantDb) => {
-        const company = await getCompanyInfo(tenantDb);
+    sendTrialExpiredEmail: async (to, adminName, companyPrisma) => {
+        const company = await getCompanyInfo(companyPrisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const platformName = ps.platformName || company.companyName || 'Your Platform';
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
@@ -1164,11 +1164,11 @@ module.exports = {
             <p style="font-size:13px;color:#9ca3af;margin-top:20px;">Your data is safe and retained for 30 days from trial expiry.</p>
         `;
         const html = baseLayout(subject, content, company);
-        return send({ to, subject, html, templateName: 'trial_expired' }, tenantDb);
+        return send({ to, subject, html, templateName: 'trial_expired' }, companyPrisma);
     },
 
-    sendSubscriptionConfirmationEmail: async (to, adminName, planName, amount, expiryDate, tenantDb) => {
-        const company = await getCompanyInfo(tenantDb);
+    sendSubscriptionConfirmationEmail: async (to, adminName, planName, amount, expiryDate, companyPrisma) => {
+        const company = await getCompanyInfo(companyPrisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const loginUrl = ps.platformApiUrl || process.env.CLIENT_URL || '';
         const platformCurrency = ps.currency || 'USD';
@@ -1183,11 +1183,11 @@ module.exports = {
             <a href="${loginUrl}" class="button">Go to Dashboard â†’</a>
         `;
         const html = baseLayout(subject, content, company);
-        return send({ to, subject, html, templateName: 'subscription_confirmation' }, tenantDb);
+        return send({ to, subject, html, templateName: 'subscription_confirmation' }, companyPrisma);
     },
 
-    sendRenewalReminderEmail: async (to, adminName, planName, daysLeft, renewalDate, tenantDb) => {
-        const company = await getCompanyInfo(tenantDb);
+    sendRenewalReminderEmail: async (to, adminName, planName, daysLeft, renewalDate, companyPrisma) => {
+        const company = await getCompanyInfo(companyPrisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
         const subject = `â° Your ${planName} subscription expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
@@ -1204,11 +1204,11 @@ module.exports = {
             <a href="${upgradeUrl}" class="button">Renew Subscription â†’</a>
         `;
         const html = baseLayout(subject, content, company);
-        return send({ to, subject, html, templateName: 'renewal_reminder' }, tenantDb);
+        return send({ to, subject, html, templateName: 'renewal_reminder' }, companyPrisma);
     },
 
-    sendDeletionWarningEmail: async (to, adminName, retentionDays, deletionDate, tenantDb) => {
-        const company = await getCompanyInfo(tenantDb);
+    sendDeletionWarningEmail: async (to, adminName, retentionDays, deletionDate, companyPrisma) => {
+        const company = await getCompanyInfo(companyPrisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
         const subject = `âš ï¸ FINAL NOTICE: Data deletion scheduled in ${retentionDays} days`;
@@ -1224,15 +1224,15 @@ module.exports = {
             <a href="${upgradeUrl}" class="button" style="background: #cf1d29;">Upgrade Now to Save Your Data â†’</a>
         `;
         const html = baseLayout(subject, content, company);
-        return send({ to, subject, html, templateName: 'deletion_warning' }, tenantDb);
+        return send({ to, subject, html, templateName: 'deletion_warning' }, companyPrisma);
     },
 
     // â”€â”€ Forgot Password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Always sends via system SMTP (PlatformSettings â†’ .env fallback)
-    async sendForgotPasswordEmail(user, tempPassword, companyName, tenantDb) {
+    async sendForgotPasswordEmail(user, tempPassword, companyName, companyPrisma) {
         const to = user.email;
         const name = user.name || 'User';
-        const company = await getCompanyInfo(tenantDb);
+        const company = await getCompanyInfo(companyPrisma);
         const loginUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         const subject = `ðŸ”‘ Your New Password â€“ ${company.companyName || companyName}`;
         const content = `
@@ -1256,12 +1256,12 @@ module.exports = {
             html, 
             templateName: 'forgot_password',
             category: CATEGORIES.SYSTEM 
-        }, tenantDb);
+        }, companyPrisma);
     },
 
-    async sendGoalAssignedEmail(to, name, goalTitle, motivation, celebration, difficulty, dueDate, ctaUrl, tenantDb) {
+    async sendGoalAssignedEmail(to, name, goalTitle, motivation, celebration, difficulty, dueDate, ctaUrl, companyPrisma) {
         return this.sendTransitionalEmail(to, `New Goal: ${goalTitle}`, { 
             name, goalTitle, motivation, celebration, difficulty, dueDate, ctaUrl, templateOverride: 'goal_assigned' 
-        }, tenantDb);
+        }, companyPrisma);
     }
 };

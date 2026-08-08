@@ -32,7 +32,7 @@ The platform consists of four primary deployment nodes:
 - **Role:** The back-office control panel for platform administrators.
 - **Stack:** Next.js, React, Tailwind CSS.
 - **Location:** `apps/admin-web`
-- **Key Feature:** Strictly segregated from user data, providing a secure interface for monitoring system health, managing tenants, and configuring billing.
+- **Key Feature:** Strictly segregated from user data, providing a secure interface for monitoring system health, managing companys, and configuring billing.
 
 ---
 

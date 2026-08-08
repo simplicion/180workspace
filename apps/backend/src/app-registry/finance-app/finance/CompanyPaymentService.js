@@ -1,16 +1,16 @@
 ﻿'use strict';
 
-class TenantPaymentService {
+class CompanyPaymentService {
     static getProviderAdapter(providerName, config) {
         switch (providerName) {
             case 'razorpay':
-                const RazorpayTenantProvider = require('./providers/RazorpayTenantProvider');
-                return new RazorpayTenantProvider(config.razorpay);
+                const RazorpayCompanyProvider = require('./providers/RazorpayCompanyProvider');
+                return new RazorpayCompanyProvider(config.razorpay);
             case 'stripe':
-                const StripeTenantProvider = require('./providers/StripeTenantProvider');
-                return new StripeTenantProvider(config.stripe);
+                const StripeCompanyProvider = require('./providers/StripeCompanyProvider');
+                return new StripeCompanyProvider(config.stripe);
             default:
-                throw new Error(`Unsupported tenant payment provider: ${providerName}`);
+                throw new Error(`Unsupported company payment provider: ${providerName}`);
         }
     }
 
@@ -20,15 +20,15 @@ class TenantPaymentService {
         });
         
         // Use JSON fields or fallback
-        const paymentConfig = config?.tenantPaymentConfig || {};
+        const paymentConfig = config?.companyPaymentConfig || {};
         
         if (!config || !paymentConfig) {
-            throw new Error('Tenant payment configuration not found');
+            throw new Error('Company payment configuration not found');
         }
 
         const activeProvider = paymentConfig.activeProvider;
         if (activeProvider === 'manual' || !activeProvider) {
-            throw new Error('Tenant payments are set to manual or unconfigured');
+            throw new Error('Company payments are set to manual or unconfigured');
         }
 
         return this.getProviderAdapter(activeProvider, paymentConfig);
@@ -39,10 +39,10 @@ class TenantPaymentService {
             where: { companyId }
         });
         
-        const paymentConfig = config?.tenantPaymentConfig || {};
+        const paymentConfig = config?.companyPaymentConfig || {};
         
         if (!config || !paymentConfig) {
-            throw new Error('Tenant payment configuration not found');
+            throw new Error('Company payment configuration not found');
         }
 
         switch (providerName) {
@@ -56,4 +56,4 @@ class TenantPaymentService {
     }
 }
 
-module.exports = TenantPaymentService;
+module.exports = CompanyPaymentService;

@@ -18,7 +18,7 @@ Used in the AI generation services. A factory function determines which LLM prov
 Express inherently relies on this. We use it extensively for cross-cutting concerns:
 - **Authentication:** Validating JWTs before reaching controllers.
 - **Rate Limiting:** Applying limits based on IP.
-- **Tenant Context:** Injecting the `companyId` into requests (`tenant-db.js`).
+- **Company Context:** Injecting the `companyId` into requests (`company-db.js`).
 
 ## Frontend Patterns (React / Next.js)
 

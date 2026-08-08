@@ -16,7 +16,7 @@ The UI utilizes a highly composed structure within `frontend/components/`. Compo
 *   **dashboard/EmployeeDashboard**: Conditionally rendered interface isolating data exclusively for the `employee` role vs standard generic dashboards.
 *   **documents/TemplatesListModal.tsx**: E-signature and text generation scaffolding.
 *   **hr/PayslipModal.tsx**: PDF renderer rendering strict accounting output.
-*   **settings/CompanyTab.tsx**: Modifies the root system configuration logic for a tenant.
+*   **settings/CompanyTab.tsx**: Modifies the root system configuration logic for a company.
 
 ## Component Relationships
 Components generally rely on their parent Next.js `page.tsx` elements to dispatch API queries (via `axios`). The fetched data is drilled down as React Props to the components.

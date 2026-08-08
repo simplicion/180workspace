@@ -4,10 +4,10 @@ class FinancialAnalyticsService {
     /**
      * Generates a Profit & Loss (P&L) Report for a specific period.
      */
-    static async getPLReport(tenantDb, startDate, endDate) {
-        const Invoice = tenantDb.invoice;
-        const Expense = tenantDb.expense;
-        const Salary = tenantDb.salary;
+    static async getPLReport(companyPrisma, startDate, endDate) {
+        const Invoice = companyPrisma.invoice;
+        const Expense = companyPrisma.expense;
+        const Salary = companyPrisma.salary;
 
         // 1. Calculate Revenue (Sum of Paid Invoices)
         const revenueData = await Invoice.aggregate({
@@ -60,9 +60,9 @@ class FinancialAnalyticsService {
     /**
      * Predicts cash flow based on unpaid invoices and recurring expenses.
      */
-    static async getCashFlowForecast(tenantDb) {
-        const Invoice = tenantDb.invoice;
-        const Salary = tenantDb.salary;
+    static async getCashFlowForecast(companyPrisma) {
+        const Invoice = companyPrisma.invoice;
+        const Salary = companyPrisma.salary;
 
         // Projected Inflow (Sum of Sent/Overdue Invoices)
         const inflowData = await Invoice.aggregate({
@@ -88,10 +88,10 @@ class FinancialAnalyticsService {
     /**
      * Calculates profitability and budget performance for a specific project.
      */
-    static async getProjectProfitability(tenantDb, projectId) {
-        const Project = tenantDb.project;
-        const Invoice = tenantDb.invoice;
-        const Expense = tenantDb.expense;
+    static async getProjectProfitability(companyPrisma, projectId) {
+        const Project = companyPrisma.project;
+        const Invoice = companyPrisma.invoice;
+        const Expense = companyPrisma.expense;
 
         const project = await Project.findUnique({ where: { id: projectId } });
         if (!project) throw new Error('Project not found');

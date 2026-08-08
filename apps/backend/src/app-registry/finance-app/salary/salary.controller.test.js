@@ -54,12 +54,12 @@ app.get('/api/salaries', protect, getSalaries);
 app.post('/api/salaries', protect, generateSalary);
 app.put('/api/salaries/:id/approve', protect, hrApproveSalary);
 
-describe('Salary Controller & Tenant Isolation', () => {
+describe('Salary Controller & Company Isolation', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    it('1. Tenant Isolation: should only fetch salaries for the logged-in user\'s company (Company A)', async () => {
+    it('1. Company Isolation: should only fetch salaries for the logged-in user\'s company (Company A)', async () => {
         mockSalaryFindMany.mockResolvedValue([]);
         const token = generateToken({ id: 'user-1', companyId: 'company-A' });
 
@@ -98,7 +98,7 @@ describe('Salary Controller & Tenant Isolation', () => {
         expect(res.body.salary.companyId).toBe('company-A');
     });
 
-    it('3. Salary Logic: should reject hrApproveSalary if salary record does not belong to the tenant', async () => {
+    it('3. Salary Logic: should reject hrApproveSalary if salary record does not belong to the company', async () => {
         // Mock findFirst returning null because companyId didn't match
         mockSalaryFindFirst.mockResolvedValue(null);
         

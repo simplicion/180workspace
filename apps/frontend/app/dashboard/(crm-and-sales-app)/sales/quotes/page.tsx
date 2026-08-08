@@ -2,10 +2,11 @@
 
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
     FileText, Plus, Search, Filter, ArrowRight, DollarSign,
     Calendar, Download, CheckCircle, Clock, X, Trash2,
-    MoreVertical, Mail, Edit2, Eye
+    MoreVertical, Mail, Edit2, Eye, Sparkles
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -202,6 +203,25 @@ export default function QuotesPage() {
 
     return (
         <div className="space-y-6">
+            {/* Unified 180 Documents Hub Banner */}
+            <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 dark:border-indigo-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-500/20">
+                        <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">Quotations are now centralized in 180 Documents</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Create, customize, and sign interactive quotes, contracts, and proposals directly from the 180 Documents Hub.</p>
+                    </div>
+                </div>
+                <Link
+                    href="/dashboard/documents?type=Quotes"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-sm shadow-indigo-500/20 whitespace-nowrap"
+                >
+                    Go to 180 Documents <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+            </div>
+
             <div className="page-header flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">

@@ -17,7 +17,7 @@ sequenceDiagram
     Client->>Controller: HTTP POST /api/v1/projects
     activate Controller
     Controller->>Controller: Validate Request
-    Controller->>Service: createProject(data, tenantId)
+    Controller->>Service: createProject(data, companyId)
     activate Service
     Service->>Service: Execute Business Logic
     Service->>Model: Project.create({...})
@@ -50,11 +50,11 @@ Located in `src/models/`, these define the data schemas and handle database inte
 - Contains Prisma middleware (pre/post save hooks).
 - Represents the only layer that should directly interact with PostgreSQL.
 
-## 4. Multi-Tenant Middleware
-Located in `src/middleware/tenant-db.js`.
-Because the 180workspace platform serves multiple companies (tenants), this middleware is injected into protected routes.
+## 4. Multi-Company Middleware
+Located in `src/middleware/company-db.js`.
+Because the 180workspace platform serves multiple companies (companys), this middleware is injected into protected routes.
 - It extracts the `companyId` from the authenticated user's JWT.
-- It attaches the tenant context so queries only retrieve data belonging to that specific company.
+- It attaches the company context so queries only retrieve data belonging to that specific company.
 
 ## 5. Error Handling
 Located in `src/middleware/error.js`.

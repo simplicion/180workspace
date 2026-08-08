@@ -10,7 +10,7 @@ describe('Auth Middleware - protect', () => {
     beforeEach(() => {
         jest.resetModules();
         process.env = { ...ORIGINAL_ENV };
-        process.env.JWT_SECRET = 'tenant-secret';
+        process.env.JWT_SECRET = 'company-secret';
         process.env.SUPER_ADMIN_JWT_SECRET = 'superadmin-secret';
 
         req = {
@@ -49,13 +49,13 @@ describe('Auth Middleware - protect', () => {
     });
 
     it('should allow a token signed with JWT_SECRET', async () => {
-        // Sign a token using the tenant secret
-        const tenantToken = jwt.sign(
+        // Sign a token using the company secret
+        const companyToken = jwt.sign(
             { id: '456', role: 'employee' },
             process.env.JWT_SECRET
         );
 
-        req.headers.authorization = `Bearer ${tenantToken}`;
+        req.headers.authorization = `Bearer ${companyToken}`;
         
         // Mock prisma to return a valid user to bypass the next db checks
         req.prisma = {

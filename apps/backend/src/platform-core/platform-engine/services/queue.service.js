@@ -65,15 +65,14 @@ async function initQueues() {
 /**
  * Add an email job to the queue
  */
-async function queueEmail({ to, subject, html, template, data, tenantId, category }) {
+async function queueEmail({ to, subject, html, template, data, companyId, category }) {
+    const targetCompanyId = companyId;
     if (!emailQueue) {
         const EmailService = require('./email.service');
-        const { getTenantDb } = require('../../../system-configs/database-tools/dbManager.js');
+        const { getCompanyPrisma } = require('@workspace/db');
         
-        // If no queue, send immediately using the internal send method
-        // We use sendEmail({options}, db) to bypass recursion
         try {
-            const tenantDb = await getTenantDb(tenantId);
+            const companyPrisma = targetCompanyId ? getCompanyPrisma(targetCompanyId) : null;
             return EmailService.dispatchEmail({ 
                 to, 
                 subject, 
@@ -81,26 +80,27 @@ async function queueEmail({ to, subject, html, template, data, tenantId, categor
                 templateName: template, 
                 templateData: data,
                 category
-            }, tenantDb);
+            }, companyPrisma);
         } catch (err) {
             console.error('[Queue Fallback] Failed to send email:', err.message);
-            // Don't throw here to prevent crashing the main thread, just return failure
             return { success: false, error: err.message };
         }
     }
-    return emailQueue.add('send', { to, subject, html, template, data, tenantId, category }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+    return emailQueue.add('send', { to, subject, html, template, data, companyId: targetCompanyId, category }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
 }
 
 /**
  * Add a notification job to the queue
  */
-async function queueNotification(data, tenantId) {
-    const jobData = { ...data, tenantId };
+async function queueNotification(data, companyId) {
+    const jobData = { ...data, companyId };
     if (!notificationQueue) {
-        const { getTenantDb } = require('../../../system-configs/database-tools/dbManager.js');
-        const tenantDb = await getTenantDb(tenantId);
-        const NotificationModel = tenantDb.model('Notification');
-        return NotificationModel.create(data);
+        const { getCompanyPrisma } = require('@workspace/db');
+        const companyPrisma = companyId ? getCompanyPrisma(companyId) : null;
+        if (companyPrisma) {
+            return companyPrisma.notification.create({ data });
+        }
+        return null;
     }
     return notificationQueue.add('create', jobData);
 }
@@ -108,45 +108,47 @@ async function queueNotification(data, tenantId) {
 /**
  * Trigger an n8n automation via queue
  */
-async function queueAutomation(type, data, tenantId) {
+async function queueAutomation(type, data, companyId) {
     if (!automationQueue) {
         if (type === 'internal_trigger') {
             try {
-                const { getTenantDb } = require('../../../system-configs/database-tools/dbManager.js');
+                const { getCompanyPrisma } = require('@workspace/db');
                 const AutomationService = require('./automation.service');
-                const tenantDb = await getTenantDb(tenantId);
-                console.log(`[Queue Fallback] Processing automation [${data.eventType}] immediately for tenant ${tenantId}`);
-                return await AutomationService.processTrigger(data, tenantDb);
+                const companyPrisma = companyId ? getCompanyPrisma(companyId) : null;
+                console.log(`[Queue Fallback] Processing automation [${data.eventType}] immediately for company ${companyId}`);
+                return await AutomationService.processTrigger(data, companyPrisma);
             } catch (err) {
-                console.error('[Queue Fallback] Failed to process automation immediately:', err.message); return { success: false, error: err.message };
+                console.error('[Queue Fallback] Failed to process automation immediately:', err.message);
+                return { success: false, error: err.message };
             }
         }
-        console.warn('[Queue] Automation skipped â€” Queue not initialized and no direct fallback for type:', type);
+        console.warn('[Queue] Automation skipped — Queue not initialized and no direct fallback for type:', type);
         return;
     }
-    return automationQueue.add('automation_task', { type, data, tenantId });
+    return automationQueue.add('automation_task', { type, data, companyId });
 }
+
 
 /**
  * Add an AI task to the queue
  */
-async function queueAITask(taskType, data, tenantId) {
+async function queueAITask(taskType, data, companyId) {
     if (!aiQueue) {
         console.warn(`[Queue] AI Queue not initialized. Cannot process ${taskType}.`);
         return null;
     }
-    return aiQueue.add(taskType, { ...data, tenantId });
+    return aiQueue.add(taskType, { ...data, companyId });
 }
 
 /**
  * Add a file processing task to the queue
  */
-async function queueFileTask(taskType, data, tenantId) {
+async function queueFileTask(taskType, data, companyId) {
     if (!fileProcessingQueue) {
         console.warn(`[Queue] File Processing Queue not initialized. Cannot process ${taskType}.`);
         return null;
     }
-    return fileProcessingQueue.add(taskType, { ...data, tenantId });
+    return fileProcessingQueue.add(taskType, { ...data, companyId });
 }
 
 module.exports = {

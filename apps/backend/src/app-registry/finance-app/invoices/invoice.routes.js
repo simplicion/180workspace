@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../../../system-configs/middleware/auth/auth.js');
 const { requireAdmin } = require('../../../system-configs/middleware/auth/rbac.js');
-// 1. Removed direct model import to enforce tenant isolation
+// 1. Removed direct model import to enforce company isolation
 const FraudDetectionService = require('../finance/FraudDetectionService.js');
 
 // GET /api/invoices

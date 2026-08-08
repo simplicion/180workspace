@@ -1,8 +1,8 @@
 ﻿'use strict';
 
-class TenantPaymentProviderInterface {
+class CompanyPaymentProviderInterface {
     constructor(config) {
-        if (new.target === TenantPaymentProviderInterface) {
+        if (new.target === CompanyPaymentProviderInterface) {
             throw new TypeError("Cannot construct Abstract instances directly");
         }
         this.config = config;
@@ -25,4 +25,4 @@ class TenantPaymentProviderInterface {
     }
 }
 
-module.exports = TenantPaymentProviderInterface;
+module.exports = CompanyPaymentProviderInterface;

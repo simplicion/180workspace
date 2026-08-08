@@ -3,10 +3,10 @@
 ## Overview
 The application persists data to a PostgreSQL NoSQL Document Store using the **Prisma ORM**. There are over 40 structured collections defined in `backend/src/models/`, managing everything from hierarchical company structures to highly fragmented chat logs.
 
-## Tenant Data Isolation Pattern
-Almost every model shares a foundational Multi-tenant mechanism:
+## Company Data Isolation Pattern
+Almost every model shares a foundational Multi-company mechanism:
 - `companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', index: true }`
-When a user queries data, the backend middleware injects this `companyId` into all database operations to mathematically verify that Cross-Tenant leakage is impossible.
+When a user queries data, the backend middleware injects this `companyId` into all database operations to mathematically verify that Cross-Company leakage is impossible.
 
 ## Key Tables / Collections
 ### 1. User & Identity

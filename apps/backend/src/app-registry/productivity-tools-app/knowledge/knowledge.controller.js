@@ -6,6 +6,7 @@ exports.getArticles = async (req, res) => {
         const { companyId } = req.user;
         const { search, category } = req.query;
 
+        const db = req.prisma || prisma;
         const where = { companyId };
 
         if (category && category !== 'All') {
@@ -14,12 +15,12 @@ exports.getArticles = async (req, res) => {
 
         if (search) {
             where.OR = [
-                { title: { search: search } },
-                { content: { search: search } }
+                { title: { contains: search, mode: 'insensitive' } },
+                { content: { contains: search, mode: 'insensitive' } }
             ];
         }
 
-        const articles = await prisma.knowledgeArticle.findMany({
+        const articles = await db.knowledgeArticle.findMany({
             where,
             include: {
                 createdBy: { select: { id: true, name: true, photoUrl: true } },

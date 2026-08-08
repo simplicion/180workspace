@@ -131,7 +131,7 @@ exports.markAttendance = async (req, res, next) => {
                 targetUser: employeeId,
                 description: `Employee was marked ${status} for ${date}`,
                 metadata: { date, status }
-            }, req.user.companyId); // Passing companyId for tenant context if needed
+            }, req.user.companyId); // Passing companyId for company context if needed
         }
 
         res.status(200).json({ record });

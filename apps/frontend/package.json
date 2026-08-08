@@ -24,6 +24,7 @@
         "@dnd-kit/utilities": "^3.2.2",
         "@fontsource/inter": "^5.2.8",
         "@react-oauth/google": "^0.13.4",
+        "@react-pdf/renderer": "^4.5.1",
         "@reduxjs/toolkit": "^2.12.0",
         "@tailwindcss/typography": "^0.5.19",
         "@types/bcryptjs": "^3.0.0",
@@ -38,6 +39,7 @@
         "framer-motion": "^12.35.1",
         "hls.js": "^1.6.16",
         "html2canvas": "^1.4.1",
+        "html2pdf.js": "^0.14.0",
         "iconsax-react": "^0.0.8",
         "jspdf": "^4.2.0",
         "jwt-decode": "^4.0.0",
@@ -87,4 +89,3 @@
         "typescript": "^5.9.3"
     }
 }
-

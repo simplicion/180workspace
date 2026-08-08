@@ -732,6 +732,55 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         }
     }, [user, authLoading, company, pathname, router, status, mandateStatus, isAdmin, paymentsEnabled, subLoading, isBillingPath]);
 
+    useEffect(() => {
+        if (!user) return;
+        let socketInstance: any = null;
+        let handleContractSigned: any = null;
+
+        const initSocket = async () => {
+            try {
+                const { getSocket } = await import('@/lib/socket');
+                socketInstance = getSocket();
+                if (!socketInstance) return;
+                
+                handleContractSigned = (data: any) => {
+                    toast((t) => (
+                        <div className="flex flex-col gap-2 max-w-sm">
+                            <div className="flex items-center gap-2 font-bold text-gray-900">
+                                <span>📝</span> Contract Signed!
+                            </div>
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                                &quot;{data.title || 'A contract'}&quot; was just signed by {data.clientName || 'the client'}.
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                                <button onClick={() => {
+                                    toast.dismiss(t.id);
+                                    router.push('/dashboard/projects?new=true&contractId=' + (data.contractId || data.id || ''));
+                                }} className="flex-1 bg-indigo-600 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                                    Convert to Project
+                                </button>
+                                <button onClick={() => toast.dismiss(t.id)} className="flex-1 bg-gray-100 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    ), { duration: 15000 });
+                };
+                
+                socketInstance.on('contract:signed', handleContractSigned);
+            } catch (err) {
+                console.error("Failed to initialize socket for DashboardInner:", err);
+            }
+        };
+        initSocket();
+
+        return () => {
+            if (socketInstance && handleContractSigned) {
+                socketInstance.off('contract:signed', handleContractSigned);
+            }
+        };
+    }, [user, router]);
+
     if (authLoading || settingsLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">

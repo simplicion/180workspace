@@ -7,7 +7,7 @@
  * 
  * SECURITY POLICY:
  * - If company context is missing → DENY (403). The request should never
- *   reach a guarded route without tenant context.
+ *   reach a guarded route without company context.
  * - If CompanyConfig cannot be loaded → DENY (503). This signals a
  *   configuration or database issue. We must NOT silently proceed.
  * - If the requested app/module is disabled → DENY (403).
@@ -28,17 +28,18 @@ module.exports = function moduleGuard(appId, moduleId) {
     return async (req, res, next) => {
         try {
             const company = req.company;
-            const tenantDb = req.prisma;
+            const prismaClient = req.prisma;
 
-            // GATE 1: Tenant context is mandatory for guarded routes
-            if (!company || !tenantDb) {
-                console.error(`[Module Guard] DENIED — No tenant context. appId=${appId}, moduleId=${moduleId}, url=${req.originalUrl}`);
+            // GATE 1: Company context is mandatory for guarded routes
+            if (!company || !prismaClient) {
+                console.error(`[Module Guard] DENIED — No company context. appId=${appId}, moduleId=${moduleId}, url=${req.originalUrl}`);
                 return res.status(403).json({
                     error: 'Access Denied',
-                    message: 'This resource requires an active workspace context.',
-                    code: 'NO_TENANT_CONTEXT'
+                    message: 'This resource requires an active company workspace context.',
+                    code: 'NO_COMPANY_CONTEXT'
                 });
             }
+
 
             // GATE 2: Developer error — guard was registered without identifiers
             if (!appId && !moduleId) {
@@ -55,18 +56,19 @@ module.exports = function moduleGuard(appId, moduleId) {
 
             if (!config) {
                 try {
-                    config = await tenantDb.companyConfig.findFirst();
+                    config = await prismaClient.companyConfig.findFirst();
                     
                     // Auto-create CompanyConfig if missing (workspace setup may not have created it)
                     if (!config) {
                         try {
-                            config = await tenantDb.companyConfig.create({ data: {} });
+                            config = await prismaClient.companyConfig.create({ data: {} });
                             console.log(`[Module Guard] Auto-created CompanyConfig for company=${company.id}`);
                         } catch (createErr) {
                             // If create fails (e.g., unique constraint), try findFirst again
-                            config = await tenantDb.companyConfig.findFirst();
+                            config = await prismaClient.companyConfig.findFirst();
                         }
                     }
+
 
                     if (config) {
                         // Merge enabledApps/enabledModules from Company metadata (the source of truth)

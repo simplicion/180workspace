@@ -10,20 +10,20 @@ const { upload } = require('../../system-configs/middleware/system/upload.js');
 // @access  Public
 router.get('/status', setupController.getSetupStatus);
 
-// @route   POST /api/setup/register-tenant
+// @route   POST /api/setup/register-company
 // @desc    Register a new company admin and company name into the System DB
 // @access  Public
-router.post('/register-tenant', upload.single('logo'), setupController.registerTenant);
+router.post('/register-company', upload.single('logo'), setupController.registerCompany);
 
-// @route   POST /api/setup/register-tenant-google
+// @route   POST /api/setup/register-company-google
 // @desc    Register a new company admin via Google OAuth into the System DB
 // @access  Public
-router.post('/register-tenant-google', upload.single('logo'), setupController.registerTenantGoogle);
+router.post('/register-company-google', upload.single('logo'), setupController.registerCompanyGoogle);
 
-// @route   POST /api/setup/configure-tenant
-// @desc    Configure database credentials for a specific tenant token and seed it
+// @route   POST /api/setup/configure-company
+// @desc    Configure database credentials for a specific company token and seed it
 // @access  Public
-router.post('/configure-tenant', setupController.configureTenant);
+router.post('/configure-company', setupController.configureCompany);
 
 // Legacy configuration route (kept for rollback safety or global scripts)
 router.post('/database', setupController.configureDatabase);

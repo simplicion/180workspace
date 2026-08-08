@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
-import { Toaster as SonnerToaster } from 'sonner';
 import { Providers } from './providers';
 import DesktopSplitView from '@/components/shared/DesktopSplitView';
 
@@ -77,7 +76,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                             error: { style: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fee2e2' } },
                         }}
                     />
-                    <SonnerToaster position="top-right" richColors />
                 </Providers>
             </body>
         </html>

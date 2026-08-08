@@ -2,6 +2,14 @@ import { baseApi } from './baseApi';
 
 export const knowledgeApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
+        get180Documents: builder.query({
+            query: (params) => ({
+                url: '/180documents',
+                method: 'GET',
+                params
+            }),
+            providesTags: ['Knowledge']
+        }),
         getArticles: builder.query({
             query: (params) => ({
                 url: '/knowledge',
@@ -74,6 +82,7 @@ export const knowledgeApi = baseApi.injectEndpoints({
 });
 
 export const {
+    useGet180DocumentsQuery,
     useGetArticlesQuery,
     useGetArticleByIdQuery,
     useCreateArticleMutation,

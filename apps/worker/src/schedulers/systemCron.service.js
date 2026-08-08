@@ -1,70 +1,71 @@
-﻿'use strict';
+'use strict';
 
 const cron = require('node-cron');
 const AutomationService = require('./automation.service');
 const AnalyticsService = require('../../modules/insights/analytics.service');
 const AIAutomationService = require('../../modules/ai-comms/ai-automation.service');
 const SalesRuleEngine = require('../../modules/sales/sales-rule-engine.service');
-const { prisma, getTenantPrisma } = require('@workspace/db');
+const { prisma, getCompanyPrisma } = require('@workspace/db');
 
 /**
- * Cron Service - Handles all scheduled tasks across all tenants
- * Multi-tenant aware: Iterates over all active companies and runs logic for each.
+ * Cron Service - Handles all scheduled tasks across companies
+ * Iterates over all active companies and runs logic for each.
  */
+
 class CronService {
     init() {
-        console.info('Initializing Multi-Tenant Cron Service...');
+        console.info('Initializing Multi-Company Cron Service...');
 
         // 1. Every Hour: Check for approaching deadlines (Projects & Tasks)
-        cron.schedule('0 * * * *', () => this.runForAllTenants(this.checkDeadlines));
+        cron.schedule('0 * * * *', () => this.runForAllCompanies(this.checkDeadlines));
 
         // 1b. Every Hour: Check for overdue tasks
-        cron.schedule('0 * * * *', () => this.runForAllTenants(this.checkOverdueTasks));
+        cron.schedule('0 * * * *', () => this.runForAllCompanies(this.checkOverdueTasks));
 
         // 2. Daily at 23:55: Mark Absences
-        cron.schedule('55 23 * * *', () => this.runForAllTenants(this.dailyAttendanceCheck));
+        cron.schedule('55 23 * * *', () => this.runForAllCompanies(this.dailyAttendanceCheck));
 
         // 3. 1st of every month at 00:05: Generate Salaries
-        cron.schedule('5 0 1 * *', () => this.runForAllTenants(this.monthlySalaryGeneration));
+        cron.schedule('5 0 1 * *', () => this.runForAllCompanies(this.monthlySalaryGeneration));
 
         // 4. Every 15 minutes: Check for upcoming meetings
-        cron.schedule('*/15 * * * *', () => this.runForAllTenants(this.meetingReminders));
+        cron.schedule('*/15 * * * *', () => this.runForAllCompanies(this.meetingReminders));
 
         // 5. Daily at 01:00: Run AI Risk Analysis
-        cron.schedule('0 1 * * *', () => this.runForAllTenants(this.runProjectRiskAnalysis));
+        cron.schedule('0 1 * * *', () => this.runForAllCompanies(this.runProjectRiskAnalysis));
 
         // 6. Daily at 10:30: Check for late attendance
-        cron.schedule('30 10 * * *', () => this.runForAllTenants(this.lateAttendanceCheck));
+        cron.schedule('30 10 * * *', () => this.runForAllCompanies(this.lateAttendanceCheck));
 
         // 7. 1st of every month at 01:00: Attendance Pattern Analysis
-        cron.schedule('0 1 1 * *', () => this.runForAllTenants(this.monthlyAttendancePatternCheck));
+        cron.schedule('0 1 1 * *', () => this.runForAllCompanies(this.monthlyAttendancePatternCheck));
 
         // 8. Daily at 02:00: Run Sales CRM Stagnation Checks
-        cron.schedule('0 2 * * *', () => this.runForAllTenants(this.dailySalesStagnationCheck));
+        cron.schedule('0 2 * * *', () => this.runForAllCompanies(this.dailySalesStagnationCheck));
 
         // 9. Daily at 03:00: Run Data Cleanup (Logs > 30 days)
-        cron.schedule('0 3 * * *', () => this.runForAllTenants(this.dataCleanup));
+        cron.schedule('0 3 * * *', () => this.runForAllCompanies(this.dataCleanup));
 
         // 10. Every Hour: Auto Check-out for users who forgot to clock out
-        cron.schedule('0 * * * *', () => this.runForAllTenants(this.autoCheckOutWorker));
+        cron.schedule('0 * * * *', () => this.runForAllCompanies(this.autoCheckOutWorker));
 
-        console.info('Multi-Tenant Cron Jobs Scheduled Successfully.');
+        console.info('Multi-Company Cron Jobs Scheduled Successfully.');
     }
 
     /**
-     * Helper to run a task for all connected tenants
+     * Helper to run a task for all connected companys
      */
-    async runForAllTenants(taskFn) {
+    async runForAllCompanies(taskFn) {
         try {
             const companies = await prisma.company.findMany({
                 where: { accountStatus: 'active' }
             });
             for (const company of companies) {
                 try {
-                    const tenantPrisma = getTenantPrisma(company.id);
-                    await taskFn.call(this, tenantPrisma, company);
+                    const companyPrisma = getCompanyPrisma(company.id);
+                    await taskFn.call(this, companyPrisma, company);
                 } catch (err) {
-                    console.error(`[CronService] Failed for tenant ${company.name} (${company.id}):`, err.message);
+                    console.error(`[CronService] Failed for company ${company.name} (${company.id}):`, err.message);
                 }
             }
         } catch (err) {
@@ -72,12 +73,13 @@ class CronService {
         }
     }
 
-    async checkDeadlines(tenantPrisma) {
+
+    async checkDeadlines(companyPrisma) {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         // Project Deadlines
-        const projects = await tenantPrisma.project.findMany({
+        const projects = await companyPrisma.project.findMany({
             where: {
                 deadline: { lte: tomorrow, gt: new Date() },
                 status: { not: 'Completed' }
@@ -88,7 +90,7 @@ class CronService {
             // Find users who are members of this project
             // In Prisma schema, Project members might be via user.companyId or specific assignments.
             // Let's notify all active users of the company or assigned users.
-            const users = await tenantPrisma.user.findMany({
+            const users = await companyPrisma.user.findMany({
                 where: { isActive: true }
             });
 
@@ -99,12 +101,12 @@ class CronService {
                     relatedItem: { itemId: project.id, itemModel: 'Project' },
                     description: `Deadline approaching for project: ${project.name}`,
                     metadata: { projectName: project.name, dueDate: project.deadline }
-                }, tenantPrisma);
+                }, companyPrisma);
             }
         }
 
         // Task Deadlines
-        const tasks = await tenantPrisma.task.findMany({
+        const tasks = await companyPrisma.task.findMany({
             where: {
                 dueDate: { lte: tomorrow, gt: new Date() },
                 status: { not: 'Completed' }
@@ -119,7 +121,7 @@ class CronService {
                     relatedItem: { itemId: task.id, itemModel: 'Task' },
                     description: `Task "${task.title}" is due soon.`,
                     metadata: { taskName: task.title, dueDate: task.dueDate }
-                }, tenantPrisma);
+                }, companyPrisma);
             }
 
             if (AnalyticsService.shouldEscalateTask(task)) {
@@ -129,16 +131,16 @@ class CronService {
                     relatedItem: { itemId: task.id, itemModel: 'Task' },
                     description: `URGENT: Task "${task.title}" is past due and has been escalated.`,
                     metadata: { taskName: task.title, status: 'overdue' }
-                }, tenantPrisma);
+                }, companyPrisma);
             }
         }
     }
 
-    async checkOverdueTasks(tenantPrisma, company) {
+    async checkOverdueTasks(companyPrisma, company) {
         const { sendTaskOverdueEmail } = require('./email.service');
         const now = new Date();
 
-        const overdueTasks = await tenantPrisma.task.findMany({
+        const overdueTasks = await companyPrisma.task.findMany({
             where: {
                 dueDate: { lt: now },
                 status: { not: 'done' },
@@ -148,13 +150,13 @@ class CronService {
 
         for (const task of overdueTasks) {
             if (task.assigneeId) {
-                const assignee = await tenantPrisma.user.findUnique({
+                const assignee = await companyPrisma.user.findUnique({
                     where: { id: task.assigneeId }
                 });
                 if (assignee) {
                     // Reduce performance score (minimum 0)
                     const updatedScore = Math.max(0, (assignee.performanceScore || 100) - 1);
-                    await tenantPrisma.user.update({
+                    await companyPrisma.user.update({
                         where: { id: assignee.id },
                         data: { performanceScore: updatedScore }
                     });
@@ -167,7 +169,7 @@ class CronService {
                         task.title,
                         task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Unknown',
                         taskUrl,
-                        tenantPrisma
+                        companyPrisma
                     );
 
                     // Send App Notification
@@ -177,28 +179,28 @@ class CronService {
                         relatedItem: { itemId: task.id, itemModel: 'Task' },
                         description: `Task "${task.title}" is overdue. 1 point deducted from performance score.`,
                         metadata: { taskName: task.title, dueDate: task.dueDate }
-                    }, tenantPrisma);
+                    }, companyPrisma);
                 }
             }
 
             // Mark as notified to prevent hourly deduction for the exact same task
-            await tenantPrisma.task.update({
+            await companyPrisma.task.update({
                 where: { id: task.id },
                 data: { isOverdueNotified: true }
             });
         }
     }
 
-    async dailyAttendanceCheck(tenantPrisma) {
+    async dailyAttendanceCheck(companyPrisma) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const employees = await tenantPrisma.user.findMany({
+        const employees = await companyPrisma.user.findMany({
             where: { role: 'USER', isActive: true } // USER role is default employee role in unified schema
         });
 
         for (const emp of employees) {
-            const attendance = await tenantPrisma.attendance.findFirst({
+            const attendance = await companyPrisma.attendance.findFirst({
                 where: {
                     userId: emp.id,
                     date: { gte: today }
@@ -206,7 +208,7 @@ class CronService {
             });
 
             if (!attendance) {
-                await tenantPrisma.attendance.create({
+                await companyPrisma.attendance.create({
                     data: {
                         userId: emp.id,
                         date: today,
@@ -222,14 +224,14 @@ class CronService {
                     targetUser: emp.id,
                     description: `You were marked absent for ${today.toDateString()}.`,
                     metadata: { date: today }
-                }, tenantPrisma);
+                }, companyPrisma);
             }
         }
     }
 
-    async monthlySalaryGeneration(tenantPrisma) {
+    async monthlySalaryGeneration(companyPrisma) {
         const today = new Date();
-        const settings = await tenantPrisma.settings.findFirst() || {};
+        const settings = await companyPrisma.settings.findFirst() || {};
         const releaseDate = settings.salaryReleaseDate || 1;
         if (today.getDate() !== releaseDate) return;
 
@@ -237,17 +239,17 @@ class CronService {
         const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59);
         const monthName = lastMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-        const employees = await tenantPrisma.user.findMany({
+        const employees = await companyPrisma.user.findMany({
             where: { role: 'USER', isActive: true }
         });
 
         for (const emp of employees) {
-            const existing = await tenantPrisma.salary.findFirst({
+            const existing = await companyPrisma.salary.findFirst({
                 where: { userId: emp.id, month: monthName }
             });
             if (existing) continue;
 
-            const absences = await tenantPrisma.attendance.count({
+            const absences = await companyPrisma.attendance.count({
                 where: {
                     userId: emp.id,
                     date: { gte: lastMonth, lte: endOfLastMonth },
@@ -258,7 +260,7 @@ class CronService {
             const baseSalary = emp.salary || 0;
             const netSalary = AnalyticsService.calculateNetSalary(baseSalary, 22, absences, 0, 0, 0);
 
-            const salary = await tenantPrisma.salary.create({
+            const salary = await companyPrisma.salary.create({
                 data: {
                     userId: emp.id,
                     month: monthName,
@@ -268,7 +270,7 @@ class CronService {
                 }
             });
 
-            const admins = await tenantPrisma.user.findMany({
+            const admins = await companyPrisma.user.findMany({
                 where: { role: { in: ['admin'] } }
             });
 
@@ -279,16 +281,16 @@ class CronService {
                     relatedItem: { itemId: salary.id, itemModel: 'Salary' },
                     description: `Salary draft for ${emp.name} (${monthName}) is ready for review.`,
                     metadata: { month: monthName, employeeName: emp.name }
-                }, tenantPrisma);
+                }, companyPrisma);
             }
         }
     }
 
-    async meetingReminders(tenantPrisma) {
+    async meetingReminders(companyPrisma) {
         const now = new Date();
         const in30Mins = new Date(now.getTime() + 30 * 60 * 1000);
 
-        const upcoming = await tenantPrisma.calendarEvent.findMany({
+        const upcoming = await companyPrisma.calendarEvent.findMany({
             where: {
                 startDate: { gte: now, lte: in30Mins },
                 emailSent: false
@@ -299,7 +301,7 @@ class CronService {
             // Find participants associated with this event
             // In Prisma schema, event has attendees relations.
             // Let's query attendees for the event.
-            const attendees = await tenantPrisma.user.findMany({
+            const attendees = await companyPrisma.user.findMany({
                 where: {
                     meetingAttended: {
                         some: { id: event.id }
@@ -314,24 +316,24 @@ class CronService {
                     relatedItem: { itemId: event.id, itemModel: 'CalendarEvent' },
                     description: `Reminder: Meeting "${event.title}" starts at ${new Date(event.startTime).toLocaleTimeString()}`,
                     metadata: { title: event.title, startTime: event.startTime, roomId: event.roomId }
-                }, tenantPrisma);
+                }, companyPrisma);
             }
 
-            await tenantPrisma.calendarEvent.update({
+            await companyPrisma.calendarEvent.update({
                 where: { id: event.id },
                 data: { emailSent: true }
             });
         }
     }
 
-    async runProjectRiskAnalysis(tenantPrisma) {
-        const activeProjects = await tenantPrisma.project.findMany({
+    async runProjectRiskAnalysis(companyPrisma) {
+        const activeProjects = await companyPrisma.project.findMany({
             where: { status: { in: ['in_progress', 'on_hold'] } }
         });
-        const settings = await tenantPrisma.settings.findFirst() || {};
+        const settings = await companyPrisma.settings.findFirst() || {};
 
         for (const project of activeProjects) {
-            const tasks = await tenantPrisma.task.findMany({
+            const tasks = await companyPrisma.task.findMany({
                 where: { projectId: project.id },
                 select: { title: true, status: true, dueDate: true }
             });
@@ -340,7 +342,7 @@ class CronService {
             const aiResult = await AIAutomationService.predictProjectRisk(tasks, settings);
 
             if (aiResult.risk === 'High') {
-                const admins = await tenantPrisma.user.findMany({
+                const admins = await companyPrisma.user.findMany({
                     where: { role: { in: ['admin'] } }
                 });
                 for (const admin of admins) {
@@ -350,21 +352,21 @@ class CronService {
                         relatedItem: { itemId: project.id, itemModel: 'Project' },
                         description: `High risk detected for project "${project.name}": ${aiResult.reason}`,
                         metadata: { projectName: project.name, risk: aiResult.risk, reason: aiResult.reason }
-                    }, tenantPrisma);
+                    }, companyPrisma);
                 }
             }
         }
     }
 
-    async lateAttendanceCheck(tenantPrisma) {
+    async lateAttendanceCheck(companyPrisma) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const employees = await tenantPrisma.user.findMany({
+        const employees = await companyPrisma.user.findMany({
             where: { role: 'USER', isActive: true }
         });
         for (const emp of employees) {
-            const attendance = await tenantPrisma.attendance.findFirst({
+            const attendance = await companyPrisma.attendance.findFirst({
                 where: { userId: emp.id, date: { gte: today } }
             });
             if (!attendance) {
@@ -373,21 +375,21 @@ class CronService {
                     targetUser: emp.id,
                     description: `Reminder: You haven't checked in for today yet.`,
                     metadata: { currentTime: new Date().toLocaleTimeString() }
-                }, tenantPrisma);
+                }, companyPrisma);
             }
         }
     }
 
-    async monthlyAttendancePatternCheck(tenantPrisma) {
+    async monthlyAttendancePatternCheck(companyPrisma) {
         const firstDayOfMonth = new Date();
         firstDayOfMonth.setDate(1);
         firstDayOfMonth.setHours(0, 0, 0, 0);
 
-        const employees = await tenantPrisma.user.findMany({
+        const employees = await companyPrisma.user.findMany({
             where: { role: 'USER', isActive: true }
         });
         for (const emp of employees) {
-            const lateCount = await tenantPrisma.attendance.count({
+            const lateCount = await companyPrisma.attendance.count({
                 where: {
                     userId: emp.id,
                     date: { gte: firstDayOfMonth },
@@ -396,7 +398,7 @@ class CronService {
             });
 
             if (AnalyticsService.isAttendanceIssue(lateCount)) {
-                const admins = await tenantPrisma.user.findMany({
+                const admins = await companyPrisma.user.findMany({
                     where: { role: { in: ['admin'] } }
                 });
                 for (const admin of admins) {
@@ -405,29 +407,29 @@ class CronService {
                         targetUser: admin.id,
                         description: `Attendance Alert: Employee ${emp.name} has ${lateCount} late entries this month.`,
                         metadata: { employeeName: emp.name, lateCount }
-                    }, tenantPrisma);
+                    }, companyPrisma);
                 }
             }
         }
     }
 
-    async dailySalesStagnationCheck(tenantPrisma) {
+    async dailySalesStagnationCheck(companyPrisma) {
         try {
-            await SalesRuleEngine.runDailyStagnationCheck(tenantPrisma);
+            await SalesRuleEngine.runDailyStagnationCheck(companyPrisma);
         } catch (err) {
             console.error('[SalesRuleEngine Error]', err);
         }
     }
 
-    async dataCleanup(tenantPrisma) {
+    async dataCleanup(companyPrisma) {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         try {
-            await tenantPrisma.automationLog.deleteMany({
+            await companyPrisma.automationLog.deleteMany({
                 where: { timestamp: { lt: thirtyDaysAgo } }
             });
-            await tenantPrisma.notification.deleteMany({
+            await companyPrisma.notification.deleteMany({
                 where: { createdAt: { lt: thirtyDaysAgo } }
             });
         } catch (err) {
@@ -435,8 +437,8 @@ class CronService {
         }
     }
 
-    async autoCheckOutWorker(tenantPrisma, company) {
-        const config = await tenantPrisma.settings.findFirst() || {};
+    async autoCheckOutWorker(companyPrisma, company) {
+        const config = await companyPrisma.settings.findFirst() || {};
         const standardEnd = config.standardEndTime || '18:00';
         
         const now = new Date();
@@ -447,7 +449,7 @@ class CronService {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const pending = await tenantPrisma.attendance.findMany({
+        const pending = await companyPrisma.attendance.findMany({
             where: {
                 date: { gte: today },
                 checkIn: { not: '' },
@@ -464,7 +466,7 @@ class CronService {
 
             const workHours = parseFloat((actualTotal / 60).toFixed(2));
 
-            await tenantPrisma.attendance.update({
+            await companyPrisma.attendance.update({
                 where: { id: record.id },
                 data: {
                     checkOut: standardEnd,

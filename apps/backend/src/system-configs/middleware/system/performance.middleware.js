@@ -2,7 +2,7 @@
 
 /**
  * API Performance Instrumentation Middleware
- * Measures the execution time of various layers (auth, tenant resolution, etc.)
+ * Measures the execution time of various layers (auth, company resolution, etc.)
  * Logs a warning if the total request time exceeds SLOW_REQUEST_THRESHOLD_MS.
  */
 
@@ -21,7 +21,8 @@ module.exports = function performanceMiddleware(req, res, next) {
         // Detailed Duration Metrics
         checkpoints: {},
         authenticationDuration: 0,
-        tenantResolutionDuration: 0,
+        companyResolutionDuration: 0,
+        companyResolutionDuration: 0,
         authorizationDuration: 0,
         validationDuration: 0,
         controllerDuration: 0,
@@ -44,6 +45,9 @@ module.exports = function performanceMiddleware(req, res, next) {
             const now = Date.now();
             const duration = now - this._lastMark;
             this[phase] = duration;
+            if (phase === 'companyResolutionDuration') {
+                this.companyResolutionDuration = duration;
+            }
             this._lastMark = now;
         },
 
@@ -68,7 +72,8 @@ module.exports = function performanceMiddleware(req, res, next) {
             status: res.statusCode,
             totalDuration,
             authenticationDuration: req.performanceData.authenticationDuration,
-            tenantResolutionDuration: req.performanceData.tenantResolutionDuration,
+            companyResolutionDuration: req.performanceData.companyResolutionDuration || req.performanceData.companyResolutionDuration,
+
             authorizationDuration: req.performanceData.authorizationDuration,
             validationDuration: req.performanceData.validationDuration,
             controllerDuration: req.performanceData.controllerDuration,

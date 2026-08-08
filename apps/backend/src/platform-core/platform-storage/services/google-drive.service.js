@@ -5,12 +5,12 @@ const { Readable } = require('stream');
 
 /**
  * Google Drive Service
- * Refactored to be tenant-aware. Methods now accept settings objects.
+ * Refactored to be company-aware. Methods now accept settings objects.
  */
 class GoogleDriveService {
     /**
-     * Internal helper to get a Drive client for a specific tenant
-     * @param {Object} settings - Tenant-specific settings
+     * Internal helper to get a Drive client for a specific company
+     * @param {Object} settings - Company-specific settings
      */
     #getDriveClient(settings) {
         // If metadata was passed directly or embedded inside settings
@@ -34,7 +34,7 @@ class GoogleDriveService {
 
         // Priority 2: Service Account
         if (!settings || !settings.googleDriveServiceAccount) {
-            throw new Error('Google Drive credentials not configured in tenant settings');
+            throw new Error('Google Drive credentials not configured in company settings');
         }
 
         try {
@@ -55,7 +55,7 @@ class GoogleDriveService {
      * Upload a file buffer to Google Drive
      * @param {Buffer} buffer 
      * @param {Object} fileMeta - { name, mimeType }
-     * @param {Object} settings - Tenant-specific settings
+     * @param {Object} settings - Company-specific settings
      * @returns {Promise<Object>} - { fileId, webContentLink, webViewLink }
      */
     async uploadFile(buffer, fileMeta, settings) {
@@ -97,7 +97,7 @@ class GoogleDriveService {
     /**
      * Delete a file from Google Drive
      * @param {string} fileId 
-     * @param {Object} settings - Tenant-specific settings
+     * @param {Object} settings - Company-specific settings
      */
     async deleteFile(fileId, settings) {
         const drive = this.#getDriveClient(settings);
@@ -107,7 +107,7 @@ class GoogleDriveService {
     /**
      * Get file content from Google Drive
      * @param {string} fileId 
-     * @param {Object} settings - Tenant-specific settings
+     * @param {Object} settings - Company-specific settings
      * @returns {Promise<string>} - Content as string
      */
     async getFileContent(fileId, settings) {
@@ -122,7 +122,7 @@ class GoogleDriveService {
 
     /**
      * Test connection to Google Drive
-     * @param {Object} settings - Tenant-specific settings
+     * @param {Object} settings - Company-specific settings
      * @returns {Promise<boolean>}
      */
     async testConnection(settings) {

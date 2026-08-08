@@ -30,7 +30,7 @@ function verifyWebhookSecret(req, res, next) {
 }
 
 const webhookCtrl = require('./universal.controller');
-const tenantWebhookCtrl = require('./tenantUniversal.controller');
+const companyWebhookCtrl = require('./companyUniversal.controller');
 
 // â”€â”€ Payment Gateway Webhooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ALLOWED_PROVIDERS = ['stripe', 'razorpay', 'paypal', 'lemonsqueezy'];
@@ -42,12 +42,12 @@ router.post('/:provider', (req, res, next) => {
     webhookCtrl.handleWebhook(req, res, next);
 });
 
-// â”€â”€ Tenant Specific Payment Webhooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-router.post('/tenant/:provider', (req, res, next) => {
+// â”€â”€ Company Specific Payment Webhooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+router.post('/company/:provider', (req, res, next) => {
     if (!ALLOWED_PROVIDERS.includes(req.params.provider)) {
         return res.status(400).json({ error: 'Invalid provider' });
     }
-    tenantWebhookCtrl.handleWebhook(req, res, next);
+    companyWebhookCtrl.handleWebhook(req, res, next);
 });
 
 

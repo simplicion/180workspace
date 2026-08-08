@@ -2,15 +2,16 @@
 
 const { Worker } = require('bullmq');
 const { redis } = require('../../../backend/src/system-configs/config/redis');
-const { getTenantDb } = require('../../../backend/src/system-configs/database-tools/dbManager');
+const { getCompanyPrisma, prisma: globalPrisma } = require('@workspace/db');
 const EmailService = require('../../../backend/src/app-registry/productivity-tools-app/emails/email.service');
 
 function setupEmailWorker() {
     if (!redis) return null;
 
     const worker = new Worker('email', async (job) => {
-        const { to, subject, html, template, data, tenantId, category } = job.data;
-        const tenantDb = await getTenantDb(tenantId);
+        const { to, subject, html, template, data, companyId, category } = job.data;
+        const targetCompanyId = companyId;
+        const prisma = targetCompanyId ? getCompanyPrisma(targetCompanyId) : globalPrisma;
         
         await EmailService.dispatchEmail({ 
             to, 
@@ -19,7 +20,7 @@ function setupEmailWorker() {
             templateName: template, 
             templateData: data, 
             category 
-        }, tenantDb);
+        }, prisma);
     }, { connection: redis, lockDuration: 30000 });
 
     worker.on('failed', (job, err) => console.error(`[Worker] Email job failed:`, err.message));
@@ -31,4 +32,3 @@ function setupEmailWorker() {
 }
 
 module.exports = setupEmailWorker;
-

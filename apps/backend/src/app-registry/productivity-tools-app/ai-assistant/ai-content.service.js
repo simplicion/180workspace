@@ -4,8 +4,8 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 class AiContentService {
     /**
-     * Get the tenant-specific AI settings
-     * @param {Object} tenantDb - The tenant's database connection
+     * Get the company-specific AI settings
+     * @param {Object} companyPrisma - The company's database connection
      * @returns {Object|null} - The AI settings or null if not configured
      */
     async getAiSettings(companyId) {
@@ -141,7 +141,7 @@ Ensure the structure exactly matches this format:
 
     /**
      * Generate the content calendar using the configured AI provider
-     * @param {Object} companyId - The tenant's database connection
+     * @param {Object} companyId - The company's database connection
      * @param {Object} config - The calendar configuration
      * @param {string} userId - The ID of the user requesting the calendar
      * @returns {Object} - Result object containing { success, data, error }
@@ -236,7 +236,7 @@ Ensure the structure exactly matches this format:
                 console.error("Raw Response:", rawAiResponse);
                 
                 // Log failure
-                await this.logAiRequest(tenantDb, {
+                await this.logAiRequest(companyPrisma, {
                     provider: providerUsed,
                     endpoint: 'generateContentCalendar',
                     durationMs: Date.now() - startTime,
@@ -292,14 +292,14 @@ Ensure the structure exactly matches this format:
     }
 
     /**
-     * Log an AI request to the tenant's database
-     * @param {Object} tenantDb - The tenant's database connection
+     * Log an AI request to the company's database
+     * @param {Object} companyPrisma - The company's database connection
      * @param {Object} data - The log data
      */
-    async logAiRequest(tenantDb, data) {
+    async logAiRequest(companyPrisma, data) {
         try {
-            if (!tenantDb) return;
-            const AiRequestLog = tenantDb.model('AiRequestLog');
+            if (!companyPrisma) return;
+            const AiRequestLog = companyPrisma.model('AiRequestLog');
             await AiRequestLog.create(data);
         } catch (err) {
             console.error('[AiContentService] Failed to log AI request:', err.message);

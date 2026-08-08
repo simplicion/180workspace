@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { Eye, EyeOff, Lock, Mail, User, ChevronRight, Info, Globe, Building2, Database, Rocket, Shield, Clock, X } from 'lucide-react';
 import { useSettings } from '../../lib/settings-context';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 
@@ -30,7 +30,7 @@ function SignupForm() {
     // Google Auth State
     const [googleTokenId, setGoogleTokenId] = useState<string | null>(null);
 
-    // Step 2: DB Config States
+    // Step 2: DB Config States (Optional / Legacy fallback)
     const [setupToken, setSetupToken] = useState(searchParams.get('token') || '');
     const [dbUsername, setDbUsername] = useState('');
     const [dbPassword, setDbPassword] = useState('');
@@ -70,10 +70,10 @@ function SignupForm() {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL;
             const formData = new FormData();
             
-            let endpoint = '/api/setup/register-tenant';
+            let endpoint = '/api/setup/register-company';
 
             if (googleTokenId) {
-                endpoint = '/api/setup/register-tenant-google';
+                endpoint = '/api/setup/register-company-google';
                 formData.append('companyName', companyName);
                 formData.append('adminName', name);
                 formData.append('tokenId', googleTokenId);
@@ -93,9 +93,15 @@ function SignupForm() {
             const data = await res.json();
 
             if (res.ok) {
-                toast.success('Workspace registered! Now configuring database.', { duration: 4000 });
-                setSetupToken(data.setupToken);
-                router.replace(`/signup?step=db_config&token=${data.setupToken}`);
+                toast.success('Workspace registered successfully! Redirecting to setup...', { duration: 4000 });
+                if (data.onboardingToken) {
+                    router.replace(`/workspace-setup?onboardingToken=${data.onboardingToken}`);
+                } else if (data.setupToken) {
+                    setSetupToken(data.setupToken);
+                    router.replace(`/signup?step=db_config&token=${data.setupToken}`);
+                } else {
+                    router.replace('/login');
+                }
             } else {
                 toast.error(data.error || 'Registration failed');
             }
@@ -135,7 +141,7 @@ function SignupForm() {
         setIsDbConnecting(true);
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-            const res = await fetch(`${apiUrl}/api/setup/configure-tenant`, {
+            const res = await fetch(`${apiUrl}/api/setup/configure-company`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -204,7 +210,7 @@ function SignupForm() {
                         <div className="space-y-6">
                             {[
                                 { icon: Rocket, title: "Instant Deployment", desc: "Your workspace is ready in seconds, fully isolated." },
-                                { icon: Shield, title: "Data Sovereignty", desc: "Bring your own database or use our optimized clusters." },
+                                { icon: Shield, title: "Data Sovereignty", desc: "Dedicated and private data models built for enterprise scale." },
                                 { icon: Clock, title: "Zero Maintenance", desc: "We manage the infrastructure so you can focus on growth." }
                             ].map((feature, i) => (
                                 <motion.div 
@@ -260,7 +266,7 @@ function SignupForm() {
                         </h2>
                         <p className="text-gray-500 font-medium text-sm">
                             {isConfigStep
-                                ? 'Connect your dedicated MongoDB Atlas cluster'
+                                ? 'Connect your database cluster'
                                 : 'Initialize your management environment in seconds'}
                         </p>
                     </div>
@@ -279,7 +285,7 @@ function SignupForm() {
                                                 <Database className="w-4 h-4" /> Connect Database
                                             </p>
                                             <p className="text-blue-700/80 text-xs leading-relaxed max-w-[250px]">
-                                                Link your dedicated MongoDB Atlas cluster to store your employees and tasks securely.
+                                                Link your dedicated database cluster to store your employees and tasks securely.
                                             </p>
                                         </div>
                                         <button
@@ -333,7 +339,7 @@ function SignupForm() {
                                                 type="text"
                                                 value={dbUsername}
                                                 onChange={(e) => setDbUsername(e.target.value)}
-                                                placeholder="Atlas Username"
+                                                placeholder="Database Username"
                                                 required
                                                 className="w-full bg-white border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm"
                                             />
@@ -344,7 +350,7 @@ function SignupForm() {
                                                 type={showPassword ? 'text' : 'password'}
                                                 value={dbPassword}
                                                 onChange={(e) => setDbPassword(e.target.value)}
-                                                placeholder="Atlas Password"
+                                                placeholder="Database Password"
                                                 required
                                                 className="w-full bg-white border border-gray-200 rounded-2xl pl-12 pr-12 py-3.5 text-sm font-medium focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm"
                                             />
@@ -533,7 +539,7 @@ function SignupForm() {
                     <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
                         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <h3 className="text-xl font-extrabold text-gray-900 flex items-center gap-3">
-                                <Database className="w-6 h-6 text-emerald-600" /> Atlas Setup Guide
+                                <Database className="w-6 h-6 text-emerald-600" /> Database Setup Guide
                             </h3>
                             <button onClick={() => setShowGuide(false)} title="Close Guide" aria-label="Close" className="text-gray-400 hover:text-gray-900 transition-colors p-2 bg-white rounded-full shadow-sm border border-gray-200">
                                 <X className="w-5 h-5" />
@@ -541,10 +547,9 @@ function SignupForm() {
                         </div>
                         <div className="p-8 overflow-y-auto space-y-8 bg-white">
                             <div className="space-y-2 text-sm text-gray-600">
-                                <p><strong className="text-gray-900">1.</strong> Go to <a href="https://cloud.mongodb.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">cloud.mongodb.com</a> and sign in.</p>
-                                <p><strong className="text-gray-900">2.</strong> Create a <strong>Database User</strong> (Security &gt; Database Access).</p>
-                                <p><strong className="text-gray-900">3.</strong> Allow <strong>Network Access</strong> from anywhere (<code className="bg-gray-100 px-1 rounded">0.0.0.0/0</code>).</p>
-                                <p><strong className="text-gray-900">4.</strong> Get your <strong>Connection String</strong> and bring it back here.</p>
+                                <p><strong className="text-gray-900">1.</strong> All workspaces are powered by our dedicated high-performance PostgreSQL cluster.</p>
+                                <p><strong className="text-gray-900">2.</strong> Your data is securely isolated by <code className="bg-gray-100 px-1 rounded">companyId</code>.</p>
+                                <p><strong className="text-gray-900">3.</strong> No external configuration is needed to get started.</p>
                             </div>
                         </div>
                         <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end">

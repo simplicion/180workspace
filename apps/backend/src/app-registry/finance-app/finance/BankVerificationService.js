@@ -1,6 +1,6 @@
 ﻿'use strict';
 
-const TenantPaymentService = require('./TenantPaymentService');
+const CompanyPaymentService = require('./CompanyPaymentService');
 
 class BankVerificationService {
     /**
@@ -16,7 +16,7 @@ class BankVerificationService {
             throw new Error('Bank details are incomplete');
         }
 
-        const provider = await TenantPaymentService.getActiveProvider(prisma, companyId);
+        const provider = await CompanyPaymentService.getActiveProvider(prisma, companyId);
         if (!provider.validateBankAccount) {
             throw new Error('Selected payment provider does not support bank verification');
         }

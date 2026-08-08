@@ -7,21 +7,19 @@ const qrcode = require('qrcode');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const BillingService = require('../finance-app/bills/billing.service');
-const EmailService = require('../productivity-tools-app/emails/email.service');
-const { prisma: globalPrisma, getTenantPrisma } = require('@workspace/db');
+const { prisma: globalPrisma, getCompanyPrisma } = require('@workspace/db');
 
 class AuthService {
-    
-    static async register(tenantDb, body, company, currentUser) {
+    static async register(companyPrisma, body, company, currentUser) {
         const { name, email, password, role, roles, department, designationId, position, permissions, employmentType, workLocation, managerId, phone, emergencyContact, salary, leaveBalance, joinDate } = body;
-        
+
         if (!name || !email || !password) {
             const err = new Error('Name, email, and password are required');
             err.status = 400; throw err;
         }
 
-        const TenantUser = tenantDb.user;
-        const exists = await TenantUser.findFirst({ where: { email: email.toLowerCase() } });
+        const CompanyUser = companyPrisma.user;
+        const exists = await CompanyUser.findFirst({ where: { email: email.toLowerCase() } });
         if (exists) {
             const err = new Error('Email already registered in this workspace');
             err.status = 409; throw err;
@@ -33,7 +31,7 @@ class AuthService {
             err.status = 403; throw err;
         }
 
-        const adminExists = await TenantUser.findFirst({ where: { role: 'admin' }, select: { id: true } });
+        const adminExists = await CompanyUser.findFirst({ where: { role: 'admin' }, select: { id: true } });
         let safeRoles = (roles && Array.isArray(roles)) ? roles : [(role || 'employee')];
         const validRoles = ['admin', 'manager', 'hr', 'employee', 'client'];
         safeRoles = [...new Set(safeRoles.filter(r => validRoles.includes(r)))];
@@ -49,7 +47,7 @@ class AuthService {
 
         let employeeId = body.employeeId;
         if (!employeeId && safeRoles.some(r => ['employee', 'manager', 'hr'].includes(r))) {
-            const count = await TenantUser.count();
+            const count = await CompanyUser.count();
             employeeId = `EMP-${String(count + 1).padStart(4, '0')}`;
         }
 
@@ -62,66 +60,51 @@ class AuthService {
         }
 
         const isSelfAdmin = company?.adminEmail === email.toLowerCase();
-        
+
         let finalDesignationId = designationId;
         if (designationId) {
-            const Designation = tenantDb.designation;
+            const Designation = companyPrisma.designation;
             if (Designation) {
-                let existing = await Designation.findFirst({ 
-                    where: { 
+                let existing = await Designation.findFirst({
+                    where: {
                         name: { equals: designationId, mode: 'insensitive' },
                         OR: [{ companyId: company?.id }, { companyId: null }]
-                    } 
+                    }
                 });
                 if (!existing) {
-                    existing = await Designation.create({ 
-                        data: { name: designationId, isCustom: true, companyId: company?.id } 
+                    existing = await Designation.create({
+                        data: { name: designationId, isCustom: true, companyId: company?.id }
                     });
                 }
                 finalDesignationId = existing.id;
             }
         }
-        
+
         let finalPassword = password;
         if (!isSelfAdmin && password) {
             const salt = await bcrypt.genSalt(10);
             finalPassword = await bcrypt.hash(password, salt);
         }
 
-        const user = await TenantUser.create({ data: { 
-            name, 
-            email: email.toLowerCase(), 
-            password: isSelfAdmin ? undefined : finalPassword, 
-            role: safeRoles[0] || 'employee', 
-            employeeId, 
-            department,
-            designationId: finalDesignationId || undefined,
-            position,
-            permissions: permissions || [],
-            employmentType,
-            workLocation,
-            managerId: managerId || undefined,
-            phone,
-            emergencyContact,
-            salary: salary ? parseFloat(salary) : undefined,
-            leaveBalance: leaveBalance ? parseFloat(leaveBalance) : undefined,
-            joinDate: joinDate ? new Date(joinDate) : undefined
-        } });
-
-        const companyRecord = await globalPrisma.company.findUnique({ where: { id: company.id } });
-        await globalPrisma.tenantUserMapping.upsert({
-            where: { userId_companyId: { userId: user.id, companyId: company.id } },
-            update: { 
-                email: user.email.toLowerCase(),
+        const user = await CompanyUser.create({
+            data: {
+                name,
+                email: email.toLowerCase(),
+                password: isSelfAdmin ? undefined : finalPassword,
                 role: safeRoles[0] || 'employee',
-                subdomain: companyRecord?.subdomain || 'default'
-            },
-            create: { 
-                userId: user.id,
-                email: user.email.toLowerCase(), 
-                companyId: company.id,
-                subdomain: companyRecord?.subdomain || 'default',
-                role: safeRoles[0] || 'employee'
+                employeeId,
+                department,
+                designationId: finalDesignationId || undefined,
+                position,
+                permissions: permissions || [],
+                employmentType,
+                workLocation,
+                managerId: managerId || undefined,
+                phone,
+                emergencyContact,
+                salary: salary ? parseFloat(salary) : undefined,
+                leaveBalance: leaveBalance ? parseFloat(leaveBalance) : undefined,
+                joinDate: joinDate ? new Date(joinDate) : undefined
             }
         });
 
@@ -131,22 +114,22 @@ class AuthService {
         const AutomationService = require('../../platform-core/platform-communications/services/automation.service.js');
         AutomationService.trigger({
             eventType: 'user_onboarded',
-            triggeredBy: currentUser?.id || user.id, 
+            triggeredBy: currentUser?.id || user.id,
             targetUser: user.id,
             relatedItem: { itemId: user.id, itemModel: 'User' },
             description: `Welcome to the team, ${user.name}! Your account is ready.`,
-            metadata: { hasTemporaryPassword: !!password }, 
+            metadata: { hasTemporaryPassword: !!password },
             sendEmailNotification: false
-        }, tenantDb).catch(err => console.error('[Auth] Automation error:', err));
+        }, companyPrisma).catch(err => console.error('[Auth] Automation error:', err));
 
         try {
             const isFirstAdmin = !adminExists && safeRoles.includes('admin');
             const category = isFirstAdmin ? EmailService.CATEGORIES.SYSTEM : EmailService.CATEGORIES.WORK;
-            
-            EmailService.notify(user, 'welcome', { 
+
+            EmailService.notify(user, 'welcome', {
                 password: password || 'No password assigned',
-                category 
-            }, tenantDb).catch(emailErr => {
+                category
+            }, companyPrisma).catch(emailErr => {
                 console.error('[Auth] Failed to send welcome email:', emailErr.message);
             });
         } catch (emailErr) {
@@ -154,22 +137,24 @@ class AuthService {
         }
 
         if (currentUser) {
-            const Notification = tenantDb.notification;
+            const Notification = companyPrisma.notification;
             const { getIo } = require('../../system-configs/sockets');
-            const Settings = tenantDb.settings;
+            const Settings = companyPrisma.settings;
             const settings = await Settings.findFirst();
             const companyName = settings?.companyName || company?.companyName || 'Your Company';
             const subject = encodeURIComponent(`Welcome to ${companyName}`);
             const bodyStr = encodeURIComponent(`Hi ${user.name},\n\nYour account has been created.\nEmail: ${user.email}\nPassword: ${password}\n\nLogin at: ${process.env.CLIENT_URL}`);
             const actionUrl = `mailto:${user.email}?subject=${subject}&body=${bodyStr}`;
 
-            const notification = await Notification.create({ data: {
-                userId: currentUser.id,
-                type: 'email_pending',
-                title: 'Send Welcome Email',
-                message: `New user ${user.name} created. Click to send their credentials.`,
-                actionUrl,
-            } });
+            const notification = await Notification.create({
+                data: {
+                    userId: currentUser.id,
+                    type: 'email_pending',
+                    title: 'Send Welcome Email',
+                    message: `New user ${user.name} created. Click to send their credentials.`,
+                    actionUrl,
+                }
+            });
             const io = getIo();
             if (io) {
                 io.to(currentUser.id.toString()).emit('notification:new', {
@@ -189,22 +174,24 @@ class AuthService {
                 const ps = await globalPrisma.platformSettings.findFirst();
                 const trialResult = await BillingService.createTrialSubscription(company.id, user.id);
                 const trialDaysActive = trialResult.trialDays || ps?.trialDays || 14;
-                
-                await EmailService.notify(user, 'trial_started', { 
+
+                await EmailService.notify(user, 'trial_started', {
                     trialDays: trialDaysActive,
                     category: EmailService.CATEGORIES.SYSTEM
-                }, tenantDb);
+                }, companyPrisma);
 
-                const Notification = tenantDb.notification;
+                const Notification = companyPrisma.notification;
                 const { getIo } = require('../../system-configs/sockets');
-                
-                const trialNotification = await Notification.create({ data: {
-                    userId: user.id,
-                    type: 'system_alert',
-                    title: 'Trial Evaluation Active',
-                    message: `Welcome! You are currently on a ${trialDaysActive}-day free trial plan. Enjoy the platform.`,
-                    link: '/dashboard/settings',
-                } });
+
+                const trialNotification = await Notification.create({
+                    data: {
+                        userId: user.id,
+                        type: 'system_alert',
+                        title: 'Trial Evaluation Active',
+                        message: `Welcome! You are currently on a ${trialDaysActive}-day free trial plan. Enjoy the platform.`,
+                        link: '/dashboard/settings',
+                    }
+                });
 
                 const io = getIo();
                 if (io) {
@@ -231,17 +218,34 @@ class AuthService {
             const err = new Error('Email is required');
             err.status = 400; throw err;
         }
-        const mappings = await globalPrisma.tenantUserMapping.findMany({
-            where: { email: email.toLowerCase() },
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // 1. Find all users matching this email and include their associated company
+        const users = await globalPrisma.user.findMany({
+            where: { email: normalizedEmail },
             include: { company: true }
         });
 
-        return mappings.map(m => ({
-            name: m.company?.companyName,
-            slug: m.company?.slug,
-            logo: m.company?.logoUrl,
-            brandColor: m.company?.brandColor,
-            _id: m.company?.id
+        // 2. Also check if this email is the primary adminEmail for any company
+        const adminCompanies = await globalPrisma.company.findMany({
+            where: { adminEmail: normalizedEmail }
+        });
+
+        const companyMap = new Map();
+        for (const u of users) {
+            if (u.company) companyMap.set(u.company.id, u.company);
+        }
+        for (const c of adminCompanies) {
+            companyMap.set(c.id, c);
+        }
+
+        return Array.from(companyMap.values()).map(c => ({
+            name: c.companyName || c.name,
+            slug: c.slug,
+            logo: c.logoUrl,
+            brandColor: c.brandColor,
+            _id: c.id
         })).filter(w => w.slug);
     }
 
@@ -252,47 +256,39 @@ class AuthService {
             err.status = 400; throw err;
         }
 
+        const normalizedEmail = email.toLowerCase().trim();
         let company = requestCompany || null;
 
-        if (!company) {
-            const mapping = await globalPrisma.tenantUserMapping.findFirst({
-                where: { email: email.toLowerCase() }
+        // 1. Find user in the database
+        let user = null;
+        if (company) {
+            user = await globalPrisma.user.findFirst({
+                where: { email: normalizedEmail, companyId: company.id },
+                include: { company: true }
             });
-            if (mapping) {
-                company = await globalPrisma.company.findUnique({ where: { id: mapping.companyId } });
+        } else {
+            user = await globalPrisma.user.findFirst({
+                where: { email: normalizedEmail },
+                include: { company: true }
+            });
+            if (user && user.company) {
+                company = user.company;
             }
         }
 
+        // 2. Fallback: Check if email is company primary admin
         if (!company) {
-            const unconfiguredCompany = await globalPrisma.company.findFirst({
-                where: { adminEmail: email.toLowerCase() }
+            company = await globalPrisma.company.findFirst({
+                where: { adminEmail: normalizedEmail }
             });
-
-            if (unconfiguredCompany) {
-                const isMatch = await bcrypt.compare(password, unconfiguredCompany.adminPasswordHash || '');
-                if (isMatch) {
-                    if (!unconfiguredCompany.databaseConfigured) {
-                        const err = new Error('Your workspace setup is incomplete. Please complete your registration or contact support.');
-                        err.status = 403; err.setupToken = unconfiguredCompany.metadata?.setupToken; throw err;
-                    }
-                    company = unconfiguredCompany;
-                } else {
-                    const err = new Error('Incorrect email or password. Please try again.');
-                    err.status = 401; throw err;
-                }
-            }
         }
 
         if (!company) {
-            const err = new Error('We couldn\'t find an account with that email. Please sign up or contact your administrator.');
+            const err = new Error("We couldn't find an account with that email. Please sign up or contact your administrator.");
             err.status = 401; throw err;
         }
 
-        if (!company.databaseConfigured) {
-            const err = new Error('Your workspace setup is incomplete. Please complete your registration or contact support.');
-            err.status = 403; err.setupToken = company.metadata?.setupToken; throw err;
-        }
-
+        // 3. Workspace Status Checks
         if (!company.isOnboardingComplete) {
             let onboardingToken = company.metadata?.onboardingToken;
             let currentMetadata = company.metadata || {};
@@ -312,46 +308,51 @@ class AuthService {
             err.status = 403; throw err;
         }
 
-        let tenantPrisma;
-        try {
-            tenantPrisma = getTenantPrisma(company.id);
-        } catch (dbErr) {
-            const err = new Error('We\'re having trouble connecting to your workspace data. Please try again in a few moments or contact support.');
-            err.status = 500; throw err;
-        }
-
-        const isPrimaryAdmin = company.adminEmail && company.adminEmail.toLowerCase() === email.toLowerCase();
+        // 4. Password Verification
+        const isPrimaryAdmin = company.adminEmail && company.adminEmail.toLowerCase() === normalizedEmail;
         let isMatch = false;
-        let user;
 
-        if (isPrimaryAdmin) {
+        if (isPrimaryAdmin && (!user || company.adminPasswordHash)) {
             if (!company.adminPasswordHash) {
                 const fullCompany = await globalPrisma.company.findUnique({ where: { id: company.id } });
                 if (fullCompany) {
                     company.adminPasswordHash = fullCompany.adminPasswordHash;
-                } else {
-                    const err = new Error('Authentication error. Please contact support.');
-                    err.status = 500; throw err;
                 }
             }
 
-            isMatch = await bcrypt.compare(password, company.adminPasswordHash || '');
+            if (company.adminPasswordHash) {
+                isMatch = await bcrypt.compare(password, company.adminPasswordHash || '');
+            } else if (user) {
+                isMatch = await bcrypt.compare(password, user.passwordHash || user.password || '');
+            }
+
             if (!isMatch) {
                 const err = new Error('Incorrect email or password. Please try again.');
                 err.status = 401; throw err;
             }
 
-            user = await tenantPrisma.user.findFirst({ where: { email: email.toLowerCase() } });
             if (!user) {
-                user = await tenantPrisma.user.create({ data: {
-                    name: company.adminName || 'Workspace Admin',
-                    email: email.toLowerCase(),
-                    role: 'admin',
-                    isActive: true
-                } });
+                user = await globalPrisma.user.findFirst({
+                    where: { email: normalizedEmail, companyId: company.id }
+                });
+                if (!user) {
+                    user = await globalPrisma.user.create({
+                        data: {
+                            name: company.adminName || 'Workspace Admin',
+                            email: normalizedEmail,
+                            companyId: company.id,
+                            role: 'admin',
+                            isActive: true
+                        }
+                    });
+                }
             }
         } else {
-            user = await tenantPrisma.user.findFirst({ where: { email: email.toLowerCase() } });
+            if (!user) {
+                user = await globalPrisma.user.findFirst({
+                    where: { email: normalizedEmail, companyId: company.id }
+                });
+            }
             if (!user) {
                 const err = new Error('Incorrect email or password. Please try again.');
                 err.status = 401; throw err;
@@ -406,7 +407,7 @@ class AuthService {
 
         const companyId = decoded.companyId;
         if (!companyId) {
-            const err = new Error('Invalid token structure. Missing tenant binding.');
+            const err = new Error('Invalid token structure. Missing company binding.');
             err.status = 400; throw err;
         }
 
@@ -416,8 +417,9 @@ class AuthService {
             err.status = 401; throw err;
         }
 
-        const tenantPrisma = getTenantPrisma(company.id);
-        const user = await tenantPrisma.user.findUnique({ where: { id: decoded.id } });
+        const companyPrisma = getCompanyPrisma(company.id);
+        const user = await companyPrisma.user.findUnique({ where: { id: decoded.id } });
+
         if (!user) {
             const err = new Error('User not found');
             err.status = 401; throw err;
@@ -427,7 +429,7 @@ class AuthService {
         return { token: newAccessToken, user, company };
     }
 
-    static async getMe(tenantDb, userObj, companyIdInput) {
+    static async getMe(companyPrisma, userObj, companyIdInput) {
         let company = null;
         if (companyIdInput) {
             company = await globalPrisma.company.findUnique({ where: { id: companyIdInput } });
@@ -435,7 +437,7 @@ class AuthService {
         return { user: userObj, company, isModuleLead: false };
     }
 
-    static async changePassword(tenantDb, body, currentUser, companyObj) {
+    static async changePassword(companyPrisma, body, currentUser, companyObj) {
         const { currentPassword, newPassword } = body;
         if (!currentPassword || !newPassword) {
             const err = new Error('Both current and new password are required');
@@ -443,15 +445,15 @@ class AuthService {
         }
 
         const isPrimaryAdmin = companyObj?.adminEmail === currentUser.email;
-        const user = await tenantDb.user.findUnique({ where: { id: currentUser.id } });
-        
+        const user = await companyPrisma.user.findUnique({ where: { id: currentUser.id } });
+
         if (isPrimaryAdmin) {
             const company = await globalPrisma.company.findUnique({ where: { id: companyObj.id } });
             if (!company) {
                 const err = new Error('Company not found');
                 err.status = 404; throw err;
             }
-            
+
             const ok = await bcrypt.compare(currentPassword, company.adminPasswordHash || '');
             if (!ok) {
                 const err = new Error('Current password is incorrect');
@@ -460,11 +462,11 @@ class AuthService {
 
             const salt = await bcrypt.genSalt(12);
             const newPasswordHash = await bcrypt.hash(newPassword, salt);
-            
+
             await globalPrisma.company.update({ where: { id: companyObj.id }, data: { adminPasswordHash: newPasswordHash } });
-            
+
             if (user.passwordHash || user.password) {
-                await tenantDb.user.update({ where: { id: user.id }, data: { passwordHash: null, password: null } });
+                await companyPrisma.user.update({ where: { id: user.id }, data: { passwordHash: null, password: null } });
             }
         } else {
             const ok = await bcrypt.compare(currentPassword, user.passwordHash || user.password || '');
@@ -475,14 +477,14 @@ class AuthService {
 
             const salt = await bcrypt.genSalt(12);
             const newPasswordHash = await bcrypt.hash(newPassword, salt);
-            await tenantDb.user.update({ where: { id: user.id }, data: { passwordHash: newPasswordHash, password: null } });
+            await companyPrisma.user.update({ where: { id: user.id }, data: { passwordHash: newPasswordHash, password: null } });
         }
 
         return user;
     }
 
-    static async setupMFA(tenantDb, currentUser, companyObj) {
-        const settings = await tenantDb.settings.findFirst();
+    static async setupMFA(companyPrisma, currentUser, companyObj) {
+        const settings = await companyPrisma.settings.findFirst();
         const companyName = settings?.companyName || companyObj?.companyName || 'Your Company';
         const secret = totp.generateSecret();
         const uri = totp.keyuri(currentUser.email, companyName, secret);
@@ -490,17 +492,17 @@ class AuthService {
         return { secret, qrCode, provisioningUri: uri };
     }
 
-    static async enableMFA(tenantDb, body, currentUser) {
+    static async enableMFA(companyPrisma, body, currentUser) {
         const { secret, token } = body;
         if (!totp.check(token, secret)) {
             const err = new Error('Invalid MFA token');
             err.status = 400; throw err;
         }
-        await tenantDb.user.update({ where: { id: currentUser.id }, data: { mfaEnabled: true, mfaSecret: secret } });
+        await companyPrisma.user.update({ where: { id: currentUser.id }, data: { mfaEnabled: true, mfaSecret: secret } });
         return { message: 'MFA enabled successfully' };
     }
 
-    static async completeWorkspaceSetup(tenantDb, body, onboardingTokenHeader, currentUser, reqCompany) {
+    static async completeWorkspaceSetup(companyPrisma, body, onboardingTokenHeader, currentUser, reqCompany) {
         const { companyType, teamSize, enabledApps, enabledModules } = body;
         let user = currentUser;
         let companyId = reqCompany?.id;
@@ -510,7 +512,7 @@ class AuthService {
                 const err = new Error('Invalid or expired onboarding token');
                 err.status = 403; throw err;
             }
-            user = await tenantDb.user.findFirst({ where: { role: 'admin' } });
+            user = await companyPrisma.user.findFirst({ where: { role: 'admin' } });
             companyId = reqCompany.id;
         }
 
@@ -519,13 +521,13 @@ class AuthService {
             err.status = 401; throw err;
         }
 
-        let config = await tenantDb.companyConfig.findFirst();
+        let config = await companyPrisma.companyConfig.findFirst();
         if (!config) {
-            config = await tenantDb.companyConfig.create({
+            config = await companyPrisma.companyConfig.create({
                 data: { companyType, teamSize, enabledApps: enabledApps || [], enabledModules: enabledModules || [] }
             });
         } else {
-            await tenantDb.companyConfig.update({
+            await companyPrisma.companyConfig.update({
                 where: { id: config.id },
                 data: {
                     ...(companyType && { companyType }),
@@ -536,7 +538,7 @@ class AuthService {
             });
         }
 
-        const updatedUser = await tenantDb.user.update({ where: { id: user.id }, data: { isFirstLogin: false } });
+        const updatedUser = await companyPrisma.user.update({ where: { id: user.id }, data: { isFirstLogin: false } });
         if (!updatedUser) {
             const err = new Error('Admin user not found in workspace');
             err.status = 404; throw err;
@@ -544,17 +546,19 @@ class AuthService {
 
         const company = await globalPrisma.company.findUnique({ where: { id: companyId } });
         let metadata = company.metadata || {};
-        if (typeof metadata === 'string') { try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; } }
+        if (typeof metadata === 'string') { try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; } }
         metadata.onboardingToken = null;
-        
-        await globalPrisma.company.update({ where: { id: companyId }, data: {
-            isOnboardingComplete: true,
-            metadata
-        } });
+
+        await globalPrisma.company.update({
+            where: { id: companyId }, data: {
+                isOnboardingComplete: true,
+                metadata
+            }
+        });
 
         const { redis } = require('../../system-configs/config/redis.js');
         if (redis) {
-            try { await redis.del(`company:${companyId.toString()}`); } catch (err) {}
+            try { await redis.del(`company:${companyId.toString()}`); } catch (err) { }
         }
 
         const accessToken = signAccessToken(updatedUser.id, companyId);
@@ -562,13 +566,13 @@ class AuthService {
 
         const hashed = await bcrypt.hash(refreshToken, 8);
         const newRefreshTokens = [...(updatedUser.refreshTokens || []).slice(-4), hashed];
-        await tenantDb.user.update({ where: { id: updatedUser.id }, data: { refreshTokens: newRefreshTokens } });
+        await companyPrisma.user.update({ where: { id: updatedUser.id }, data: { refreshTokens: newRefreshTokens } });
 
         try {
             const ps = await globalPrisma.platformSettings.findFirst();
             const loginUrl = ps?.platformApiUrl || process.env.CLIENT_URL || '';
-            await EmailService.notify(updatedUser, 'company_welcome', { loginUrl }, tenantDb);
-        } catch (emailErr) {}
+            await EmailService.notify(updatedUser, 'company_welcome', { loginUrl }, companyPrisma);
+        } catch (emailErr) { }
 
         return { token: accessToken, refreshToken, user: updatedUser, config, companyId, companyType, teamSize, enabledApps };
     }
@@ -580,75 +584,87 @@ class AuthService {
             err.status = 400; throw err;
         }
 
+        const normalizedEmail = email.toLowerCase().trim();
         let company = reqCompany || null;
-        if (!company) {
-            const mapping = await globalPrisma.tenantUserMapping.findFirst({ 
-                where: { email: email.toLowerCase() },
+        let user = null;
+
+        if (company) {
+            user = await globalPrisma.user.findFirst({
+                where: { email: normalizedEmail, companyId: company.id }
+            });
+        } else {
+            user = await globalPrisma.user.findFirst({
+                where: { email: normalizedEmail },
                 include: { company: true }
             });
-            company = mapping ? mapping.company : null;
+            if (user && user.company) {
+                company = user.company;
+            }
         }
 
-        if (!company || !company.databaseConfigured) return { user: null };
+        if (!company) {
+            company = await globalPrisma.company.findFirst({
+                where: { adminEmail: normalizedEmail }
+            });
+        }
 
-        let tenantPrisma;
-        try { tenantPrisma = getTenantPrisma(company.id); } catch { return { user: null }; }
+        if (!company) return { user: null };
 
-        const user = await tenantPrisma.user.findFirst({ where: { email: email.toLowerCase() } });
-        if (!user) return { user: null };
+        if (!user) {
+            user = await globalPrisma.user.findFirst({
+                where: { email: normalizedEmail, companyId: company.id }
+            });
+        }
 
-        const userRole = user.role || (user.roles && user.roles[0]) || 'employee';
+        const isPrimaryAdmin = company.adminEmail && company.adminEmail.toLowerCase() === normalizedEmail;
+        const userRole = user?.role || (user?.roles && user?.roles[0]) || (isPrimaryAdmin ? 'admin' : 'employee');
         const adminRoles = ['admin', 'manager'];
-        if (!adminRoles.includes(userRole)) {
+        if (!adminRoles.includes(userRole) && !isPrimaryAdmin) {
             const err = new Error('Password reset via email is only available for admin and manager accounts. Please contact your administrator.');
             err.status = 403; throw err;
         }
 
         const crypto = require('crypto');
         const tempPassword = crypto.randomBytes(5).toString('hex');
-        
-        const isPrimaryAdmin = company.adminEmail && company.adminEmail.toLowerCase() === email.toLowerCase();
-        
+
         if (isPrimaryAdmin) {
             const salt = await bcrypt.genSalt(12);
             const hashedTemp = await bcrypt.hash(tempPassword, salt);
             await globalPrisma.company.update({ where: { id: company.id }, data: { adminPasswordHash: hashedTemp } });
-            
-            if (user.passwordHash || user.password) {
-                await tenantPrisma.user.update({ where: { id: user.id }, data: { passwordHash: null, password: null } });
+
+            if (user && (user.passwordHash || user.password)) {
+                await globalPrisma.user.update({ where: { id: user.id }, data: { passwordHash: null, password: null } });
             }
-        } else {
+        } else if (user) {
             const salt = await bcrypt.genSalt(10);
             const hashedTemp = await bcrypt.hash(tempPassword, salt);
-            await tenantPrisma.user.update({ where: { id: user.id }, data: { password: hashedTemp } });
+            await globalPrisma.user.update({ where: { id: user.id }, data: { password: hashedTemp } });
         }
 
         try {
             const companyName = company.companyName || company.name || 'Your Company';
-            await EmailService.sendForgotPasswordEmail(user, tempPassword, companyName, tenantPrisma);
-        } catch (emailErr) {}
+            await EmailService.sendForgotPasswordEmail(user || { email: normalizedEmail, name: company.adminName || 'Admin' }, tempPassword, companyName, globalPrisma);
+        } catch (emailErr) { }
 
-        return { user };
+        return { user: user || { email: normalizedEmail } };
     }
 
     static async checkForgotEligibility(query) {
         const email = (query.email || '').toLowerCase().trim();
         if (!email) return false;
 
-        const mapping = await globalPrisma.tenantUserMapping.findFirst({ 
-            where: { email },
-            include: { company: true }
+        const user = await globalPrisma.user.findFirst({
+            where: { email }
         });
-        if (!mapping || !mapping.company?.databaseConfigured) return false;
+        if (user) {
+            const userRole = user.role || (user.roles && user.roles[0]) || 'employee';
+            return ['admin', 'manager'].includes(userRole);
+        }
 
-        let tenantPrisma;
-        try { tenantPrisma = getTenantPrisma(mapping.companyId); } catch { return false; }
-
-        const user = await tenantPrisma.user.findFirst({ where: { email } });
-        if (!user) return false;
-
-        const userRole = user.role || (user.roles && user.roles[0]) || 'employee';
-        return ['admin', 'manager'].includes(userRole);
+        const company = await globalPrisma.company.findFirst({
+            where: { adminEmail: email }
+        });
+        return !!company;
     }
 
     static async googleLogin(body) {
@@ -671,48 +687,63 @@ class AuthService {
                 audience: clientId,
             });
         } catch (error) {
-            // Log the decoded token's audience for easier debugging
             const decoded = jwt.decode(tokenId);
             console.error('[GoogleLogin] verifyIdToken error:', error.message);
             console.error('[GoogleLogin] Expected Audience:', clientId);
             console.error('[GoogleLogin] Actual Token Audience:', decoded?.aud);
-            
+
             const err = new Error('Google authentication failed: ' + error.message);
-            err.status = 401; 
+            err.status = 401;
             throw err;
         }
-        
+
         const payload = ticket.getPayload();
         const email = payload.email.toLowerCase();
-        
-        let user = await globalPrisma.user.findUnique({
+
+        let user = await globalPrisma.user.findFirst({
             where: { email },
             include: { company: true }
         });
 
-        if (!user || !user.company) {
-             const err = new Error('No workspace found for this Google account. Please create an account.');
-             err.status = 404; throw err;
-        }
-        
-        if (!user.company.databaseConfigured) {
-             const err = new Error('Workspace database not configured. Please complete setup.');
-             err.status = 404; throw err;
+        let company = user?.company || null;
+
+        if (!company) {
+            company = await globalPrisma.company.findFirst({
+                where: { adminEmail: email }
+            });
         }
 
-        let updateData = {};
-        if (payload.picture && !user.photoUrl) {
-            updateData.photoUrl = payload.picture;
+        if (!company) {
+            const err = new Error('No workspace found for this Google account. Please create an account.');
+            err.status = 404; throw err;
         }
-        if (!user.googleId) {
-             updateData.googleId = payload.sub;
-        }
-        if (Object.keys(updateData).length > 0) {
-            user = await globalPrisma.user.update({
-                where: { id: user.id },
-                data: updateData,
-                include: { company: true }
+
+        if (!user) {
+            user = await globalPrisma.user.create({
+                data: {
+                    name: payload.name || company.adminName || 'Workspace Admin',
+                    email,
+                    companyId: company.id,
+                    role: 'admin',
+                    photoUrl: payload.picture,
+                    googleId: payload.sub,
+                    isActive: true
+                }
             });
+        } else {
+            let updateData = {};
+            if (payload.picture && !user.photoUrl) {
+                updateData.photoUrl = payload.picture;
+            }
+            if (!user.googleId) {
+                updateData.googleId = payload.sub;
+            }
+            if (Object.keys(updateData).length > 0) {
+                user = await globalPrisma.user.update({
+                    where: { id: user.id },
+                    data: updateData
+                });
+            }
         }
 
         if (!user.isActive) {
@@ -720,10 +751,10 @@ class AuthService {
             err.status = 403; throw err;
         }
 
-        const token = signAccessToken(user.id, user.company.id);
-        const refreshToken = signRefreshToken(user.id, user.company.id);
-        
-        return { token, refreshToken, user, company: user.company };
+        const token = signAccessToken(user.id, company.id);
+        const refreshToken = signRefreshToken(user.id, company.id);
+
+        return { token, refreshToken, user, company };
     }
 }
 

@@ -82,7 +82,7 @@ router.post('/:jobId/applications', async (req, res, next) => {
         // We use req.prisma here because this might be a public route without protect?
         // But the previous code used req.prisma. Let's keep using req.prisma if it's there.
         // Actually without protect, req.prisma might not be set or might be set globally.
-        // Let's assume tenantDb middleware sets it if subdomain exists.
+        // Let's assume companyPrisma middleware sets it if subdomain exists.
         const app = await req.prisma.application.create({ 
             data: { 
                 ...req.body, 

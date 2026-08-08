@@ -1,13 +1,13 @@
 ﻿'use strict';
 
 const stripe = require('stripe');
-const TenantPaymentProviderInterface = require('../TenantPaymentProviderInterface');
+const CompanyPaymentProviderInterface = require('../CompanyPaymentProviderInterface');
 
-class StripeTenantProvider extends TenantPaymentProviderInterface {
+class StripeCompanyProvider extends CompanyPaymentProviderInterface {
     constructor(config) {
         super(config);
         if (!config.secretKey) {
-            throw new Error('Stripe Tenant secret key is missing');
+            throw new Error('Stripe Company secret key is missing');
         }
 
         this.stripe = stripe(config.secretKey);
@@ -59,7 +59,7 @@ class StripeTenantProvider extends TenantPaymentProviderInterface {
                 providerName: 'stripe'
             };
         } catch (error) {
-            console.error('Stripe Tenant generatePaymentLink error:', error);
+            console.error('Stripe Company generatePaymentLink error:', error);
             throw new Error(error.message || 'Failed to generate Stripe Payment Session');
         }
     }
@@ -69,7 +69,7 @@ class StripeTenantProvider extends TenantPaymentProviderInterface {
      */
     async verifyWebhookSignature(payload, signature) {
         if (!this.config.webhookSecret) {
-            throw new Error('Stripe Tenant webhook secret is not configured');
+            throw new Error('Stripe Company webhook secret is not configured');
         }
 
         try {
@@ -89,11 +89,11 @@ class StripeTenantProvider extends TenantPaymentProviderInterface {
      * Placeholder for Payouts (Requires Stripe Connect Onboarding)
      */
     async payout({ amount, currency, purpose, referenceId, recipientEmail, recipientPhone, bankDetails }) {
-        // Stripe Payouts for tenants usually require Stripe Connect and "Destination Charges" or "Separate Charges & Transfers".
+        // Stripe Payouts for companys usually require Stripe Connect and "Destination Charges" or "Separate Charges & Transfers".
         // This is a placeholder for future extension.
         console.warn('Stripe Payouts expansion requested but not fully implemented (requires Stripe Connect).');
-        throw new Error('Stripe Payouts integration for individual tenants is currently in development.');
+        throw new Error('Stripe Payouts integration for individual companys is currently in development.');
     }
 }
 
-module.exports = StripeTenantProvider;
+module.exports = StripeCompanyProvider;

@@ -6,11 +6,11 @@
 The 180workspace Platform utilizes a **Modular Monolith** pattern with clear separation of concerns between its layers. It employs a decoupled client-server model:
 1.  **Frontend (Client/SSR):** Next.js 15+ application handling routing, presentation, and hydration.
 2.  **Backend (API Server):** Node.js/Express.js application processing business logic, validation, and authentication.
-3.  **Database (Persistence):** PostgreSQL Atlas handling storage with multitenant scaling.
+3.  **Database (Persistence):** PostgreSQL Atlas handling storage with multicompany scaling.
 
 ## Frontend-Backend Interaction
 The interaction relies on statless REST HTTP requests and stateful WebSocket channels:
-- **HTTP REST:** Standardized JSON over HTTPS. Axios is utilized on the frontend with request interceptors attaching `Authorization: Bearer <token>` and `x-tenant-id` headers.
+- **HTTP REST:** Standardized JSON over HTTPS. Axios is utilized on the frontend with request interceptors attaching `Authorization: Bearer <token>` and `x-company-id` headers.
 - **WebSockets:** Socket.IO namespaces connect the frontend client to the backend for real-time notification dispatches, instant messaging, and collaborative whiteboard/calendar events.
 
 ## Data Flow Diagrams
@@ -26,7 +26,7 @@ The interaction relies on statless REST HTTP requests and stateful WebSocket cha
         ├── 1. Rate Limiting (express-rate-limit)
         ├── 2. Security (Helmet, CORS)
         ├── 3. Header Validation & Authentication (JWT Decoder)
-        ├── 4. Tenant Context resolution (tenant-db middleware)
+        ├── 4. Company Context resolution (company-db middleware)
         │
 [ Route Handlers (src/routes) ] 
         │
@@ -34,12 +34,12 @@ The interaction relies on statless REST HTTP requests and stateful WebSocket cha
         │
 [ Models (Prisma ORM) ]
         │
-[ PostgreSQL Atlas (Tenant-Specific Database) ]
+[ PostgreSQL Atlas (Company-Specific Database) ]
 ```
 
 ## Module-Level Architecture
 - **Auth Module:** JWT generation, 2FA validation, password reset links.
-- **Tenant Middleware:** Dynamically switches `prisma.connection` contexts per request to ensure data absolute isolation across companies.
+- **Company Middleware:** Dynamically switches `prisma.connection` contexts per request to ensure data absolute isolation across companies.
 - **HR & Operations Module:** Automates tracking models (Leaves, Salaries, Employees).
 - **Core Operations Module:** Maps Inventories, Invoices, Projects, and CRM pipelines.
 

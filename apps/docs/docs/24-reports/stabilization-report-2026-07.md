@@ -5,7 +5,7 @@ This report documents the P1 Performance and Stability fixes applied to the Pitc
 
 ## 2. API Performance Instrumentation (Phase 8)
 - **Middleware Added:** `apps/http-backend/src/system-configs/middleware/system/performance.middleware.js`
-- **Purpose:** Automatically measures the execution time of incoming requests. It captures the start time and checkpoints (e.g., `tenantResolution`, `moduleGuard`). 
+- **Purpose:** Automatically measures the execution time of incoming requests. It captures the start time and checkpoints (e.g., `companyResolution`, `moduleGuard`). 
 - **Behavior:** If a request exceeds the `SLOW_REQUEST_THRESHOLD_MS` environment variable (defaults to 500ms), a structured warning is emitted in the backend logs outlining the exact latency breakdown. This provides critical visibility without flooding production logs.
 
 ## 3. Profiling & Optimizing Slow Endpoints (Phase 9)
@@ -15,7 +15,7 @@ This report documents the P1 Performance and Stability fixes applied to the Pitc
 
 ## 4. ETag & Caching (Phase 10)
 - **Analysis:** Express currently handles ETag generation by default via body hashing. While this saves bandwidth for `304 Not Modified` responses, it does *not* save database or CPU overhead because the ETag is computed *after* the entire JSON payload is generated.
-- **Recommendation:** Due to the complexity of caching dynamic multi-tenant user permissions, relying on the existing Redis implementations (e.g., in `getFinancialStats`) is vastly superior to attempting to hijack early ETag headers.
+- **Recommendation:** Due to the complexity of caching dynamic multi-company user permissions, relying on the existing Redis implementations (e.g., in `getFinancialStats`) is vastly superior to attempting to hijack early ETag headers.
 
 ## 5. Next.js & Nodemon Stability (Phase 11 & 12)
 - **Issue:** The backend `pnpm dev` process was suffering from infinite restart loops. This happened because Nodemon was watching the entire monorepo, triggering a backend restart every time Next.js recompiled a frontend asset in `apps/user-web/.next`.

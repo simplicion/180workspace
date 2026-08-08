@@ -14,21 +14,21 @@ exports.setupMeilisearch = async () => {
     // Users Index
     tasks.push(client.index('users').updateSettings({
       searchableAttributes: ['name', 'companyName', 'role'],
-      filterableAttributes: ['tenantId', 'role'],
+      filterableAttributes: ['companyId', 'role'],
       typoTolerance: { enabled: true }
     }));
 
     // Companies Index
     tasks.push(client.index('companies').updateSettings({
       searchableAttributes: ['name', 'metadata'],
-      filterableAttributes: ['tenantId', 'industry'],
+      filterableAttributes: ['companyId', 'industry'],
       typoTolerance: { enabled: true }
     }));
 
     // Projects Index
     tasks.push(client.index('projects').updateSettings({
       searchableAttributes: ['name', 'description'],
-      filterableAttributes: ['tenantId', 'status'],
+      filterableAttributes: ['companyId', 'status'],
       typoTolerance: { enabled: true }
     }));
 
@@ -44,7 +44,7 @@ exports.syncUserToMeili = async (user) => {
   try {
     await client.index('users').addDocuments([{
       id: user.id,
-      tenantId: user.tenantId,
+      companyId: user.companyId,
       name: user.name,
       companyName: user.companyName,
       role: user.role,
@@ -59,7 +59,7 @@ exports.syncCompanyToMeili = async (company) => {
   try {
     await client.index('companies').addDocuments([{
       id: company.id,
-      tenantId: company.tenantId,
+      companyId: company.companyId,
       name: company.name,
       industry: company.metadata?.industry || null,
       metadata: JSON.stringify(company.metadata)
@@ -69,13 +69,13 @@ exports.syncCompanyToMeili = async (company) => {
   }
 };
 
-exports.globalSearch = async (tenantId, query) => {
+exports.globalSearch = async (companyId, query) => {
   try {
     // Search across indices in parallel
     const [userRes, companyRes, projectRes] = await Promise.all([
-      client.index('users').search(query, { filter: `tenantId = ${tenantId}`, limit: 5 }),
-      client.index('companies').search(query, { filter: `tenantId = ${tenantId}`, limit: 5 }),
-      client.index('projects').search(query, { filter: `tenantId = ${tenantId}`, limit: 5 })
+      client.index('users').search(query, { filter: `companyId = ${companyId}`, limit: 5 }),
+      client.index('companies').search(query, { filter: `companyId = ${companyId}`, limit: 5 }),
+      client.index('projects').search(query, { filter: `companyId = ${companyId}`, limit: 5 })
     ]);
 
     return {

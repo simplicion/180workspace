@@ -74,6 +74,7 @@ api.interceptors.response.use(
                     !window.location.pathname.startsWith('/superadmin')) {
                     window.location.href = '/login?clearSession=true';
                 }
+                return Promise.reject(error);
             }
         }
 

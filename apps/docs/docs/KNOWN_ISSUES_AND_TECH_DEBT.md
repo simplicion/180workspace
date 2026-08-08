@@ -10,5 +10,5 @@
 - **Loose API Mounting Interfaces:** Some modules have shown instances of isolated disconnects. (e.g. previously fixing the Activity route not bound implicitly via the main node pipeline.) Manual route linkage invites missing endpoints across heavy codebase upgrades.
 
 ## Risk Areas
-*   **Tenant Separation via API vs UI:** The frontend's reliance on hiding visual UI segments instead of robustly verifying payload returns opens theoretical edge cases if users artificially construct valid POST strings guessing endpoint geometries outside standard forms. 
+*   **Company Separation via API vs UI:** The frontend's reliance on hiding visual UI segments instead of robustly verifying payload returns opens theoretical edge cases if users artificially construct valid POST strings guessing endpoint geometries outside standard forms. 
 *   **Database Schema Inflation:** 40+ Prisma models inside a single backend structure risk monolithic structural bloat. Deep inter-model dependencies via `companyId` make schema breaking changes extremely dangerous to deploy live without robust migration logic layers.

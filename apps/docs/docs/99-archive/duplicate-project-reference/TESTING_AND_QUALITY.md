@@ -14,7 +14,7 @@ These scripts operate as direct integration or smoke tests triggering particular
 ## Missing Tests
 - **Frontend Unit Testing:** Complete lack of React Testing Library configurations for component assertion mapping. Important modular modals (like `GeneratePayrollModal` or `CreateTaskModal`) have no baseline logical guardrails stopping refactoring breaks.
 - **API Unit Testing:** Supertest coverage checking boundary conditions against the 40+ PostgreSQL Prisma entities does not exist.
-- **End-to-End Testing:** No automated click-path tests ensure the complex navigation structure (Tenant Isolation Login -> Dashboard -> Project Mapping) works smoothly across browser instances.
+- **End-to-End Testing:** No automated click-path tests ensure the complex navigation structure (Company Isolation Login -> Dashboard -> Project Mapping) works smoothly across browser instances.
 
 ## QA Gaps
 - **Continuous Integration:** CI pipelines (GitHub Actions / GitLab CI) are disconnected. Code deployment currently pushes raw into Edge hosts (Vercel) allowing the Next.js compiler to operate as the sole final boundary identifying syntax errors.

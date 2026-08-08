@@ -4,8 +4,8 @@ const { google } = require('googleapis');
 
 class GoogleSheetsService {
     /**
-     * Initializes a Google Sheets instance for a specific tenant
-     * @param {Object} settings - Tenant-specific settings object
+     * Initializes a Google Sheets instance for a specific company
+     * @param {Object} settings - Company-specific settings object
      * @returns {Object} { sheets, spreadsheetId }
      */
     async #getClient(settings) {
@@ -33,7 +33,7 @@ class GoogleSheetsService {
 
     /**
      * Append meeting summary to the spreadsheet
-     * @param {Object} settings - Tenant settings
+     * @param {Object} settings - Company settings
      * @param {Object} data - { roomId, title, date, participants, summary, actionItems, companyId }
      */
     async appendMeetingSummary(settings, data) {
@@ -68,7 +68,7 @@ class GoogleSheetsService {
 
     /**
      * Get meeting summary from the spreadsheet by Room ID
-     * @param {Object} settings - Tenant settings
+     * @param {Object} settings - Company settings
      * @param {string} roomId 
      */
     async getMeetingSummaryByRoomId(settings, roomId) {
@@ -105,7 +105,7 @@ class GoogleSheetsService {
     }
     /**
      * Update documentation in the spreadsheet
-     * @param {Object} settings - Tenant settings
+     * @param {Object} settings - Company settings
      * @param {Array} documents - Array of document objects
      */
     async updateDocumentation(settings, documents) {
@@ -155,7 +155,7 @@ class GoogleSheetsService {
 
     /**
      * Fetch all documentation from the spreadsheet
-     * @param {Object} settings - Tenant settings
+     * @param {Object} settings - Company settings
      */
     async getDocumentation(settings) {
         const { sheets, spreadsheetId } = await this.#getClient(settings);

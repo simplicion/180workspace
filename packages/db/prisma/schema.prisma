@@ -11,104 +11,104 @@ datasource db {
 }
 
 model Company {
-  id                                            String                @id @default(uuid())
-  name                                          String
-  slug                                          String?               @unique
-  logoUrl                                       String?
-  bannerUrl                                     String?
-  oneLineDescription                            String?
-  industry                                      String?
-  startupStage                                  String?
-  teamSize                                      String?
-  country                                       String?
-  website                                       String?
-  customDomain                                  String?               @unique
-  foundedDate                                   DateTime?
-  companyType                                   String?
-  tagline                                       String?
-  headquarters                                  String?
-  otherOffices                                  String?
-  aboutUs                                       String?
-  vision                                        String?
-  mission                                       String?
-  story                                         String?
-  coreValues                                    Json?                 @default("[]")
-  socialLinks                                   Json?                 @default("{}")
-  totalFunding                                  String?
-  fundingStage                                  String?
-  businessStatus                                String?
-  burnRate                                      String?
-  runway                                        String?
-  annualRevenue                                 String?
-  revenueGrowth                                 String?
-  lastRound                                     String?
-  lastValued                                    String?
-  leadInvestor                                  String?
-  productsBuilt                                 String?
-  happyClients                                  String?
-  countriesActive                               String?
-  awardsCount                                   String?
-  topRecognition                                String?
-  companyHighlights                             Json?                 @default("[]")
-  profileViews                                  Int                   @default(0)
-  followersCount                                Int                   @default(0)
-  privacySettings                               Json?                 @default("{}")
-  adminName                                     String?
-  adminEmail                                    String?               @unique
-  adminPhone                                    String?
-  adminPasswordHash                             String?
-  adminRole                                     String                @default("admin")
-  databaseConfigured                            Boolean               @default(false)
-  isOnboardingComplete                          Boolean               @default(false)
-  subscriptionStatus                            String                @default("trial")
-  accountStatus                                 String                @default("active")
-  totalUsers                                    Int                   @default(0)
-  metadata                                      Json?                 @default("{}")
-  trialStartDate                                DateTime?
-  trialEndDate                                  DateTime?
-  nextChargeDate                                DateTime?
-  autopayEnabled                                Boolean               @default(false)
-  mandateStatus                                 String?
-  createdAt                                     DateTime              @default(now())
-  updatedAt                                     DateTime              @updatedAt
-  attendances                                   Attendance[]
-  auditLogs                                     AuditLog[]
-  automationLogs_CompanyAutomationLogs          AutomationLog[]       @relation("CompanyAutomationLogs")
-  clients_CompanyClients                        Client[]              @relation("CompanyClients")
-  CompanyConfig                                 CompanyConfig?
-  coreValueItems                                CompanyCoreValue[]
-  followersList                                 CompanyFollower[]     @relation("CompanyFollowers")
-  investors                                     CompanyInvestor[]
-  media                                         CompanyMedia[]
-  products                                      CompanyProduct[]
-  publicReviews                                 CompanyPublicReview[] @relation("CompanyPublicReviews")
-  services                                      CompanyService[]
-  contentCalendars_CompanyContentCalendars      ContentCalendar[]     @relation("CompanyContentCalendars")
-  designations                                  Designation[]
-  documents_CompanyDocuments                    Document[]            @relation("CompanyDocuments")
-  emailLogs_CompanyEmailLogs                    EmailLog[]            @relation("CompanyEmailLogs")
-  events_CompanyEvents                          Event[]               @relation("CompanyEvents")
-  expenses                                      Expense[]
-  goals                                         Goal[]
-  holidays_CompanyHolidays                      Holiday[]             @relation("CompanyHolidays")
-  jobs_CompanyJobs                              Job[]                 @relation("CompanyJobs")
+  id                                       String                @id @default(uuid())
+  name                                     String
+  slug                                     String?               @unique
+  logoUrl                                  String?
+  bannerUrl                                String?
+  oneLineDescription                       String?
+  industry                                 String?
+  startupStage                             String?
+  teamSize                                 String?
+  country                                  String?
+  website                                  String?
+  customDomain                             String?               @unique
+  foundedDate                              DateTime?
+  companyType                              String?
+  tagline                                  String?
+  headquarters                             String?
+  otherOffices                             String?
+  aboutUs                                  String?
+  vision                                   String?
+  mission                                  String?
+  story                                    String?
+  coreValues                               Json?                 @default("[]")
+  socialLinks                              Json?                 @default("{}")
+  totalFunding                             String?
+  fundingStage                             String?
+  businessStatus                           String?
+  burnRate                                 String?
+  runway                                   String?
+  annualRevenue                            String?
+  revenueGrowth                            String?
+  lastRound                                String?
+  lastValued                               String?
+  leadInvestor                             String?
+  productsBuilt                            String?
+  happyClients                             String?
+  countriesActive                          String?
+  awardsCount                              String?
+  topRecognition                           String?
+  companyHighlights                        Json?                 @default("[]")
+  profileViews                             Int                   @default(0)
+  followersCount                           Int                   @default(0)
+  privacySettings                          Json?                 @default("{}")
+  adminName                                String?
+  adminEmail                               String?               @unique
+  adminPhone                               String?
+  adminPasswordHash                        String?
+  adminRole                                String                @default("admin")
+  databaseConfigured                       Boolean               @default(false)
+  isOnboardingComplete                     Boolean               @default(false)
+  subscriptionStatus                       String                @default("trial")
+  accountStatus                            String                @default("active")
+  totalUsers                               Int                   @default(0)
+  metadata                                 Json?                 @default("{}")
+  trialStartDate                           DateTime?
+  trialEndDate                             DateTime?
+  nextChargeDate                           DateTime?
+  autopayEnabled                           Boolean               @default(false)
+  mandateStatus                            String?
+  createdAt                                DateTime              @default(now())
+  updatedAt                                DateTime              @updatedAt
+  attendances                              Attendance[]
+  auditLogs                                AuditLog[]
+  automationLogs_CompanyAutomationLogs     AutomationLog[]       @relation("CompanyAutomationLogs")
+  clients_CompanyClients                   Client[]              @relation("CompanyClients")
+  CompanyConfig                            CompanyConfig?
+  coreValueItems                           CompanyCoreValue[]
+  followersList                            CompanyFollower[]     @relation("CompanyFollowers")
+  investors                                CompanyInvestor[]
+  media                                    CompanyMedia[]
+  products                                 CompanyProduct[]
+  publicReviews                            CompanyPublicReview[] @relation("CompanyPublicReviews")
+  services                                 CompanyService[]
+  contentCalendars_CompanyContentCalendars ContentCalendar[]     @relation("CompanyContentCalendars")
+  designations                             Designation[]
+  documents_CompanyDocuments               Document[]            @relation("CompanyDocuments")
+  emailLogs_CompanyEmailLogs               EmailLog[]            @relation("CompanyEmailLogs")
+  events_CompanyEvents                     Event[]               @relation("CompanyEvents")
+  expenses                                 Expense[]
+  goals                                    Goal[]
+  holidays_CompanyHolidays                 Holiday[]             @relation("CompanyHolidays")
+  jobs_CompanyJobs                         Job[]                 @relation("CompanyJobs")
 
-  Leave                                         Leave[]
-  meetingLogs_CompanyMeetingLogs                MeetingLog[]          @relation("CompanyMeetingLogs")
-  projects                                      Project[]
-  reviews                                       Review[]
-  salaries                                      Salary[]
-  serviceRequests                               ServiceRequest[]
-  Settings                                      Settings?
-  tasks                                         Task[]
-  TenantTransaction                             TenantTransaction[]
-  users                                         User[]
-  vendors_CompanyVendors                        Vendor[]              @relation("CompanyVendors")
-  vendorBills_CompanyVendorBills                VendorBill[]          @relation("CompanyVendorBills")
-  workLogs_CompanyWorkLogs                      WorkLog[]             @relation("CompanyWorkLogs")
-  assets                                        Asset[]
-  forms                                         Form[]
-  knowledgeArticles                             KnowledgeArticle[]
+  Leave                          Leave[]
+  meetingLogs_CompanyMeetingLogs MeetingLog[]         @relation("CompanyMeetingLogs")
+  projects                       Project[]
+  reviews                        Review[]
+  salaries                       Salary[]
+  serviceRequests                ServiceRequest[]
+  Settings                       Settings?
+  tasks                          Task[]
+  CompanyTransaction             CompanyTransaction[]
+  users                          User[]
+  vendors_CompanyVendors         Vendor[]             @relation("CompanyVendors")
+  vendorBills_CompanyVendorBills VendorBill[]         @relation("CompanyVendorBills")
+  workLogs_CompanyWorkLogs       WorkLog[]            @relation("CompanyWorkLogs")
+  assets                         Asset[]
+  forms                          Form[]
+  knowledgeArticles              KnowledgeArticle[]
 }
 
 model CompanyCoreValue {
@@ -161,32 +161,32 @@ model CompanyConfig {
 }
 
 model Client {
-  id                                      String                @id @default(uuid())
-  name                                    String
-  companyId                               String?
-  
-  email                                   String?
-  phone                                   String?
-  website                                 String?
-  industry                                String?
-  clientType                              String?
-  taxId                                   String?
-  billingAddress                          String?
-  status                                  String?
-  notes                                   String?
-  clientId                                String?
-  companyName                             String?
-  title                                   String?
-  lastContacted                           DateTime?
-  employeeCount                           String?
-  annualRevenue                           Float?          @default(0)
-  clv                                     Float?          @default(0)
-  healthStatus                            String?         @default("Healthy")
-  assignedManager                         String?
-  customIndustry                          String?
-  country                                 String?
-  leadSource                              String?
-  clientTier                              String?
+  id        String  @id @default(uuid())
+  name      String
+  companyId String?
+
+  email           String?
+  phone           String?
+  website         String?
+  industry        String?
+  clientType      String?
+  taxId           String?
+  billingAddress  String?
+  status          String?
+  notes           String?
+  clientId        String?
+  companyName     String?
+  title           String?
+  lastContacted   DateTime?
+  employeeCount   String?
+  annualRevenue   Float?    @default(0)
+  clv             Float?    @default(0)
+  healthStatus    String?   @default("Healthy")
+  assignedManager String?
+  customIndustry  String?
+  country         String?
+  leadSource      String?
+  clientTier      String?
 
   automationLogs_AutomationTargetClient   AutomationLog[]       @relation("AutomationTargetClient")
   company                                 Company?              @relation("CompanyClients", fields: [companyId], references: [id])
@@ -194,7 +194,7 @@ model Client {
   contentCalendars_ClientContentCalendars ContentCalendar[]     @relation("ClientContentCalendars")
   expenses                                Expense[]
   invoices                                Invoice[]
-  TenantTransaction                       TenantTransaction[]   @relation("TransactionClient")
+  CompanyTransaction                      CompanyTransaction[]  @relation("TransactionClient")
   leads                                   Lead[]                @relation("ClientLeads")
   salesActivities                         SalesActivity[]       @relation("ActivityClient")
 
@@ -217,138 +217,138 @@ model Designation {
 }
 
 model User {
-  id                                         String                @id @default(uuid())
-  name                                       String
-  email                                      String                @unique
-  emailVerified                              DateTime?
-  googleId                                   String?               @unique
-  password                                   String?
-  role                                       String                @default("employee")
-  designationId                              String?
-  permissions                                String[]              @default([])
-  image                                      String?
-  photoUrl                                   String?
-  bannerImage                                String?
-  phone                                      String?
-  isActive                                   Boolean               @default(true)
-  canViewActivity                            Boolean               @default(false)
-  otpCode                                    String?
-  otpExpiry                                  DateTime?
-  username                                   String?               @unique
-  headline                                   String?
-  title                                      String?
-  companyName                                String?
-  bio                                        String?
-  city                                       String?
-  country                                    String?
-  socialLinks                                Json?
-  highlights                                 Json?                 @default("[]")
-  interests                                  String[]              @default([])
-  employeeId                                 String?               @unique
-  department                                 String?
-  position                                   String?
-  joinDate                                   DateTime?
-  performanceScore                           Int                   @default(100)
-  salary                                     Float                 @default(0)
-  leaveBalance                               Float                 @default(20)
-  emergencyContact                           String?
-  bankAccount                                String?
-  employmentType                             String?
-  workLocation                               String?
-  managerId                                  String?
-  mfaEnabled                                 Boolean               @default(false)
-  mfaSecret                                  String?
-  isFirstLogin                               Boolean               @default(true)
-  apiKey                                     String?
-  apiKeyEnabled                              Boolean               @default(false)
-  companyId                                  String?
-  deletedAt                                  DateTime?
-  createdAt                                  DateTime              @default(now())
-  updatedAt                                  DateTime              @updatedAt
-  accounts                                   Account[]
-  aiChatSessions                             AiChatSession[]       @relation("UserAiChatSessions")
-  aiRequestLogs_AiRequestLogs                AiRequestLog[]        @relation("AiRequestLogs")
-  applications_UserApplicationsReviewed      Application[]         @relation("UserApplicationsReviewed")
-  applications_Applied                       Application[]         @relation("UserApplicationsApplied")
-  createdAssets                              Asset[]               @relation("AssetCreator")
-  ownedAssets                                Asset[]               @relation("AssetOwner")
-  attendances                                Attendance[]          @relation("EmployeeAttendance")
-  markedAttendances                          Attendance[]          @relation("MarkedByAttendance")
-  auditLogs                                  AuditLog[]            @relation("UserAuditLogs")
-  automationTargetUser                       AutomationLog[]       @relation("AutomationTargetUser")
-  automationTriggered                        AutomationLog[]       @relation("AutomationTriggered")
-  calendarEvents                             CalendarEvent[]       @relation("EventCreator")
-  calendarTemplates_CalendarTemplates        CalendarTemplate[]    @relation("CalendarTemplates")
-  chatsCreated                               Chat[]                @relation("ChatCreator")
-  clientCommunications                       ClientCommunication[] @relation("ClientCommunicationLogger")
-  followedCompanies                          CompanyFollower[]     @relation("UserFollowingCompanies")
-  companyPublicReviews                       CompanyPublicReview[]
-  documents_UserDocuments                    Document[]            @relation("UserDocuments")
-  documentPagesCreated                       DocumentPage[]        @relation("UserDocumentPagesCreated")
-  documentPagesUpdated                       DocumentPage[]        @relation("UserDocumentPagesUpdated")
-  emailLogs_UserEmailLogs                    EmailLog[]            @relation("UserEmailLogs")
-  expenses                                   Expense[]             @relation("ExpenseEmployee")
-  expensesReviewed                           Expense[]             @relation("ExpenseReviewer")
-  forumPosts_UserForumPosts                  ForumPost[]           @relation("UserForumPosts")
-  forumReplys_UserForumReplies               ForumReply[]          @relation("UserForumReplies")
-  goalsOwned                                 Goal[]                @relation("GoalOwner")
-  invoicesCreated                            Invoice[]
-  
-  leavesRequested                            Leave[]               @relation("LeaveEmployee")
-  leavesReviewed                             Leave[]               @relation("LeaveReviewer")
-  meetingLogs_UserMeetingLogsCreated         MeetingLog[]          @relation("UserMeetingLogsCreated")
-  messagesDeleted                            Message[]             @relation("MessageDeletedBy")
-  messagesSent                               Message[]             @relation("MessageSender")
-  milestonesCompleted                        Milestone[]           @relation("MilestoneCompleter")
-  milestonesCreated                          Milestone[]           @relation("MilestoneCreator")
-  createdModules                             Module[]              @relation("ModuleCreator")
-  ownedModules                               Module[]              @relation("ModuleOwner")
-  notesCreated                               Note[]                @relation("NoteCreator")
-  notifications                              Notification[]        @relation("UserNotification")
-  onboardings_UserOnboardings                Onboarding?           @relation("UserOnboardings")
-  pollVotes                                  PollVote[]            @relation("UserPollVotes")
-  postReports                                PostReport[]          @relation("UserPostReports")
-  reviewsReceived                            Review[]              @relation("ReviewEmployee")
-  reviewsGiven                               Review[]              @relation("ReviewManager")
-  salaries                                   Salary[]              @relation("SalaryEmployee")
-  savedPosts                                 SavedPost[]           @relation("UserSavedPosts")
-  sessions                                   Session[]
-  assignedTasks                              Task[]                @relation("TaskAssignee")
-  createdTasks                               Task[]                @relation("TaskCreator")
-  tenantTransactions                         TenantTransaction[]   @relation("TransactionUser")
-  timeLogs_UserTimeLogs                      TimeLog[]             @relation("UserTimeLogs")
-  company                                    Company?              @relation(fields: [companyId], references: [id])
-  designation                                Designation?          @relation("UserDesignation", fields: [designationId], references: [id])
-  manager                                    User?                 @relation("UserManager", fields: [managerId], references: [id])
-  subordinates                               User[]                @relation("UserManager")
-  educations                                 UserEducation[]
-  experiences                                UserExperience[]
-  userPreferences_UserPreferences            UserPreference?       @relation("UserPreferences")
-  userProjects                               UserProject[]
-  resumes                                    UserResume[]
-  skills                                     UserSkill[]
-  workLogsReviewed                           WorkLog[]             @relation("UserWorkLogsReviewed")
-  workLogs                                   WorkLog[]             @relation("UserWorkLogs")
-  chatsAdministered                          Chat[]                @relation("ChatAdmins")
-  chatsJoined                                Chat[]                @relation("ChatMembers")
-  goalsAssigned                              Goal[]                @relation("GoalAssignedTo")
-  meetingAttended                            CalendarEvent[]       @relation("MeetingAttendees")
-  messagesMentioned                          Message[]             @relation("MessageMentions")
-  messagesRead                               Message[]             @relation("MessageReadBy")
-  messagesStarred                            Message[]             @relation("MessageStarredBy")
-  postMentions                               ForumPost[]           @relation("PostMentions")
-  User_UserFollows_A                         User[]                @relation("UserFollows")
-  User_UserFollows_B                         User[]                @relation("UserFollows")
-  assignedDeals                              Deal[]                @relation("DealAssignedRep")
-  ownedLeads                                 Lead[]                @relation("LeadOwner")
-  salesActivitiesOwned                       SalesActivity[]       @relation("SalesActivityOwner")
-  quotesCreated                              Quote[]               @relation("QuoteCreator")
+  id                                    String                @id @default(uuid())
+  name                                  String
+  email                                 String                @unique
+  emailVerified                         DateTime?
+  googleId                              String?               @unique
+  password                              String?
+  role                                  String                @default("employee")
+  designationId                         String?
+  permissions                           String[]              @default([])
+  image                                 String?
+  photoUrl                              String?
+  bannerImage                           String?
+  phone                                 String?
+  isActive                              Boolean               @default(true)
+  canViewActivity                       Boolean               @default(false)
+  otpCode                               String?
+  otpExpiry                             DateTime?
+  username                              String?               @unique
+  headline                              String?
+  title                                 String?
+  companyName                           String?
+  bio                                   String?
+  city                                  String?
+  country                               String?
+  socialLinks                           Json?
+  highlights                            Json?                 @default("[]")
+  interests                             String[]              @default([])
+  employeeId                            String?               @unique
+  department                            String?
+  position                              String?
+  joinDate                              DateTime?
+  performanceScore                      Int                   @default(100)
+  salary                                Float                 @default(0)
+  leaveBalance                          Float                 @default(20)
+  emergencyContact                      String?
+  bankAccount                           String?
+  employmentType                        String?
+  workLocation                          String?
+  managerId                             String?
+  mfaEnabled                            Boolean               @default(false)
+  mfaSecret                             String?
+  isFirstLogin                          Boolean               @default(true)
+  apiKey                                String?
+  apiKeyEnabled                         Boolean               @default(false)
+  companyId                             String?
+  deletedAt                             DateTime?
+  createdAt                             DateTime              @default(now())
+  updatedAt                             DateTime              @updatedAt
+  accounts                              Account[]
+  aiChatSessions                        AiChatSession[]       @relation("UserAiChatSessions")
+  aiRequestLogs_AiRequestLogs           AiRequestLog[]        @relation("AiRequestLogs")
+  applications_UserApplicationsReviewed Application[]         @relation("UserApplicationsReviewed")
+  applications_Applied                  Application[]         @relation("UserApplicationsApplied")
+  createdAssets                         Asset[]               @relation("AssetCreator")
+  ownedAssets                           Asset[]               @relation("AssetOwner")
+  attendances                           Attendance[]          @relation("EmployeeAttendance")
+  markedAttendances                     Attendance[]          @relation("MarkedByAttendance")
+  auditLogs                             AuditLog[]            @relation("UserAuditLogs")
+  automationTargetUser                  AutomationLog[]       @relation("AutomationTargetUser")
+  automationTriggered                   AutomationLog[]       @relation("AutomationTriggered")
+  calendarEvents                        CalendarEvent[]       @relation("EventCreator")
+  calendarTemplates_CalendarTemplates   CalendarTemplate[]    @relation("CalendarTemplates")
+  chatsCreated                          Chat[]                @relation("ChatCreator")
+  clientCommunications                  ClientCommunication[] @relation("ClientCommunicationLogger")
+  followedCompanies                     CompanyFollower[]     @relation("UserFollowingCompanies")
+  companyPublicReviews                  CompanyPublicReview[]
+  documents_UserDocuments               Document[]            @relation("UserDocuments")
+  documentPagesCreated                  DocumentPage[]        @relation("UserDocumentPagesCreated")
+  documentPagesUpdated                  DocumentPage[]        @relation("UserDocumentPagesUpdated")
+  emailLogs_UserEmailLogs               EmailLog[]            @relation("UserEmailLogs")
+  expenses                              Expense[]             @relation("ExpenseEmployee")
+  expensesReviewed                      Expense[]             @relation("ExpenseReviewer")
+  forumPosts_UserForumPosts             ForumPost[]           @relation("UserForumPosts")
+  forumReplys_UserForumReplies          ForumReply[]          @relation("UserForumReplies")
+  goalsOwned                            Goal[]                @relation("GoalOwner")
+  invoicesCreated                       Invoice[]
 
-  knowledgeCreated                           KnowledgeArticle[]        @relation("KnowledgeCreatedBy")
-  knowledgeUpdated                           KnowledgeArticle[]        @relation("KnowledgeUpdatedBy")
-  knowledgeLocked                            KnowledgeArticle[]        @relation("KnowledgeLockedBy")
-  knowledgeVersions                          KnowledgeArticleVersion[] @relation("KnowledgeVersionCreator")
-  
+  leavesRequested                    Leave[]              @relation("LeaveEmployee")
+  leavesReviewed                     Leave[]              @relation("LeaveReviewer")
+  meetingLogs_UserMeetingLogsCreated MeetingLog[]         @relation("UserMeetingLogsCreated")
+  messagesDeleted                    Message[]            @relation("MessageDeletedBy")
+  messagesSent                       Message[]            @relation("MessageSender")
+  milestonesCompleted                Milestone[]          @relation("MilestoneCompleter")
+  milestonesCreated                  Milestone[]          @relation("MilestoneCreator")
+  createdModules                     Module[]             @relation("ModuleCreator")
+  ownedModules                       Module[]             @relation("ModuleOwner")
+  notesCreated                       Note[]               @relation("NoteCreator")
+  notifications                      Notification[]       @relation("UserNotification")
+  onboardings_UserOnboardings        Onboarding?          @relation("UserOnboardings")
+  pollVotes                          PollVote[]           @relation("UserPollVotes")
+  postReports                        PostReport[]         @relation("UserPostReports")
+  reviewsReceived                    Review[]             @relation("ReviewEmployee")
+  reviewsGiven                       Review[]             @relation("ReviewManager")
+  salaries                           Salary[]             @relation("SalaryEmployee")
+  savedPosts                         SavedPost[]          @relation("UserSavedPosts")
+  sessions                           Session[]
+  assignedTasks                      Task[]               @relation("TaskAssignee")
+  createdTasks                       Task[]               @relation("TaskCreator")
+  companyTransactions                CompanyTransaction[] @relation("TransactionUser")
+  timeLogs_UserTimeLogs              TimeLog[]            @relation("UserTimeLogs")
+  company                            Company?             @relation(fields: [companyId], references: [id])
+  designation                        Designation?         @relation("UserDesignation", fields: [designationId], references: [id])
+  manager                            User?                @relation("UserManager", fields: [managerId], references: [id])
+  subordinates                       User[]               @relation("UserManager")
+  educations                         UserEducation[]
+  experiences                        UserExperience[]
+  userPreferences_UserPreferences    UserPreference?      @relation("UserPreferences")
+  userProjects                       UserProject[]
+  resumes                            UserResume[]
+  skills                             UserSkill[]
+  workLogsReviewed                   WorkLog[]            @relation("UserWorkLogsReviewed")
+  workLogs                           WorkLog[]            @relation("UserWorkLogs")
+  chatsAdministered                  Chat[]               @relation("ChatAdmins")
+  chatsJoined                        Chat[]               @relation("ChatMembers")
+  goalsAssigned                      Goal[]               @relation("GoalAssignedTo")
+  meetingAttended                    CalendarEvent[]      @relation("MeetingAttendees")
+  messagesMentioned                  Message[]            @relation("MessageMentions")
+  messagesRead                       Message[]            @relation("MessageReadBy")
+  messagesStarred                    Message[]            @relation("MessageStarredBy")
+  postMentions                       ForumPost[]          @relation("PostMentions")
+  User_UserFollows_A                 User[]               @relation("UserFollows")
+  User_UserFollows_B                 User[]               @relation("UserFollows")
+  assignedDeals                      Deal[]               @relation("DealAssignedRep")
+  ownedLeads                         Lead[]               @relation("LeadOwner")
+  salesActivitiesOwned               SalesActivity[]      @relation("SalesActivityOwner")
+  quotesCreated                      Quote[]              @relation("QuoteCreator")
+
+  knowledgeCreated  KnowledgeArticle[]        @relation("KnowledgeCreatedBy")
+  knowledgeUpdated  KnowledgeArticle[]        @relation("KnowledgeUpdatedBy")
+  knowledgeLocked   KnowledgeArticle[]        @relation("KnowledgeLockedBy")
+  knowledgeVersions KnowledgeArticleVersion[] @relation("KnowledgeVersionCreator")
+
   @@index([companyId])
 }
 
@@ -846,7 +846,7 @@ model Settings {
   @@index([companyId])
 }
 
-model TenantTransaction {
+model CompanyTransaction {
   id                                 String       @id @default(uuid())
   companyId                          String
   type                               String
@@ -1194,7 +1194,6 @@ model Application {
   @@index([applicantEmail])
 }
 
-
 model MeetingLog {
   id           String              @id @default(uuid())
   meetingId    String?
@@ -1325,28 +1324,28 @@ model Vendor {
 }
 
 model VendorBill {
-  id            String             @id @default(uuid())
+  id            String              @id @default(uuid())
   companyId     String
   vendorId      String
   billNumber    String
   amount        Float
-  currency      String             @default("INR")
+  currency      String              @default("INR")
   date          DateTime
   dueDate       DateTime
-  status        String             @default("pending")
+  status        String              @default("pending")
   attachmentUrl String?
   notes         String?
   paidAt        DateTime?
   payoutId      String?
   transactionId String?
   fingerprint   String?
-  riskScore     Float              @default(0)
-  riskNotes     String[]           @default([])
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  company       Company            @relation("CompanyVendorBills", fields: [companyId], references: [id])
-  transaction   TenantTransaction? @relation("TransactionVendorBills", fields: [transactionId], references: [id])
-  vendor        Vendor             @relation(fields: [vendorId], references: [id])
+  riskScore     Float               @default(0)
+  riskNotes     String[]            @default([])
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  company       Company             @relation("CompanyVendorBills", fields: [companyId], references: [id])
+  transaction   CompanyTransaction? @relation("TransactionVendorBills", fields: [transactionId], references: [id])
+  vendor        Vendor              @relation(fields: [vendorId], references: [id])
 
   @@index([companyId, vendorId])
   @@index([companyId, status])
@@ -1622,20 +1621,6 @@ model SupportTicket {
   updatedAt   DateTime @updatedAt
 
   @@index([companyId, status])
-  @@index([companyId])
-}
-
-model TenantUserMapping {
-  id        String   @id @default(uuid())
-  userId    String
-  email     String
-  companyId String
-  subdomain String
-  role      String   @default("employee")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, companyId])
   @@index([companyId])
 }
 
@@ -1918,38 +1903,36 @@ model EventRegistration {
 // =============================================================================
 
 model Deal {
-  id                  String          @id @default(uuid())
-  name                String
-  email               String?
-  phone               String?
-  company             String?
-  companyName         String?
-  industry            String?
-  companySize         Int?
-  source              String?
-  status              String          @default("new")
-  value               Float?          @default(0)
-  leadScore           Int?            @default(0)
-  engagementScore     Int?            @default(0)
-  assignedSalesRepId  String?
-  assignedSalesRep    User?           @relation("DealAssignedRep", fields: [assignedSalesRepId], references: [id])
-  deletedAt           DateTime?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  id                 String    @id @default(uuid())
+  name               String
+  email              String?
+  phone              String?
+  company            String?
+  companyName        String?
+  industry           String?
+  companySize        Int?
+  source             String?
+  status             String    @default("new")
+  value              Float?    @default(0)
+  leadScore          Int?      @default(0)
+  engagementScore    Int?      @default(0)
+  assignedSalesRepId String?
+  assignedSalesRep   User?     @relation("DealAssignedRep", fields: [assignedSalesRepId], references: [id])
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  leads               Lead[]          @relation("LeadDeal")
-  salesActivities     SalesActivity[] @relation("ActivityDeal")
-  salesTasks          SalesTask[]     @relation("TaskDeal")
+  leads           Lead[]          @relation("LeadDeal")
+  salesActivities SalesActivity[] @relation("ActivityDeal")
+  salesTasks      SalesTask[]     @relation("TaskDeal")
 
   @@index([status])
   @@index([assignedSalesRepId])
   @@map("Lead")
 }
 
-
-
 model Lead {
-  id                String          @id @default(uuid())
+  id                String    @id @default(uuid())
   title             String
   contactName       String?
   contactEmail      String?
@@ -1958,25 +1941,25 @@ model Lead {
   industry          String?
   source            String?
   clientId          String?
-  client            Client?         @relation("ClientLeads", fields: [clientId], references: [id], onDelete: SetNull)
-  dealId            String?         @map("leadId")
-  deal              Deal?           @relation("LeadDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  client            Client?   @relation("ClientLeads", fields: [clientId], references: [id], onDelete: SetNull)
+  dealId            String?   @map("leadId")
+  deal              Deal?     @relation("LeadDeal", fields: [dealId], references: [id], onDelete: SetNull)
   ownerId           String?
-  owner             User?           @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  value             Float?          @default(0)
-  stage             String          @default("Lead")
-  pipelineType      String          @default("DEAL")
-  probability       Float?          @default(0)
-  engagementScore   Int?            @default(0)
-  priorityScore     Float?          @default(0)
+  owner             User?     @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  value             Float?    @default(0)
+  stage             String    @default("Lead")
+  pipelineType      String    @default("DEAL")
+  probability       Float?    @default(0)
+  engagementScore   Int?      @default(0)
+  priorityScore     Float?    @default(0)
   expectedCloseDate DateTime?
-  tags              Json?           @default("[]")
+  tags              Json?     @default("[]")
   projectId         String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  salesActivities   SalesActivity[] @relation("ActivityLead")
-  salesTasks        SalesTask[]     @relation("TaskLead")
+  salesActivities SalesActivity[] @relation("ActivityLead")
+  salesTasks      SalesTask[]     @relation("TaskLead")
 
   @@index([stage])
   @@index([ownerId])
@@ -1985,20 +1968,20 @@ model Lead {
 }
 
 model SalesActivity {
-  id               String        @id @default(uuid())
-  type             String        @default("note")
-  notes            String?
-  timestamp        DateTime      @default(now())
-  ownerId          String?
-  owner            User?         @relation("SalesActivityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  dealId           String?       @map("relatedLeadId")
-  deal             Deal?         @relation("ActivityDeal", fields: [dealId], references: [id], onDelete: SetNull)
-  leadId           String?       @map("relatedDealId")
-  lead             Lead?         @relation("ActivityLead", fields: [leadId], references: [id], onDelete: SetNull)
-  relatedClientId  String?
-  relatedClient    Client?       @relation("ActivityClient", fields: [relatedClientId], references: [id], onDelete: SetNull)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id              String   @id @default(uuid())
+  type            String   @default("note")
+  notes           String?
+  timestamp       DateTime @default(now())
+  ownerId         String?
+  owner           User?    @relation("SalesActivityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  dealId          String?  @map("relatedLeadId")
+  deal            Deal?    @relation("ActivityDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  leadId          String?  @map("relatedDealId")
+  lead            Lead?    @relation("ActivityLead", fields: [leadId], references: [id], onDelete: SetNull)
+  relatedClientId String?
+  relatedClient   Client?  @relation("ActivityClient", fields: [relatedClientId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([ownerId])
   @@index([dealId])
@@ -2018,44 +2001,43 @@ model SalesForecast {
 }
 
 model SalesTask {
-  id            String       @id @default(uuid())
-  description   String?
-  status        String       @default("pending")
-  dueDate       DateTime?
-  assignedTo    String?
-  dealId        String?      @map("relatedLeadId")
-  deal          Deal?        @relation("TaskDeal", fields: [dealId], references: [id], onDelete: SetNull)
-  leadId        String?      @map("relatedDealId")
-  lead          Lead?        @relation("TaskLead", fields: [leadId], references: [id], onDelete: SetNull)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id          String    @id @default(uuid())
+  description String?
+  status      String    @default("pending")
+  dueDate     DateTime?
+  assignedTo  String?
+  dealId      String?   @map("relatedLeadId")
+  deal        Deal?     @relation("TaskDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  leadId      String?   @map("relatedDealId")
+  lead        Lead?     @relation("TaskLead", fields: [leadId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([assignedTo, status])
 }
 
 model Quote {
-  id             String   @id @default(uuid())
-  quoteNumber    String   @unique
-  clientId       String?
-  opportunityId  String?
-  companyId      String?
-  createdById    String?
-  createdBy      User?    @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  items          Json?    @default("[]")
-  subtotal       Float?   @default(0)
-  tax            Float?   @default(0)
-  discount       Float?   @default(0)
-  grandTotal     Float?   @default(0)
-  validUntil     DateTime?
-  status         String   @default("draft")
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String    @id @default(uuid())
+  quoteNumber   String    @unique
+  clientId      String?
+  opportunityId String?
+  companyId     String?
+  createdById   String?
+  createdBy     User?     @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items         Json?     @default("[]")
+  subtotal      Float?    @default(0)
+  tax           Float?    @default(0)
+  discount      Float?    @default(0)
+  grandTotal    Float?    @default(0)
+  validUntil    DateTime?
+  status        String    @default("draft")
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([companyId])
   @@index([clientId])
 }
-
 
 model Form {
   id          String   @id @default(uuid())
@@ -2066,27 +2048,27 @@ model Form {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   fields      FormField[]
   submissions FormSubmission[]
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }
 
 model FormField {
-  id          String   @id @default(uuid())
-  formId      String
-  label       String
-  type        String   // TEXT, EMAIL, PHONE, NUMBER, TEXTAREA, RADIO, SELECT, CHECKBOX
-  required    Boolean  @default(false)
-  options     Json?    // For SELECT, RADIO, CHECKBOX
-  order       Int      @default(0)
-  mapping     String?  // e.g. "contactName", "contactEmail", "companyName", "industry", "source", "phone"
-  
-  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
-  values      FormSubmissionValue[]
+  id       String  @id @default(uuid())
+  formId   String
+  label    String
+  type     String // TEXT, EMAIL, PHONE, NUMBER, TEXTAREA, RADIO, SELECT, CHECKBOX
+  required Boolean @default(false)
+  options  Json? // For SELECT, RADIO, CHECKBOX
+  order    Int     @default(0)
+  mapping  String? // e.g. "contactName", "contactEmail", "companyName", "industry", "source", "phone"
+
+  form   Form                  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  values FormSubmissionValue[]
 
   @@index([formId])
 }
@@ -2096,25 +2078,25 @@ model FormSubmission {
   formId      String
   companyId   String
   submittedAt DateTime @default(now())
-  
-  leadId      String?  // Reference to the created Lead
-  clientId    String?  // Reference to the created Client
-  
-  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
-  values      FormSubmissionValue[]
+
+  leadId   String? // Reference to the created Lead
+  clientId String? // Reference to the created Client
+
+  form   Form                  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  values FormSubmissionValue[]
 
   @@index([formId])
   @@index([companyId])
 }
 
 model FormSubmissionValue {
-  id             String   @id @default(uuid())
-  submissionId   String
-  fieldId        String
-  value          String?  @db.Text
-  
-  submission     FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  field          FormField      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  id           String  @id @default(uuid())
+  submissionId String
+  fieldId      String
+  value        String? @db.Text
+
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field      FormField      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
 
   @@index([submissionId])
   @@index([fieldId])
@@ -2125,99 +2107,99 @@ model FormSubmissionValue {
 // -----------------------------------------------------------------------------
 
 model Website {
-  id          String   @id @default(uuid())
-  companyId   String?  // Optional for now to not break existing data, strict data isolation
-  isPrimary   Boolean  @default(false)
-  name        String
-  slug        String   @unique
-  template    String?
-  config      Json?    @default("{}") // Stores hero, colors, etc.
-  owner       String
-  status      String   @default("active")
-  stats       Json?    @default("{}") // { views: number, leads: number }
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id        String   @id @default(uuid())
+  companyId String? // Optional for now to not break existing data, strict data isolation
+  isPrimary Boolean  @default(false)
+  name      String
+  slug      String   @unique
+  template  String?
+  config    Json?    @default("{}") // Stores hero, colors, etc.
+  owner     String
+  status    String   @default("active")
+  stats     Json?    @default("{}") // { views: number, leads: number }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   pixels      Pixel[]
   submissions WebsiteFormSubmission[]
 }
 
 model Pixel {
-  id          String   @id @default(uuid())
-  websiteId   String
-  provider    String   // e.g., facebook, google, tiktok
-  pixelId     String
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  websiteId String
+  provider  String // e.g., facebook, google, tiktok
+  pixelId   String
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
 }
 
 model WebsiteFormSubmission {
-  id          String   @id @default(uuid())
-  websiteId   String
-  name        String?
-  email       String?
-  phone       String?
-  message     String?  @db.Text
-  data        Json?
-  status      String   @default("new")
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  websiteId String
+  name      String?
+  email     String?
+  phone     String?
+  message   String?  @db.Text
+  data      Json?
+  status    String   @default("new")
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
 }
 
 model KnowledgeArticle {
-  id          String   @id @default(uuid())
-  title       String
-  content     String   
-  category    String   @default("General")
-  tags        String[] @default([])
-  
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
-  
+  id       String   @id @default(uuid())
+  title    String
+  content  String
+  category String   @default("General")
+  tags     String[] @default([])
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
   createdById String
-  createdBy   User     @relation("KnowledgeCreatedBy", fields: [createdById], references: [id])
-  
+  createdBy   User   @relation("KnowledgeCreatedBy", fields: [createdById], references: [id])
+
   updatedById String?
-  updatedBy   User?    @relation("KnowledgeUpdatedBy", fields: [updatedById], references: [id])
-  
-  lockedById  String?
-  lockedBy    User?    @relation("KnowledgeLockedBy", fields: [lockedById], references: [id])
-  lockedAt    DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  versions    KnowledgeArticleVersion[]
-  links       KnowledgeArticleLink[]
+  updatedBy   User?   @relation("KnowledgeUpdatedBy", fields: [updatedById], references: [id])
+
+  lockedById String?
+  lockedBy   User?     @relation("KnowledgeLockedBy", fields: [lockedById], references: [id])
+  lockedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions KnowledgeArticleVersion[]
+  links    KnowledgeArticleLink[]
 }
 
 model KnowledgeArticleVersion {
-  id          String   @id @default(uuid())
-  articleId   String
-  article     KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  content     String   
+  id            String           @id @default(uuid())
+  articleId     String
+  article       KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  content       String
   changeSummary String?
-  createdById String
-  createdBy   User     @relation("KnowledgeVersionCreator", fields: [createdById], references: [id])
-  createdAt   DateTime @default(now())
+  createdById   String
+  createdBy     User             @relation("KnowledgeVersionCreator", fields: [createdById], references: [id])
+  createdAt     DateTime         @default(now())
 }
 
 model KnowledgeArticleLink {
-  id          String   @id @default(uuid())
-  articleId   String
-  article     KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  
-  relatedModel String  
-  relatedId    String  
-  
-  createdAt   DateTime @default(now())
-  
+  id        String           @id @default(uuid())
+  articleId String
+  article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  relatedModel String
+  relatedId    String
+
+  createdAt DateTime @default(now())
+
   @@unique([articleId, relatedModel, relatedId])
 }

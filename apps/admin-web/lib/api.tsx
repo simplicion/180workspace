@@ -27,8 +27,8 @@ const getBaseURL = () => {
     const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
     
     // Detect subdomain: 
-    // - On localhost: tenant.localhost -> ["tenant", "localhost"] (len 2)
-    // - On prod: tenant.ims.com -> ["tenant", "ims", "com"] (len 3)
+    // - On localhost: company.localhost -> ["company", "localhost"] (len 2)
+    // - On prod: company.ims.com -> ["company", "ims", "com"] (len 3)
     const subdomain = isLocalhost
         ? (parts.length >= 2 && parts[parts.length - 1].split(':')[0] === 'localhost' ? parts[0] : null)
         : (parts.length > 2 ? parts[0] : null);
@@ -44,7 +44,7 @@ const getBaseURL = () => {
             
             // If the base API is localhost, we want subdomain.localhost:port
             // If the base API is e.g. ims-backend.onrender.com, we just use it directly!
-            // Most production setups use a single API entry point with x-tenant-id header or JWT
+            // Most production setups use a single API entry point with x-company-id header or JWT
             if (url.hostname === 'localhost') {
                 return `${url.protocol}//${subdomain}.localhost${port}`;
             }

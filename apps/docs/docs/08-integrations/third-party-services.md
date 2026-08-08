@@ -17,7 +17,7 @@ Managed via `ai-content.service.js` and `ai-automation.service.js`.
 - **Groq:** Used for high-speed, low-latency tasks (like rapid text summarization).
 - **OpenAI:** Used for complex reasoning and advanced text generation.
 - **Gemini:** Used as a fallback or for specific multimodal tasks.
-- Usage is logged in the `AiRequestLog` PostgreSQL collection to monitor API costs per tenant.
+- Usage is logged in the `AiRequestLog` PostgreSQL collection to monitor API costs per company.
 
 ## 3. Communications (Email & Push)
 - **Nodemailer (`email.service.js`):** Handles all transactional emails (password resets, onboarding invites, invoice receipts).

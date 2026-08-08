@@ -44,20 +44,6 @@ function LoginForm() {
         }
     }, [isLoading, user, router, searchParams]);
 
-    // While the auth context or settings context is resolving, show a spinner
-    // so the login form never flickers on screen for logged-in users.
-    if (isLoading || user || settingsLoading) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-                <LogoLoader className="w-10 h-10 animate-spin text-primary" />
-                <p className="text-sm font-semibold text-gray-400 tracking-wide">
-                    {user ? 'Redirecting to your dashboard…' : 'Checking session…'}
-                </p>
-            </div>
-        );
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
     const handleGoogleSuccess = async (credentialResponse: any) => {
         if (!credentialResponse.credential) return;
         setGoogleLoading(true);
@@ -83,16 +69,7 @@ function LoginForm() {
                 handlePostLoginRedirect(result.company, result.user);
             }
         } catch (err: any) {
-            if (err.setupToken) {
-                toast('Redirecting to complete your workspace setup...', { icon: '⚙️' });
-                router.push(`/signup?step=db_config&token=${err.setupToken}`);
-                return;
-            }
             if (err.onboardingRequired && err.onboardingToken) {
-                // If it's an error from the backend saying onboarding is required, 
-                // we should still check if this user is an admin or not if we have the user info.
-                // But normally this error happens for regular logins where the backend blocks the token.
-                // For Google login, the backend doesn't block it anymore, it passes through.
                 toast('Redirecting to complete workspace onboarding...', { icon: '🚀' });
                 router.push(`/workspace-setup?onboardingToken=${err.onboardingToken}`);
                 return;
@@ -156,12 +133,8 @@ function LoginForm() {
 
         const isAdmin = ['admin', 'manager'].includes(user?.role || '') || user?.roles?.includes('admin') || user?.roles?.includes('manager');
 
-        // Only enforce onboarding/setup for admins
+        // Only enforce onboarding for admins if incomplete
         if (isAdmin) {
-            if (company && !company.databaseConfigured && company.setupToken) {
-                router.push(`/signup?step=db_config&token=${company.setupToken}`);
-                return;
-            }
             if (company && company.isOnboardingComplete === false && company.onboardingToken) {
                 router.push(`/workspace-setup?onboardingToken=${company.onboardingToken}`);
                 return;
@@ -172,6 +145,19 @@ function LoginForm() {
         api.post('/api/attendance/auto-checkin').catch(() => {});
         router.push(returnUrl ? decodeURIComponent(returnUrl) : '/dashboard');
     };
+
+    // While the auth context or settings context is resolving, show a spinner
+    // so the login form never flickers on screen for logged-in users.
+    if (isLoading || user || settingsLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+                <LogoLoader className="w-10 h-10 animate-spin text-primary" />
+                <p className="text-sm font-semibold text-gray-400 tracking-wide">
+                    {user ? 'Redirecting to your dashboard…' : 'Checking session…'}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
@@ -215,7 +201,7 @@ function LoginForm() {
                         <div className="space-y-6">
                             {[
                                 { icon: Zap, title: "AI-Powered Automation", desc: "Reduce manual effort with smart workflows." },
-                                { icon: ShieldCheck, title: "Enterprise Security", desc: "Bank-level encryption and secure tenant isolation." },
+                                { icon: ShieldCheck, title: "Enterprise Security", desc: "Bank-level encryption and secure workspace isolation." },
                                 { icon: BarChart3, title: "Real-time Insights", desc: "Live analytics to drive data-backed decisions." }
                             ].map((feature, i) => (
                                 <motion.div 

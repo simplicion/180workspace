@@ -6,9 +6,9 @@ const publicController = require('./public.controller');
 const { protect } = require('../../system-configs/middleware/auth/auth.js');
 const { requireRole } = require('../../system-configs/middleware/auth/rbac.js');
 const cacheResponse = require('../../system-configs/middleware/cache/redis-cache.js');
-const { prisma, getTenantPrisma } = require('@workspace/db');
+const { prisma, getCompanyPrisma } = require('@workspace/db');
 
-// â”€â”€ API Key Middleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── API Key Middleware ──────────────────────────────────────────────
 const checkRecruitmentApiKey = async (req, res, next) => {
     try {
         const apiKey = req.headers['x-api-key'];
@@ -31,18 +31,19 @@ const checkRecruitmentApiKey = async (req, res, next) => {
             const company = await prisma.company.findUnique({
                 where: { id: settings.companyId }
             });
-            if (!company || !company.databaseConfigured) {
+            if (!company) {
                  return res.status(404).json({ error: 'Workspace configuration not found for this API key' });
             }
 
-            req.prisma = getTenantPrisma(company.id);
+            req.prisma = getCompanyPrisma(company.id);
             req.company = company;
         } else {
-            // Check if the current tenant context matches the API key's company
+            // Check if the current company context matches the API key's company
             if (req.company?.id !== settings.companyId) {
                 return res.status(403).json({ error: 'API key does not match current workspace context' });
             }
         }
+
 
         // 4. Domain Whitelisting Check (Security)
         const requestOrigin = req.headers.origin;

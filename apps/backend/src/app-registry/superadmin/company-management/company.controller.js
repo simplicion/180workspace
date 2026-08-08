@@ -98,7 +98,7 @@ exports.deleteCompany = async (req, res) => {
         const { confirm } = req.body;
         if (confirm !== 'DELETE') return res.status(400).json({ error: 'Please type DELETE to confirm' });
 
-        // Use LifecycleService for comprehensive cleanup (Users, Mappings, Subscriptions, Tenant DB)
+        // Use LifecycleService for comprehensive cleanup (Users, Mappings, Subscriptions, Company DB)
         await LifecycleService.performFullDelete(req.params.id);
 
         res.json({ message: 'Company and all associated data deleted permanently' });

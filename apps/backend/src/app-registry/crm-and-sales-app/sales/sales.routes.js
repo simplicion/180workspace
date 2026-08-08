@@ -5,11 +5,11 @@ const router = express.Router();
 const salesController = require('./sales.controller');
 const { protect } = require('../../../system-configs/middleware/auth/auth.js');
 const { requireAccess } = require('../../../system-configs/middleware/auth/rbac.js');
-const tenantDbMiddleware = require('../../../system-configs/middleware/tenant/tenant-db.js');
+const companyPrismaMiddleware = require('../../../system-configs/middleware/company/company-db.js');
 
-// All sales routes require tenantDb and auth
+// All sales routes require companyPrisma and auth
 router.use(protect);
-router.use(tenantDbMiddleware);
+router.use(companyPrismaMiddleware);
 
 // Granular access check based on HTTP method
 router.use((req, res, next) => {

@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { prisma } = require('@workspace/db');
 
@@ -67,13 +67,11 @@ class LifecycleService {
 
             // Notify Admin
             try {
-                const { getTenantPrisma } = require('@workspace/db');
-                const tenantPrisma = getTenantPrisma(company.id);
                 await EmailService.notify(
                     { email: company.adminEmail, name: company.adminName },
                     'trial_expired',
                     { adminName: company.adminName },
-                    tenantPrisma
+                    prisma
                 );
             } catch (err) {
                 console.error(`[Lifecycle] Email failed for ${company.adminEmail}:`, err.message);
@@ -132,8 +130,6 @@ class LifecycleService {
                 if (deletionDate < warningThreshold && deletionDate > now) {
                     try {
                         const daysRemaining = Math.ceil((deletionDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                        const { getTenantPrisma } = require('@workspace/db');
-                        const tenantPrisma = getTenantPrisma(company.id);
                         
                         await EmailService.notify(
                             { email: company.adminEmail, name: company.adminName },
@@ -143,7 +139,7 @@ class LifecycleService {
                                 deletionDate: deletionDate,
                                 adminName: company.adminName
                             },
-                            tenantPrisma
+                            prisma
                         );
 
                         // Mark as warned in metadata
@@ -237,11 +233,11 @@ class LifecycleService {
 
         console.log(`[Lifecycle] Starting FULL delete for: ${company.name} (${companyId})`);
 
-        // 1. Wipe Tenant Data (Operational Data)
+        // 1. Wipe Company Data (Operational Data)
         await this.performSafeDelete(company);
 
-        // 2. Delete mappings
-        await prisma.tenantUserMapping.deleteMany({ where: { companyId } });
+        // 2. Delete company users
+        await prisma.user.deleteMany({ where: { companyId } });
 
         // 3. Delete billing records
         await prisma.subscription.deleteMany({ where: { companyId } });

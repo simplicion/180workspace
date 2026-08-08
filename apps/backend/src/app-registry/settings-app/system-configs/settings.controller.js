@@ -2,7 +2,7 @@
 
 /**
  * Settings Controller (migrated to Prisma/PostgreSQL with dynamic metadata fields)
- * Handles tenant-specific platform configurations.
+ * Handles company-specific platform configurations.
  */
 
 const { prisma } = require('@workspace/db');
@@ -47,8 +47,8 @@ async function updateCompanyMetadata(companyId, updateData) {
         }
     });
 
-    const tenantDbMiddleware = require('../../../system-configs/middleware/tenant/tenant-db');
-    await tenantDbMiddleware.clearCompanyCache(companyId);
+    const companyPrismaMiddleware = require('../../../system-configs/middleware/company/company-db');
+    await companyPrismaMiddleware.clearCompanyCache(companyId);
 }
 
 const METADATA_FIELDS = [

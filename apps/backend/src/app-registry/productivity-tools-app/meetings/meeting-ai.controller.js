@@ -18,14 +18,14 @@ class MeetingAIController {
             const companyId = req.user.companyId;
 
             if (!prisma) {
-                return res.status(403).json({ error: 'Tenant database not connected' });
+                return res.status(403).json({ error: 'Company database not connected' });
             }
 
             if (!transcript || transcript.length < 10) {
                 return res.status(400).json({ error: 'Transcript is too short to process.' });
             }
 
-            // Fetch tenant settings for Google Sheets and AI provider
+            // Fetch company settings for Google Sheets and AI provider
             const Settings = prisma.settings;
             const settings = await Settings.findFirst();
 
@@ -74,7 +74,7 @@ class MeetingAIController {
                 return res.status(500).json({ error: 'Failed to parse AI output' });
             }
 
-            // 1. Store in Google Sheets (Tenant-specific)
+            // 1. Store in Google Sheets (Company-specific)
             await googleSheetsService.appendMeetingSummary(settings, {
                 roomId,
                 title,
@@ -85,7 +85,7 @@ class MeetingAIController {
                 companyId: companyId.toString()
             });
 
-            // 2. Extract Tasks and save to System (Tenant-specific)
+            // 2. Extract Tasks and save to System (Company-specific)
             if (aiData.actionItems && aiData.actionItems.length > 0) {
                 await this.createMeetingTasks(req.user, prisma, aiData.actionItems, title);
             }
@@ -139,13 +139,13 @@ class MeetingAIController {
     }
 
     /**
-     * Fetch meeting summary from Google Sheets proxy (Tenant-aware)
+     * Fetch meeting summary from Google Sheets proxy (Company-aware)
      */
     async getSummary(req, res, next) {
         try {
             const { roomId } = req.params;
             const prisma = req.prisma;
-            if (!prisma) return res.status(403).json({ error: 'Tenant DB not connected' });
+            if (!prisma) return res.status(403).json({ error: 'Company DB not connected' });
 
             const Settings = prisma.settings;
             const settings = await Settings.findFirst();
@@ -176,7 +176,7 @@ class MeetingAIController {
         try {
             const { meetingLogId, text } = req.body;
             const prisma = req.prisma;
-            if (!prisma) return res.status(403).json({ error: 'Tenant DB not connected' });
+            if (!prisma) return res.status(403).json({ error: 'Company DB not connected' });
 
             const log = await prisma.meetingLog.findFirst({
                 where: { id: meetingLogId, companyId: req.user.companyId }
@@ -207,7 +207,7 @@ class MeetingAIController {
         try {
             const { meetingLogId } = req.params;
             const prisma = req.prisma;
-            if (!prisma) return res.status(403).json({ error: 'Tenant DB not connected' });
+            if (!prisma) return res.status(403).json({ error: 'Company DB not connected' });
 
             const log = await prisma.meetingLog.findFirst({
                 where: { id: meetingLogId, companyId: req.user.companyId }
@@ -233,7 +233,7 @@ class MeetingAIController {
         try {
             const { meetingLogId, message } = req.body;
             const prisma = req.prisma;
-            if (!prisma) return res.status(403).json({ error: 'Tenant DB not connected' });
+            if (!prisma) return res.status(403).json({ error: 'Company DB not connected' });
 
             const Settings = prisma.settings;
             const settings = await Settings.findFirst();

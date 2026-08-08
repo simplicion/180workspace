@@ -37,7 +37,7 @@ const upload = multer({
 
 /**
  * Middleware to handle file uploads to preferred storage mode
- * Multi-tenant aware: fetches settings from req.prisma
+ * Multi-company aware: fetches settings from req.prisma
  * @param {string} folder - Target folder in storage (e.g. 'logos', 'expenses')
  * @param {Object} options - { isLogo: boolean }
  */
@@ -45,11 +45,12 @@ function handleUpload(folder = 'general', options = {}) {
     return async (req, res, next) => {
         if (!req.file) return next();
 
-        // Ensure tenantDb is present
+        // Ensure company prisma client is present
         if (!req.prisma) {
-            console.error('[Upload Middleware] tenantDb not found.');
-            return res.status(500).json({ error: 'Tenant context missing for upload' });
+            console.error('[Upload Middleware] Company Prisma client not found.');
+            return res.status(500).json({ error: 'Company context missing for upload' });
         }
+
 
         try {
             const settings = await req.prisma.settings.findFirst() || {};
@@ -148,7 +149,7 @@ function handleUpload(folder = 'general', options = {}) {
 
             // --- STRICT ENFORCEMENT ---
             // --- STRICT ENFORCEMENT ---
-            // If it's NOT a system asset, verify tenant has configured their own storage
+            // If it's NOT a system asset, verify company has configured their own storage
             if (!isSystemAsset && preferredMode !== 'r2') {
                 const isCloudinaryConfigured = !!(settings.cloudinaryCloudName && settings.cloudinaryApiKey && settings.cloudinaryApiSecret);
                 const isDriveConfigured = !!(settings.googleDriveServiceAccount || metadata.googleDriveTokens);

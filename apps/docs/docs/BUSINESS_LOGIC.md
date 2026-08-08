@@ -14,9 +14,9 @@ The platform connects diverse operational endpoints into unified workflows. Majo
 - **Aggregation:** End-of-month backend CRON services compile all recorded time footprints to auto-generate corresponding `Salary` modules representing raw monetary debts. 
 - **Invoicing Linkage:** Concurrently, if those timesheets mark billable B2B project hours, `Invoice.js` pipelines generate dynamic billing reports pointing securely back to the Client.
 
-### 3. Tenant Subscription Lifecycle
+### 3. Company Subscription Lifecycle
 - **Cron Service Checking:** A standalone `SubscriptionCronService` executes consistently scanning existing `Company` schemas. 
-- **Dunning Management:** It calculates date deltas mapping to the tenant's paid SLA and dispatches sequential pre-warning emails mapping to eventual system lockouts if payments lapse (`SubscriptionExpiredWall` component).
+- **Dunning Management:** It calculates date deltas mapping to the company's paid SLA and dispatches sequential pre-warning emails mapping to eventual system lockouts if payments lapse (`SubscriptionExpiredWall` component).
 
 ## Key System Logic
 *   **Virtual Reference Mapping:** Due to PostgreSQL NoSQL behavior, cross-module linkage happens heavily through mathematical array lookups (`memberIds`, `clientIds`).

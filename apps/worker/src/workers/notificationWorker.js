@@ -2,16 +2,21 @@
 
 const { Worker } = require('bullmq');
 const { redis } = require('../../../backend/src/system-configs/config/redis');
-const { getTenantDb } = require('../../../backend/src/system-configs/database-tools/dbManager');
+const { getCompanyPrisma, prisma: globalPrisma } = require('@workspace/db');
 
 function setupNotificationWorker() {
     if (!redis) return null;
 
     const worker = new Worker('notification', async (job) => {
-        const { tenantId, ...notificationData } = job.data;
-        const tenantDb = await getTenantDb(tenantId);
-        const NotificationModel = tenantDb.model('Notification');
-        await NotificationModel.create(notificationData);
+        const { companyId, ...notificationData } = job.data;
+        const targetCompanyId = companyId;
+        const prisma = targetCompanyId ? getCompanyPrisma(targetCompanyId) : globalPrisma;
+        await prisma.notification.create({
+            data: {
+                ...notificationData,
+                ...(targetCompanyId ? { companyId: targetCompanyId } : {})
+            }
+        });
     }, { connection: redis, lockDuration: 30000 });
 
     worker.on('failed', (job, err) => console.error(`[Worker] Notification job failed:`, err.message));
@@ -23,4 +28,3 @@ function setupNotificationWorker() {
 }
 
 module.exports = setupNotificationWorker;
-

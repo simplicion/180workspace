@@ -7,7 +7,7 @@ const { requireHR } = require('../../../system-configs/middleware/auth/rbac.js')
 const { createNotification } = require('../../../platform-core/platform-communications/services/notify.js');
 
 /**
- * All Leave routes are tenant-isolated.
+ * All Leave routes are company-isolated.
  * Models are retrieved from req.prisma to ensure data comes from the correct workspace.
  */
 

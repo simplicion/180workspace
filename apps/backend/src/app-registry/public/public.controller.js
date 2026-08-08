@@ -1,6 +1,6 @@
 'use strict';
 
-const { prisma, getTenantPrisma } = require('@workspace/db');
+const { prisma, getCompanyPrisma } = require('@workspace/db');
 const crypto = require('crypto');
 
 /**
@@ -53,13 +53,14 @@ exports.getPublicJobDetails = async (req, res, next) => {
         let db = req.prisma;
 
         if (!db && companyId) {
-            db = getTenantPrisma(companyId);
+            db = getCompanyPrisma(companyId);
         }
 
         if (!db) {
-            // Attempt to search all tenants or master DB if supported
+            // Attempt to search primary DB if supported
             db = prisma;
         }
+
 
         const job = await db.job.findUnique({
             where: { id: id },
@@ -221,7 +222,7 @@ exports.getBranding = async (req, res, next) => {
             address: ps.companyAddress || '',
             website: ps.companyWebsite || '',
             legalName: ps.companyLegalName || '',
-            isTenant: false
+            isCompany: false
         };
 
         // If workspace (slug) is provided, attempt to fetch Company Branding
@@ -230,10 +231,11 @@ exports.getBranding = async (req, res, next) => {
                 where: { slug: workspace.toLowerCase() }
             });
 
-            if (company && company.databaseConfigured) {
-                const tenantPrisma = getTenantPrisma(company.id);
+            if (company) {
+                const companyPrisma = getCompanyPrisma(company.id);
                 // Get Settings / CompanyConfig in Postgres
-                const config = await tenantPrisma.settings.findFirst();
+                const config = await companyPrisma.settings.findFirst();
+
 
                 if (config) {
                     branding = {
@@ -245,7 +247,7 @@ exports.getBranding = async (req, res, next) => {
                         email: branding.email,
                         address: branding.address,
                         website: branding.website,
-                        isTenant: true
+                        isCompany: true
                     };
                 }
             }

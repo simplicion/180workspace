@@ -15,7 +15,7 @@ class ReminderService {
                 where: { companyId }
             });
             
-            const paymentConfig = config?.tenantPaymentConfig || {};
+            const paymentConfig = config?.companyPaymentConfig || {};
             if (!config || !paymentConfig?.reminderSettings?.enabled) {
                 return { success: true, message: 'Reminders disabled or not configured' };
             }

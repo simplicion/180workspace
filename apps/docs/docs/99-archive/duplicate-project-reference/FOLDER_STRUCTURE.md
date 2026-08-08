@@ -28,7 +28,7 @@ The 180workspace repository relies on a standard Monorepo pattern (separated by 
     └── src/
         ├── config/                    # Database, Redis, and Gateway keys
         ├── controllers/               # Business Logic matching API surface
-        ├── middleware/                # Route Guards, Tenant-Scoping, Validation
+        ├── middleware/                # Route Guards, Company-Scoping, Validation
         ├── models/                    # Prisma ORM Schema mappings (40+ collections)
         ├── routes/                    # Express Router path generation (index.routes.js)
         ├── seed/                      # PostgreSQL injection files for initial setup
@@ -44,5 +44,5 @@ The 180workspace repository relies on a standard Monorepo pattern (separated by 
 - **`lib/`:** Contains static helpers such as API interceptors (`axios`), navigation objects, string manipulators, and local storage caches.
 
 ### Backend
-- **`middleware/`:** Houses the crucial `tenant-db` module, which takes an incoming JWT, parses the user's `CompanyID`, and swaps the database execution context ensuring no cross-company data leakage exists.
+- **`middleware/`:** Houses the crucial `company-db` module, which takes an incoming JWT, parses the user's `CompanyID`, and swaps the database execution context ensuring no cross-company data leakage exists.
 - **`controllers/` & `services/`:** Kept cleanly separated. Controllers parse `req.body`, while services execute the heavy lifting logic to ensure services can be called via webhooks, internal routines, or API endpoints.

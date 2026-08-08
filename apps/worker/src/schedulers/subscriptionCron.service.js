@@ -1,12 +1,12 @@
 'use strict';
 
 /**
- * Subscription Cron Service â€” Multi-tenant (migrated to Prisma/PostgreSQL)
+ * Subscription Cron Service â€” Multi-company (migrated to Prisma/PostgreSQL)
  * Runs daily to handle auto-charges and send subscription-related reminders.
  */
 
 const cron = require('node-cron');
-const { prisma, getTenantPrisma } = require('@workspace/db');
+const { prisma, getCompanyPrisma } = require('@workspace/db');
 const EmailService = require('../../../backend/src/app-registry/productivity-tools-app/emails/email.service');
 const BillingService = require('../../../backend/src/app-registry/finance-app/bills/billing.service');
 const LifecycleService = require('../../../backend/src/app-registry/superadmin/system-operations/lifecycle.service');
@@ -35,8 +35,8 @@ async function expireSubscriptions() {
         });
         try {
             const admin = await getCompanyAdmin(sub.companyId);
-            const tenantPrisma = getTenantPrisma(sub.companyId);
-            if (admin) await EmailService.notify(admin, 'trial_expired', { adminName: admin.name }, tenantPrisma);
+            const companyPrisma = getCompanyPrisma(sub.companyId);
+            if (admin) await EmailService.notify(admin, 'trial_expired', { adminName: admin.name }, companyPrisma);
         } catch (e) { /* non-fatal */ }
     }
 
@@ -81,9 +81,9 @@ async function sendExpiryReminders() {
             if (remindersSent.some(r => r.type === 'trial' && r.daysLeft === daysLeft)) continue;
             try {
                 const admin = await getCompanyAdmin(sub.companyId);
-                const tenantPrisma = getTenantPrisma(sub.companyId);
+                const companyPrisma = getCompanyPrisma(sub.companyId);
                 if (admin) {
-                    await EmailService.notify(admin, 'trial_reminder', { adminName: admin.name, daysLeft }, tenantPrisma);
+                    await EmailService.notify(admin, 'trial_reminder', { adminName: admin.name, daysLeft }, companyPrisma);
                     remindersSent.push({ type: 'trial', daysLeft, sentAt: new Date().toISOString() });
                     await prisma.subscription.update({
                         where: { id: sub.id },
@@ -108,7 +108,7 @@ async function sendExpiryReminders() {
             if (remindersSent.some(r => r.type === 'subscription' && r.daysLeft === daysLeft)) continue;
             try {
                 const admin = await getCompanyAdmin(sub.companyId);
-                const tenantPrisma = getTenantPrisma(sub.companyId);
+                const companyPrisma = getCompanyPrisma(sub.companyId);
                 if (admin) {
                     const planName = sub.plan?.planName || 'Subscription';
                     await EmailService.notify(admin, 'renewal_reminder', { 
@@ -116,7 +116,7 @@ async function sendExpiryReminders() {
                         planName, 
                         daysLeft, 
                         renewalDate: sub.subscriptionEndDate 
-                    }, tenantPrisma);
+                    }, companyPrisma);
                     remindersSent.push({ type: 'subscription', daysLeft, sentAt: new Date().toISOString() });
                     await prisma.subscription.update({
                         where: { id: sub.id },

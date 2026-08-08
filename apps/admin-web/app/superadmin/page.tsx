@@ -95,7 +95,7 @@ export default function SuperAdminOverviewPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard label="Total Companies" value={s?.totalCompanies} icon={Building2} gradient="from-violet-500 to-indigo-600" sub={`${s?.newCompaniesThisMonth || 0} registered this month`} />
                 <StatCard label="Active Clients" value={s?.activeCompanies} icon={Star} gradient="from-emerald-400 to-teal-500" sub="Currently active workspaces" />
-                <StatCard label="Total Users" value={s?.totalUsers} icon={Users} gradient="from-blue-500 to-cyan-500" sub="Across all tenant workspaces" />
+                <StatCard label="Total Users" value={s?.totalUsers} icon={Users} gradient="from-blue-500 to-cyan-500" sub="Across all company workspaces" />
                 <StatCard label="Monthly Revenue" value={s?.monthlyRevenue} icon={TrendingUp} gradient="from-amber-400 to-orange-500" sub="Gross MRR tracked" />
 
                 <StatCard label="Total Subscriptions" value={s?.totalSubscriptions} icon={CreditCard} gradient="from-fuchsia-500 to-pink-600" sub="Lifetime platform subscriptions" />
@@ -153,7 +153,7 @@ export default function SuperAdminOverviewPage() {
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 tracking-tight">Workspace Acquisition</h3>
-                            <p className="text-xs text-slate-500 mt-1 font-medium">New tenant registrations per month</p>
+                            <p className="text-xs text-slate-500 mt-1 font-medium">New company registrations per month</p>
                         </div>
                         <div className="p-2 bg-sky-600/10 rounded-xl border border-sky-600/10">
                             <Building2 className="w-5 h-5 text-sky-600" />
@@ -241,7 +241,7 @@ export default function SuperAdminOverviewPage() {
                         </div>
                         <p className="text-slate-600 text-sm max-w-lg leading-relaxed font-medium">
                             Platform intelligence overview provides real-time macro metrics across the ecosystem.
-                            Navigate via the terminal to manage tenants, security protocols, and billing limits.
+                            Navigate via the terminal to manage companys, security protocols, and billing limits.
                         </p>
                     </div>
 

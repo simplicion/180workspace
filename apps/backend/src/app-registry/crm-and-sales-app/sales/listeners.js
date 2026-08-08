@@ -12,7 +12,7 @@ function initializeCRMListeners() {
                 const company = await prisma.company.create({
                     data: {
                         name: lead.company,
-                        databaseConfigured: false,
+                        databaseConfigured: true,
                         isOnboardingComplete: false
                     }
                 });

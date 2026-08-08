@@ -9,9 +9,9 @@ The `http-backend` uses PostgreSQL (via Prisma) and contains 46 distinct models.
 ## 1. Core & Administration Domain
 These models handle system-wide configuration, multi-tenancy, and security.
 - **`User`**: Core authentication and identity model.
-- **`CompanyConfig`**: Tenant-specific settings and branding.
+- **`CompanyConfig`**: Company-specific settings and branding.
 - **`Settings`**: Global platform settings.
-- **`TenantTransaction`**: Billing and subscription ledgers for a tenant.
+- **`CompanyTransaction`**: Billing and subscription ledgers for a company.
 - **`AuditLog`**: Tracks sensitive actions for compliance.
 
 ## 2. CRM & Sales Domain

@@ -1,10 +1,7 @@
 'use strict';
 const jwt = require('jsonwebtoken');
-const { prisma, getTenantPrisma } = require('@workspace/db');
+const { prisma, getCompanyPrisma } = require('@workspace/db');
 const SearchService = require('../../../platform-core/platform-integrations/services/search.service');
-
-// No more mongoose models, we use prisma
-
 
 const memoryCache = new Map();
 
@@ -19,30 +16,27 @@ function setToMemoryCache(key, value, ttlSeconds = 60) {
 }
 
 /**
- * Middleware to intercept requests, identify the tenant (company),
- * and attach the tenant's database connection to the request object.
+ * Middleware to intercept requests, identify the Company context (companyId),
+ * and attach the company-scoped Prisma client to the request object.
  */
-async function tenantDbMiddleware(req, res, next) {
+async function companyContextMiddleware(req, res, next) {
     try {
-        // FAST FAIL: Check if Prisma is available
+        // Fast Fail: Verify Prisma global client connection
         if (!prisma) {
-            console.error(`[Tenant DB] Prisma global client NOT connected.`);
+            console.error(`[Company Context] Prisma global client NOT connected.`);
             return res.status(503).json({
                 error: 'Database connection is currently unavailable.',
                 retryAfter: 30
             });
         }
 
-        // 0. Detect Workspace via Subdomain (e.g., snapshiksha.localhost:5000)
+        // 0. Detect Company Workspace via Subdomain (e.g., mycompany.localhost:5000)
         const host = req.headers.host || '';
         const parts = host.split('.');
         const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
         let subdomain = null;
 
-        // Standardized logic matching frontend middleware
         if (isLocalhost) {
-            // company.localhost:5000 -> ["company", "localhost:5000"]
-            // OR localhost:5000 -> ["localhost:5000"]
             if (parts.length >= 2 && parts[parts.length - 1].split(':')[0] === 'localhost') {
                 subdomain = parts[0].toLowerCase();
                 if (subdomain === 'localhost') {
@@ -50,19 +44,18 @@ async function tenantDbMiddleware(req, res, next) {
                 }
             }
         } else {
-            // company.ims.com -> ["company", "ims", "com"]
             if (parts.length > 2) {
                 subdomain = parts[0].toLowerCase();
             }
         }
 
-        // Validate subdomain against ignored list
+        // Validate subdomain against ignored platform domains
         const ignoredSubdomains = ['www', 'ims', 'api', 'admin', 'app'];
         if (subdomain && ignoredSubdomains.includes(subdomain)) {
             subdomain = null;
         }
 
-        // 0.5 Skip for public routes that don't need tenant DB context yet
+        // 0.5 Skip for public routes that don't strictly require company context
         const publicRoutes = ['/api/auth', '/api/setup', '/api/public', '/api/health'];
         const isPublic = publicRoutes.some(route => req.path.startsWith(route));
         const isOnboardingRoute = (req.originalUrl || req.url).includes('/api/auth/complete-workspace-setup') || 
@@ -71,8 +64,8 @@ async function tenantDbMiddleware(req, res, next) {
                                  (req.originalUrl || req.url).includes('/api/setup/check-db') ||
                                  (req.originalUrl || req.url).includes('/api/init');
 
-        // Resolve companyId from header or JWT first, even for public routes
-        let companyId = req.headers['x-tenant-id'];
+        // Resolve companyId from headers (x-company-id or legacy x-company-id) or JWT
+        let companyId = req.headers['x-company-id'] || req.headers['x-company-id'];
         const authHeader = req.headers.authorization;
         let token = null;
         if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -81,7 +74,6 @@ async function tenantDbMiddleware(req, res, next) {
             token = req.query.token;
         }
 
-        // Fast extraction of companyId from JWT (verify happens later in auth middleware)
         if (!companyId && token) {
             try {
                 const decoded = jwt.decode(token);
@@ -91,16 +83,14 @@ async function tenantDbMiddleware(req, res, next) {
 
         if ((isPublic || isOnboardingRoute) && !subdomain && !companyId) {
             if (!isOnboardingRoute) {
+                req.prisma = prisma;
                 return next();
             }
         }
 
-        // 1. Identify Workspace (Subdomain -> Header -> JWT)
-        // (companyId already resolved from header/JWT above if present)
-
+        // 1. Resolve Company via Subdomain / Header / Token
         const { redis } = require('../../config/redis');
 
-        // If subdomain is present, prioritize it
         if (subdomain) {
             const subCacheKey = `subdomain:${subdomain}`;
             let cachedCompanyId = getFromMemoryCache(subCacheKey);
@@ -127,23 +117,18 @@ async function tenantDbMiddleware(req, res, next) {
                     setToMemoryCache(subCacheKey, companyId);
                     if (redis) {
                         try {
-                            await redis.set(subCacheKey, companyId, 'EX', 3600); // 1 hour cache
+                            await redis.set(subCacheKey, companyId, 'EX', 3600);
                         } catch (e) {}
                     }
                 } else {
-                    console.warn(`[Tenant DB] Subdomain "${subdomain}" provided but no company found.`);
+                    console.warn(`[Company Context] Subdomain "${subdomain}" provided but no company found.`);
                 }
             }
         }
 
         const onboardingTokenHeader = req.headers['x-onboarding-token'];
-
-        // If onboardingToken is provided, resolve companyId from it
         if (!companyId && onboardingTokenHeader) {
             const companyByToken = await prisma.company.findFirst({
-                // Prisma jsonb fields are handled differently, but since we are doing a direct lookup:
-                // If it's a structured field, we might need to adjust this depending on the prisma schema definition of metadata
-                // For now, assuming it might be stored elsewhere or we need raw query, but assuming Prisma JSON filter:
                 where: {
                     metadata: {
                         path: ['onboardingToken'],
@@ -158,27 +143,17 @@ async function tenantDbMiddleware(req, res, next) {
         }
 
         if (!companyId) {
-            if (process.env.DEBUG_TENANT === 'true') {
-                console.log(`[Tenant DB] No companyId resolved for path: ${req.path}. Subdomain: ${subdomain}, Header: ${req.headers['x-tenant-id']}`);
-            }
-            // Some routes don't need a tenant DB (like superadmin, setup, or pitchin users without a workspace)
-            // We set req.prisma to the global prisma client to allow global models to be queried
             req.prisma = prisma;
             return next();
         }
 
-        if (process.env.DEBUG_TENANT === 'true') {
-            console.log(`[Tenant DB] Resolving connection for companyId: ${companyId}`);
-        }
-        
-        // 0.75 Validate companyId as a valid ObjectId, CUID, or UUID
-        // Prisma generated ObjectIds are 24 chars, CUIDs are 25, UUIDs are 36
+        // Validate companyId format (CUID/UUID/ObjectId)
         if (companyId.length !== 24 && companyId.length !== 25 && companyId.length !== 36) { 
-            console.error(`[Tenant DB] Invalid companyId provided: "${companyId}". Aborting resolution.`);
-            return res.status(400).json({ error: 'Invalid workspace identifier provided. Please ensure your URL and headers are correct.' });
+            console.error(`[Company Context] Invalid companyId format: "${companyId}".`);
+            return res.status(400).json({ error: 'Invalid company workspace identifier provided.' });
         }
 
-        // 1. Fetch Company (with Redis Caching)
+        // 2. Fetch Company details (with Redis & Memory caching)
         let company = null;
         const cacheKey = `company:${companyId}`;
         
@@ -186,21 +161,18 @@ async function tenantDbMiddleware(req, res, next) {
         if (memCachedCompany && memCachedCompany.isOnboardingComplete) {
             company = memCachedCompany;
         } else {
-            const { redis } = require('../../config/redis');
-
             if (redis) {
                 try {
                     const cached = await redis.get(cacheKey);
                     if (cached) {
                         const parsed = JSON.parse(cached);
-                        // If cache says onboarding is NOT complete, fetch fresh from DB to avoid stuck state
                         if (parsed.isOnboardingComplete) {
                             company = parsed;
                             setToMemoryCache(cacheKey, company);
                         }
                     }
                 } catch (err) {
-                    console.warn('[Tenant DB] Redis cache read failed:', err.message);
+                    console.warn('[Company Context] Redis cache read failed:', err.message);
                 }
             }
 
@@ -210,27 +182,26 @@ async function tenantDbMiddleware(req, res, next) {
                 });
                 if (!company) {
                     if (isPublic) {
+                        req.prisma = prisma;
                         return next();
                     }
-                    return res.status(404).json({ error: 'Your workspace could not be found. Please check your URL or contact support.' });
+                    return res.status(404).json({ error: 'Company workspace not found.' });
                 }
                 
-                // Polyfill _id for legacy mongoose compatibility during migration phase
                 company._id = company.id;
-                
                 setToMemoryCache(cacheKey, company);
 
                 if (redis) {
                     try {
-                        await redis.set(cacheKey, JSON.stringify(company), 'EX', 3600); // Cache for 1 hour
+                        await redis.set(cacheKey, JSON.stringify(company), 'EX', 3600);
                     } catch (err) {
-                        console.warn('[Tenant DB] Redis cache write failed:', err.message);
+                        console.warn('[Company Context] Redis cache write failed:', err.message);
                     }
                 }
             }
         }
 
-        // 2. Security & Onboarding Checks
+        // 3. Security & Onboarding Check
         const pitchInRoutes = [
             '/api/community',
             '/api/chat',
@@ -242,13 +213,6 @@ async function tenantDbMiddleware(req, res, next) {
         ];
         const isPitchInRoute = pitchInRoutes.some(route => req.path.startsWith(route));
 
-        // Skip workspace setup check for PitchIn routes since general PitchIn users do not have a configured tenant database
-        if (!isPitchInRoute && !company.databaseConfigured) {
-            return res.status(403).json({ error: 'Your workspace setup is incomplete. Please complete your registration or contact your administrator.' });
-        }
-
-        // Strict Onboarding Enforcement: Block API access if onboarding is not done
-        // Allow public routes, onboarding routes, and PitchIn specific routes
         if (!company.isOnboardingComplete && !isOnboardingRoute && !isPublic && !isPitchInRoute) {
             return res.status(403).json({
                 error: 'Your workspace requires setup. Redirecting to onboarding...',
@@ -256,10 +220,8 @@ async function tenantDbMiddleware(req, res, next) {
             });
         }
 
-        // 3. Skip dbManager (we are using single unified PostgreSQL now)
-
-        // 3.5 Get Prisma Client for this Tenant (Now cached internally and extended once)
-        const localPrisma = getTenantPrisma(company.id, (model, operation, result, args) => {
+        // 4. Attach Company-Scoped Prisma Client
+        const scopedPrisma = getCompanyPrisma(company.id, (model, operation, result, args) => {
             if (['Company', 'User', 'Lead'].includes(model)) {
                 if (['create', 'update', 'upsert'].includes(operation)) {
                     if (result) SearchService.syncDocument(model.toLowerCase() === 'company' ? 'companies' : model.toLowerCase() + 's', result);
@@ -269,14 +231,13 @@ async function tenantDbMiddleware(req, res, next) {
             }
         });
 
-        // 4. Attach to request
-        req.prisma = localPrisma;
+        req.prisma = scopedPrisma;
         req.company = company;
-        req.subdomain = subdomain; // Informative for logging
+        req.companyId = company.id;
+        req.subdomain = subdomain;
 
-        // Provide a secure mock tenantDb to prevent legacy Mongoose routes from crashing
-        // This maps req.tenantDb.model('Name') safely to req.prisma
-        req.tenantDb = {
+        // Legacy compatibility shim for req.companyPrisma
+        req.companyPrisma = {
             model: (name) => {
                 const prismaModelName = name.charAt(0).toLowerCase() + name.slice(1);
                 const prismaModel = req.prisma[prismaModelName] || {
@@ -299,7 +260,7 @@ async function tenantDbMiddleware(req, res, next) {
                     return clean;
                 };
                 const chain = (where, options = { include: {}, orderBy: {}, skip: 0, take: undefined, select: undefined }) => ({
-                    populate: (field, select) => {
+                    populate: (field) => {
                         let fieldName = field.split(' ')[0];
                         options.include[fieldName] = true;
                         return chain(where, options);
@@ -314,10 +275,7 @@ async function tenantDbMiddleware(req, res, next) {
                     },
                     skip: (val) => { options.skip = val; return chain(where, options); },
                     limit: (val) => { options.take = val; return chain(where, options); },
-                    select: (fields) => {
-                        // ignore select for now or implement as Prisma select
-                        return chain(where, options);
-                    },
+                    select: () => chain(where, options),
                     lean: async () => {
                         let queryArgs = { where };
                         if (Object.keys(options.include).length > 0) queryArgs.include = options.include;
@@ -340,12 +298,12 @@ async function tenantDbMiddleware(req, res, next) {
                 });
                 
                 const chainFirst = (where, options = { include: {}, select: undefined }) => ({
-                    populate: (field, select) => {
+                    populate: (field) => {
                         let fieldName = field.split(' ')[0];
                         options.include[fieldName] = true;
                         return chainFirst(where, options);
                     },
-                    select: (fields) => { return chainFirst(where, options); },
+                    select: () => chainFirst(where, options),
                     lean: async () => {
                         let queryArgs = { where };
                         if (Object.keys(options.include).length > 0) queryArgs.include = options.include;
@@ -363,9 +321,9 @@ async function tenantDbMiddleware(req, res, next) {
 
                 return {
                     schema: { paths: {} },
-                    find: (q) => { const w = sanitizeQuery(q); return chain(w); },
-                    findOne: (q) => { const w = sanitizeQuery(q); return chainFirst(w); },
-                    findById: (id) => { return chainFirst({ id }); },
+                    find: (q) => chain(sanitizeQuery(q)),
+                    findOne: (q) => chainFirst(sanitizeQuery(q)),
+                    findById: (id) => chainFirst({ id }),
                     create: async (data) => prismaModel.create({ data }),
                     updateOne: async (q, u) => prismaModel.updateMany({ where: sanitizeQuery(q), data: u.$set || u }),
                     updateMany: async (q, u) => prismaModel.updateMany({ where: sanitizeQuery(q), data: u.$set || u }),
@@ -380,19 +338,18 @@ async function tenantDbMiddleware(req, res, next) {
             }
         };
 
-        if (req.performanceData?.mark) req.performanceData.mark('tenantResolutionDuration');
+        if (req.performanceData?.mark) req.performanceData.mark('companyResolutionDuration');
         next();
     } catch (err) {
-        console.error('[Tenant DB Middleware Error]', err);
-        return res.status(500).json({ error: 'Failed to connect to tenant database.' });
+        console.error('[Company Context Middleware Error]', err);
+        return res.status(500).json({ error: 'Failed to resolve company workspace context.' });
     }
 }
 
 /**
  * Clear cached company data from memory and redis.
- * Required after updating company profile or metadata.
  */
-tenantDbMiddleware.clearCompanyCache = async (companyId) => {
+companyContextMiddleware.clearCompanyCache = async (companyId) => {
     if (!companyId) return;
     memoryCache.delete(`company:${companyId}`);
     try {
@@ -405,4 +362,4 @@ tenantDbMiddleware.clearCompanyCache = async (companyId) => {
     }
 };
 
-module.exports = tenantDbMiddleware;
+module.exports = companyContextMiddleware;

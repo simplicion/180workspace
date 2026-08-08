@@ -132,7 +132,7 @@ A highly granular hierarchical permission system is required to separate communi
 ## 7. Security, Compliance & Scalability
 
 ### 7.1 Data Isolation & Privacy
-- **Multi-Tenancy:** Imara 180workspace uses strict row-level security and tenant-ID filtering to ensure Company A can never access Company B's financial projections.
+- **Multi-Tenancy:** Imara 180workspace uses strict row-level security and company-ID filtering to ensure Company A can never access Company B's financial projections.
 - **GDPR & CCPA Compliance:** Users maintain full control over their Work-Life Profiles. They can export their data or invoke the "Right to be Forgotten."
 
 ### 7.2 Scalability (Handling 1M+ Users)

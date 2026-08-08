@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Google Workspace Integration
 
-The 180workspace Platform integrates with Google Workspace APIs to provide seamless document management and data synchronization for tenants.
+The 180workspace Platform integrates with Google Workspace APIs to provide seamless document management and data synchronization for companys.
 
 ## Implementation Files
 - `src/services/google-drive.service.js`

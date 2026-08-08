@@ -1,4 +1,4 @@
-﻿const TenantPaymentService = require('./TenantPaymentService');
+﻿const CompanyPaymentService = require('./CompanyPaymentService');
 
 class PayoutService {
     static async initiateSalaryPayout(prisma, salaryId) {
@@ -14,12 +14,12 @@ class PayoutService {
             throw new Error(`Employee bank account is not verified. Current status: ${salary.employee?.bankDetails?.verificationStatus || 'unverified'}`);
         }
 
-        // Use the unified TenantPaymentService to get the active provider
-        const provider = await TenantPaymentService.getActiveProvider(prisma, salary.companyId);
+        // Use the unified CompanyPaymentService to get the active provider
+        const provider = await CompanyPaymentService.getActiveProvider(prisma, salary.companyId);
         const amount = salary.netSalary || 0;
 
         // 1. Create a transaction record in 'pending' state
-        const transaction = await prisma.tenantTransaction.create({
+        const transaction = await prisma.companyTransaction.create({
             data: {
                 companyId: salary.companyId,
                 type: 'outbound',
@@ -46,7 +46,7 @@ class PayoutService {
             });
 
             // 3. Update transaction and salary
-            await prisma.tenantTransaction.update({
+            await prisma.companyTransaction.update({
                 where: { id: transaction.id },
                 data: { status: 'completed', providerTransactionId: result.payoutId }
             });
@@ -63,7 +63,7 @@ class PayoutService {
 
             return { success: true, transactionId: transaction.id, message: 'Payout completed successfully' };
         } catch (err) {
-            await prisma.tenantTransaction.update({
+            await prisma.companyTransaction.update({
                 where: { id: transaction.id },
                 data: { status: 'failed', failureReason: err.message }
             });
@@ -93,11 +93,11 @@ class PayoutService {
             throw new Error(`Vendor bank account is not verified. Current status: ${vendor.bankDetails?.verificationStatus || 'unverified'}`);
         }
 
-        const provider = await TenantPaymentService.getActiveProvider(prisma, bill.companyId);
+        const provider = await CompanyPaymentService.getActiveProvider(prisma, bill.companyId);
         const amount = bill.amount || 0;
 
         // 1. Create a transaction record
-        const transaction = await prisma.tenantTransaction.create({
+        const transaction = await prisma.companyTransaction.create({
             data: {
                 companyId: bill.companyId,
                 type: 'outbound',
@@ -123,7 +123,7 @@ class PayoutService {
             });
 
             // 3. Update records
-            await prisma.tenantTransaction.update({
+            await prisma.companyTransaction.update({
                 where: { id: transaction.id },
                 data: { status: 'completed', providerTransactionId: result.payoutId }
             });
@@ -140,7 +140,7 @@ class PayoutService {
 
             return { success: true, transactionId: transaction.id, message: 'Vendor payout completed successfully' };
         } catch (err) {
-            await prisma.tenantTransaction.update({
+            await prisma.companyTransaction.update({
                 where: { id: transaction.id },
                 data: { status: 'failed', failureReason: err.message }
             });

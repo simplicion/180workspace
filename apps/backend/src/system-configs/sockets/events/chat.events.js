@@ -1,6 +1,6 @@
 'use strict';
 
-const { getTenantPrisma } = require('@workspace/db');
+const { getCompanyPrisma } = require('@workspace/db');
 
 function mapUser(user) {
     if (!user) return null;
@@ -46,10 +46,11 @@ module.exports = (io, socket, onlineUsers) => {
     socket.on('chat:message', async (data) => {
         try {
             const { chatId, content, attachmentUrl, attachmentType, replyTo, mentions } = data;
-            const tenantPrisma = getTenantPrisma(companyId);
+            const companyPrisma = getCompanyPrisma(companyId);
+
 
             const mentionsConnect = (mentions || []).map(id => ({ id }));
-            const msg = await tenantPrisma.message.create({
+            const msg = await companyPrisma.message.create({
                 data: {
                     chatId,
                     senderId: userId,
@@ -68,7 +69,7 @@ module.exports = (io, socket, onlineUsers) => {
                 }
             });
 
-            const chat = await tenantPrisma.chat.findUnique({
+            const chat = await companyPrisma.chat.findUnique({
                 where: { id: chatId },
                 select: { members: { select: { id: true } } }
             });
@@ -83,7 +84,7 @@ module.exports = (io, socket, onlineUsers) => {
                 io.to(`chat:${chatId}`).emit('chat:message', mappedMsg);
             }
 
-            await tenantPrisma.chat.update({
+            await companyPrisma.chat.update({
                 where: { id: chatId },
                 data: { lastMessageId: msg.id, lastActivity: new Date() }
             }).catch(e => console.error(e));
@@ -98,21 +99,22 @@ module.exports = (io, socket, onlineUsers) => {
 
     socket.on('chat:read', async ({ chatId }) => {
         try {
-            const tenantPrisma = getTenantPrisma(companyId);
-            const unreadMessages = await tenantPrisma.message.findMany({
+            const companyPrisma = getCompanyPrisma(companyId);
+            const unreadMessages = await companyPrisma.message.findMany({
                 where: { chatId, NOT: { readBy: { some: { id: userId } } } },
                 select: { id: true }
             });
 
             if (unreadMessages.length > 0) {
                 await Promise.all(unreadMessages.map(m => 
-                    tenantPrisma.message.update({
+                    companyPrisma.message.update({
                         where: { id: m.id },
                         data: { readBy: { connect: { id: userId } } }
                     })
                 ));
             }
             socket.to(`chat:${chatId}`).emit('chat:read', { userId, chatId });
+
         } catch (err) {
             console.error('[Socket] Mark read error:', err.message);
         }

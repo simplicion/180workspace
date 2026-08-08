@@ -7,9 +7,9 @@ const { cacheDel } = require('../../../system-configs/middleware/system/cache.js
 
 const clearCRMCache = async (companyId) => {
     if (!companyId) return;
-    await cacheDel(`tenant:${companyId}:dashboard_metrics_v2`);
-    await cacheDel(`tenant:${companyId}:forecasting`);
-    await cacheDel(`tenant:${companyId}:productivity`);
+    await cacheDel(`company:${companyId}:dashboard_metrics_v2`);
+    await cacheDel(`company:${companyId}:forecasting`);
+    await cacheDel(`company:${companyId}:productivity`);
 };
 
 exports.getClients = async (req, res, next) => {

@@ -2,7 +2,7 @@
 
 const { Worker } = require('bullmq');
 const { redis } = require('../../../backend/src/system-configs/config/redis');
-const { getTenantDb } = require('../../../backend/src/system-configs/database-tools/dbManager');
+const { getCompanyPrisma, prisma: globalPrisma } = require('@workspace/db');
 const { triggerN8nWebhook } = require('../../../backend/src/platform-core/platform-integrations/webhooks/webhook.routes');
 const AutomationService = require('../../../backend/src/platform-core/platform-communications/services/automation.service');
 
@@ -10,12 +10,13 @@ function setupAutomationWorker() {
     if (!redis) return null;
 
     const worker = new Worker('automation', async (job) => {
-        const { type, data, tenantId } = job.data;
+        const { type, data, companyId } = job.data;
         if (type === 'external_webhook') {
             await triggerN8nWebhook(data.path, data.payload);
         } else if (type === 'internal_trigger') {
-            const tenantDb = await getTenantDb(tenantId);
-            await AutomationService.processTrigger(data, tenantDb);
+            const targetCompanyId = companyId;
+            const prisma = targetCompanyId ? getCompanyPrisma(targetCompanyId) : globalPrisma;
+            await AutomationService.processTrigger(data, prisma);
         }
     }, { connection: redis, lockDuration: 30000 });
 
@@ -28,4 +29,3 @@ function setupAutomationWorker() {
 }
 
 module.exports = setupAutomationWorker;
-

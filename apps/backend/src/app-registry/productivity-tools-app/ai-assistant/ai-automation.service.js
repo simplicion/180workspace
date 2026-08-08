@@ -5,13 +5,13 @@ const AIService = require('./ai.service');
 /**
  * AI Automation Service
  * Handles AI-driven logic like document classification, task priority, and risk prediction.
- * Multi-tenant aware: methods now accept tenant settings.
+ * Multi-company aware: methods now accept company settings.
  */
 class AIAutomationService {
     /**
-     * Classify content using the tenant's configured AI provider
+     * Classify content using the company's configured AI provider
      * @param {string} text 
-     * @param {Object} settings - Tenant settings
+     * @param {Object} settings - Company settings
      */
     async classifyDocument(text, settings) {
         if (!text) return { category: 'General' };

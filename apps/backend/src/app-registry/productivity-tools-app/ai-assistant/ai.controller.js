@@ -29,8 +29,8 @@ async function getSettingsWithMetadata(req) {
 
 exports.getDashboardInsights = async (req, res, next) => {
     try {
-        const tenantId = req.user.companyId;
-        const cacheKey = `ai:dashboard:v3:${tenantId}`;
+        const companyId = req.user.companyId;
+        const cacheKey = `ai:dashboard:v3:${companyId}`;
 
         if (redis) {
             const cached = await redis.get(cacheKey);
@@ -68,9 +68,9 @@ Provide a brief, professional organizational health summary. You MUST limit your
 
 exports.getProjectInsights = async (req, res, next) => {
     try {
-        const tenantId = req.user.companyId;
+        const companyId = req.user.companyId;
         const projectId = req.params.id;
-        const cacheKey = `ai:project:${tenantId}:${projectId}`;
+        const cacheKey = `ai:project:${companyId}:${projectId}`;
 
         if (redis) {
             const cached = await redis.get(cacheKey);
@@ -155,7 +155,7 @@ exports.chatWithAI = async (req, res, next) => {
         const startTime = Date.now();
         const { message, history, sessionId, isLegalMode, fileContext } = req.body;
         const user = req.user;
-        const tenantDb = req.prisma;
+        const companyPrisma = req.prisma;
 
         const Project = req.prisma.project;
         const Task = req.prisma.task;
@@ -296,8 +296,8 @@ Available actions:
         const employeeMentions = [...message.matchAll(/@E\/([a-zA-Z0-9_ -]+)/gi)].map(m => m[1].trim());
         const projectMentions = [...message.matchAll(/@P\/([a-zA-Z0-9_ -]+)/gi)].map(m => m[1].trim());
 
-        if (clientMentions.length > 0 && tenantDb.client) {
-            const clients = await tenantDb.client.findMany({
+        if (clientMentions.length > 0 && companyPrisma.client) {
+            const clients = await companyPrisma.client.findMany({
                 where: { name: { in: clientMentions }, companyId: user.companyId },
                 include: { invoices: true }
             });
@@ -311,8 +311,8 @@ Available actions:
             contextText += `\n`;
         }
 
-        if (employeeMentions.length > 0 && tenantDb.user) {
-            const employees = await tenantDb.user.findMany({
+        if (employeeMentions.length > 0 && companyPrisma.user) {
+            const employees = await companyPrisma.user.findMany({
                 where: { name: { in: employeeMentions }, companyId: user.companyId }
             });
             employees.forEach(e => {
@@ -325,8 +325,8 @@ Available actions:
             contextText += `\n`;
         }
 
-        if (projectMentions.length > 0 && tenantDb.project) {
-            const projects = await tenantDb.project.findMany({
+        if (projectMentions.length > 0 && companyPrisma.project) {
+            const projects = await companyPrisma.project.findMany({
                 where: { name: { in: projectMentions }, companyId: user.companyId }
             });
             projects.forEach(p => {
@@ -388,7 +388,7 @@ Available actions:
                     const command = JSON.parse(jsonMatch[1]);
                     if (command.action && command.payload) {
                         if (command.action === 'create_task') {
-                            const newTask = await tenantDb.task.create({
+                            const newTask = await companyPrisma.task.create({
                                 data: {
                                     title: command.payload.title,
                                     description: command.payload.description || '',
@@ -402,7 +402,7 @@ Available actions:
                         } else if (command.action === 'batch_create_tasks' && Array.isArray(command.payload.tasks)) {
                             let createdCount = 0;
                             for (const t of command.payload.tasks) {
-                                await tenantDb.task.create({
+                                await companyPrisma.task.create({
                                     data: {
                                         title: t.title,
                                         description: t.description || '',
@@ -416,7 +416,7 @@ Available actions:
                             }
                             actionResult = `Batch created ${createdCount} tasks successfully.`;
                         } else if (command.action === 'create_project') {
-                            const newProject = await tenantDb.project.create({
+                            const newProject = await companyPrisma.project.create({
                                 data: {
                                     name: command.payload.name,
                                     description: command.payload.description || '',
@@ -427,7 +427,7 @@ Available actions:
                             });
                             actionResult = `Project created successfully: **${newProject.name}**`;
                         } else if (command.action === 'log_time') {
-                            const newLog = await tenantDb.timeLog.create({
+                            const newLog = await companyPrisma.timeLog.create({
                                 data: {
                                     description: command.payload.description,
                                     durationMinutes: Math.round(command.payload.hoursSpent * 60),
@@ -459,9 +459,9 @@ Available actions:
             });
 
             // Phase 4 & 13: Audit Logging and Background Moderation
-            if (tenantDb.aiRequestLog) {
+            if (companyPrisma.aiRequestLog) {
                 const endTime = Date.now();
-                tenantDb.aiRequestLog.create({
+                companyPrisma.aiRequestLog.create({
                     data: {
                         userId: user.id,
                         inputParameters: { message, isLegalMode, hasFile: !!fileContext },
@@ -477,7 +477,7 @@ Available actions:
                         if (match) {
                             const parsed = JSON.parse(match[0]);
                             if (typeof parsed.score === 'number') {
-                                tenantDb.aiRequestLog.update({
+                                companyPrisma.aiRequestLog.update({
                                     where: { id: logEntry.id },
                                     data: { qualityScore: parsed.score }
                                 }).catch(() => {});
@@ -504,7 +504,7 @@ Available actions:
                 if (command.action && command.payload) {
                     let actionResult = null;
                     if (command.action === 'create_task') {
-                        const newTask = await tenantDb.task.create({
+                        const newTask = await companyPrisma.task.create({
                             data: {
                                 title: command.payload.title,
                                 description: command.payload.description || '',
@@ -518,7 +518,7 @@ Available actions:
                     } else if (command.action === 'batch_create_tasks' && Array.isArray(command.payload.tasks)) {
                         let createdCount = 0;
                         for (const t of command.payload.tasks) {
-                            await tenantDb.task.create({
+                            await companyPrisma.task.create({
                                 data: {
                                     title: t.title,
                                     description: t.description || '',
@@ -532,7 +532,7 @@ Available actions:
                         }
                         actionResult = `Batch created ${createdCount} tasks successfully.`;
                     } else if (command.action === 'create_project') {
-                        const newProject = await tenantDb.project.create({
+                        const newProject = await companyPrisma.project.create({
                             data: {
                                 name: command.payload.name,
                                 description: command.payload.description || '',
@@ -543,7 +543,7 @@ Available actions:
                         });
                         actionResult = `Project created successfully: **${newProject.name}**`;
                     } else if (command.action === 'log_time') {
-                        const newLog = await tenantDb.timeLog.create({
+                        const newLog = await companyPrisma.timeLog.create({
                             data: {
                                 description: command.payload.description,
                                 durationMinutes: Math.round(command.payload.hoursSpent * 60),
@@ -575,8 +575,8 @@ Available actions:
 
         // Phase 4 & 13: Audit Logging and Background Moderation
         const endTime = Date.now();
-        if (tenantDb.aiRequestLog) {
-            tenantDb.aiRequestLog.create({
+        if (companyPrisma.aiRequestLog) {
+            companyPrisma.aiRequestLog.create({
                 data: {
                     userId: user.id,
                     inputParameters: { message, isLegalMode, hasFile: !!fileContext },
@@ -592,7 +592,7 @@ Available actions:
                     if (match) {
                         const parsed = JSON.parse(match[0]);
                         if (typeof parsed.score === 'number') {
-                            tenantDb.aiRequestLog.update({
+                            companyPrisma.aiRequestLog.update({
                                 where: { id: logEntry.id },
                                 data: { qualityScore: parsed.score }
                             }).catch(() => {});
@@ -625,7 +625,7 @@ exports.analyzeDocument = async (req, res, next) => {
 
         if (doc.storageType === 'google_drive') {
             try {
-                // Pass settings to drive service if it needs tenant-specific credentials
+                // Pass settings to drive service if it needs company-specific credentials
                 content = await googleDriveService.getFileContent(doc.fileId, settings);
             } catch (err) {
                 console.warn('Failed to fetch from Drive, falling back to summary of meta:', err.message);
@@ -707,7 +707,7 @@ Draft the email with a clear subject line and a professional body. Use [Placehol
 
 exports.processMeetingTranscript = async (req, res, next) => {
     try {
-        const tenantDb = req.prisma;
+        const companyPrisma = req.prisma;
         const user = req.user;
         const file = req.file;
         
@@ -748,7 +748,7 @@ ${transcriptText}`;
                 const command = JSON.parse(jsonMatch[1]);
                 if (command.action === 'batch_create_tasks' && Array.isArray(command.payload)) {
                     for (const taskPayload of command.payload) {
-                        await tenantDb.task.create({
+                        await companyPrisma.task.create({
                             data: {
                                 title: taskPayload.title,
                                 description: 'Auto-generated from meeting transcript',
@@ -826,7 +826,7 @@ exports.searchEntities = async (req, res, next) => {
     try {
         const { type, query } = req.query;
         // type: 'C' (Client), 'E' (Employee), 'P' (Project)
-        const tenantDb = req.prisma;
+        const companyPrisma = req.prisma;
         let results = [];
 
         if (!query || query.length < 1) {
@@ -834,8 +834,8 @@ exports.searchEntities = async (req, res, next) => {
         }
 
         if (type === 'C') {
-            if (tenantDb.client) {
-                const clients = await tenantDb.client.findMany({
+            if (companyPrisma.client) {
+                const clients = await companyPrisma.client.findMany({
                     where: { name: { contains: query, mode: 'insensitive' }, companyId: req.user.companyId },
                     take: 5,
                     select: { id: true, name: true, industry: true }
@@ -843,8 +843,8 @@ exports.searchEntities = async (req, res, next) => {
                 results = clients.map(c => ({ id: c.id, name: c.name, subtitle: c.industry || 'Client' }));
             }
         } else if (type === 'E') {
-            if (tenantDb.user) {
-                const employees = await tenantDb.user.findMany({
+            if (companyPrisma.user) {
+                const employees = await companyPrisma.user.findMany({
                     where: { name: { contains: query, mode: 'insensitive' }, companyId: req.user.companyId },
                     take: 5,
                     select: { id: true, name: true, role: true }
@@ -852,13 +852,13 @@ exports.searchEntities = async (req, res, next) => {
                 results = employees.map(e => ({ id: e.id, name: e.name, subtitle: e.role }));
             }
         } else if (type === 'P') {
-            if (tenantDb.project) {
+            if (companyPrisma.project) {
                 // RBAC: Regular employees should only search projects they are members of
                 const whereClause = { name: { contains: query, mode: 'insensitive' }, companyId: req.user.companyId };
                 if (!['admin', 'hr', 'manager'].includes(req.user.role)) {
                     whereClause.memberIds = { has: req.user.id };
                 }
-                const projects = await tenantDb.project.findMany({
+                const projects = await companyPrisma.project.findMany({
                     where: whereClause,
                     take: 5,
                     select: { id: true, name: true, status: true }
@@ -877,7 +877,7 @@ exports.searchEntities = async (req, res, next) => {
 exports.processMeetingTranscript = async (req, res, next) => {
     try {
         const user = req.user;
-        const tenantDb = req.prisma;
+        const companyPrisma = req.prisma;
         let transcriptText = req.body.text || '';
         
         if (req.file) {
@@ -888,7 +888,7 @@ exports.processMeetingTranscript = async (req, res, next) => {
             return res.status(400).json({ error: 'No transcript provided.' });
         }
 
-        const employees = await tenantDb.user.findMany({ 
+        const employees = await companyPrisma.user.findMany({ 
             where: { companyId: user.companyId, isActive: true }, 
             select: { id: true, name: true, role: true } 
         });
@@ -915,7 +915,7 @@ ${transcriptText}`;
         
         if (parsed.tasks && Array.isArray(parsed.tasks)) {
             for (const t of parsed.tasks) {
-                await tenantDb.task.create({
+                await companyPrisma.task.create({
                     data: {
                         title: t.title,
                         description: t.description || '',

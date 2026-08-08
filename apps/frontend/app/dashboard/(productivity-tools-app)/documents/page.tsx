@@ -5,9 +5,10 @@
 import { LogoLoader } from "@workspace/ui";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
-import { useGetArticlesQuery, useDeleteArticleMutation } from '@/redux/api/knowledgeApi';
+import { useGet180DocumentsQuery, useDeleteArticleMutation } from '@/redux/api/knowledgeApi';
+import { useGetContractsQuery } from '@/redux/api/contractApi';
 import { useRouter } from 'next/navigation';
-import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Eye, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert, FileEdit } from 'lucide-react';
+import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Eye, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert, FileEdit, Receipt } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -28,6 +29,7 @@ interface Document { id?: string;
     taggedUsers?: { _id: string; name: string; email: string }[];
     notes?: string;
     isArticle?: boolean;
+    isContract?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -162,6 +164,8 @@ function ConfirmDeleteModal({ doc, onCancel, onConfirm }: { doc: any; onCancel: 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DocumentsPage() {
     const [docs, setDocs] = useState<Document[]>([]);
+    const [quotes, setQuotes] = useState<any[]>([]);
+    const [invoices, setInvoices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('all');
@@ -174,15 +178,26 @@ export default function DocumentsPage() {
     const { user } = useAuth();
     const router = useRouter();
     const [deleteArticle] = useDeleteArticleMutation();
-    const { data: articlesData, isLoading: articlesLoading, refetch: refetchArticles } = useGetArticlesQuery({ search: search || undefined });
+    const { data: unifiedData, isLoading: articlesLoading, refetch: refetchArticles } = useGet180DocumentsQuery({ search: search || undefined });
+    const { data: contractsData, isLoading: contractsLoading, refetch: refetchContracts } = useGetContractsQuery({});
 
     function loadDocs() {
         setLoading(true);
-        api.get('/api/files', { params: { search } })
-            .then(({ data }) => setDocs(data.documents || data.files || data || []))
-            .catch(() => setDocs([]))
-            .finally(() => setLoading(false));
+        Promise.all([
+            api.get('/api/files', { params: { search } }),
+            api.get('/api/sales/quotes', { params: { search } }).catch(() => ({ data: { quotes: [] } })),
+            api.get('/api/invoices', { params: { search } }).catch(() => ({ data: { invoices: [] } }))
+        ]).then(([filesRes, quotesRes, invoicesRes]) => {
+            setDocs(filesRes.data.documents || filesRes.data.files || filesRes.data || []);
+            setQuotes(quotesRes.data.quotes || []);
+            setInvoices(invoicesRes.data.invoices || []);
+        }).catch(() => {
+            setDocs([]);
+            setQuotes([]);
+            setInvoices([]);
+        }).finally(() => setLoading(false));
         refetchArticles();
+        refetchContracts();
     }
 
     useEffect(() => { loadDocs(); }, [search]);
@@ -202,9 +217,21 @@ export default function DocumentsPage() {
         } catch { toast.error('Failed to delete'); }
     }
 
-    const handleDocumentClick = (doc: Document) => {
+    const handleDocumentClick = (doc: Document & { isQuote?: boolean; isInvoice?: boolean }) => {
         if (doc.isArticle) {
             router.push(`/dashboard/documents/${doc.id || doc._id}`);
+            return;
+        }
+        if (doc.isContract) {
+            router.push(`/dashboard/documents/contract/${doc.id || doc._id}/edit`);
+            return;
+        }
+        if (doc.isQuote) {
+            router.push(`/dashboard/documents/quote/${doc.id || doc._id}`);
+            return;
+        }
+        if (doc.isInvoice) {
+            router.push(`/dashboard/documents/invoice/${doc.id || doc._id}`);
             return;
         }
         const isLink = (doc as any).isLinkOnly || (doc as any).fileType === 'link' || doc.type === 'link';
@@ -224,8 +251,11 @@ export default function DocumentsPage() {
     const FINANCE_CATEGORIES = ['Finance', 'Payslip'];
 
     const allDocs = [
-        ...docs.map(d => ({ ...d, isArticle: false })),
-        ...(articlesData?.articles || []).map((a: any) => ({ ...a, isArticle: true, folder: a.category || 'General', id: a._id, name: a.title }))
+        ...docs.map(d => ({ ...d, isArticle: false, isQuote: false, isInvoice: false, isContract: false })),
+        ...(unifiedData?.documents?.filter((a: any) => a.isArticle) || []).map((a: any) => ({ ...a, isArticle: true, isQuote: false, isInvoice: false, isContract: false, folder: a.category || 'General', id: a._id, name: a.title })),
+        ...(unifiedData?.documents?.filter((c: any) => c.isContract) || []).map((c: any) => ({ ...c, isArticle: false, isQuote: false, isInvoice: false, isContract: true, folder: 'Contract', id: c._id, name: c.title || 'Untitled Contract' })),
+        ...quotes.map(q => ({ ...q, isArticle: false, isQuote: true, isInvoice: false, isContract: false, folder: 'Finance', id: q.id || q._id, name: q.quoteNumber ? `Quote ${q.quoteNumber}` : 'Quote' })),
+        ...invoices.map(i => ({ ...i, isArticle: false, isQuote: false, isInvoice: true, isContract: false, folder: 'Finance', id: i.id || i._id, name: i.invoiceNumber ? `Invoice ${i.invoiceNumber}` : 'Invoice' }))
     ];
 
     const filtered = allDocs.filter(d => {
@@ -270,6 +300,9 @@ export default function DocumentsPage() {
                         <button onClick={() => setShowUpload(true)} className="btn-secondary">
                             <Upload className="w-4 h-4" /> Upload Document
                         </button>
+                        <Link href="/dashboard/sales/quotes" className="btn-secondary">
+                            <Plus className="w-4 h-4" /> New Quote
+                        </Link>
                         <Link href="/dashboard/documents/new" className="btn-primary shadow-md shadow-indigo-600/20">
                             <Plus className="w-4 h-4" /> New Document
                         </Link>
@@ -357,7 +390,7 @@ export default function DocumentsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filtered.map((doc: Document) => {
+                    {filtered.map((doc: any) => {
                         const Icon = getFileIcon(doc.title || doc.url || '');
                         const typeBadge = TYPE_COLORS[(doc as any).folder] || TYPE_COLORS.Other;
                         return (
@@ -366,6 +399,8 @@ export default function DocumentsPage() {
                                     <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-600 transition-colors duration-300">
                                         {doc.isArticle ? (
                                             <FileEdit className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
+                                        ) : doc.isQuote || doc.isInvoice ? (
+                                            <Receipt className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
                                         ) : (
                                             <Icon className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
                                         )}

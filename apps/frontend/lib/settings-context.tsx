@@ -115,7 +115,7 @@ export interface PlatformBranding {
     address: string;
     website: string;
     supportEmail?: string;
-    isTenant: boolean;
+    isCompany: boolean;
 }
 
 interface SettingsContextType {
@@ -214,7 +214,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     if (themeColor) applyThemeColor(themeColor);
 
                     // Note: document.title and favicon are now hardcoded via Next.js Metadata in layout.tsx 
-                    // to ensure platform branding (180workspace) is always displayed instead of tenant branding.
+                    // to ensure platform branding (180workspace) is always displayed instead of company branding.
                 }
                 setIsLoading(false);
             };

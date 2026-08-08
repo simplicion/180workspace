@@ -6,29 +6,29 @@ const SmartNotificationService = require('./smart-notification.service');
 /**
  * Automation Service - Central Event Hub
  * Handles logging and dispatching of system-wide notifications
- * Multi-tenant aware: methods now accept tenantDb context.
+ * Multi-company aware: methods now accept companyPrisma context.
  */
 class AutomationService {
     /**
      * Trigger an automation event
      * @param {Object} params - { eventType, triggeredBy, targetUser, targetClient, relatedItem, description, metadata }
-     * @param {Object} tenantDb - The tenant's database connection
+     * @param {Object} companyPrisma - The company's database connection
      */
-    async trigger(params, tenantDb) {
-        if (!tenantDb) {
-            console.error('[AutomationService] tenantDb context is required for trigger');
+    async trigger(params, companyPrisma) {
+        if (!companyPrisma) {
+            console.error('[AutomationService] companyPrisma context is required for trigger');
             return null;
         }
 
-        const AutomationLog = tenantDb.automationLog;
+        const AutomationLog = companyPrisma.automationLog;
         const { eventType, triggeredBy, targetUser, targetClient, relatedItem, description, metadata, sendEmailNotification } = params;
         
         // 0. Pre-Flight SMTP Check (Immediate feedback for UI)
         let configError = null;
         if (sendEmailNotification !== false) {
-            const hasConfig = await EmailService.verifyConfig('work', tenantDb);
+            const hasConfig = await EmailService.verifyConfig('work', companyPrisma);
             if (!hasConfig) {
-                configError = 'SMTP not configured for this tenant. Work emails cannot be sent.';
+                configError = 'SMTP not configured for this company. Work emails cannot be sent.';
                 console.warn(`[AutomationService] [${eventType}] SMTP check failed: ${configError}`);
             }
         }
@@ -51,11 +51,11 @@ class AutomationService {
 
             // 2. Offload processing to background queue
             const { queueAutomation } = require('../../platform-engine/services/queue.service');
-            // Use companyId attached to connection for proper tenant identification in the queue
-            const tenantId = tenantDb.companyId ? tenantDb.companyId.toString() : tenantDb.name;
+            // Use companyId attached to connection for proper company identification in the queue
+            const companyId = companyPrisma.companyId ? companyPrisma.companyId.toString() : companyPrisma.name;
 
             // Include eventType explicitly in the params for the queue
-            const result = await queueAutomation('internal_trigger', { ...params, eventType, logId: log._id }, tenantId);
+            const result = await queueAutomation('internal_trigger', { ...params, eventType, logId: log._id }, companyId);
 
             return { 
                 log, 
@@ -70,9 +70,9 @@ class AutomationService {
     /**
      * Process an automation trigger (Called by background worker)
      */
-    async processTrigger(params, tenantDb) {
-        const AutomationLog = tenantDb.automationLog;
-        const User = tenantDb.user;
+    async processTrigger(params, companyPrisma) {
+        const AutomationLog = companyPrisma.automationLog;
+        const User = companyPrisma.user;
         const { eventType, targetUser, logId, sendEmailNotification } = params;
 
         try {
@@ -89,7 +89,7 @@ class AutomationService {
             // Default to true if not explicitly false
             let emailResult = { success: true, skipped: true };
             if (user && user.email && sendEmailNotification !== false) {
-                emailResult = await this.#handleEmailDispatch(eventType, user, params, tenantDb);
+                emailResult = await this.#handleEmailDispatch(eventType, user, params, companyPrisma);
             }
 
             // 3. Dispatch Smart Notification
@@ -324,7 +324,7 @@ class AutomationService {
                         message: message,
                         actionUrl: actionUrl,
                         priority: params.eventType.includes('deadline') || params.eventType.includes('risk') ? 'high' : 'medium'
-                    }, tenantDb);
+                    }, companyPrisma);
                 } else {
                     console.log(`[AutomationService] Throttled notification for user ${params.targetUser}, event: ${params.eventType}`);
                 }
@@ -342,7 +342,7 @@ class AutomationService {
             }
 
             // 5. Broadcast for Global Activity Feed
-            const companyId = params.companyId || (tenantDb && tenantDb.name);
+            const companyId = params.companyId || (companyPrisma && companyPrisma.name);
             if (companyId) {
                 try {
                     const { getIo } = require('../../../system-configs/sockets');
@@ -378,9 +378,9 @@ class AutomationService {
     /**
      * Private helper to route events to the centralized notification engine
      */
-    async #handleEmailDispatch(eventType, user, params, tenantDb) {
+    async #handleEmailDispatch(eventType, user, params, companyPrisma) {
         // use the new centralized notify method which handles template mapping internally
-        return await EmailService.notify(user, eventType, params.metadata, tenantDb);
+        return await EmailService.notify(user, eventType, params.metadata, companyPrisma);
     }
 
     /**

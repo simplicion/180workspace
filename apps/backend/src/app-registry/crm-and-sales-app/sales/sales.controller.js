@@ -13,9 +13,9 @@ const { cacheGet, cacheSet, cacheDel } = require('../../../system-configs/middle
 
 const clearCRMCache = async (companyId) => {
     if (!companyId) return;
-    await cacheDel(`tenant:${companyId}:dashboard_metrics_v2`);
-    await cacheDel(`tenant:${companyId}:forecasting`);
-    await cacheDel(`tenant:${companyId}:productivity`);
+    await cacheDel(`company:${companyId}:dashboard_metrics_v2`);
+    await cacheDel(`company:${companyId}:forecasting`);
+    await cacheDel(`company:${companyId}:productivity`);
 };
 
 const AIAutomationService = require('../../productivity-tools-app/ai-assistant/ai-automation.service');
@@ -32,7 +32,7 @@ const { generateQuotationPDF } = require('../../../platform-core/platform-engine
 exports.getDashboardMetrics = async (req, res, next) => {
     try {
         const { user, company, prisma } = req;
-        const cacheKey = `tenant:${company.id}:dashboard_metrics_v2`;
+        const cacheKey = `company:${company.id}:dashboard_metrics_v2`;
         const cached = await cacheGet(cacheKey);
         if (cached) return res.json(cached);
 
@@ -49,7 +49,7 @@ exports.getDashboardMetrics = async (req, res, next) => {
 exports.getForecasting = async (req, res, next) => {
     try {
         const { company, prisma } = req;
-        const cacheKey = `tenant:${company.id}:forecasting`;
+        const cacheKey = `company:${company.id}:forecasting`;
         const cached = await cacheGet(cacheKey);
         if (cached) return res.json(cached);
 
@@ -63,7 +63,7 @@ exports.getForecasting = async (req, res, next) => {
 exports.getProductivity = async (req, res, next) => {
     try {
         const { user, company, prisma } = req;
-        const cacheKey = `tenant:${company.id}:productivity`;
+        const cacheKey = `company:${company.id}:productivity`;
         const cached = await cacheGet(cacheKey);
         if (cached) return res.json(cached);
 

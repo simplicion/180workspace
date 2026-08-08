@@ -69,26 +69,26 @@ if ((Prisma as any).dmmf && (Prisma as any).dmmf.datamodel && (Prisma as any).dm
 
 const GLOBAL_MODELS = new Set([
   'Company', 'PlatformSettings', 'Plan', 'Coupon', 'SuperAdmin',
-  'TenantUserMapping', 'ActivityLog', 'Announcement', 'DeletionLog',
+  'ActivityLog', 'Announcement', 'DeletionLog',
   'FeatureFlag', 'ReleaseNote', 'SupportTicket', 'DocumentPage',
   'ForumPost', 'ForumReply', 'Chat', 'Message',
   'CalendarContentPiece', 'AiRequestLog', 'CalendarEvent'
 ]);
 
 // Cache for extended Prisma clients to prevent memory leaks and massive CPU overhead
-const tenantClients = new Map<string, any>();
+const companyClients = new Map<string, any>();
 
 /**
- * Creates a tenant-scoped Prisma Client.
+ * Creates a company-scoped Prisma Client.
  * Automatically injects `companyId` into all relevant queries
- * to guarantee Row-Level Security (RLS) across a shared database.
+ * to guarantee Row-Level Security (RLS) across the shared PostgreSQL database.
  */
-export const getTenantPrisma = (
+export const getCompanyPrisma = (
   companyId: string,
   onSearchSync?: (model: string, operation: string, result: any, args: any) => void
 ) => {
-  if (tenantClients.has(companyId)) {
-    return tenantClients.get(companyId);
+  if (companyClients.has(companyId)) {
+    return companyClients.get(companyId);
   }
 
   const extendedPrisma = basePrisma.$extends({
@@ -97,7 +97,7 @@ export const getTenantPrisma = (
         async $allOperations({ model, operation, args, query }) {
           let anyArgs: any = (args as any) || {};
 
-          // 1. Tenant Injection (Before Query)
+          // 1. Company Scope Injection (Before Query)
           if (!GLOBAL_MODELS.has(model) && modelsWithCompanyId.has(model)) {
             // Force companyId into where clause for read/update/delete operations
             if (['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count', 'aggregate', 'groupBy'].includes(operation)) {
@@ -157,7 +157,8 @@ export const getTenantPrisma = (
   });
 
   (extendedPrisma as any).companyId = companyId;
-  tenantClients.set(companyId, extendedPrisma);
+  companyClients.set(companyId, extendedPrisma);
   
   return extendedPrisma;
 };
+

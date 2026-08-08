@@ -12,5 +12,5 @@
 - **Loose API Mounting Interfaces:** Some modules have shown instances of isolated disconnects.
 
 ## Risk Areas
-*   **Tenant Separation via API vs UI:** The frontend's reliance on hiding visual UI segments instead of robustly verifying payload returns opens theoretical edge cases. 
+*   **Company Separation via API vs UI:** The frontend's reliance on hiding visual UI segments instead of robustly verifying payload returns opens theoretical edge cases. 
 *   **Database Schema Inflation & N+1 Queries:** 85 Prisma models inside a single backend structure risk monolithic structural bloat. Deep inter-model dependencies via `companyId` make schema breaking changes dangerous. Additionally, heavy use of Prisma `include` without pagination poses significant N+1 query and memory bloat risks when loading deep relations (e.g., loading a Project with all Tasks, Invoices, and Milestones simultaneously).

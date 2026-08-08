@@ -1,11 +1,11 @@
 'use strict';
 
-const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
-const { prisma: globalPrisma, getTenantPrisma } = require('@workspace/db');
+const { prisma: globalPrisma, getCompanyPrisma } = require('@workspace/db');
+
 
 /**
  * GET /api/websites
- * List all websites for the tenant.
+ * List all websites for the company.
  */
 exports.getWebsites = async (req, res, next) => {
     try {
@@ -391,9 +391,10 @@ exports.publicSubmitLead = async (req, res, next) => {
             return res.status(404).json({ error: 'Website not found' });
         }
         
-        const tenantPrisma = req.prisma || getTenantPrisma(website.companyId);
+        const companyPrisma = req.prisma || getCompanyPrisma(website.companyId);
 
-        const lead = await tenantPrisma.websiteFormSubmission.create({ data: {
+        const lead = await companyPrisma.websiteFormSubmission.create({ data: {
+
             ...req.body,
             websiteId: website.id,
             ipAddress: req.ip,

@@ -1,38 +1,38 @@
 'use strict';
 
-const { prisma, getTenantPrisma } = require('@workspace/db');
-const TenantPaymentService = require('../../../app-registry/finance-app/finance/TenantPaymentService');
+const { prisma, getCompanyPrisma } = require('@workspace/db');
+const CompanyPaymentService = require('../../../app-registry/finance-app/finance/CompanyPaymentService');
 const AutomationService = require('../../platform-communications/services/automation.service');
 
-// This handles incoming webhooks directed at a specific tenant.
+// This handles incoming webhooks directed at a specific company.
 exports.handleWebhook = async (req, res, next) => {
     try {
         const providerName = req.params.provider;
         const companyId = req.query.companyId;
 
         if (!companyId) {
-            console.error(`[Tenant Webhook] companyId missing from query parameters`);
+            console.error(`[Company Webhook] companyId missing from query parameters`);
             return res.status(400).send('companyId missing');
         }
 
         const company = await prisma.company.findUnique({ where: { id: companyId } });
 
-        if (!company || !company.databaseConfigured) {
-            return res.status(404).send('Company database not configured');
+        if (!company) {
+            return res.status(404).send('Company not found');
         }
 
-        const tenantPrisma = getTenantPrisma(companyId);
+        const companyPrisma = getCompanyPrisma(companyId);
 
         const rawBody = req.rawBody || JSON.stringify(req.body);
         const signature = req.headers['x-razorpay-signature'] || req.headers['stripe-signature'];
 
         // 1. Verify Signature
         try {
-            const providerAdapter = await TenantPaymentService.getActiveProvider(tenantPrisma);
+            const providerAdapter = await CompanyPaymentService.getActiveProvider(companyPrisma, companyId);
             const isValid = await providerAdapter.verifyWebhookSignature(rawBody, signature);
             if (!isValid) return res.status(400).send('Invalid webhook signature');
         } catch (sigErr) {
-            console.error(`[Tenant Webhook] signature error:`, sigErr.message);
+            console.error(`[Company Webhook] signature error:`, sigErr.message);
             return res.status(400).send('Invalid signature or configuration missing');
         }
 
@@ -49,10 +49,10 @@ exports.handleWebhook = async (req, res, next) => {
                 const referenceId = entity.notes?.referenceId || paymentLink?.reference_id;
 
                 if (referenceId) {
-                    const invoice = await tenantPrisma.invoice.findUnique({ where: { id: referenceId } });
+                    const invoice = await companyPrisma.invoice.findUnique({ where: { id: referenceId } });
                     if (invoice && invoice.status !== 'paid') {
                         // Update Invoice status
-                        await tenantPrisma.invoice.update({
+                        await companyPrisma.invoice.update({
                             where: { id: referenceId },
                             data: {
                                 status: 'paid',
@@ -62,7 +62,7 @@ exports.handleWebhook = async (req, res, next) => {
                         });
 
                         // Log Transaction
-                        await tenantPrisma.tenantTransaction.create({
+                        await companyPrisma.companyTransaction.create({
                             data: {
                                 companyId: companyId,
                                 type: 'inbound',
@@ -82,12 +82,12 @@ exports.handleWebhook = async (req, res, next) => {
                             triggeredBy: null,
                             relatedItem: { itemId: invoice.id, itemModel: 'Invoice' },
                             description: `Invoice ${invoice.invoiceNumber || invoice.id} marked as paid via Razorpay.`
-                        }, tenantPrisma);
+                        }, companyPrisma);
                     }
                 }
             } else if (eventType.startsWith('fund_account.validation.')) {
                 const BankVerificationService = require('../../../app-registry/finance-app/finance/BankVerificationService');
-                await BankVerificationService.handleValidationWebhook(tenantPrisma, req.body);
+                await BankVerificationService.handleValidationWebhook(companyPrisma, req.body);
             }
         } else if (providerName === 'stripe') {
             const event = JSON.parse(rawBody);
@@ -98,10 +98,10 @@ exports.handleWebhook = async (req, res, next) => {
                 const referenceId = session.client_reference_id || session.metadata?.referenceId;
 
                 if (referenceId) {
-                    const invoice = await tenantPrisma.invoice.findUnique({ where: { id: referenceId } });
+                    const invoice = await companyPrisma.invoice.findUnique({ where: { id: referenceId } });
 
                     if (invoice && invoice.status !== 'paid') {
-                        await tenantPrisma.invoice.update({
+                        await companyPrisma.invoice.update({
                             where: { id: referenceId },
                             data: {
                                 status: 'paid',
@@ -111,7 +111,7 @@ exports.handleWebhook = async (req, res, next) => {
                         });
 
                         // Log Transaction
-                        await tenantPrisma.tenantTransaction.create({
+                        await companyPrisma.companyTransaction.create({
                             data: {
                                 companyId: companyId,
                                 type: 'inbound',
@@ -131,7 +131,7 @@ exports.handleWebhook = async (req, res, next) => {
                             triggeredBy: null,
                             relatedItem: { itemId: invoice.id, itemModel: 'Invoice' },
                             description: `Invoice ${invoice.invoiceNumber || invoice.id} marked as paid via Stripe.`
-                        }, tenantPrisma);
+                        }, companyPrisma);
                     }
                 }
             }
@@ -139,7 +139,7 @@ exports.handleWebhook = async (req, res, next) => {
 
         res.status(200).send('Webhook processed');
     } catch (err) {
-        console.error(`[Tenant Webhook] Error:`, err);
+        console.error(`[Company Webhook] Error:`, err);
         res.status(500).send('Webhook processing failed');
     }
 };

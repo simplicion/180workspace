@@ -1,5 +1,5 @@
 ﻿'use strict';
-const TenantPaymentService = require('../finance/TenantPaymentService.js');
+const CompanyPaymentService = require('../finance/CompanyPaymentService.js');
 const PayoutService = require('../finance/PayoutService.js');
 const BankVerificationService = require('../finance/BankVerificationService.js');
 const ReminderService = require('../finance/ReminderService.js');
@@ -15,8 +15,8 @@ exports.getConfig = async (req, res, next) => {
         let publicConfig = { activeProvider: 'manual' };
         
         // Prisma JSON fields are parsed automatically.
-        if (config?.tenantPaymentConfig) {
-            const tpc = typeof config.tenantPaymentConfig === 'string' ? JSON.parse(config.tenantPaymentConfig) : config.tenantPaymentConfig;
+        if (config?.companyPaymentConfig) {
+            const tpc = typeof config.companyPaymentConfig === 'string' ? JSON.parse(config.companyPaymentConfig) : config.companyPaymentConfig;
             publicConfig.activeProvider = tpc.activeProvider || 'manual';
             publicConfig.razorpay = { keyId: tpc.razorpay?.keyId };
             publicConfig.stripe = { publicKey: tpc.stripe?.publicKey };
@@ -31,9 +31,9 @@ exports.updateConfig = async (req, res, next) => {
     try {
         const CompanyConfig = req.prisma.companyConfig;
         const config = await CompanyConfig.findFirst();
-        if (config && req.body.tenantPaymentConfig) {
-            const newConfig = req.body.tenantPaymentConfig;
-            let currentConfig = typeof config.tenantPaymentConfig === 'string' ? JSON.parse(config.tenantPaymentConfig) : (config.tenantPaymentConfig || {});
+        if (config && req.body.companyPaymentConfig) {
+            const newConfig = req.body.companyPaymentConfig;
+            let currentConfig = typeof config.companyPaymentConfig === 'string' ? JSON.parse(config.companyPaymentConfig) : (config.companyPaymentConfig || {});
 
             if (!currentConfig.razorpay) currentConfig.razorpay = {};
             if (!currentConfig.stripe) currentConfig.stripe = {};
@@ -54,7 +54,7 @@ exports.updateConfig = async (req, res, next) => {
 
             await CompanyConfig.update({
                 where: { id: config.id },
-                data: { tenantPaymentConfig: currentConfig }
+                data: { companyPaymentConfig: currentConfig }
             });
 
             await AutomationService.trigger({
@@ -78,7 +78,7 @@ exports.generateInvoicePaymentLink = async (req, res, next) => {
         if (invoice.status === 'paid') return res.status(400).json({ error: 'Invoice already paid' });
 
         // Pass Prisma client to services that expect it.
-        const provider = await TenantPaymentService.getActiveProvider(req.prisma);
+        const provider = await CompanyPaymentService.getActiveProvider(req.prisma);
         const linkData = await provider.generatePaymentLink({
             amount: invoice.totalAmount,
             currency: 'INR',
@@ -163,7 +163,7 @@ exports.triggerReminders = async (req, res, next) => {
 
 exports.getTransactions = async (req, res, next) => {
     try {
-        const TenantTransaction = req.prisma.tenantTransaction;
+        const CompanyTransaction = req.prisma.companyTransaction;
         const { type, status, page = 1, limit = 20 } = req.query;
         const query = {};
         if (type) query.type = type;
@@ -171,7 +171,7 @@ exports.getTransactions = async (req, res, next) => {
 
         const skip = (Number(page) - 1) * Number(limit);
         const [transactions, total] = await Promise.all([
-            TenantTransaction.findMany({
+            CompanyTransaction.findMany({
                 where: query,
                 include: {
                     user: { select: { name: true, email: true } },
@@ -181,7 +181,7 @@ exports.getTransactions = async (req, res, next) => {
                 skip: skip,
                 take: Number(limit)
             }),
-            TenantTransaction.count({ where: query })
+            CompanyTransaction.count({ where: query })
         ]);
 
         // Mock _id for frontend compatibility

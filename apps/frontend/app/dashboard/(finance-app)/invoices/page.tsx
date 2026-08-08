@@ -11,6 +11,8 @@ import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
+import { pdf } from '@react-pdf/renderer';
+import { InvoicePDF } from '@/components/pdf/InvoicePDF';
 
 const STATUS_STYLES: Record<string, { badge: string; label: string; icon: any }> = {
     draft: { badge: 'badge-gray', label: 'Draft', icon: FileText },
@@ -225,10 +227,8 @@ function InvoiceViewModal({ invoice, onClose }: { invoice: any; onClose: () => v
 
     const handleDownloadPDF = async () => {
         try {
-            const response = await api.get(`/api/finance/invoices/${invoice.id}/pdf`, {
-                responseType: 'blob'
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const blob = await pdf(<InvoicePDF invoice={invoice} company={company} platform={platform} />).toBlob();
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `Invoice-${invoice.invoiceNumber}.pdf`);
@@ -236,6 +236,7 @@ function InvoiceViewModal({ invoice, onClose }: { invoice: any; onClose: () => v
             link.click();
             link.remove();
         } catch (err) {
+            console.error(err);
             toast.error('Failed to download PDF');
         }
     };
@@ -423,10 +424,8 @@ export default function InvoicesPage() {
 
     async function handleDownloadPDF(inv: any) {
         try {
-            const response = await api.get(`/api/finance/invoices/${inv.id}/pdf`, {
-                responseType: 'blob'
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const blob = await pdf(<InvoicePDF invoice={inv} company={company} platform={{}} />).toBlob();
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `Invoice-${inv.invoiceNumber}.pdf`);
@@ -434,7 +433,8 @@ export default function InvoicesPage() {
             link.click();
             link.remove();
         } catch (err) {
-            toast.error('Failed to download PDF');
+            console.error(err);
+            toast.error('Failed to generate PDF');
         }
     }
 

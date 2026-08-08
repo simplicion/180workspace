@@ -13,14 +13,14 @@ class SalesRuleEngine {
     /**
      * Triggered when a new lead is created
      */
-    static async onLeadCreated(tenantDb, leadId) {
-        if (!tenantDb.lead || !tenantDb.salesTask) return;
+    static async onLeadCreated(companyPrisma, leadId) {
+        if (!companyPrisma.lead || !companyPrisma.salesTask) return;
 
-        const lead = await tenantDb.lead.findUnique({ where: { id: leadId } });
+        const lead = await companyPrisma.lead.findUnique({ where: { id: leadId } });
         if (!lead || !lead.assignedSalesRep) return;
 
         // Rule 0: Auto-create a call task for new assigned leads
-        await tenantDb.salesTask.create({
+        await companyPrisma.salesTask.create({
             data: {
                 title: `Initial Call with Lead: ${lead.name}`,
                 description: `Automated rule: Reach out to new lead ${lead.name} from ${lead.company}.`,
@@ -35,15 +35,15 @@ class SalesRuleEngine {
     /**
      * Triggered when an opportunity stage changes.
      */
-    static async onOpportunityStageChange(tenantDb, opportunityId, newStage, ownerId) {
-        if (!tenantDb.opportunity || !tenantDb.salesTask) return;
+    static async onOpportunityStageChange(companyPrisma, opportunityId, newStage, ownerId) {
+        if (!companyPrisma.opportunity || !companyPrisma.salesTask) return;
 
-        const opp = await tenantDb.opportunity.findUnique({ where: { id: opportunityId } });
+        const opp = await companyPrisma.opportunity.findUnique({ where: { id: opportunityId } });
         if (!opp) return;
 
         // Rule 1: If moved to Proposal, auto-schedule a follow-up task
         if (newStage === 'Proposal') {
-            await tenantDb.salesTask.create({
+            await companyPrisma.salesTask.create({
                 data: {
                     title: `Follow up on Proposal for ${opp.title}`,
                     description: 'Automatically created task. Please check if the client has reviewed the proposal.',
@@ -61,7 +61,7 @@ class SalesRuleEngine {
                 targetUser: ownerId,
                 relatedItem: { itemId: opp.id, itemModel: 'Opportunity' },
                 description: 'Proposal stage reached. Follow-up task scheduled.'
-            }, tenantDb);
+            }, companyPrisma);
 
             // External Trigger (n8n Webhook)
             await triggerN8nWebhook('sales-proposal-update', { opportunityId, stage: newStage });
@@ -74,7 +74,7 @@ class SalesRuleEngine {
                 triggeredBy: ownerId,
                 relatedItem: { itemId: opp.id, itemModel: 'Opportunity' },
                 description: `Deal ${opp.title} was won!`
-            }, tenantDb);
+            }, companyPrisma);
             await triggerN8nWebhook('deal-closed-won', { opportunityId, value: opp.value });
         }
     }
@@ -82,14 +82,14 @@ class SalesRuleEngine {
     /**
      * Triggered on daily cron to catch stale pipelines
      */
-    static async runDailyStagnationCheck(tenantDb) {
-        if (!tenantDb.opportunity) return;
+    static async runDailyStagnationCheck(companyPrisma) {
+        if (!companyPrisma.opportunity) return;
         
         // Find stagnant opportunities (> 7 days) to catch the risk early
-        const stagnantOppIds = await SalesService.detectStagnantOpportunities(tenantDb, 7);
+        const stagnantOppIds = await SalesService.detectStagnantOpportunities(companyPrisma, 7);
 
         if (stagnantOppIds.length > 0) {
-            const opps = await tenantDb.opportunity.findMany({ where: { id: { in: stagnantOppIds } } });
+            const opps = await companyPrisma.opportunity.findMany({ where: { id: { in: stagnantOppIds } } });
 
             for (let opp of opps) {
                 const lastActivityDate = opp.lastActivityDate || opp.updatedAt;
@@ -103,7 +103,7 @@ class SalesRuleEngine {
                         targetUser: opp.owner,
                         relatedItem: { itemId: opp.id, itemModel: 'Opportunity' },
                         description: `Deal ${opp.title} has been stagnant for over 10 days. Needs follow-up.`
-                    }, tenantDb);
+                    }, companyPrisma);
                 }
 
                 // Rule Y: Deal Value vs Engagement Risk Warning
@@ -114,7 +114,7 @@ class SalesRuleEngine {
                         targetUser: opp.owner,
                         relatedItem: { itemId: opp.id, itemModel: 'Opportunity' },
                         description: `Risk Alert: High value deal ${opp.title} ($${opp.value}) is dormant for ${Math.floor(daysStagnant)} days.`
-                    }, tenantDb);
+                    }, companyPrisma);
                 }
             }
         }
@@ -123,13 +123,13 @@ class SalesRuleEngine {
     /**
      * Triggered by email webhooks (SendGrid/Mailgun)
      */
-    static async handleEmailEngagementEvent(tenantDb, emailLogId, eventType) {
-        if (!tenantDb.emailLog || !tenantDb.lead || !tenantDb.salesTask) return;
+    static async handleEmailEngagementEvent(companyPrisma, emailLogId, eventType) {
+        if (!companyPrisma.emailLog || !companyPrisma.lead || !companyPrisma.salesTask) return;
 
-        const log = await tenantDb.emailLog.findUnique({ where: { id: emailLogId } });
+        const log = await companyPrisma.emailLog.findUnique({ where: { id: emailLogId } });
         if (!log || !log.leadId) return;
 
-        const lead = await tenantDb.lead.findUnique({ where: { id: log.leadId } });
+        const lead = await companyPrisma.lead.findUnique({ where: { id: log.leadId } });
         if (!lead) return;
 
         // Update Engagement Score algorithmically
@@ -141,19 +141,19 @@ class SalesRuleEngine {
 
         const newScore = (lead.engagementScore || 0) + increment;
 
-        await tenantDb.lead.update({
+        await companyPrisma.lead.update({
             where: { id: lead.id },
             data: { engagementScore: newScore }
         });
 
         // Rule 4: High engagement but no booked meeting -> Suggest Call
         if (eventType === 'reply' || newScore >= 10) {
-            const existingTask = await tenantDb.salesTask.findFirst({ 
+            const existingTask = await companyPrisma.salesTask.findFirst({ 
                 where: { relatedLeadId: lead.id, status: 'pending' } 
             });
 
             if (!existingTask && lead.assignedSalesRep) {
-                await tenantDb.salesTask.create({
+                await companyPrisma.salesTask.create({
                     data: {
                         title: `Call ${lead.name} due to high email engagement`,
                         dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1 day

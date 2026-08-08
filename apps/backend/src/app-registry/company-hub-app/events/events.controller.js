@@ -1,6 +1,6 @@
 'use strict';
 
-const { getTenantPrisma } = require('@workspace/db');
+const { getCompanyPrisma } = require('@workspace/db');
 
 /**
  * Get all events for a company
@@ -8,9 +8,9 @@ const { getTenantPrisma } = require('@workspace/db');
 exports.getCompanyEvents = async (req, res, next) => {
     try {
         const companyId = req.user.companyId;
-        const tenantDb = getTenantPrisma(companyId);
+        const prisma = req.prisma || getCompanyPrisma(companyId);
         
-        const events = await tenantDb.event.findMany({
+        const events = await prisma.event.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' }
         });
@@ -28,9 +28,9 @@ exports.getCompanyEvent = async (req, res, next) => {
     try {
         const companyId = req.user.companyId;
         const { id } = req.params;
-        const tenantDb = getTenantPrisma(companyId);
+        const prisma = req.prisma || getCompanyPrisma(companyId);
         
-        const event = await tenantDb.event.findFirst({
+        const event = await prisma.event.findFirst({
             where: { id, companyId },
             include: {
                 registrations: {
@@ -55,10 +55,10 @@ exports.getCompanyEvent = async (req, res, next) => {
 exports.createEvent = async (req, res, next) => {
     try {
         const companyId = req.user.companyId;
-        const tenantDb = getTenantPrisma(companyId);
+        const prisma = req.prisma || getCompanyPrisma(companyId);
         const eventData = req.body;
         
-        const event = await tenantDb.event.create({
+        const event = await prisma.event.create({
             data: {
                 ...eventData,
                 companyId
@@ -78,10 +78,10 @@ exports.updateEvent = async (req, res, next) => {
     try {
         const companyId = req.user.companyId;
         const { id } = req.params;
-        const tenantDb = getTenantPrisma(companyId);
+        const prisma = req.prisma || getCompanyPrisma(companyId);
         const eventData = req.body;
         
-        const event = await tenantDb.event.findFirst({
+        const event = await prisma.event.findFirst({
             where: { id, companyId }
         });
         
@@ -89,7 +89,7 @@ exports.updateEvent = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Event not found' });
         }
         
-        const updatedEvent = await tenantDb.event.update({
+        const updatedEvent = await prisma.event.update({
             where: { id },
             data: eventData
         });
@@ -107,9 +107,9 @@ exports.deleteEvent = async (req, res, next) => {
     try {
         const companyId = req.user.companyId;
         const { id } = req.params;
-        const tenantDb = getTenantPrisma(companyId);
+        const prisma = req.prisma || getCompanyPrisma(companyId);
         
-        const event = await tenantDb.event.findFirst({
+        const event = await prisma.event.findFirst({
             where: { id, companyId }
         });
         
@@ -117,7 +117,7 @@ exports.deleteEvent = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Event not found' });
         }
         
-        await tenantDb.event.delete({
+        await prisma.event.delete({
             where: { id }
         });
         
@@ -128,7 +128,7 @@ exports.deleteEvent = async (req, res, next) => {
 };
 
 /**
- * Upload event banner (bypasses tenant storage check, uses R2)
+ * Upload event banner (uses configured storage)
  */
 exports.uploadBanner = async (req, res, next) => {
     try {
@@ -136,7 +136,6 @@ exports.uploadBanner = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'File upload failed' });
         }
         
-        // Return in a format that OrganizeEventModal expects or standard format
         res.json({ success: true, document: { fileUrl: req.storageResult.fileUrl } });
     } catch (err) {
         next(err);

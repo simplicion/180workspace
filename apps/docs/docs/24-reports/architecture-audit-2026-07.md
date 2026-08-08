@@ -1,7 +1,7 @@
 # Pitchin180 Architecture Audit
 
 ## 1. Architecture Summary
-Pitchin180 is a multi-tenant monorepo architecture using Node.js/Express for the backend (`apps/http-backend`), Next.js for the frontend (`apps/user-web`), and an independent WebSocket backend (`apps/ws-backend`). It uses a single PostgreSQL database with logical tenant isolation via `companyId` injection using Prisma Extensions.
+Pitchin180 is a multi-company monorepo architecture using Node.js/Express for the backend (`apps/http-backend`), Next.js for the frontend (`apps/user-web`), and an independent WebSocket backend (`apps/ws-backend`). It uses a single PostgreSQL database with logical company isolation via `companyId` injection using Prisma Extensions.
 
 **Core Stack:**
 - **Frontend:** Next.js (App Router + Pages), Redux Toolkit Query, Axios.
@@ -14,9 +14,9 @@ Pitchin180 is a multi-tenant monorepo architecture using Node.js/Express for the
 - `ws-backend`: Independent service for WebSocket connections.
 - `user-web`: Standard Next.js dev process (`pnpm dev`).
 
-## 3. Database/Tenant Architecture
+## 3. Database/Company Architecture
 - Single PostgreSQL database.
-- Tenant isolation is enforced dynamically at runtime using `tenant-db.js`, which injects `companyId` into all queries via `prisma.$extends`.
+- Company isolation is enforced dynamically at runtime using `company-db.js`, which injects `companyId` into all queries via `prisma.$extends`.
 - **Finding:** Previously, this extension was generated per-request, causing a massive memory leak and O(N) CPU overhead.
 
 ## 4. Authentication Flow
@@ -36,10 +36,10 @@ Pitchin180 is a multi-tenant monorepo architecture using Node.js/Express for the
 
 | ID | Severity | Area | Verified Issue | Evidence | Impact | Proposed Fix |
 | -- | -------- | ---- | -------------- | -------- | ------ | ------------ |
-| 1 | P0 | Database | Prisma `$extends` Memory Leak | `tenant-db.js` instantiated a new extension per request | Out of Memory, CPU spike | Pre-compute `GLOBAL_MODELS`, cache extended client per tenant |
+| 1 | P0 | Database | Prisma `$extends` Memory Leak | `company-db.js` instantiated a new extension per request | Out of Memory, CPU spike | Pre-compute `GLOBAL_MODELS`, cache extended client per company |
 | 2 | P0 | Database | Prisma Schema Drift | `Goal.assignedUser`, `Module.ownerId` queried but missing in schema | HTTP 500s on Dashboard/Goals endpoints | Update queries to match schema; add missing reverse relations |
 | 3 | P0 | Auth | Token Refresh Stampede | Multiple independent API clients missing a shared Promise lock | 5+ simultaneous refresh requests on 401 | Implement `singleFlightRefresh` utility across all HTTP clients |
-| 4 | P0 | Security | Module Guard Fail-Open | `Proceeding with caution` log when config is missing | Unauthorized tenant access | Rewrite guard to fail-closed (403/503) |
+| 4 | P0 | Security | Module Guard Fail-Open | `Proceeding with caution` log when config is missing | Unauthorized company access | Rewrite guard to fail-closed (403/503) |
 | 5 | P1 | Performance | Missing API Instrumentation | No timing data for slow queries in logs | Inability to track performance regressions | Add low-overhead `durationMs` to HTTP logger |
 
 ## 8. Suspected But Unverified Issues
@@ -58,4 +58,4 @@ Pitchin180 is a multi-tenant monorepo architecture using Node.js/Express for the
 8. Audit Optional Services Lifecycle (Pending)
 
 ## 10. Regression Risk
-High. Modifying global tenant logic, authentication singletons, and core schema relations impacts every downstream feature. Regression testing of login, module access, and tenant isolation is mandatory.
+High. Modifying global company logic, authentication singletons, and core schema relations impacts every downstream feature. Regression testing of login, module access, and company isolation is mandatory.

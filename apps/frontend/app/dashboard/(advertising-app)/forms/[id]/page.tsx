@@ -6,7 +6,7 @@ import {
   ArrowLeft, Save, Plus, Trash2, 
   ExternalLink, GripHorizontal, Copy, CheckCircle
 } from 'lucide-react';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import api from '@/lib/api';
 
 type FieldType = 'TEXT' | 'EMAIL' | 'PHONE' | 'TEXTAREA' | 'SELECT' | 'RADIO' | 'CHECKBOX';

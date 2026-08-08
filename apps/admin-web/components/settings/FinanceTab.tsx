@@ -53,7 +53,7 @@ export default function FinanceTab() {
         setSaving(true);
         try {
             const payload = {
-                tenantPaymentConfig: {
+                companyPaymentConfig: {
                     activeProvider,
                     razorpay: {
                         keyId: razorpayKeyId,
@@ -166,7 +166,7 @@ export default function FinanceTab() {
                                 />
                                 <div className="text-xs text-indigo-600 mt-2 flex items-center gap-1">
                                     <Link2 className="w-3 h-3" />
-                                    <span>Webhook URL:</span> <code>https://YOUR_DOMAIN/api/webhooks/tenant/razorpay?companyId=[YOUR_COMPANY_ID]</code>
+                                    <span>Webhook URL:</span> <code>https://YOUR_DOMAIN/api/webhooks/company/razorpay?companyId=[YOUR_COMPANY_ID]</code>
                                 </div>
                             </div>
                         </div>
@@ -206,7 +206,7 @@ export default function FinanceTab() {
                                 />
                                 <div className="text-xs text-indigo-600 mt-2 flex items-center gap-1">
                                     <Link2 className="w-3 h-3" />
-                                    <span>Webhook URL:</span> <code>https://YOUR_DOMAIN/api/webhooks/tenant/stripe?companyId=[YOUR_COMPANY_ID]</code>
+                                    <span>Webhook URL:</span> <code>https://YOUR_DOMAIN/api/webhooks/company/stripe?companyId=[YOUR_COMPANY_ID]</code>
                                 </div>
                             </div>
                         </div>

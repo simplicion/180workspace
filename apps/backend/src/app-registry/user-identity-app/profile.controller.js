@@ -1,7 +1,7 @@
 const { getPresignedUploadUrl, deleteFromR2 } = require('../../platform-core/platform-storage/services/r2');
 const { v4: uuidv4 } = require('uuid');
 
-// Helper to get prisma from req (tenant-aware)
+// Helper to get prisma from req (company-aware)
 const getPrisma = (req) => req.prisma;
 
 exports.getProfile = async (req, res, next) => {

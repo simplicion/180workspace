@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import axios from 'axios';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 
 export default function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);

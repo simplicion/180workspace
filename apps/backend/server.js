@@ -117,8 +117,8 @@ app.use(globalLimiter);
 // ─── Sentry request handler ───────────────────────────────────────────────────
 app.use(Sentry.Handlers.requestHandler());
 
-// ─── Multi-Tenant DB Middleware ────────────────────────────────────────────────
-app.use(require('./src/system-configs/middleware/tenant/tenant-db'));
+// ─── Company Scoped Context Middleware ─────────────────────────────────────────
+app.use(require('./src/system-configs/middleware/company/company-context'));
 
 // ─── Swagger Documentation ────────────────────────────────────────────────────
 const swaggerUi = require('swagger-ui-express');

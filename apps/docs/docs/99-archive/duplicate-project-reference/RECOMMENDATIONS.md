@@ -28,4 +28,4 @@
 - **Microservice Splitting (Long Term)**
   - *Enhancement:* As the PostgreSQL database scales beyond the existing 85 models, extract distinct operational workloads (e.g., HR Payroll and CRM pipelines) into smaller, separated Docker containers reducing monolithic compilation danger loops.
 - **Implement Centralized E2E Framework**
-  - *Enhancement:* Adopt Cypress or Playwright automating synthetic tests testing the tenant authorization boundaries explicitly.
+  - *Enhancement:* Adopt Cypress or Playwright automating synthetic tests testing the company authorization boundaries explicitly.

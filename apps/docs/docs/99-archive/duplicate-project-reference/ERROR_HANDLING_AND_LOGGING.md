@@ -17,5 +17,5 @@ Error execution across the 180workspace structure isolates network faults comple
 
 ## Failure Scenarios
 *   *Database Disconnect:* Express error nets catch connection failures, pushing a `503 Service Unavailable`.
-*   *Invalid Tenant Signature:* The `tenant-db` middleware will completely reject the API connection explicitly stating `401 Unauthorized` if no associated workspace namespace exists.
+*   *Invalid Company Signature:* The `company-db` middleware will completely reject the API connection explicitly stating `401 Unauthorized` if no associated workspace namespace exists.
 *   *Front-End Component Error:* Isolated via React Error boundaries preventing full white screens of death affecting other rendered layout charts.

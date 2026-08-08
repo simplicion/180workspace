@@ -9,11 +9,11 @@ class SalesService {
     // ------------------------------------------------------------------------
 
     // [1] Lead Scoring: (CompanySize Ã— W1) + (IndustryMatch Ã— W2) + ...
-    static async calculateLeadScore(tenantPrisma, leadIdOrDoc, settings) {
+    static async calculateLeadScore(companyPrisma, leadIdOrDoc, settings) {
         let lead;
 
         if (typeof leadIdOrDoc === 'string') {
-            lead = await tenantPrisma.deal.findUnique({ where: { id: leadIdOrDoc } });
+            lead = await companyPrisma.deal.findUnique({ where: { id: leadIdOrDoc } });
         } else {
             lead = leadIdOrDoc;
         }
@@ -36,7 +36,7 @@ class SalesService {
         ) || 0;
 
         if (typeof leadIdOrDoc === 'string') {
-            await tenantPrisma.deal.update({
+            await companyPrisma.deal.update({
                 where: { id: leadIdOrDoc },
                 data: { leadScore: calculatedScore }
             });
@@ -48,8 +48,8 @@ class SalesService {
     }
 
     // [2] Win Probability: StageWeight Ã— EngagementScore
-    static async calculateWinProbability(tenantPrisma, opportunityId, settings) {
-        const opp = await tenantPrisma.lead.findUnique({ where: { id: opportunityId } });
+    static async calculateWinProbability(companyPrisma, opportunityId, settings) {
+        const opp = await companyPrisma.lead.findUnique({ where: { id: opportunityId } });
         if (!opp) throw new Error('Opportunity not found');
 
         const stages = settings?.salesConfig?.opportunityStages || {
@@ -73,7 +73,7 @@ class SalesService {
         if (opp.stage === 'ClosedWon') calcProb = 100;
         if (opp.stage === 'ClosedLost') calcProb = 0;
 
-        await tenantPrisma.lead.update({
+        await companyPrisma.lead.update({
             where: { id: opportunityId },
             data: { probability: calcProb }
         });
@@ -81,8 +81,8 @@ class SalesService {
     }
 
     // [3] Weighted Forecast: Î£ (DealValue Ã— WinProbability)
-    static async calculateWeightedForecast(tenantPrisma, periodStr) {
-        const opps = await tenantPrisma.lead.findMany({
+    static async calculateWeightedForecast(companyPrisma, periodStr) {
+        const opps = await companyPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
 
@@ -96,7 +96,7 @@ class SalesService {
             totalWeighted += (val * (prob / 100));
         });
 
-        await tenantPrisma.salesForecast.upsert({
+        await companyPrisma.salesForecast.upsert({
             where: {
                 period_type: {
                     period: periodStr,
@@ -123,8 +123,8 @@ class SalesService {
     // ------------------------------------------------------------------------
 
     // [4] Customer Lifetime Value (CLV)
-    static async calculateCLV(tenantPrisma, accountId) {
-        const wonDeals = await tenantPrisma.lead.findMany({
+    static async calculateCLV(companyPrisma, accountId) {
+        const wonDeals = await companyPrisma.lead.findMany({
             where: { accountId, stage: 'ClosedWon' }
         });
 
@@ -134,7 +134,7 @@ class SalesService {
         const retentionYears = 3;
 
         const clv = Math.round(avgDealValue * dealsPerYear * retentionYears);
-        await tenantPrisma.account.update({
+        await companyPrisma.account.update({
             where: { id: accountId },
             data: { clv }
         });
@@ -142,12 +142,12 @@ class SalesService {
     }
 
     // [5] RFM Analysis (Recency, Frequency, Monetary)
-    static async segmentAccountsRFM(tenantPrisma) {
-        const accounts = await tenantPrisma.account.findMany();
+    static async segmentAccountsRFM(companyPrisma) {
+        const accounts = await companyPrisma.account.findMany();
 
         const segments = [];
         for (let acc of accounts) {
-            const deals = await tenantPrisma.lead.findMany({
+            const deals = await companyPrisma.lead.findMany({
                 where: { accountId: acc.id, stage: 'ClosedWon' },
                 orderBy: { expectedCloseDate: 'desc' }
             });
@@ -167,16 +167,16 @@ class SalesService {
     }
 
     // [6] Funnel Conversion Rate
-    static async calculateFunnelConversion(tenantPrisma) {
-        const totalLeads = await tenantPrisma.deal.count() || 1;
-        const qualifiedLeads = await tenantPrisma.deal.count({
+    static async calculateFunnelConversion(companyPrisma) {
+        const totalLeads = await companyPrisma.deal.count() || 1;
+        const qualifiedLeads = await companyPrisma.deal.count({
             where: { status: { in: ['qualified', 'converted'] } }
         });
 
-        const totalProposals = await tenantPrisma.lead.count({
+        const totalProposals = await companyPrisma.lead.count({
             where: { stage: { in: ['Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'] } }
         }) || 1;
-        const wonDeals = await tenantPrisma.lead.count({
+        const wonDeals = await companyPrisma.lead.count({
             where: { stage: 'ClosedWon' }
         });
 
@@ -188,10 +188,10 @@ class SalesService {
     }
 
     // [6b] Dashboard Realtime Charts
-    static async calculateDashboardCharts(tenantPrisma) {
+    static async calculateDashboardCharts(companyPrisma) {
         try {
             // Pipeline by stage
-            const opps = await tenantPrisma.lead.findMany({
+            const opps = await companyPrisma.lead.findMany({
                 where: { stage: { not: 'ClosedLost' } },
                 select: { stage: true, value: true }
             });
@@ -210,7 +210,7 @@ class SalesService {
             }));
 
             // Revenue by rep
-            const wonOpps = await tenantPrisma.lead.findMany({
+            const wonOpps = await companyPrisma.lead.findMany({
                 where: { stage: 'ClosedWon' },
                 include: { owner: true }
             });
@@ -238,7 +238,7 @@ class SalesService {
                 const startDate = moment(m, 'YYYY-MM').startOf('month').toDate();
                 const endDate = moment(m, 'YYYY-MM').endOf('month').toDate();
 
-                const wonMonth = await tenantPrisma.lead.findMany({
+                const wonMonth = await companyPrisma.lead.findMany({
                     where: {
                         stage: 'ClosedWon',
                         expectedCloseDate: { gte: startDate, lte: endDate }
@@ -247,7 +247,7 @@ class SalesService {
                 });
                 const wonTotal = wonMonth.reduce((sum, o) => sum + (o.value || 0), 0);
 
-                const pipeMonth = await tenantPrisma.lead.findMany({
+                const pipeMonth = await companyPrisma.lead.findMany({
                     where: {
                         stage: { notIn: ['ClosedWon', 'ClosedLost'] },
                         expectedCloseDate: { gte: startDate, lte: endDate }
@@ -275,8 +275,8 @@ class SalesService {
     }
 
     // [7] Sales Cycle Length
-    static async calculateSalesCycleLength(tenantPrisma) {
-        const wonDeals = await tenantPrisma.lead.findMany({
+    static async calculateSalesCycleLength(companyPrisma) {
+        const wonDeals = await companyPrisma.lead.findMany({
             where: { stage: 'ClosedWon' }
         });
         if (!wonDeals.length) return 0;
@@ -295,8 +295,8 @@ class SalesService {
     // ------------------------------------------------------------------------
 
     // [8] Lead Deduplication (Levenshtein)
-    static async findDuplicateLeads(tenantPrisma, leadName, email) {
-        const leads = await tenantPrisma.deal.findMany({
+    static async findDuplicateLeads(companyPrisma, leadName, email) {
+        const leads = await companyPrisma.deal.findMany({
             where: { status: { not: 'converted' } }
         });
         let duplicates = [];
@@ -309,20 +309,20 @@ class SalesService {
     }
 
     // [9] Priority Ranking
-    static async rankOpportunities(tenantPrisma) {
-        const opps = await tenantPrisma.lead.findMany({
+    static async rankOpportunities(companyPrisma) {
+        const opps = await companyPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
 
         for (const opp of opps) {
             const priorityScore = ((opp.value || 0) * (opp.probability || 0) * (opp.engagementScore || 1)) / 10000;
-            await tenantPrisma.lead.update({
+            await companyPrisma.lead.update({
                 where: { id: opp.id },
                 data: { priorityScore }
             });
         }
 
-        const updatedOpps = await tenantPrisma.lead.findMany({
+        const updatedOpps = await companyPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } },
             orderBy: { priorityScore: 'desc' }
         });
@@ -330,9 +330,9 @@ class SalesService {
     }
 
     // [10] Churn Risk / Stagnation detection for Accounts
-    static async detectChurnStagnation(tenantPrisma) {
+    static async detectChurnStagnation(companyPrisma) {
         const accountsAtRisk = [];
-        const contacts = await tenantPrisma.contact.findMany();
+        const contacts = await companyPrisma.contact.findMany();
 
         for (let c of contacts) {
             if (c.lastContacted) {
@@ -344,8 +344,8 @@ class SalesService {
     }
 
     // [11] Stagnation Detection for Deals
-    static async detectStagnantOpportunities(tenantPrisma, thresholdDays = 14) {
-        const opps = await tenantPrisma.lead.findMany({
+    static async detectStagnantOpportunities(companyPrisma, thresholdDays = 14) {
+        const opps = await companyPrisma.lead.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
         const stagnant = [];
@@ -361,22 +361,22 @@ class SalesService {
     // ------------------------------------------------------------------------
 
     // [12] Rep Productivity
-    static async calculateRepProductivity(tenantPrisma, userId, settings) {
+    static async calculateRepProductivity(companyPrisma, userId, settings) {
         const config = settings?.salesConfig?.repProductivity || {
             dealsClosedWeight: 0.5, revenueGeneratedWeight: 0.3, activitiesCompletedWeight: 0.2
         };
 
-        const dealsClosed = await tenantPrisma.lead.count({
+        const dealsClosed = await companyPrisma.lead.count({
             where: { ownerId: userId, stage: 'ClosedWon' }
         });
 
-        const revenue = await tenantPrisma.lead.findMany({
+        const revenue = await companyPrisma.lead.findMany({
             where: { ownerId: userId, stage: 'ClosedWon' },
             select: { value: true }
         });
         const revValue = revenue.reduce((sum, o) => sum + (o.value || 0), 0);
 
-        const activities = await tenantPrisma.salesActivity.count({
+        const activities = await companyPrisma.salesActivity.count({
             where: { ownerId: userId }
         });
 
@@ -389,8 +389,8 @@ class SalesService {
     }
 
     // [13] Workload Balancing
-    static async suggestRepForLead(tenantPrisma) {
-        const leads = await tenantPrisma.deal.findMany({
+    static async suggestRepForLead(companyPrisma) {
+        const leads = await companyPrisma.deal.findMany({
             where: { status: { in: ['new', 'contacted'] } }
         });
 
@@ -413,8 +413,8 @@ class SalesService {
     }
 
     // [14] K-Means Clustering for Segmentation
-    static async clusterAccountsByValue(tenantPrisma) {
-        const accounts = await tenantPrisma.account.findMany({
+    static async clusterAccountsByValue(companyPrisma) {
+        const accounts = await companyPrisma.account.findMany({
             where: { clv: { gt: 0 } }
         });
         if (accounts.length < 3) return [];
@@ -426,8 +426,8 @@ class SalesService {
     }
 
     // [15] Logistic Regression Approximation for Win Likelihood
-    static async calculateWinLikelihoodLogistic(tenantPrisma, opportunityId) {
-        const opp = await tenantPrisma.lead.findUnique({ where: { id: opportunityId } });
+    static async calculateWinLikelihoodLogistic(companyPrisma, opportunityId) {
+        const opp = await companyPrisma.lead.findUnique({ where: { id: opportunityId } });
         if (!opp) return 0;
 
         const z = -2.0 + ((opp.engagementScore || 0) * 0.05) + ((opp.priorityScore || 0) * 0.1);
@@ -444,8 +444,8 @@ class SalesService {
     }
 
     // [17] Next Best Action Engine
-    static async determineNextBestAction(tenantPrisma, opportunityId) {
-        const opp = await tenantPrisma.lead.findUnique({ where: { id: opportunityId } });
+    static async determineNextBestAction(companyPrisma, opportunityId) {
+        const opp = await companyPrisma.lead.findUnique({ where: { id: opportunityId } });
         if (!opp) return 'No action';
 
         const daysSinceUpdate = moment().diff(moment(opp.updatedAt), 'days');
@@ -462,14 +462,14 @@ class SalesService {
     }
 
     // [19] Customer Risk Index
-    static async calculateCustomerRiskIndex(tenantPrisma, accountId) {
+    static async calculateCustomerRiskIndex(companyPrisma, accountId) {
         let riskScore = 0;
-        const lostDeals = await tenantPrisma.lead.count({
+        const lostDeals = await companyPrisma.lead.count({
             where: { accountId, stage: 'ClosedLost' }
         });
         riskScore += lostDeals * 20;
 
-        const staleContacts = await tenantPrisma.contact.count({
+        const staleContacts = await companyPrisma.contact.count({
             where: {
                 accountId,
                 lastContacted: { lt: moment().subtract(60, 'days').toDate() }
@@ -485,8 +485,8 @@ class SalesService {
     // ------------------------------------------------------------------------
 
     // [20] Revenue Trend / ARIMA / EMA
-    static async calculateRevenueTrend(tenantPrisma) {
-        const forecasts = await tenantPrisma.salesForecast.findMany({
+    static async calculateRevenueTrend(companyPrisma) {
+        const forecasts = await companyPrisma.salesForecast.findMany({
             where: { type: 'monthly' },
             orderBy: { period: 'asc' }
         });
@@ -496,9 +496,9 @@ class SalesService {
     }
 
     // [21] Market Basket Analysis
-    static async performMarketBasketAnalysis(tenantPrisma) {
+    static async performMarketBasketAnalysis(companyPrisma) {
         // Concept/placeholder: assume Opportunity has a tags array representing products (stored in JSON or relation)
-        const wonDeals = await tenantPrisma.lead.findMany({
+        const wonDeals = await companyPrisma.lead.findMany({
             where: { stage: 'ClosedWon' }
         });
         const baskets = wonDeals
@@ -508,9 +508,9 @@ class SalesService {
     }
 
     // [22] Cosine Similarity (Lookalikes)
-    static async findLookalikeAccounts(tenantPrisma, sourceAccountId) {
-        const targetAcc = await tenantPrisma.account.findUnique({ where: { id: sourceAccountId } });
-        const allAccs = await tenantPrisma.account.findMany({
+    static async findLookalikeAccounts(companyPrisma, sourceAccountId) {
+        const targetAcc = await companyPrisma.account.findUnique({ where: { id: sourceAccountId } });
+        const allAccs = await companyPrisma.account.findMany({
             where: { id: { not: sourceAccountId } }
         });
 
@@ -532,8 +532,8 @@ class SalesService {
     // ------------------------------------------------------------------------
 
     // [23] Activity Pattern Alerting
-    static async detectActivityAnomalies(tenantPrisma, userId) {
-        const lastWeek = await tenantPrisma.salesActivity.count({
+    static async detectActivityAnomalies(companyPrisma, userId) {
+        const lastWeek = await companyPrisma.salesActivity.count({
             where: {
                 ownerId: userId,
                 timestamp: { gte: moment().subtract(7, 'days').toDate() }
@@ -545,8 +545,8 @@ class SalesService {
     }
 
     // [24] Territory Optimization
-    static async optimizeTerritories(tenantPrisma) {
-        const accounts = await tenantPrisma.account.findMany({
+    static async optimizeTerritories(companyPrisma) {
+        const accounts = await companyPrisma.account.findMany({
             select: { country: true, annualRevenue: true }
         });
 
@@ -573,13 +573,13 @@ class SalesService {
     // MOVED FROM CONTROLLER
     // ------------------------------------------------------------------------
 
-    static async getDashboardMetrics(tenantDb, userId, companyId) {
-        const Settings = tenantDb.settings;
-        const Lead = tenantDb.deal;
-        const Opportunity = tenantDb.lead;
-        const Account = tenantDb.salesAccount;
-        const SalesActivity = tenantDb.salesActivity;
-        const SalesTask = tenantDb.salesTask;
+    static async getDashboardMetrics(companyPrisma, userId, companyId) {
+        const Settings = companyPrisma.settings;
+        const Lead = companyPrisma.deal;
+        const Opportunity = companyPrisma.lead;
+        const Account = companyPrisma.salesAccount;
+        const SalesActivity = companyPrisma.salesActivity;
+        const SalesTask = companyPrisma.salesTask;
 
         const settings = await Settings.findFirst();
         const currentMonth = new Date().toISOString().substring(0, 7);
@@ -598,13 +598,13 @@ class SalesService {
             wonRevenueAggr,
             recentActivities
         ] = await Promise.all([
-            this.calculateWeightedForecast(tenantDb, currentMonth).catch(() => null),
-            this.calculateFunnelConversion(tenantDb).catch(() => null),
-            this.calculateDashboardCharts(tenantDb).catch(() => null),
-            this.calculateSalesCycleLength(tenantDb).catch(() => null),
-            this.calculateRepProductivity(tenantDb, userId, settings).catch(() => null),
-            this.detectChurnStagnation(tenantDb).catch(() => null),
-            this.detectStagnantOpportunities(tenantDb, 14).catch(() => null),
+            this.calculateWeightedForecast(companyPrisma, currentMonth).catch(() => null),
+            this.calculateFunnelConversion(companyPrisma).catch(() => null),
+            this.calculateDashboardCharts(companyPrisma).catch(() => null),
+            this.calculateSalesCycleLength(companyPrisma).catch(() => null),
+            this.calculateRepProductivity(companyPrisma, userId, settings).catch(() => null),
+            this.detectChurnStagnation(companyPrisma).catch(() => null),
+            this.detectStagnantOpportunities(companyPrisma, 14).catch(() => null),
             Lead.count().catch(() => 0),
             Opportunity.count({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } } }).catch(() => 0),
             Account.count().catch(() => 0),
@@ -656,8 +656,8 @@ class SalesService {
         };
     }
 
-    static async getForecasting(tenantDb, companyId) {
-        const Opportunity = tenantDb.lead;
+    static async getForecasting(companyPrisma, companyId) {
+        const Opportunity = companyPrisma.lead;
         const moment = require('moment');
         const { forecastPipeline } = require('../../company-hub-app/crm/CrmCalculationService.js');
 
@@ -695,7 +695,7 @@ class SalesService {
             activeYearlyDeals: yearlyOpps.length,
         };
 
-        const settings = await tenantDb.settings.findFirst() || {};
+        const settings = await companyPrisma.settings.findFirst() || {};
         let aiForecast = null;
         if (settings.aiProvider && settings.aiProvider !== 'none') {
             const AIAutomationService = require('../ai-comms/ai-automation.service');
@@ -714,17 +714,17 @@ class SalesService {
         };
     }
 
-    static async getProductivity(tenantDb, userId) {
-        const User = tenantDb.user;
+    static async getProductivity(companyPrisma, userId) {
+        const User = companyPrisma.user;
         const allReps = await User.findMany({ where: { role: { in: ['admin', 'sales', 'manager'] } } });
         const { calculateRepProductivity } = require('../../company-hub-app/crm/CrmCalculationService.js');
 
         const leaderboard = [];
         for (const rep of allReps) {
             const [dealsClosed, revenue, activities] = await Promise.all([
-                tenantDb.lead.count({ where: { owner: rep.id, stage: 'ClosedWon' } }),
-                tenantDb.lead.aggregate({ where: { owner: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
-                tenantDb.salesActivity.count({ where: { owner: rep.id } })
+                companyPrisma.lead.count({ where: { owner: rep.id, stage: 'ClosedWon' } }),
+                companyPrisma.lead.aggregate({ where: { owner: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
+                companyPrisma.salesActivity.count({ where: { owner: rep.id } })
             ]);
 
             const revValue = revenue.length ? revenue[0].total : 0;
@@ -734,7 +734,7 @@ class SalesService {
         }
         leaderboard.sort((a, b) => b.score - a.score);
 
-        const suggestedRepId = await this.suggestRepForLead(tenantDb);
+        const suggestedRepId = await this.suggestRepForLead(companyPrisma);
         let suggestedRep = null;
         if (suggestedRepId) {
             const r = await User.findUnique({ where: { id: suggestedRepId } });
@@ -748,8 +748,8 @@ class SalesService {
         };
     }
 
-    static async getRecommendations(tenantDb, userId) {
-        const tasks = await tenantDb.salesTask.findMany({
+    static async getRecommendations(companyPrisma, userId) {
+        const tasks = await companyPrisma.salesTask.findMany({
             where: {
                 assignedTo: userId,
                 status: 'pending',
@@ -769,9 +769,9 @@ class SalesService {
     // LEADS
     // ------------------------------------------------------------------------
 
-    static async getLeads(tenantDb, page = 1, limit = 100) {
+    static async getLeads(companyPrisma, page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const Lead = tenantDb.deal;
+        const Lead = companyPrisma.deal;
         
         const leads = await Lead.findMany({
             include: { assignedSalesRep: { select: { name: true, email: true } } },
@@ -784,24 +784,24 @@ class SalesService {
         return { leads, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
-    static async createLead(tenantDb, leadData, userId) {
-        const Lead = tenantDb.deal;
+    static async createLead(companyPrisma, leadData, userId) {
+        const Lead = companyPrisma.deal;
         const lead = await Lead.create({ data: leadData });
 
-        await tenantDb.salesActivity.create({ data: {
+        await companyPrisma.salesActivity.create({ data: {
             type: 'note',
             relatedLead: lead.id,
             notes: `New lead created: ${lead.name} from ${lead.company}`,
             owner: userId
         } });
 
-        const settings = await tenantDb.settings.findFirst();
+        const settings = await companyPrisma.settings.findFirst();
         const { scoreLead } = require('../../company-hub-app/crm/CrmCalculationService.js');
         const newScore = scoreLead(lead, settings?.salesConfig?.leadScoring);
         await Lead.update({ where: { id: lead.id }, data: { leadScore: newScore } });
 
         const SalesRuleEngine = require('./sales-rule-engine.service');
-        await SalesRuleEngine.onLeadCreated(tenantDb, lead.id);
+        await SalesRuleEngine.onLeadCreated(companyPrisma, lead.id);
 
         try {
             const { triggerN8nWebhook } = require('../../../platform-core/platform-integrations/webhooks/webhook.routes');
@@ -816,19 +816,19 @@ class SalesService {
         return lead;
     }
 
-    static async importLeads(tenantDb, leads, userId) {
+    static async importLeads(companyPrisma, leads, userId) {
         if (!Array.isArray(leads) || leads.length === 0) {
             throw new Error('No leads provided');
         }
 
-        const Lead = tenantDb.deal;
+        const Lead = companyPrisma.deal;
         const newLeads = leads.map(l => ({
             ...l,
             assignedSalesRep: l.assignedSalesRep || userId,
         }));
 
         const inserted = await Lead.createMany({ data: newLeads });
-        const settings = await tenantDb.settings.findFirst();
+        const settings = await companyPrisma.settings.findFirst();
         const { scoreLead } = require('../../company-hub-app/crm/CrmCalculationService.js');
         const SalesRuleEngine = require('./sales-rule-engine.service');
 
@@ -838,8 +838,8 @@ class SalesService {
         return inserted.length;
     }
 
-    static async updateLead(tenantDb, id, updateData) {
-        const Lead = tenantDb.deal;
+    static async updateLead(companyPrisma, id, updateData) {
+        const Lead = companyPrisma.deal;
         
         let lead = await Lead.findUnique({ where: { id } });
         if (!lead) throw new Error('Lead not found');
@@ -850,8 +850,8 @@ class SalesService {
         });
 
         try {
-            const settings = await tenantDb.settings.findFirst();
-            await this.calculateLeadScore(tenantDb, lead, settings);
+            const settings = await companyPrisma.settings.findFirst();
+            await this.calculateLeadScore(companyPrisma, lead, settings);
         } catch (scoringErr) {}
 
         try {
@@ -868,22 +868,22 @@ class SalesService {
         return lead;
     }
 
-    static async deleteLead(tenantDb, id) {
-        await tenantDb.deal.update({ where: { id }, data: { deletedAt: new Date() } });
+    static async deleteLead(companyPrisma, id) {
+        await companyPrisma.deal.update({ where: { id }, data: { deletedAt: new Date() } });
     }
 
-    static async convertLead(tenantDb, id, userId) {
-        const Lead = tenantDb.deal;
-        const Account = tenantDb.salesAccount;
-        const Contact = tenantDb.contact;
-        const Opportunity = tenantDb.lead;
+    static async convertLead(companyPrisma, id, userId) {
+        const Lead = companyPrisma.deal;
+        const Account = companyPrisma.salesAccount;
+        const Contact = companyPrisma.contact;
+        const Opportunity = companyPrisma.lead;
 
         const lead = await Lead.findUnique({ where: { id } });
         if (!lead) throw new Error('Lead not found');
         if (lead.status === 'converted') throw new Error('This lead has already been converted.');
 
         // Use interactive transaction
-        return await tenantDb.$transaction(async (prisma) => {
+        return await companyPrisma.$transaction(async (prisma) => {
             let account = await prisma.salesAccount.findFirst({ where: { companyName: { equals: lead.company.trim(), mode: 'insensitive' } } });
             
             if (!account) {
@@ -1032,15 +1032,15 @@ class SalesService {
         return JSON.parse(resultText);
     }
 
-    static async createContractWithAI(tenantDb, company, instructions, clientId) {
+    static async createContractWithAI(companyPrisma, company, instructions, clientId) {
         if (!instructions) throw new Error('Instructions are required');
 
         let clientContext = '';
         let clientObj = null;
         if (clientId) {
-            const Lead = tenantDb.deal;
-            const Account = tenantDb.salesAccount;
-            const Contact = tenantDb.contact;
+            const Lead = companyPrisma.deal;
+            const Account = companyPrisma.salesAccount;
+            const Contact = companyPrisma.contact;
             
             clientObj = await Lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
             
@@ -1103,20 +1103,20 @@ class SalesService {
         return JSON.parse(resultText);
     }
 
-    static async getClientObjForContract(tenantDb, clientId) {
+    static async getClientObjForContract(companyPrisma, clientId) {
         if (!clientId) return null;
-        const Lead = tenantDb.deal;
-        const Account = tenantDb.salesAccount;
-        const Contact = tenantDb.contact;
+        const Lead = companyPrisma.deal;
+        const Account = companyPrisma.salesAccount;
+        const Contact = companyPrisma.contact;
         return await Lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
     }
 
-    static async emailContract(tenantDb, company, userId, userName, contractTitle, contractText, clientId, email) {
+    static async emailContract(companyPrisma, company, userId, userName, contractTitle, contractText, clientId, email) {
         if (!contractText || (!clientId && !email)) {
             throw new Error('Contract text and a recipient email or client selection is required.');
         }
 
-        const Settings = tenantDb.settings;
+        const Settings = companyPrisma.settings;
         const settings = await Settings.findFirst();
         if (!settings || !settings.smtpHost) throw new Error('SMTP Settings are not configured.');
 
@@ -1124,7 +1124,7 @@ class SalesService {
         let recipientEmail = email;
 
         if (clientId) {
-            clientObj = await this.getClientObjForContract(tenantDb, clientId);
+            clientObj = await this.getClientObjForContract(companyPrisma, clientId);
             if (clientObj && !recipientEmail) recipientEmail = clientObj.email;
         }
 
@@ -1152,12 +1152,12 @@ class SalesService {
                     content: pdfBuffer
                 }
             ], 
-            tenantDb
+            companyPrisma
         );
 
         if (!result.success) throw new Error('Failed to send email');
 
-        await tenantDb.salesActivity.create({ data: {
+        await companyPrisma.salesActivity.create({ data: {
             type: 'email',
             relatedContact: clientObj?.id || null,
             notes: `Sent Contract: ${contractTitle} to ${recipientEmail}`,
@@ -1171,9 +1171,9 @@ class SalesService {
     // OPPORTUNITIES
     // ------------------------------------------------------------------------
 
-    static async getOpportunities(tenantDb, page = 1, limit = 100, pipelineType) {
+    static async getOpportunities(companyPrisma, page = 1, limit = 100, pipelineType) {
         const skip = (page - 1) * limit;
-        const Opportunity = tenantDb.lead;
+        const Opportunity = companyPrisma.lead;
         
         const whereClause = {};
         if (pipelineType) {
@@ -1192,8 +1192,8 @@ class SalesService {
         return { opportunities, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
-    static async createOpportunity(tenantDb, data, userId) {
-        const Opportunity = tenantDb.lead;
+    static async createOpportunity(companyPrisma, data, userId) {
+        const Opportunity = companyPrisma.lead;
         
         const followUpDate = data.followUpDate;
         const followUpTime = data.followUpTime;
@@ -1213,7 +1213,7 @@ class SalesService {
         const opp = await Opportunity.create({ data: { ...data } });
 
         if (notes) {
-            await tenantDb.salesActivity.create({ data: {
+            await companyPrisma.salesActivity.create({ data: {
                 type: 'note',
                 leadId: opp.id,
                 relatedClientId: opp.clientId,
@@ -1225,7 +1225,7 @@ class SalesService {
         if (followUpDate) {
             let combinedDate = followUpDate;
             if (followUpTime) combinedDate += 'T' + followUpTime;
-            await tenantDb.salesTask.create({
+            await companyPrisma.salesTask.create({
                 data: {
                     description: `Follow up on deal: ${opp.title}`,
                     dueDate: new Date(combinedDate),
@@ -1236,7 +1236,7 @@ class SalesService {
         }
 
 
-        await tenantDb.salesActivity.create({ data: {
+        await companyPrisma.salesActivity.create({ data: {
             type: 'task',
             leadId: opp.id,
             relatedClientId: opp.clientId,
@@ -1244,7 +1244,7 @@ class SalesService {
             ownerId: userId
         } });
 
-        const settings = await tenantDb.settings.findFirst();
+        const settings = await companyPrisma.settings.findFirst();
         const { calculateWinProbability } = require('../../company-hub-app/crm/CrmCalculationService.js');
         opp.probability = calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
         
@@ -1253,9 +1253,9 @@ class SalesService {
         return opp;
     }
 
-    static async updateOpportunity(tenantDb, id, data) {
-        const Opportunity = tenantDb.lead;
-        const Deal = tenantDb.deal;
+    static async updateOpportunity(companyPrisma, id, data) {
+        const Opportunity = companyPrisma.lead;
+        const Deal = companyPrisma.deal;
         const oldOpp = await Opportunity.findUnique({ where: { id } });
         if (!oldOpp) throw new Error('Opportunity not found');
 
@@ -1296,7 +1296,7 @@ class SalesService {
         const opp = await Opportunity.update({ where: { id }, data });
 
         if (notes) {
-            await tenantDb.salesActivity.create({ data: {
+            await companyPrisma.salesActivity.create({ data: {
                 type: 'note',
                 leadId: opp.id,
                 relatedClientId: opp.clientId,
@@ -1308,7 +1308,7 @@ class SalesService {
         if (followUpDate) {
             let combinedDate = followUpDate;
             if (followUpTime) combinedDate += 'T' + followUpTime;
-            await tenantDb.salesTask.create({
+            await companyPrisma.salesTask.create({
                 data: {
                     description: `Follow up on deal: ${opp.title}`,
                     dueDate: new Date(combinedDate),
@@ -1318,7 +1318,7 @@ class SalesService {
             });
         }
 
-        const settings = await tenantDb.settings.findFirst();
+        const settings = await companyPrisma.settings.findFirst();
         const { calculateWinProbability } = require('../../company-hub-app/crm/CrmCalculationService.js');
         opp.probability = calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
         
@@ -1332,9 +1332,9 @@ class SalesService {
         return { opportunity: opp, message };
     }
 
-    static async createProjectFromOpportunity(tenantDb, id, userId) {
-        const Opportunity = tenantDb.lead;
-        const Project = tenantDb.project;
+    static async createProjectFromOpportunity(companyPrisma, id, userId) {
+        const Opportunity = companyPrisma.lead;
+        const Project = companyPrisma.project;
 
         const opp = await Opportunity.findUnique({ where: { id } });
         if (!opp) throw new Error('Opportunity not found');
@@ -1360,8 +1360,8 @@ class SalesService {
         return { project, opportunity: updatedOpp };
     }
 
-    static async deleteOpportunity(tenantDb, id) {
-        const Opportunity = tenantDb.lead;
+    static async deleteOpportunity(companyPrisma, id) {
+        const Opportunity = companyPrisma.lead;
         const opp = await Opportunity.delete({ where: { id } });
         if (!opp) throw new Error('Opportunity not found');
         return opp;
@@ -1371,17 +1371,17 @@ class SalesService {
     // ACCOUNTS & CONTACTS
     // ------------------------------------------------------------------------
 
-    static async getAccounts(tenantDb, page = 1, limit = 100) {
+    static async getAccounts(companyPrisma, page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const Account = tenantDb.salesAccount;
+        const Account = companyPrisma.salesAccount;
         const accountsRaw = await Account.findMany({
             orderBy: { clv: 'desc' },
             skip: skip,
             take: limit
         });
 
-        const Opportunity = tenantDb.lead;
-        const Contact = tenantDb.contact;
+        const Opportunity = companyPrisma.lead;
+        const Contact = companyPrisma.contact;
         const moment = require('moment');
         const { calculateCustomerRiskIndex } = require('../../company-hub-app/crm/CrmCalculationService.js');
 
@@ -1406,8 +1406,8 @@ class SalesService {
         return { accounts, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
-    static async createAccount(tenantDb, data, userId) {
-        const Account = tenantDb.salesAccount;
+    static async createAccount(companyPrisma, data, userId) {
+        const Account = companyPrisma.salesAccount;
         const account = await Account.create({ data: {
             ...data,
             assignedManager: userId
@@ -1415,23 +1415,23 @@ class SalesService {
         return account;
     }
 
-    static async updateAccount(tenantDb, id, data) {
-        const Account = tenantDb.salesAccount;
+    static async updateAccount(companyPrisma, id, data) {
+        const Account = companyPrisma.salesAccount;
         const account = await Account.update({ where: { id }, data });
         if (!account) throw new Error('Account not found');
         return account;
     }
 
-    static async deleteAccount(tenantDb, id) {
-        const Account = tenantDb.salesAccount;
+    static async deleteAccount(companyPrisma, id) {
+        const Account = companyPrisma.salesAccount;
         const account = await Account.delete({ where: { id } });
         if (!account) throw new Error('Account not found');
         return account;
     }
 
-    static async getContacts(tenantDb, page = 1, limit = 100) {
+    static async getContacts(companyPrisma, page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const Contact = tenantDb.contact;
+        const Contact = companyPrisma.contact;
         const contacts = await Contact.findMany({
             include: { accountId: { select: { companyName: true } } },
             skip: skip,
@@ -1442,8 +1442,8 @@ class SalesService {
         return { contacts, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
-    static async getContact(tenantDb, id) {
-        const Contact = tenantDb.contact;
+    static async getContact(companyPrisma, id) {
+        const Contact = companyPrisma.contact;
         const contact = await Contact.findUnique({ 
             where: { id },
             include: { accountId: { select: { companyName: true, clv: true, industry: true } } }
@@ -1451,13 +1451,13 @@ class SalesService {
 
         if (!contact) throw new Error('Contact not found');
 
-        const Opportunity = tenantDb.lead;
+        const Opportunity = companyPrisma.lead;
         const opportunities = await Opportunity.findMany({
             where: { accountId: contact.accountId },
             select: { title: true, value: true, stage: true, probability: true, expectedCloseDate: true }
         });
 
-        const SalesActivity = tenantDb.salesActivity;
+        const SalesActivity = companyPrisma.salesActivity;
         const activities = await SalesActivity.findMany({
             where: {
                 OR: [
@@ -1473,8 +1473,8 @@ class SalesService {
         return { contact, opportunities, activities };
     }
 
-    static async createContact(tenantDb, data) {
-        const Contact = tenantDb.contact;
+    static async createContact(companyPrisma, data) {
+        const Contact = companyPrisma.contact;
 
         if (data.email) {
             const existingByEmail = await Contact.findFirst({ where: { email: data.email.trim().toLowerCase() } });
@@ -1503,15 +1503,15 @@ class SalesService {
         return contact;
     }
 
-    static async updateContact(tenantDb, id, data) {
-        const Contact = tenantDb.contact;
+    static async updateContact(companyPrisma, id, data) {
+        const Contact = companyPrisma.contact;
         const contact = await Contact.update({ where: { id }, data });
         if (!contact) throw new Error('Contact not found');
         return contact;
     }
 
-    static async deleteContact(tenantDb, id) {
-        const Contact = tenantDb.contact;
+    static async deleteContact(companyPrisma, id) {
+        const Contact = companyPrisma.contact;
         const contact = await Contact.delete({ where: { id } });
         if (!contact) throw new Error('Contact not found');
         return contact;
@@ -1521,9 +1521,9 @@ class SalesService {
     // ACTIVITIES
     // ------------------------------------------------------------------------
 
-    static async getActivities(tenantDb, page = 1, limit = 100) {
+    static async getActivities(companyPrisma, page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const SalesActivity = tenantDb.salesActivity;
+        const SalesActivity = companyPrisma.salesActivity;
         const activities = await SalesActivity.findMany({
             include: { 
                 relatedLead: { select: { name: true, company: true } },
@@ -1541,8 +1541,8 @@ class SalesService {
         return { activities, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
-    static async createActivity(tenantDb, data, userId) {
-        const SalesActivity = tenantDb.salesActivity;
+    static async createActivity(companyPrisma, data, userId) {
+        const SalesActivity = companyPrisma.salesActivity;
         const activity = await SalesActivity.create({ data: {
             ...data,
             owner: userId
@@ -1566,9 +1566,9 @@ class SalesService {
     // QUOTES
     // ------------------------------------------------------------------------
 
-    static async getQuotes(tenantDb, page = 1, limit = 100) {
+    static async getQuotes(companyPrisma, page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const Quote = tenantDb.quote;
+        const Quote = companyPrisma.quote;
 
         const quotes = await Quote.findMany({
             include: { 
@@ -1580,8 +1580,8 @@ class SalesService {
         });
 
         // Manually populate client and opportunity data
-        const Client = tenantDb.client;
-        const Opportunity = tenantDb.lead;
+        const Client = companyPrisma.client;
+        const Opportunity = companyPrisma.lead;
         
         for (const q of quotes) {
             if (q.clientId) {
@@ -1602,8 +1602,8 @@ class SalesService {
         return { quotes, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
-    static async createQuote(tenantDb, data, userId, companyId) {
-        const Quote = tenantDb.quote;
+    static async createQuote(companyPrisma, data, userId, companyId) {
+        const Quote = companyPrisma.quote;
         const quoteNumber = `QT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
 
         const quote = await Quote.create({ data: {
@@ -1616,23 +1616,23 @@ class SalesService {
         return quote;
     }
 
-    static async updateQuote(tenantDb, id, data) {
-        const Quote = tenantDb.quote;
+    static async updateQuote(companyPrisma, id, data) {
+        const Quote = companyPrisma.quote;
         const quote = await Quote.update({ where: { id }, data });
         if (!quote) throw new Error('Quote not found');
         return quote;
     }
 
-    static async deleteQuote(tenantDb, id) {
-        const Quote = tenantDb.quote;
+    static async deleteQuote(companyPrisma, id) {
+        const Quote = companyPrisma.quote;
         const quote = await Quote.delete({ where: { id } });
         if (!quote) throw new Error('Quote not found');
         return quote;
     }
 
-    static async getQuoteForPdf(tenantDb, id) {
-        const Quote = tenantDb.quote;
-        const Client = tenantDb.client;
+    static async getQuoteForPdf(companyPrisma, id) {
+        const Quote = companyPrisma.quote;
+        const Client = companyPrisma.client;
         const quote = await Quote.findUnique({ where: { id } });
         if (!quote) throw new Error('Quote not found');
         if (quote.clientId) {
@@ -1644,10 +1644,10 @@ class SalesService {
         return quote;
     }
 
-    static async sendQuoteEmail(tenantDb, id, user, emailOverride, reqCompany) {
-        const Settings = tenantDb.settings;
-        const Quote = tenantDb.quote;
-        const Client = tenantDb.client;
+    static async sendQuoteEmail(companyPrisma, id, user, emailOverride, reqCompany) {
+        const Settings = companyPrisma.settings;
+        const Quote = companyPrisma.quote;
+        const Client = companyPrisma.client;
         const PDFDocument = require('pdfkit');
         const { generateQuotationPDF } = require('../../../platform-core/platform-engine/pdf/pdf.utils.js');
 
@@ -1706,7 +1706,7 @@ class SalesService {
                 filename: `Quote_${quote.quoteNumber}.pdf`,
                 content: pdfBuffer
             }
-        ], tenantDb);
+        ], companyPrisma);
 
         if (!result.success) {
             const err = new Error('Failed to send email: ' + result.error);
@@ -1714,7 +1714,7 @@ class SalesService {
             throw err;
         }
 
-        await tenantDb.salesActivity.create({ data: {
+        await companyPrisma.salesActivity.create({ data: {
             type: 'email',
             relatedDeal: quote.opportunityId,
             relatedContact: quote.clientId?.id,
@@ -1729,8 +1729,8 @@ class SalesService {
     // REVENUE STATS
     // ------------------------------------------------------------------------
 
-    static async getRevenueStats(tenantDb, timeframe = 'all') {
-        const Opportunity = tenantDb.lead;
+    static async getRevenueStats(companyPrisma, timeframe = 'all') {
+        const Opportunity = companyPrisma.lead;
         const moment = require('moment');
 
         let dateFilter = undefined;

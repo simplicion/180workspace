@@ -4,7 +4,7 @@
 exports.getAssets = async (req, res, next) => {
     try {
         if (!req.prisma) {
-            return res.status(500).json({ error: 'Tenant database connection missing' });
+            return res.status(500).json({ error: 'Company database connection missing' });
         }
         const { type, status, search } = req.query;
         let query = {};
@@ -40,7 +40,7 @@ exports.getAssets = async (req, res, next) => {
 exports.getAssetStats = async (req, res, next) => {
     try {
         if (!req.prisma) {
-            return res.status(500).json({ error: 'Tenant database connection missing' });
+            return res.status(500).json({ error: 'Company database connection missing' });
         }
 
         // Prisma doesn't have an exact equivalent to $group sum, so we use groupBy
@@ -88,7 +88,7 @@ exports.getAssetById = async (req, res, next) => {
 exports.createAsset = async (req, res, next) => {
     try {
         if (!req.prisma) {
-            return res.status(500).json({ error: 'Tenant database connection missing' });
+            return res.status(500).json({ error: 'Company database connection missing' });
         }
         
         if (!req.body.name || !req.body.type) {

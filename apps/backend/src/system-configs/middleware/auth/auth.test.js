@@ -36,10 +36,10 @@ app.get('/api/admin-only', protect, authorize('admin'), (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/tenant-data', protect, (req, res) => {
-    // A route that simulates a tenant check (e.g. requires companyId to match)
-    // Actually the prompt says: "confirm a superadmin-signed token is rejected on tenant routes".
-    // Wait, let's simulate this: tenant routes require req.user.companyId to match the requested resource, 
+app.get('/api/company-data', protect, (req, res) => {
+    // A route that simulates a company check (e.g. requires companyId to match)
+    // Actually the prompt says: "confirm a superadmin-signed token is rejected on company routes".
+    // Wait, let's simulate this: company routes require req.user.companyId to match the requested resource, 
     // or the token's companyId to exist. The protect middleware assigns req.user.companyId.
     res.json({ success: true, companyId: req.user.companyId });
 });
@@ -99,17 +99,17 @@ describe('Auth & RBAC Middleware', () => {
         expect(res.body.error).toMatch(/don't have permission/);
     });
 
-    it('5. should confirm a superadmin-signed token without tenant is correctly parsed (or rejected if tenant required)', async () => {
-        // Superadmin tokens often omit companyId, or they shouldn't be used on tenant routes.
+    it('5. should confirm a superadmin-signed token without company is correctly parsed (or rejected if company required)', async () => {
+        // Superadmin tokens often omit companyId, or they shouldn't be used on company routes.
         // Let's test that the protect middleware assigns companyId, but if a route explicitly
-        // requires a tenant, the controller would handle it. The middleware itself 
+        // requires a company, the controller would handle it. The middleware itself 
         // doesn't crash but req.user.companyId might be null if not in user model.
         mockUser.role = 'superadmin';
         mockUser.companyId = null; // System-level user
         
         const token = generateToken({ id: 'user-1' }); // no companyId in token
         const res = await request(app)
-            .get('/api/tenant-data')
+            .get('/api/company-data')
             .set('Authorization', `Bearer ${token}`);
             
         expect(res.status).toBe(200);
@@ -117,7 +117,7 @@ describe('Auth & RBAC Middleware', () => {
         expect(res.body.companyId).toBeNull();
     });
 
-    it('6. should reject token signed with SUPER_ADMIN_JWT_SECRET by the tenant protect middleware', async () => {
+    it('6. should reject token signed with SUPER_ADMIN_JWT_SECRET by the company protect middleware', async () => {
         // Sign token with a different secret (simulating SUPER_ADMIN_JWT_SECRET)
         const superAdminToken = jwt.sign(
             { id: 'user-2' }, 

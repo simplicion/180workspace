@@ -13,7 +13,7 @@ We use `socket.io` to push real-time updates to connected clients (`user-web`).
 ### Implementation
 - **Initialization:** Socket.io is attached to the main Express HTTP server.
 - **Authentication:** Sockets authenticate upon connection by passing the JWT token.
-- **Rooms:** Clients join "rooms" corresponding to their `companyId` and `userId`. This ensures real-time events are only broadcast to the correct tenant.
+- **Rooms:** Clients join "rooms" corresponding to their `companyId` and `userId`. This ensures real-time events are only broadcast to the correct company.
 
 ### Use Cases
 - **Chat:** Instant messaging between team members.

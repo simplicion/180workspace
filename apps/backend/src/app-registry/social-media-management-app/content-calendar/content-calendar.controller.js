@@ -72,7 +72,7 @@ exports.createCalendar = async (req, res, next) => {
             userId: req.user.id,
             brandName: req.body.brandName || req.body.brand_name || 'Brand',
             industry: req.body.industry || 'General',
-            subdomain: req.body.subdomain || 'tenant',
+            subdomain: req.body.subdomain || 'company',
             targetAudience: req.body.targetAudience || req.body.target_audience || 'General Audience',
             platforms: req.body.platforms || [],
             calendarDuration: req.body.durationWords || req.body.calendar_duration || '1 month',

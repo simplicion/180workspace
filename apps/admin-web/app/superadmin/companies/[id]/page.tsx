@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, use } from 'react';
-import { Building2, Mail, Calendar, CreditCard, ArrowLeft, CheckCircle2, XCircle, AlertCircle, RefreshCw, ShieldCheck, Database as DbIcon, Activity } from 'lucide-react';
+import { Building2, Mail, ArrowLeft, CheckCircle2, XCircle, AlertCircle, RefreshCw, ShieldCheck, Database as DbIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../../lib/superadmin-api';
@@ -42,23 +42,6 @@ export default function CompanyDetailsPage({ params: paramsPromise }: { params: 
         }
         setLoading(false);
         setHistoryLoading(false);
-    };
-
-    const [testing, setTesting] = useState(false);
-    const testCompanyDb = async () => {
-        if (!company?.mongoUri) return toast.error('No connection string available');
-        setTesting(true);
-        try {
-            // We use the same settings endpoint but with the company's URI
-            // Note: In a real scenario, we might need a dedicated superadmin test endpoint
-            // but for now, we assume this works or we can add one.
-            await saApi.post(`/companies/${params.id}/test-db`);
-            toast.success('Tenant database connection successful!');
-        } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Connection failed');
-        } finally {
-            setTesting(false);
-        }
     };
 
     if (loading) return (
@@ -151,36 +134,23 @@ export default function CompanyDetailsPage({ params: paramsPromise }: { params: 
                             <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
                                 <DbIcon className="w-5 h-5 text-sky-500" /> Database Infrastructure
                             </h2>
-                            <button 
-                                onClick={testCompanyDb}
-                                disabled={testing || !company.mongoUri}
-                                className="flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 disabled:opacity-50"
-                            >
-                                {testing ? <LogoLoader className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
-                                {testing ? 'Testing...' : 'Test Connection'}
-                            </button>
                         </div>
                         
                         <div className="space-y-4">
                             <div className="relative group">
                                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 font-mono text-[11px] break-all text-slate-500 leading-relaxed min-h-[60px] flex items-center">
-                                    {company.mongoUri || 'Using system default shared node'}
+                                    Unified High-Performance PostgreSQL Node (Company ID: {company.id})
                                 </div>
-                                {company.mongoUri && (
-                                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="px-2 py-1 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-400 uppercase tracking-tight shadow-sm">Masked URI</div>
-                                    </div>
-                                )}
                             </div>
                             
                             <div className="flex items-center justify-between px-2">
                                 <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${company.databaseConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-                                    <span className={`text-[10px] font-black uppercase tracking-widest ${company.databaseConfigured ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                        {company.databaseConfigured ? 'Dedicated Authority' : 'Shared Cloud Hub'}
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                                        Active & Synchronized
                                     </span>
                                 </div>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">Cluster: MongoDB Atlas</span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">Engine: PostgreSQL</span>
                             </div>
                         </div>
                     </div>

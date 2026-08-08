@@ -97,7 +97,7 @@ exports.verifyMandate = async (req, res, next) => {
             console.error('[Billing] Subscription confirmation email failed:', emailErr.message);
         }
 
-        // Log Activity in Tenant DB
+        // Log Activity in Company DB
         try {
             await AutomationService.trigger({
                 eventType: 'subscription_started',
@@ -171,7 +171,7 @@ exports.activatePlan = async (req, res, next) => {
             console.error('[Billing] Activation confirmation email failed:', emailErr.message);
         }
 
-        // Log Activity in Tenant DB
+        // Log Activity in Company DB
         try {
             await AutomationService.trigger({
                 eventType: 'plan_activated',
@@ -207,7 +207,7 @@ exports.activatePlan = async (req, res, next) => {
 exports.cancelAutopay = async (req, res, next) => {
     try {
         const subscription = await BillingService.cancelAutopay(req.user.companyId);
-        // Log Activity in Tenant DB
+        // Log Activity in Company DB
         try {
             await AutomationService.trigger({
                 eventType: 'autopay_cancelled',

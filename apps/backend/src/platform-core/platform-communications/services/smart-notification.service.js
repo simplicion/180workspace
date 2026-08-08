@@ -6,22 +6,22 @@ const AnalyticsService = require('../../../app-registry/insights-app/analytics/a
 /**
  * Smart Notification Service
  * Handles delivery optimization, prioritization, and delivery channel selection.
- * Multi-tenant aware: methods now accept tenantDb context.
+ * Multi-company aware: methods now accept companyPrisma context.
  */
 class SmartNotificationService {
     /**
      * Send notification with smart routing
      * @param {Object} params - { userId, type, title, message, actionUrl, priority }
-     * @param {Object} tenantDb - The tenant's database connection
+     * @param {Object} companyPrisma - The company's database connection
      */
-    async send(params, tenantDb) {
-        if (!tenantDb) {
-            console.error('[SmartNotificationService] tenantDb context is required for send');
+    async send(params, companyPrisma) {
+        if (!companyPrisma) {
+            console.error('[SmartNotificationService] companyPrisma context is required for send');
             return null;
         }
 
-        const Notification = tenantDb.notification;
-        const User = tenantDb.user;
+        const Notification = companyPrisma.notification;
+        const User = companyPrisma.user;
 
         const { userId, type, title, message, actionUrl, priority = 'medium' } = params;
 
@@ -78,7 +78,7 @@ class SmartNotificationService {
                     message: message,
                     ctaLink: actionUrl ? `${clientUrl}${actionUrl}` : null,
                     ctaText: 'View Details'
-                }, tenantDb);
+                }, companyPrisma);
             }
         }
 
@@ -88,13 +88,13 @@ class SmartNotificationService {
     /**
      * Batch notifications for a user to reduce fatigue (Daily Summary)
      * @param {string} userId
-     * @param {Object} tenantDb - The tenant's database connection
+     * @param {Object} companyPrisma - The company's database connection
      */
-    async sendDailySummary(userId, tenantDb) {
-        if (!tenantDb) return;
+    async sendDailySummary(userId, companyPrisma) {
+        if (!companyPrisma) return;
 
-        const Notification = tenantDb.notification;
-        const User = tenantDb.user;
+        const Notification = companyPrisma.notification;
+        const User = companyPrisma.user;
 
         const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const unread = await Notification.findMany({
@@ -117,7 +117,7 @@ class SmartNotificationService {
                 message: `You have ${unread.length} new notifications:\n\n${summary}`,
                 ctaLink: `${clientUrl}/dashboard/notifications`,
                 ctaText: 'Open Notifications'
-            }, tenantDb);
+            }, companyPrisma);
         }
     }
 }

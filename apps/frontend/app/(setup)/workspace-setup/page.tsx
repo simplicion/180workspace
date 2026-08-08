@@ -279,7 +279,7 @@ function WorkspaceSetup() {
                         className="absolute top-0 left-0 flex items-center text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium z-10"
                     >
                         <ArrowRight className="w-4 h-4 mr-1 rotate-180" />
-                        Go to <span className="font-bold tracking-tight text-gray-900 inline-block mx-1"><span className="text-blue-600">180</span>workspace</span> App
+                        Go to <span className="font-bold tracking-tight text-gray-900 inline-block mx-1">{platform?.platformName || <><span className="text-blue-600">180</span>workspace</>}</span> App
                     </button>
                 )}
                 <div className="text-center mb-10">
@@ -322,7 +322,7 @@ function WorkspaceSetup() {
                                         <div className="mt-2 text-sm flex items-center">
                                             <span className="text-gray-500">Your workspace URL: </span>
                                             <span className="font-medium text-gray-900 ml-1">
-                                                {slug || 'acme'}.{(platform as any)?.domain || '180workspace.com'}
+                                                {slug || 'acme'}.{(platform as any)?.domain || process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host.replace(/^(app|admin)\./, '') : '')}
                                             </span>
                                             {slug && (
                                                 <div className="ml-2 flex items-center">

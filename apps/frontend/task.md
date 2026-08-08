@@ -1,0 +1,11 @@
+- [x] Phase 1: API & Endpoint Centralization
+  - [x] Create `/api/v1/180documents` unified endpoints
+  - [x] Update frontend `knowledgeApi.js` to use `get180Documents`
+  - [x] Wire frontend `DocumentsPage` to display articles, contracts, quotes, invoices, and files under unified tabs
+- [x] Phase 2: Quotation System Migration
+  - [x] Update navigation menu to prioritize 180 Documents
+  - [x] Add 180 Documents migration banner to Quotes page
+- [x] Phase 3: On-Demand PDF Generation (Frontend)
+  - [x] Install `html2pdf.js`
+  - [x] Add "Export PDF" button to contract edit page (`/dashboard/documents/contract/[id]/edit`)
+  - [x] Add high-res PDF download to client signing portal (`/f/contract/[token]`)

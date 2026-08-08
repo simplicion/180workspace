@@ -64,7 +64,7 @@ router.get('/', protect, async (req, res) => {
 /**
  * @desc    Validate access to a meeting room
  * @route   GET /api/meeting/validate/:roomId
- * @access  Protected (Tenant Aware)
+ * @access  Protected (Company Aware)
  */
 router.get('/validate/:roomId', protect, async (req, res) => {
     try {

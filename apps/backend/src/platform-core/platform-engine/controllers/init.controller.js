@@ -13,7 +13,7 @@
  *   - GET /api/user-preferences
  *   - GET /api/notifications?limit=1
  * 
- * This eliminates 6x tenant-db resolution overhead and reduces
+ * This eliminates 6x company-db resolution overhead and reduces
  * frontend waterfall from ~3s to ~300-500ms (single DB round-trip).
  */
 
@@ -34,7 +34,7 @@ exports.getInit = async (req, res) => {
 
         const { prisma } = require('@workspace/db');
 
-        // All DB reads in parallel â€” single tenant DB connection, multiple reads
+        // All DB reads in parallel â€” single company DB connection, multiple reads
         const [
             company,
             platformSettings,
@@ -74,11 +74,11 @@ exports.getInit = async (req, res) => {
                     address: s.companyAddress || '',
                     website: s.companyWebsite || '',
                     supportEmail: s.supportEmail || '',
-                    isTenant: true,
+                    isCompany: true,
                 };
             }).catch(() => null),
 
-            // 3. Tenant settings
+            // 3. Company settings
             (async () => {
                 try {
                     const Settings = req.prisma.settings;

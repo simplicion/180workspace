@@ -2,13 +2,13 @@
 
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
-const TenantPaymentProviderInterface = require('../TenantPaymentProviderInterface');
+const CompanyPaymentProviderInterface = require('../CompanyPaymentProviderInterface');
 
-class RazorpayTenantProvider extends TenantPaymentProviderInterface {
+class RazorpayCompanyProvider extends CompanyPaymentProviderInterface {
     constructor(config) {
         super(config);
         if (!config.keyId || !config.keySecret) {
-            throw new Error('Razorpay Tenant keys are missing');
+            throw new Error('Razorpay Company keys are missing');
         }
 
         this.razorpay = new Razorpay({
@@ -55,14 +55,14 @@ class RazorpayTenantProvider extends TenantPaymentProviderInterface {
                 providerName: 'razorpay'
             };
         } catch (error) {
-            console.error('Razorpay Tenant generatePaymentLink error:', error);
+            console.error('Razorpay Company generatePaymentLink error:', error);
             throw new Error(error?.error?.description || 'Failed to generate Razorpay Payment Link');
         }
     }
 
     async verifyWebhookSignature(payload, signature) {
         if (!this.config.webhookSecret) {
-            throw new Error('Razorpay Tenant webhook secret is not configured');
+            throw new Error('Razorpay Company webhook secret is not configured');
         }
 
         const expectedSignature = crypto
@@ -110,7 +110,7 @@ class RazorpayTenantProvider extends TenantPaymentProviderInterface {
                 providerName: 'razorpay'
             };
         } catch (error) {
-            console.error('Razorpay Tenant payout error:', error);
+            console.error('Razorpay Company payout error:', error);
             throw new Error(error?.error?.description || 'Failed to initiate Razorpay Payout');
         }
     }
@@ -152,10 +152,10 @@ class RazorpayTenantProvider extends TenantPaymentProviderInterface {
                 providerName: 'razorpay'
             };
         } catch (error) {
-            console.error('Razorpay Tenant validation error:', error);
+            console.error('Razorpay Company validation error:', error);
             throw new Error(error?.error?.description || 'Failed to initiate Bank Account Validation');
         }
     }
 }
 
-module.exports = RazorpayTenantProvider;
+module.exports = RazorpayCompanyProvider;

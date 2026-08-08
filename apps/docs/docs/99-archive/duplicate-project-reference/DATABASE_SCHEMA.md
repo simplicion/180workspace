@@ -5,15 +5,15 @@
 ## Overview
 The application persists data to a PostgreSQL Relational Database using the **Prisma ORM**. There are currently 85 structured models defined in `packages/db/prisma/schema.prisma`, managing everything from hierarchical company structures to operational delivery and financial records.
 
-## Tenant Data Isolation Pattern
-Almost every operational model shares a foundational Multi-tenant mechanism:
+## Company Data Isolation Pattern
+Almost every operational model shares a foundational Multi-company mechanism:
 - `companyId String` (with a relation to `Company` and a database index)
-When a user queries data, the backend logic injects this `companyId` into all database operations to ensure Cross-Tenant leakage is impossible.
+When a user queries data, the backend logic injects this `companyId` into all database operations to ensure Cross-Company leakage is impossible.
 
 ## Key Tables / Models
 ### 1. User & Identity
 *   **User**: Handles login, roles (Employee, Admin, etc.), designations. References `companyId`. Contains fields for standard HR data as well as social/profile data.
-*   **Company**: The core tenant model. Contains subscription, settings, and business profile information.
+*   **Company**: The core company model. Contains subscription, settings, and business profile information.
 *   **Client**: External B2B connection accounts tied to the CRM.
 
 ### 2. Operational Delivery
