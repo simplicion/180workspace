@@ -1606,11 +1606,20 @@ class SalesService {
         const Quote = companyPrisma.quote;
         const quoteNumber = `QT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
 
+        const payload = { ...data };
+        if (payload.validUntil) payload.validUntil = new Date(payload.validUntil).toISOString();
+        if (payload.createdBy) delete payload.createdBy;
+        if (payload.companyId) delete payload.companyId;
+        if (payload.taxTotal !== undefined) {
+            payload.tax = payload.taxTotal;
+            delete payload.taxTotal;
+        }
+
         const quote = await Quote.create({ data: {
-            ...data,
+            ...payload,
             quoteNumber,
             companyId,
-            createdBy: userId
+            createdById: userId
         } });
 
         return quote;
@@ -1618,7 +1627,14 @@ class SalesService {
 
     static async updateQuote(companyPrisma, id, data) {
         const Quote = companyPrisma.quote;
-        const quote = await Quote.update({ where: { id }, data });
+        const payload = { ...data };
+        if (payload.validUntil) payload.validUntil = new Date(payload.validUntil);
+        if (payload.taxTotal !== undefined) {
+            payload.tax = payload.taxTotal;
+            delete payload.taxTotal;
+        }
+
+        const quote = await Quote.update({ where: { id }, data: payload });
         if (!quote) throw new Error('Quote not found');
         return quote;
     }

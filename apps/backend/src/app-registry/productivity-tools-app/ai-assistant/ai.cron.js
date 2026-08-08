@@ -12,7 +12,7 @@ const initCronJobs = () => {
         console.log('[AI Cron] Starting automated RAG synchronization...');
         try {
             // Fetch all active companies to sync data per company
-            const companies = await prisma.company.findMany({ where: { status: 'active' } });
+            const companies = await prisma.company.findMany({ where: { accountStatus: 'active' } });
             
             for (const company of companies) {
                 // Sync Employees
@@ -47,7 +47,7 @@ const initCronJobs = () => {
     cron.schedule('0 8 * * *', async () => {
         console.log('[AI Cron] Starting proactive AI alerts...');
         try {
-            const companies = await prisma.company.findMany({ where: { status: 'active' } });
+            const companies = await prisma.company.findMany({ where: { accountStatus: 'active' } });
             
             for (const company of companies) {
                 // Find overdue tasks
