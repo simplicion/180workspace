@@ -1,1 +1,0 @@
-const { prisma } = require('@workspace/db'); async function run() { const company = await prisma.company.findFirst(); console.log(JSON.stringify(company.metadata, null, 2)); await prisma.$disconnect(); } run();
