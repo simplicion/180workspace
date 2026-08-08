@@ -11,7 +11,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
-import LeadPipelineModal from '@/app/dashboard/(crm-and-sales-app)/components/LeadPipelineModal';
+import LeadPipelineDrawer from '@/app/dashboard/(crm-and-sales-app)/components/LeadPipelineDrawer';
 import {
     DndContext,
     DragOverlay,
@@ -269,8 +269,8 @@ export default function OpportunitiesKanbanPage() {
                 </DndContext>
             )}
 
-            <LeadPipelineModal
-                isOpen={isModalOpen}
+            <LeadPipelineDrawer
+                open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={fetchOpportunities}
                 editingLeadPipeline={editingOpportunity}

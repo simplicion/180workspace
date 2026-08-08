@@ -12,50 +12,9 @@ import { useRouter } from 'next/navigation';
 
 declare global { interface Window { Razorpay: any; } }
 
-function PlanDetailsModal({ plan, isOpen, onClose, onSelect }: any) {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white relative">
-                    <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors text-white">
-                        <ChevronRight className="w-6 h-6 rotate-90" />
-                    </button>
-                    <h3 className="text-2xl font-bold">{plan.planName}</h3>
-                    <div className="flex items-baseline gap-1 mt-2">
-                        <span className="text-4xl font-black">₹{plan.price?.toLocaleString('en-IN')}</span>
-                        <span className="text-indigo-100 opacity-80">/{plan.billingCycle || 'month'}</span>
-                    </div>
-                </div>
-                <div className="p-8 space-y-6">
-                    <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">What&apos;s Included</p>
-                        <div className="grid grid-cols-1 gap-3">
-                            <div className="flex items-center gap-3 text-slate-700">
-                                <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                                    <Users className="w-3.5 h-3.5 text-emerald-600" />
-                                </div>
-                                <span className="text-sm font-medium">Up to <strong>{plan.maxUsers}</strong> active users</span>
-                            </div>
-                            {plan.features?.map((f: string) => (
-                                <div key={f} className="flex items-start gap-3 text-slate-600">
-                                    <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
-                                        <Check className="w-3.5 h-3.5 text-indigo-500" />
-                                    </div>
-                                    <span className="text-sm">{f}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <button onClick={() => { onSelect(plan); onClose(); }}
-                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-200">
-                        Choose This Plan
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+import { PlanDetailsDrawer } from './_components/PlanDetailsDrawer';
+
+
 
 function PlanCard({ plan, current, status, onUpgrade, onViewDetails, disabled }: any) {
     const isCurrentPlan = current?.planId?.id === plan.id || current?.planId === plan.id;
@@ -186,7 +145,7 @@ export default function BillingPage() {
         <div className="max-w-4xl space-y-6">
             <Toaster position="top-center" />
 
-            <PlanDetailsModal
+            <PlanDetailsDrawer
                 plan={selectedDetailPlan}
                 isOpen={!!selectedDetailPlan}
                 onClose={() => setSelectedDetailPlan(null)}

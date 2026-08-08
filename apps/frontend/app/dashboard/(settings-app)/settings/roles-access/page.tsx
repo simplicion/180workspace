@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { navigation } from '@/lib/navigation';
-import { ManageAccessModal, UserRoleData } from '../../_components/ManageAccessModal';
+import { ManageAccessDrawer, UserRoleData } from '../../_components/ManageAccessDrawer';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -454,9 +454,9 @@ export default function RolesAccessPage() {
             )}
 
             {selectedUser && (
-                <ManageAccessModal 
-                    user={selectedUser} 
-                    onClose={() => setSelectedUser(null)} 
+                <ManageAccessDrawer 
+                    user={selectedUser}
+                    onClose={() => setSelectedUser(null)}
                     onUpdated={() => {
                         setSelectedUser(null);
                         fetchUsers();

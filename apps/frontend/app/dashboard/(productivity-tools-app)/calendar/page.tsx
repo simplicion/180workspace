@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO } from 'date-fns';
 import { useSettings } from '@/lib/settings-context';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
-import MeetingSummaryModal from '@/app/dashboard/(productivity-tools-app)/_components/MeetingSummaryModal';
+import { MeetingSummaryDrawer } from '@/app/dashboard/(productivity-tools-app)/_components/MeetingSummaryDrawer';
 
 const EVENT_TYPES = [
     { key: 'holiday', label: 'Holiday', color: '#ef4444' },
@@ -32,7 +32,7 @@ function PlatformBadge({ platform, PLATFORMS }: { platform: string; PLATFORMS: a
     return p ? <span className="text-xs">{p.icon} {p.label}</span> : null;
 }
 
-// â”€â”€ Add Event Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ────────────────────────────────────────────────────────────────────────────────────────────────────
 function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Date; onClose: () => void; onSuccess: () => void; user: any; PLATFORMS: any[] }) {
     const [form, setForm] = useState({
         title: '',
@@ -138,7 +138,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                     <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Add Event â€” {format(date, 'MMM d, yyyy')}</h2>
+                        <h2 className="text-lg font-semibold text-gray-900">Add Event — {format(date, 'MMM d, yyyy')}</h2>
                         {isMeeting && (
                             <p className="text-xs text-sky-500 mt-0.5 flex items-center gap-1">
                                 <Mail className="w-3 h-3" /> Invite emails will be sent automatically
@@ -150,7 +150,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                     </button>
                 </div>
 
-                {/* Body â€” scrollable */}
+                {/* Body — scrollable */}
                 <div className="overflow-y-auto flex-1 px-6 py-5">
                     <form id="event-form" onSubmit={handleSubmit} className="space-y-5">
                         {/* Base Fields */}
@@ -188,7 +188,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                             <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="input resize-none" rows={2} placeholder="Brief description..." />
                         </div>
 
-                        {/* â”€â”€ MEETING FIELDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                        {/* ──────────────── MEETING FIELDS ──────────────── */}
                         {isMeeting && (
                             <div className="space-y-5 pt-1">
                                 <div className="flex items-center gap-2">
@@ -307,7 +307,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                                                     </div>
                                                     <div className="min-w-0">
                                                         <p className="font-medium text-gray-800 truncate">{u.name}</p>
-                                                        <p className="text-xs text-gray-400 truncate">{u.email} Â· {u.role}</p>
+                                                        <p className="text-xs text-gray-400 truncate">{u.email} · {u.role}</p>
                                                     </div>
                                                 </button>
                                             );
@@ -380,7 +380,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
     );
 }
 
-// â”€â”€ Calendar Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ────────────────────────────────────────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
     const { platform } = useSettings();
     const { user } = useAuth();
@@ -485,7 +485,8 @@ export default function CalendarPage() {
             )}
 
             {showSummaryRoomId && (
-                <MeetingSummaryModal
+                <MeetingSummaryDrawer
+                    isOpen={!!showSummaryRoomId}
                     roomId={showSummaryRoomId}
                     onClose={() => setShowSummaryRoomId(null)}
                 />

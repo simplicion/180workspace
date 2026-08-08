@@ -11,16 +11,16 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 
 // Lazy load heavy components
-const PayslipModal = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/components/PayslipModal'), {
+const PayslipDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/PayslipDrawer'), {
     loading: () => <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm"><LogoLoader className="w-8 h-8 animate-spin text-white" /></div>,
     ssr: false
 });
 
-const ReviewSalaryModal = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/components/ReviewSalaryModal'), {
+const ReviewSalaryDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/ReviewSalaryDrawer'), {
     ssr: false
 });
 
-const GeneratePayrollModal = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/components/GeneratePayrollModal'), {
+const GeneratePayrollDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/GeneratePayrollDrawer'), {
     ssr: false
 });
 
@@ -81,14 +81,13 @@ export default function HRPage() {
 
     return (
         <div>
-            {showGenerate && (
-                <GeneratePayrollModal
-                    onClose={() => setShowGenerate(false)}
-                    onSuccess={() => { setShowGenerate(false); loadSalaries(); }}
-                />
-            )}
-            {payslipSalary && <PayslipModal salary={payslipSalary} onClose={() => setPayslipSalary(null)} />}
-            {reviewSalary && <ReviewSalaryModal salary={reviewSalary} onClose={() => setReviewSalary(null)} onSuccess={() => { setReviewSalary(null); loadSalaries(); }} />}
+            <GeneratePayrollDrawer
+                open={showGenerate}
+                onClose={() => setShowGenerate(false)}
+                onSuccess={() => { setShowGenerate(false); loadSalaries(); }}
+            />
+            <PayslipDrawer open={!!payslipSalary} salary={payslipSalary} onClose={() => setPayslipSalary(null)} />
+            <ReviewSalaryDrawer open={!!reviewSalary} salary={reviewSalary} onClose={() => setReviewSalary(null)} onSuccess={() => { setReviewSalary(null); loadSalaries(); }} />
 
             <div className="page-header flex items-center justify-between">
                 <div>

@@ -13,7 +13,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { format, differenceInDays } from 'date-fns';
 import { ConfirmModal } from "@workspace/ui";
-import AddAssetModal from '@/app/dashboard/(assets-app)/_components/AddAssetModal';
+import AddAssetDrawer from '@/app/dashboard/(assets-app)/_components/AddAssetDrawer';
 
 const ASSET_ICONS: Record<string, any> = {
     domain: Globe,
@@ -301,8 +301,8 @@ export default function AssetsPage() {
                 variant="danger"
             />
 
-            <AddAssetModal
-                isOpen={assetModal.isOpen}
+            <AddAssetDrawer
+                open={assetModal.isOpen}
                 onClose={() => setAssetModal({ isOpen: false, asset: null })}
                 onSuccess={loadData}
                 asset={assetModal.asset}

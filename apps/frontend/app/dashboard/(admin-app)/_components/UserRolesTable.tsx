@@ -6,7 +6,7 @@ import {
     MoreHorizontal, Edit, Mail, Calendar
 } from 'lucide-react';
 import clsx from 'clsx';
-import { ManageAccessModal } from './ManageAccessModal';
+import { ManageAccessDrawer } from './ManageAccessDrawer';
 
 export interface UserRoleData {
     id: string;
@@ -143,7 +143,7 @@ export function UserRolesTable({ users, onUpdated }: UserRolesTableProps) {
             </div>
 
             {selectedUser && (
-                <ManageAccessModal 
+                <ManageAccessDrawer 
                     user={selectedUser} 
                     onClose={() => setSelectedUser(null)} 
                     onUpdated={() => {

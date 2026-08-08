@@ -11,7 +11,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
-import LeadPipelineModal from '@/app/dashboard/(crm-and-sales-app)/components/LeadPipelineModal';
+import LeadPipelineDrawer from '@/app/dashboard/(crm-and-sales-app)/components/LeadPipelineDrawer';
 import {
     DndContext,
     DragOverlay,
@@ -270,7 +270,7 @@ export default function LeadPipelinesKanbanPage() {
                             setEditingleadPipeline(null);
                             setIsModalOpen(true);
                         }}
-                        className="btn btn-primary flex items-center gap-1.5 px-4 py-1.5 rounded-lg shadow shadow-indigo-100 border border-transparent hover:scale-105 transition-all text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white"
+                        className="btn btn-primary flex items-center gap-1.5 px-4 py-1.5 rounded-lg shadow shadow-indigo-100 border border-transparent hover:scale-105 transition-all text-xs font-bold"
                     >
                         <Plus className="w-4 h-4" />
                         New Lead
@@ -355,8 +355,8 @@ export default function LeadPipelinesKanbanPage() {
                 </DndContext>
             )}
 
-            <LeadPipelineModal
-                isOpen={isModalOpen}
+            <LeadPipelineDrawer
+                open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={fetchleadPipelines}
                 editingLeadPipeline={editingLeadPipeline}

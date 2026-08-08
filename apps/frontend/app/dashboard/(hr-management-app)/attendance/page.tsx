@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Calendar, CheckCheck, X, Clock, Home, Plus, FileText, CheckCircle, XCircle, Palmtree, Pencil, Trash2, Eye, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
-import MarkAttendanceModal from '@/app/dashboard/(hr-management-app)/_components/MarkAttendanceModal';
+import MarkAttendanceDrawer from '@/app/dashboard/(hr-management-app)/_components/MarkAttendanceDrawer';
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 import {
@@ -27,8 +27,8 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> =
     on_leave: { label: 'Leave', cls: 'badge-purple', icon: Calendar },
 };
 
-import { LeaveRequestModal, ViewLeaveModal, LEAVE_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/LeaveModals';
-import { HolidayModal, HOLIDAY_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/HolidayModal';
+import { LeaveRequestDrawer, ViewLeaveDrawer, LEAVE_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/LeaveDrawers';
+import { HolidayDrawer, HOLIDAY_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/HolidayDrawer';
 
 function thisMonthStr() { return new Date().toISOString().slice(0, 7); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
@@ -202,26 +202,30 @@ function AttendancePageInner() {
     return (
         <div>
             {showMark && (
-                <MarkAttendanceModal
+                <MarkAttendanceDrawer
+                    open={showMark}
                     onClose={() => setShowMark(false)}
                     onSuccess={() => { setShowMark(false); loadAttendance(); }}
                 />
             )}
             {showLeave && (
-                <LeaveRequestModal
+                <LeaveRequestDrawer
+                    open={showLeave}
                     onClose={() => setShowLeave(false)}
                     onSuccess={() => { setShowLeave(false); loadLeaves(); }}
                 />
             )}
             {(showHolidayModal || editingHoliday) && (
-                <HolidayModal
+                <HolidayDrawer
+                    open={showHolidayModal || !!editingHoliday}
                     holiday={editingHoliday}
                     onClose={() => { setShowHolidayModal(false); setEditingHoliday(null); }}
                     onSuccess={() => { setShowHolidayModal(false); setEditingHoliday(null); loadHolidays(); }}
                 />
             )}
             {selectedLeave && (
-                <ViewLeaveModal
+                <ViewLeaveDrawer
+                    open={!!selectedLeave}
                     leave={selectedLeave}
                     onClose={() => setSelectedLeave(null)}
                 />

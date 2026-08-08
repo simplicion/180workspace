@@ -8,7 +8,7 @@ import { User, Mail, Phone, MapPin, Building2, Briefcase, Calendar, Lock, Shield
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import AddEmployeeModal from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeModal';
+import AddEmployeeDrawer from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeDrawer';
 import EmployeeBankDetails from '@/app/dashboard/(settings-app)/_components/EmployeeBankDetails';
 import { FavoriteButton , LogoLoader } from "@workspace/ui";
 
@@ -312,13 +312,11 @@ export default function UnifiedProfilePage() {
     return (
         <div className="max-w-7xl mx-auto space-y-6">
             {showEdit && (
-                <AddEmployeeModal
+                <AddEmployeeDrawer
+                    open={showEdit}
                     editUser={profileUser}
                     onClose={() => setShowEdit(false)}
-                    onSuccess={() => {
-                        setShowEdit(false);
-                        fetchData();
-                    }}
+                    onSuccess={() => { setShowEdit(false); fetchData(); }}
                 />
             )}
 

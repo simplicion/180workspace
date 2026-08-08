@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 const CompanyPaymentService = require('../finance/CompanyPaymentService.js');
 const PayoutService = require('../finance/PayoutService.js');
 const BankVerificationService = require('../finance/BankVerificationService.js');
@@ -205,7 +205,7 @@ exports.getDashboardStats = async (req, res, next) => {
             Invoice.count({ where: { status: { in: ['sent', 'overdue'] } } }),
             User.count({
                 where: {
-                    bankDetails: { path: ['verificationStatus'], not: 'verified' },
+                    bankAccount: null,
                     role: { not: 'client' }
                 }
             })

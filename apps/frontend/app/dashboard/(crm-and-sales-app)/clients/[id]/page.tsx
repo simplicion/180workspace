@@ -8,7 +8,8 @@ import { Skeleton,  SkeletonTable  , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import AddClientModal from '@/app/dashboard/(crm-and-sales-app)/_components/AddClientModal';
+import AddClientDrawer from '@/app/dashboard/(crm-and-sales-app)/_components/AddClientDrawer';
+import { LogInteractionDrawer } from '@/app/dashboard/(crm-and-sales-app)/_components/LogInteractionDrawer';
 import { formatDistanceToNow, format } from 'date-fns';
 
 const TABS = [
@@ -81,10 +82,11 @@ export default function ClientProfilePage() {
     return (
         <div className="space-y-6 max-w-7xl mx-auto">
             {showEdit && (
-                <AddClientModal
+                <AddClientDrawer
+                    open={showEdit}
                     editClient={client}
                     onClose={() => setShowEdit(false)}
-                    onSuccess={(updated: any) => { setClient(updated); setShowEdit(false); }}
+                    onSuccess={(updated) => { setShowEdit(false); setClient(updated); }}
                 />
             )}
 
@@ -493,13 +495,12 @@ function ClientCommunications({ clientId }: { clientId: string }) {
 
     return (
         <div className="space-y-6">
-            {showModal && (
-                <LogInteractionModal
-                    clientId={clientId}
-                    onClose={() => setShowModal(false)}
-                    onSuccess={(c: any) => { setComms(p => [c, ...p]); setShowModal(false); }}
-                />
-            )}
+            <LogInteractionDrawer
+                isOpen={showModal}
+                clientId={clientId}
+                onClose={() => setShowModal(false)}
+                onSuccess={(c: any) => { setComms(p => [c, ...p]); setShowModal(false); }}
+            />
 
             {/* Header bar */}
             <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
@@ -560,112 +561,6 @@ function ClientCommunications({ clientId }: { clientId: string }) {
                     );
                 })}
             </div>
-        </div>
-    );
-}
-
-/* ─ Log Interaction Modal ──────────────────────────────────────────── */
-
-function LogInteractionModal({ clientId, onClose, onSuccess }: any) {
-    const [form, setForm] = useState({ type: 'call', subject: '', summary: '', date: format(new Date(), 'yyyy-MM-dd') });
-    const [saving, setSaving] = useState(false);
-
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        if (!form.subject.trim()) { toast.error('Subject is required'); return; }
-        setSaving(true);
-        try {
-            const { data } = await api.post(`/api/clients/${clientId}/communications`, form);
-            toast.success('Interaction logged!');
-            onSuccess(data.communication);
-        } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Failed to log interaction');
-        } finally {
-            setSaving(false);
-        }
-    }
-
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-3xl p-8 w-full max-w-lg relative shadow-2xl border border-gray-100"
-            >
-                <div className="flex justify-between items-start mb-6">
-                    <h3 className="text-2xl font-black text-gray-900">Log Interaction</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5" /></button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* Type selector */}
-                    <div>
-                        <label className="label">Interaction Type</label>
-                        <div className="grid grid-cols-4 gap-2">
-                            {COMM_TYPES.map(t => {
-                                const TIcon = t.icon;
-                                return (
-                                    <button
-                                        key={t.value} type="button"
-                                        onClick={() => setForm(p => ({ ...p, type: t.value }))}
-                                        className={clsx(
-                                            'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-xs font-bold',
-                                            form.type === t.value
-                                                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                                : 'border-gray-100 hover:border-gray-200 text-gray-500'
-                                        )}
-                                    >
-                                        <TIcon className="w-4 h-4" />
-                                        {t.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="label">Subject *</label>
-                        <input
-                            type="text"
-                            required
-                            value={form.subject}
-                            onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
-                            placeholder="e.g. Project Kickoff Meeting"
-                            className="input"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="label">Summary / Notes</label>
-                        <textarea
-                            rows={3}
-                            value={form.summary}
-                            onChange={e => setForm(p => ({ ...p, summary: e.target.value }))}
-                            placeholder="Brief notes about this interaction..."
-                            className="input resize-none"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="label">Date</label>
-                        <input
-                            type="date"
-                            value={form.date}
-                            onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
-                            className="input"
-                        />
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="flex-1 btn-secondary">Cancel</button>
-                        <button type="submit" disabled={saving} className="flex-1 btn-primary">
-                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                            {saving ? 'Saving...' : 'Log Interaction'}
-                        </button>
-                    </div>
-                </form>
-            </motion.div>
         </div>
     );
 }

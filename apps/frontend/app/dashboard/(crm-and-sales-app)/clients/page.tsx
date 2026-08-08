@@ -8,7 +8,7 @@ import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink
 import { Skeleton, SkeletonTable , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
-import AddClientModal from '@/app/dashboard/(crm-and-sales-app)/_components/AddClientModal';
+import AddClientDrawer from '@/app/dashboard/(crm-and-sales-app)/_components/AddClientDrawer';
 import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
@@ -110,7 +110,8 @@ export default function ClientsPage() {
     return (
         <div className="space-y-6">
             {showAdd && (
-                <AddClientModal
+                <AddClientDrawer
+                    open={showAdd}
                     onClose={() => setShowAdd(false)}
                     onSuccess={() => { setShowAdd(false); loadClients(); }}
                 />

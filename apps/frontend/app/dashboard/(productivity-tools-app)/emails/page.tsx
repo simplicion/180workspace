@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { Mail, History, Send, Search, CheckCircle, XCircle, RefreshCw, Users, BarChart3, Zap, ChevronLeft, ChevronRight, Filter, Eye, AlertTriangle, TrendingUp, Mailbox, Clock, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import AIEmailDraftModal from '@/app/dashboard/(productivity-tools-app)/_components/AIEmailDraftModal';
+import AIEmailDraftDrawer from '@/app/dashboard/(productivity-tools-app)/_components/AIEmailDraftDrawer';
 
 type Tab = 'dashboard' | 'history' | 'compose' | 'bulk';
 
@@ -877,7 +877,7 @@ export default function EmailManagementPage() {
             )}
 
             {showAiDraft && (
-                <AIEmailDraftModal
+                <AIEmailDraftDrawer
                     onClose={() => setShowAiDraft(false)}
                     onApply={(draft) => {
                         if (aiDraftTarget === 'custom') {

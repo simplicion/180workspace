@@ -61,7 +61,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
         }
       });
 
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/public/forms/${params.slug}/submit`, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/public/forms/${slug}/submit`, {
         values: processedData
       });
       

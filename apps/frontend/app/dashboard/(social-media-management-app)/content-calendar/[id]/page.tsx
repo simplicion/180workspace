@@ -10,7 +10,7 @@ import { CalendarDays, ArrowLeft, Calendar, Target, Hash, Info, CheckCircle2, Ci
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
-import ContentPieceModal from '@/app/dashboard/(productivity-tools-app)/_components/ContentPieceModal';
+import ContentPieceDrawer from '@/app/dashboard/(productivity-tools-app)/_components/ContentPieceDrawer';
 
 const STATUS_COLORS: Record<string, string> = {
     ready: 'badge-gray',
@@ -322,10 +322,10 @@ export default function CalendarDetailView() {
 
             {/* Content Detail Modal */}
             {selectedPiece && (
-                <ContentPieceModal 
-                    piece={selectedPiece}
+                <ContentPieceDrawer 
+                    piece={selectedPiece} 
                     calendarId={calendar.id}
-                    onClose={() => setSelectedPiece(null)}
+                    onClose={() => setSelectedPiece(null)} 
                     onSave={() => {
                         fetchDetails();
                         setSelectedPiece(null);
@@ -335,4 +335,3 @@ export default function CalendarDetailView() {
         </div>
     );
 }
-

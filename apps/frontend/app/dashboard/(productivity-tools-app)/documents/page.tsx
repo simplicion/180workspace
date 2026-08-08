@@ -13,8 +13,8 @@ import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
-import TemplatesListModal from '@/app/dashboard/(productivity-tools-app)/_components/TemplatesListModal';
-import DocumentAIChatModal from '@/app/dashboard/(productivity-tools-app)/_components/DocumentAIChatModal';
+import TemplatesListDrawer from '@/app/dashboard/(productivity-tools-app)/_components/TemplatesListDrawer';
+import DocumentAIChatDrawer from '@/app/dashboard/(productivity-tools-app)/_components/DocumentAIChatDrawer';
 import FileUploadModal from '@/components/shared/FileUploadModal';
 
 interface Document { id?: string;
@@ -275,11 +275,11 @@ export default function DocumentsPage() {
         <div className="min-h-full">
             {/* Modals */}
             {showUpload && <FileUploadModal relatedModel="Vault" onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); loadDocs(); }} />}
-            {showTemplates && <TemplatesListModal onClose={() => setShowTemplates(false)} onSuccess={() => { setShowTemplates(false); loadDocs(); }} />}
+            {showTemplates && <TemplatesListDrawer onClose={() => setShowTemplates(false)} onSuccess={() => { setShowTemplates(false); loadDocs(); }} />}
             {selectedDoc && <PreviewModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} />}
             {deleteDoc && <ConfirmDeleteModal doc={deleteDoc} onCancel={() => setDeleteDoc(null)} onConfirm={() => handleDelete(deleteDoc)} />}
             {showAiChat && selectedAiDoc && (
-                <DocumentAIChatModal
+                <DocumentAIChatDrawer
                     document={selectedAiDoc}
                     onClose={() => { setShowAiChat(false); setSelectedAiDoc(null); }}
                 />

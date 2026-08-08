@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import { format, isValid, subDays } from 'date-fns';
 import Link from 'next/link';
 import { TimeProgressBar , LogoLoader } from "@workspace/ui";
-import MarkAttendanceModal from '@/app/dashboard/(hr-management-app)/components/MarkAttendanceModal';
+import MarkAttendanceDrawer from '@/app/dashboard/(hr-management-app)/_components/MarkAttendanceDrawer';
 import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
 import { ClipboardCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -834,11 +834,13 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
 
             {/* Attendance Modal */}
             {showAttendanceModal && (
-                <MarkAttendanceModal
+                <MarkAttendanceDrawer
+                    open={showAttendanceModal}
                     onClose={() => setShowAttendanceModal(false)}
                     onSuccess={() => {
                         fetchData();
                         toast.success('Attendance updated!');
+                        setShowAttendanceModal(false);
                     }}
                 />
             )}

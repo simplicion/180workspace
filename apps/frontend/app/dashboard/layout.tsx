@@ -328,13 +328,14 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
     };
 
     // Handle active detection for both plain paths and ?tab= query-param hrefs
-    function isHrefActive(href: string): boolean {
+    function isHrefActive(href: string, exact?: boolean): boolean {
         if (!href) return false;
         if (href.includes('?')) {
             const [hrefPath, hrefQuery] = href.split('?');
             const hrefParams = new URLSearchParams(hrefQuery);
             return pathname === hrefPath && currentTab === hrefParams.get('tab');
         }
+        if (exact) return pathname === href;
         return pathname === href || pathname?.startsWith(href + '/');
     }
     const { user, logout } = useAuth();
@@ -554,7 +555,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     if ('group' in item) {
                         const isOpen = openGroups[item.group];
                         const GroupIcon = item.icon;
-                        const isAnyChildActive = item.items.some((i: any) => isHrefActive(i.href));
+                        const isAnyChildActive = item.items.some((i: any) => isHrefActive(i.href, i.exact));
 
                         return (
                             <div key={item.group} className="space-y-1">
@@ -588,7 +589,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                 )}>
                                     {item.items.map((subItem: any) => {
                                         const SubIcon = subItem.icon;
-                                        const isActive = isHrefActive(subItem.href);
+                                        const isActive = isHrefActive(subItem.href, subItem.exact);
                                         return (
                                             <Link
                                                 key={subItem.name}

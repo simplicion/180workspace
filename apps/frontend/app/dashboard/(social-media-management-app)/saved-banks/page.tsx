@@ -5,6 +5,7 @@ import { Search, Plus, Hash, Quote, PenTool, Copy, Trash2, Edit } from 'lucide-r
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
+import { CreateBankDrawer } from './_components/CreateBankDrawer';
 
 type BankType = 'hashtag' | 'hook' | 'voice';
 
@@ -28,7 +29,6 @@ export default function SavedBanksPage() {
     const [banks, setBanks] = useState<SavedBankItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [createForm, setCreateForm] = useState({ name: '', content: '', tags: '' });
 
     const filtered = banks.filter(b => b.type === activeTab && (b.name.toLowerCase().includes(search.toLowerCase()) || b.content.toLowerCase().includes(search.toLowerCase())));
 
@@ -58,24 +58,6 @@ export default function SavedBanksPage() {
             loadBanks();
         } catch (error) {
             toast.error('Failed to delete');
-        }
-    }
-
-    async function handleCreate(e: React.FormEvent) {
-        e.preventDefault();
-        try {
-            await api.post('/social-media/saved-banks', {
-                type: activeTab,
-                name: createForm.name,
-                content: createForm.content,
-                tags: createForm.tags.split(',').map(t => t.trim()).filter(Boolean)
-            });
-            toast.success('Created successfully');
-            setIsCreateModalOpen(false);
-            setCreateForm({ name: '', content: '', tags: '' });
-            loadBanks();
-        } catch (error) {
-            toast.error('Failed to create');
         }
     }
 
@@ -187,31 +169,12 @@ export default function SavedBanksPage() {
                 </div>
             )}
 
-            {isCreateModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Create New {activeTab}</h2>
-                        <form onSubmit={handleCreate} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                                <input required value={createForm.name} onChange={e => setCreateForm({...createForm, name: e.target.value})} className="input w-full" placeholder={`E.g. SaaS ${activeTab === 'hashtag' ? 'Hashtags' : 'Hook'}`} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-                                <textarea required value={createForm.content} onChange={e => setCreateForm({...createForm, content: e.target.value})} className="input w-full min-h-[100px]" placeholder={`Enter your ${activeTab} content...`} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
-                                <input value={createForm.tags} onChange={e => setCreateForm({...createForm, tags: e.target.value})} className="input w-full" placeholder="B2B, SaaS, Growth" />
-                            </div>
-                            <div className="flex gap-3 justify-end pt-4">
-                                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="btn-secondary">Cancel</button>
-                                <button type="submit" className="btn-primary">Create</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <CreateBankDrawer
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                activeTab={activeTab}
+                onSuccess={loadBanks}
+            />
         </div>
     );
 }

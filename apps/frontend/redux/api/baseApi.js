@@ -94,6 +94,7 @@ export const baseApi = createApi({
     "Profile",
     "Network",
     "Knowledge",
-    "KnowledgeLink"
+    "KnowledgeLink",
+    "Contracts"
   ],
 });

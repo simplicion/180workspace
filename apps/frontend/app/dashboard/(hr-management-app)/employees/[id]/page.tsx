@@ -9,7 +9,7 @@ import clsx from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import AddEmployeeModal from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeModal';
+import AddEmployeeDrawer from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeDrawer';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import toast from 'react-hot-toast';
 
@@ -155,7 +155,8 @@ export default function EmployeeProfilePage() {
     return (
         <div>
             {showEdit && emp && (
-                <AddEmployeeModal
+                <AddEmployeeDrawer
+                    open={showEdit}
                     editUser={emp}
                     onClose={() => setShowEdit(false)}
                     onSuccess={(updated) => { setShowEdit(false); setEmp((prev: any) => ({ ...prev, ...updated })); }}

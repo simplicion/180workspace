@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Briefcase, Plus, MapPin, Clock, Users, Pencil, ChevronRight, X, Mail, Phone, FileText, ChevronDown, CheckCircle, Key, Copy, RefreshCw, Link as LinkIcon, ExternalLink, Info, Sparkles, Bot, Terminal, Cpu } from 'lucide-react';
 import clsx from 'clsx';
-import PostJobModal from './_components/PostJobModal';
+import PostJobDrawer from '../_components/PostJobDrawer';
+import ApplicationDetailDrawer from '../_components/ApplicationDetailDrawer';
+import AiAgentGuideDrawer from '../_components/AiAgentGuideDrawer';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 
@@ -23,113 +25,6 @@ const STAGE_COLORS: Record<string, string> = {
 
 const getOrigin = () => typeof window !== 'undefined' ? window.location.origin : '';
 
-function ApplicationDetailModal({ app, onClose }: { app: any; onClose: () => void }) {
-    if (!app) return null;
-
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in transition-all">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-                {/* Header */}
-                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-indigo-50/30">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                            <Users className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-gray-900 leading-tight">{app.applicantName || app.name}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className={clsx('badge text-[10px] px-2 py-0.5 uppercase font-bold tracking-wider', STAGE_COLORS[app.status])}>
-                                    {app.status}
-                                </span>
-                                <span className="text-xs text-gray-400 font-medium">Applied on {new Date(app.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                    {/* Contact Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 group">
-                                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                    <Mail className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Email Address</p>
-                                    <p className="text-sm font-semibold text-gray-700 truncate">{app.applicantEmail || app.email}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 group">
-                                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                    <Phone className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Phone Number</p>
-                                    <p className="text-sm font-semibold text-gray-700">{app.applicantPhone || app.phone || 'Not provided'}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col justify-center gap-4 bg-gray-50/50 rounded-2xl p-5 border border-dashed border-gray-200">
-                            <p className="text-xs text-gray-500 font-medium text-center">Resume & Documents</p>
-                            {app.resumeUrl ? (
-                                <a
-                                    href={app.resumeUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-white border border-gray-100 rounded-xl text-sm font-bold text-indigo-600 hover:shadow-md hover:border-indigo-100 transition-all active:scale-95"
-                                >
-                                    <FileText className="w-4 h-4" /> View Resume
-                                </a>
-                            ) : (
-                                <div className="text-center py-2 text-xs text-gray-400 italic">No resume uploaded</div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Custom Fields Section */}
-                    {app.customFields && Object.keys(app.customFields).length > 0 && (
-                        <div className="space-y-4 pt-4 border-t border-gray-50">
-                            <h4 className="text-sm font-bold text-gray-900 border-l-4 border-indigo-600 pl-3">Additional Information</h4>
-                            <div className="grid grid-cols-1 gap-4">
-                                {Object.entries(app.customFields).map(([key, val]) => (
-                                    <div key={key} className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100/50">
-                                        <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider mb-1">
-                                            {key.replace(/_/g, ' ')}
-                                        </p>
-                                        <p className="text-sm text-gray-800 font-medium leading-relaxed whitespace-pre-wrap">
-                                            {String(val) || <span className="text-gray-300 italic">N/A</span>}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Meta Info */}
-                    <div className="pt-6 border-t border-gray-50 flex items-center justify-between text-xs text-gray-400 italic">
-                        <span>Application ID: {app.id}</span>
-                    </div>
-                </div>
-
-                {/* Actions Footer */}
-                <div className="px-8 py-5 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
-                    <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-bold text-gray-500 hover:text-gray-700 transition-colors">
-                        Close
-                    </button>
-                    <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-400 mr-2">Change status in Kanban list</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
 
 function ApplicationKanban({ jobId, onClose }: { jobId: string; onClose: () => void }) {
     const [apps, setApps] = useState<any[]>([]);
@@ -162,7 +57,7 @@ function ApplicationKanban({ jobId, onClose }: { jobId: string; onClose: () => v
     return (
         <div>
             {selectedDetailApp && (
-                <ApplicationDetailModal
+                <ApplicationDetailDrawer
                     app={selectedDetailApp}
                     onClose={() => setSelectedDetailApp(null)}
                 />
@@ -239,108 +134,6 @@ function ApplicationKanban({ jobId, onClose }: { jobId: string; onClose: () => v
     );
 }
 
-function AiAgentGuideModal({ apiKey, origin, onClose }: { apiKey: string; origin: string; onClose: () => void }) {
-    const prompt = `I want to integrate a dynamic job board into my existing website. 
-Please create a high-fidelity, responsive React or HTML/Tailwind component that fetches data from my Pitchin180 Job API.
-
-API CONFIGURATION:
-- Endpoint: GET ${origin}/api/public/jobs
-- Method: GET
-- Authentication: Header 'x-api-key' with value '${apiKey || 'YOUR_API_KEY'}'
-
-SECURITY NOTE (Domain Whitelisting):
-- For browser-based requests, you MUST ensure your website domain (e.g., yourcompany.com) is added to the "Whitelisted Domains" in the 180workspace Recruitment Dashboard -> API Settings.
-- Requests from unauthorized origins will return a 403 Forbidden error.
-
-UI REQUIREMENTS:
-1. Fetch jobs on component mount.
-2. Display job listings in a modern card layout or clean list.
-3. Show Title, Department, Location, and Job Type (e.g., Full-time, Remote).
-4. Include a 'View Details & Apply' button for each job.
-5. The application link should point to: ${origin}/jobs/apply/{jobId}
-6. Add professional loading states and handle 'No Jobs Found' scenarios.
-
-Please provide the complete, production-ready code with integrated styling. Ensure it looks premium and matches a professional corporate aesthetic.`;
-
-    const copyPrompt = () => {
-        navigator.clipboard.writeText(prompt);
-        toast.success('AI Prompt copied to clipboard!');
-    };
-
-    return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md animate-in fade-in transition-all">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 border border-indigo-100">
-                {/* Header */}
-                <div className="px-8 py-7 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 text-white relative">
-                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                        <Cpu className="w-32 h-32" />
-                    </div>
-                    <div className="relative z-10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-inner">
-                                <Sparkles className="w-7 h-7 text-white animate-pulse" />
-                            </div>
-                            <div>
-                                <h3 className="text-2xl font-bold tracking-tight">AI Agent Bridge</h3>
-                                <p className="text-indigo-100 text-sm mt-0.5 font-medium opacity-90">Auto-integrate your Job Portal in seconds</p>
-                            </div>
-                        </div>
-                        <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
-                    {/* Steps */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[
-                            { icon: <Copy className="w-4 h-4" />, title: 'Copy Prompt', desc: 'Click the button below to copy the AI instruction.' },
-                            { icon: <Bot className="w-4 h-4" />, title: 'Paste to AI', desc: 'Paste it into ChatGPT, Claude, or any AI Agent.' },
-                            { icon: <Terminal className="w-4 h-4" />, title: 'Deploy Code', desc: 'Copy the code generated by AI into your website.' }
-                        ].map((s, i) => (
-                            <div key={i} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center text-center">
-                                <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-indigo-600 mb-3 border border-gray-100">
-                                    {s.icon}
-                                </div>
-                                <h4 className="text-xs font-bold text-gray-900 mb-1">{s.title}</h4>
-                                <p className="text-[10px] text-gray-500 leading-relaxed font-medium">{s.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Prompt Preview */}
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between px-1">
-                            <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-widest flex items-center gap-2">
-                                <Terminal className="w-3 h-3" /> Ready-Made Prompt
-                            </h4>
-                        </div>
-                        <div className="relative group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
-                            <div className="relative bg-gray-900 rounded-2xl p-6 font-mono text-[11px] text-gray-300 leading-relaxed border border-gray-800 shadow-xl max-h-[300px] overflow-y-auto custom-scrollbar whitespace-pre-wrap">
-                                {prompt}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer Action */}
-                <div className="px-8 py-6 bg-indigo-50 border-t border-indigo-100 flex items-center justify-between">
-                    <p className="text-xs text-indigo-400 font-medium italic select-none">
-                        All variables (API Key, URLs) are per-configured
-                    </p>
-                    <button 
-                        onClick={copyPrompt}
-                        className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0 transition-all"
-                    >
-                        <Copy className="w-4 h-4" /> Copy Prompt for AI
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
 
 export default function RecruitmentPage() {
     const [jobs, setJobs] = useState<any[]>([]);
@@ -434,21 +227,19 @@ export default function RecruitmentPage() {
 
     return (
         <div>
-            {(showPostJob || editJob) && (
-                <PostJobModal
-                    editJob={editJob}
-                    onClose={() => { setShowPostJob(false); setEditJob(null); }}
-                    onSuccess={() => { setShowPostJob(false); setEditJob(null); loadJobs(); }}
-                />
-            )}
+            <PostJobDrawer
+                open={showPostJob || !!editJob}
+                editJob={editJob}
+                onClose={() => { setShowPostJob(false); setEditJob(null); }}
+                onSuccess={() => { setShowPostJob(false); setEditJob(null); loadJobs(); }}
+            />
 
-            {showAiGuide && (
-                <AiAgentGuideModal 
-                    apiKey={apiKey} 
-                    origin={origin} 
-                    onClose={() => setShowAiGuide(false)} 
-                />
-            )}
+            <AiAgentGuideDrawer 
+                apiKey={apiKey} 
+                origin={origin} 
+                open={showAiGuide}
+                onClose={() => setShowAiGuide(false)} 
+            />
 
             <div className="page-header flex items-center justify-between">
                 <div>

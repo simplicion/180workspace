@@ -698,7 +698,7 @@ class SalesService {
         const settings = await companyPrisma.settings.findFirst() || {};
         let aiForecast = null;
         if (settings.aiProvider && settings.aiProvider !== 'none') {
-            const AIAutomationService = require('../ai-comms/ai-automation.service');
+            const AIAutomationService = require('../../productivity-tools-app/ai-assistant/ai-automation.service');
             aiForecast = await AIAutomationService.generateAdvancedForecast(contextData, settings);
         }
 

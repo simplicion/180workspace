@@ -16,7 +16,7 @@ export const navigation = [
         icon: TrendingUp,
         roles: ['admin', 'manager', 'hr', 'sales'],
         items: [
-            { id: 'sales', name: 'Sales Overview', href: '/dashboard/sales', icon: TrendingUp, roles: ['admin', 'manager', 'hr', 'sales'] },
+            { id: 'sales', name: 'Sales Overview', href: '/dashboard/sales', exact: true, icon: TrendingUp, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'leads', name: 'Leads Pipeline', href: '/dashboard/sales/leads-pipeline', icon: Magnet, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'opportunities', name: 'Deals Pipeline', href: '/dashboard/sales/deals', icon: PieChart, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'active-clients', name: 'Active Client Pipeline', href: '/dashboard/sales/active-clients', icon: Users, roles: ['admin', 'manager', 'hr', 'sales'] },

@@ -9,7 +9,7 @@ import { Skeleton, SkeletonTable } from "@workspace/ui";
 import clsx from 'clsx';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import AddEmployeeModal from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeModal';
+import AddEmployeeDrawer from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeDrawer';
 import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
@@ -59,14 +59,16 @@ export default function EmployeesPage() {
     return (
         <div>
             {showAdd && (
-                <AddEmployeeModal
+                <AddEmployeeDrawer
+                    open={showAdd}
                     onClose={() => setShowAdd(false)}
                     onSuccess={() => { setShowAdd(false); loadEmployees(); }}
                 />
             )}
 
             {editEmployee && (
-                <AddEmployeeModal
+                <AddEmployeeDrawer
+                    open={!!editEmployee}
                     editUser={editEmployee}
                     onClose={() => setEditEmployee(null)}
                     onSuccess={() => { setEditEmployee(null); loadEmployees(); }}
