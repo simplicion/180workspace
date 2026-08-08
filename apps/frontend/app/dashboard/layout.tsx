@@ -15,6 +15,7 @@ import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
 import { HelpIcon , LogoLoader } from "@workspace/ui";
 import dynamic from 'next/dynamic';
+import { signOut } from 'next-auth/react';
 import { MeetingProvider, useMeeting } from '@/lib/meeting-context';
 import FloatingMeetingPiP from '@/components/shared/FloatingMeetingPiP';
 
@@ -713,7 +714,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            // Clear next-auth session to prevent middleware redirect loops
+            signOut({ redirect: false }).then(() => {
+                router.push('/login');
+            });
             return;
         }
 

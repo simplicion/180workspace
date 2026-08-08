@@ -234,6 +234,9 @@ function WorkspaceSetup() {
 
             const data = await res.json();
             if (res.ok) {
+                if (data.platformToken) {
+                    localStorage.setItem('platform_auth_token', data.platformToken);
+                }
                 await updateSession({
                     companyId: data.companyId || (session?.user as any)?.companyId,
                     role: data.role || (session?.user as any)?.role,
@@ -319,7 +322,7 @@ function WorkspaceSetup() {
                                         <div className="mt-2 text-sm flex items-center">
                                             <span className="text-gray-500">Your workspace URL: </span>
                                             <span className="font-medium text-gray-900 ml-1">
-                                                {slug || 'acme'}.{platform.domain || '180workspace.com'}
+                                                {slug || 'acme'}.{(platform as any)?.domain || '180workspace.com'}
                                             </span>
                                             {slug && (
                                                 <div className="ml-2 flex items-center">

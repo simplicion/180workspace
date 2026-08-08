@@ -7,7 +7,7 @@ export default withAuth(
     const hostname = req.headers.get("host") || "";
 
     // Define main application domains (add more if needed, e.g., production domains)
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "180workspace.com";
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "180workspace.com";
     const mainDomains = [rootDomain, `www.${rootDomain}`, `app.${rootDomain}`];
     
     // Check if the request is for a custom domain or a tenant subdomain
@@ -17,15 +17,35 @@ export default withAuth(
 
     if (isCustomDomain) {
       const path = req.nextUrl.pathname;
-      // Allow internal Next.js routes, API routes, and dashboard routes to pass through normally
+      const search = req.nextUrl.search;
+      
+      // Force all authentication, setup, and platform flows to the root domain for security
+      if (
+        path.startsWith('/login') ||
+        path.startsWith('/signup') ||
+        path.startsWith('/workspace-setup') ||
+        path.startsWith('/onboarding') ||
+        path.startsWith('/dashboard')
+      ) {
+          const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
+          const port = hostname.split(':')[1];
+          const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
+          const baseHost = (isLocalhostDomain && port) ? `${rootDomain}:${port}` : rootDomain;
+          const targetUrl = `${protocol}://${baseHost}${path}${search}`;
+          
+          if (isLocalhostDomain && process.env.NODE_ENV !== 'production') {
+              return new NextResponse(
+                  `<html><head><meta http-equiv="refresh" content="0; url=${targetUrl}"></head><body>Redirecting to secure platform... <script>window.location.href = "${targetUrl}";</script></body></html>`,
+                  { status: 200, headers: { 'Content-Type': 'text/html' } }
+              );
+          }
+          return NextResponse.redirect(targetUrl);
+      }
+
+      // Allow internal Next.js routes and API routes to pass through normally
       if (
         !path.startsWith('/_next') &&
-        !path.startsWith('/api') &&
-        !path.startsWith('/dashboard') &&
-        !path.startsWith('/login') &&
-        !path.startsWith('/signup') &&
-        !path.startsWith('/workspace-setup') &&
-        !path.startsWith('/onboarding')
+        !path.startsWith('/api')
       ) {
         // Rewrite to the dynamic sites directory
         return NextResponse.rewrite(new URL(`/sites/${hostname}${path}`, req.url));
@@ -52,33 +72,12 @@ export default withAuth(
     const isPitchInUser = token?.role === 'USER';
     const isOnboardingDone = token?.isFirstLogin === false;  // isFirstLogin: true = NOT done
 
-    // 0. Redirect authenticated users hitting the landing page or dashboard to their subdomain
-    if (isAuth && (req.nextUrl.pathname === "/" || req.nextUrl.pathname.startsWith("/dashboard"))) {
+    // 0. Redirect authenticated users hitting the landing page to their dashboard
+    if (isAuth && req.nextUrl.pathname === "/") {
        if (!isOnboardingDone) {
-         if (req.nextUrl.pathname === "/") return NextResponse.redirect(new URL("/signup", req.url));
+         return NextResponse.redirect(new URL("/signup", req.url));
        } else {
-         // Handle automatic redirect to the company subdomain
-         if (token?.companySlug && isWorkspaceSetupComplete) {
-             let protocol = req.headers.get("x-forwarded-proto") || req.nextUrl.protocol || 'http:';
-             if (!protocol.endsWith(':')) protocol += ':';
-             
-             let targetHost = hostname;
-             
-             if (isLocalhostBase) {
-                 targetHost = `${token.companySlug}.${hostname}`;
-             } else {
-                 targetHost = `${token.companySlug}.${rootDomain}`;
-             }
-             
-             if (targetHost !== hostname) {
-                 const targetPath = req.nextUrl.pathname === "/" ? "/dashboard" : req.nextUrl.pathname;
-                 return NextResponse.redirect(new URL(`${targetPath}${req.nextUrl.search}`, `${protocol}//${targetHost}`));
-             }
-         }
-         
-         if (req.nextUrl.pathname === "/") {
-             return NextResponse.redirect(new URL("/dashboard", req.url));
-         }
+         return NextResponse.redirect(new URL("/dashboard", req.url));
        }
     }
 
@@ -90,6 +89,25 @@ export default withAuth(
       if (!isAuthPage) {
         let from = req.nextUrl.pathname;
         if (req.nextUrl.search) from += req.nextUrl.search;
+        
+        // If they are on a custom domain, redirect them to the root domain's login page
+        // (Wait, we already handle this at the top for specific paths, but for others we still redirect)
+        if (isCustomDomain) {
+            const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
+            const port = hostname.split(':')[1];
+            const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
+            const baseHost = (isLocalhostDomain && port) ? `${rootDomain}:${port}` : rootDomain;
+            const targetUrl = `${protocol}://${baseHost}/login?from=${encodeURIComponent(from)}`;
+            
+            if (isLocalhostDomain && process.env.NODE_ENV !== 'production') {
+                return new NextResponse(
+                    `<html><head><meta http-equiv="refresh" content="0; url=${targetUrl}"></head><body>Redirecting to secure platform... <script>window.location.href = "${targetUrl}";</script></body></html>`,
+                    { status: 200, headers: { 'Content-Type': 'text/html' } }
+                );
+            }
+            return NextResponse.redirect(targetUrl);
+        }
+        
         return NextResponse.redirect(new URL(`/login?from=${encodeURIComponent(from)}`, req.url));
       }
       return null;

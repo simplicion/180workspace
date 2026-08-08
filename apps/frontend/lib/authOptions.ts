@@ -8,13 +8,32 @@ import bcrypt from "bcryptjs"
 
 const useSecureCookies = process.env.NODE_ENV === "production"
 const cookiePrefix = useSecureCookies ? "__Secure-" : ""
-const cookieDomain = process.env.NODE_ENV === "production" ? ".180workspace.com" : ".localhost"
+const cookieDomain = process.env.NODE_ENV === "production" ? ".180workspace.com" : undefined
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
   cookies: {
     sessionToken: {
       name: `${cookiePrefix}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: useSecureCookies,
+        domain: cookieDomain,
+      }
+    },
+    callbackUrl: {
+      name: `__Secure-next-auth.callback-url`,
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: useSecureCookies,
+        domain: cookieDomain,
+      }
+    },
+    csrfToken: {
+      name: `${cookiePrefix}next-auth.csrf-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',

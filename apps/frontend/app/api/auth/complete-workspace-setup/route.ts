@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { prisma } from '@workspace/db';
+import jwt from 'jsonwebtoken';
 
 export async function PUT(req: Request) {
   try {
@@ -61,6 +62,17 @@ export async function PUT(req: Request) {
           position: 'Admin'
         }
       });
+
+      // Create TenantUserMapping to ensure backend can resolve it
+      await prisma.tenantUserMapping.create({
+        data: {
+          userId: (token as any).id,
+          email: token.email as string,
+          companyId,
+          role: 'admin',
+          subdomain: slug || currentCompany?.slug || 'default'
+        }
+      });
     } else {
       // 1. Fetch current company to get existing metadata
       const currentCompany = await prisma.company.findUnique({
@@ -94,6 +106,13 @@ export async function PUT(req: Request) {
     // Fetch the company to return its slug for subdomain routing
     const finalCompany = await prisma.company.findUnique({ where: { id: companyId }, select: { slug: true, customDomain: true } });
 
+    // Generate a backend platform_auth_token so the user stays logged in
+    const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
+    let platformToken = null;
+    if (secret) {
+      platformToken = jwt.sign({ id: (token as any).id, companyId }, secret, { expiresIn: '15m' });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Workspace configuration completed successfully.',
@@ -101,6 +120,7 @@ export async function PUT(req: Request) {
       companySlug: finalCompany?.slug || null,
       companyCustomDomain: finalCompany?.customDomain || null,
       role: 'admin',
+      platformToken,
     });
   } catch (error: any) {
     console.error('Workspace Setup Error:', error);

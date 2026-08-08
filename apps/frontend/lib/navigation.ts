@@ -114,7 +114,7 @@ export const navigation = [
             { id: 'calendar', name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'meeting', name: 'Meetings', href: '/dashboard/meeting', icon: Video, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'emails', name: 'Emails', href: '/dashboard/emails', icon: Mail, roles: ['admin', 'manager', 'hr'] },
-            { id: 'documents', name: 'Documents', href: '/dashboard/documents', icon: FolderOpen, roles: ['admin', 'manager', 'hr', 'employee'] },
+            { id: 'documents', name: '180 Documents', href: '/dashboard/documents', icon: FolderOpen, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'ai-assistant', name: 'AI Assistant', href: '/dashboard/ai', icon: Bot, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'help-support', name: 'Help & Support', href: '/dashboard/help-support', icon: LifeBuoy, roles: ['admin', 'manager', 'hr', 'employee', 'client'] },
         ]

@@ -1,7 +1,8 @@
 generator client {
-  provider      = "prisma-client-js"
-  output        = "../generated/client"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  output          = "../generated/client"
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
@@ -107,6 +108,7 @@ model Company {
   workLogs_CompanyWorkLogs                      WorkLog[]             @relation("CompanyWorkLogs")
   assets                                        Asset[]
   forms                                         Form[]
+  knowledgeArticles                             KnowledgeArticle[]
 }
 
 model CompanyCoreValue {
@@ -342,6 +344,11 @@ model User {
   salesActivitiesOwned                       SalesActivity[]       @relation("SalesActivityOwner")
   quotesCreated                              Quote[]               @relation("QuoteCreator")
 
+  knowledgeCreated                           KnowledgeArticle[]        @relation("KnowledgeCreatedBy")
+  knowledgeUpdated                           KnowledgeArticle[]        @relation("KnowledgeUpdatedBy")
+  knowledgeLocked                            KnowledgeArticle[]        @relation("KnowledgeLockedBy")
+  knowledgeVersions                          KnowledgeArticleVersion[] @relation("KnowledgeVersionCreator")
+  
   @@index([companyId])
 }
 
@@ -2162,4 +2169,55 @@ model WebsiteFormSubmission {
   updatedAt   DateTime @updatedAt
   
   website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeArticle {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   
+  category    String   @default("General")
+  tags        String[] @default([])
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  createdById String
+  createdBy   User     @relation("KnowledgeCreatedBy", fields: [createdById], references: [id])
+  
+  updatedById String?
+  updatedBy   User?    @relation("KnowledgeUpdatedBy", fields: [updatedById], references: [id])
+  
+  lockedById  String?
+  lockedBy    User?    @relation("KnowledgeLockedBy", fields: [lockedById], references: [id])
+  lockedAt    DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  versions    KnowledgeArticleVersion[]
+  links       KnowledgeArticleLink[]
+}
+
+model KnowledgeArticleVersion {
+  id          String   @id @default(uuid())
+  articleId   String
+  article     KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  content     String   
+  changeSummary String?
+  createdById String
+  createdBy   User     @relation("KnowledgeVersionCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model KnowledgeArticleLink {
+  id          String   @id @default(uuid())
+  articleId   String
+  article     KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  relatedModel String  
+  relatedId    String  
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([articleId, relatedModel, relatedId])
 }

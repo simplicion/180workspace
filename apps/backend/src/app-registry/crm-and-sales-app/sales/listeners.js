@@ -1,6 +1,5 @@
 const eventBus = require('../../../system-configs/utils/eventBus');
-const { PrismaClient } = require('@workspace/db');
-const prisma = new PrismaClient(); // Or use a global instance if available
+const { prisma } = require('@workspace/db');
 
 function initializeCRMListeners() {
     eventBus.on('website.lead.captured', async ({ lead, website }) => {

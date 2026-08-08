@@ -15,52 +15,14 @@ const getBaseURL = () => {
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
     const isServer = typeof window === 'undefined';
     
-    if (isServer) {
-        const rawUrl = process.env.NEXT_PUBLIC_API_URL || 
-          (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:5000');
-        if (isBuildPhase && rawUrl.includes('localhost')) {
-            return 'http://127.0.0.1:0'; // Immediate connection refusal to avoid hang
-        }
-        return rawUrl;
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 
+        (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:4002');
+        
+    if (isServer && isBuildPhase && apiBaseUrl.includes('localhost')) {
+        return 'http://127.0.0.1:0'; // Immediate connection refusal to avoid hang
     }
-
-    const hostname = window.location.hostname;
-    const parts = hostname.split('.');
-    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
     
-    // Detect subdomain: 
-    // - On localhost: tenant.localhost -> ["tenant", "localhost"] (len 2)
-    // - On prod: tenant.ims.com -> ["tenant", "ims", "com"] (len 3)
-    const subdomain = isLocalhost
-        ? (parts.length >= 2 && parts[parts.length - 1].split(':')[0] === 'localhost' ? parts[0] : null)
-        : (parts.length > 2 ? parts[0] : null);
-
-    // Filter out common system subdomains
-    const isSubdomain = !!subdomain && !['www', 'ims', 'api', 'admin', 'app', 'localhost', 'vercel'].includes(subdomain);
-
-    if (isSubdomain) {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 
-          (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:5000');
-        try {
-            const url = new URL(apiBase);
-            const port = url.port ? `:${url.port}` : '';
-            
-            // If the base API is localhost, we want subdomain.localhost:port
-            // If the base API is e.g. ims-backend.onrender.com, we just use it directly!
-            // Most production setups use a single API entry point with x-tenant-id header or JWT
-            if (url.hostname === 'localhost') {
-                return `${url.protocol}//${subdomain}.localhost${port}`;
-            }
-            
-            // For production, if you have wildcard DNS for the API, use it. 
-            // Otherwise, just return apiBase and rely on headers/JWT which are already attached.
-            return apiBase;
-        } catch (e) {
-            return apiBase;
-        }
-    }
-    return process.env.NEXT_PUBLIC_API_URL || 
-      (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:5000');
+    return apiBaseUrl;
 };
 
 const api = axios.create({

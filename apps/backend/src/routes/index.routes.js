@@ -126,7 +126,7 @@ router.use('/finance', protect, moduleGuard('finance'), require('../app-registry
 router.use('/vendors', protect, moduleGuard('finance'), require('../app-registry/finance-app/vendors/vendor.routes'));
 router.use('/search', protect, require('../platform-core/platform-integrations/routes/search.routes'));
 router.use('/user-preferences', protect, require('../app-registry/user-identity-app/user-preference.routes'));
-router.use('/docs', protect, require('../app-registry/productivity-tools-app/documents/doc.routes'));
+router.use('/knowledge', protect, require('../app-registry/productivity-tools-app/knowledge/knowledge.routes'));
 router.use('/work-logs', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/work-logs/worklog.routes'));
 router.use('/apikey', require('../platform-core/platform-integrations/routes/apikey.routes'));
 

@@ -5,7 +5,9 @@
 import { LogoLoader } from "@workspace/ui";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
-import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Eye, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert } from 'lucide-react';
+import { useGetArticlesQuery, useDeleteArticleMutation } from '@/redux/api/knowledgeApi';
+import { useRouter } from 'next/navigation';
+import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Eye, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert, FileEdit } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -15,14 +17,17 @@ import DocumentAIChatModal from '@/app/dashboard/(productivity-tools-app)/_compo
 import FileUploadModal from '@/components/shared/FileUploadModal';
 
 interface Document { id?: string;
-    _id: string;
-    title: string;
-    name: string;
-    url: string;
-    type: string;
+    _id?: string;
+    title?: string;
+    name?: string;
+    url?: string;
+    type?: string;
+    folder?: string;
+    category?: string;
     createdAt: string;
     taggedUsers?: { _id: string; name: string; email: string }[];
     notes?: string;
+    isArticle?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -167,6 +172,9 @@ export default function DocumentsPage() {
     const [showAiChat, setShowAiChat] = useState(false);
     const [selectedAiDoc, setSelectedAiDoc] = useState<Document | null>(null);
     const { user } = useAuth();
+    const router = useRouter();
+    const [deleteArticle] = useDeleteArticleMutation();
+    const { data: articlesData, isLoading: articlesLoading, refetch: refetchArticles } = useGetArticlesQuery({ search: search || undefined });
 
     function loadDocs() {
         setLoading(true);
@@ -174,20 +182,31 @@ export default function DocumentsPage() {
             .then(({ data }) => setDocs(data.documents || data.files || data || []))
             .catch(() => setDocs([]))
             .finally(() => setLoading(false));
+        refetchArticles();
     }
 
     useEffect(() => { loadDocs(); }, [search]);
 
     async function handleDelete(doc: any) {
         try {
-            await api.delete(`/api/files/${doc.id}`);
-            toast.success('Document deleted');
-            setDocs(prev => prev.filter(d => d.id !== doc.id));
+            if (doc.isArticle) {
+                await deleteArticle(doc.id || doc._id).unwrap();
+                toast.success('Article deleted');
+            } else {
+                await api.delete(`/api/files/${doc.id}`);
+                toast.success('Document deleted');
+            }
+            setDocs(prev => prev.filter(d => (d.id || d._id) !== (doc.id || doc._id)));
             setDeleteDoc(null);
+            refetchArticles();
         } catch { toast.error('Failed to delete'); }
     }
 
     const handleDocumentClick = (doc: Document) => {
+        if (doc.isArticle) {
+            router.push(`/dashboard/documents/${doc.id || doc._id}`);
+            return;
+        }
         const isLink = (doc as any).isLinkOnly || (doc as any).fileType === 'link' || doc.type === 'link';
         const url = doc.url || (doc as any).fileUrl;
         
@@ -204,12 +223,17 @@ export default function DocumentsPage() {
     const HR_CATEGORIES = ['HR', 'ID Proof', 'Joining Letter', 'Experience Letter', 'Appraisal Letter'];
     const FINANCE_CATEGORIES = ['Finance', 'Payslip'];
 
-    const filtered = docs.filter(d => {
+    const allDocs = [
+        ...docs.map(d => ({ ...d, isArticle: false })),
+        ...(articlesData?.articles || []).map((a: any) => ({ ...a, isArticle: true, folder: a.category || 'General', id: a._id, name: a.title }))
+    ];
+
+    const filtered = allDocs.filter(d => {
         const isVoiceNote = (d.title || d.name || '').toLowerCase().includes('voice-note') || (d.url || '').toLowerCase().endsWith('.webm');
         if (isVoiceNote) return false;
 
         if (activeCategory === 'all') return true;
-        const folder = (d as any).folder;
+        const folder = (d as any).folder || (d as any).category;
         if (activeCategory === 'HR') return HR_CATEGORIES.includes(folder);
         if (activeCategory === 'Finance') return FINANCE_CATEGORIES.includes(folder);
         return folder === activeCategory;
@@ -235,17 +259,20 @@ export default function DocumentsPage() {
             <div className="page-header">
                 <div className="flex items-start justify-between flex-wrap gap-4">
                     <div>
-                        <h1 className="page-title">Document Vault</h1>
-                        <p className="page-subtitle">Manage contracts, policies, payslips, and company documents</p>
+                        <h1 className="page-title">180 Documents</h1>
+                        <p className="page-subtitle">Manage contracts, policies, payslips, and rich-text documents</p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                         <button onClick={() => setShowTemplates(true)}
                             className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors">
                             <LayoutTemplate className="w-4 h-4" /> Templates
                         </button>
-                        <button onClick={() => setShowUpload(true)} className="btn-primary shadow-md shadow-indigo-600/20">
-                            <Plus className="w-4 h-4" /> Upload Document
+                        <button onClick={() => setShowUpload(true)} className="btn-secondary">
+                            <Upload className="w-4 h-4" /> Upload Document
                         </button>
+                        <Link href="/dashboard/documents/new" className="btn-primary shadow-md shadow-indigo-600/20">
+                            <Plus className="w-4 h-4" /> New Document
+                        </Link>
                     </div>
                 </div>
 
@@ -300,7 +327,7 @@ export default function DocumentsPage() {
             </div>
 
             {/* Content */}
-            {loading ? (
+            {(loading || articlesLoading) ? (
                 <div className="flex items-center justify-center py-28">
                     <div className="flex flex-col items-center gap-3">
                         <LogoLoader className="w-9 h-9 animate-spin text-indigo-400" />
@@ -337,7 +364,11 @@ export default function DocumentsPage() {
                             <div key={doc.id} className="card p-5 hover:shadow-lg hover:shadow-gray-100 transition-all duration-200 group flex flex-col">
                                 <div className="flex items-start gap-3 cursor-pointer" onClick={() => handleDocumentClick(doc)}>
                                     <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-600 transition-colors duration-300">
-                                        <Icon className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
+                                        {doc.isArticle ? (
+                                            <FileEdit className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
+                                        ) : (
+                                            <Icon className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
+                                        )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-gray-900 truncate leading-snug group-hover:text-indigo-600 transition-colors">{doc.title || doc.name}</p>
@@ -383,7 +414,7 @@ export default function DocumentsPage() {
                                 {/* Actions */}
                                 <div className="flex items-center gap-1 mt-4 pt-3 border-t border-gray-50">
                                     <button onClick={() => handleDocumentClick(doc)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" title="Preview / Open">
-                                        <Eye className="w-4 h-4" />
+                                        {doc.isArticle ? <FileEdit className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
                                     {doc.url && (
                                         <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" title="Open in New Tab">

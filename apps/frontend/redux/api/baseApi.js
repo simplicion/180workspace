@@ -92,6 +92,8 @@ export const baseApi = createApi({
     "PublicEvents",
     "ServiceRequests",
     "Profile",
-    "Network"
+    "Network",
+    "Knowledge",
+    "KnowledgeLink"
   ],
 });
