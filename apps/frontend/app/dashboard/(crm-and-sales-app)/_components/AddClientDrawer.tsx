@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { Drawer } from "@/components/ui/Drawer";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { X, Building2, Mail, Phone, Globe, AlignLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -33,6 +33,24 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         setForm(prev => ({ ...prev, [k]: e.target.value }));
+
+    useEffect(() => {
+        if (open) {
+            setForm({
+                name: editClient?.name || '',
+                company: editClient?.company || '',
+                email: editClient?.email || '',
+                phone: editClient?.phone || '',
+                website: editClient?.website || '',
+                industry: editClient?.industry || '',
+                clientType: editClient?.clientType || '',
+                taxId: editClient?.taxId || '',
+                billingAddress: editClient?.billingAddress || '',
+                status: editClient?.status || 'active',
+                notes: editClient?.notes || '',
+            });
+        }
+    }, [open, editClient]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();

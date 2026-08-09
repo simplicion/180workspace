@@ -8,11 +8,14 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSettings } from '@/lib/settings-context';
 import EmailTab from '@/app/dashboard/(settings-app)/_components/EmailTab';
 import api from '@/lib/api';
 
 export default function EditCompanyProfilePage() {
     const router = useRouter();
+    const { company: settingsCompany } = useSettings();
+    const currencySymbol = settingsCompany?.currencySymbol || '$';
     const { data: profileResponse, isLoading } = useGetPrivateCompanyProfileQuery(undefined);
     const [updateProfile, { isLoading: isUpdating }] = useUpdateCompanyProfileMutation();
 
@@ -234,21 +237,21 @@ export default function EditCompanyProfilePage() {
                             <h2 className="text-lg font-semibold mb-4">Financials & Highlights</h2>
                             <p className="text-sm text-gray-500 mb-4">This information can be hidden from the public view in the Privacy tab.</p>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium">Total Funding</label>
-                                    <input name="totalFunding" value={formData.totalFunding} onChange={handleInputChange} className="w-full p-2 border rounded" placeholder="E.g. $5M" />
+                                <div className="space-y-4">
+                                    <label className="block text-sm font-medium text-gray-700">Total Funding</label>
+                                    <input name="totalFunding" value={formData.totalFunding} onChange={handleInputChange} className="w-full p-2 border rounded" placeholder={`E.g. ${currencySymbol}5M`} />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium">Funding Stage</label>
                                     <input name="fundingStage" value={formData.fundingStage} onChange={handleInputChange} className="w-full p-2 border rounded" placeholder="E.g. Series A" />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium">Annual Revenue</label>
-                                    <input name="annualRevenue" value={formData.annualRevenue} onChange={handleInputChange} className="w-full p-2 border rounded" placeholder="E.g. $1M ARR" />
+                                <div className="space-y-4">
+                                    <label className="block text-sm font-medium text-gray-700">Annual Revenue (ARR)</label>
+                                    <input name="annualRevenue" value={formData.annualRevenue} onChange={handleInputChange} className="w-full p-2 border rounded" placeholder={`E.g. ${currencySymbol}1M ARR`} />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium">Burn Rate</label>
-                                    <input name="burnRate" value={formData.burnRate} onChange={handleInputChange} className="w-full p-2 border rounded" placeholder="E.g. $50k/mo" />
+                                <div className="space-y-4">
+                                    <label className="block text-sm font-medium text-gray-700">Burn Rate (Monthly)</label>
+                                    <input name="burnRate" value={formData.burnRate} onChange={handleInputChange} className="w-full p-2 border rounded" placeholder={`E.g. ${currencySymbol}50k/mo`} />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium">Team Size</label>

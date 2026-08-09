@@ -10,6 +10,13 @@ export const userApi = baseApi.injectEndpoints({
       }),
       providesTags: ["Community"],
     }),
+    getUsers: builder.query({
+      query: (params) => ({
+        url: "/api/users",
+        params,
+      }),
+      providesTags: ["User"],
+    }),
     getProfile: builder.query({
       query: (userId) => `/api/profile/${userId}`,
       providesTags: ["Profile"],
@@ -267,6 +274,8 @@ export const userApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetUsersQuery,
+  useGetCommunityFeedQuery,
   useGetMeQuery,
   useGetSuggestedPlayersQuery,
   useGetNearbyPlayersQuery,

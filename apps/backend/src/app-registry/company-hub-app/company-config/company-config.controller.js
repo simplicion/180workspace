@@ -84,6 +84,8 @@ exports.updateCompanyConfig = async (req, res, next) => {
             data: {
                 name: req.body.companyName !== undefined ? req.body.companyName : company.name,
                 logoUrl: req.body.companyLogo !== undefined ? req.body.companyLogo : company.logoUrl,
+                currency: req.body.currency !== undefined ? req.body.currency : company.currency,
+                currencySymbol: req.body.currencySymbol !== undefined ? req.body.currencySymbol : company.currencySymbol,
                 metadata: {
                     ...metadata,
                     ...req.body

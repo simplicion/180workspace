@@ -503,7 +503,12 @@ class AuthService {
     }
 
     static async completeWorkspaceSetup(companyPrisma, body, onboardingTokenHeader, currentUser, reqCompany) {
-        const { companyType, teamSize, enabledApps, enabledModules } = body;
+        const { 
+            companyName, slug, website, oneLineDescription, 
+            industry, startupStage, teamSize, 
+            enabledApps, enabledModules, 
+            currency, currencySymbol, country 
+        } = body;
         let user = currentUser;
         let companyId = reqCompany?.id;
 
@@ -524,13 +529,13 @@ class AuthService {
         let config = await companyPrisma.companyConfig.findFirst();
         if (!config) {
             config = await companyPrisma.companyConfig.create({
-                data: { companyType, teamSize, enabledApps: enabledApps || [], enabledModules: enabledModules || [] }
+                data: { companyType: industry, teamSize, enabledApps: enabledApps || [], enabledModules: enabledModules || [] }
             });
         } else {
             await companyPrisma.companyConfig.update({
                 where: { id: config.id },
                 data: {
-                    ...(companyType && { companyType }),
+                    ...(industry && { companyType: industry }),
                     ...(teamSize && { teamSize }),
                     ...(enabledApps && { enabledApps }),
                     ...(enabledModules && { enabledModules })
@@ -552,6 +557,16 @@ class AuthService {
         await globalPrisma.company.update({
             where: { id: companyId }, data: {
                 isOnboardingComplete: true,
+                ...(companyName && { name: companyName }),
+                ...(slug && { slug }),
+                ...(website && { website }),
+                ...(oneLineDescription && { oneLineDescription }),
+                ...(industry && { industry }),
+                ...(startupStage && { startupStage }),
+                ...(teamSize && { teamSize }),
+                ...(country && { country }),
+                ...(currency && { currency }),
+                ...(currencySymbol && { currencySymbol }),
                 metadata
             }
         });

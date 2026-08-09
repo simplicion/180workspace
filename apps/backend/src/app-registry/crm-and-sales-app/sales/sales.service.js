@@ -188,7 +188,7 @@ class SalesService {
     }
 
     // [6b] Dashboard Realtime Charts
-    static async calculateDashboardCharts(companyPrisma) {
+    static async calculateDashboardCharts(companyPrisma, userId, timeframe = 'all') {
         try {
             // Pipeline by stage
             const opps = await companyPrisma.lead.findMany({
@@ -227,16 +227,30 @@ class SalesService {
                 .sort((a, b) => b.revenue - a.revenue)
                 .slice(0, 5);
 
-            // 6-month Revenue vs Pipeline Trend
-            const months = [];
-            for (let i = 5; i >= 0; i--) {
-                months.push(moment().subtract(i, 'months').format('YYYY-MM'));
+            // Dynamic Revenue vs Pipeline Trend
+            const intervals = [];
+            let formatStr = 'YYYY-MM';
+            let dateInterval = 'months';
+            let count = 5;
+            
+            if (timeframe === '7days' || timeframe === 'weekly') {
+                formatStr = 'YYYY-MM-DD';
+                dateInterval = 'days';
+                count = 6;
+            } else if (timeframe === 'month') {
+                formatStr = 'YYYY-MM-DD';
+                dateInterval = 'days';
+                count = 29;
+            }
+
+            for (let i = count; i >= 0; i--) {
+                intervals.push(moment().subtract(i, dateInterval).format(formatStr));
             }
 
             const trendData = [];
-            for (const m of months) {
-                const startDate = moment(m, 'YYYY-MM').startOf('month').toDate();
-                const endDate = moment(m, 'YYYY-MM').endOf('month').toDate();
+            for (const m of intervals) {
+                const startDate = moment(m, formatStr).startOf(dateInterval === 'days' ? 'day' : 'month').toDate();
+                const endDate = moment(m, formatStr).endOf(dateInterval === 'days' ? 'day' : 'month').toDate();
 
                 const wonMonth = await companyPrisma.lead.findMany({
                     where: {
@@ -257,7 +271,7 @@ class SalesService {
                 const pipeTotal = pipeMonth.reduce((sum, o) => sum + (o.value || 0), 0);
 
                 trendData.push({
-                    name: moment(m, 'YYYY-MM').format('MMM'),
+                    name: moment(m, formatStr).format(dateInterval === 'days' ? 'MMM DD' : 'MMM'),
                     revenue: wonTotal,
                     pipeline: pipeTotal
                 });
@@ -573,16 +587,30 @@ class SalesService {
     // MOVED FROM CONTROLLER
     // ------------------------------------------------------------------------
 
-    static async getDashboardMetrics(companyPrisma, userId, companyId) {
+    static async getDashboardMetrics(companyPrisma, userId, companyId, timeframe = 'month') {
         const Settings = companyPrisma.settings;
         const Lead = companyPrisma.deal;
         const Opportunity = companyPrisma.lead;
-        const Account = companyPrisma.salesAccount;
+        const Account = companyPrisma.client;
         const SalesActivity = companyPrisma.salesActivity;
         const SalesTask = companyPrisma.salesTask;
 
         const settings = await Settings.findFirst();
         const currentMonth = new Date().toISOString().substring(0, 7);
+
+        let startDate = null;
+        if (timeframe !== 'all') {
+            const dateObj = moment();
+            if (timeframe === '7days') dateObj.subtract(7, 'days');
+            else if (timeframe === 'weekly') dateObj.startOf('isoWeek');
+            else if (timeframe === 'month') dateObj.subtract(30, 'days');
+            else if (timeframe === 'months') dateObj.subtract(6, 'months');
+            startDate = dateObj.toDate();
+        }
+
+        const dateFilter = startDate ? { createdAt: { gte: startDate } } : {};
+        const oppDateFilter = startDate ? { expectedCloseDate: { gte: startDate } } : {};
+        const activityDateFilter = startDate ? { timestamp: { gte: startDate } } : {};
 
         const [
             weightedForecast,
@@ -596,31 +624,68 @@ class SalesService {
             activeOpps,
             totalAccounts,
             wonRevenueAggr,
-            recentActivities
+            recentActivities,
+            pendingLeads,
+            activeLeads,
+            totalDeals,
+            completedDeals,
+            totalLeadMoneyAggr,
+            pipelineValueAggr
         ] = await Promise.all([
             this.calculateWeightedForecast(companyPrisma, currentMonth).catch(() => null),
             this.calculateFunnelConversion(companyPrisma).catch(() => null),
-            this.calculateDashboardCharts(companyPrisma).catch(() => null),
+            this.calculateDashboardCharts(companyPrisma, userId, timeframe).catch(() => null),
             this.calculateSalesCycleLength(companyPrisma).catch(() => null),
             this.calculateRepProductivity(companyPrisma, userId, settings).catch(() => null),
             this.detectChurnStagnation(companyPrisma).catch(() => null),
             this.detectStagnantOpportunities(companyPrisma, 14).catch(() => null),
-            Lead.count().catch(() => 0),
-            Opportunity.count({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } } }).catch(() => 0),
-            Account.count().catch(() => 0),
-            Opportunity.aggregate({ where: { stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
-            SalesActivity.findMany({ orderBy: { createdAt: 'desc' }, take: 5 }).catch(() => [])
+            Lead.count({ where: { deletedAt: null, status: { not: 'converted' }, ...dateFilter } }).catch(() => 0),
+            Opportunity.count({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) } }).catch(() => 0),
+            Account.count({ where: dateFilter }).catch(() => 0),
+            Opportunity.aggregate({ where: { stage: 'ClosedWon', ...(startDate ? { expectedCloseDate: { gte: startDate } } : {}) }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
+            SalesActivity.findMany({ 
+                where: {
+                    ...activityDateFilter,
+                    OR: [
+                        { dealId: null },
+                        { deal: { deletedAt: null } }
+                    ]
+                },
+                orderBy: { timestamp: 'desc' }, 
+                take: 10,
+                include: {
+                    owner: { select: { id: true, name: true, email: true } },
+                    lead: { select: { id: true, title: true, source: true } },
+                    deal: { select: { id: true, name: true, companyName: true, source: true } },
+                    relatedClient: { select: { id: true, name: true, company: true, source: true } }
+                }
+            }).catch(() => []),
+            Lead.count({ where: { deletedAt: null, status: { in: ['new', 'pending'] }, ...dateFilter } }).catch(() => 0),
+            Lead.count({ where: { deletedAt: null, status: { notIn: ['new', 'pending', 'lost', 'rejected', 'archived', 'converted'] }, ...dateFilter } }).catch(() => 0),
+            Opportunity.count({ where: dateFilter }).catch(() => 0),
+            Opportunity.count({ where: { stage: 'ClosedWon', ...oppDateFilter } }).catch(() => 0),
+            Lead.aggregate({ where: { deletedAt: null, status: { notIn: ['lost', 'rejected', 'archived', 'converted'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
+            Opportunity.aggregate({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => [])
         ]);
 
         const wonRevenue = wonRevenueAggr.length ? wonRevenueAggr[0].total : 0;
+        const totalLeadMoney = totalLeadMoneyAggr && totalLeadMoneyAggr.length ? totalLeadMoneyAggr[0].total : 0;
+        const pipelineMoney = pipelineValueAggr && pipelineValueAggr.length ? pipelineValueAggr[0].total : 0;
 
         let recommendations = [];
         try {
             recommendations = await SalesTask.findMany({
-                where: { assignedTo: userId, status: 'pending' },
+                where: { 
+                    assignedTo: userId, 
+                    status: 'pending',
+                    OR: [
+                        { dealId: null },
+                        { deal: { deletedAt: null } }
+                    ]
+                },
                 include: {
-                    relatedLead: { select: { name: true, company: true } },
-                    relatedDeal: { select: { title: true, value: true } }
+                    lead: { select: { title: true, value: true } },
+                    deal: { select: { name: true, companyName: true } }
                 },
                 orderBy: { dueDate: 'asc' },
                 take: 5
@@ -636,11 +701,17 @@ class SalesService {
         return {
             metrics: {
                 totalLeads: totalLeads || 0,
+                pendingLeads: pendingLeads || 0,
+                activeLeads: activeLeads || 0,
+                totalDeals: totalDeals || 0,
                 activeOpportunities: activeOpps || 0,
+                completedDeals: completedDeals || 0,
                 totalAccounts: totalAccounts || 0,
-                openPipelineValue: weightedForecast?.expectedRevenue || 0,
+                openPipelineValue: pipelineMoney || 0,
                 weightedPipelineValue: weightedForecast?.weightedRevenue || 0,
-                wonRevenue: wonRevenue || 0
+                wonRevenue: wonRevenue || 0,
+                totalPipelineValue: pipelineMoney || 0,
+                totalLeadMoney: totalLeadMoney || 0
             },
             forecast: { currentMonth: weightedForecast },
             charts: dashboardCharts || { trendData: [], pipelineByStage: [], revenueByRep: [] },
@@ -733,9 +804,9 @@ class SalesService {
 
         await companyPrisma.salesActivity.create({ data: {
             type: 'note',
-            relatedLead: lead.id,
+            dealId: lead.id,
             notes: `New lead created: ${lead.name} from ${lead.company}`,
-            owner: userId
+            ownerId: userId
         } });
 
         const settings = await companyPrisma.settings.findFirst();
@@ -787,10 +858,39 @@ class SalesService {
         let lead = await Lead.findUnique({ where: { id } });
         if (!lead) throw new Error('Lead not found');
 
+        const oldLead = lead;
+
         lead = await Lead.update({
             where: { id },
             data: updateData
         });
+
+        // Track value or status changes in SalesActivity
+        const activitiesToCreate = [];
+        if (updateData.value !== undefined && oldLead.value !== updateData.value) {
+            activitiesToCreate.push({
+                type: 'note',
+                leadId: lead.id,
+                notes: `Lead value updated from ₹${oldLead.value || 0} to ₹${updateData.value || 0}`,
+                ownerId: lead.assignedSalesRepId
+            });
+        }
+        if (updateData.status !== undefined && oldLead.status !== updateData.status) {
+            activitiesToCreate.push({
+                type: 'note',
+                leadId: lead.id,
+                notes: `Lead status changed from ${oldLead.status} to ${updateData.status}`,
+                ownerId: lead.assignedSalesRepId
+            });
+        }
+        
+        if (activitiesToCreate.length > 0) {
+            try {
+                await companyPrisma.salesActivity.createMany({ data: activitiesToCreate });
+            } catch (actErr) {
+                console.error('Failed to create sales activity for lead update', actErr);
+            }
+        }
 
         try {
             const settings = await companyPrisma.settings.findFirst();
@@ -812,7 +912,9 @@ class SalesService {
     }
 
     static async deleteLead(companyPrisma, id) {
-        await companyPrisma.deal.update({ where: { id }, data: { deletedAt: new Date() } });
+        await companyPrisma.salesActivity.deleteMany({ where: { dealId: id } });
+        await companyPrisma.salesTask.deleteMany({ where: { dealId: id } });
+        await companyPrisma.deal.delete({ where: { id } });
     }
 
     static async convertLead(companyPrisma, id, userId) {
@@ -1125,7 +1227,7 @@ class SalesService {
 
         const opportunities = await Opportunity.findMany({ 
             where: whereClause,
-            include: { owner: { select: { name: true, email: true } } }, 
+            include: { owner: { select: { name: true, email: true } }, client: true }, 
             orderBy: { priorityScore: 'desc' },
             skip: skip,
             take: limit
@@ -1148,10 +1250,62 @@ class SalesService {
 
         if (data.owner) {
             data.ownerId = data.owner;
-            delete data.owner;
         } else {
             data.ownerId = userId;
         }
+        delete data.owner;
+        
+        if (data.expectedCloseDate) {
+            data.expectedCloseDate = new Date(data.expectedCloseDate).toISOString();
+        }
+
+        if (!data.clientId && (data.companyName || data.contactEmail)) {
+            const Client = companyPrisma.client;
+            let client = null;
+            if (data.companyName) {
+                client = await Client.findFirst({ where: { companyName: data.companyName } });
+            }
+            if (!client && data.contactEmail) {
+                client = await Client.findFirst({ where: { email: data.contactEmail } });
+            }
+
+            if (!client) {
+                client = await Client.create({
+                    data: {
+                        name: data.contactName || data.companyName || 'Unknown Lead',
+                        companyName: data.companyName || null,
+                        email: data.contactEmail || null,
+                        phone: data.contactPhone || null,
+                        industry: data.industry || null,
+                        clientType: data.clientType || 'Lead',
+                        status: 'active',
+                        website: data.website || null,
+                        taxId: data.taxId || null,
+                        billingAddress: data.billingAddress || null,
+                        location: data.location || null,
+                        employeeCount: data.employeeCount || null,
+                        annualRevenue: data.annualRevenue ? parseFloat(data.annualRevenue) : 0,
+                        customIndustry: data.customIndustry || null,
+                        country: data.country || null
+                    }
+                });
+            }
+            data.clientId = client.id;
+        }
+        delete data.contactName;
+        delete data.contactEmail;
+        delete data.contactPhone;
+        delete data.companyName;
+        delete data.industry;
+        delete data.clientType;
+        delete data.website;
+        delete data.taxId;
+        delete data.billingAddress;
+        delete data.location;
+        delete data.employeeCount;
+        delete data.annualRevenue;
+        delete data.customIndustry;
+        delete data.country;
         
         const opp = await Opportunity.create({ data: { ...data } });
 
@@ -1199,26 +1353,38 @@ class SalesService {
     static async updateOpportunity(companyPrisma, id, data) {
         const Opportunity = companyPrisma.lead;
         const Deal = companyPrisma.deal;
-        const oldOpp = await Opportunity.findUnique({ where: { id } });
+        const oldOpp = await Opportunity.findUnique({ where: { id }, include: { client: true } });
         if (!oldOpp) throw new Error('Opportunity not found');
 
         if (data.convertToDeal) {
             data.pipelineType = 'ACTIVE_CLIENT';
+            const dealData = {
+                name: oldOpp.client?.name || oldOpp.title,
+                email: oldOpp.client?.email || '',
+                phone: oldOpp.client?.phone || '',
+                company: oldOpp.client?.companyName || '',
+                industry: oldOpp.client?.industry || '',
+                source: oldOpp.source || 'outbound',
+                status: 'kickoff',
+                value: oldOpp.value || 0,
+            };
+            if (oldOpp.ownerId) {
+                dealData.assignedSalesRep = { connect: { id: oldOpp.ownerId } };
+            }
             
-            await Deal.create({
+            const newDeal = await Deal.create({
+                data: dealData
+            });
+            
+            await companyPrisma.salesActivity.create({
                 data: {
-                    name: oldOpp.contactName || oldOpp.title,
-                    email: oldOpp.contactEmail || '',
-                    phone: oldOpp.contactPhone || '',
-                    company: oldOpp.companyName || '',
-                    industry: oldOpp.industry || '',
-                    source: oldOpp.source || 'outbound',
-                    status: 'kickoff',
-                    value: oldOpp.value || 0,
-                    assignedSalesRepId: oldOpp.ownerId,
-                    notes: `Automatically created from won lead: ${oldOpp.title}`
+                    type: 'note',
+                    dealId: newDeal.id,
+                    notes: `Automatically created from won lead: ${oldOpp.title}`,
+                    ownerId: oldOpp.ownerId
                 }
             });
+            
             delete data.convertToDeal;
         }
 
@@ -1235,8 +1401,127 @@ class SalesService {
         delete data.followUpTime;
         delete data.notes;
 
+        if (data.expectedCloseDate) {
+            data.expectedCloseDate = new Date(data.expectedCloseDate).toISOString();
+        }
+
+        if (data.contactName !== undefined || data.contactEmail !== undefined || data.contactPhone !== undefined || data.companyName !== undefined || data.industry !== undefined || data.location !== undefined || data.clientType !== undefined || data.website !== undefined || data.taxId !== undefined || data.billingAddress !== undefined || data.employeeCount !== undefined || data.annualRevenue !== undefined || data.customIndustry !== undefined || data.country !== undefined) {
+            if (oldOpp.clientId) {
+                await companyPrisma.client.update({
+                    where: { id: oldOpp.clientId },
+                    data: {
+                        name: data.contactName !== undefined ? data.contactName : undefined,
+                        email: data.contactEmail !== undefined ? data.contactEmail : undefined,
+                        phone: data.contactPhone !== undefined ? data.contactPhone : undefined,
+                        companyName: data.companyName !== undefined ? data.companyName : undefined,
+                        industry: data.industry !== undefined ? data.industry : undefined,
+                        location: data.location !== undefined ? data.location : undefined,
+                        clientType: data.clientType !== undefined ? data.clientType : undefined,
+                        website: data.website !== undefined ? data.website : undefined,
+                        taxId: data.taxId !== undefined ? data.taxId : undefined,
+                        billingAddress: data.billingAddress !== undefined ? data.billingAddress : undefined,
+                        employeeCount: data.employeeCount !== undefined ? data.employeeCount : undefined,
+                        annualRevenue: data.annualRevenue !== undefined ? parseFloat(data.annualRevenue) : undefined,
+                        customIndustry: data.customIndustry !== undefined ? data.customIndustry : undefined,
+                        country: data.country !== undefined ? data.country : undefined,
+                    }
+                });
+            } else if (data.companyName || data.contactEmail || data.contactName) {
+                const Client = companyPrisma.client;
+                let client = null;
+                if (data.companyName) {
+                    client = await Client.findFirst({ where: { companyName: data.companyName } });
+                }
+                if (!client && data.contactEmail) {
+                    client = await Client.findFirst({ where: { email: data.contactEmail } });
+                }
+
+                if (!client) {
+                    client = await Client.create({
+                        data: {
+                            name: data.contactName || data.companyName || 'Unknown Lead',
+                            companyName: data.companyName || null,
+                            email: data.contactEmail || null,
+                            phone: data.contactPhone || null,
+                            industry: data.industry || null,
+                            clientType: data.clientType || 'Lead',
+                            status: 'active',
+                            website: data.website || null,
+                            taxId: data.taxId || null,
+                            billingAddress: data.billingAddress || null,
+                            location: data.location || null,
+                            employeeCount: data.employeeCount || null,
+                            annualRevenue: data.annualRevenue ? parseFloat(data.annualRevenue) : 0,
+                            customIndustry: data.customIndustry || null,
+                            country: data.country || null
+                        }
+                    });
+                } else {
+                    // Update existing client with new info
+                    await Client.update({
+                        where: { id: client.id },
+                        data: {
+                            name: data.contactName !== undefined ? data.contactName : undefined,
+                            phone: data.contactPhone !== undefined ? data.contactPhone : undefined,
+                            industry: data.industry !== undefined ? data.industry : undefined,
+                            location: data.location !== undefined ? data.location : undefined,
+                            clientType: data.clientType !== undefined ? data.clientType : undefined,
+                            website: data.website !== undefined ? data.website : undefined,
+                            taxId: data.taxId !== undefined ? data.taxId : undefined,
+                            billingAddress: data.billingAddress !== undefined ? data.billingAddress : undefined,
+                            employeeCount: data.employeeCount !== undefined ? data.employeeCount : undefined,
+                            annualRevenue: data.annualRevenue !== undefined ? parseFloat(data.annualRevenue) : undefined,
+                            customIndustry: data.customIndustry !== undefined ? data.customIndustry : undefined,
+                            country: data.country !== undefined ? data.country : undefined,
+                        }
+                    });
+                }
+                data.clientId = client.id;
+            }
+        }
+        delete data.contactName;
+        delete data.contactEmail;
+        delete data.contactPhone;
+        delete data.companyName;
+        delete data.industry;
+        delete data.location;
+        delete data.clientType;
+        delete data.website;
+        delete data.taxId;
+        delete data.billingAddress;
+        delete data.employeeCount;
+        delete data.annualRevenue;
+        delete data.customIndustry;
+        delete data.country;
 
         const opp = await Opportunity.update({ where: { id }, data });
+
+        // Track value or stage changes in SalesActivity
+        const activitiesToCreate = [];
+        if (data.value !== undefined && oldOpp.value !== data.value) {
+            activitiesToCreate.push({
+                type: 'note',
+                leadId: opp.id,
+                notes: `Deal value updated from ₹${oldOpp.value || 0} to ₹${data.value || 0}`,
+                ownerId: opp.ownerId
+            });
+        }
+        if (data.stage !== undefined && oldOpp.stage !== data.stage) {
+            activitiesToCreate.push({
+                type: 'note',
+                leadId: opp.id,
+                notes: `Deal stage changed from ${oldOpp.stage} to ${data.stage}`,
+                ownerId: opp.ownerId
+            });
+        }
+        
+        if (activitiesToCreate.length > 0) {
+            try {
+                await companyPrisma.salesActivity.createMany({ data: activitiesToCreate });
+            } catch (actErr) {
+                console.error('Failed to create sales activity for deal update', actErr);
+            }
+        }
 
         if (notes) {
             await companyPrisma.salesActivity.create({ data: {
@@ -1305,6 +1590,8 @@ class SalesService {
 
     static async deleteOpportunity(companyPrisma, id) {
         const Opportunity = companyPrisma.lead;
+        await companyPrisma.salesActivity.deleteMany({ where: { leadId: id } });
+        await companyPrisma.salesTask.deleteMany({ where: { leadId: id } });
         const opp = await Opportunity.delete({ where: { id } });
         if (!opp) throw new Error('Opportunity not found');
         return opp;
@@ -1707,7 +1994,9 @@ class SalesService {
         } else if (timeframe === 'months') {
             dateFilter = { gte: moment().subtract(6, 'months').startOf('month').toDate() };
         } else if (timeframe === 'month') {
-            dateFilter = { gte: moment().subtract(1, 'month').startOf('month').toDate() };
+            dateFilter = { gte: moment().subtract(1, 'month').startOf('day').toDate() };
+            groupByFormat = 'YYYY-MM-DD';
+            displayFormat = 'MMM DD';
         }
 
         const closedWonWhere = { stage: 'ClosedWon' };
@@ -1793,6 +2082,42 @@ class SalesService {
             select: { title: true, value: true, expectedCloseDate: true } 
         });
 
+        // Calculate Daily Activity Trend for the current month
+        const startOfMonth = moment().startOf('month').toDate();
+        const endOfMonth = moment().endOf('month').toDate();
+        const daysInMonth = moment().daysInMonth();
+        const dailyActivityTrend = [];
+
+        const leadsThisMonth = await companyPrisma.deal.findMany({
+            where: { deletedAt: null, createdAt: { gte: startOfMonth, lte: endOfMonth } },
+            select: { createdAt: true }
+        });
+
+        const oppsThisMonth = await Opportunity.findMany({
+            where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
+            select: { createdAt: true }
+        });
+
+        const allLeads = [...leadsThisMonth, ...oppsThisMonth];
+
+        const activitiesThisMonth = await companyPrisma.salesActivity.findMany({
+            where: { timestamp: { gte: startOfMonth, lte: endOfMonth } },
+            select: { timestamp: true }
+        });
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayDate = moment().date(i).format('YYYY-MM-DD');
+            const leadsCount = allLeads.filter(l => moment(l.createdAt).format('YYYY-MM-DD') === dayDate).length;
+            const activitiesCount = activitiesThisMonth.filter(a => moment(a.timestamp).format('YYYY-MM-DD') === dayDate).length;
+
+            dailyActivityTrend.push({
+                date: moment().date(i).format('MMM DD'),
+                fullDate: dayDate,
+                Leads: leadsCount,
+                Activities: activitiesCount
+            });
+        }
+
         return {
             overview: {
                 totalRevenue: closedWonValue,
@@ -1809,7 +2134,8 @@ class SalesService {
             })),
             pipelineByStage: pipelineByStage.map(s => ({ stage: s._id, count: s.count, value: s.totalValue })),
             pipelineTrend: pipelineTrendData,
-            topDeals
+            topDeals,
+            dailyActivityTrend
         };
     }
 }

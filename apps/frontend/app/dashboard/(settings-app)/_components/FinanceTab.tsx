@@ -27,6 +27,12 @@ export default function FinanceTab() {
     const [reminderSchedule, setReminderSchedule] = useState<number[]>([3, 1, -7]);
     const [triggering, setTriggering] = useState(false);
 
+    // Banking Details
+    const [bankName, setBankName] = useState('');
+    const [accountHolderName, setAccountHolderName] = useState('');
+    const [bankAccountNumber, setBankAccountNumber] = useState('');
+    const [ifscCode, setIfscCode] = useState('');
+
     useEffect(() => {
         loadConfig();
     }, []);
@@ -41,6 +47,14 @@ export default function FinanceTab() {
                 setStripePublicKey(data.paymentConfig.stripe?.publicKey || '');
                 setRemindersEnabled(data.paymentConfig.reminderSettings?.enabled || false);
                 setReminderSchedule(data.paymentConfig.reminderSettings?.schedule || [3, 1, -7]);
+            }
+            
+            const companyRes = await api.get('/api/company-config');
+            if (companyRes.data?.config) {
+                setBankName(companyRes.data.config.bankName || '');
+                setAccountHolderName(companyRes.data.config.accountHolderName || '');
+                setBankAccountNumber(companyRes.data.config.bankAccountNumber || '');
+                setIfscCode(companyRes.data.config.ifscCode || '');
             }
         } catch (e: any) {
             toast.error(e?.response?.data?.error || 'Failed to load finance config');
@@ -73,6 +87,14 @@ export default function FinanceTab() {
             };
 
             await api.post('/api/finance/config', payload);
+            
+            await api.put('/api/company-config', {
+                bankName,
+                accountHolderName,
+                bankAccountNumber,
+                ifscCode
+            });
+            
             toast.success('Payment configuration updated successfully!');
             // clear the local state secrets to avoid accidental resubmissions of plain text
             setRazorpayKeySecret('');
@@ -131,6 +153,30 @@ export default function FinanceTab() {
                             Select how you want to collect payments from your clients via invoices.
                         </p>
                     </div>
+
+                    {activeProvider === 'manual' && (
+                        <div className="space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                            <h3 className="font-semibold text-gray-800 text-sm mb-4">Banking Details (For Invoices & Manual Transfers)</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="label">Bank Name</label>
+                                    <input value={bankName} onChange={(e) => setBankName(e.target.value)} className="input bg-white" placeholder="Bank Name" />
+                                </div>
+                                <div>
+                                    <label className="label">Account Holder Name</label>
+                                    <input value={accountHolderName} onChange={(e) => setAccountHolderName(e.target.value)} className="input bg-white" placeholder="Account Holder Name" />
+                                </div>
+                                <div>
+                                    <label className="label">Account Number</label>
+                                    <input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} className="input bg-white" placeholder="Account Number" />
+                                </div>
+                                <div>
+                                    <label className="label">IFSC / Swift Code</label>
+                                    <input value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} className="input bg-white" placeholder="IFSC/Swift" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {activeProvider === 'razorpay' && (
                         <div className="space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-100">

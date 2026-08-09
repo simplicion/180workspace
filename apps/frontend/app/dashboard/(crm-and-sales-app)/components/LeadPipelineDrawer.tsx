@@ -43,7 +43,15 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         source: '',
         owner: '',
         followUpDate: '',
-        followUpTime: ''
+        followUpTime: '',
+        website: '',
+        taxId: '',
+        billingAddress: '',
+        location: '',
+        employeeCount: '',
+        annualRevenue: '',
+        customIndustry: '',
+        country: ''
     });
 
     useEffect(() => {
@@ -53,7 +61,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             if (editingLeadPipeline) {
                 setFormData({
                     title: editingLeadPipeline.title || '',
-                    accountId: editingLeadPipeline.accountId?.id || editingLeadPipeline.accountId || '',
+                    accountId: editingLeadPipeline.clientId || editingLeadPipeline.accountId?.id || editingLeadPipeline.accountId || '',
                     value: editingLeadPipeline.value || 0,
                     stage: editingLeadPipeline.stage || 'Lead',
                     probability: editingLeadPipeline.probability || 10,
@@ -62,15 +70,23 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     priorityScore: editingLeadPipeline.priorityScore || 50,
                     engagementScore: editingLeadPipeline.engagementScore || 50,
                     type: editingLeadPipeline.tags?.includes('Lead') ? 'Lead' : 'lead pipeline',
-                    contactName: editingLeadPipeline.contactName || '',
-                    contactEmail: editingLeadPipeline.contactEmail || '',
-                    contactPhone: editingLeadPipeline.contactPhone || '',
-                    companyName: editingLeadPipeline.companyName || '',
-                    industry: editingLeadPipeline.industry || '',
+                    contactName: editingLeadPipeline.client?.name || editingLeadPipeline.contactName || '',
+                    contactEmail: editingLeadPipeline.client?.email || editingLeadPipeline.contactEmail || '',
+                    contactPhone: editingLeadPipeline.client?.phone || editingLeadPipeline.contactPhone || '',
+                    companyName: editingLeadPipeline.client?.companyName || editingLeadPipeline.companyName || '',
+                    industry: editingLeadPipeline.client?.industry || editingLeadPipeline.industry || '',
                     source: editingLeadPipeline.source || '',
                     owner: editingLeadPipeline.ownerId || '',
                     followUpDate: '',
-                    followUpTime: ''
+                    followUpTime: '',
+                    website: editingLeadPipeline.client?.website || '',
+                    taxId: editingLeadPipeline.client?.taxId || '',
+                    billingAddress: editingLeadPipeline.client?.billingAddress || '',
+                    location: editingLeadPipeline.client?.location || editingLeadPipeline.location || '',
+                    employeeCount: editingLeadPipeline.client?.employeeCount || '',
+                    annualRevenue: editingLeadPipeline.client?.annualRevenue || '',
+                    customIndustry: editingLeadPipeline.client?.customIndustry || '',
+                    country: editingLeadPipeline.client?.country || ''
                 });
             } else {
                 setFormData({
@@ -92,7 +108,15 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     source: '',
                     owner: '',
                     followUpDate: '',
-                    followUpTime: ''
+                    followUpTime: '',
+                    website: '',
+                    taxId: '',
+                    billingAddress: '',
+                    location: '',
+                    employeeCount: '',
+                    annualRevenue: '',
+                    customIndustry: '',
+                    country: ''
                 });
             }
         }
@@ -129,9 +153,12 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
 
         const tags = formData.type === 'Lead' ? ['Lead'] : ['lead pipeline'];
-        const submissionData = { ...formData, tags, pipelineType: pipelineType || 'DEAL' };
-        if (!submissionData.accountId) delete (submissionData as any).accountId;
-        delete (submissionData as any).type;
+        const submissionData: any = { ...formData, tags, pipelineType: pipelineType || 'DEAL' };
+        if (submissionData.accountId) {
+            submissionData.clientId = submissionData.accountId;
+        }
+        delete submissionData.accountId;
+        delete submissionData.type;
         
         setSaving(true);
         try {
@@ -151,6 +178,22 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
     };
 
+    const handleDelete = async () => {
+        if (!editingLeadPipeline?.id) return;
+        if (!confirm('Are you sure you want to delete this lead? This will not delete the associated client info.')) return;
+        setSaving(true);
+        try {
+            await api.delete(`/api/sales/leads-pipeline/${editingLeadPipeline.id}`);
+            toast.success('Lead deleted successfully');
+            onSuccess();
+            onClose();
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to delete lead');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <Drawer
             open={open}
@@ -164,6 +207,11 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         Deals are linked to your company ID.
                     </div>
                     <div className="flex gap-3">
+                        {editingLeadPipeline && (
+                            <button onClick={handleDelete} type="button" disabled={saving} className="btn-danger mr-auto">
+                                Delete Lead
+                            </button>
+                        )}
                         <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
                         <button onClick={handleSave} type="button" disabled={saving} className="btn-primary">
                             {saving ? (
@@ -261,6 +309,48 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 <div>
                     <label htmlFor="followUpTime" className="label">Follow-up Time</label>
                     <input id="followUpTime" type="time" className="input" value={formData.followUpTime} onChange={e => setFormData({ ...formData, followUpTime: e.target.value })} />
+                </div>
+            </div>
+
+            <div className="mt-4 mb-2">
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-gray-500" />
+                    Company & Client Details (Optional)
+                </h3>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label htmlFor="website" className="label">Website</label>
+                    <input id="website" type="url" placeholder="https://..." className="input" value={formData.website} onChange={e => setFormData({ ...formData, website: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="location" className="label">Location</label>
+                    <input id="location" type="text" placeholder="City, State" className="input" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="country" className="label">Country</label>
+                    <input id="country" type="text" placeholder="Country" className="input" value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="billingAddress" className="label">Billing Address</label>
+                    <input id="billingAddress" type="text" placeholder="123 Main St..." className="input" value={formData.billingAddress} onChange={e => setFormData({ ...formData, billingAddress: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="taxId" className="label">Tax ID / VAT</label>
+                    <input id="taxId" type="text" placeholder="Tax ID" className="input" value={formData.taxId} onChange={e => setFormData({ ...formData, taxId: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="employeeCount" className="label">Employee Count</label>
+                    <input id="employeeCount" type="text" placeholder="e.g. 50-200" className="input" value={formData.employeeCount} onChange={e => setFormData({ ...formData, employeeCount: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="annualRevenue" className="label">Annual Revenue (USD)</label>
+                    <input id="annualRevenue" type="number" placeholder="0" min="0" className="input" value={formData.annualRevenue} onChange={e => setFormData({ ...formData, annualRevenue: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="customIndustry" className="label">Custom Industry/Niche</label>
+                    <input id="customIndustry" type="text" placeholder="Specific Niche" className="input" value={formData.customIndustry} onChange={e => setFormData({ ...formData, customIndustry: e.target.value })} />
                 </div>
             </div>
 

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "user_704a9549-9033-4693-a9ea-6699f1654765_chunk_0",
+    "docId": "user_704a9549-9033-4693-a9ea-6699f1654765",
+    "text": "Employee Record: Prince Kumar. Role: admin. Department: null. Email: snapshiksha@gmail.com",
+    "embedding": [
+      0.29767618904445686,
+      0.33599094605017904,
+      0.3300963680492987,
+      0.31535992304709787,
+      0.33599094605017904,
+      0.2858870330426962,
+      0.2947289000440167,
+      0.32420179004841837,
+      0.29767618904445686,
+      0.3389382350506192
+    ],
+    "metadata": {
+      "companyId": "be5e416a-87df-442f-8e4d-fad10c5e0b24",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "project_685a1f83-c1a5-4d1d-95fc-578783ce9cfa_chunk_0",
+    "docId": "project_685a1f83-c1a5-4d1d-95fc-578783ce9cfa",
+    "text": "Project Record: Kridaz. Description: None. Status: planning. Priority: medium.",
+    "embedding": [
+      0.3387986868400096,
+      0.34484866339072406,
+      0.3236737454632234,
+      0.3024988275357228,
+      0.33274871028929515,
+      0.34787365166608125,
+      0.3387986868400096,
+      0.3387986868400096,
+      0.3297237220139379,
+      0
+    ],
+    "metadata": {
+      "companyId": "be5e416a-87df-442f-8e4d-fad10c5e0b24",
+      "type": "project"
+    }
+  },
+  {
+    "id": "task_769fccf9-506b-443a-81c2-90f674ba12d1_chunk_0",
+    "docId": "task_769fccf9-506b-443a-81c2-90f674ba12d1",
+    "text": "Task Record: odisfshdo. Description: oihoihhohoioiho. Status: in_review. Priority: medium.",
+    "embedding": [
+      0.35012097994626035,
+      0.3440844113264972,
+      0.33502955839685256,
+      0.3018284309881555,
+      0.33502955839685256,
+      0.3471026956363788,
+      0.3169198525375632,
+      0.3380478427067341,
+      0.32899298977708946,
+      0
+    ],
+    "metadata": {
+      "companyId": "be5e416a-87df-442f-8e4d-fad10c5e0b24",
+      "type": "task"
+    }
+  }
+]

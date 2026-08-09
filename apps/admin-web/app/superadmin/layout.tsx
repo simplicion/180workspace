@@ -19,6 +19,7 @@ const NAV = [
     { href: '/superadmin/coupons', label: 'Coupons', icon: Tag },
     { href: '/superadmin/subscriptions', label: 'Subscriptions', icon: Receipt },
     { href: '/superadmin/payments', label: 'Payments', icon: CreditCard },
+    { href: '/superadmin/features', label: 'Feature Flags', icon: ToggleRight },
     { href: '/superadmin/announcements', label: 'Announcements', icon: Megaphone },
     { href: '/superadmin/release-notes', label: 'Release Notes', icon: Rocket },
     { href: '/superadmin/community', label: 'Community Forum', icon: Globe },
@@ -81,7 +82,7 @@ function SuperAdminLayoutInner({ children }: { children: React.ReactNode }) {
             )}
 
             {/* Sidebar */}
-            <aside className={`w-64 bg-slate-50 border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 z-40 shadow-xl shadow-slate-200/50 transition-transform duration-300 lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`w-64 bg-slate-50 border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 z-40 shadow-xl shadow-slate-200/50 transition-transform duration-300 lg:translate-x-0 select-none ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 {/* Logo & Mobile Close */}
                 <div className="flex items-center justify-between px-6 py-6 border-b border-slate-200 relative overflow-hidden">
                     <div className="flex items-center gap-3 relative z-10">

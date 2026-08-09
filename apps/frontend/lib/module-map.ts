@@ -25,7 +25,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // Projects & Workflow
   '/dashboard/projects': { appId: 'projects', moduleId: 'projects' },
   '/dashboard/tasks': { appId: 'projects', moduleId: 'tasks' },
-  '/dashboard/goals': { appId: 'projects', moduleId: 'goals' },
+
   '/dashboard/milestones': { appId: 'projects', moduleId: 'milestones' },
   '/dashboard/timetracking': { appId: 'projects', moduleId: 'timetracking' },
   '/dashboard/work-logs': { appId: 'projects', moduleId: 'work-logs' },
@@ -133,8 +133,7 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'projects', name: 'Project Lists' },
             { id: 'tasks', name: 'Task Boards' },
             { id: 'timetracking', name: 'Time Sheets' },
-            { id: 'work-logs', name: 'Work Logs' },
-            { id: 'goals', name: 'Milestone Tracking' }
+            { id: 'work-logs', name: 'Work Logs' }
         ]
     },
     { 

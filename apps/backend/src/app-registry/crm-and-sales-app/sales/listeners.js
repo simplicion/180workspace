@@ -34,10 +34,6 @@ function initializeCRMListeners() {
             const opportunity = await prisma.lead.create({
                 data: {
                     title: `Website Lead: ${lead.name || 'Unknown'}`,
-                    contactName: lead.name,
-                    contactEmail: lead.email,
-                    contactPhone: lead.phone,
-                    companyName: lead.company || '',
                     source: `Website: ${website.name}`,
                     clientId: client.id,
                     ownerId: website.owner,

@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { PieChart, Plus, Search, MoreHorizontal, Calendar, ArrowUpCircle, AlertCircle, DollarSign, GripVertical, ExternalLink, Trash2, Eye, CheckCircle, Download, Upload, Settings, CheckSquare, Target, User, Phone, Mail, Hash, PhoneCall } from 'lucide-react';
@@ -60,6 +61,8 @@ const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }>
 
 export default function LeadPipelinesKanbanPage() {
     const { user } = useAuth();
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const [leadPipelines, setleadPipelines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -240,7 +243,7 @@ export default function LeadPipelinesKanbanPage() {
                         <div className="w-px h-6 bg-gray-100" />
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] uppercase font-bold text-gray-400">Pipeline</span>
-                            <span className="text-sm font-black text-indigo-600">₹{pipelineValue.toLocaleString('en-IN')}</span>
+                            <span className="text-sm font-black text-indigo-600">{currencySymbol}{pipelineValue.toLocaleString()}</span>
                         </div>
                         <div className="w-px h-6 bg-gray-100" />
                         <div className="flex flex-col items-center">
@@ -464,6 +467,9 @@ function SortableDealCard({ opp, onEdit, onDelete, onConvert }: any) {
 }
 
 function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConvert }: any) {
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
+
     if (!opp) return null;
 
     const dotColor = opp.priorityScore >= 80 ? 'bg-orange-500' : opp.priorityScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
@@ -534,7 +540,7 @@ function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConver
                     )}
                 </div>
                 <div className="text-xs font-black text-gray-700 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                    ₹{opp.value?.toLocaleString() || '0'}
+                    {currencySymbol}{opp.value?.toLocaleString() || '0'}
                 </div>
             </div>
         </div>

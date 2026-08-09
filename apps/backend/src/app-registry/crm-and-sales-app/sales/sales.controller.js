@@ -13,7 +13,10 @@ const { cacheGet, cacheSet, cacheDel } = require('../../../system-configs/middle
 
 const clearCRMCache = async (companyId) => {
     if (!companyId) return;
-    await cacheDel(`company:${companyId}:dashboard_metrics_v2`);
+    const timeframes = ['all', '7days', 'weekly', 'month', 'months'];
+    for (const t of timeframes) {
+        await cacheDel(`company:${companyId}:dashboard_metrics_v2:${t}`);
+    }
     await cacheDel(`company:${companyId}:forecasting`);
     await cacheDel(`company:${companyId}:productivity`);
 };
@@ -32,11 +35,12 @@ const { generateQuotationPDF } = require('../../../platform-core/platform-engine
 exports.getDashboardMetrics = async (req, res, next) => {
     try {
         const { user, company, prisma } = req;
-        const cacheKey = `company:${company.id}:dashboard_metrics_v2`;
+        const timeframe = req.query.timeframe || 'all';
+        const cacheKey = `company:${company.id}:dashboard_metrics_v2:${timeframe}`;
         const cached = await cacheGet(cacheKey);
         if (cached) return res.json(cached);
 
-        const result = await SalesService.getDashboardMetrics(prisma, user.id, company.id);
+        const result = await SalesService.getDashboardMetrics(prisma, user.id, company.id, timeframe);
         
         await cacheSet(cacheKey, result, 300);
         res.json(result);
@@ -381,7 +385,7 @@ exports.salesChatAssistant = async (req, res, next) => {
         // Gather quick context for the AI
         const [pipelines, leads] = await Promise.all([
             req.prisma.opportunity.findMany({ where: { stage: { not: 'ClosedLost' } }, select: { title: true, value: true, stage: true, priorityScore: true } }),
-            req.prisma.lead.findMany({ where: { status: { not: 'Disqualified' } }, select: { name: true, companyName: true, leadScore: true } })
+            req.prisma.lead.findMany({ where: { status: { not: 'Disqualified' } }, select: { name: true, client: { select: { companyName: true } }, leadScore: true } })
         ]);
 
         const contextData = { pipelines, leads };

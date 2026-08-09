@@ -7,6 +7,7 @@ import { LayoutTemplate, Settings, Save, Eye, ArrowLeft, Monitor, Tablet, Smartp
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 
 function EditableText({ value, onChange, className, style, tagName = 'div', placeholder }: any) {
     const Tag = tagName as any;
@@ -36,6 +37,8 @@ export default function WebsiteEditorPage() {
     const [saving, setSaving] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const { company } = useAuth();
+    const { company: settingsCompany } = useSettings();
+    const currencySymbol = settingsCompany?.currencySymbol || '$';
     
     // Task 1: View Modes
     const [viewMode, setViewMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -117,10 +120,10 @@ export default function WebsiteEditorPage() {
     const revertToDefault = () => {
         if (!confirm("Are you sure you want to revert to the default template? All your content changes will be lost.")) return;
         const defaultSections = [
-            { id: 'sec-' + Date.now() + 1, type: 'hero', data: getDefaultDataForType('hero') },
-            { id: 'sec-' + Date.now() + 2, type: 'services', data: getDefaultDataForType('services') },
-            { id: 'sec-' + Date.now() + 3, type: 'about', data: getDefaultDataForType('about') },
-            { id: 'sec-' + Date.now() + 4, type: 'contact', data: getDefaultDataForType('contact') }
+            { id: 'sec-' + Date.now() + 1, type: 'hero', data: getDefaultDataForType('hero', currencySymbol) },
+            { id: 'sec-' + Date.now() + 2, type: 'services', data: getDefaultDataForType('services', currencySymbol) },
+            { id: 'sec-' + Date.now() + 3, type: 'about', data: getDefaultDataForType('about', currencySymbol) },
+            { id: 'sec-' + Date.now() + 4, type: 'contact', data: getDefaultDataForType('contact', currencySymbol) }
         ];
         commitConfig({
             ...config,
@@ -173,7 +176,7 @@ export default function WebsiteEditorPage() {
         const newSection = {
             id: 'sec-' + Date.now(),
             type,
-            data: getDefaultDataForType(type)
+            data: getDefaultDataForType(type, currencySymbol)
         };
         const newConfig = JSON.parse(JSON.stringify(config));
         newConfig.sections.splice(index, 0, newSection);
@@ -457,7 +460,7 @@ export default function WebsiteEditorPage() {
                                                                         tagName="div"
                                                                         className="mt-4 font-bold text-lg"
                                                                         style={{ color: primaryColor }}
-                                                                        value={item.price || '$0.00'}
+                                                                        value={item.price || `${currencySymbol}0.00`}
                                                                         onChange={(v: string) => {
                                                                             const newItems = [...section.data.items];
                                                                             newItems[i].price = v;
@@ -645,10 +648,13 @@ export default function WebsiteEditorPage() {
 
 // Helpers
 
-function getDefaultDataForType(type: string) {
+function getDefaultDataForType(type: string, currencySymbol: string) {
     if (type === 'hero') return { badge: 'New', title: 'Catchy Headline', subtitle: 'Supporting text.', buttonText: 'Get Started' };
+    if (type === 'features') return { title: 'Amazing Features', subtitle: 'Why choose us', items: [{ title: 'Feature 1', description: 'Desc' }, { title: 'Feature 2', description: 'Desc' }, { title: 'Feature 3', description: 'Desc' }] };
     if (type === 'services') return { title: 'Our Services', subtitle: 'What we offer.', items: [{ title: 'Service 1', description: 'Desc' }] };
-    if (type === 'products') return { title: 'Our Products', subtitle: 'Buy now.', items: [{ title: 'Product 1', description: 'Desc', price: '$99.00' }] };
+    if (type === 'products') return { title: 'Our Products', subtitle: 'Buy now.', items: [{ title: 'Product 1', description: 'Desc', price: `${currencySymbol}99.00` }] };
+    if (type === 'pricing') return { title: 'Pricing Plans', subtitle: 'Choose your plan', items: [{ title: 'Basic', description: 'Good for starters', price: `${currencySymbol}29/mo` }] };
+    if (type === 'team') return { title: 'Meet the Team', subtitle: 'The people behind the magic', items: [{ title: 'Jane Doe', description: 'CEO' }, { title: 'John Smith', description: 'CTO' }] };
     if (type === 'about') return { title: 'About Us', content: 'Our story.' };
     if (type === 'faq') return { title: 'FAQ', items: [{ q: 'Question?', a: 'Answer.' }] };
     if (type === 'text') return { content: 'Custom paragraph text here.' };

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import api from '@/lib/api';
 import {
     Search, Plus, CheckCircle2, GripVertical, FileUp, Edit
@@ -396,6 +397,9 @@ function SortableDealCard({ deal, onDelete }: any) {
 }
 
 function DealCard({ deal, dragHandleProps, isDragging, onDelete }: any) {
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
+
     if (!deal) return null;
 
     const dotColor = deal.leadScore >= 80 ? 'bg-orange-500' : deal.leadScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
@@ -436,7 +440,7 @@ function DealCard({ deal, dragHandleProps, isDragging, onDelete }: any) {
                     ) : <div />}
                 </div>
                 <div className="text-xs font-bold text-gray-400">
-                    ${deal.value?.toLocaleString() || '0'}
+                    {currencySymbol}{deal.value?.toLocaleString() || '0'}
                 </div>
             </div>
         </div>

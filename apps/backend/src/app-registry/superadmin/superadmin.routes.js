@@ -128,6 +128,7 @@ router.get('/logs/errors', logCtrl.failedLogins);
 router.get('/databases', databaseCtrl.list);
 router.post('/databases/:id/test', databaseCtrl.testConnection);
 
+
 // AI Assistant (Super Admin)
 router.get('/ai/sessions', aiCtrl.getChatSessions);
 router.get('/ai/sessions/:id', aiCtrl.getChatSession);

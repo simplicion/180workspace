@@ -16,6 +16,8 @@ import { useAuth } from '@/lib/auth-context';
 import TemplatesListDrawer from '@/app/dashboard/(productivity-tools-app)/_components/TemplatesListDrawer';
 import DocumentAIChatDrawer from '@/app/dashboard/(productivity-tools-app)/_components/DocumentAIChatDrawer';
 import FileUploadModal from '@/components/shared/FileUploadModal';
+import QuoteModal from '@/app/dashboard/(productivity-tools-app)/_components/QuoteModal';
+import EmailQuoteModal from '@/app/dashboard/(productivity-tools-app)/_components/EmailQuoteModal';
 
 interface Document { id?: string;
     _id?: string;
@@ -175,6 +177,10 @@ export default function DocumentsPage() {
     const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
     const [showAiChat, setShowAiChat] = useState(false);
     const [selectedAiDoc, setSelectedAiDoc] = useState<Document | null>(null);
+    const [showQuoteModal, setShowQuoteModal] = useState(false);
+    const [editingQuote, setEditingQuote] = useState<any | null>(null);
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [selectedEmailQuote, setSelectedEmailQuote] = useState<any | null>(null);
     const { user } = useAuth();
     const router = useRouter();
     const [deleteArticle] = useDeleteArticleMutation();
@@ -207,6 +213,12 @@ export default function DocumentsPage() {
             if (doc.isArticle) {
                 await deleteArticle(doc.id || doc._id).unwrap();
                 toast.success('Article deleted');
+            } else if (doc.isQuote) {
+                await api.delete(`/api/sales/quotes/${doc.id || doc._id}`);
+                toast.success('Quote deleted');
+            } else if (doc.isInvoice) {
+                await api.delete(`/api/invoices/${doc.id || doc._id}`);
+                toast.success('Invoice deleted');
             } else {
                 await api.delete(`/api/files/${doc.id}`);
                 toast.success('Document deleted');
@@ -214,6 +226,7 @@ export default function DocumentsPage() {
             setDocs(prev => prev.filter(d => (d.id || d._id) !== (doc.id || doc._id)));
             setDeleteDoc(null);
             refetchArticles();
+            if (doc.isQuote || doc.isInvoice) loadDocs();
         } catch { toast.error('Failed to delete'); }
     }
 
@@ -284,6 +297,19 @@ export default function DocumentsPage() {
                     onClose={() => { setShowAiChat(false); setSelectedAiDoc(null); }}
                 />
             )}
+            <QuoteModal 
+                isOpen={showQuoteModal} 
+                onClose={() => { setShowQuoteModal(false); setEditingQuote(null); }} 
+                onSuccess={() => { setShowQuoteModal(false); setEditingQuote(null); loadDocs(); }}
+                editingQuote={editingQuote}
+            />
+            {selectedEmailQuote && (
+                <EmailQuoteModal
+                    isOpen={showEmailModal}
+                    onClose={() => { setShowEmailModal(false); setSelectedEmailQuote(null); }}
+                    quote={selectedEmailQuote}
+                />
+            )}
 
             {/* Page Header */}
             <div className="page-header">
@@ -300,12 +326,12 @@ export default function DocumentsPage() {
                         <button onClick={() => setShowUpload(true)} className="btn-secondary">
                             <Upload className="w-4 h-4" /> Upload Document
                         </button>
-                        <Link href="/dashboard/sales/quotes" className="btn-secondary">
+                        <button onClick={() => { setEditingQuote(null); setShowQuoteModal(true); }} className="btn-secondary">
                             <Plus className="w-4 h-4" /> New Quote
-                        </Link>
-                        <Link href="/dashboard/documents/new" className="btn-primary shadow-md shadow-indigo-600/20">
+                        </button>
+                        <button onClick={() => setShowTemplates(true)} className="btn-primary shadow-md shadow-indigo-600/20">
                             <Plus className="w-4 h-4" /> New Document
-                        </Link>
+                        </button>
                     </div>
                 </div>
 
@@ -463,6 +489,24 @@ export default function DocumentsPage() {
                                     >
                                         <Bot className="w-4 h-4" />
                                     </button>
+                                    {doc.isQuote && (
+                                        <>
+                                            <button
+                                                onClick={() => { setEditingQuote(doc); setShowQuoteModal(true); }}
+                                                className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                                                title="Edit Quote"
+                                            >
+                                                <FileEdit className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => { setSelectedEmailQuote(doc); setShowEmailModal(true); }}
+                                                className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                                                title="Send Email"
+                                            >
+                                                <Mail className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
                                     {isAdminHrFinance && (
                                         <button onClick={() => setDeleteDoc(doc)} className="ml-auto p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100" title="Delete">
                                             <Trash2 className="w-4 h-4" />

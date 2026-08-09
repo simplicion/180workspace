@@ -5,10 +5,11 @@ import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Save, Mail, Phone, MapPin, Landmark, PenTool, Hash, Globe, Image as ImageIcon, ArrowLeft, Upload, Clock } from 'lucide-react';
+import { SignaturePad } from '@/app/dashboard/(productivity-tools-app)/document-editor/_components/ui/SignaturePad';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useSettings } from '@/lib/settings-context';
-
+import { LocationSearch } from '@/components/ui/LocationSearch';
 
 const SectionHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
     <div className="flex items-center gap-2 mb-5 pb-3 border-b border-gray-100 mt-8 first:mt-0">
@@ -31,6 +32,7 @@ export default function CompanyLegalsPage() {
     const { company, refreshSettings } = useSettings();
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState<string | null>(null);
+    const [locationInput, setLocationInput] = useState('');
 
     const [formData, setFormData] = useState({
         companyName: '',
@@ -38,10 +40,13 @@ export default function CompanyLegalsPage() {
         emailLogo: '',
         tagline: '',
         brandColor: '#6366f1',
+        currency: 'USD',
+        currencySymbol: '$',
         websiteUrl: '',
         companyEmail: '',
         supportEmail: '',
         phoneNumber: '',
+        secondaryPhoneNumber: '',
         address: '',
         city: '',
         state: '',
@@ -55,12 +60,7 @@ export default function CompanyLegalsPage() {
         ifscCode: '',
         authorizedSignatory: '',
         designation: '',
-        signatureImage: '',
-        salaryReleaseDate: 1,
-        workingDaysPerMonth: 22,
-        standardStartTime: '09:00',
-        standardEndTime: '18:00',
-        gracePeriod: 15
+        signatureImage: ''
     });
 
     useEffect(() => {
@@ -71,10 +71,13 @@ export default function CompanyLegalsPage() {
                 emailLogo: company.emailLogo || '',
                 tagline: company.tagline || '',
                 brandColor: company.brandColor || '#6366f1',
+                currency: company.currency || 'USD',
+                currencySymbol: company.currencySymbol || '$',
                 websiteUrl: company.websiteUrl || '',
                 companyEmail: company.companyEmail || '',
                 supportEmail: company.supportEmail || '',
                 phoneNumber: company.phoneNumber || '',
+                secondaryPhoneNumber: (company as any).secondaryPhoneNumber || '',
                 address: company.address || '',
                 city: company.city || '',
                 state: company.state || '',
@@ -86,19 +89,18 @@ export default function CompanyLegalsPage() {
                 accountHolderName: company.accountHolderName || '',
                 bankAccountNumber: company.bankAccountNumber || '',
                 ifscCode: company.ifscCode || '',
-                authorizedSignatory: company.authorizedSignatory || '',
-                designation: company.designation || '',
-                signatureImage: company.signatureImage || '',
-                salaryReleaseDate: company.salaryReleaseDate || 1,
-                workingDaysPerMonth: company.workingDaysPerMonth || 22,
-                standardStartTime: company.standardStartTime || '09:00',
-                standardEndTime: company.standardEndTime || '18:00',
-                gracePeriod: company.gracePeriod || 15
+                authorizedSignatory: company.authorizedSignatory || (company as any).adminName || '',
+                designation: company.designation || 'Company Founder and CEO',
+                signatureImage: company.signatureImage || ''
             });
+            const locParts = [company.city, company.state, company.country].filter(Boolean);
+            if (locParts.length > 0) {
+                setLocationInput(locParts.join(', '));
+            }
         }
     }, [company]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -157,7 +159,7 @@ export default function CompanyLegalsPage() {
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Company & Legals</h1>
-                        <p className="text-gray-500 mt-1">Company identity, white-labeling, legal, and banking details</p>
+                        <p className="text-gray-500 mt-1">Company identity, white-labeling, and legal details</p>
                     </div>
                 </div>
                 <button
@@ -203,30 +205,43 @@ export default function CompanyLegalsPage() {
                             <input name="websiteUrl" value={formData.websiteUrl} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="https://example.com" />
                         </div>
                     </Field>
-                    <Field label="Dashboard Logo">
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <input name="companyLogo" value={formData.companyLogo} onChange={handleChange} className={inputCls} placeholder="https://..." />
-                            </div>
-                            <label className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all text-xs font-bold text-gray-600">
-                                {uploading === 'companyLogo' ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                <span>Upload</span>
-                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'companyLogo')} disabled={!!uploading} />
-                            </label>
+                    <Field label="System Currency">
+                        <div className="relative">
+                            <input 
+                                type="text"
+                                name="currency" 
+                                value={`${formData.currency} (${formData.currencySymbol})`} 
+                                readOnly
+                                className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`}
+                                title="Currency is set automatically based on company location"
+                            />
                         </div>
-                        {formData.companyLogo && <img src={formData.companyLogo} alt="Logo Preview" className="h-10 mt-2 object-contain rounded-lg border border-gray-100 p-1 bg-white" />}
                     </Field>
-                    <Field label="Email Header Logo">
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <input name="emailLogo" value={formData.emailLogo} onChange={handleChange} className={inputCls} placeholder="https://..." />
-                            </div>
-                            <label className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all text-xs font-bold text-gray-600">
-                                {uploading === 'emailLogo' ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                <span>Upload</span>
-                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'emailLogo')} disabled={!!uploading} />
-                            </label>
-                        </div>
+                    <Field label="Icon">
+                        <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-gray-200 border-dashed rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors bg-white overflow-hidden group">
+                            {formData.companyLogo ? (
+                                <img src={formData.companyLogo} alt="Icon Preview" className="w-full h-full object-contain p-2" />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-gray-400 group-hover:text-indigo-500 transition-colors">
+                                    {uploading === 'companyLogo' ? <LogoLoader className="w-6 h-6 animate-spin mb-2" /> : <Upload className="w-6 h-6 mb-2" />}
+                                    <p className="text-xs font-semibold">Upload Icon</p>
+                                </div>
+                            )}
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'companyLogo')} disabled={!!uploading} />
+                        </label>
+                    </Field>
+                    <Field label="Logo">
+                        <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-gray-200 border-dashed rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors bg-white overflow-hidden group">
+                            {formData.emailLogo ? (
+                                <img src={formData.emailLogo} alt="Logo Preview" className="w-full h-full object-contain p-2" />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-gray-400 group-hover:text-indigo-500 transition-colors">
+                                    {uploading === 'emailLogo' ? <LogoLoader className="w-6 h-6 animate-spin mb-2" /> : <Upload className="w-6 h-6 mb-2" />}
+                                    <p className="text-xs font-semibold">Upload Logo</p>
+                                </div>
+                            )}
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'emailLogo')} disabled={!!uploading} />
+                        </label>
                     </Field>
                 </div>
 
@@ -248,6 +263,12 @@ export default function CompanyLegalsPage() {
                             <input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="+1 234 567 890" />
                         </div>
                     </Field>
+                    <Field label="Secondary Phone Number">
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input name="secondaryPhoneNumber" value={formData.secondaryPhoneNumber} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="+1 098 765 432" />
+                        </div>
+                    </Field>
                 </div>
 
                 {/* ── Registered Address ── */}
@@ -256,10 +277,25 @@ export default function CompanyLegalsPage() {
                     <Field label="Street Address">
                         <textarea name="address" value={formData.address} onChange={handleChange} className={inputCls + ' min-h-[80px] resize-none'} placeholder="123 Business St, Suite 400" title="Company street address" />
                     </Field>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Field label="City"><input name="city" value={formData.city} onChange={handleChange} className={inputCls} placeholder="City" title="Company city" /></Field>
-                        <Field label="State / Province"><input name="state" value={formData.state} onChange={handleChange} className={inputCls} placeholder="State" title="Company state/province" /></Field>
-                        <Field label="Country"><input name="country" value={formData.country} onChange={handleChange} className={inputCls} placeholder="Country" title="Company country" /></Field>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="md:col-span-3">
+                            <Field label="City, State, Country">
+                                <LocationSearch 
+                                    value={locationInput}
+                                    onChange={(loc) => {
+                                        setLocationInput(loc.address);
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            city: loc.city,
+                                            state: loc.state,
+                                            country: loc.country,
+                                            currency: loc.currencyCode,
+                                            currencySymbol: loc.currencySymbol
+                                        }));
+                                    }}
+                                />
+                            </Field>
+                        </div>
                         <Field label="Zip / Postal Code"><input name="postalCode" value={formData.postalCode} onChange={handleChange} className={inputCls} placeholder="Zip Code" title="Company zip code" /></Field>
                     </div>
                 </div>
@@ -275,43 +311,6 @@ export default function CompanyLegalsPage() {
                     </Field>
                 </div>
 
-                {/* ── Banking Details ── */}
-                <SectionHeader icon={Landmark} title="Banking Details (For Invoices / Salaries)" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Field label="Bank Name"><input name="bankName" value={formData.bankName} onChange={handleChange} className={inputCls} placeholder="Bank Name" title="Bank name" /></Field>
-                    <Field label="Account Holder Name"><input name="accountHolderName" value={formData.accountHolderName} onChange={handleChange} className={inputCls} placeholder="Account Holder" title="Bank account holder name" /></Field>
-                    <Field label="Account Number"><input name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} className={inputCls} placeholder="Account Number" title="Bank account number" /></Field>
-                    <Field label="IFSC / Swift Code"><input name="ifscCode" value={formData.ifscCode} onChange={handleChange} className={inputCls} placeholder="IFSC/Swift" title="Bank IFSC or Swift code" /></Field>
-                </div>
-
-                {/* ── Attendance & Timing Settings ── */}
-                <SectionHeader icon={Clock} title="Attendance & Shift Settings" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Field label="Standard Login Time (HH:MM)">
-                        <input type="time" name="standardStartTime" value={formData.standardStartTime} onChange={handleChange} className={inputCls} title="Standard login time" />
-                        <p className="text-[10px] text-gray-400 font-medium mt-1">Daily check-in goal. Late marks after grace period.</p>
-                    </Field>
-                    <Field label="Standard Logout Time (HH:MM)">
-                        <input type="time" name="standardEndTime" value={formData.standardEndTime} onChange={handleChange} className={inputCls} title="Standard logout time" />
-                        <p className="text-[10px] text-gray-400 font-medium mt-1">Daily check-out time. Used for auto-checkout calculation.</p>
-                    </Field>
-                    <Field label="Late Grace Period (Minutes)">
-                        <input type="number" min="0" name="gracePeriod" value={formData.gracePeriod} onChange={handleChange} className={inputCls} placeholder="15" />
-                    </Field>
-                </div>
-
-                {/* ── Payroll Settings ── */}
-                <SectionHeader icon={Landmark} title="Payroll Settings" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Field label="Salary Release Date (1–28)">
-                        <input type="number" min="1" max="28" name="salaryReleaseDate" value={formData.salaryReleaseDate} onChange={handleChange} className={inputCls} placeholder="1" />
-                        <p className="text-[10px] text-gray-400 font-medium mt-1">The day of the month when salaries are released.</p>
-                    </Field>
-                    <Field label="Working Days Per Month">
-                        <input type="number" min="1" max="31" name="workingDaysPerMonth" value={formData.workingDaysPerMonth} onChange={handleChange} className={inputCls} placeholder="22" />
-                        <p className="text-[10px] text-gray-400 font-medium mt-1">Used to calculate daily salary deductions for absences.</p>
-                    </Field>
-                </div>
 
                 {/* ── HR & Document Signing ── */}
                 <SectionHeader icon={PenTool} title="HR & Document Signing" />
@@ -323,19 +322,15 @@ export default function CompanyLegalsPage() {
                         <input name="designation" value={formData.designation} onChange={handleChange} className={inputCls} placeholder="Operations Manager" />
                     </Field>
                     <div className="col-span-full">
-                        <Field label="Signature Image (Accepts all image files, max 5MB)">
-                            <div className="flex gap-3 mt-1 items-start">
-                                <label className="cursor-pointer bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shrink-0">
-                                    {uploading === 'signatureImage' ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                    Upload Signature
-                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'signatureImage')} disabled={!!uploading} />
-                                </label>
-                                <div className="flex-1">
-                                    <input name="signatureImage" value={formData.signatureImage} onChange={handleChange} className={inputCls} placeholder="Or enter image URL (https://...)" />
-                                </div>
+                        <Field label="Digital Signature">
+                            <div className="mt-2 max-w-sm">
+                                <SignaturePad 
+                                    initialValue={formData.signatureImage} 
+                                    onSave={(dataUrl) => setFormData(prev => ({ ...prev, signatureImage: dataUrl }))} 
+                                    onClear={() => setFormData(prev => ({ ...prev, signatureImage: '' }))}
+                                />
                             </div>
-                            {formData.signatureImage && <img src={formData.signatureImage} alt="Signature Preview" className="h-16 mt-2 object-contain rounded-lg bg-white border border-gray-100 p-1" />}
-                            <p className="text-[10px] text-gray-400 font-medium mt-1">Used for automated salary slips and invoice generation.</p>
+                            <p className="text-[10px] text-gray-400 font-medium mt-2">Used for automated salary slips and invoice generation.</p>
                         </Field>
                     </div>
                 </div>

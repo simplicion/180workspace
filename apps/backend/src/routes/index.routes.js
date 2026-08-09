@@ -30,7 +30,7 @@ const hrmsRoutes = require('../app-registry/hr-management-app/hr-operations/hrms
 const salaryRoutes = require('../app-registry/finance-app/salary/salary.routes');
 const notificationRoutes = require('../platform-core/platform-communications/routes/notification.routes');
 const fileRoutes = require('../platform-core/platform-storage/routes/file.routes');
-const goalRoutes = require('../app-registry/projects-and-tasks-app/goals/goal.routes');
+
 const moduleRoutes = require('../app-registry/projects-and-tasks-app/modules/module.routes');
 const attachmentRoutes = require('../platform-core/platform-storage/routes/file.routes');
 const applicationRoutes = require('../app-registry/settings-app/apps-config/application.routes');
@@ -92,7 +92,7 @@ router.use('/hrms', protect, moduleGuard('hr'), hrmsRoutes);
 router.use('/chat', protect, require('../app-registry/productivity-tools-app/chat/chat.routes'));
 router.use('/notifications', protect, notificationRoutes);
 router.use('/files', protect, fileRoutes);
-router.use('/goals', protect, moduleGuard('projects'), goalRoutes);
+
 router.use('/jobs', protect, moduleGuard('hr'), jobRoutes);
 router.use('/applications', protect, moduleGuard('hr'), applicationRoutes);
 router.use('/salary', protect, moduleGuard('hr'), salaryRoutes);

@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download } from 'lucide-react';
+import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download, Pencil } from 'lucide-react';
 import { Skeleton, SkeletonTable , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
@@ -32,6 +32,7 @@ export default function ClientsPage() {
 
     const [selectedClients, setSelectedClients] = useState<string[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [editClient, setEditClient] = useState<any>(null);
 
     const loadClients = useCallback(() => {
         setLoading(true);
@@ -109,11 +110,12 @@ export default function ClientsPage() {
 
     return (
         <div className="space-y-6">
-            {showAdd && (
+            {(showAdd || editClient) && (
                 <AddClientDrawer
-                    open={showAdd}
-                    onClose={() => setShowAdd(false)}
-                    onSuccess={() => { setShowAdd(false); loadClients(); }}
+                    open={showAdd || !!editClient}
+                    onClose={() => { setShowAdd(false); setEditClient(null); }}
+                    onSuccess={() => { setShowAdd(false); setEditClient(null); loadClients(); }}
+                    editClient={editClient || undefined}
                 />
             )}
 
@@ -312,6 +314,12 @@ export default function ClientsPage() {
                                                         icon: Eye,
                                                         onClick: () => router.push(`/dashboard/clients/${client.id}`),
                                                         variant: 'primary'
+                                                    },
+                                                    {
+                                                        label: 'Edit',
+                                                        icon: Pencil,
+                                                        onClick: () => setEditClient(client),
+                                                        variant: 'secondary'
                                                     },
                                                     {
                                                         label: 'Delete',

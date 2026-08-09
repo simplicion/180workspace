@@ -5,17 +5,18 @@ import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Calendar, CheckCheck, X, Clock, Home, Plus, FileText, CheckCircle, XCircle, Palmtree, Pencil, Trash2, Eye, ExternalLink } from 'lucide-react';
+import { Calendar, CheckCheck, X, Clock, Home, Plus, FileText, CheckCircle, XCircle, Palmtree, Pencil, Trash2, Eye, ExternalLink, Settings, Save, Landmark } from 'lucide-react';
 import clsx from 'clsx';
 import MarkAttendanceDrawer from '@/app/dashboard/(hr-management-app)/_components/MarkAttendanceDrawer';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import toast from 'react-hot-toast';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line
 } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type TabType = 'attendance' | 'leaves' | 'holidays';
+type TabType = 'attendance' | 'leaves' | 'holidays' | 'settings';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
@@ -40,6 +41,7 @@ function AttendancePageInner() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user } = useAuth();
+    const { company, refreshSettings } = useSettings();
 
     const initialTab = (searchParams.get('tab') as TabType) || 'attendance';
     const [tab, setTab] = useState<TabType>(initialTab);
@@ -80,6 +82,49 @@ function AttendancePageInner() {
     const [isBulkReviewing, setIsBulkReviewing] = useState(false);
 
     const isHR = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_hr'));
+
+    // Settings state
+    const [settingsData, setSettingsData] = useState({
+        standardStartTime: '09:00',
+        standardEndTime: '18:00',
+        gracePeriod: 15,
+        salaryReleaseDate: 1,
+        workingDaysPerMonth: 22,
+    });
+    const [savingSettings, setSavingSettings] = useState(false);
+
+    useEffect(() => {
+        if (company) {
+            setSettingsData({
+                standardStartTime: company.standardStartTime || '09:00',
+                standardEndTime: company.standardEndTime || '18:00',
+                gracePeriod: company.gracePeriod || 15,
+                salaryReleaseDate: company.salaryReleaseDate || 1,
+                workingDaysPerMonth: company.workingDaysPerMonth || 22,
+            });
+        }
+    }, [company]);
+
+    const handleSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value, type } = e.target;
+        setSettingsData(prev => ({
+            ...prev,
+            [name]: type === 'number' ? Number(value) : value
+        }));
+    };
+
+    const handleSaveSettings = async () => {
+        setSavingSettings(true);
+        try {
+            await api.put('/api/settings/company', settingsData);
+            toast.success('Settings saved');
+            await refreshSettings();
+        } catch (error) {
+            toast.error('Failed to save settings');
+        } finally {
+            setSavingSettings(false);
+        }
+    };
 
     // ── Data loaders ──
     const loadAttendance = useCallback(() => {
@@ -265,6 +310,12 @@ function AttendancePageInner() {
                             <Plus className="w-4 h-4" /> Add Holiday
                         </button>
                     )}
+                    {tab === 'settings' && isHR && (
+                        <button onClick={handleSaveSettings} disabled={savingSettings} className="btn-primary flex items-center gap-1.5">
+                            {savingSettings ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Save Settings
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -289,6 +340,14 @@ function AttendancePageInner() {
                 >
                     <Palmtree className="w-3.5 h-3.5" /> Holidays
                 </button>
+                {isHR && (
+                    <button
+                        onClick={() => handleTabChange('settings')}
+                        className={clsx('px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5', tab === 'settings' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500')}
+                    >
+                        <Settings className="w-3.5 h-3.5" /> Settings
+                    </button>
+                )}
             </div>
 
             {/* ── ATTENDANCE TAB ── */}
@@ -646,6 +705,57 @@ function AttendancePageInner() {
                         </div>
                     )}
                 </>
+            )}
+
+            {/* ── SETTINGS TAB ── */}
+            {tab === 'settings' && isHR && (
+                <div className="card max-w-4xl p-6">
+                    {/* ── Attendance & Timing Settings ── */}
+                    <div className="col-span-full mb-2 border-b border-gray-100 pb-3 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <Clock className="w-4 h-4" />
+                        </div>
+                        <h3 className="font-bold text-gray-900">Attendance & Shift Settings</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Standard Login Time (HH:MM)</label>
+                            <input type="time" name="standardStartTime" value={settingsData.standardStartTime} onChange={handleSettingsChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-sm" title="Standard login time" />
+                            <p className="text-[10px] text-gray-400 font-medium mt-1">Daily check-in goal. Late marks after grace period.</p>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Standard Logout Time (HH:MM)</label>
+                            <input type="time" name="standardEndTime" value={settingsData.standardEndTime} onChange={handleSettingsChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-sm" title="Standard logout time" />
+                            <p className="text-[10px] text-gray-400 font-medium mt-1">Daily check-out time. Used for auto-checkout calculation.</p>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Late Grace Period (Minutes)</label>
+                            <input type="number" min="0" name="gracePeriod" value={settingsData.gracePeriod} onChange={handleSettingsChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-sm" placeholder="15" />
+                        </div>
+                    </div>
+
+                    {/* ── Payroll Settings ── */}
+                    <div className="col-span-full mb-2 border-b border-gray-100 pb-3 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <Landmark className="w-4 h-4" />
+                        </div>
+                        <h3 className="font-bold text-gray-900">Payroll Settings</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Salary Release Date (1–28)</label>
+                            <input type="number" min="1" max="28" name="salaryReleaseDate" value={settingsData.salaryReleaseDate} onChange={handleSettingsChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-sm" placeholder="1" />
+                            <p className="text-[10px] text-gray-400 font-medium mt-1">The day of the month when salaries are released.</p>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Working Days Per Month</label>
+                            <input type="number" min="1" max="31" name="workingDaysPerMonth" value={settingsData.workingDaysPerMonth} onChange={handleSettingsChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-sm" placeholder="22" />
+                            <p className="text-[10px] text-gray-400 font-medium mt-1">Used to calculate daily salary deductions for absences.</p>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

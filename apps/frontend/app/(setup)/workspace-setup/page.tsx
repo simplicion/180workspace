@@ -10,7 +10,8 @@ import { Building2, Users, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, 
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { ALL_APPS } from '@/lib/module-map';
-
+import { LocationSearch } from '@/components/ui/LocationSearch';
+import { locationService, FormattedLocation } from '@/lib/location-service';
 // Detailed mapping of sub-modules (screens) for each app
 const APP_MODULES: Record<string, { id: string; name: string; desc: string }[]> = {
     crm: [
@@ -121,9 +122,29 @@ function WorkspaceSetup() {
     const [website, setWebsite] = useState('');
     const [oneLineDescription, setOneLineDescription] = useState('');
     
+    // Currency 
+    const [currency, setCurrency] = useState('USD');
+    const [currencySymbol, setCurrencySymbol] = useState('$');
+    
     const [slug, setSlug] = useState('');
     const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
     const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+
+    // Location
+    const [locationInput, setLocationInput] = useState('');
+    const [country, setCountry] = useState('');
+
+    useEffect(() => {
+        // Auto-detect location and currency
+        locationService.getCurrentLocation().then(loc => {
+            if (loc) {
+                setLocationInput(loc.address);
+                setCountry(loc.country);
+                setCurrency(loc.currencyCode);
+                setCurrencySymbol(loc.currencySymbol);
+            }
+        });
+    }, []);
 
     useEffect(() => {
         if (!companyName.trim()) {
@@ -228,7 +249,10 @@ function WorkspaceSetup() {
                     startupStage,
                     teamSize,
                     enabledApps,
-                    enabledModules
+                    enabledModules,
+                    currency,
+                    currencySymbol,
+                    country
                 })
             });
 
@@ -363,6 +387,25 @@ function WorkspaceSetup() {
                                                 rows={3}
                                                 className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all resize-none"
                                             />
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Company Location & Currency</label>
+                                        <LocationSearch 
+                                            value={locationInput}
+                                            onChange={(loc) => {
+                                                setLocationInput(loc.address);
+                                                setCountry(loc.country);
+                                                setCurrency(loc.currencyCode);
+                                                setCurrencySymbol(loc.currencySymbol);
+                                            }}
+                                        />
+                                        <div className="mt-2 text-sm flex items-center text-gray-500">
+                                            <span>Primary Currency: </span>
+                                            <span className="font-bold text-gray-900 ml-1 px-2 py-0.5 bg-gray-100 rounded-md">
+                                                {currency} ({currencySymbol})
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

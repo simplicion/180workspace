@@ -1,7 +1,7 @@
 'use client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function SalesTrendAreaChart({ chartData }: { chartData: any[] }) {
+export default function SalesTrendAreaChart({ chartData, currencySymbol = '$' }: { chartData: any[], currencySymbol?: string }) {
     return (
         <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={chartData.length > 0 ? [...chartData].reverse() : []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>

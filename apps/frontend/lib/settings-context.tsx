@@ -71,6 +71,8 @@ export interface CompanyConfig {
     emailLogo: string;
     tagline: string;
     brandColor: string;
+    currency: string;
+    currencySymbol: string;
     websiteUrl: string;
     companyEmail: string;
     supportEmail: string;

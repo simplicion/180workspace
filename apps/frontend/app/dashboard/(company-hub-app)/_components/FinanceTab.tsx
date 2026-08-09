@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { ExternalLink, TrendingUp, DollarSign, Trophy, CheckCircle2, Activity } from 'lucide-react';
+import { useSettings } from '@/lib/settings-context';
 import { EditWhyInvestorsFollowUsModal } from './EditWhyInvestorsFollowUsModal';
 
 interface TabProps {
@@ -30,7 +31,9 @@ function LeafIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export function FinanceTab({ company, isPublicView, onProfileUpdate }: TabProps) {
+export function FinanceTab({ company, isPublicView = false, onProfileUpdate }: TabProps) {
+    const { company: settingsCompany } = useSettings();
+    const currencySymbol = settingsCompany?.currencySymbol || '$';
     const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
 
     let meta: any = {};
@@ -62,15 +65,15 @@ export function FinanceTab({ company, isPublicView, onProfileUpdate }: TabProps)
                         </div>
                         <div>
                             <div className="text-xs text-gray-500 mb-1">Burn Rate</div>
-                            <div className="font-bold text-gray-900 text-lg">${company.calculatedFinancials?.burnRate || '0.00'}/mo</div>
+                            <div className="font-bold text-gray-900 text-lg">{currencySymbol}{company.calculatedFinancials?.burnRate || '0.00'}/mo</div>
                         </div>
                         <div>
                             <div className="text-xs text-gray-500 mb-1">Total Income</div>
-                            <div className="font-bold text-gray-900 text-lg">${company.calculatedFinancials?.totalIncome?.toLocaleString() || '0'}</div>
+                            <div className="font-bold text-gray-900 text-lg">{currencySymbol}{company.calculatedFinancials?.totalIncome?.toLocaleString() || '0'}</div>
                         </div>
                         <div>
                             <div className="text-xs text-gray-500 mb-1">Total Expenses</div>
-                            <div className="font-bold text-gray-900 text-lg">${company.calculatedFinancials?.totalExpenses?.toLocaleString() || '0'}</div>
+                            <div className="font-bold text-gray-900 text-lg">{currencySymbol}{company.calculatedFinancials?.totalExpenses?.toLocaleString() || '0'}</div>
                         </div>
                     </div>
                 </div>

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { formatDistanceToNow, format } from 'date-fns';
+import { useSettings } from '@/lib/settings-context';
 import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -46,8 +47,10 @@ const EVENT_TYPES = [
     { label: 'Projects', value: 'project' },
 ];
 
-export default function GlobalActivityPage({ mobileLayout = false }: { mobileLayout?: boolean }) {
+export default function GlobalActivityPage() {
     const { user } = useAuth();
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -451,7 +454,7 @@ export default function GlobalActivityPage({ mobileLayout = false }: { mobileLay
                                                                 {log.metadata.dealTitle && (
                                                                     <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
                                                                         <DollarSign className="w-2.5 h-2.5" />
-                                                                        {log.metadata.dealTitle}{log.metadata.dealValue ? ` — $${Number(log.metadata.dealValue).toLocaleString()}` : ''}
+                                                                        {log.metadata.dealTitle}{log.metadata.dealValue ? ` — ${currencySymbol}${Number(log.metadata.dealValue).toLocaleString()}` : ''}
                                                                     </span>
                                                                 )}
                                                                 {log.metadata.assignedTo && (

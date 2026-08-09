@@ -476,7 +476,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
             onMouseEnter={() => isCollapsed && setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             className={clsx(
-                "h-full flex flex-col bg-white/80 backdrop-blur-xl border-r border-gray-200/50 overflow-y-auto fixed top-0 left-0 z-30 transition-all duration-300 ease-in-out shadow-sm overflow-x-hidden hidden-scrollbar",
+                "h-full flex flex-col bg-white/80 backdrop-blur-xl border-r border-gray-200/50 overflow-y-auto fixed top-0 left-0 z-30 transition-all duration-300 ease-in-out shadow-sm overflow-x-hidden hidden-scrollbar select-none",
                 isExpanded ? "w-[280px] translate-x-0" : "w-[280px] lg:w-[80px] -translate-x-full lg:translate-x-0"
             )}
         >

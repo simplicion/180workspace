@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { PieChart, Plus, Search, MoreHorizontal, Calendar, ArrowUpCircle, AlertCircle, DollarSign, GripVertical, ExternalLink, Trash2, Eye, CheckCircle, Users } from 'lucide-react';
@@ -60,6 +61,8 @@ const STAGE_COLORS: Record<string, string> = {
 
 export default function OpportunitiesKanbanPage() {
     const { user } = useAuth();
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const [opportunities, setOpportunities] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -302,6 +305,8 @@ interface ColumnProps {
 }
 
 function Column({ id, title, opportunities, onEdit, onDelete, onConvert }: ColumnProps) {
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const { setNodeRef } = useSortable({ id });
 
     return (
@@ -314,7 +319,7 @@ function Column({ id, title, opportunities, onEdit, onDelete, onConvert }: Colum
                     </span>
                 </div>
                 <div className="text-xs font-bold text-gray-400">
-                    ${opportunities.reduce((sum, o) => sum + (o.value || 0), 0).toLocaleString()}
+                    {currencySymbol}{opportunities.reduce((sum, o) => sum + (o.value || 0), 0).toLocaleString()}
                 </div>
             </div>
 
@@ -379,6 +384,9 @@ function SortableDealCard({ opp, onEdit, onDelete, onConvert }: any) {
 }
 
 function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConvert }: any) {
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
+
     if (!opp) return null;
 
     return (
@@ -415,7 +423,7 @@ function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConver
                     <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Value</span>
                         <div className="font-black text-gray-900 tracking-tight flex items-baseline gap-0.5">
-                            <span className="text-xs text-gray-400">$</span>
+                            <span className="text-xs text-gray-400">{currencySymbol}</span>
                             {opp.value?.toLocaleString()}
                         </div>
                     </div>

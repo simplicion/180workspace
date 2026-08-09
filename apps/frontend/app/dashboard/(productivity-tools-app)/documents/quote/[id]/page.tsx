@@ -4,10 +4,13 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Download, Printer, ArrowLeft, Receipt, CheckCircle, Clock } from 'lucide-react';
+import { useSettings } from '@/lib/settings-context';
 import clsx from 'clsx';
 import Link from 'next/link';
 
 export default function QuoteViewerPage() {
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const params = useParams();
     const router = useRouter();
     const [quote, setQuote] = useState<any>(null);
@@ -135,8 +138,8 @@ export default function QuoteViewerPage() {
                                 <tr key={idx} className="border-b border-gray-100 last:border-0">
                                     <td className="py-4 pl-2 font-medium text-gray-900">{item.description || item.name}</td>
                                     <td className="py-4 text-right text-gray-600">{item.quantity}</td>
-                                    <td className="py-4 text-right text-gray-600">${Number(item.price || item.unitPrice || 0).toFixed(2)}</td>
-                                    <td className="py-4 text-right font-bold text-gray-900 pr-2">${(item.quantity * Number(item.price || item.unitPrice || 0)).toFixed(2)}</td>
+                                    <td className="py-4 text-right text-gray-600">{currencySymbol}{Number(item.price || item.unitPrice || 0).toFixed(2)}</td>
+                                    <td className="py-4 text-right font-bold text-gray-900 pr-2">{currencySymbol}{(item.quantity * Number(item.price || item.unitPrice || 0)).toFixed(2)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -148,17 +151,17 @@ export default function QuoteViewerPage() {
                     <div className="w-1/2">
                         <div className="flex justify-between py-2 text-sm text-gray-600">
                             <span>Subtotal</span>
-                            <span className="font-medium">${Number(quote.subtotal || quote.total || 0).toFixed(2)}</span>
+                            <span className="font-medium">{currencySymbol}{Number(quote.subtotal || quote.total || 0).toFixed(2)}</span>
                         </div>
                         {quote.tax > 0 && (
                             <div className="flex justify-between py-2 text-sm text-gray-600 border-b border-gray-100">
                                 <span>Tax</span>
-                                <span className="font-medium">${Number(quote.tax).toFixed(2)}</span>
+                                <span className="font-medium">{currencySymbol}{Number(quote.tax).toFixed(2)}</span>
                             </div>
                         )}
                         <div className="flex justify-between py-4 text-xl font-black text-indigo-900 border-t-2 border-gray-900 mt-2">
                             <span>Total</span>
-                            <span>${Number(quote.total).toFixed(2)}</span>
+                            <span>{currencySymbol}{Number(quote.total).toFixed(2)}</span>
                         </div>
                     </div>
                 </div>

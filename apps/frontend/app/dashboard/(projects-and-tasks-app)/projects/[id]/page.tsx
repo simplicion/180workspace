@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { ArrowLeft, FolderKanban, Plus, Users, Calendar, Tag, CheckSquare, Paperclip, Edit2, MoreHorizontal, Clock, AlertCircle, CheckCircle2, Play, Eye, MessageSquare, Sparkles, Globe, ExternalLink, Building2, Trash2, Layout, Briefcase, Archive, List } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Plus, Users, Calendar, Tag, CheckSquare, Paperclip, Edit2, MoreHorizontal, Clock, AlertCircle, CheckCircle2, Play, Eye, MessageSquare, Sparkles, Globe, ExternalLink, Building2, Trash2, Layout, Briefcase, Archive, List, Rocket, Target, BarChart3 } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -1098,6 +1098,21 @@ export default function ProjectDetailPage() {
                             </button>
                         )}
                     </div>
+                    
+                    {/* Milestones Metrics Matrix */}
+                    {milestones.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                            <MetricCard label="Total Milestones" value={milestones.length} icon={Target} color="bg-indigo-600" />
+                            <MetricCard label="Pending" value={milestones.filter(m => !m.completed).length} icon={Rocket} color="bg-blue-600" />
+                            <MetricCard label="Completed" value={milestones.filter(m => m.completed).length} icon={CheckCircle2} color="bg-emerald-600" />
+                            <MetricCard 
+                                label="Avg. Progress" 
+                                value={`${milestones.length > 0 ? Math.round((milestones.filter(m => m.completed).length / milestones.length) * 100) : 0}%`} 
+                                icon={BarChart3} 
+                                color="bg-amber-600" 
+                            />
+                        </div>
+                    )}
                     {milestones.length === 0 ? (
                         <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl">
                             <CheckCircle2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
@@ -1833,6 +1848,20 @@ function MilestoneModal({ projectId, milestone, onClose, onSuccess }: any) {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    );
+}
+
+function MetricCard({ label, value, icon: Icon, color }: any) {
+    return (
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className={clsx("w-12 h-12 rounded-xl flex items-center justify-center text-white shrink-0", color)}>
+                <Icon className="w-6 h-6" />
+            </div>
+            <div>
+                <p className="text-gray-500 text-sm font-medium mb-1">{label}</p>
+                <p className="text-2xl font-bold text-gray-900">{value}</p>
             </div>
         </div>
     );
