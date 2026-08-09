@@ -270,7 +270,8 @@ export default function LeadPipelinesKanbanPage() {
                             setEditingleadPipeline(null);
                             setIsModalOpen(true);
                         }}
-                        className="btn btn-primary flex items-center gap-1.5 px-4 py-1.5 rounded-lg shadow shadow-indigo-100 border border-transparent hover:scale-105 transition-all text-xs font-bold"
+                        className="btn flex items-center gap-1.5 px-4 py-1.5 rounded-lg shadow-sm border border-transparent hover:scale-105 transition-all text-xs font-bold text-white"
+                        style={{ backgroundColor: 'var(--theme-color)' }}
                     >
                         <Plus className="w-4 h-4" />
                         New Lead

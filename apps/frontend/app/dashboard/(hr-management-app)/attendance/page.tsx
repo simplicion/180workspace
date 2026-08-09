@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> =
 };
 
 import { LeaveRequestDrawer, ViewLeaveDrawer, LEAVE_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/LeaveDrawers';
-import { HolidayDrawer, HOLIDAY_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/HolidayDrawer';
+import HolidayDrawer, { HOLIDAY_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/HolidayDrawer';
 
 function thisMonthStr() { return new Date().toISOString().slice(0, 7); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }

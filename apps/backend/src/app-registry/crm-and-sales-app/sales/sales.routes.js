@@ -24,7 +24,7 @@ router.use((req, res, next) => {
 router.get('/dashboard', salesController.getDashboardMetrics);
 router.get('/metrics', salesController.getDashboardMetrics);
 router.get('/recommendations', salesController.getRecommendations);
-router.get('/forecasting', salesController.getForecasting);
+
 router.get('/productivity', salesController.getProductivity);
 
 // Deals

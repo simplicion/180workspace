@@ -46,19 +46,7 @@ exports.getDashboardMetrics = async (req, res, next) => {
     }
 };
 
-exports.getForecasting = async (req, res, next) => {
-    try {
-        const { company, prisma } = req;
-        const cacheKey = `company:${company.id}:forecasting`;
-        const cached = await cacheGet(cacheKey);
-        if (cached) return res.json(cached);
 
-        const result = await SalesService.getForecasting(prisma, company.id);
-
-        await cacheSet(cacheKey, result, 600); // 10 min cache
-        res.json(result);
-    } catch (err) { next(err); }
-};
 
 exports.getProductivity = async (req, res, next) => {
     try {

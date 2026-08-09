@@ -1,6 +1,7 @@
 'use client';
 
-import { LogoLoader, Drawer } from "@workspace/ui";
+import { LogoLoader } from "@workspace/ui";
+import { Drawer } from "@/components/ui/Drawer";
 import { useState, useEffect } from 'react';
 import { X, Globe, Server, Code, Key, Github, Cloud } from 'lucide-react';
 import api from '@/lib/api';
@@ -99,21 +100,21 @@ export default function AddAssetDrawer({ open, onClose, onSuccess, asset }: AddA
     };
 
     return (
-        <Drawer
-            open={open}
-            onClose={onClose}
-            title={asset ? 'Edit Asset' : 'Add Asset'}
-            icon={Globe}
-            onSubmit={handleSubmit}
-            footer={
-                <>
-                    <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-                    <button type="submit" disabled={loading} className="btn-primary flex-1 shadow-md shadow-indigo-100">
-                        {loading ? <LogoLoader className="w-4 h-4 animate-spin mx-auto" /> : (asset ? 'Update Asset' : 'Add Asset')}
-                    </button>
-                </>
-            }
-        >
+        <form onSubmit={handleSubmit}>
+            <Drawer
+                open={open}
+                onClose={onClose}
+                title={asset ? 'Edit Asset' : 'Add Asset'}
+                icon={<Globe className="w-5 h-5" />}
+                footer={
+                    <>
+                        <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+                        <button type="submit" disabled={loading} className="btn-primary flex-1 shadow-md shadow-indigo-100">
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin mx-auto" /> : (asset ? 'Update Asset' : 'Add Asset')}
+                        </button>
+                    </>
+                }
+            >
             <div className="space-y-3">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Asset Type</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -222,6 +223,7 @@ export default function AddAssetDrawer({ open, onClose, onSuccess, asset }: AddA
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
             </div>
-        </Drawer>
+            </Drawer>
+        </form>
     );
 }

@@ -4,7 +4,7 @@ import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';
 import { X, Shield, Save, AlertCircle } from 'lucide-react';
 import type { UserRoleData } from './UserRolesTable';
-import Drawer from '@/components/ui/Drawer';
+import { Drawer } from '@/components/ui/Drawer';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 

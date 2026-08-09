@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 
 function EditableText({ value, onChange, className, style, tagName = 'div', placeholder }: any) {
-    const Tag = tagName as keyof JSX.IntrinsicElements;
+    const Tag = tagName as any;
     return (
         <Tag
             contentEditable

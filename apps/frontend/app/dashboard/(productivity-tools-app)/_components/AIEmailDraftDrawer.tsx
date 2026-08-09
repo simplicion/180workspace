@@ -1,5 +1,5 @@
-import { Drawer } from "@/components/ui/Drawer";
 'use client';
+import { Drawer } from "@/components/ui/Drawer";
 
 import { LogoLoader } from "@workspace/ui";
 import { useState } from 'react';

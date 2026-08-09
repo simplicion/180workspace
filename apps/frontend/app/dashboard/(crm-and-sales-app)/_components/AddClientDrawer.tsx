@@ -1,6 +1,7 @@
 'use client';
 
-import { LogoLoader, Drawer } from "@workspace/ui";
+import { LogoLoader } from "@workspace/ui";
+import { Drawer } from "@/components/ui/Drawer";
 import { useState } from 'react';
 import api from '@/lib/api';
 import { X, Building2, Mail, Phone, Globe, AlignLeft } from 'lucide-react';
@@ -57,21 +58,21 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
     }
 
     return (
-        <Drawer
-            open={open}
-            onClose={onClose}
-            title={isEdit ? 'Edit Client' : 'Add Client'}
-            icon={Building2}
-            onSubmit={handleSubmit}
-            footer={
-                <>
-                    <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                    <button type="submit" disabled={loading} className="btn-primary">
-                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Client'}
-                    </button>
-                </>
-            }
-        >
+        <form onSubmit={handleSubmit}>
+            <Drawer
+                open={open}
+                onClose={onClose}
+                title={isEdit ? 'Edit Client' : 'Add Client'}
+                icon={<Building2 className="w-5 h-5" />}
+                footer={
+                    <>
+                        <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                        <button type="submit" disabled={loading} className="btn-primary">
+                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Client'}
+                        </button>
+                    </>
+                }
+            >
             <div className="grid grid-cols-2 gap-3">
                 <div>
                     <label htmlFor="clientName" className="label">Contact Name *</label>
@@ -154,6 +155,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                     <textarea id="clientNotes" value={form.notes} onChange={set('notes')} placeholder="Any relevant notes..." rows={3} className="input pl-9 resize-none" />
                 </div>
             </div>
-        </Drawer>
+            </Drawer>
+        </form>
     );
 }

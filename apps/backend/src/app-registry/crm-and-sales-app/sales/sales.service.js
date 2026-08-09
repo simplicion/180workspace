@@ -656,63 +656,6 @@ class SalesService {
         };
     }
 
-    static async getForecasting(companyPrisma, companyId) {
-        const Opportunity = companyPrisma.lead;
-        const moment = require('moment');
-        const { forecastPipeline } = require('../../company-hub-app/crm/CrmCalculationService.js');
-
-        const startOfQ = moment().startOf('quarter').toDate();
-        const endOfQ = moment().endOf('quarter').toDate();
-        const quarterlyOpps = await Opportunity.findMany({ 
-            where: { expectedCloseDate: { gte: startOfQ, lte: endOfQ }, stage: { notIn: ['ClosedWon', 'ClosedLost'] } },
-            select: { value: true, probability: true }
-        });
-        const quarterly = forecastPipeline(quarterlyOpps);
-
-        const startOfY = moment().startOf('year').toDate();
-        const endOfY = moment().endOf('year').toDate();
-        const yearlyOpps = await Opportunity.findMany({
-            where: { expectedCloseDate: { gte: startOfY, lte: endOfY }, stage: { notIn: ['ClosedWon', 'ClosedLost'] } },
-            select: { value: true, probability: true }
-        });
-        const yearly = forecastPipeline(yearlyOpps);
-
-        const historicalWon = await Opportunity.aggregate({ where: { stage: 'ClosedWon' }, _count: { _all: true }, _sum: { value: true } }).then(res => [{ count: res._count._all, value: res._sum.value || 0 }]).catch(() => []);
-        const historicalLost = await Opportunity.aggregate({ where: { stage: 'ClosedLost' }, _count: { _all: true }, _sum: { value: true } }).then(res => [{ count: res._count._all, value: res._sum.value || 0 }]).catch(() => []);
-
-        const wonCount = historicalWon.length ? historicalWon[0].count : 0;
-        const lostCount = historicalLost.length ? historicalLost[0].count : 0;
-        const totalHistoricalDeals = wonCount + lostCount;
-        const historicalWinRate = totalHistoricalDeals > 0 ? (wonCount / totalHistoricalDeals) * 100 : 0;
-
-        const contextData = {
-            quarterlyExpected: quarterly.expected,
-            yearlyExpected: yearly.expected,
-            historicalWinRate: `${historicalWinRate.toFixed(2)}%`,
-            totalFinishedDeals: totalHistoricalDeals,
-            totalWonValue: historicalWon.length ? historicalWon[0].value : 0,
-            activeQuarterlyDeals: quarterlyOpps.length,
-            activeYearlyDeals: yearlyOpps.length,
-        };
-
-        const settings = await companyPrisma.settings.findFirst() || {};
-        let aiForecast = null;
-        if (settings.aiProvider && settings.aiProvider !== 'none') {
-            const AIAutomationService = require('../../productivity-tools-app/ai-assistant/ai-automation.service');
-            aiForecast = await AIAutomationService.generateAdvancedForecast(contextData, settings);
-        }
-
-        return {
-            quarterly,
-            yearly,
-            metrics: {
-                historicalWinRate: historicalWinRate.toFixed(1),
-                totalClosed: totalHistoricalDeals,
-                wonValue: historicalWon.length ? historicalWon[0].value : 0
-            },
-            aiForecast
-        };
-    }
 
     static async getProductivity(companyPrisma, userId) {
         const User = companyPrisma.user;

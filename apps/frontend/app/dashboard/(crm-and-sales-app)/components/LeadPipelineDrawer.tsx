@@ -151,12 +151,11 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
     };
 
-    if (!open) return null;
-
     return (
         <Drawer
             open={open}
             onClose={onClose}
+            size="max-w-2xl"
             title={editingLeadPipeline ? 'Edit Lead Pipeline' : 'New Lead Pipeline'}
             icon={<Briefcase className="w-5 h-5" />}
             footer={
