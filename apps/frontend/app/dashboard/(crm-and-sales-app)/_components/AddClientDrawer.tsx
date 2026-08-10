@@ -29,6 +29,8 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         billingAddress: editClient?.billingAddress || '',
         status: editClient?.status || 'active',
         notes: editClient?.notes || '',
+        givePortalAccess: false,
+        password: '',
     });
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -48,6 +50,8 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 billingAddress: editClient?.billingAddress || '',
                 status: editClient?.status || 'active',
                 notes: editClient?.notes || '',
+                givePortalAccess: false,
+                password: '',
             });
         }
     }, [open, editClient]);
@@ -107,10 +111,12 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
 
             <div className="grid grid-cols-2 gap-3">
                 <div>
-                    <label htmlFor="clientEmail" className="label">Email Address</label>
+                    <label htmlFor="clientEmail" className="label">
+                        Email Address {form.givePortalAccess && <span className="text-red-500">*</span>}
+                    </label>
                     <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                        <input id="clientEmail" value={form.email} onChange={set('email')} type="email" placeholder="jane@acme.com" className="input pl-9" />
+                        <input id="clientEmail" value={form.email} onChange={set('email')} type="email" placeholder="jane@acme.com" className="input pl-9" required={form.givePortalAccess} />
                     </div>
                 </div>
                 <div>
@@ -165,6 +171,35 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 <label htmlFor="clientAddress" className="label">Billing Address</label>
                 <input id="clientAddress" value={form.billingAddress} onChange={set('billingAddress')} placeholder="Full billing address..." className="input" />
             </div>
+
+            {!isEdit && (
+                <div className="border border-gray-100 rounded-lg p-4 mt-4 bg-gray-50/50">
+                    <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input 
+                            type="checkbox" 
+                            className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                            checked={form.givePortalAccess}
+                            onChange={(e) => setForm(prev => ({ ...prev, givePortalAccess: e.target.checked }))}
+                        />
+                        <span className="text-sm font-medium text-gray-700">Give Portal Access</span>
+                    </label>
+                    {form.givePortalAccess && (
+                        <div>
+                            <label htmlFor="clientPassword" className="label">Client Password *</label>
+                            <input 
+                                id="clientPassword" 
+                                type="text" 
+                                value={form.password} 
+                                onChange={set('password')} 
+                                placeholder="Set a temporary password" 
+                                className="input" 
+                                required={form.givePortalAccess} 
+                            />
+                            <p className="text-xs text-gray-500 mt-1">An email will be sent to the client with these credentials.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="border-t border-gray-100 pt-4 mt-2">
                 <label htmlFor="clientNotes" className="label">Internal Notes</label>

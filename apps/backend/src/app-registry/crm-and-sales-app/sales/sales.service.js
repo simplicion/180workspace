@@ -2,6 +2,8 @@
 
 const moment = require('moment');
 const salesMath = require('../utils/salesMath.js');
+const bcrypt = require('bcryptjs');
+const { sendWelcomeEmail } = require('../../productivity-tools-app/emails/email.service');
 
 class SalesService {
     // ------------------------------------------------------------------------
@@ -1350,7 +1352,7 @@ class SalesService {
         return opp;
     }
 
-    static async updateOpportunity(companyPrisma, id, data) {
+    static async updateOpportunity(companyPrisma, id, data, companyId) {
         const Opportunity = companyPrisma.lead;
         const Deal = companyPrisma.deal;
         const oldOpp = await Opportunity.findUnique({ where: { id }, include: { client: true } });
@@ -1493,8 +1495,46 @@ class SalesService {
         delete data.annualRevenue;
         delete data.customIndustry;
         delete data.country;
+        
+        let justWon = false;
+        if (data.convertToDeal || (data.stage === 'ClosedWon' && oldOpp.stage !== 'ClosedWon')) {
+            justWon = true;
+        }
 
         const opp = await Opportunity.update({ where: { id }, data });
+        
+        if (justWon && companyId) {
+            const clientRecord = oldOpp.client || await companyPrisma.client.findUnique({ where: { id: opp.clientId } });
+            if (clientRecord && clientRecord.email) {
+                const User = companyPrisma.user;
+                const existingUser = await User.findFirst({ where: { email: clientRecord.email } });
+                if (!existingUser) {
+                    try {
+                        const crypto = require('crypto');
+                        const bcrypt = require('bcryptjs');
+                        const { sendWelcomeEmail } = require('../../productivity-tools-app/emails/email.service');
+                        
+                        const generatedPassword = crypto.randomBytes(8).toString('hex');
+                        const salt = await bcrypt.genSalt(10);
+                        const hashedPassword = await bcrypt.hash(generatedPassword, salt);
+                        
+                        const clientUser = await User.create({
+                            data: {
+                                name: clientRecord.name || 'Client',
+                                email: clientRecord.email,
+                                password: hashedPassword,
+                                role: 'client',
+                                isActive: true
+                            }
+                        });
+
+                        await sendWelcomeEmail(clientUser, generatedPassword, companyPrisma);
+                    } catch (err) {
+                        console.error('Failed to create client user or send email on win:', err);
+                    }
+                }
+            }
+        }
 
         // Track value or stage changes in SalesActivity
         const activitiesToCreate = [];

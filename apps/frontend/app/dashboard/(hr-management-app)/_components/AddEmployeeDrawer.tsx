@@ -13,20 +13,21 @@ interface Props {
     onClose: () => void;
     onSuccess: (user: any) => void;
     editUser?: any; // if provided, we're editing
+    nextId?: string; // used for auto-populating new employee ID
 }
 
 const ROLES = ['employee', 'manager', 'hr', 'admin'];
 const DEPARTMENTS = ['Engineering', 'Design', 'Marketing', 'HR', 'Finance', 'Operations', 'Sales', 'Support', 'Management'];
 
-export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser }: Props) {
+export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, nextId }: Props) {
     const isEdit = !!editUser;
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
         name: editUser?.name || '',
         email: editUser?.email || '',
         password: '',
-        employeeId: editUser?.employeeId || '',
-        roles: editUser?.roles || (editUser?.role ? [editUser.role] : ['employee']),
+        employeeId: editUser?.employeeId || nextId || '',
+        role: editUser?.role || (editUser?.roles?.[0]) || 'employee',
         department: editUser?.department || '',
         position: editUser?.position || '',
         salary: editUser?.salary || '',
@@ -36,13 +37,8 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser }
         joiningDate: editUser?.joiningDate ? editUser.joiningDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
     });
 
-    const toggleRole = (r: string) => {
-        setForm(prev => {
-            const roles = prev.roles.includes(r as any)
-                ? prev.roles.filter((x: string) => x !== r)
-                : [...prev.roles, r as any];
-            return { ...prev, roles: roles.length > 0 ? roles : ['employee'] };
-        });
+    const setRole = (r: string) => {
+        setForm(prev => ({ ...prev, role: r }));
     };
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -62,7 +58,7 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser }
                 onSuccess(data.user);
             } else {
                 const { data } = await api.post('/api/auth/register', form);
-                toast.success('Employee added!');
+                toast.success(`Employee added with ID: ${data.user.employeeId}`);
                 onSuccess(data.user);
             }
             onClose();
@@ -96,10 +92,10 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser }
 
                 {/* Employee ID */}
                 <div>
-                    <label htmlFor="employeeId" className="label">Employee ID (Optional)</label>
+                    <label htmlFor="employeeId" className="label">Employee ID</label>
                     <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                        <input id="employeeId" value={form.employeeId} onChange={set('employeeId')} placeholder="EMP-0001" className="input pl-9" />
+                        <input id="employeeId" value={form.employeeId} onChange={set('employeeId')} placeholder="EMP-0001" className="input pl-9 bg-gray-50 text-gray-500 cursor-not-allowed" disabled />
                     </div>
                 </div>
 
@@ -117,19 +113,20 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser }
                 {/* Role + Department */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="label">Roles *</label>
-                        <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Employee roles">
-                            {['admin', 'manager', 'hr', 'employee', 'client'].map(r => (
+                        <label className="label">Role *</label>
+                        <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Employee role">
+                            {['admin', 'manager', 'hr', 'employee'].map(r => (
                                 <label key={r} className={clsx(
                                     'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all uppercase',
-                                    form.roles.includes(r as any)
+                                    form.role === r
                                         ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                         : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
                                 )}>
                                     <input
-                                        type="checkbox"
-                                        checked={form.roles.includes(r as any)}
-                                        onChange={() => toggleRole(r)}
+                                        type="radio"
+                                        name="employeeRole"
+                                        checked={form.role === r}
+                                        onChange={() => setRole(r)}
                                         className="sr-only"
                                     />
                                     {r}

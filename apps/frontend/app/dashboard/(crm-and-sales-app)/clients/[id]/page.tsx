@@ -133,7 +133,7 @@ export default function ClientProfilePage() {
                 <MetricCard label="Total Revenue"  value={`₹${stats.revenue.toLocaleString()}`}  icon={TrendingUp}  color="text-green-600"  bg="bg-green-50"  />
                 <MetricCard label="Pending Balance" value={`₹${stats.pending.toLocaleString()}`} icon={DollarSign}  color="text-amber-600"  bg="bg-amber-50"  />
                 <MetricCard label="Active Projects" value={client.projectIds?.length || 0}        icon={Briefcase}   color="text-blue-600"   bg="bg-blue-50"   />
-                <MetricCard label="Client Since"    value={format(new Date(client.createdAt), 'dd/MM/yyyy')} icon={Clock} color="text-purple-600" bg="bg-purple-50" />
+                <MetricCard label="Client Since"    value={client?.createdAt ? format(new Date(client.createdAt), 'dd/MM/yyyy') : 'N/A'} icon={Clock} color="text-purple-600" bg="bg-purple-50" />
             </div>
 
             {/* Tabs */}
@@ -538,7 +538,7 @@ function ClientCommunications({ clientId }: { clientId: string }) {
                                         <div className="flex items-center gap-3 mt-3">
                                             <span className="text-xs font-bold text-gray-400 flex items-center gap-1">
                                                 <Clock className="w-3.5 h-3.5" />
-                                                {format(new Date(comm.date), 'dd MMM yyyy')}
+                                                {comm.date ? format(new Date(comm.date), 'dd MMM yyyy') : 'N/A'}
                                             </span>
                                             <div className="w-1 h-1 bg-gray-200 rounded-full" />
                                             <span className="text-xs font-bold text-gray-500 uppercase">
@@ -694,7 +694,7 @@ function ClientActivity({ clientId }: { clientId: string }) {
                                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                     <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
-                                        {formatDistanceToNow(new Date(item.date), { addSuffix: true })}
+                                        {item.date ? formatDistanceToNow(new Date(item.date), { addSuffix: true }) : 'N/A'}
                                     </span>
                                     <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold uppercase">
                                         {item.user}

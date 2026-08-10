@@ -77,7 +77,7 @@ function handleUpload(folder = 'general', options = {}) {
             // Check if it's a system asset that MUST go to R2
             const isSystemAsset = options.isLogo === true || folder === 'logos' || folder === 'employees' || options.forceR2 === true;
             
-            const preferredMode = req.body.storageProvider || settings?.storageMode || 'cloudinary';
+            let preferredMode = req.body.storageProvider || settings?.storageMode || 'r2';
             
             console.log(`[Upload DEBUG] folder: ${folder}, isSystemAsset: ${isSystemAsset}, preferredMode: ${preferredMode}`);
 
@@ -157,10 +157,8 @@ function handleUpload(folder = 'general', options = {}) {
                 if ((preferredMode === 'cloudinary' && !isCloudinaryConfigured) || 
                     (preferredMode === 'google_drive' && !isDriveConfigured) ||
                     preferredMode === 'local') {
-                    return res.status(403).json({ 
-                        error: 'STORAGE_NOT_CONFIGURED', 
-                        message: 'Corporate data security policy requires your own Cloud Storage (Google Drive or Cloudinary) to be configured in Settings before uploading documents, expenses, or photos.' 
-                    });
+                    console.log(`[Upload DEBUG] Storage provider '${preferredMode}' not configured. Falling back to 'r2' storage.`);
+                    preferredMode = 'r2';
                 }
             }
 

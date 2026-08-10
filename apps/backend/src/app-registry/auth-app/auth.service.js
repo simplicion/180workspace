@@ -46,7 +46,7 @@ class AuthService {
         }
 
         let employeeId = body.employeeId;
-        if (!employeeId && safeRoles.some(r => ['employee', 'manager', 'hr'].includes(r))) {
+        if (!employeeId) {
             const count = await CompanyUser.count();
             employeeId = `EMP-${String(count + 1).padStart(4, '0')}`;
         }
@@ -284,7 +284,7 @@ class AuthService {
         }
 
         if (!company) {
-            const err = new Error("We couldn't find an account with that email. Please sign up or contact your administrator.");
+            const err = new Error("We couldn't find an account linked to this email. Please sign up to create a new workspace.");
             err.status = 401; throw err;
         }
 
@@ -729,7 +729,7 @@ class AuthService {
         }
 
         if (!company) {
-            const err = new Error('No workspace found for this Google account. Please create an account.');
+            const err = new Error("We couldn't find an account linked to this email. Please sign up to create a new workspace.");
             err.status = 404; throw err;
         }
 

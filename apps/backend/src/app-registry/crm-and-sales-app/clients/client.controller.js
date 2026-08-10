@@ -4,6 +4,8 @@ const { logAction } = require('../../../system-configs/middleware/audit/audit.js
 const { triggerN8nWebhook } = require('../../../platform-core/platform-integrations/webhooks/webhook.routes');
 const AutomationService = require('../../../platform-core/platform-communications/services/automation.service');
 const { cacheDel } = require('../../../system-configs/middleware/system/cache.js');
+const bcrypt = require('bcryptjs');
+const { sendWelcomeEmail } = require('../../productivity-tools-app/emails/email.service');
 
 const clearCRMCache = async (companyId) => {
     if (!companyId) return;
@@ -52,6 +54,14 @@ exports.createClient = async (req, res, next) => {
         const Client = req.prisma.client;
         
         const createData = { ...req.body };
+        
+        if (createData.email && createData.email.trim() !== '') {
+            const existingClient = await Client.findFirst({ where: { email: createData.email } });
+            if (existingClient) {
+                return res.status(400).json({ error: 'A client with this email already exists.' });
+            }
+        }
+
         if (!createData.clientId) {
             const count = await Client.count();
             createData.clientId = `CLT-${String(count + 1).padStart(4, '0')}`;
@@ -64,6 +74,12 @@ exports.createClient = async (req, res, next) => {
         if (req.company && req.company.id) {
             createData.companyId = req.company.id;
         }
+
+        const givePortalAccess = createData.givePortalAccess === true || createData.givePortalAccess === 'true';
+        const password = createData.password;
+        
+        delete createData.givePortalAccess;
+        delete createData.password;
 
         const client = await Client.create({
             data: createData
@@ -87,6 +103,32 @@ exports.createClient = async (req, res, next) => {
             name: client.name,
             email: client.email
         }).catch(() => { });
+
+        if (givePortalAccess && password && client.email) {
+            const User = req.prisma.user;
+            const existingUser = await User.findFirst({ where: { email: client.email } });
+            if (!existingUser) {
+                const salt = await bcrypt.genSalt(10);
+                const hashedPassword = await bcrypt.hash(password, salt);
+                
+                const clientUser = await User.create({
+                    data: {
+                        name: client.name,
+                        email: client.email,
+                        password: hashedPassword,
+                        role: 'client',
+                        isActive: true
+                    }
+                });
+
+                // Send welcome email with credentials
+                try {
+                    await sendWelcomeEmail(clientUser, password, req.prisma);
+                } catch (emailErr) {
+                    console.error('Failed to send welcome email to client:', emailErr);
+                }
+            }
+        }
 
         if (req.company && req.company.id && typeof clearCRMCache === 'function') {
             await clearCRMCache(req.company.id);
@@ -129,6 +171,18 @@ exports.updateClient = async (req, res, next) => {
         if (updateData.company !== undefined) {
             updateData.companyName = updateData.company;
             delete updateData.company;
+        }
+
+        if (updateData.email && updateData.email.trim() !== '') {
+            const existingClient = await Client.findFirst({ 
+                where: { 
+                    email: updateData.email,
+                    id: { not: req.params.id }
+                } 
+            });
+            if (existingClient) {
+                return res.status(400).json({ error: 'A client with this email already exists.' });
+            }
         }
 
         const client = await Client.update({

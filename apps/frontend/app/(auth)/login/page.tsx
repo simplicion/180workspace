@@ -115,7 +115,13 @@ function LoginForm() {
                 }
             }
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || err?.message || 'Google login failed');
+            const errorMessage = err?.response?.data?.error || err?.message || 'Google login failed';
+            toast.error(errorMessage);
+            if (err?.response?.status === 404 || err?.response?.status === 401 || errorMessage.includes("We couldn't find an account")) {
+                setTimeout(() => {
+                    router.push('/signup');
+                }, 1000);
+            }
         } finally {
             setGoogleLoading(false);
         }
@@ -159,7 +165,13 @@ function LoginForm() {
             if (err?.message === 'Network Error' || !err?.response) {
                 toast.error('Cannot connect to backend server. Please verify the backend is running on port 4002.');
             } else {
-                toast.error(err?.response?.data?.error || err?.response?.data?.message || 'Login failed. Please check your credentials.');
+                const errorMessage = err?.response?.data?.error || err?.response?.data?.message || 'Login failed. Please check your credentials.';
+                toast.error(errorMessage);
+                if (err?.response?.status === 404 || err?.response?.status === 401 || errorMessage.includes("We couldn't find an account")) {
+                    setTimeout(() => {
+                        router.push('/signup');
+                    }, 1000);
+                }
             }
         } finally {
             setLoading(false);

@@ -217,7 +217,7 @@ exports.createOpportunity = async (req, res, next) => {
 
 exports.updateOpportunity = async (req, res, next) => {
     try {
-        const result = await SalesService.updateOpportunity(req.prisma, req.params.id, req.body);
+        const result = await SalesService.updateOpportunity(req.prisma, req.params.id, req.body, req.company?.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json(result);

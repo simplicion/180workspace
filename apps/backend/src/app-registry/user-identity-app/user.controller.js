@@ -77,7 +77,19 @@ exports.updateUser = async (req, res, next) => {
         if (req.body.managerId === "") req.body.managerId = null;
         if (req.body.salary !== undefined) req.body.salary = parseFloat(req.body.salary) || 0;
         if (req.body.leaveBalance !== undefined) req.body.leaveBalance = parseFloat(req.body.leaveBalance) || 0;
-        if (req.body.joinDate) req.body.joinDate = new Date(req.body.joinDate);
+        
+        // Normalize fields coming from frontend
+        if (req.body.roles && Array.isArray(req.body.roles)) {
+            req.body.role = req.body.roles[0] || 'employee';
+            delete req.body.roles;
+        }
+        if (req.body.joiningDate) {
+            req.body.joinDate = new Date(req.body.joiningDate);
+            delete req.body.joiningDate;
+        }
+        if (req.body.joinDate && typeof req.body.joinDate === 'string') {
+            req.body.joinDate = new Date(req.body.joinDate);
+        }
 
         if (req.body.designationId) {
             const designationId = req.body.designationId;

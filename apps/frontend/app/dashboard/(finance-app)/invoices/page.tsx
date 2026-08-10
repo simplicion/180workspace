@@ -207,8 +207,8 @@ export default function InvoicesPage() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="text-sm text-gray-500">{inv.issueDate ? format(new Date(inv.issueDate), 'MMM d, yyyy') : 'â€”'}</td>
-                                                <td className="text-sm text-gray-500">{inv.dueDate ? format(new Date(inv.dueDate), 'MMM d, yyyy') : 'â€”'}</td>
+                                                <td className="text-sm text-gray-500">{inv.issueDate ? format(new Date(inv.issueDate), 'MMM d, yyyy') : '-'}</td>
+                                                <td className="text-sm text-gray-500">{inv.dueDate ? format(new Date(inv.dueDate), 'MMM d, yyyy') : '-'}</td>
                                                 <td>
                                                     <span className={clsx('badge text-xs flex items-center gap-1 w-fit', statusInfo.badge)}>
                                                         <StatusIcon className="w-3 h-3" /> {statusInfo.label}

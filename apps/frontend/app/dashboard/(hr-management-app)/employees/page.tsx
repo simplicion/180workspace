@@ -25,6 +25,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function EmployeesPage() {
     const [employees, setEmployees] = useState<any[]>([]);
+    const [totalUsers, setTotalUsers] = useState(0);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [role, setRole] = useState('');
@@ -39,7 +40,10 @@ export default function EmployeesPage() {
     function loadEmployees() {
         setLoading(true);
         api.get('/api/users', { params: { search, role } })
-            .then(({ data }) => setEmployees(data.users))
+            .then(({ data }) => {
+                setEmployees(data.users);
+                if (data.total !== undefined) setTotalUsers(data.total);
+            })
             .finally(() => setLoading(false));
     }
 
@@ -61,6 +65,7 @@ export default function EmployeesPage() {
             {showAdd && (
                 <AddEmployeeDrawer
                     open={showAdd}
+                    nextId={`EMP-${String(totalUsers + 1).padStart(4, '0')}`}
                     onClose={() => setShowAdd(false)}
                     onSuccess={() => { setShowAdd(false); loadEmployees(); }}
                 />
@@ -166,9 +171,9 @@ export default function EmployeesPage() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="font-mono text-xs text-gray-500">{emp.employeeId || 'â€”'}</td>
-                                        <td className="text-gray-600">{emp.department || 'â€”'}</td>
-                                        <td className="text-gray-600">{emp.designation?.name || emp.position || 'â€”'}</td>
+                                        <td className="font-mono text-xs text-gray-500">{emp.employeeId || '-'}</td>
+                                        <td className="text-gray-600">{emp.department || '-'}</td>
+                                        <td className="text-gray-600">{emp.designation?.name || emp.position || '-'}</td>
                                         <td>
                                             <div className="flex flex-wrap gap-1">
                                                 {(emp.roles || [emp.role]).map((r: string) => (

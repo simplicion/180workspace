@@ -20,7 +20,7 @@ interface ContextActionsProps {
 export default function ContextActions({ actions, className }: ContextActionsProps) {
     return (
         <div className={clsx(
-            "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-2 group-hover:translate-y-0",
+            "flex items-center gap-1 transition-all duration-200",
             className
         )}>
             {actions.map((action, i) => (
