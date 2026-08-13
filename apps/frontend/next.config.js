@@ -28,10 +28,22 @@ const nextConfig = {
         },
     },
 
-    // webpack: (config, { isServer, webpack }) => {
-    //     config.resolve.alias['proxy-from-env'] = require.resolve('proxy-from-env/index.js');
-    //     return config;
-    // },
+    webpack: (config, { isServer }) => {
+        if (isServer) {
+            config.resolve.alias = {
+                ...config.resolve.alias,
+                'html2pdf.js': false,
+                'jspdf': false,
+                '@react-pdf/renderer': false,
+                'docx': false,
+                'html2canvas': false,
+                'leaflet': false,
+                'react-leaflet': false,
+                'react-signature-canvas': false,
+            };
+        }
+        return config;
+    },
 
     images: {
         remotePatterns: [
