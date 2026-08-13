@@ -2,16 +2,12 @@ import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import EmailProvider from "next-auth/providers/email"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { prisma } from "@workspace/db"
-import bcrypt from "bcryptjs"
 
 const useSecureCookies = process.env.NODE_ENV === "production"
 const cookiePrefix = useSecureCookies ? "__Secure-" : ""
 const cookieDomain = process.env.NODE_ENV === "production" ? ".180workspace.com" : undefined
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
   cookies: {
     sessionToken: {
       name: `${cookiePrefix}next-auth.session-token`,
@@ -76,31 +72,51 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null
         
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
-          include: { company: true }
-        })
-        
-        if (user && user.password) {
-          const isValid = await bcrypt.compare(credentials.password, user.password)
-          if (isValid) {
-            if (!user.isActive) throw new Error("Account is inactive.");
-              const isLegacyOrAdmin = !!user.companyId || (user.role && user.role !== 'employee' && user.role !== 'USER');
-              return { 
-                id: user.id, 
-                name: user.name,
-                username: user.username,
-                email: user.email, 
-                companyId: user.companyId,
-                role: user.role,
-                isOnboardingComplete: user.company?.isOnboardingComplete || false,
-                isFirstLogin: isLegacyOrAdmin ? false : user.isFirstLogin,
-                companySlug: user.company?.slug,
-                companyCustomDomain: user.company?.customDomain
-              } as any
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
+            (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:4002');
+            
+          const res = await fetch(`${apiUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              email: credentials.email.toLowerCase(), 
+              password: credentials.password 
+            }),
+            cache: 'no-store'
+          });
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error(`[NextAuth Credentials] /api/auth/login failed: ${res.status} ${res.statusText}`, errorText);
+            return null;
           }
+          
+          const data = await res.json();
+          const backendUser = data?.user;
+          const backendCompany = data?.company;
+          
+          if (!backendUser || !backendUser.id) return null;
+          
+          if (backendUser.isActive) {
+            const isLegacyOrAdmin = !!backendUser.companyId || (backendUser.role && backendUser.role !== 'employee' && backendUser.role !== 'USER');
+            return { 
+              id: backendUser.id, 
+              name: backendUser.name,
+              username: backendUser.username,
+              email: backendUser.email, 
+              companyId: backendUser.companyId || backendCompany?.id,
+              role: backendUser.role,
+              isOnboardingComplete: backendCompany?.isOnboardingComplete || false,
+              isFirstLogin: isLegacyOrAdmin ? false : backendUser.isFirstLogin,
+              companySlug: backendCompany?.slug,
+              companyCustomDomain: backendCompany?.customDomain
+            } as any
+          }
+        } catch(e) {
+          console.error("Credentials auth error:", e);
         }
-        return null
+        return null;
       }
     }),
     CredentialsProvider({

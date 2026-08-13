@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const nextConfig = {
-    transpilePackages: ['@workspace/ui', 'country-state-city', 'react-quill', 'react-quill-new'],
+    transpilePackages: ['@workspace/ui'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
     output: "standalone",
     reactStrictMode: true,
@@ -21,29 +21,21 @@ const nextConfig = {
         '/**/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
     },
     experimental: {
-        optimizePackageImports: ['lucide-react', 'date-fns', 'recharts', 'framer-motion', 'lodash', '@mui/material'],
+        optimizePackageImports: ['lucide-react', 'date-fns', 'lodash'],
         staleTimes: {
             dynamic: 30,
             static: 180,
         },
     },
 
-    webpack: (config, { isServer }) => {
+    webpack: (config, { webpack, isServer }) => {
         if (isServer) {
-            config.resolve.alias = {
-                ...config.resolve.alias,
-                'html2pdf.js': false,
-                'jspdf': false,
-                '@react-pdf/renderer': false,
-                'docx': false,
-                'html2canvas': false,
-                'country-state-city': false,
-                'react-quill': false,
-                'react-quill-new': false,
-                'leaflet': false,
-                'react-leaflet': false,
-                'react-signature-canvas': false,
-            };
+            config.plugins.push(
+                new webpack.NormalModuleReplacementPlugin(
+                    /^@react-pdf\/renderer$|^jspdf$|^html2canvas$|^html2pdf\.js$|^docx$|^leaflet$|^react-leaflet$|^react-signature-canvas$/,
+                    path.resolve(__dirname, 'dummy.js')
+                )
+            );
         }
         return config;
     },

@@ -10,6 +10,58 @@ const BillingService = require('../finance-app/bills/billing.service');
 const { prisma: globalPrisma, getCompanyPrisma } = require('@workspace/db');
 
 class AuthService {
+    static async registerTenant(body) {
+        const { name, email, password, companyName, logoBase64 } = body;
+        
+        // Check if user already exists
+        const existingUser = await globalPrisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+        });
+
+        if (existingUser && existingUser.companyId) {
+            const err = new Error('User already exists');
+            err.status = 409; throw err;
+        }
+
+        // Create company
+        const company = await globalPrisma.company.create({
+            data: {
+                name: companyName,
+                slug: `${companyName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`,
+                databaseConfigured: true, 
+                isOnboardingComplete: false,
+                logoUrl: logoBase64 || null,
+            },
+        });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        let user;
+        if (existingUser) {
+            user = await globalPrisma.user.update({
+                where: { id: existingUser.id },
+                data: {
+                    name,
+                    password: hashedPassword,
+                    companyId: company.id,
+                    role: 'ceo',
+                },
+            });
+        } else {
+            user = await globalPrisma.user.create({
+                data: {
+                    name,
+                    email: email.toLowerCase(),
+                    password: hashedPassword,
+                    role: 'ceo',
+                    companyId: company.id,
+                },
+            });
+        }
+        
+        return { user, company };
+    }
+
     static async register(companyPrisma, body, company, currentUser) {
         const { name, email, password, role, roles, department, designationId, position, permissions, employmentType, workLocation, managerId, phone, emergencyContact, salary, leaveBalance, joinDate } = body;
 
@@ -770,6 +822,103 @@ class AuthService {
         const refreshToken = signRefreshToken(user.id, company.id);
 
         return { token, refreshToken, user, company };
+    }
+
+    static async sendOtp(email) {
+        const normalizedEmail = email.toLowerCase().trim();
+        
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date();
+        otpExpiry.setMinutes(otpExpiry.getMinutes() + 10);
+        
+        let user = await globalPrisma.user.findUnique({ where: { email: normalizedEmail } });
+        
+        if (user) {
+            if (user.username || user.companyId) {
+                const err = new Error("Please sign in, you are already registered in our platform.");
+                err.code = "USER_EXISTS"; throw err;
+            }
+            await globalPrisma.user.update({
+                where: { email: normalizedEmail },
+                data: { otpCode, otpExpiry },
+            });
+        } else {
+            user = await globalPrisma.user.create({
+                data: {
+                    name: "New User",
+                    email: normalizedEmail,
+                    otpCode,
+                    otpExpiry,
+                },
+            });
+        }
+        
+        return { otpCode };
+    }
+
+    static async verifyOtp(email, otp) {
+        const normalizedEmail = email.toLowerCase().trim();
+        
+        const user = await globalPrisma.user.findUnique({ where: { email: normalizedEmail } });
+        if (!user) {
+            const err = new Error("User not found");
+            err.status = 404; throw err;
+        }
+
+        if (user.otpCode !== otp || !user.otpExpiry || user.otpExpiry < new Date()) {
+            const err = new Error("Invalid or expired OTP");
+            err.status = 400; throw err;
+        }
+
+        await globalPrisma.user.update({
+            where: { email: normalizedEmail },
+            data: { otpCode: null, otpExpiry: null, isEmailVerified: true },
+        });
+        
+        return true;
+    }
+
+    static async onboarding(email, data) {
+        const { role, name, username, headline, city, country, socialLinks, bio, interests } = data;
+        
+        // Check if username is already taken by someone else
+        if (username) {
+            const existingUser = await globalPrisma.user.findFirst({
+                where: { 
+                    username, 
+                    email: { not: email } 
+                }
+            });
+            if (existingUser) {
+                const err = new Error("Username is already taken");
+                err.code = 'USERNAME_TAKEN'; throw err;
+            }
+        }
+
+        const user = await globalPrisma.user.update({
+            where: { email },
+            data: {
+                ...(name && { name }),
+                ...(role && { role }),
+                ...(username && { username }),
+                ...(headline && { headline }),
+                ...(city && { city }),
+                ...(country && { country }),
+                ...(socialLinks && { socialLinks }),
+                ...(bio && { bio }),
+                ...(interests && { interests }),
+                isFirstLogin: false // Marking as completed onboarding
+            },
+        });
+
+        return user;
+    }
+
+    static async checkUsername(username) {
+        const user = await globalPrisma.user.findFirst({
+            where: { username }
+        });
+        return !user;
     }
 }
 

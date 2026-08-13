@@ -4,7 +4,7 @@ const AuthService = require('./auth.service');
 const { logAction } = require('../../system-configs/middleware/audit/audit.js');
 const { sanitizeUser } = require('../../system-configs/utils/sanitize-user');
 
-exports.register = async (req, res, next) => {
+exports.registerUser = async (req, res, next) => {
     try {
         if (!req.prisma) {
             return res.status(400).json({ error: 'Workspace context missing. Cannot register user.' });
@@ -18,6 +18,19 @@ exports.register = async (req, res, next) => {
             refreshToken: result.refreshToken, 
             user: sanitizeUser(result.user) 
         });
+    } catch (err) { next(err); }
+};
+
+exports.registerTenant = async (req, res, next) => {
+    try {
+        const { name, email, password, companyName, logoBase64 } = req.body;
+        
+        if (!email || !password || !name || !companyName) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const result = await AuthService.registerTenant(req.body);
+        res.status(201).json({ success: true, user: sanitizeUser(result.user) });
     } catch (err) { next(err); }
 };
 
@@ -257,6 +270,69 @@ exports.sendOtpEmail = async (req, res, next) => {
         res.json({ success: true, message: "OTP email sent successfully" });
     } catch (err) {
         console.error("Error sending OTP email:", err);
+        next(err);
+    }
+};
+
+exports.sendOtp = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ success: false, message: "Email is required" });
+        }
+        
+        const result = await AuthService.sendOtp(email);
+        
+        // Use sendOtpEmail logic
+        req.body.otpCode = result.otpCode;
+        return exports.sendOtpEmail(req, res, next);
+    } catch (err) {
+        if (err.code === 'USER_EXISTS') {
+            return res.status(400).json({ success: false, message: err.message, code: err.code });
+        }
+        next(err);
+    }
+};
+
+exports.verifyOtp = async (req, res, next) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ success: false, message: "Email and OTP are required" });
+        }
+        
+        await AuthService.verifyOtp(email, otp);
+        res.json({ success: true, message: "Email verified" });
+    } catch (err) {
+        return res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.onboarding = async (req, res, next) => {
+    try {
+        // We use req.user (which is set by the protect middleware)
+        if (!req.user || !req.user.email) {
+            return res.status(400).json({ success: false, message: "Unauthorized" });
+        }
+        const user = await AuthService.onboarding(req.user.email, req.body);
+        res.json({ success: true, message: "Onboarding completed successfully", user: sanitizeUser(user) });
+    } catch (err) {
+        if (err.code === 'USERNAME_TAKEN') {
+            return res.status(400).json({ success: false, message: "Username is already taken" });
+        }
+        next(err);
+    }
+};
+
+exports.checkUsername = async (req, res, next) => {
+    try {
+        const { username } = req.query;
+        if (!username) {
+            return res.status(400).json({ success: false, message: "Username is required" });
+        }
+        const isAvailable = await AuthService.checkUsername(username);
+        res.json({ success: true, available: isAvailable });
+    } catch (err) {
         next(err);
     }
 };

@@ -110,13 +110,13 @@ export default function SignupFlow() {
         setEmail(submittedEmail);
         setLoading(true);
         try {
-            const res = await fetch('/api/auth/send-otp', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/send-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: submittedEmail })
             });
             const data = await res.json();
-            if (data.success) {
+            if (res.ok && data.success !== false) {
                 toast.success('OTP sent to your email!');
                 setStep(2); // Go to OTP verification
             } else {
@@ -136,13 +136,13 @@ export default function SignupFlow() {
     const handleVerifyOtp = async (otp: string) => {
         setLoading(true);
         try {
-            const res = await fetch('/api/auth/verify-otp', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, otp })
             });
             const data = await res.json();
-            if (data.success) {
+            if (res.ok && data.success !== false) {
                 toast.success('Email verified!');
                 setStep(3); // Go to Password setup
             } else {
@@ -161,18 +161,17 @@ export default function SignupFlow() {
         setLoading(true);
         try {
             // First set password
-            let res;
             if (googleTokenId) {
-                res = await fetch('/api/register', {
+                res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: profile.name || 'User', email, password: newPassword, companyName: 'Onboarding' }),
                 });
             } else {
-                res = await fetch('/api/auth/set-password', {
+                res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password: newPassword })
+                    body: JSON.stringify({ name: 'User', email, password: newPassword, companyName: 'Onboarding' })
                 });
             }
             
@@ -218,12 +217,8 @@ export default function SignupFlow() {
                 interests: []
             };
 
-            const res = await fetch('/api/onboarding', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(finalData)
-            });
-            const data = await res.json();
+            const res = await api.post('/api/auth/onboarding', finalData);
+            const data = res.data;
 
             if (data.success) {
                 toast.success('Onboarding complete!');

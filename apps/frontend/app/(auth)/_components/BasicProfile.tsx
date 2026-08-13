@@ -34,7 +34,7 @@ export default function BasicProfile({
         setUsernameStatus('checking');
         const delayDebounceFn = setTimeout(async () => {
             try {
-                const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(formData.username)}`);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/check-username?username=${encodeURIComponent(formData.username)}`);
                 const data = await res.json();
                 if (data.success) {
                     if (data.available) setUsernameStatus('available');

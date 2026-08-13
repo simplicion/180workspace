@@ -12,6 +12,7 @@ import clsx from 'clsx';
 import { ALL_APPS } from '@/lib/module-map';
 import { LocationSearch } from '@/components/ui/LocationSearch';
 import { locationService, FormattedLocation } from '@/lib/location-service';
+import api from '@/lib/api';
 // Detailed mapping of sub-modules (screens) for each app
 const APP_MODULES: Record<string, { id: string; name: string; desc: string }[]> = {
     crm: [
@@ -237,27 +238,23 @@ function WorkspaceSetup() {
     const completeSetup = async () => {
         setSaving(true);
         try {
-            const res = await fetch('/api/auth/complete-workspace-setup', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    companyName,
-                    slug,
-                    website,
-                    oneLineDescription,
-                    industry,
-                    startupStage,
-                    teamSize,
-                    enabledApps,
-                    enabledModules,
-                    currency,
-                    currencySymbol,
-                    country
-                })
+            const res = await api.put('/api/auth/complete-workspace-setup', {
+                companyName,
+                slug,
+                website,
+                oneLineDescription,
+                industry,
+                startupStage,
+                teamSize,
+                enabledApps,
+                enabledModules,
+                currency,
+                currencySymbol,
+                country
             });
 
-            const data = await res.json();
-            if (res.ok) {
+            const data = res.data;
+            if (data.success) {
                 if (data.platformToken) {
                     localStorage.setItem('platform_auth_token', data.platformToken);
                 }
