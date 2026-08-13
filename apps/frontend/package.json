@@ -4,12 +4,13 @@
     "private": true,
     "scripts": {
         "dev": "next dev -p 3002",
-        "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+        "prisma:generate": "prisma generate --schema=../../packages/db/prisma/schema.prisma",
+        "build": "pnpm prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
         "start": "next start -p 3000",
         "lint": "next lint",
         "test": "jest",
         "test:coverage": "jest --coverage",
-        "vercel-build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build"
+        "vercel-build": "pnpm prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build"
     },
     "engines": {
         "node": "24.x"

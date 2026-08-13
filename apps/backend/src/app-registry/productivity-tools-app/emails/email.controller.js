@@ -358,7 +358,7 @@ exports.getEmailStats = async (req, res, next) => {
             where: { companyId },
             _count: { _all: true }
         });
-        const statusStats = statusGroups.map(g => ({ _id: g.status, count: g._count._all }));
+        const statusStats = statusGroups.map(g => ({ id: g.status, _id: g.status, count: g._count._all }));
 
         const templateGroups = await EmailLog.groupBy({
             by: ['templateName', 'status'],
@@ -368,9 +368,10 @@ exports.getEmailStats = async (req, res, next) => {
         
         const templateMap = {};
         templateGroups.forEach(g => {
-            if (!templateMap[g.templateName]) templateMap[g.templateName] = { _id: g.templateName, count: 0, failed: 0 };
-            templateMap[g.templateName].count += g._count._all;
-            if (g.status === 'failed') templateMap[g.templateName].failed += g._count._all;
+            const tName = g.templateName || 'custom';
+            if (!templateMap[tName]) templateMap[tName] = { id: tName, _id: tName, count: 0, failed: 0 };
+            templateMap[tName].count += g._count._all;
+            if (g.status === 'failed') templateMap[tName].failed += g._count._all;
         });
         const templateStats = Object.values(templateMap).sort((a, b) => b.count - a.count).slice(0, 10);
 
@@ -382,10 +383,12 @@ exports.getEmailStats = async (req, res, next) => {
         });
         const dateMap = {};
         recentLogs.forEach(log => {
-            const date = log.createdAt.toISOString().split('T')[0];
-            dateMap[date] = (dateMap[date] || 0) + 1;
+            if (log.createdAt) {
+                const date = new Date(log.createdAt).toISOString().split('T')[0];
+                dateMap[date] = (dateMap[date] || 0) + 1;
+            }
         });
-        const recentActivity = Object.keys(dateMap).sort().map(k => ({ _id: k, count: dateMap[k] }));
+        const recentActivity = Object.keys(dateMap).sort().map(k => ({ id: k, _id: k, count: dateMap[k] }));
 
         res.json({ stats: statusStats, templateStats, recentActivity });
     } catch (err) { next(err); }

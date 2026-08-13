@@ -11,6 +11,11 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     outputFileTracingRoot: path.join(__dirname, '../../'),
+    outputFileTracingIncludes: {
+        '/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
+        '/api/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
+        '/**/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
+    },
     experimental: {
         // axios removed — optimizePackageImports on axios triggers ESM analysis
         // of axios/lib/adapters/http.js which causes proxy-from-env CJS/ESM conflict

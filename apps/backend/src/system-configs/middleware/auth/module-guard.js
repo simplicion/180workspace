@@ -76,7 +76,8 @@ module.exports = function moduleGuard(appId, moduleId) {
                         if (typeof metadata === 'string') {
                             try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
                         }
-                        config.enabledApps = metadata.enabledApps || [];
+                        const defaultApps = ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising', 'social-media', 'assets'];
+                        config.enabledApps = (Array.isArray(metadata.enabledApps) && metadata.enabledApps.length > 0) ? metadata.enabledApps : defaultApps;
                         config.enabledModules = metadata.enabledModules || [];
                         req.companyConfig = config; // Cache for subsequent middleware/controllers
                     }
@@ -108,13 +109,19 @@ module.exports = function moduleGuard(appId, moduleId) {
             require('fs').appendFileSync('C:\\\\Users\\\\saavi\\\\OneDrive\\\\Desktop\\\\180workspace\\\\apps\\\\backend\\\\debug-module-guard.txt', `[DEBUG] appId=${appId}, config.enabledApps=${JSON.stringify(config.enabledApps)}, company.metadata=${JSON.stringify(company.metadata)}\n`);
 
             // GATE 5: App-level access check
-            if (appId && config.enabledApps && !config.enabledApps.includes(appId)) {
-                console.warn(`[Module Guard] DENIED — App "${appId}" is disabled for company=${company.id}`);
-                return res.status(403).json({
-                    error: 'App Disabled',
-                    message: `The ${appId} application is currently disabled for your workspace.`,
-                    code: 'APP_DISABLED'
-                });
+            // Core workspace apps ('tools', 'system', 'projects') are essential platform suites and must never be blocked.
+            const CORE_ALWAYS_ENABLED_APPS = new Set(['tools', 'system', 'productivity-tools-app', 'productivity']);
+
+            if (appId && !CORE_ALWAYS_ENABLED_APPS.has(appId)) {
+                const userEnabledApps = Array.isArray(config.enabledApps) ? config.enabledApps : [];
+                if (userEnabledApps.length > 0 && !userEnabledApps.includes(appId)) {
+                    console.warn(`[Module Guard] DENIED — App "${appId}" is disabled for company=${company.id}`);
+                    return res.status(403).json({
+                        error: 'App Disabled',
+                        message: `The ${appId} application is currently disabled for your workspace.`,
+                        code: 'APP_DISABLED'
+                    });
+                }
             }
 
             // GATE 6: Module-level access check

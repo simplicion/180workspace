@@ -25,7 +25,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // Projects & Workflow
   '/dashboard/projects': { appId: 'projects', moduleId: 'projects' },
   '/dashboard/tasks': { appId: 'projects', moduleId: 'tasks' },
-
   '/dashboard/milestones': { appId: 'projects', moduleId: 'milestones' },
   '/dashboard/timetracking': { appId: 'projects', moduleId: 'timetracking' },
   '/dashboard/work-logs': { appId: 'projects', moduleId: 'work-logs' },

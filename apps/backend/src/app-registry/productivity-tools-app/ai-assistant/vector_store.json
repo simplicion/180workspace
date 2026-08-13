@@ -61,5 +61,131 @@
       "companyId": "be5e416a-87df-442f-8e4d-fad10c5e0b24",
       "type": "task"
     }
+  },
+  {
+    "id": "user_659d6b0c-586c-4af0-bad3-5fe5fd304f0d_chunk_0",
+    "docId": "user_659d6b0c-586c-4af0-bad3-5fe5fd304f0d",
+    "text": "Employee Record: Prince Kumar. Role: admin. Department: null. Email: snapshiksha@gmail.com",
+    "embedding": [
+      0.29767618904445686,
+      0.33599094605017904,
+      0.3300963680492987,
+      0.31535992304709787,
+      0.33599094605017904,
+      0.2858870330426962,
+      0.2947289000440167,
+      0.32420179004841837,
+      0.29767618904445686,
+      0.3389382350506192
+    ],
+    "metadata": {
+      "companyId": "edf50d95-d26c-4d04-954c-53626478bb59",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_9eceb551-fe1c-4a03-bc47-94f8fb2a54b8_chunk_0",
+    "docId": "user_9eceb551-fe1c-4a03-bc47-94f8fb2a54b8",
+    "text": "Employee Record: Rishu Kumar. Role: client. Department: . Email: prince3641@gmail.com",
+    "embedding": [
+      0.3112484434374897,
+      0.35131012427597846,
+      0.35131012427597846,
+      0.3297384499783306,
+      0.35131012427597846,
+      0.305085107923876,
+      0.30816677568068285,
+      0.1417567168131141,
+      0.3112484434374897,
+      0.3451467887623648
+    ],
+    "metadata": {
+      "companyId": "edf50d95-d26c-4d04-954c-53626478bb59",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_043f3b83-6f9b-427d-a38e-cfacffeead39_chunk_0",
+    "docId": "user_043f3b83-6f9b-427d-a38e-cfacffeead39",
+    "text": "Employee Record: Prince Kumar. Role: client. Department: null. Email: zsnapypro@gmail.com",
+    "embedding": [
+      0.29505939821626603,
+      0.333037340560934,
+      0.3271945802002158,
+      0.31258767929842046,
+      0.333037340560934,
+      0.2892166378555479,
+      0.292138018035907,
+      0.3213518198394977,
+      0.29505939821626603,
+      0.35640838200380653
+    ],
+    "metadata": {
+      "companyId": "edf50d95-d26c-4d04-954c-53626478bb59",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "project_9fe0f57e-2941-4f53-a3a5-a4a0914ad50c_chunk_0",
+    "docId": "project_9fe0f57e-2941-4f53-a3a5-a4a0914ad50c",
+    "text": "Project Record: Snapshikhsa. Description: None. Status: planning. Priority: medium.",
+    "embedding": [
+      0.3360788197259224,
+      0.3420802272210282,
+      0.34508093096858106,
+      0.30007037475528786,
+      0.33007741223081666,
+      0.34508093096858106,
+      0.3360788197259224,
+      0.3360788197259224,
+      0.3270767084832638,
+      0
+    ],
+    "metadata": {
+      "companyId": "edf50d95-d26c-4d04-954c-53626478bb59",
+      "type": "project"
+    }
+  },
+  {
+    "id": "task_832bf91c-ec10-4dd7-90cb-3e4a7c52ba26_chunk_0",
+    "docId": "task_832bf91c-ec10-4dd7-90cb-3e4a7c52ba26",
+    "text": "Task Record: Define the business model. Description: None. Status: in_review. Priority: medium.",
+    "embedding": [
+      0.5189812790943457,
+      0.5076001106931539,
+      0.22762336802383581,
+      0.26404310690764954,
+      0.2230709006633591,
+      0.24810947114598103,
+      0.22762336802383581,
+      0.2503857048262194,
+      0.2617668732274112,
+      0.2390045364250276
+    ],
+    "metadata": {
+      "companyId": "edf50d95-d26c-4d04-954c-53626478bb59",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_393e8879-6ffc-42ff-a300-103da9ddc883_chunk_0",
+    "docId": "task_393e8879-6ffc-42ff-a300-103da9ddc883",
+    "text": "Task Record: Define the business model. Description: None. Status: in_progress. Priority: medium.",
+    "embedding": [
+      0.5189812790943457,
+      0.5076001106931539,
+      0.22762336802383581,
+      0.26404310690764954,
+      0.2230709006633591,
+      0.24810947114598103,
+      0.22762336802383581,
+      0.2503857048262194,
+      0.2617668732274112,
+      0.2390045364250276
+    ],
+    "metadata": {
+      "companyId": "edf50d95-d26c-4d04-954c-53626478bb59",
+      "type": "task"
+    }
   }
 ]

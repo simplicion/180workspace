@@ -59,7 +59,8 @@ export default function EmailManagementPage() {
     // ── Template Preview Mode ─────────────────────────────────────────────────
     const [templatePreview, setTemplatePreview] = useState<{ show: boolean, loading: boolean, subject: string, html: string, mode: 'edit' | 'view' } | null>(null);
 
-    const isHR = user && ['admin', 'manager', 'hr'].includes(user.role);
+    const userRole = (user?.role || '').toLowerCase();
+    const isHR = Boolean(user && (['admin', 'manager', 'hr', 'owner', 'super_admin', 'superadmin', 'bmsp_super_admin'].includes(userRole) || (user as any).isSuperAdmin));
 
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true);
@@ -188,8 +189,8 @@ export default function EmailManagementPage() {
         log.subject?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const sentCount = stats?.stats?.find((s: any) => s.id === 'sent')?.count || 0;
-    const failedCount = stats?.stats?.find((s: any) => s.id === 'failed')?.count || 0;
+    const sentCount = stats?.stats?.find((s: any) => (s.id || s._id) === 'sent')?.count || 0;
+    const failedCount = stats?.stats?.find((s: any) => (s.id || s._id) === 'failed')?.count || 0;
     const totalCount = sentCount + failedCount;
     const deliveryRate = totalCount > 0 ? Math.round((sentCount / totalCount) * 100) : 0;
 
@@ -288,11 +289,12 @@ export default function EmailManagementPage() {
                             ) : stats?.templateStats?.length ? (
                                 <div className="space-y-3">
                                     {stats.templateStats.map((t: any) => {
+                                        const tId = t.id || t._id || 'custom';
                                         const pct = totalCount > 0 ? Math.round((t.count / totalCount) * 100) : 0;
                                         return (
-                                            <div key={t.id}>
+                                            <div key={tId}>
                                                 <div className="flex items-center justify-between text-sm mb-1">
-                                                    <span className="font-medium text-gray-700">{t.id}</span>
+                                                    <span className="font-medium text-gray-700">{tId}</span>
                                                     <span className="text-gray-500">{t.count} emails{t.failed > 0 && <span className="text-rose-400 ml-2">({t.failed} failed)</span>}</span>
                                                 </div>
                                                 <div className="w-full bg-gray-100 rounded-full h-2">
@@ -319,13 +321,14 @@ export default function EmailManagementPage() {
                             <div className="card-body">
                                 <div className="flex items-end gap-2 h-24">
                                     {stats.recentActivity.map((d: any) => {
+                                        const dId = d.id || d._id || '';
                                         const max = Math.max(...stats.recentActivity.map((x: any) => x.count));
                                         const h = max > 0 ? Math.round((d.count / max) * 100) : 0;
                                         return (
-                                            <div key={d.id} className="flex-1 flex flex-col items-center gap-1">
+                                            <div key={dId || Math.random()} className="flex-1 flex flex-col items-center gap-1">
                                                 <span className="text-xs text-gray-500">{d.count}</span>
                                                 <div className="w-full bg-primary rounded-t" style={{ height: `${h}%`, minHeight: d.count > 0 ? '4px' : '0' }} />
-                                                <span className="text-[10px] text-gray-400">{d.id.slice(5)}</span>
+                                                <span className="text-[10px] text-gray-400">{dId.length > 5 ? dId.slice(5) : dId}</span>
                                             </div>
                                         );
                                     })}

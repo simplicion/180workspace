@@ -12,6 +12,11 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     outputFileTracingRoot: path.join(__dirname, '../../'),
+    outputFileTracingIncludes: {
+        '/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
+        '/api/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
+        '/**/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
+    },
     experimental: {
         optimizePackageImports: ['lucide-react', 'date-fns', 'recharts', 'framer-motion', 'lodash', '@mui/material'],
         staleTimes: {

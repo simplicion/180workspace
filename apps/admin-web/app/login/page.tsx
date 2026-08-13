@@ -1,4 +1,4 @@
-'use client';
+    'use client';
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, FormEvent, Suspense, useEffect } from 'react';

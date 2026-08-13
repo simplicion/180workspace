@@ -350,8 +350,8 @@ async function companyContextMiddleware(req, res, next) {
  * Clear cached company data from memory and redis.
  */
 companyContextMiddleware.clearCompanyCache = async (companyId) => {
+    memoryCache.clear();
     if (!companyId) return;
-    memoryCache.delete(`company:${companyId}`);
     try {
         const { redis } = require('../../config/redis');
         if (redis) {

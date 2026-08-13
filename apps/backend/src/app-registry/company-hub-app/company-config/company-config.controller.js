@@ -40,19 +40,24 @@ exports.getCompanyConfig = async (req, res, next) => {
             ...metadata
         };
 
-        // Self-healing migration: ensure all required modules are enabled
+        const REQUIRED_APPS = ['tools', 'projects', 'crm', 'hr', 'finance'];
+        const missingApps = REQUIRED_APPS.filter(a => !config.enabledApps?.includes(a));
         const missingModules = REQUIRED_MODULES.filter(m => !config.enabledModules?.includes(m));
-        if (missingModules.length > 0) {
-            const updatedModules = [...(config.enabledModules || []), ...missingModules];
+
+        if (missingApps.length > 0 || missingModules.length > 0) {
+            const updatedApps = Array.from(new Set([...(config.enabledApps || []), ...missingApps]));
+            const updatedModules = Array.from(new Set([...(config.enabledModules || []), ...missingModules]));
             await prisma.company.update({
                 where: { id: companyId },
                 data: {
                     metadata: {
                         ...metadata,
+                        enabledApps: updatedApps,
                         enabledModules: updatedModules
                     }
                 }
             });
+            config.enabledApps = updatedApps;
             config.enabledModules = updatedModules;
         }
 
