@@ -118,6 +118,7 @@ jobs:
       - name: Build with OpenNext for Cloudflare
         run: npx opennextjs-cloudflare build
         env:
+          BUILD_STANDALONE: "true"
           NODE_OPTIONS: --max-old-space-size=4096
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://44.214.118.213' }}
           NEXT_PUBLIC_SOCKET_URL: ${{ vars.NEXT_PUBLIC_SOCKET_URL || 'http://44.214.118.213' }}
