@@ -116,7 +116,7 @@ jobs:
         run: pnpm prisma:generate
 
       - name: Build with OpenNext for Cloudflare
-        run: npx opennextjs-cloudflare
+        run: npx opennextjs-cloudflare build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://44.214.118.213' }}

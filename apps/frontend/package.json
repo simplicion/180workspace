@@ -6,7 +6,7 @@
         "dev": "next dev -p 3002",
         "prisma:generate": "prisma generate --schema=../../packages/db/prisma/schema.prisma",
         "build": "pnpm prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
-        "build:cloudflare": "pnpm prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 opennextjs-cloudflare",
+        "build:cloudflare": "pnpm prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 opennextjs-cloudflare build",
         "deploy:cloudflare": "pnpm build:cloudflare && wrangler deploy",
         "preview:cloudflare": "pnpm build:cloudflare && wrangler dev",
         "start": "next start -p 3000",
