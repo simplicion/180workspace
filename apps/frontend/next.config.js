@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const nextConfig = {
-    transpilePackages: ['@workspace/ui'],
+    transpilePackages: ['@workspace/ui', 'country-state-city', 'react-quill', 'react-quill-new'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
     output: "standalone",
     reactStrictMode: true,
@@ -37,6 +37,9 @@ const nextConfig = {
                 '@react-pdf/renderer': false,
                 'docx': false,
                 'html2canvas': false,
+                'country-state-city': false,
+                'react-quill': false,
+                'react-quill-new': false,
                 'leaflet': false,
                 'react-leaflet': false,
                 'react-signature-canvas': false,
