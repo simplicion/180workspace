@@ -4,8 +4,6 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { X, Printer, Download, CreditCard } from 'lucide-react';
-import { pdf } from '@react-pdf/renderer';
-import { InvoicePDF } from '@/components/pdf/InvoicePDF';
 import { LogoLoader } from '@workspace/ui';
 import clsx from 'clsx';
 import { Drawer } from '@/components/ui/Drawer';
@@ -39,6 +37,10 @@ export function InvoiceViewDrawer({ invoice, onClose }: { invoice: any; onClose:
 
     const handleDownloadPDF = async () => {
         try {
+            const [{ pdf }, { InvoicePDF }] = await Promise.all([
+                import('@react-pdf/renderer'),
+                import('@/components/pdf/InvoicePDF')
+            ]);
             const blob = await pdf(<InvoicePDF invoice={invoice} company={company} platform={platform} />).toBlob();
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');

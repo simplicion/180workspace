@@ -11,8 +11,6 @@ import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
-import { pdf } from '@react-pdf/renderer';
-import { InvoicePDF } from '@/components/pdf/InvoicePDF';
 
 import { CreateInvoiceDrawer } from './_components/CreateInvoiceDrawer';
 import { InvoiceViewDrawer } from './_components/InvoiceViewDrawer';
@@ -88,6 +86,10 @@ export default function InvoicesPage() {
 
     async function handleDownloadPDF(inv: any) {
         try {
+            const [{ pdf }, { InvoicePDF }] = await Promise.all([
+                import('@react-pdf/renderer'),
+                import('@/components/pdf/InvoicePDF')
+            ]);
             const blob = await pdf(<InvoicePDF invoice={inv} company={company} platform={{}} />).toBlob();
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
