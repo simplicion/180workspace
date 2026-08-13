@@ -5,7 +5,7 @@ const fs = require('fs');
 const nextConfig = {
     transpilePackages: ['@workspace/ui'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
-    output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
+    output: "standalone",
     reactStrictMode: true,
     poweredByHeader: false,
     eslint: {
