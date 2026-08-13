@@ -337,21 +337,7 @@ export default function EmailManagementPage() {
                         </div>
                     )}
 
-                    {/* Quick Actions */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {[
-                            { label: 'Compose Email', desc: 'Send to a single recipient', icon: Send, tab: 'compose' as Tab, color: 'bg-primary text-white hover:bg-primary-dark' },
-                            { label: 'Bulk Send', desc: 'Email entire teams at once', icon: Users, tab: 'bulk' as Tab, color: 'bg-indigo-600 text-white hover:bg-indigo-700' },
-                            { label: 'View History', desc: 'Browse all sent emails', icon: History, tab: 'history' as Tab, color: 'bg-gray-800 text-white hover:bg-gray-900' },
-                        ].map(q => (
-                            <button key={q.label} onClick={() => setActiveTab(q.tab)}
-                                className={clsx('p-4 rounded-2xl text-left transition-all shadow-sm hover:shadow-md', q.color)}>
-                                <q.icon className="w-6 h-6 mb-2 opacity-90" />
-                                <p className="font-semibold">{q.label}</p>
-                                <p className="text-xs opacity-75 mt-0.5">{q.desc}</p>
-                            </button>
-                        ))}
-                    </div>
+
                 </div>
             )}
 
