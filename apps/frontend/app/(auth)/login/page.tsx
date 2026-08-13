@@ -44,14 +44,14 @@ function LoginForm() {
         if (!isLoading && user) {
             const hasPlatformToken = document.cookie.includes('platform_auth_token');
 
-            if (searchParams.get('clearSession') === 'true' && user) {
+            if (searchParams?.get('clearSession') === 'true' && user) {
                 signOut({ redirect: false }).then(() => {
                     router.replace('/login');
                 });
                 return;
             }
 
-            if (user && searchParams.get('clearSession') !== 'true') {
+            if (user && searchParams?.get('clearSession') !== 'true') {
                 if (!hasPlatformToken) {
                     // Break the redirect loop
                     signOut({ redirect: false });
@@ -64,7 +64,7 @@ function LoginForm() {
                     return;
                 }
 
-                const returnUrl = searchParams.get('returnUrl');
+                const returnUrl = searchParams?.get('returnUrl');
                 window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
             }
         }
@@ -110,7 +110,7 @@ function LoginForm() {
                     toast.error(result.error);
                 } else if (result?.ok) {
                     toast.success('Logged in successfully!');
-                    const returnUrl = searchParams.get('returnUrl');
+                    const returnUrl = searchParams?.get('returnUrl');
                     window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
                 }
             }
@@ -156,7 +156,7 @@ function LoginForm() {
             
             if (result?.ok) {
                 toast.success('Logged in successfully!');
-                const returnUrl = searchParams.get('returnUrl');
+                const returnUrl = searchParams?.get('returnUrl');
                 // The Next.js middleware will automatically redirect if onboarding is not complete
                 window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
             }

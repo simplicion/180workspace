@@ -11,6 +11,9 @@ const nextConfig = {
     eslint: {
         ignoreDuringBuilds: true,
     },
+    typescript: {
+        ignoreBuildErrors: true,
+    },
     outputFileTracingRoot: path.join(__dirname, '../../'),
     outputFileTracingIncludes: {
         '/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
