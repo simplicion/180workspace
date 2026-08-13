@@ -11,7 +11,16 @@ const config: OpenNextConfig = {
       queue: "dummy",
     },
   },
-  edgeExternals: ["node:crypto"],
+  edgeExternals: [
+    "node:crypto", 
+    "@react-pdf/renderer", 
+    "docx", 
+    "jspdf", 
+    "html2pdf.js", 
+    "html2canvas",
+    "leaflet",
+    "react-leaflet"
+  ],
   middleware: {
     external: true,
     override: {
