@@ -8,7 +8,7 @@ export default withAuth(
 
     // Define main application domains (add more if needed, e.g., production domains)
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "";
-    const mainDomains = [
+    const mainDomains = [ "180workspace.com", "www.180workspace.com", "app.180workspace.com", 
       rootDomain,
       `www.${rootDomain}`,
       `app.${rootDomain}`,
