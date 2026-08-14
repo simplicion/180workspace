@@ -335,7 +335,7 @@ export default function EditCompanyProfilePage() {
                                             title="Only lowercase letters, numbers, and hyphens are allowed."
                                         />
                                         <span className="bg-gray-200 border border-l-0 rounded-r px-3 py-2 text-sm text-gray-600 font-mono">
-                                            .{process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '')}
+                                            .{process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}
                                         </span>
                                     </div>
                                 </div>
@@ -355,7 +355,7 @@ export default function EditCompanyProfilePage() {
                                             <div>
                                                 <p className="font-semibold mb-1">DNS Configuration Instructions:</p>
                                                 <ul className="list-disc pl-5 space-y-1 text-xs text-blue-700">
-                                                    <li>Add a CNAME record pointing <strong>{formData.customDomain.replace(/^www\./, '')}</strong> (or www) to <strong>cname.{process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '')}</strong></li>
+                                                    <li>Add a CNAME record pointing <strong>{formData.customDomain.replace(/^www\./, '')}</strong> (or www) to <strong>cname.{process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}</strong></li>
                                                     <li>Note: SSL certificates are automatically provisioned by Cloudflare for SaaS.</li>
                                                 </ul>
                                             </div>

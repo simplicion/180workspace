@@ -44,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                             "@context": "https://schema.org",
                             "@type": "WebSite",
                             name: "180workspace",
-                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}`,
+                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`,
                             description: "The ultimate business operating system for modern teams.",
                         })
                     }}
@@ -56,8 +56,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                             "@context": "https://schema.org",
                             "@type": "Organization",
                             name: "180workspace",
-                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}`,
-                            logo: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}/black icon.svg`,
+                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`,
+                            logo: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}/black icon.svg`,
                         })
                     }}
                 />

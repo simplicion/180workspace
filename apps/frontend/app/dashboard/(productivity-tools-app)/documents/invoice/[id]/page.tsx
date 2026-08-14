@@ -119,7 +119,7 @@ export default function InvoiceViewerPage() {
                     <div>
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Remit To</h3>
                         <p className="text-lg font-bold text-gray-900">180 Workspace</p>
-                        <p className="text-sm text-gray-600 mt-1">contact@{process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '')}</p>
+                        <p className="text-sm text-gray-600 mt-1">contact@{process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}</p>
                     </div>
                 </div>
 

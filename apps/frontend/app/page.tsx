@@ -137,7 +137,7 @@ export default function WorkspaceRoot() {
           <div className="flex flex-wrap justify-center gap-6">
             <Link href="/privacy-policy" className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Privacy Policy</Link>
             <Link href="/terms-of-service" className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Terms of Service</Link>
-            <a href={`mailto:support@${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}`} className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Contact Support</a>
+            <a href={`mailto:support@${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`} className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">Contact Support</a>
           </div>
           <div className="text-sm text-slate-400 font-medium">
             &copy; {new Date().getFullYear()} 180workspace. All rights reserved.

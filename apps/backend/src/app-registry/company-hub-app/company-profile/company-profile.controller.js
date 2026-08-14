@@ -601,7 +601,7 @@ exports.verifyDomain = async (req, res) => {
         const dns = require('dns').promises;
         try {
             const records = await dns.resolveCname(domain);
-            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '');
+            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
             const isVerified = records.some(r => r.includes(`cname.${rootDomain}`) || r.includes(rootDomain));
             
             if (!isVerified) {
