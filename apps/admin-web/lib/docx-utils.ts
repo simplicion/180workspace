@@ -58,3 +58,4 @@ export async function generateDOCX(title: string, html: string): Promise<Blob> {
 
     return await Packer.toBlob(doc);
 }
+

@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://pitchin180.com/sitemap.xml',
+    sitemap: 'https://180workspace.com/sitemap.xml',
   };
 }

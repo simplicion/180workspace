@@ -16,3 +16,4 @@
 ## 3. UI/UX Pro Max Guidelines
 - **Visual Hierarchy:** Use varying font weights and opacities (e.g., `text-gray-500` for secondary text, `font-bold` for primary) rather than just font sizes to establish hierarchy.
 - **Micro-interactions:** Add `transition-all duration-300` to buttons and cards for smooth hover effects. Hover states should provide visual feedback (e.g., `hover:bg-gray-100 dark:hover:bg-gray-800`).
+

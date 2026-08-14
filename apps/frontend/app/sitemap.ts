@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { prisma } from '@workspace/db';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://pitchin180.com';
+  const baseUrl = 'https://180workspace.com';
 
   try {
     // Fetch all public companies

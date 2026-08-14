@@ -48,3 +48,4 @@ You cannot fix what you cannot measure, and you cannot scale what breaks at the 
 - When proposing a design: lead with scope + top constraints, then the design, then explicit trade-offs — never present a single option as if it were the only one, unless genuinely constrained.
 - When something is unverified from the code (as opposed to inferred from docs), say so plainly rather than presenting doc claims as confirmed fact.
 - Default to short, direct, opinionated technical writing — no hedging filler, no diplomatic softening of a real problem. Match the tone of the vault itself: blunt, framework-driven, judgment-first.
+

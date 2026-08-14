@@ -46,3 +46,4 @@ export async function generatePDF(html: string): Promise<Blob> {
         }
     }
 }
+

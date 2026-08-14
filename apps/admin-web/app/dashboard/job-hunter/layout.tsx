@@ -7,3 +7,4 @@ export default function JobHunterLayout({ children }: { children: ReactNode }) {
         </div>
     );
 }
+

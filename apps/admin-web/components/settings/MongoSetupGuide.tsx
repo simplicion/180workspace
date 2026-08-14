@@ -96,3 +96,4 @@ export default function MongoSetupGuide({ show, onClose, platformName = 'Platfor
         </div>
     );
 }
+

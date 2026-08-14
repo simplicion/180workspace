@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
         
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-            (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:4002');
+            (process.env.NODE_ENV === 'production' ? 'https://api.180workspace.com' : 'http://localhost:4002');
             
           const res = await fetch(`${apiUrl}/api/auth/login`, {
             method: 'POST',
@@ -120,7 +120,7 @@ export const authOptions: NextAuthOptions = {
         
         try {
            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-             (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:4002');
+             (process.env.NODE_ENV === 'production' ? 'https://api.180workspace.com' : 'http://localhost:4002');
            const res = await fetch(`${apiUrl}/api/auth/me`, {
              headers: {
                Authorization: `Bearer ${credentials.token}`

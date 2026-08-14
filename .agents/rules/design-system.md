@@ -19,3 +19,4 @@
 ## 4. Spacing & Grids
 - Use CSS Grid (`grid grid-cols-1 md:grid-cols-3 gap-8`) for feature cards and layouts rather than complex Flexbox wrapping when aligning items in rows/columns.
 - Maintain consistent padding inside cards: usually `p-6` or `p-8`.
+

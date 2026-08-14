@@ -251,7 +251,7 @@ exports.sendOtpEmail = async (req, res, next) => {
 
         // Send Email
         const mailOptions = {
-            from: process.env.EMAIL_FROM || '"PitchIn Auth" <noreply@pitchin180.com>',
+            from: process.env.EMAIL_FROM || '"180Workspace Auth" <noreply@180workspace.com>',
             to: email,
             subject: "Your PitchIn Verification Code",
             html: `<div style="font-family: Arial, sans-serif; padding: 20px;">

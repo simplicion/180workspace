@@ -69,3 +69,4 @@ export function useSuperAdmin() {
     if (!ctx) throw new Error('useSuperAdmin must be used within SuperAdminProvider');
     return ctx;
 }
+

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # 1. 180workspace Frontend
   frontend:
-    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-frontend:latest
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/180workspace-platform-frontend:latest
     container_name: frontend
     ports:
       - "3002:3002"
@@ -13,7 +13,7 @@ services:
 
   # 2. 180workspace Admin Web App
   admin-web:
-    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-admin-web:latest
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/180workspace-platform-admin-web:latest
     container_name: admin-web
     ports:
       - "3003:3003"

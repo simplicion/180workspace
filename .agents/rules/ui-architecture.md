@@ -21,3 +21,4 @@
 
 ## 4. Styling Approach
 - Use Tailwind CSS exclusively. No inline styles (`style={{...}}`) unless dynamically calculating values that Tailwind cannot handle.
+

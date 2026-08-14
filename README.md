@@ -1,4 +1,4 @@
-# Pitchin180 Platform (180workspace)
+# 180workspace Platform (180workspace)
 
 A comprehensive, production-ready, white-labeled solution for managing organizational operations. Built with a modern Turborepo monorepo architecture and enhanced with AI capabilities.
 
@@ -25,10 +25,10 @@ This project is a **Turborepo** monorepo using **pnpm**, structured as follows:
 - `apps/backend`: Core API for 180workspace.
 - `apps/ws`: Real-time WebSockets for 180workspace.
 - `apps/worker`: Heavy background jobs for 180workspace.
-- `apps/pitchin180-frontend`: Public Network & Profiles app.
-- `apps/pitchin180-admin-web`: Community Moderation Admin for Pitchin180.
-- `apps/pitchin180-backend`: Core API / Graph Queries for Pitchin180.
-- `apps/pitchin180-worker`: Graph aggregations and background jobs for Pitchin180.
+- `apps/180workspace-frontend`: Public Network & Profiles app.
+- `apps/180workspace-admin-web`: Community Moderation Admin for 180workspace.
+- `apps/180workspace-backend`: Core API / Graph Queries for 180workspace.
+- `apps/180workspace-worker`: Graph aggregations and background jobs for 180workspace.
 - `packages/*`: Shared utilities, UI components, ESLint/TypeScript configs, and Prisma Database schema.
 
 ---
@@ -104,5 +104,5 @@ pnpm dev
 
 ## 👤 Credits & Support
 Developed for Enterprise Management Efficiency.
-[GitHub Repository](https://github.com/Prince364133/Pitchin180-Platform)
+[GitHub Repository](https://github.com/Prince364133/180workspace-Platform)
 

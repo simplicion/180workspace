@@ -66,3 +66,4 @@ export function updateSocketAuth(token: string | null) {
         getSocket();
     }
 }
+

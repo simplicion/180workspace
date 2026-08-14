@@ -72,3 +72,4 @@ export function useSubscription(): SubscriptionStatus {
 
     return { ...data, loading, refresh: () => fetchStatus(true) };
 }
+

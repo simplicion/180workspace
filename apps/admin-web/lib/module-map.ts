@@ -222,3 +222,4 @@ export const ALL_APPS = [
     { id: 'analytics', name: 'Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
 ];
+

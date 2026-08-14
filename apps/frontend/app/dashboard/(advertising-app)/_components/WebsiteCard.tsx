@@ -77,7 +77,15 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
     const router = useRouter();
 
     // ── Compute live URL ──────────────────────────────────────────────────────
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost:3002');
+    const baseDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
+    const [rootDomain, setRootDomain] = useState(baseDomain);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && (baseDomain === 'localhost' || baseDomain === '')) {
+            setRootDomain(window.location.host.replace(/^.*localhost/, 'localhost'));
+        }
+    }, [baseDomain]);
+
     const isLocal = rootDomain.includes('localhost');
     let liveUrl = `http${isLocal ? '' : 's'}://${companyData?.slug || 'company'}.${rootDomain}${website.isPrimary ? '' : `/${website.slug}`}`;
     if (companyData?.customDomain) {

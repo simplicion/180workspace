@@ -1,7 +1,7 @@
 {
-  "name": "Pitchin180",
-  "short_name": "Pitchin180",
-  "description": "Pitchin180 Mobile Web App",
+  "name": "180workspace",
+  "short_name": "180workspace",
+  "description": "180workspace Mobile Web App",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

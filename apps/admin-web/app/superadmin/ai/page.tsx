@@ -377,3 +377,4 @@ export default function AIAssistantPage() {
         </div>
     );
 }
+

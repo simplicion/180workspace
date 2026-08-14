@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Login | Pitchin180',
-  description: 'Log in to Pitchin180 to access your professional network, manage your company profile, and discover new opportunities.',
+  title: 'Login | 180workspace',
+  description: 'Log in to 180workspace to access your professional network, manage your company profile, and discover new opportunities.',
   openGraph: {
-    title: 'Login | Pitchin180',
-    description: 'Log in to Pitchin180 to access your professional network, manage your company profile, and discover new opportunities.',
+    title: 'Login | 180workspace',
+    description: 'Log in to 180workspace to access your professional network, manage your company profile, and discover new opportunities.',
     type: 'website',
   }
 };

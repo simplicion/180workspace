@@ -122,7 +122,14 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
 
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
     const isPrimary = websiteCount === 0;
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
+    const baseDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
+    const [rootDomain, setRootDomain] = useState(baseDomain);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && (baseDomain === 'localhost' || baseDomain === '')) {
+            setRootDomain(window.location.host.replace(/^.*localhost/, 'localhost'));
+        }
+    }, [baseDomain]);
 
     useEffect(() => {
         if (isOpen) {

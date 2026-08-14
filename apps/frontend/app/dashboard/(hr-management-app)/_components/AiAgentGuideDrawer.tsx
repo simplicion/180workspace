@@ -13,7 +13,7 @@ interface AiAgentGuideDrawerProps {
 
 export default function AiAgentGuideDrawer({ apiKey, origin, onClose, open }: AiAgentGuideDrawerProps) {
     const prompt = `I want to integrate a dynamic job board into my existing website. 
-Please create a high-fidelity, responsive React or HTML/Tailwind component that fetches data from my Pitchin180 Job API.
+Please create a high-fidelity, responsive React or HTML/Tailwind component that fetches data from my 180workspace Job API.
 
 API CONFIGURATION:
 - Endpoint: GET ${origin}/api/public/jobs

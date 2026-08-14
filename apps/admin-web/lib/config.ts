@@ -31,3 +31,4 @@ export const getProtocol = (hostname: string) => {
 export const getMainUrl = (hostname: string) => {
     return `${getProtocol(hostname)}://${MAIN_DOMAIN}`;
 };
+

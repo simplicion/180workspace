@@ -21,3 +21,4 @@ export function clientSideHardRedirect(url: string) {
         window.location.href = url;
     }
 }
+

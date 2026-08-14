@@ -16,7 +16,7 @@ services:
 
   # 2. 180workspace Main API + WebSocket Backend
   backend:
-    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-backend:latest
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/180workspace-platform-backend:latest
     container_name: backend
     ports:
       - "4002:4002"
@@ -26,7 +26,7 @@ services:
 
   # 3. 180workspace Dedicated Background Worker
   worker:
-    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/pitchin180-platform-worker:latest
+    image: ghcr.io/${GITHUB_ACTOR:-yourusername}/180workspace-platform-worker:latest
     container_name: worker
     restart: unless-stopped
     # env_file:

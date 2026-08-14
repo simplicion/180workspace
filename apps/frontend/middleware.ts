@@ -12,7 +12,7 @@ export default withAuth(
       rootDomain,
       `www.${rootDomain}`,
       `app.${rootDomain}`,
-      "workspace.pitchin180.com"
+      "180workspace.com"
     ].filter(Boolean);
 
     // Check if the request is for a custom domain or a company subdomain

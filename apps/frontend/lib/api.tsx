@@ -16,7 +16,7 @@ const getBaseURL = () => {
     const isServer = typeof window === 'undefined';
     
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 
-        (process.env.NODE_ENV === 'production' ? 'https://api.workspace.pitchin180.com' : 'http://localhost:4002');
+        (process.env.NODE_ENV === 'production' ? 'https://api.180workspace.com' : 'http://localhost:4002');
         
     if (isServer && isBuildPhase && apiBaseUrl.includes('localhost')) {
         return 'http://127.0.0.1:0'; // Immediate connection refusal to avoid hang

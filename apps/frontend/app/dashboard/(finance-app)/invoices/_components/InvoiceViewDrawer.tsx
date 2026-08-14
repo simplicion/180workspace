@@ -85,7 +85,7 @@ export function InvoiceViewDrawer({ invoice, onClose }: { invoice: any; onClose:
                         {company?.companyLogo ? (
                             <img src={company.companyLogo} alt={company.companyName} className="h-16 w-auto" />
                         ) : (
-                            <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: brandColor }}>{company?.companyName || platform?.name || platform?.platformName || 'Pitchin180'}</h1>
+                            <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: brandColor }}>{company?.companyName || platform?.name || platform?.platformName || '180workspace'}</h1>
                         )}
                         <div className="text-sm text-gray-500 max-w-xs leading-relaxed">
                             <p className="font-bold text-gray-800 text-base mb-1">{company?.companyName || platform?.name || 'Enterprise'}</p>
