@@ -78,6 +78,7 @@ router.use('/integrations/google', require('../platform-core/platform-integratio
 // Merged init endpoint — returns user, settings, company-config, branding, billing, preferences in ONE call
 const { getInit } = require('../platform-core/platform-engine/controllers/init.controller');
 router.get('/init', protect, getInit);
+router.use('/', require('./bootstrap.routes'));
 
 router.use(subscriptionGuard);
 

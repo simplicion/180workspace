@@ -376,15 +376,22 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 
         fetchTimerRef.current = setTimeout(async () => {
             try {
-                const res = await api.get('/api/user-preferences');
-                setFavorites((res.data.favorites || []).filter((f: any) => f.type?.toLowerCase() !== 'user'));
-                setRecentItems((res.data.recentItems || []).filter((r: any) => r.type?.toLowerCase() !== 'user'));
+                const res = await api.get('/api/bootstrap');
+                if (res.data?.preferences) {
+                    sessionStorage.setItem('platform_init_data', JSON.stringify(res.data));
+                    setFavorites((res.data.preferences.favorites || []).filter((f: any) => f.type?.toLowerCase() !== 'user'));
+                    setRecentItems((res.data.preferences.recentItems || []).filter((r: any) => r.type?.toLowerCase() !== 'user'));
+                }
             } catch (error) {
-                console.error('Fetch preferences error:', error);
+                try {
+                    const res = await api.get('/api/user-preferences');
+                    setFavorites((res.data.favorites || []).filter((f: any) => f.type?.toLowerCase() !== 'user'));
+                    setRecentItems((res.data.recentItems || []).filter((r: any) => r.type?.toLowerCase() !== 'user'));
+                } catch (err) {}
             } finally {
                 setIsLoadingFavs(false);
             }
-        }, 300); // 300ms debounce
+        }, 150);
     };
 
     const handleUnpin = async (recordId: string, type: string) => {

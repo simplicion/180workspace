@@ -423,6 +423,8 @@ model Task {
 
   @@index([projectId, status])
   @@index([assigneeId, status])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
   @@index([companyId])
 }
 
@@ -785,6 +787,9 @@ model Notification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation("UserNotification", fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model Review {

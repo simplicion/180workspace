@@ -19,10 +19,12 @@
  *   router.get('/path', moduleGuard('crm'), controller.method);         // App level
  *   router.get('/path', moduleGuard('crm', 'leads'), controller.method); // Module level
  */
+// In-memory 60s TTL cache for company configurations
+const configCache = new Map();
+
 module.exports = function moduleGuard(appId, moduleId) {
-    // Catch developer misuse at registration time (app startup)
     if (!appId && !moduleId) {
-        console.error('[Module Guard] MISCONFIGURATION: moduleGuard() called without appId or moduleId. This route will deny all requests.');
+        console.error('[Module Guard] MISCONFIGURATION: moduleGuard() called without appId or moduleId.');
     }
 
     return async (req, res, next) => {
@@ -30,9 +32,7 @@ module.exports = function moduleGuard(appId, moduleId) {
             const company = req.company;
             const prismaClient = req.prisma;
 
-            // GATE 1: Company context is mandatory for guarded routes
             if (!company || !prismaClient) {
-                console.error(`[Module Guard] DENIED — No company context. appId=${appId}, moduleId=${moduleId}, url=${req.originalUrl}`);
                 return res.status(403).json({
                     error: 'Access Denied',
                     message: 'This resource requires an active company workspace context.',
@@ -40,10 +40,7 @@ module.exports = function moduleGuard(appId, moduleId) {
                 });
             }
 
-
-            // GATE 2: Developer error — guard was registered without identifiers
             if (!appId && !moduleId) {
-                console.error(`[Module Guard] DENIED — Guard has no appId/moduleId. This is a developer misconfiguration. url=${req.originalUrl}`);
                 return res.status(403).json({
                     error: 'Access Denied',
                     message: 'This route is misconfigured. Contact your administrator.',
@@ -51,27 +48,28 @@ module.exports = function moduleGuard(appId, moduleId) {
                 });
             }
 
-            // GATE 3: Load CompanyConfig (cached on req for the rest of the request lifecycle)
+            // GATE 3: Load CompanyConfig (from memory TTL cache or database)
             let config = req.companyConfig;
+            const cacheKey = company.id;
+            const cached = configCache.get(cacheKey);
+
+            if (!config && cached && (Date.now() - cached.timestamp < 60000)) {
+                config = cached.config;
+                req.companyConfig = config;
+            }
 
             if (!config) {
                 try {
                     config = await prismaClient.companyConfig.findFirst();
-                    
-                    // Auto-create CompanyConfig if missing (workspace setup may not have created it)
                     if (!config) {
                         try {
                             config = await prismaClient.companyConfig.create({ data: {} });
-                            console.log(`[Module Guard] Auto-created CompanyConfig for company=${company.id}`);
                         } catch (createErr) {
-                            // If create fails (e.g., unique constraint), try findFirst again
                             config = await prismaClient.companyConfig.findFirst();
                         }
                     }
 
-
                     if (config) {
-                        // Merge enabledApps/enabledModules from Company metadata (the source of truth)
                         let metadata = company.metadata || {};
                         if (typeof metadata === 'string') {
                             try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
@@ -79,7 +77,8 @@ module.exports = function moduleGuard(appId, moduleId) {
                         const defaultApps = ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising', 'social-media', 'assets'];
                         config.enabledApps = (Array.isArray(metadata.enabledApps) && metadata.enabledApps.length > 0) ? metadata.enabledApps : defaultApps;
                         config.enabledModules = metadata.enabledModules || [];
-                        req.companyConfig = config; // Cache for subsequent middleware/controllers
+                        req.companyConfig = config;
+                        configCache.set(cacheKey, { config, timestamp: Date.now() });
                     }
                 } catch (dbErr) {
                     console.error('[Module Guard] DENIED — CompanyConfig query failed:', dbErr.message);
@@ -106,7 +105,7 @@ module.exports = function moduleGuard(appId, moduleId) {
                 console.log(`[Module Guard] Enabled Apps: ${JSON.stringify(config.enabledApps)}`);
                 console.log(`[Module Guard] Enabled Modules: ${JSON.stringify(config.enabledModules)}`);
             }
-            require('fs').appendFileSync('C:\\\\Users\\\\saavi\\\\OneDrive\\\\Desktop\\\\180workspace\\\\apps\\\\backend\\\\debug-module-guard.txt', `[DEBUG] appId=${appId}, config.enabledApps=${JSON.stringify(config.enabledApps)}, company.metadata=${JSON.stringify(company.metadata)}\n`);
+
 
             // GATE 5: App-level access check
             // Core workspace apps ('tools', 'system', 'projects') are essential platform suites and must never be blocked.

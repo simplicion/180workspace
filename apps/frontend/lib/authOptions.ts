@@ -8,6 +8,7 @@ const cookiePrefix = useSecureCookies ? "__Secure-" : ""
 const cookieDomain = process.env.NODE_ENV === "production" ? ".180workspace.com" : undefined
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET || "5196aa96c36083e22fda242c96eb50b636d481f16da7117177ba037334341575",
   cookies: {
     sessionToken: {
       name: `${cookiePrefix}next-auth.session-token`,
@@ -20,7 +21,7 @@ export const authOptions: NextAuthOptions = {
       }
     },
     callbackUrl: {
-      name: `__Secure-next-auth.callback-url`,
+      name: `${cookiePrefix}next-auth.callback-url`,
       options: {
         sameSite: 'lax',
         path: '/',
@@ -47,17 +48,6 @@ export const authOptions: NextAuthOptions = {
     newUser: '/workspace-setup'
   },
   providers: [
-    EmailProvider({
-      server: {
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        }
-      },
-      from: process.env.EMAIL_FROM || 'noreply@pitchin180.com',
-    }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
