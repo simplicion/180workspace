@@ -218,8 +218,25 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     };
 
     if (node.type === 'section') {
+        const finalStyle = { ...style };
+        if (finalStyle.paddingY !== undefined) {
+            finalStyle.paddingTop = `${finalStyle.paddingY}rem`;
+            finalStyle.paddingBottom = `${finalStyle.paddingY}rem`;
+            delete finalStyle.paddingY;
+        }
+        if (finalStyle.paddingX !== undefined) {
+            finalStyle.paddingLeft = `${finalStyle.paddingX}rem`;
+            finalStyle.paddingRight = `${finalStyle.paddingX}rem`;
+            delete finalStyle.paddingX;
+        }
+        
+        // Ensure section has a background if not specified or transparent, to avoid blending into dark canvas
+        if (!finalStyle.backgroundColor || finalStyle.backgroundColor === 'transparent') {
+            finalStyle.backgroundColor = '#ffffff';
+        }
+
         return (
-            <div ref={setNodeRef} style={style} onClick={handleClick} className={`w-full relative ${wrapperClass}`} {...dragHandlers}>
+            <div ref={setNodeRef} style={finalStyle} onClick={handleClick} className={`w-full relative ${wrapperClass}`} {...dragHandlers}>
                 {renderControls()}
                 {renderPaddingControls()}
                 {renderChildren()}
