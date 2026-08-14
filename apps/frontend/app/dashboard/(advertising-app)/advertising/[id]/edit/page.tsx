@@ -1031,7 +1031,8 @@ export default function WebsiteEditorPage() {
                                 />
                                 <EditableText
                                     tagName="span"
-                                    className="text-xl font-black tracking-tight"
+                                    className="text-xl font-black tracking-tight text-current"
+                                    style={{ color: 'inherit' }}
                                     value={config.header?.title || website.name}
                                     onChange={(v: string) => commitConfig({ ...config, header: { ...config.header, title: v } })}
                                 />
@@ -1042,7 +1043,7 @@ export default function WebsiteEditorPage() {
                                     <button
                                         key={p.id}
                                         onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }}
-                                        className={`hover:text-indigo-600 transition-colors py-1 ${activePageId === p.id ? 'text-indigo-600 border-b-2 border-indigo-600' : ''}`}
+                                        className={`hover:opacity-75 transition-colors py-1 ${activePageId === p.id ? 'border-b-2 border-current' : ''}`}
                                     >
                                         {p.name}
                                     </button>
@@ -1131,34 +1132,36 @@ export default function WebsiteEditorPage() {
                         >
                             <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left mb-8">
                                 <div>
-                                    <h4 className="font-bold mb-4 text-gray-900">Company</h4>
+                                    <h4 className="font-bold mb-4 opacity-90">Company</h4>
                                     <EditableText
                                         tagName="div"
-                                        className="text-sm leading-relaxed whitespace-pre-wrap animate-none"
+                                        className="text-sm leading-relaxed whitespace-pre-wrap animate-none text-current"
+                                        style={{ color: 'inherit' }}
                                         value={config.footer?.companyInfo || `${settingsCompany?.name || website.name}\n${settingsCompany?.headquarters || '123 Business Avenue'}\n${settingsCompany?.email || 'email@example.com'}`}
                                         onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, companyInfo: v } })}
                                     />
                                 </div>
                                 <div>
-                                    <h4 className="font-bold mb-4 text-gray-900">Links</h4>
+                                    <h4 className="font-bold mb-4 opacity-90">Links</h4>
                                     <nav className="flex flex-col gap-3 text-sm opacity-70 font-medium animate-none">
                                         {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about').map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:text-indigo-600 transition-colors">{p.name}</button>
+                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity">{p.name}</button>
                                         ))}
                                     </nav>
                                 </div>
                                 <div>
-                                    <h4 className="font-bold mb-4 text-gray-900">Legal</h4>
+                                    <h4 className="font-bold mb-4 opacity-90">Legal</h4>
                                     <nav className="flex flex-col gap-3 text-sm opacity-70 font-medium animate-none">
                                         {config.pages?.filter((p: any) => p.isEnabled && (p.id === 'privacy' || p.id === 'terms')).map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:text-indigo-600 transition-colors">{p.name}</button>
+                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity">{p.name}</button>
                                         ))}
                                     </nav>
                                 </div>
                             </div>
                             <EditableText
                                 tagName="p"
-                                className="text-sm opacity-60 font-medium"
+                                className="text-sm opacity-60 font-medium text-current"
+                                style={{ color: 'inherit' }}
                                 value={config.footer?.copyright || `© ${new Date().getFullYear()} ${website.name}. All Rights Reserved.`}
                                 onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, copyright: v } })}
                             />
