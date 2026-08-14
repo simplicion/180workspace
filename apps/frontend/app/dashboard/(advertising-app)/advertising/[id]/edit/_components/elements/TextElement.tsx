@@ -16,26 +16,11 @@ export interface ElementProps {
 
 export function TextElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
     const Tag = (node.style?.tagName || 'div') as keyof JSX.IntrinsicElements;
-    const contentRef = React.useRef<HTMLElement>(null);
-
-    React.useEffect(() => {
-        if (contentRef.current) {
-            const currentHTML = contentRef.current.innerHTML;
-            const targetHTML = node.data?.content || 'Text';
-            // Only update DOM if the text actually differs from current DOM
-            // This prevents React from resetting the caret to index 0 on every re-render while typing
-            if (currentHTML !== targetHTML && document.activeElement !== contentRef.current) {
-                contentRef.current.innerHTML = targetHTML;
-            }
-        }
-    }, [node.data?.content]);
-
     return (
         <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass}>
             {renderControls()}
             {renderPaddingControls()}
-            <Tag 
-                ref={contentRef}
+            <Tag
                 style={{
                     fontSize: node.style?.fontSize,
                     fontWeight: node.style?.fontWeight,
@@ -48,11 +33,9 @@ export function TextElement({ node, setNodeRef, style, wrapperClass, handleClick
                 contentEditable={true}
                 suppressContentEditableWarning={true}
                 onBlur={(e: React.FocusEvent<HTMLElement>) => {
-                    const newContent = e.currentTarget.innerHTML;
-                    if (newContent !== node.data?.content) {
-                        updateElement(node.id, 'data.content', newContent);
-                    }
+                    updateElement(node.id, 'data.content', e.currentTarget.innerHTML);
                 }}
+                dangerouslySetInnerHTML={{ __html: node.data?.content || 'Text' }}
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleClick(e); }}
             />
         </div>

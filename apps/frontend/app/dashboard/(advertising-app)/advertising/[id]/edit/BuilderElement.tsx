@@ -6,12 +6,6 @@ import { ElementNode } from './types';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { BoxElement } from './_components/elements/BoxElement';
 import { TextElement } from './_components/elements/TextElement';
-import { ImageElement } from './_components/elements/ImageElement';
-import { PortfolioCardElement } from './_components/elements/PortfolioCardElement';
-import { ProductCardElement } from './_components/elements/ProductCardElement';
-
-import { BoxElement } from './_components/elements/BoxElement';
-import { TextElement } from './_components/elements/TextElement';
 import { MediaElement } from './_components/elements/MediaElement';
 import { ButtonElement } from './_components/elements/ButtonElement';
 import { LineElement } from './_components/elements/LineElement';
@@ -25,10 +19,9 @@ interface BuilderElementProps {
     removeElement: (id: string) => void;
     appendElementToNode?: (parentId: string, type: string) => void;
     depth?: number;
-    viewMode?: string;
 }
 
-export function BuilderElement({ node, selectedElementId, setSelectedElementId, updateElement, removeElement, appendElementToNode, depth = 0, viewMode = 'desktop' }: BuilderElementProps) {
+export function BuilderElement({ node, selectedElementId, setSelectedElementId, updateElement, removeElement, appendElementToNode, depth = 0 }: BuilderElementProps) {
     const {
         attributes,
         listeners,
@@ -46,9 +39,9 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     };
 
     const isSelected = selectedElementId === node.id;
-    
+
     // Stop propagation so clicking a child doesn't select the parent
-    
+
     // --- Padding Drag Logic ---
     const startPosRef = useRef({ x: 0, y: 0 });
     const startPaddingRef = useRef(0);
@@ -57,47 +50,47 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     const handlePaddingDragStart = (e: React.MouseEvent, side: string) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         let currentPadStr = '0';
         if (side === 'top') currentPadStr = node.style?.paddingTop || node.style?.paddingY || '0';
         if (side === 'bottom') currentPadStr = node.style?.paddingBottom || node.style?.paddingY || '0';
         if (side === 'left') currentPadStr = node.style?.paddingLeft || node.style?.paddingX || '0';
         if (side === 'right') currentPadStr = node.style?.paddingRight || node.style?.paddingX || '0';
-        
+
         let currentPad = parseFloat(currentPadStr.toString().replace('rem', '').replace('px', ''));
         if (isNaN(currentPad)) currentPad = 0;
-        
+
         startPosRef.current = { x: e.clientX, y: e.clientY };
         startPaddingRef.current = currentPad;
         setDraggingSide(side);
-        
+
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = moveEvent.clientX - startPosRef.current.x;
             const deltaY = moveEvent.clientY - startPosRef.current.y;
-            
+
             // 1 rem = 16px roughly. Let's make 16px drag = 1rem change
             let deltaRem = 0;
-            
+
             if (side === 'top') deltaRem = deltaY / 16; // Inverted: Drag down (positive deltaY) increases top padding
             if (side === 'bottom') deltaRem = -deltaY / 16; // Inverted: Drag up (negative deltaY) increases bottom padding
             if (side === 'left') deltaRem = deltaX / 16; // Inverted: Drag right (positive deltaX) increases left padding
             if (side === 'right') deltaRem = -deltaX / 16; // Inverted: Drag left (negative deltaX) increases right padding
-            
+
             const newPadding = Math.max(0, startPaddingRef.current + deltaRem);
             const newPaddingStr = `${newPadding}rem`;
-            
+
             if (side === 'top') updateElement(node.id, 'style.paddingTop', newPaddingStr);
             if (side === 'bottom') updateElement(node.id, 'style.paddingBottom', newPaddingStr);
             if (side === 'left') updateElement(node.id, 'style.paddingLeft', newPaddingStr);
             if (side === 'right') updateElement(node.id, 'style.paddingRight', newPaddingStr);
         };
-        
+
         const handleMouseUp = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
             setDraggingSide(null);
         };
-        
+
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     };
@@ -106,20 +99,20 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
         if (!isSelected) return null;
         return (
             <>
-                <div 
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'top')} 
+                <div
+                    onMouseDown={(e) => handlePaddingDragStart(e, 'top')}
                     className="absolute top-0 left-0 right-0 h-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ns-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
                 />
-                <div 
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'bottom')} 
+                <div
+                    onMouseDown={(e) => handlePaddingDragStart(e, 'bottom')}
                     className="absolute bottom-0 left-0 right-0 h-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ns-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
                 />
-                <div 
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'left')} 
+                <div
+                    onMouseDown={(e) => handlePaddingDragStart(e, 'left')}
                     className="absolute top-0 bottom-0 left-0 w-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ew-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
                 />
-                <div 
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'right')} 
+                <div
+                    onMouseDown={(e) => handlePaddingDragStart(e, 'right')}
                     className="absolute top-0 bottom-0 right-0 w-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ew-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
                 />
             </>
@@ -148,22 +141,21 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
 
     const renderChildren = () => {
         if (!node.children) return null;
-        
+
         const strategy = node.style?.flexDirection === 'row' ? horizontalListSortingStrategy : verticalListSortingStrategy;
 
         return (
             <SortableContext items={node.children.map(c => c.id)} strategy={strategy}>
                 {node.children.map(child => (
-                        <BuilderElement 
-                            key={child.id} 
-                            node={child} 
-                            selectedElementId={selectedElementId}
-                            setSelectedElementId={setSelectedElementId}
-                            updateElement={updateElement}
-                            removeElement={removeElement}
-                            depth={depth + 1}
-                            viewMode={viewMode}
-                        />
+                    <BuilderElement
+                        key={child.id}
+                        node={child}
+                        selectedElementId={selectedElementId}
+                        setSelectedElementId={setSelectedElementId}
+                        updateElement={updateElement}
+                        removeElement={removeElement}
+                        depth={depth + 1}
+                    />
                 ))}
             </SortableContext>
         );
@@ -175,7 +167,7 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     const handleDragOver = (e: React.DragEvent) => {
         // We only allow dropping elements on 'box' and 'section'
         if (node.type !== 'box' && node.type !== 'section') return;
-        
+
         // Only intercept if we are dragging an element, NOT a section
         if (e.dataTransfer.types.includes('application/vnd.builder.element')) {
             e.preventDefault();
@@ -190,10 +182,10 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
 
     const handleDrop = (e: React.DragEvent) => {
         if (node.type !== 'box' && node.type !== 'section') return;
-        
+
         // We already checked in dragover, but just to be safe
         if (!e.dataTransfer.types.includes('application/vnd.builder.element')) return;
-        
+
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(false);
@@ -222,26 +214,25 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
         renderPaddingControls,
         renderChildren,
         updateElement,
-        dragHandlers,
-        viewMode
+        dragHandlers
     };
 
     if (node.type === 'section') {
         return (
-            <div ref={setNodeRef} style={style} onClick={handleClick} className={`w-full relative ${wrapperClass}`}>
+            <div ref={setNodeRef} style={style} onClick={handleClick} className={`w-full relative ${wrapperClass}`} {...dragHandlers}>
                 {renderControls()}
                 {renderPaddingControls()}
                 {renderChildren()}
             </div>
         );
     }
-    
+
     switch (node.type) {
         case 'box': return <BoxElement {...props} />;
         case 'text': return <TextElement {...props} />;
-        case 'image': return <ImageElement {...props} />;
-        case 'portfolio_card': return <PortfolioCardElement {...props} />;
-        case 'product_card': return <ProductCardElement {...props} />;
+        case 'media': return <MediaElement {...props} />;
+        case 'button': return <ButtonElement {...props} />;
+        case 'line': return <LineElement {...props} />;
         default: return null;
     }
     return null;

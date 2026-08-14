@@ -13,23 +13,11 @@ export interface ElementProps {
     renderChildren?: () => React.ReactNode;
     updateElement: (id: string, path: string, value: any) => void;
     dragHandlers?: any;
-    viewMode?: string;
 }
 
-export function BoxElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, viewMode = 'desktop' }: ElementProps) {
-    
-    // Auto-adjust layout for mobile if it was horizontal
-    const finalStyle = { ...style };
-    if (viewMode === 'mobile' && finalStyle.flexDirection === 'row') {
-        finalStyle.flexDirection = 'column';
-    }
-
-    const isMobile = (node as any).viewMode === 'mobile';
-    const originalFlexDirection = finalStyle.flexDirection || 'column';
-    const effectiveFlexDirection = (isMobile && originalFlexDirection === 'row') ? 'column' : originalFlexDirection;
-
+export function BoxElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {} }: ElementProps) {
     return (
-        <div ref={setNodeRef} style={{ ...finalStyle, flexDirection: effectiveFlexDirection }} onClick={handleClick} className={`w-full ${wrapperClass}`} {...(dragHandlers || {})}>
+        <div ref={setNodeRef} style={style} onClick={handleClick} className={`w-full ${wrapperClass}`} {...dragHandlers}>
             {renderControls()}
             {renderPaddingControls()}
             {node.children && node.children.length > 0 ? (

@@ -50,7 +50,7 @@ export const createLine = (style: any = {}): ElementNode => ({
 
 export function getDefaultElementForType(type: ElementType | string, currencySymbol: string): ElementNode {
     const id = generateId('sec');
-    
+
     switch (type) {
         case 'hero':
             return {
@@ -60,17 +60,17 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
                 style: { paddingY: 6, backgroundColor: 'transparent' },
                 children: [
                     createBox([
-                        createText('Catchy Headline', { 
-                            tagName: 'h1', 
-                            fontSize: '3rem', 
-                            fontWeight: '900', 
-                            marginBottom: '1rem' 
+                        createText('Catchy Headline', {
+                            tagName: 'h1',
+                            fontSize: '3rem',
+                            fontWeight: '900',
+                            marginBottom: '1rem'
                         }),
-                        createText('Supporting text for your hero section.', { 
-                            tagName: 'p', 
-                            fontSize: '1.25rem', 
+                        createText('Supporting text for your hero section.', {
+                            tagName: 'p',
+                            fontSize: '1.25rem',
                             opacity: 0.8,
-                            marginBottom: '2rem' 
+                            marginBottom: '2rem'
                         }),
                         createButton('Get Started', { backgroundColor: '#4f46e5', color: 'white', padding: '1rem 2rem', borderRadius: '0.5rem' }),
                         createBox([
@@ -79,7 +79,7 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
                     ], { flexDirection: 'row', alignItems: 'center', gap: '3rem', padding: '0' })
                 ]
             };
-        
+
         case 'about':
             return {
                 id,
@@ -123,7 +123,7 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
                     ], { padding: 0, gap: '0' })
                 ]
             };
-            
+
         case 'portfolio':
             return {
                 id,
@@ -159,7 +159,7 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
             return createButton('Click Me');
         case 'line':
             return createLine();
-        
+
         case 'product':
             return createBox([
                 createMedia('', { width: '100%', height: '200px', borderRadius: '0.5rem' }),
@@ -168,15 +168,15 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
                 createText(`${currencySymbol}99.00`, { fontWeight: 'bold' }),
                 createButton('Buy Now')
             ], { width: '300px', backgroundColor: '#ffffff', borderRadius: '1rem', padding: '1.5rem', gap: '0.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e5e7eb' });
-            
+
         case 'portfolio-element':
             return createBox([
                 createMedia('', { width: '100%', height: '250px', borderRadius: '0.5rem' }),
                 createText('Project Name', { fontWeight: 'bold', fontSize: '1.5rem' }),
                 createText('Project Description', { opacity: 0.7 })
             ], { width: '350px', gap: '0.5rem', backgroundColor: '#ffffff', borderRadius: '1rem', padding: '1rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e5e7eb' });
-            
-            
+
+
         default:
             return {
                 id,
@@ -187,44 +187,3 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
             };
     }
 }
-
-export function getDefaultSectionsForPageType(pageType: string, currencySymbol: string) {
-    if (pageType === 'home') {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('grid', currencySymbol),
-            getDefaultElementForType('about', currencySymbol)
-        ];
-    }
-    if (pageType === 'about' || pageType.includes('about')) {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('about', currencySymbol)
-        ];
-    }
-    if (pageType === 'services' || pageType.includes('service')) {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('grid', currencySymbol)
-        ];
-    }
-    if (pageType === 'contact' || pageType.includes('contact')) {
-        return [
-            getDefaultElementForType('hero', currencySymbol)
-        ];
-    }
-    
-    // Privacy and Terms
-    if (pageType === 'privacy' || pageType.includes('privacy') || pageType === 'terms' || pageType.includes('terms')) {
-        const textSec = getDefaultElementForType('section', currencySymbol);
-        textSec.children = [
-            createText(`<h1>${pageType.toUpperCase()}</h1><p>Content goes here...</p>`, { tagName: 'div' })
-        ];
-        return [textSec];
-    }
-
-    return [
-        getDefaultElementForType('hero', currencySymbol)
-    ];
-}
-
