@@ -1130,7 +1130,7 @@ export default function WebsiteEditorPage() {
                                 paddingRight: config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem',
                             }}
                         >
-                            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left mb-8">
+                            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left mb-12">
                                 <div>
                                     <h4 className="font-bold mb-4 opacity-90">Company</h4>
                                     <EditableText
@@ -1158,13 +1158,15 @@ export default function WebsiteEditorPage() {
                                     </nav>
                                 </div>
                             </div>
-                            <EditableText
-                                tagName="p"
-                                className="text-sm opacity-60 font-medium text-current"
-                                style={{ color: 'inherit' }}
-                                value={config.footer?.copyright || `© ${new Date().getFullYear()} ${website.name}. All Rights Reserved.`}
-                                onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, copyright: v } })}
-                            />
+                            <div className="text-center pt-8 border-t border-black/10">
+                                <EditableText
+                                    tagName="p"
+                                    className="text-sm opacity-60 font-medium text-current inline-block"
+                                    style={{ color: 'inherit' }}
+                                    value={config.footer?.copyright || `© ${new Date().getFullYear()} ${website.name}. All Rights Reserved.`}
+                                    onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, copyright: v } })}
+                                />
+                            </div>
                         </footer>
 
                         {/* WhatsApp Floating Button */}
