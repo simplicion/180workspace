@@ -1051,13 +1051,14 @@ export default function WebsiteEditorPage() {
                             </nav>
                         </header>
 
+                        <main className="w-full flex-1 flex flex-col min-h-[500px]">
                         {/* Dynamic Sections Loop */}
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndDnd}>
                             <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
                                 {/* Empty State / First Dropzone */}
                                 {sections.length === 0 ? (
                                     <div
-                                        className={`w-full transition-all duration-200 flex flex-col items-center justify-center p-12 my-8 relative z-50 ${nativeDragOverIndex === 0 || isCanvasDragOver ? 'bg-indigo-50 border-2 border-indigo-400 border-dashed rounded-xl' : 'bg-gray-50/50 border-2 border-dashed border-gray-200 hover:bg-gray-50 rounded-xl'}`}
+                                        className={`w-full flex-1 min-h-[400px] transition-all duration-200 flex flex-col items-center justify-center p-12 relative z-50 ${nativeDragOverIndex === 0 || isCanvasDragOver ? 'bg-indigo-50 border-2 border-indigo-400 border-dashed' : 'bg-gray-50/90 border-2 border-dashed border-gray-200 hover:bg-gray-50'}`}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
                                         onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
                                         onDrop={(e) => {
