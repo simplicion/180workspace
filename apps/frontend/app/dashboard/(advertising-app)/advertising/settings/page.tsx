@@ -162,7 +162,7 @@ export default function AdvertisingSettingsPage() {
                                                 <tr>
                                                     <td className="px-4 py-3 border-t border-gray-800">CNAME</td>
                                                     <td className="px-4 py-3 border-t border-gray-800">*</td>
-                                                    <td className="px-4 py-3 border-t border-gray-800 text-emerald-400">cname.{process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}</td>
+                                                    <td className="px-4 py-3 border-t border-gray-800 text-emerald-400">cname.{process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '')}</td>
                                                 </tr>
                                             </tbody>
                                         </table>

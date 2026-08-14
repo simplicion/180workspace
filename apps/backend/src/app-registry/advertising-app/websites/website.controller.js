@@ -296,7 +296,7 @@ exports.publicGetWebsite = async (req, res, next) => {
 
         let resolvedSlug = slug;
         
-        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '';
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '');
         const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
         const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
 
@@ -388,7 +388,7 @@ exports.publicSubmitLead = async (req, res, next) => {
         
         if (!domain) return res.status(400).json({ error: 'Domain is required' });
 
-        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '';
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '');
         const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
         const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
 

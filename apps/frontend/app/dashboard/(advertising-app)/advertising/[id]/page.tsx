@@ -96,7 +96,7 @@ function WebsiteDashboardInner() {
                             <p className="text-sm text-gray-500 font-medium">
                                 {website.company?.customDomain 
                                     ? `${website.company.customDomain}${website.isPrimary ? '' : `/${website.slug}`}`
-                                    : `${website.company?.slug || 'company'}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}${website.isPrimary ? '' : `/${website.slug}`}`}
+                                    : `${website.company?.slug || 'company'}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '')}${website.isPrimary ? '' : `/${website.slug}`}`}
                             </p>
                         </div>
                     </div>
@@ -111,7 +111,7 @@ function WebsiteDashboardInner() {
                     </button>
                     <a 
                         href={(() => {
-                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '';
+                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '');
                             const isLocal = rootDomain.includes('localhost');
                             if (website.company?.customDomain) {
                                 return website.isPrimary 

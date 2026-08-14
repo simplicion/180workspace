@@ -118,7 +118,7 @@ export default function QuoteViewerPage() {
                     <div>
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Prepared By</h3>
                         <p className="text-lg font-bold text-gray-900">{quote.preparedBy?.name || '180 Workspace Representative'}</p>
-                        <p className="text-sm text-gray-600 mt-1">{quote.preparedBy?.email || `contact@${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}`}</p>
+                        <p className="text-sm text-gray-600 mt-1">{quote.preparedBy?.email || `contact@${process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV !== 'production' ? 'localhost:3002' : '')}`}</p>
                     </div>
                 </div>
 
