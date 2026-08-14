@@ -122,7 +122,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
 
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
     const isPrimary = websiteCount === 0;
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002');
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '';
 
     useEffect(() => {
         if (isOpen) {
@@ -219,20 +219,28 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
                         <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 pl-1">
                             <Globe className="w-3 h-3 shrink-0 text-gray-300" />
                             <span className="font-mono flex items-center">
-                                {isPrimary ? (
-                                    <>
-                                        https://
-                                        <input 
-                                            type="text" 
-                                            placeholder={name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'yourcompany'}
-                                            className="bg-transparent border-b border-transparent hover:border-indigo-400 focus:border-indigo-500 text-indigo-600 font-semibold outline-none px-0.5 min-w-[50px] w-auto max-w-[120px] transition-colors" 
-                                            value={companySlugInput} 
-                                            onChange={e => setCompanySlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
-                                        />
-                                        .{rootDomain}
-                                    </>
+                                {companyData?.customDomain ? (
+                                    isPrimary ? (
+                                        <span className="text-indigo-600 font-semibold">https://{companyData.customDomain}</span>
+                                    ) : (
+                                        <><span className="text-gray-400">https://{companyData.customDomain}/</span><span className="text-indigo-600 font-semibold">{slug || 'website-name'}</span></>
+                                    )
                                 ) : (
-                                    <><span className="text-gray-400">{displayCompanySlug}.{rootDomain}/</span><span className="text-indigo-600 font-semibold">{slug || 'website-name'}</span></>
+                                    isPrimary ? (
+                                        <>
+                                            https://
+                                            <input 
+                                                type="text" 
+                                                placeholder={name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'yourcompany'}
+                                                className="bg-transparent border-b border-transparent hover:border-indigo-400 focus:border-indigo-500 text-indigo-600 font-semibold outline-none px-0.5 min-w-[50px] w-auto max-w-[120px] transition-colors" 
+                                                value={companySlugInput} 
+                                                onChange={e => setCompanySlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
+                                            />
+                                            .{rootDomain}
+                                        </>
+                                    ) : (
+                                        <><span className="text-gray-400">https://{displayCompanySlug}.{rootDomain}/</span><span className="text-indigo-600 font-semibold">{slug || 'website-name'}</span></>
+                                    )
                                 )}
                             </span>
                             {isPrimary && <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-700 rounded-full uppercase tracking-wider">Primary</span>}

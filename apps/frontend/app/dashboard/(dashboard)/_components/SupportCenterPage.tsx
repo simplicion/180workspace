@@ -369,11 +369,11 @@ export default function SupportCenterPage() {
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                         <a
-                            href={`mailto:support@${process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'}`}
+                            href={`mailto:support@${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}`}
                             className="inline-flex items-center gap-2 bg-white text-gray-900 hover:bg-gray-50 px-6 py-3 rounded-xl font-bold shadow-sm transition-all text-sm"
                         >
                             <Mail className="w-4 h-4" />
-                            support@{process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'}
+                            support@{process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}
                         </a>
                         <a
                             href="tel:+18001809000"

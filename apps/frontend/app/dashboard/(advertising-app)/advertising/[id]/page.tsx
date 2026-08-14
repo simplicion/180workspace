@@ -5,7 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Globe, MousePointer2, Users, Plus, Trash2, ArrowLeft, ExternalLink, Code, Activity, Clock, Sparkles } from 'lucide-react';
+import { Globe, MousePointer2, Users, Plus, Trash2, ArrowLeft, ExternalLink, Code, Activity, Clock, Sparkles, Edit3 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -96,15 +96,22 @@ function WebsiteDashboardInner() {
                             <p className="text-sm text-gray-500 font-medium">
                                 {website.company?.customDomain 
                                     ? `${website.company.customDomain}${website.isPrimary ? '' : `/${website.slug}`}`
-                                    : `${website.company?.slug || 'company'}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002')}${website.isPrimary ? '' : `/${website.slug}`}`}
+                                    : `${website.company?.slug || 'company'}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || ''}${website.isPrimary ? '' : `/${website.slug}`}`}
                             </p>
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => router.push(`/dashboard/advertising/${website.id}/edit`)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-sm font-bold text-indigo-600 hover:bg-indigo-100 transition-all"
+                    >
+                        <Edit3 className="w-4 h-4" />
+                        Edit Website
+                    </button>
                     <a 
                         href={(() => {
-                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002');
+                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '';
                             const isLocal = rootDomain.includes('localhost');
                             if (website.company?.customDomain) {
                                 return website.isPrimary 

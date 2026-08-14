@@ -7,15 +7,14 @@ export default withAuth(
     const hostname = req.headers.get("host") || "";
 
     // Define main application domains (add more if needed, e.g., production domains)
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "180workspace.com";
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "";
     const mainDomains = [
-        rootDomain, 
-        `www.${rootDomain}`, 
-        `app.${rootDomain}`,
-        "workspace.pitchin180.com",
-        "workspace.180workspace.com"
-    ];
-    
+      rootDomain,
+      `www.${rootDomain}`,
+      `app.${rootDomain}`,
+      "workspace.pitchin180.com"
+    ].filter(Boolean);
+
     // Check if the request is for a custom domain or a company subdomain
     // It is a custom domain/subdomain if it doesn't match mainDomains and isn't the base localhost (with or without port)
     const isLocalhostBase = /^localhost(:\d+)?$/.test(hostname) || /^127\.0\.0\.1(:\d+)?$/.test(hostname);
@@ -24,7 +23,7 @@ export default withAuth(
     if (isCustomDomain) {
       const path = req.nextUrl.pathname;
       const search = req.nextUrl.search;
-      
+
       // Force all authentication, setup, and platform flows to the root domain for security
       if (
         path.startsWith('/login') ||
@@ -33,19 +32,19 @@ export default withAuth(
         path.startsWith('/onboarding') ||
         path.startsWith('/dashboard')
       ) {
-          const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
-          const port = hostname.split(':')[1];
-          const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
-          const baseHost = (isLocalhostDomain && port) ? `${rootDomain}:${port}` : rootDomain;
-          const targetUrl = `${protocol}://${baseHost}${path}${search}`;
-          
-          if (isLocalhostDomain && process.env.NODE_ENV !== 'production') {
-              return new NextResponse(
-                  `<html><head><meta http-equiv="refresh" content="0; url=${targetUrl}"></head><body>Redirecting to secure platform... <script>window.location.href = "${targetUrl}";</script></body></html>`,
-                  { status: 200, headers: { 'Content-Type': 'text/html' } }
-              );
-          }
-          return NextResponse.redirect(targetUrl);
+        const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
+        const port = hostname.split(':')[1];
+        const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
+        const baseHost = (isLocalhostDomain && port) ? `${rootDomain}:${port}` : rootDomain;
+        const targetUrl = `${protocol}://${baseHost}${path}${search}`;
+
+        if (isLocalhostDomain && process.env.NODE_ENV !== 'production') {
+          return new NextResponse(
+            `<html><head><meta http-equiv="refresh" content="0; url=${targetUrl}"></head><body>Redirecting to secure platform... <script>window.location.href = "${targetUrl}";</script></body></html>`,
+            { status: 200, headers: { 'Content-Type': 'text/html' } }
+          );
+        }
+        return NextResponse.redirect(targetUrl);
       }
 
       // Allow internal Next.js routes, API routes, and well-known paths to pass through normally
@@ -65,7 +64,7 @@ export default withAuth(
       req.nextUrl.pathname.startsWith("/login") ||
       req.nextUrl.pathname.startsWith("/signup") ||
       req.nextUrl.pathname.startsWith("/onboarding")
-      
+
     const isSetupPage = req.nextUrl.pathname.startsWith("/workspace-setup")
 
     // 180workspace Dashboard routes (Requires Workspace Setup)
@@ -81,11 +80,11 @@ export default withAuth(
 
     // 0. Redirect authenticated users hitting the landing page to their dashboard
     if (isAuth && req.nextUrl.pathname === "/") {
-       if (!isOnboardingDone) {
-         return NextResponse.redirect(new URL("/signup", req.url));
-       } else {
-         return NextResponse.redirect(new URL("/dashboard", req.url));
-       }
+      if (!isOnboardingDone) {
+        return NextResponse.redirect(new URL("/signup", req.url));
+      } else {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
     }
 
     // 1. Unauthenticated users
@@ -96,25 +95,25 @@ export default withAuth(
       if (!isAuthPage) {
         let from = req.nextUrl.pathname;
         if (req.nextUrl.search) from += req.nextUrl.search;
-        
+
         // If they are on a custom domain, redirect them to the root domain's login page
         // (Wait, we already handle this at the top for specific paths, but for others we still redirect)
         if (isCustomDomain) {
-            const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
-            const port = hostname.split(':')[1];
-            const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
-            const baseHost = (isLocalhostDomain && port) ? `${rootDomain}:${port}` : rootDomain;
-            const targetUrl = `${protocol}://${baseHost}/login?from=${encodeURIComponent(from)}`;
-            
-            if (isLocalhostDomain && process.env.NODE_ENV !== 'production') {
-                return new NextResponse(
-                    `<html><head><meta http-equiv="refresh" content="0; url=${targetUrl}"></head><body>Redirecting to secure platform... <script>window.location.href = "${targetUrl}";</script></body></html>`,
-                    { status: 200, headers: { 'Content-Type': 'text/html' } }
-                );
-            }
-            return NextResponse.redirect(targetUrl);
+          const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
+          const port = hostname.split(':')[1];
+          const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
+          const baseHost = (isLocalhostDomain && port) ? `${rootDomain}:${port}` : rootDomain;
+          const targetUrl = `${protocol}://${baseHost}/login?from=${encodeURIComponent(from)}`;
+
+          if (isLocalhostDomain && process.env.NODE_ENV !== 'production') {
+            return new NextResponse(
+              `<html><head><meta http-equiv="refresh" content="0; url=${targetUrl}"></head><body>Redirecting to secure platform... <script>window.location.href = "${targetUrl}";</script></body></html>`,
+              { status: 200, headers: { 'Content-Type': 'text/html' } }
+            );
+          }
+          return NextResponse.redirect(targetUrl);
         }
-        
+
         return NextResponse.redirect(new URL(`/login?from=${encodeURIComponent(from)}`, req.url));
       }
       return null;
@@ -144,34 +143,34 @@ export default withAuth(
 
     // 3. User is trying to access 180workspace routes (Dashboard, CRM, etc.)
     if (isIMSRoute) {
-       // If personal onboarding is not complete, redirect to signup
-       if (!isOnboardingDone) {
-         return NextResponse.redirect(new URL("/signup", req.url));
-       }
-       if (!isWorkspaceSetupComplete) {
-         // Force them to complete workspace setup
-         return NextResponse.redirect(new URL("/workspace-setup", req.url));
-       }
-       
-       return null; // Allow access
+      // If personal onboarding is not complete, redirect to signup
+      if (!isOnboardingDone) {
+        return NextResponse.redirect(new URL("/signup", req.url));
+      }
+      if (!isWorkspaceSetupComplete) {
+        // Force them to complete workspace setup
+        return NextResponse.redirect(new URL("/workspace-setup", req.url));
+      }
+
+      return null; // Allow access
     }
 
     // 4. User is trying to access Workspace Setup
     if (isSetupPage) {
-       // If they already completed it, redirect them to 180workspace Dashboard
-       if (isWorkspaceSetupComplete) {
-         return NextResponse.redirect(new URL("/dashboard", req.url));
-       }
-       return null; // Allow access to workspace setup
+      // If they already completed it, redirect them to 180workspace Dashboard
+      if (isWorkspaceSetupComplete) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+      return null; // Allow access to workspace setup
     }
 
     // 5. User is trying to access PitchIn routes
     if (isPitchInRoute) {
-       // If personal onboarding is not complete, redirect back to signup
-       if (!isOnboardingDone) {
-         return NextResponse.redirect(new URL("/signup", req.url));
-       }
-       return null;
+      // If personal onboarding is not complete, redirect back to signup
+      if (!isOnboardingDone) {
+        return NextResponse.redirect(new URL("/signup", req.url));
+      }
+      return null;
     }
 
     return null

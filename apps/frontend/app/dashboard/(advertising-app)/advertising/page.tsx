@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
@@ -131,7 +131,7 @@ export default function AdvertisingPage() {
                     <p className="text-gray-500 text-sm mt-4">Loading your websites...</p>
                 </div>
             ) : filteredWebsites.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex flex-col gap-4">
                     {filteredWebsites.map((website) => (
                         <WebsiteCard key={website.id} website={website} companyData={companyData} onRefresh={fetchWebsites} />
                     ))}

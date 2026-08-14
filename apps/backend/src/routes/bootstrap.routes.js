@@ -33,8 +33,7 @@ router.get('/bootstrap', protect, async (req, res, next) => {
           id: true,
           name: true,
           slug: true,
-          enabledApps: true,
-          enabledModules: true,
+          metadata: true,
           logoUrl: true,
           customDomain: true,
           isOnboardingComplete: true,
@@ -53,6 +52,12 @@ router.get('/bootstrap', protect, async (req, res, next) => {
         take: 5
       }) : []
     ]);
+
+    if (company) {
+      company.enabledApps = company.metadata?.enabledApps || [];
+      company.enabledModules = company.metadata?.enabledModules || [];
+      delete company.metadata; // Clean up metadata if we only wanted those fields, or we can leave it
+    }
 
     res.json({
       success: true,

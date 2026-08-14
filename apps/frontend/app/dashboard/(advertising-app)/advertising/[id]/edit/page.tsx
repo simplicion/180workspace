@@ -927,7 +927,7 @@ export default function WebsiteEditorPage() {
                     </button>
                     <button
                         onClick={() => {
-                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (process.env.NODE_ENV === 'production' ? '180workspace.com' : 'localhost:3002');
+                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || '';
                             const isLocal = rootDomain.includes('localhost');
                             let url = '';
                             if (website.company?.customDomain) {
