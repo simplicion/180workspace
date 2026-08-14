@@ -8,7 +8,13 @@ export default withAuth(
 
     // Define main application domains (add more if needed, e.g., production domains)
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "180workspace.com";
-    const mainDomains = [rootDomain, `www.${rootDomain}`, `app.${rootDomain}`];
+    const mainDomains = [
+        rootDomain, 
+        `www.${rootDomain}`, 
+        `app.${rootDomain}`,
+        "workspace.pitchin180.com",
+        "workspace.180workspace.com"
+    ];
     
     // Check if the request is for a custom domain or a company subdomain
     // It is a custom domain/subdomain if it doesn't match mainDomains and isn't the base localhost (with or without port)
@@ -42,10 +48,11 @@ export default withAuth(
           return NextResponse.redirect(targetUrl);
       }
 
-      // Allow internal Next.js routes and API routes to pass through normally
+      // Allow internal Next.js routes, API routes, and well-known paths to pass through normally
       if (
         !path.startsWith('/_next') &&
-        !path.startsWith('/api')
+        !path.startsWith('/api') &&
+        !path.startsWith('/.well-known')
       ) {
         // Rewrite to the dynamic sites directory
         return NextResponse.rewrite(new URL(`/sites/${hostname}${path}`, req.url));
