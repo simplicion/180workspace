@@ -170,7 +170,7 @@ function WebsiteDashboardInner() {
 
 function OverviewTab({ website, leads, stats }: { website: any, leads: any[], stats: any }) {
     const chartData = stats?.leadsOverTime?.map((d: any) => ({
-        name: d.id.split('-').slice(1).join('/'),
+        name: (d.id || d._id || d.date || '').split('-').slice(1).join('/') || 'Unknown',
         leads: d.count
     })) || [
         { name: 'Mon', leads: 0 },

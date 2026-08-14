@@ -66,8 +66,6 @@ export default function ArticleEditorPage() {
     useEffect(() => {
         if (!id) return;
 
-        let interval: NodeJS.Timeout;
-
         const attemptLock = async () => {
             try {
                 await lockArticle(id).unwrap();
@@ -82,7 +80,7 @@ export default function ArticleEditorPage() {
 
         attemptLock();
         // Ping every 5 minutes to keep lock active
-        interval = setInterval(attemptLock, 5 * 60 * 1000);
+        const interval = setInterval(attemptLock, 5 * 60 * 1000);
 
         return () => {
             clearInterval(interval);

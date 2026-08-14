@@ -203,7 +203,7 @@ export function generateHtmlFromBlocks(blocks: Block[], documentDetails: any, de
         const placeholder = block.content?.placeholder || '';
         const inputType = block.content?.inputType || 'text';
         
-        let inputHtml = '';
+        let inputHtml;
         if (inputType === 'textarea') {
             inputHtml = `<div style="border: 1px solid #D1D5DB; border-radius: 6px; padding: 12px; min-height: 80px; background: #F9FAFB; color: #9CA3AF; font-size: ${baseSize}px;">${placeholder}</div>`;
         } else if (inputType === 'checkbox') {

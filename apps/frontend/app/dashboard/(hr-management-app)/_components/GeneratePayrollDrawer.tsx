@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { DollarSign, Calendar, User, AlertCircle, Plus, XCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
+import { useSettings } from '@/lib/settings-context';
 
 interface Props {
     open: boolean;
@@ -14,6 +15,9 @@ interface Props {
 }
 
 export default function GeneratePayrollDrawer({ open, onClose, onSuccess }: Props) {
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
+    
     const [preview, setPreview] = useState<any>(null);
     const [fetchingPreview, setFetchingPreview] = useState(false);
     const [employees, setEmployees] = useState<any[]>([]);
@@ -153,7 +157,7 @@ export default function GeneratePayrollDrawer({ open, onClose, onSuccess }: Prop
             onClose={onClose}
             title="Generate Professional Payroll"
             description="Automated Attendance Sync"
-            icon={<DollarSign className="w-5 h-5 text-indigo-600" />}
+            icon={<div className="w-5 h-5 text-indigo-600 flex items-center justify-center font-bold text-lg">{currencySymbol}</div>}
         >
             <div className="flex flex-col h-full">
                 <form onSubmit={handleGenerate} className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
@@ -178,7 +182,7 @@ export default function GeneratePayrollDrawer({ open, onClose, onSuccess }: Prop
                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
                                 <select title="Select employee" value={form.employeeId} onChange={set('employeeId')} className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-indigo-100 rounded-xl text-sm py-2.5 pl-10 font-medium appearance-none">
                                     <option value="">Choose Employee</option>
-                                    {employees.map(u => <option key={u.id} value={u.id}>{u.name} {u.salary ? `(₹${u.salary.toLocaleString()})` : ''}</option>)}
+                                    {employees.map(u => <option key={u.id} value={u.id}>{u.name} {u.salary ? `(${currencySymbol}${u.salary.toLocaleString()})` : ''}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -198,7 +202,7 @@ export default function GeneratePayrollDrawer({ open, onClose, onSuccess }: Prop
                                 disabled={generating}
                                 className="mt-3 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-2 group"
                             >
-                                {generating ? <LogoLoader className="w-3 h-3 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
+                                {generating ? <LogoLoader className="w-3 h-3 animate-spin" /> : <div className="w-3.5 h-3.5 flex items-center justify-center font-bold">{currencySymbol}</div>}
                                 Generate for Everyone
                             </button>
                         </div>
@@ -269,12 +273,12 @@ export default function GeneratePayrollDrawer({ open, onClose, onSuccess }: Prop
                             <div className="bg-gray-900 rounded-2xl p-5 text-white flex items-center justify-between shadow-xl shadow-gray-200">
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Net Payable Salary</p>
-                                    <p className="text-3xl font-black tracking-tighter">₹{net.toLocaleString()}</p>
+                                    <p className="text-3xl font-black tracking-tighter">{currencySymbol}{net.toLocaleString()}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Gross: ₹{preview.meta?.gross?.toLocaleString() || preview.baseSalary.toLocaleString()}</p>
-                                    <p className="text-[10px] font-bold text-emerald-500">Additions: +₹{Number(form.bonuses).toLocaleString()}</p>
-                                    <p className="text-[10px] font-bold text-red-400">Total Deds: -₹{Number(form.deductions).toLocaleString()}</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Gross: {currencySymbol}{preview.meta?.gross?.toLocaleString() || preview.baseSalary.toLocaleString()}</p>
+                                    <p className="text-[10px] font-bold text-emerald-500">Additions: +{currencySymbol}{Number(form.bonuses).toLocaleString()}</p>
+                                    <p className="text-[10px] font-bold text-red-400">Total Deds: -{currencySymbol}{Number(form.deductions).toLocaleString()}</p>
                                 </div>
                             </div>
 
@@ -289,7 +293,7 @@ export default function GeneratePayrollDrawer({ open, onClose, onSuccess }: Prop
                 <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
                     <button title="Cancel" onClick={onClose} type="button" className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
                     <button title="Generate salary" onClick={handleGenerate} disabled={loading || !preview} className="px-8 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg active:scale-95 flex items-center gap-2">
-                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <div className="w-4 h-4 flex items-center justify-center font-bold">{currencySymbol}</div>}
                         Generate & Notify Staff
                     </button>
                 </div>

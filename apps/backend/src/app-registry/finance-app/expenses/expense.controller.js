@@ -69,6 +69,59 @@ exports.createExpense = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+exports.updateExpense = async (req, res, next) => {
+    try {
+        const Expense = req.prisma.expense;
+        const userId = req.user.id;
+        
+        const expense = await Expense.findUnique({ where: { id: req.params.id } });
+        if (!expense) return res.status(404).json({ error: 'Not found' });
+
+        if (expense.employeeId !== userId && !['admin', 'hr', 'ceo'].includes(req.user.role) && !req.user.permissions?.includes('can_manage_hr')) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+
+        const expenseData = { ...req.body };
+        
+        // Validation
+        if (expenseData.title === '' || expenseData.amount === '' || expenseData.date === '') {
+            return res.status(400).json({ error: 'Title, amount, and date are required' });
+        }
+        
+        if (expenseData.amount !== undefined) {
+            const amount = parseFloat(expenseData.amount);
+            if (isNaN(amount) || amount <= 0) {
+                return res.status(400).json({ error: 'Amount must be a positive number' });
+            }
+            expenseData.amount = amount;
+        }
+
+        // Auto-categorization logic if category is missing or other
+        if (expenseData.title && (!expenseData.category || expenseData.category === 'other')) {
+            const suggested = CategorizationService.suggestCategory(expenseData.title);
+            if (suggested) expenseData.category = suggested;
+        }
+
+        // Clean up data for Prisma
+        const { isBillable, ...cleanExpenseData } = expenseData;
+        if (cleanExpenseData.date) {
+            cleanExpenseData.date = new Date(cleanExpenseData.date).toISOString();
+        }
+        
+        // Reset status to pending if updated by employee
+        if (expense.employeeId === userId && expense.status !== 'pending') {
+            cleanExpenseData.status = 'pending';
+        }
+
+        const updatedExpense = await Expense.update({
+            where: { id: req.params.id },
+            data: cleanExpenseData
+        });
+
+        res.json({ success: true, expense: updatedExpense });
+    } catch (err) { next(err); }
+};
+
 exports.reviewExpense = async (req, res, next) => {
     try {
         const Expense = req.prisma.expense;

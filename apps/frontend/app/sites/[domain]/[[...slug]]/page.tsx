@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
 import { CheckCircle2, ArrowRight, Mail, Phone, User, ShieldCheck, Layout, Sparkles } from 'lucide-react';
-
+import { PublicRenderElement } from './_components/PublicRenderElement';
 export default function PublicWebsitePage() {
     const { domain, slug } = useParams();
     const [website, setWebsite] = useState<any>(null);
@@ -117,6 +117,32 @@ export default function PublicWebsitePage() {
     const colors = config.colors || { primary: '#4f46e5', secondary: '#ffffff', accent: '#10b981' };
     const primaryColor = colors.primary;
     const sections = config.sections || {};
+    
+    const brand = config.brand || {};
+    const getHeaderFooterStyles = (b: any) => {
+        const theme = b.headerFooterTheme || 'light';
+        const customTextColor = b.headerFooterTextColor;
+        let styles: any = {};
+        
+        if (theme === 'dark') {
+            styles = { backgroundColor: '#111827', color: customTextColor || '#ffffff' };
+        } else if (theme === 'brand') {
+            styles = { backgroundColor: b.primaryColor || '#4f46e5', color: customTextColor || '#ffffff' };
+        } else {
+            styles = { backgroundColor: 'rgba(255, 255, 255, 0.8)', color: customTextColor || 'inherit' };
+        }
+        
+        if (b.fontFamily) {
+            styles.fontFamily = `"${b.fontFamily}", sans-serif`;
+        }
+        
+        return styles;
+    };
+    const hfStyles = getHeaderFooterStyles(brand);
+
+    const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';
+    const currentPage = website.pages?.find((p: any) => p.slug === currentSlug);
+    const hasDynamicSections = currentPage?.sections && currentPage.sections.length > 0;
 
     return (
         <div 
@@ -129,7 +155,7 @@ export default function PublicWebsitePage() {
             } as any}
         >
             {/* Header */}
-            <header className="px-6 py-8 flex justify-center">
+            <header className="px-6 py-8 flex justify-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg text-white font-black text-xl" style={{ backgroundColor: primaryColor }}>
                         {website.name[0]}
@@ -138,7 +164,16 @@ export default function PublicWebsitePage() {
                 </div>
             </header>
 
-            {/* Hero Section */}
+            {/* Dynamic Builder Content */}
+            {hasDynamicSections ? (
+                <div className="flex-1 w-full">
+                    {currentPage.sections.map((sec: any) => (
+                        <PublicRenderElement key={sec.id} node={sec} />
+                    ))}
+                </div>
+            ) : (
+                <>
+                    {/* Fallback Legacy Hero Section */}
             <main className="max-w-6xl mx-auto px-6 py-12 md:py-20">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                     <div className="text-left">
@@ -240,10 +275,12 @@ export default function PublicWebsitePage() {
                     </div>
                 </section>
             )}
+            </>
+            )}
 
-            <footer className="py-12 border-t border-gray-50 text-center">
-                <p className="text-sm text-gray-400 font-medium">© {new Date().getFullYear()} {website.name}. All Rights Reserved.</p>
-                <div className="mt-4 flex items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-black text-gray-300">
+            <footer className="py-12 border-t border-black/10 text-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
+                <p className="text-sm font-medium opacity-60">© {new Date().getFullYear()} {website.name}. All Rights Reserved.</p>
+                <div className="mt-4 flex items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-black opacity-50">
                     <span>Privacy Policy</span>
                     <span className="w-1 h-1 rounded-full bg-gray-200" />
                     <span>Terms of Service</span>

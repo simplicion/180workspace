@@ -9,6 +9,7 @@ import { DollarSign, CheckCircle, Clock, AlertCircle, Plus, FileText } from 'luc
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 
 // Lazy load heavy components
 const PayslipDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/PayslipDrawer'), {
@@ -50,6 +51,8 @@ export default function HRPage() {
     const [reviewSalary, setReviewSalary] = useState<any>(null);
     const [tab, setTab] = useState<'payroll' | 'leaves'>('payroll');
     const { user } = useAuth();
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
 
     function loadSalaries() {
         setLoading(true);
@@ -95,7 +98,7 @@ export default function HRPage() {
                     <p className="page-subtitle">Manage leave approvals and process payroll records</p>
                 </div>
                 {(['admin', 'ceo'].includes(user?.role || '') || (user?.permissions && user.permissions.includes('can_manage_hr'))) && (
-                    <button onClick={() => setShowGenerate(true)} className="btn-primary"><DollarSign className="w-4 h-4" />Generate Salary</button>
+                    <button onClick={() => setShowGenerate(true)} className="btn-primary"><div className="w-4 h-4 flex items-center justify-center font-bold">{currencySymbol}</div>Generate Salary</button>
                 )}
             </div>
 
@@ -114,7 +117,7 @@ export default function HRPage() {
                     <div className="grid grid-cols-3 gap-4 mb-6">
                         <div className="card p-5">
                             <p className="text-sm text-gray-500 mb-1">Total Payroll</p>
-                            <p className="text-2xl font-bold text-gray-900">₹{totalNet.toLocaleString()}</p>
+                            <p className="text-2xl font-bold text-gray-900">{currencySymbol}{totalNet.toLocaleString()}</p>
                         </div>
                         <div className="card p-5">
                             <p className="text-sm text-gray-500 mb-1">Paid</p>
@@ -191,10 +194,10 @@ export default function HRPage() {
                                                             </div>
                                                         ) : <span className="text-xs text-gray-400">Manual Entry</span>}
                                                     </td>
-                                                    <td className="text-gray-700 font-medium">₹{s.baseSalary?.toLocaleString()}</td>
-                                                    <td className="text-red-500 font-medium">-₹{s.deductions?.toLocaleString() || 0}</td>
-                                                    <td className="text-emerald-600 font-medium">+₹{s.bonuses?.toLocaleString() || 0}</td>
-                                                    <td className="font-bold text-gray-900 border-l border-gray-50 pl-4">₹{s.netSalary?.toLocaleString()}</td>
+                                                    <td className="text-gray-700 font-medium">{currencySymbol}{s.baseSalary?.toLocaleString()}</td>
+                                                    <td className="text-red-500 font-medium">-{currencySymbol}{s.deductions?.toLocaleString() || 0}</td>
+                                                    <td className="text-emerald-600 font-medium">+{currencySymbol}{s.bonuses?.toLocaleString() || 0}</td>
+                                                    <td className="font-bold text-gray-900 border-l border-gray-50 pl-4">{currencySymbol}{s.netSalary?.toLocaleString()}</td>
                                                     <td><span className={clsx('badge gap-1', cfg.cls)}><Icon className="w-3 h-3" />{s.status}</span></td>
                                                     {(['admin', 'ceo'].includes(user?.role || '') || (user?.permissions && user.permissions.includes('can_manage_hr'))) && (
                                                         <td>

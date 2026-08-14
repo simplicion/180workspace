@@ -153,24 +153,15 @@ exports.deleteUser = async (req, res, next) => {
         const scrubbed = {
             name: `Deleted User`,
             email: `deleted_${id}@removed.invalid`,
-            passwordHash: 'REDACTED', // Assuming passwordHash in Prisma
+            password: 'REDACTED',
             phone: '',
             photoUrl: '',
             emergencyContact: '',
-            refreshTokens: [], // Make sure your Prisma schema accepts empty arrays or Json here
             mfaEnabled: false,
             mfaSecret: null,
             apiKey: null,
             apiKeyEnabled: false,
             bankAccount: '',
-            bankDetails: {
-                accountHolderName: '',
-                accountNumber: '',
-                ifscCode: '',
-                bankName: '',
-                verificationStatus: 'unverified',
-                verificationId: ''
-            },
             isActive: false,
             deletedAt: new Date(),
         };

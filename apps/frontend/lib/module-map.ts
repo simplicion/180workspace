@@ -42,6 +42,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   
   // Finance & Accounting
   '/dashboard/finance': { appId: 'finance', moduleId: 'finance-overview' },
+  '/dashboard/transactions': { appId: 'finance', moduleId: 'transactions' },
   '/dashboard/expenses': { appId: 'finance', moduleId: 'expenses' },
   
   '/dashboard/assets': { appId: 'assets', moduleId: 'assets' },
@@ -160,6 +161,7 @@ export const APPS_CONFIG: AppConfig[] = [
         description: 'Invoicing, Expenses, and Salary Ledgers',
         modules: [
             { id: 'finance-overview', name: 'Finance Dashboard' },
+            { id: 'transactions', name: 'Transactions Ledger' },
             { id: 'invoices', name: 'Invoicing System' },
             { id: 'expenses', name: 'Expense Tracking' },
             { id: 'salary', name: 'Salary Management' }
@@ -221,7 +223,7 @@ export const STARTER_SET = {
         'sales', 'leads', 'pipeline', 'accounts', 'contacts', 'clients',
         'projects', 'tasks', 'work-logs',
         'employees', 'attendance', 'leaves', 'holidays',
-        'finance-overview', 'invoices', 'expenses',
+        'finance-overview', 'transactions', 'invoices', 'expenses',
         'analytics', 'reports',
         'chat', 'calendar', 'emails', 'documents', 'ai-assistant',
         'content-calendar', 'asset-hub', 'saved-banks'

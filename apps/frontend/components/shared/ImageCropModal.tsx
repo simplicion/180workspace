@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Cropper from "react-easy-crop";
 import { X, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 
@@ -70,6 +70,14 @@ export default function ImageCropModal({
   const [rotation, setRotation] = useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // Lock scroll on mount, unlock on unmount
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
 
   const onCropCompleteCallback = useCallback(
     (_: any, croppedAreaPixels: CropArea) => {

@@ -128,8 +128,8 @@ export default function EditCompanyProfilePage() {
                         <p className="text-gray-500 text-sm">Manage your public information and privacy settings.</p>
                     </div>
                 </div>
-                <button 
-                    onClick={handleSubmit} 
+                <button type="submit" 
+                     
                     disabled={isUpdating}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded font-medium hover:bg-blue-700 disabled:opacity-50"
                 >

@@ -4,7 +4,7 @@ import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, Suspense, useMemo } from 'react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { X, FileText, Edit2, Tags, Mail, Users, ChevronDown, Check, Download, Printer, HardDrive, ExternalLink, ArrowLeft, Save, FileBadge2, Search, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Palette, ZoomIn, ZoomOut, Maximize, FileSymlink, MessageSquare, Undo, Redo, Plus, Heading1, List, Grid, Minus, Square, Image, FormInput, EyeOff, Eye, LayoutTemplate, Settings2, Trash2, Signature, Scissors } from 'lucide-react';
+import { X, FileText, Edit2, Tags, Mail, Users, ChevronDown, Check, Download, Printer, HardDrive, ExternalLink, ArrowLeft, Save, FileBadge2, Search, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Palette, ZoomIn, ZoomOut, Maximize, FileSymlink, MessageSquare, Undo, Redo, Plus, Heading1, List, Grid, Minus, Square, Image as ImageIcon, FormInput, EyeOff, Eye, LayoutTemplate, Settings2, Trash2, Signature, Scissors } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setZoomLevel, addBlock, selectBlock, reorderBlocks, updateDocumentDetails, updateDesignSettings, undo, redo, updateMetaType, MetaType, updateBlock, initializeDocument, setHeaderBlocks, setFooterBlocks } from '../../../../redux/slices/documentSlice';
 import { SortableBlock } from './_components/SortableBlock';
@@ -333,7 +333,7 @@ function TemplateEditor({
         const clientId = e.target.value;
         const client = clients.find((c: any) => c.id.toString() === clientId);
         if (client) {
-            let updates: any = { 
+            const updates: any = { 
                 selectedClientId: client.id,
                 clientName: client.name, 
                 clientEmail: client.email,
@@ -623,7 +623,7 @@ function TemplateEditor({
                                 <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Box</span>
                             </button>
                             <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'image', content: { url: '' } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <Image className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
+                                <ImageIcon className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
                                 <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Image</span>
                             </button>
                             <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'signature', content: { label: 'Authorized Signatory', requireName: true } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">

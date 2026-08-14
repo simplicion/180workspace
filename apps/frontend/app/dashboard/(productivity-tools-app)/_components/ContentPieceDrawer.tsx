@@ -57,8 +57,30 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
     });
 
     return (
-        <Drawer open={true} onClose={onClose} title="Content Piece" position="right">
-            <div className="flex bg-white rounded-2xl w-full max-w-4xl h-[90vh] overflow-hidden shadow-2xl flex-col">
+        <Drawer 
+            open={true} 
+            onClose={onClose} 
+            title="Content Piece" 
+            position="right" 
+            size="max-w-2xl" 
+            noPadding
+            footer={
+                <div className="flex justify-between items-center w-full">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900">
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={handleSave} 
+                        disabled={isSaving}
+                        className="btn btn-primary flex items-center gap-2"
+                    >
+                        {isSaving ? <LogoLoader className="w-5 h-5 text-white" /> : <Save className="w-4 h-4" />}
+                        Save Changes
+                    </button>
+                </div>
+            }
+        >
+            <div className="flex flex-col w-full h-full bg-white">
                 {/* Header */}
                 <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-gray-100">
                     <div className="flex-1 min-w-0 pr-4">
@@ -292,27 +314,6 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-                    <button
-                        onClick={onClose}
-                        className="btn px-5 py-2 text-sm"
-                        disabled={isSaving}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="btn-primary px-6 py-2 text-sm flex items-center gap-2"
-                    >
-                        {isSaving ? (
-                            <><LogoLoader className="w-4 h-4 animate-spin" /> Saving...</>
-                        ) : (
-                            <><Save className="w-4 h-4" /> Save Changes</>
-                        )}
-                    </button>
-                </div>
             </div>
         </Drawer>
     );

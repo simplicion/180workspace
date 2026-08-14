@@ -81,6 +81,21 @@
     @apply w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder-gray-400;
   }
 
+  /* Global validation styles */
+  .show-errors .input:invalid,
+  .show-errors .select:invalid,
+  .show-errors .textarea:invalid,
+  .show-errors input:invalid,
+  .show-errors select:invalid,
+  .show-errors textarea:invalid {
+    @apply !border-red-500 !text-red-900 !bg-red-50/50 focus:!border-red-500 focus:!ring-red-500/20;
+  }
+  
+  .show-errors .input:invalid:not(:focus),
+  .show-errors input:invalid:not(:focus) {
+    @apply !bg-red-50/50;
+  }
+
   .textarea {
     @apply input resize-y min-h-[100px];
   }
@@ -287,4 +302,14 @@
 
 .duration-700 {
   animation-duration: 700ms;
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

@@ -34,6 +34,8 @@ export default function PayslipDrawer({
 }) {
     const { company, platform } = useSettings();
     const brandColor = company?.brandColor || '#cf1d29';
+    const currencySymbol = company?.currencySymbol || '$';
+    const currencyName = company?.currency || 'Currency';
 
     const handlePrint = () => {
         const printContent = document.getElementById('payslip-content');
@@ -132,7 +134,7 @@ export default function PayslipDrawer({
                                 new TableRow({
                                     children: [
                                         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Description", bold: true })] })], margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Amount (₹)", bold: true })] })], margins: { top: 100, bottom: 100, left: 100 } }),
+                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `Amount (${currencySymbol})`, bold: true })] })], margins: { top: 100, bottom: 100, left: 100 } }),
                                     ],
                                 }),
                                 new TableRow({
@@ -161,7 +163,7 @@ export default function PayslipDrawer({
                                 }),
                             ],
                         }),
-                        new Paragraph({ text: `Net Payable (in words): ${numberToWords(salary.netSalary || 0)} Rupees Only.`, spacing: { before: 200, after: 400 } }),
+                        new Paragraph({ text: `Net Payable (in words): ${numberToWords(salary.netSalary || 0)} ${currencyName} Only.`, spacing: { before: 200, after: 400 } }),
                         new Paragraph({ text: company?.authorizedSignatory ? `Authorized Signatory: ${company.authorizedSignatory}` : "Authorized Signatory", alignment: AlignmentType.RIGHT })
                     ],
                 }],
@@ -308,18 +310,18 @@ export default function PayslipDrawer({
                                         <tbody className="divide-y divide-gray-100">
                                             <tr>
                                                 <td className="px-4 py-3 text-gray-700">Basic Salary</td>
-                                                <td className="px-4 py-3 text-right font-medium text-gray-900">₹{salary.baseSalary?.toLocaleString('en-IN') || 0}</td>
+                                                <td className="px-4 py-3 text-right font-medium text-gray-900">{currencySymbol}{salary.baseSalary?.toLocaleString('en-IN') || 0}</td>
                                             </tr>
                                             {salary.allowances > 0 && (
                                                 <tr>
                                                     <td className="px-4 py-3 text-gray-700">Allowances</td>
-                                                    <td className="px-4 py-3 text-right font-medium text-emerald-600">₹{salary.allowances.toLocaleString('en-IN')}</td>
+                                                    <td className="px-4 py-3 text-right font-medium text-emerald-600">{currencySymbol}{salary.allowances.toLocaleString('en-IN')}</td>
                                                 </tr>
                                             )}
                                             {salary.bonuses > 0 && (
                                                 <tr>
                                                     <td className="px-4 py-3 text-gray-700">Bonuses</td>
-                                                    <td className="px-4 py-3 text-right font-medium text-emerald-600">₹{salary.bonuses.toLocaleString('en-IN')}</td>
+                                                    <td className="px-4 py-3 text-right font-medium text-emerald-600">{currencySymbol}{salary.bonuses.toLocaleString('en-IN')}</td>
                                                 </tr>
                                             )}
                                         </tbody>
@@ -335,12 +337,12 @@ export default function PayslipDrawer({
                                             {salary.deductions > 0 ? (
                                                 <tr>
                                                     <td className="px-4 py-3 text-gray-700">Tax & Deductions</td>
-                                                    <td className="px-4 py-3 text-right font-medium text-red-600">₹{salary.deductions.toLocaleString('en-IN')}</td>
+                                                    <td className="px-4 py-3 text-right font-medium text-red-600">{currencySymbol}{salary.deductions.toLocaleString('en-IN')}</td>
                                                 </tr>
                                             ) : (
                                                 <tr>
                                                     <td className="px-4 py-3 text-gray-400 italic">No deductions</td>
-                                                    <td className="px-4 py-3 text-right font-medium text-gray-900">₹0</td>
+                                                    <td className="px-4 py-3 text-right font-medium text-gray-900">{currencySymbol}0</td>
                                                 </tr>
                                             )}
                                         </tbody>
@@ -350,18 +352,18 @@ export default function PayslipDrawer({
 
                             <div className="bg-gray-900 rounded-lg p-6 text-white mb-6 flex justify-between items-center relative z-10 shadow-lg">
                                 <div className="space-y-1">
-                                    <p className="text-gray-400 text-sm">Gross Earnings: <span className="font-medium text-white">₹{((salary.baseSalary || 0) + (salary.allowances || 0) + (salary.bonuses || 0)).toLocaleString('en-IN')}</span></p>
-                                    <p className="text-gray-400 text-sm">Total Deductions: <span className="font-medium text-white">₹{(salary.deductions || 0).toLocaleString('en-IN')}</span></p>
+                                    <p className="text-gray-400 text-sm">Gross Earnings: <span className="font-medium text-white">{currencySymbol}{((salary.baseSalary || 0) + (salary.allowances || 0) + (salary.bonuses || 0)).toLocaleString('en-IN')}</span></p>
+                                    <p className="text-gray-400 text-sm">Total Deductions: <span className="font-medium text-white">{currencySymbol}{(salary.deductions || 0).toLocaleString('en-IN')}</span></p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Net Payable</p>
-                                    <p className="text-2xl md:text-3xl font-black tracking-tight" style={{ color: brandColor }}>₹{salary.netSalary?.toLocaleString('en-IN') || 0}</p>
+                                    <p className="text-2xl md:text-3xl font-black tracking-tight" style={{ color: brandColor }}>{currencySymbol}{salary.netSalary?.toLocaleString('en-IN') || 0}</p>
                                 </div>
                             </div>
 
                             <div className="mb-12 relative z-10">
                                 <p className="text-xs text-gray-500">
-                                    <span className="font-bold text-gray-700 uppercase tracking-widest">Amount in words:</span> {numberToWords(salary.netSalary || 0)} Rupees Only.
+                                    <span className="font-bold text-gray-700 uppercase tracking-widest">Amount in words:</span> {numberToWords(salary.netSalary || 0)} {currencyName} Only.
                                 </p>
                                 {salary.notes && (
                                     <div className="mt-4 p-4 bg-yellow-50/50 border border-yellow-100 rounded-lg">

@@ -11,6 +11,7 @@ import { Drawer } from '@/components/ui/Drawer';
 export function InvoiceViewDrawer({ invoice, onClose }: { invoice: any; onClose: () => void }) {
     const { company, platform } = useSettings();
     const brandColor = company?.brandColor || '#4f46e5';
+    const currencySymbol = company?.currencySymbol || '$';
 
     const [paying, setPaying] = useState(false);
 
@@ -135,8 +136,8 @@ export function InvoiceViewDrawer({ invoice, onClose }: { invoice: any; onClose:
                                         <p className="font-bold text-gray-900 border-l-4 border-transparent group-hover:border-indigo-500 pl-2 transition-all">{item.description}</p>
                                     </td>
                                     <td className="px-6 py-5 text-center text-gray-600 font-medium">{item.quantity}</td>
-                                    <td className="px-6 py-5 text-right text-gray-600 font-medium">₹{item.unitPrice?.toLocaleString('en-IN')}</td>
-                                    <td className="px-6 py-5 text-right font-black text-gray-900">₹{(item.quantity * item.unitPrice).toLocaleString('en-IN')}</td>
+                                    <td className="px-6 py-5 text-right text-gray-600 font-medium">{currencySymbol}{item.unitPrice?.toLocaleString('en-IN')}</td>
+                                    <td className="px-6 py-5 text-right font-black text-gray-900">{currencySymbol}{(item.quantity * item.unitPrice).toLocaleString('en-IN')}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -155,11 +156,11 @@ export function InvoiceViewDrawer({ invoice, onClose }: { invoice: any; onClose:
                         <div className="space-y-3">
                             <div className="flex justify-between items-center text-sm font-medium">
                                 <span className="text-gray-400">Subtotal</span>
-                                <span className="text-gray-900 font-bold">₹{invoice.subtotal?.toLocaleString('en-IN')}</span>
+                                <span className="text-gray-900 font-bold">{currencySymbol}{invoice.subtotal?.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="pt-6 border-t border-gray-100 flex justify-between items-center">
                                 <span className="text-sm font-black text-gray-900 uppercase tracking-widest">Total Amount</span>
-                                <span className="text-4xl font-black tracking-tighter" style={{ color: brandColor }}>₹{invoice.totalAmount?.toLocaleString('en-IN')}</span>
+                                <span className="text-4xl font-black tracking-tighter" style={{ color: brandColor }}>{currencySymbol}{invoice.totalAmount?.toLocaleString('en-IN')}</span>
                             </div>
                         </div>
 

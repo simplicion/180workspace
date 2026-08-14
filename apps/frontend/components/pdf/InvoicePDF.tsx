@@ -213,6 +213,7 @@ interface InvoicePDFProps {
 
 export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, company, platform }) => {
   const brandColor = company?.brandColor || '#4f46e5';
+  const currencySymbol = company?.currencySymbol || '$';
 
   return (
     <Document>
@@ -276,10 +277,10 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, company, platfo
               <Text style={[styles.itemDesc, styles.colDesc]}>{item.description}</Text>
               <Text style={[styles.itemValue, styles.colQty]}>{item.quantity}</Text>
               <Text style={[styles.itemValue, styles.colPrice]}>
-                ₹{item.unitPrice?.toLocaleString('en-IN')}
+                {currencySymbol}{item.unitPrice?.toLocaleString('en-IN')}
               </Text>
               <Text style={[styles.itemTotal, styles.colTotal]}>
-                ₹{(item.quantity * item.unitPrice).toLocaleString('en-IN')}
+                {currencySymbol}{(item.quantity * item.unitPrice).toLocaleString('en-IN')}
               </Text>
             </View>
           ))}
@@ -294,13 +295,13 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, company, platfo
             <View style={styles.totalRow}>
               <Text style={styles.subtotalLabel}>Subtotal</Text>
               <Text style={styles.subtotalValue}>
-                ₹{invoice.subtotal?.toLocaleString('en-IN')}
+                {currencySymbol}{invoice.subtotal?.toLocaleString('en-IN')}
               </Text>
             </View>
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>Total Amount</Text>
               <Text style={{ ...styles.grandTotalValue, color: brandColor }}>
-                ₹{invoice.totalAmount?.toLocaleString('en-IN')}
+                {currencySymbol}{invoice.totalAmount?.toLocaleString('en-IN')}
               </Text>
             </View>
 

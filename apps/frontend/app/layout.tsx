@@ -61,6 +61,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         })
                     }}
                 />
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            if (typeof window !== 'undefined') {
+                                document.addEventListener('click', function(e) {
+                                    var btn = e.target.closest('button');
+                                    if (btn && (btn.type === 'submit' || btn.classList.contains('btn-primary') || btn.textContent.toLowerCase().includes('save') || btn.textContent.toLowerCase().includes('add'))) {
+                                        var container = btn.closest('form, [role="dialog"], [data-radix-popper-content-wrapper]') || document.body;
+                                        container.classList.add('show-errors');
+                                    }
+                                }, true);
+                                
+                                document.addEventListener('invalid', function(e) {
+                                    var container = e.target.closest('form, [role="dialog"]') || document.body;
+                                    container.classList.add('show-errors');
+                                }, true);
+                            }
+                        `
+                    }}
+                />
             </head>
             <body className="font-sans antialiased hidden-scrollbar" suppressHydrationWarning>
                 <Providers session={session}>

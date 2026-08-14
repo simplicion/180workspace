@@ -127,6 +127,7 @@ router.use('/sales', protect, moduleGuard('crm'), salesRoutes);
 router.use('/forms', protect, moduleGuard('advertising'), formBuilderRoutes);
 router.use('/websites', protect, moduleGuard('advertising'), websiteRoutes);
 router.use('/finance', protect, moduleGuard('finance'), require('../app-registry/finance-app/finance-overview/finance.routes'));
+router.use('/transactions', protect, moduleGuard('finance'), require('../app-registry/finance-app/transactions/transactions.routes'));
 router.use('/vendors', protect, moduleGuard('finance'), require('../app-registry/finance-app/vendors/vendor.routes'));
 router.use('/search', protect, require('../platform-core/platform-integrations/routes/search.routes'));
 router.use('/user-preferences', protect, require('../app-registry/user-identity-app/user-preference.routes'));

@@ -244,7 +244,7 @@ export default function PostJobDrawer({ open, onClose, onSuccess, editJob }: Pro
 
                 <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
-                    <button onClick={handleSubmit} disabled={loading} className="btn-primary">
+                    <button type="submit"  disabled={loading} className="btn-primary">
                         {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Post Job'}
                     </button>
                 </div>

@@ -3,13 +3,14 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { Receipt, Plus, X, CheckCircle, XCircle, Clock, Filter, TrendingUp, Trash2, Link, ExternalLink } from 'lucide-react';
+import { Receipt, Plus, X, CheckCircle, XCircle, Clock, Filter, TrendingUp, Trash2, Link, ExternalLink, Edit } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { useModal } from '@/lib/modal-context';
+import { useSettings } from '@/lib/settings-context';
 
 const CATEGORIES = ['Software/SaaS', 'Office Supplies', 'Travel & Meals', 'Marketing', 'Utilities', 'Professional Services', 'other'];
 const STATUS_STYLES: Record<string, string> = {
@@ -33,6 +34,8 @@ import { AddExpenseDrawer } from './_components/AddExpenseDrawer';
 export default function ExpensesPage() {
     const { user } = useAuth();
     const modal = useModal();
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const [expenses, setExpenses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
@@ -42,6 +45,7 @@ export default function ExpensesPage() {
     const [clients, setClients] = useState<any[]>([]);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [expenseToEdit, setExpenseToEdit] = useState<any>(null);
     const isHR = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_hr'));
 
     function loadExpenses() {
@@ -106,7 +110,7 @@ export default function ExpensesPage() {
 
     return (
         <div>
-            <AddExpenseDrawer isOpen={showAdd} projects={projects} clients={clients} onClose={() => setShowAdd(false)} onSuccess={loadExpenses} />
+            <AddExpenseDrawer isOpen={showAdd} projects={projects} clients={clients} onClose={() => { setShowAdd(false); setExpenseToEdit(null); }} onSuccess={loadExpenses} expenseToEdit={expenseToEdit} />
 
             <div className="page-header flex items-center justify-between">
                 <div>
@@ -121,8 +125,8 @@ export default function ExpensesPage() {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 {[
-                    { label: 'Pending', value: `₹${totalPending.toLocaleString('en-IN')}`, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { label: 'Approved', value: `₹${totalApproved.toLocaleString('en-IN')}`, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+                    { label: 'Pending', value: `${currencySymbol}${totalPending.toLocaleString('en-IN')}`, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: 'Approved', value: `${currencySymbol}${totalApproved.toLocaleString('en-IN')}`, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
                     { label: 'Total Claims', value: expenses.length, icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50' },
                 ].map(k => (
                     <div key={k.label} className="card p-4 flex items-center gap-3">
@@ -234,7 +238,7 @@ export default function ExpensesPage() {
                                                 {exp.category}
                                             </span>
                                         </td>
-                                        <td className="font-bold text-gray-900">₹{exp.amount?.toLocaleString('en-IN')}</td>
+                                        <td className="font-bold text-gray-900">{currencySymbol}{exp.amount?.toLocaleString('en-IN')}</td>
                                         <td className="text-sm text-gray-500">{exp.date ? format(new Date(exp.date), 'MMM d, yyyy') : '—'}</td>
                                         <td>
                                             <span className={clsx('badge text-xs capitalize', STATUS_STYLES[exp.status] || 'badge-gray')}>
@@ -256,9 +260,14 @@ export default function ExpensesPage() {
                                             </td>
                                         )}
                                         <td>
-                                            <button onClick={() => setShowDeleteConfirm(exp.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600" title="Delete Expense">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center gap-2 transition-opacity">
+                                                <button onClick={() => { setExpenseToEdit(exp); setShowAdd(true); }} className="text-gray-400 hover:text-indigo-600" title="Edit Expense">
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => setShowDeleteConfirm(exp.id)} className="text-red-400 hover:text-red-600" title="Delete Expense">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

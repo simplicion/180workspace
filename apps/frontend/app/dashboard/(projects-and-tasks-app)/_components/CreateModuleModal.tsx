@@ -148,7 +148,7 @@ export default function CreateModuleModal({ projectId, onClose, onSuccess }: Pro
                     <button onClick={onClose} type="button" className="btn-secondary">
                         Cancel
                     </button>
-                    <button onClick={handleSubmit} disabled={loading || fetchingUsers} className="btn-primary">
+                    <button type="submit"  disabled={loading || fetchingUsers} className="btn-primary">
                         {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Create Module'}
                     </button>
                 </div>

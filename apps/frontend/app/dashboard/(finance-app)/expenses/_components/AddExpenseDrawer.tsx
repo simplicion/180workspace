@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { format } from 'date-fns';
 import { X, Plus, Link } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
+import { useSettings } from '@/lib/settings-context';
 
 const CATEGORIES = ['Software/SaaS', 'Office Supplies', 'Travel & Meals', 'Marketing', 'Utilities', 'Professional Services', 'other'];
 
-export function AddExpenseDrawer({ isOpen, onClose, onSuccess, projects, clients }: { isOpen: boolean; onClose: () => void; onSuccess: () => void; projects: any[]; clients: any[] }) {
+export function AddExpenseDrawer({ isOpen, onClose, onSuccess, projects, clients, expenseToEdit }: { isOpen: boolean; onClose: () => void; onSuccess: () => void; projects: any[]; clients: any[]; expenseToEdit?: any }) {
     const [form, setForm] = useState({
         title: '', amount: '', category: 'Travel & Meals',
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -16,6 +17,31 @@ export function AddExpenseDrawer({ isOpen, onClose, onSuccess, projects, clients
         projectId: '', clientId: '', isBillable: false
     });
     const [loading, setLoading] = useState(false);
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
+
+    useEffect(() => {
+        if (isOpen && expenseToEdit) {
+            setForm({
+                title: expenseToEdit.title || '',
+                amount: expenseToEdit.amount?.toString() || '',
+                category: expenseToEdit.category || 'Travel & Meals',
+                date: expenseToEdit.date ? format(new Date(expenseToEdit.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+                receiptLinks: expenseToEdit.receiptLinks?.length ? [...expenseToEdit.receiptLinks] : (expenseToEdit.receiptUrl ? [expenseToEdit.receiptUrl] : ['']),
+                notes: expenseToEdit.notes || '',
+                projectId: expenseToEdit.projectId?.id || expenseToEdit.projectId || '',
+                clientId: expenseToEdit.clientId?.id || expenseToEdit.clientId || '',
+                isBillable: !!expenseToEdit.isBillable
+            });
+        } else if (isOpen && !expenseToEdit) {
+            setForm({
+                title: '', amount: '', category: 'Travel & Meals',
+                date: format(new Date(), 'yyyy-MM-dd'),
+                receiptLinks: [''], notes: '',
+                projectId: '', clientId: '', isBillable: false
+            });
+        }
+    }, [isOpen, expenseToEdit]);
 
     function addReceiptLink() {
         setForm(p => ({ ...p, receiptLinks: [...p.receiptLinks, ''] }));
@@ -38,18 +64,25 @@ export function AddExpenseDrawer({ isOpen, onClose, onSuccess, projects, clients
         if (!form.title || !form.amount || !form.date) return toast.error('Fill required fields');
         setLoading(true);
         try {
-            await api.post('/api/expenses', {
+            const payload = {
                 ...form,
                 amount: parseFloat(form.amount),
                 projectId: form.projectId || undefined,
                 clientId: form.clientId || undefined,
                 receiptLinks: form.receiptLinks.filter(l => l.trim() !== '')
-            });
-            toast.success('Expense submitted!');
+            };
+
+            if (expenseToEdit) {
+                await api.put(`/api/expenses/${expenseToEdit.id}`, payload);
+                toast.success('Expense updated!');
+            } else {
+                await api.post('/api/expenses', payload);
+                toast.success('Expense submitted!');
+            }
             onSuccess();
             onClose();
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Failed to submit');
+            toast.error(err?.response?.data?.error || 'Failed to save');
         } finally { setLoading(false); }
     }
 
@@ -57,25 +90,25 @@ export function AddExpenseDrawer({ isOpen, onClose, onSuccess, projects, clients
         <Drawer
             isOpen={isOpen}
             onClose={onClose}
-            title="Submit Expense"
+            title={expenseToEdit ? "Edit Expense" : "Submit Expense"}
             maxWidth="max-w-md"
             footer={
                 <div className="flex justify-end gap-3 w-full">
                     <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                    <button type="button" onClick={handleSubmit} disabled={loading} className="btn-primary">
-                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Submit Claim'}
+                    <button type="submit" form="expense-form" disabled={loading} className="btn-primary">
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : expenseToEdit ? 'Save Changes' : 'Submit Claim'}
                     </button>
                 </div>
             }
         >
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form id="expense-form" onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="label">Expense Title *</label>
                     <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="input" placeholder="e.g. Flight to Mumbai" required />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="label" htmlFor="amount">Amount (₹) *</label>
+                        <label className="label" htmlFor="amount">Amount ({currencySymbol}) *</label>
                         <input type="number" id="amount" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className="input" placeholder="0.00" min="0" step="0.01" required />
                     </div>
                     <div>

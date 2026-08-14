@@ -6,6 +6,12 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { X, Building2, Mail, Phone, Globe, AlignLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import CreatableSelect from '@/components/shared/CreatableSelect';
+
+const INDUSTRIES = [
+    'Technology', 'Healthcare', 'Finance', 'Education', 'Retail', 
+    'Manufacturing', 'Real Estate', 'Consulting', 'Other'
+];
 
 interface Props {
     open: boolean;
@@ -17,6 +23,7 @@ interface Props {
 export default function AddClientDrawer({ open, onClose, onSuccess, editClient }: Props) {
     const isEdit = !!editClient;
     const [loading, setLoading] = useState(false);
+    const [isCompany, setIsCompany] = useState(!!editClient?.company);
     const [form, setForm] = useState({
         name: editClient?.name || '',
         company: editClient?.company || '',
@@ -31,6 +38,11 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         notes: editClient?.notes || '',
         givePortalAccess: false,
         password: '',
+        shippingAddress: editClient?.shippingAddress || '',
+        contactPersonName: editClient?.contactPersonName || '',
+        linkedin: editClient?.socialMediaLinks?.linkedin || '',
+        paymentTerms: editClient?.paymentTerms || '',
+        currency: editClient?.currency || 'USD',
     });
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -52,7 +64,13 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 notes: editClient?.notes || '',
                 givePortalAccess: false,
                 password: '',
+                shippingAddress: editClient?.shippingAddress || '',
+                contactPersonName: editClient?.contactPersonName || '',
+                linkedin: editClient?.socialMediaLinks?.linkedin || '',
+                paymentTerms: editClient?.paymentTerms || '',
+                currency: editClient?.currency || 'USD',
             });
+            setIsCompany(!!editClient?.company);
         }
     }, [open, editClient]);
 
@@ -61,12 +79,20 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         if (!form.name.trim()) return toast.error('Client name is required');
         setLoading(true);
         try {
+            const payload = {
+                ...form,
+                company: isCompany ? form.company : '',
+                industry: isCompany ? form.industry : '',
+                website: isCompany ? form.website : '',
+                taxId: isCompany ? form.taxId : '',
+                socialMediaLinks: { linkedin: isCompany ? form.linkedin : '' }
+            };
             if (isEdit) {
-                const { data } = await api.put(`/api/clients/${editClient.id}`, form);
+                const { data } = await api.put(`/api/clients/${editClient.id}`, payload);
                 toast.success('Client updated!');
                 onSuccess(data.client);
             } else {
-                const { data } = await api.post('/api/clients', form);
+                const { data } = await api.post('/api/clients', payload);
                 toast.success('Client added!');
                 onSuccess(data.client);
             }
@@ -95,18 +121,42 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                     </>
                 }
             >
+            <div className="mb-4 bg-gray-50/50 p-3 rounded-lg border border-gray-100 flex items-center justify-between">
+                <div>
+                    <h4 className="text-sm font-medium text-gray-900">Client Type</h4>
+                    <p className="text-xs text-gray-500">Are you adding a company or an individual?</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={isCompany}
+                        onChange={(e) => setIsCompany(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                    <span className="ml-3 text-sm font-medium text-gray-700">{isCompany ? 'Company' : 'Individual'}</span>
+                </label>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
                 <div>
                     <label htmlFor="clientName" className="label">Contact Name *</label>
                     <input id="clientName" value={form.name} onChange={set('name')} placeholder="Jane Smith" className="input" required />
                 </div>
-                <div>
-                    <label htmlFor="clientCompany" className="label">Company / Org</label>
-                    <div className="relative">
-                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                        <input id="clientCompany" value={form.company} onChange={set('company')} placeholder="Acme Corp" className="input pl-9" />
+                {isCompany && (
+                    <div>
+                        <label htmlFor="clientCompany" className="label">Company / Org Name *</label>
+                        <div className="relative">
+                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                            <input id="clientCompany" value={form.company} onChange={set('company')} placeholder="Acme Corp" className="input pl-9" required={isCompany} />
+                        </div>
                     </div>
-                </div>
+                )}
+            </div>
+
+            <div className="mt-3">
+                <label htmlFor="contactPersonName" className="label">Primary Contact Person</label>
+                <input id="contactPersonName" value={form.contactPersonName} onChange={set('contactPersonName')} placeholder="Full Name (if different from above)" className="input" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -139,10 +189,18 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                         <option value="Other">Other</option>
                     </select>
                 </div>
-                <div>
-                    <label htmlFor="clientIndustry" className="label">Industry</label>
-                    <input id="clientIndustry" value={form.industry} onChange={set('industry')} placeholder="e.g. Technology" className="input" />
-                </div>
+                {isCompany && (
+                    <div>
+                        <label htmlFor="clientIndustry" className="label">Industry</label>
+                        <CreatableSelect
+                            id="clientIndustry"
+                            value={form.industry}
+                            onChange={(val: string) => setForm(prev => ({ ...prev, industry: val }))}
+                            options={INDUSTRIES}
+                            placeholder="Select or type..."
+                        />
+                    </div>
+                )}
                 <div>
                     <label htmlFor="clientStatus" className="label">Status</label>
                     <select id="clientStatus" value={form.status} onChange={(e: any) => set('status')(e)} className="input">
@@ -153,23 +211,66 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-                <div>
-                    <label htmlFor="clientWebsite" className="label">Website</label>
-                    <div className="relative">
-                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                        <input id="clientWebsite" value={form.website} onChange={set('website')} placeholder="https://acme.com" className="input pl-9" />
+            {isCompany && (
+                <>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                            <label htmlFor="clientWebsite" className="label">Website</label>
+                            <div className="relative">
+                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                                <input id="clientWebsite" value={form.website} onChange={set('website')} placeholder="https://acme.com" className="input pl-9" />
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="clientLinkedin" className="label">LinkedIn URL</label>
+                            <div className="relative">
+                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                                <input id="clientLinkedin" value={form.linkedin} onChange={set('linkedin')} placeholder="https://linkedin.com/company/acme" className="input pl-9" />
+                            </div>
+                        </div>
                     </div>
+
+                    <div className="mt-3">
+                        <label htmlFor="clientTaxId" className="label">Tax ID / VAT No.</label>
+                        <input id="clientTaxId" value={form.taxId} onChange={set('taxId')} placeholder="Optional" className="input" />
+                    </div>
+                </>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                    <label htmlFor="clientAddress" className="label">Billing Address</label>
+                    <input id="clientAddress" value={form.billingAddress} onChange={set('billingAddress')} placeholder="Full billing address..." className="input" />
                 </div>
                 <div>
-                    <label htmlFor="clientTaxId" className="label">Tax ID / VAT No.</label>
-                    <input id="clientTaxId" value={form.taxId} onChange={set('taxId')} placeholder="Optional" className="input" />
+                    <label htmlFor="shippingAddress" className="label">Shipping Address</label>
+                    <input id="shippingAddress" value={form.shippingAddress} onChange={set('shippingAddress')} placeholder="Full shipping address..." className="input" />
                 </div>
             </div>
 
-            <div>
-                <label htmlFor="clientAddress" className="label">Billing Address</label>
-                <input id="clientAddress" value={form.billingAddress} onChange={set('billingAddress')} placeholder="Full billing address..." className="input" />
+            <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                    <label htmlFor="paymentTerms" className="label">Payment Terms</label>
+                    <select id="paymentTerms" value={form.paymentTerms} onChange={(e: any) => set('paymentTerms')(e)} className="input">
+                        <option value="">Select Terms...</option>
+                        <option value="Due on Receipt">Due on Receipt</option>
+                        <option value="Net 15">Net 15</option>
+                        <option value="Net 30">Net 30</option>
+                        <option value="Net 45">Net 45</option>
+                        <option value="Net 60">Net 60</option>
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor="currency" className="label">Currency</label>
+                    <select id="currency" value={form.currency} onChange={(e: any) => set('currency')(e)} className="input">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="INR">INR (₹)</option>
+                        <option value="AUD">AUD (A$)</option>
+                        <option value="CAD">CAD (C$)</option>
+                    </select>
+                </div>
             </div>
 
             {!isEdit && (

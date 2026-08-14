@@ -545,9 +545,9 @@ export default function CreateCalendarPage() {
                         Next <ChevronRight className="w-4 h-4 ml-1" />
                     </button>
                 ) : (
-                    <button 
+                    <button type="submit" 
                         className="btn-primary px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-100 transition-all hover:-translate-y-1 active:translate-y-0" 
-                        onClick={handleSubmit}
+                        
                         disabled={!isStepValid() || isGenerating}
                     >
                         <Sparkles className="w-4 h-4 mr-2" />

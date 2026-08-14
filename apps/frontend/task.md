@@ -2,6 +2,12 @@
   - [x] Create `/api/v1/180documents` unified endpoints
   - [x] Update frontend `knowledgeApi.js` to use `get180Documents`
   - [x] Wire frontend `DocumentsPage` to display articles, contracts, quotes, invoices, and files under unified tabs
+  - [x] `apps/frontend/app/dashboard/(finance-app)/invoices/page.tsx`
+  - [x] `apps/frontend/app/dashboard/(finance-app)/invoices/_components/CreateInvoiceDrawer.tsx`
+  - [x] `apps/frontend/app/dashboard/(finance-app)/invoices/_components/InvoiceViewDrawer.tsx`
+  - [x] `apps/frontend/components/pdf/InvoicePDF.tsx`
+  - [x] `apps/frontend/app/dashboard/(finance-app)/expenses/page.tsx`
+  - [x] `apps/frontend/app/dashboard/(finance-app)/expenses/_components/AddExpenseDrawer.tsx`
 - [x] Phase 2: Quotation System Migration
   - [x] Update navigation menu to prioritize 180 Documents
   - [x] Add 180 Documents migration banner to Quotes page

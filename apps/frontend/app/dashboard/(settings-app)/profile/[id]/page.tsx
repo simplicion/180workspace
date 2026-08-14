@@ -1246,7 +1246,7 @@ export default function UnifiedProfilePage() {
                                                 <DollarSign className="w-40 h-40" />
                                             </div>
                                             <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-widest mb-1">Base Salary</p>
-                                            <h3 className="text-4xl font-black mb-4">₹{profileUser.salary?.toLocaleString() || '0'}<span className="text-sm font-normal text-indigo-300">/month</span></h3>
+                                            <h3 className="text-4xl font-black mb-4 text-white">₹{profileUser.salary?.toLocaleString() || '0'}<span className="text-sm font-normal text-indigo-300">/month</span></h3>
                                             <div className="flex gap-4">
                                                 <div className="px-3 py-1 bg-white/10 rounded-lg text-xs font-semibold">Net Pay</div>
                                                 <div className="px-3 py-1 bg-white/10 rounded-lg text-xs font-semibold">CTC Optimized</div>
@@ -1343,7 +1343,7 @@ export default function UnifiedProfilePage() {
                                                     value={passwordData.currentPassword}
                                                     onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                                                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 transition-all"
-                                                    placeholder="••••••••"
+                                                    placeholder="********"
                                                 />
                                             </div>
                                         </div>

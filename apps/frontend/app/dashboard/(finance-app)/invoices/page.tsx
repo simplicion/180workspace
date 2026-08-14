@@ -28,6 +28,7 @@ const STATUS_STYLES: Record<string, { badge: string; label: string; icon: any }>
 export default function InvoicesPage() {
     const { user } = useAuth();
     const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const [invoices, setInvoices] = useState<any[]>([]);
     const [viewInvoice, setViewInvoice] = useState<any>(null);
     const [clients, setClients] = useState<any[]>([]);
@@ -129,8 +130,8 @@ export default function InvoicesPage() {
             {/* KPI */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 {[
-                    { label: user?.role === 'client' ? 'Total Paid' : 'Paid Revenue', value: `₹${totalRevenue.toLocaleString('en-IN')}`, color: 'text-green-600', icon: Banknote, bg: 'bg-green-50' },
-                    { label: user?.role === 'client' ? 'To Be Paid' : 'Outstanding', value: `₹${totalPending.toLocaleString('en-IN')}`, color: 'text-blue-600', icon: Send, bg: 'bg-blue-50' },
+                    { label: user?.role === 'client' ? 'Total Paid' : 'Paid Revenue', value: `${currencySymbol}${totalRevenue.toLocaleString('en-IN')}`, color: 'text-green-600', icon: Banknote, bg: 'bg-green-50' },
+                    { label: user?.role === 'client' ? 'To Be Paid' : 'Outstanding', value: `${currencySymbol}${totalPending.toLocaleString('en-IN')}`, color: 'text-blue-600', icon: Send, bg: 'bg-blue-50' },
                     { label: 'Total Invoices', value: invoices.length, color: 'text-indigo-600', icon: FileText, bg: 'bg-indigo-50' },
                     { label: 'Overdue', value: invoices.filter(i => i.status === 'overdue').length, color: 'text-red-600', icon: AlertCircle, bg: 'bg-red-50' },
                 ].map(k => (
@@ -197,7 +198,7 @@ export default function InvoicesPage() {
                                                 </td>
                                                 <td className="font-bold text-gray-900">
                                                     <div className="flex flex-col gap-1">
-                                                        <span>₹{inv.totalAmount?.toLocaleString('en-IN')}</span>
+                                                        <span>{currencySymbol}{inv.totalAmount?.toLocaleString('en-IN')}</span>
                                                         {inv.riskScore !== undefined && inv.riskScore > 20 && (
                                                             <span className={clsx(
                                                                 "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border w-fit",

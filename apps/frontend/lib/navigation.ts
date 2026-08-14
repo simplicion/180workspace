@@ -83,6 +83,7 @@ export const navigation = [
         roles: ['admin', 'finance', 'manager'],
         items: [
             { id: 'finance-overview', name: 'Finance Overview', href: '/dashboard/finance', icon: BarChart3, roles: ['admin', 'finance', 'manager'] },
+            { id: 'finance-overview', name: 'Transactions', href: '/dashboard/transactions', icon: Activity, roles: ['admin', 'finance', 'manager'] },
             { id: 'invoices', name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, roles: ['admin', 'finance', 'manager'] },
             { id: 'expenses', name: 'Expenses', href: '/dashboard/expenses', icon: Wallet, roles: ['admin', 'finance', 'manager'] },
             { id: 'salary', name: 'Salary Ledger', href: '/dashboard/salary', icon: Banknote, roles: ['admin', 'finance', 'manager'] },

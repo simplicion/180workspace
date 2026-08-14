@@ -1,7 +1,7 @@
 'use strict';
 
 const { prisma: globalPrisma, getCompanyPrisma } = require('@workspace/db');
-
+const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
 
 /**
  * GET /api/websites
@@ -36,12 +36,35 @@ exports.getWebsites = async (req, res, next) => {
 exports.createWebsite = async (req, res, next) => {
     try {
         const Website = req.prisma.website;
-        const { name, slug, template } = req.body;
+        const { name, slug, template, companySlug } = req.body;
 
-        // Check for existing slug
+        // Check for existing slug in websites
         const existing = await Website.findFirst({ where: { slug } });
         if (existing) {
             return res.status(400).json({ error: 'A website with this slug already exists.' });
+        }
+
+        const count = await Website.count({ where: { companyId: req.user.companyId } });
+        const isFirstWebsite = count === 0;
+
+        // Contextual Domain Assignment for First Website
+        if (isFirstWebsite && companySlug) {
+            const existingCompany = await globalPrisma.company.findFirst({
+                where: {
+                    slug: companySlug,
+                    id: { not: req.user.companyId }
+                }
+            });
+
+            if (existingCompany) {
+                return res.status(400).json({ error: 'This company subdomain is already taken. Please try another one.' });
+            }
+
+            // Update the company's slug
+            await globalPrisma.company.update({
+                where: { id: req.user.companyId },
+                data: { slug: companySlug }
+            });
         }
 
         // Data-First Auto-Fill: Initialize with default structured sections
@@ -55,14 +78,11 @@ exports.createWebsite = async (req, res, next) => {
             ]
         };
 
-        const count = await Website.count({ where: { companyId: req.user.companyId } });
-        const isFirstWebsite = count === 0;
-
         const website = await Website.create({ data: {
             name,
             slug,
             template: template || 'default',
-            config: initialConfig,
+            config: req.body.config || initialConfig,
             owner: req.user.id,
             companyId: req.user.companyId,
             status: 'active',
@@ -84,10 +104,17 @@ exports.getWebsite = async (req, res, next) => {
     try {
         const Website = req.prisma.website;
         const website = await Website.findUnique({ 
-            where: { id: req.params.id },
-            include: { company: true } // Include company for subdomain resolution
+            where: { id: req.params.id }
         });
         if (!website) return res.status(404).json({ error: 'Website not found' });
+
+        try {
+            const company = await globalPrisma.company.findUnique({ where: { id: req.user.companyId } });
+            if (company) {
+                website.company = company;
+            }
+        } catch (e) {}
+
         res.json({ website });
     } catch (err) {
         next(err);

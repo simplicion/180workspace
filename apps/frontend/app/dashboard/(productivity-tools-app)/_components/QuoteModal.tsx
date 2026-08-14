@@ -146,7 +146,7 @@ export default function QuoteModal({ isOpen, onClose, onSuccess, editingQuote }:
             footer={
                 <>
                     <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                    <button type="button" onClick={handleSubmit} disabled={saving} className="btn-primary px-6">
+                    <button type="submit" disabled={saving} className="btn-primary px-6">
                         {saving ? 'Saving...' : editingQuote ? 'Update & Save' : 'Generate Quote'}
                     </button>
                 </>

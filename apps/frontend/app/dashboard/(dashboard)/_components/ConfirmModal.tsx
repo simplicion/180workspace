@@ -4,6 +4,7 @@ import { LogoLoader } from "@workspace/ui";
 import { motion } from 'framer-motion';
 import { Trash2, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
+import { useEffect } from 'react';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -16,7 +17,19 @@ interface ConfirmModalProps {
 }
 
 export default function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, isLoading, variant = 'primary' }: ConfirmModalProps) {
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
+
     if (!isOpen) return null;
+
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
             <motion.div 

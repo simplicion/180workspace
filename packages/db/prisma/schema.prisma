@@ -192,6 +192,13 @@ model Client {
   leadSource      String?
   clientTier      String?
 
+  // Recommended CRM Fields added for 180workspace
+  shippingAddress   String?
+  contactPersonName String?
+  socialMediaLinks  Json?
+  paymentTerms      String?
+  currency          String?
+
   automationLogs_AutomationTargetClient   AutomationLog[]       @relation("AutomationTargetClient")
   company                                 Company?              @relation("CompanyClients", fields: [companyId], references: [id])
   ClientCommunication                     ClientCommunication[]
@@ -245,6 +252,7 @@ model User {
   bio                                   String?
   city                                  String?
   country                               String?
+  address                               String?
   socialLinks                           Json?
   highlights                            Json?                 @default("[]")
   interests                             String[]              @default([])
@@ -315,6 +323,7 @@ model User {
   reviewsReceived                    Review[]             @relation("ReviewEmployee")
   reviewsGiven                       Review[]             @relation("ReviewManager")
   salaries                           Salary[]             @relation("SalaryEmployee")
+  salariesGenerated                  Salary[]             @relation("SalaryGeneratedBy")
   savedPosts                         SavedPost[]          @relation("UserSavedPosts")
   sessions                           Session[]
   assignedTasks                      Task[]               @relation("TaskAssignee")
@@ -826,14 +835,32 @@ model Salary {
   employeeId    String
   amount        Float    @default(0)
   currency      String   @default("USD")
-  effectiveDate DateTime
-  status        String   @default("active")
+  effectiveDate DateTime?
+  status        String   @default("pending")
   companyId     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   company       Company? @relation(fields: [companyId], references: [id])
   employee      User     @relation("SalaryEmployee", fields: [employeeId], references: [id])
 
+  month         String?
+  baseSalary    Float?
+  deductions    Float?
+  bonuses       Float?
+  netSalary     Float?
+  notes         String?
+  generatedBy   String?
+  generatedByUser User?  @relation("SalaryGeneratedBy", fields: [generatedBy], references: [id])
+  totalDays     Float?
+  presentDays   Float?
+  halfDays      Float?
+  absentDays    Float?
+  paidLeaves    Float?
+  unpaidLeaves  Float?
+  perDaySalary  Float?
+  paidAt        DateTime?
+
+  @@unique([employeeId, month])
   @@index([status])
   @@index([companyId])
 }

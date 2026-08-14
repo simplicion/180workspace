@@ -222,7 +222,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                <form id="create-task-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
                     <div>
                         <label htmlFor="taskTitle" className="label">Task Title *</label>
                         <div className="relative">
@@ -456,7 +456,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
 
                 <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
-                    <button onClick={handleSubmit} disabled={loading} className="btn-primary">
+                    <button type="submit" form="create-task-form" disabled={loading} className="btn-primary">
                         {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Create Task'}
                     </button>
                 </div>

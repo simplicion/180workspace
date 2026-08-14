@@ -7,6 +7,7 @@ const qrcode = require('qrcode');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const BillingService = require('../finance-app/bills/billing.service');
+const EmailService = require('../productivity-tools-app/emails/email.service');
 const { prisma: globalPrisma, getCompanyPrisma } = require('@workspace/db');
 
 class AuthService {
@@ -63,7 +64,7 @@ class AuthService {
     }
 
     static async register(companyPrisma, body, company, currentUser) {
-        const { name, email, password, role, roles, department, designationId, position, permissions, employmentType, workLocation, managerId, phone, emergencyContact, salary, leaveBalance, joinDate } = body;
+        const { name, email, password, role, roles, department, designationId, position, permissions, employmentType, workLocation, managerId, phone, emergencyContact, salary, leaveBalance, joinDate, address } = body;
 
         if (!name || !email || !password) {
             const err = new Error('Name, email, and password are required');
@@ -156,7 +157,8 @@ class AuthService {
                 emergencyContact,
                 salary: salary ? parseFloat(salary) : undefined,
                 leaveBalance: leaveBalance ? parseFloat(leaveBalance) : undefined,
-                joinDate: joinDate ? new Date(joinDate) : undefined
+                joinDate: joinDate ? new Date(joinDate) : undefined,
+                address
             }
         });
 
@@ -204,7 +206,7 @@ class AuthService {
                     type: 'email_pending',
                     title: 'Send Welcome Email',
                     message: `New user ${user.name} created. Click to send their credentials.`,
-                    actionUrl,
+                    link: actionUrl,
                 }
             });
             const io = getIo();
@@ -214,7 +216,7 @@ class AuthService {
                     type: 'email_pending',
                     title: 'Send Welcome Email',
                     message: `New user ${user.name} created. Click to send their credentials.`,
-                    actionUrl,
+                    link: actionUrl,
                     isRead: false,
                     createdAt: notification.createdAt
                 });

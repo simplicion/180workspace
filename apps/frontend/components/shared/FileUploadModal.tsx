@@ -98,6 +98,15 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
         }
     }, [activeTab]);
 
+    useEffect(() => {
+        // Since FileUploadModal doesn't have an isOpen prop (it's mounted when open),
+        // we lock on mount and unlock on unmount.
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
+
     const fetchVault = async () => {
         setVaultLoading(true);
         try {

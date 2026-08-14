@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download, Pencil } from 'lucide-react';
+import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download, Pencil, MessageCircle, Globe } from 'lucide-react';
 import { Skeleton, SkeletonTable , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
@@ -268,14 +268,44 @@ export default function ClientsPage() {
                                                     <div className="flex items-center gap-1.5 text-xs text-gray-600">
                                                         <Phone className="w-3 h-3 text-gray-400" />
                                                         {client.phone}
+                                                        <a 
+                                                            href={`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            className="text-green-500 hover:text-green-600 ml-1 bg-green-50 p-1 rounded-full"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            title="Chat on WhatsApp"
+                                                        >
+                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                        </a>
                                                     </div>
                                                 )}
                                             </div>
                                         </td>
                                         <td>
                                             <div className="space-y-1">
-                                                <span className="text-sm font-medium text-gray-800">{client.industry || '—'}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium text-gray-800">{client.industry || '—'}</span>
+                                                    {client.clientType && (
+                                                        <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">
+                                                            {client.clientType}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                    {client.website && (
+                                                        <a 
+                                                            href={client.website.startsWith('http') ? client.website : `https://${client.website}`} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            className="flex items-center gap-1 hover:text-indigo-600"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <Globe className="w-3 h-3" />
+                                                            Website
+                                                        </a>
+                                                    )}
+                                                    {client.website && (client.companySize || client.annualRevenue) && <span>•</span>}
                                                     {client.companySize && <span>{client.companySize}</span>}
                                                     {client.annualRevenue && <span>• ${client.annualRevenue.toLocaleString()}</span>}
                                                 </div>

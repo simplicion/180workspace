@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
 import { FileText, Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useSettings } from '@/lib/settings-context';
 
 const STATUS_STYLES: Record<string, { badge: string; label: string; icon: any }> = {
     draft: { badge: 'badge-gray', label: 'Draft', icon: FileText },
@@ -36,6 +37,8 @@ export function CreateInvoiceDrawer({ isOpen, onClose, onSuccess, clients }: { i
         { description: '', quantity: 1, unitPrice: 0 },
     ]);
     const [loading, setLoading] = useState(false);
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
 
     function addLine() { setLineItems(p => [...p, { description: '', quantity: 1, unitPrice: 0 }]); }
     function removeLine(i: number) { setLineItems(p => p.filter((_, idx) => idx !== i)); }
@@ -77,7 +80,7 @@ export function CreateInvoiceDrawer({ isOpen, onClose, onSuccess, clients }: { i
             footer={
                 <div className="flex justify-end gap-3 w-full">
                     <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                    <button type="button" onClick={handleSubmit} disabled={loading} className="btn-primary">
+                    <button type="submit" disabled={loading} className="btn-primary">
                         {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Create Invoice'}
                     </button>
                 </div>
@@ -142,7 +145,7 @@ export function CreateInvoiceDrawer({ isOpen, onClose, onSuccess, clients }: { i
                                             <input aria-label="Line item unit price" type="number" value={line.unitPrice} onChange={e => updateLine(i, 'unitPrice', e.target.value)} className="w-full input py-1 text-sm text-right" min="0" step="0.01" />
                                         </td>
                                         <td className="px-3 py-2 text-right font-semibold text-gray-800">
-                                            ₹{(line.quantity * line.unitPrice).toLocaleString('en-IN')}
+                                            {currencySymbol}{(line.quantity * line.unitPrice).toLocaleString('en-IN')}
                                         </td>
                                         <td className="px-2">
                                             {lineItems.length > 1 && (
@@ -160,22 +163,22 @@ export function CreateInvoiceDrawer({ isOpen, onClose, onSuccess, clients }: { i
                     {/* Totals */}
                     <div className="mt-3 space-y-1.5 text-sm">
                         <div className="flex justify-between text-gray-500">
-                            <span>Subtotal</span><span className="font-medium text-gray-800">₹{subtotal.toLocaleString('en-IN')}</span>
+                            <span>Subtotal</span><span className="font-medium text-gray-800">{currencySymbol}{subtotal.toLocaleString('en-IN')}</span>
                         </div>
                         <div className="flex items-center justify-between text-gray-500">
                             <span className="flex items-center gap-2">Tax
                                 <input aria-label="Tax percentage" type="number" value={form.taxPercent} onChange={e => setForm(p => ({ ...p, taxPercent: Number(e.target.value) }))} className="w-16 input py-0.5 text-xs text-center" min="0" max="100" />%
                             </span>
-                            <span className="font-medium text-gray-800">₹{tax.toLocaleString('en-IN')}</span>
+                            <span className="font-medium text-gray-800">{currencySymbol}{tax.toLocaleString('en-IN')}</span>
                         </div>
                         <div className="flex items-center justify-between text-gray-500">
                             <span className="flex items-center gap-2">Discount
                                 <input aria-label="Discount amount" type="number" value={form.discount} onChange={e => setForm(p => ({ ...p, discount: Number(e.target.value) }))} className="w-20 input py-0.5 text-xs text-center" min="0" />
                             </span>
-                            <span className="font-medium text-red-500">-₹{form.discount.toLocaleString('en-IN')}</span>
+                            <span className="font-medium text-red-500">-{currencySymbol}{form.discount.toLocaleString('en-IN')}</span>
                         </div>
                         <div className="flex justify-between border-t border-gray-100 pt-2 text-base font-bold text-gray-900">
-                            <span>Total</span><span>₹{total.toLocaleString('en-IN')}</span>
+                            <span>Total</span><span>{currencySymbol}{total.toLocaleString('en-IN')}</span>
                         </div>
                     </div>
                 </div>

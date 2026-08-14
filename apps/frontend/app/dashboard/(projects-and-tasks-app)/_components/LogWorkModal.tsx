@@ -630,8 +630,8 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                     <button onClick={onClose} type="button" className="btn-secondary">
                         Cancel
                     </button>
-                    <button 
-                        onClick={handleSubmit} 
+                    <button type="submit" 
+                         
                         disabled={submitting} 
                         className="btn-primary min-w-[140px]"
                     >

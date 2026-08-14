@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Plus, Search, Download, Banknote, CreditCard, Calendar, Eye, FileCheck, FileWarning, TrendingUp, ArrowUpRight, DollarSign, Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { useSettings } from '@/lib/settings-context';
 
 function thisMonthStr() { return new Date().toISOString().slice(0, 7); }
 
@@ -24,6 +25,8 @@ export default function SalaryPage() {
     const [loading, setLoading] = useState(true);
     const [month, setMonth] = useState(thisMonthStr());
     const { user } = useAuth();
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const [search, setSearch] = useState('');
 
     function loadSalaries() {
@@ -79,8 +82,8 @@ export default function SalaryPage() {
     }
 
     const filteredSalaries = salaries.filter(s =>
-        s.employeeId?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        s.employeeId?.employeeId?.toLowerCase().includes(search.toLowerCase())
+        s.employee?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        s.employee?.employeeId?.toLowerCase().includes(search.toLowerCase())
     );
 
     const totalPayout = salaries.reduce((sum, s) => sum + (s.netSalary || 0), 0);
@@ -98,10 +101,10 @@ export default function SalaryPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Payroll (Selected Month)', value: `₹${totalPayout.toLocaleString()}`, icon: Banknote, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                    { label: 'Total Payroll (Selected Month)', value: `${currencySymbol}${totalPayout.toLocaleString()}`, icon: Banknote, color: 'text-indigo-600', bg: 'bg-indigo-50' },
                     { label: 'Pending Payouts', value: pendingCount.toString(), icon: FileWarning, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { label: 'Net Disbursed', value: `₹${totalPaid.toLocaleString()}`, icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50' },
-                    { label: 'Total Deductions', value: `₹${salaries.reduce((sum, s) => sum + (s.deductions || 0), 0).toLocaleString()}`, icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
+                    { label: 'Net Disbursed', value: `${currencySymbol}${totalPaid.toLocaleString()}`, icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50' },
+                    { label: 'Total Deductions', value: `${currencySymbol}${salaries.reduce((sum, s) => sum + (s.deductions || 0), 0).toLocaleString()}`, icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
                 ].map((stat, i) => (
                     <div key={i} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
                         <div className="flex items-center justify-between mb-3 text-gray-400">
@@ -157,31 +160,31 @@ export default function SalaryPage() {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">
-                                                        {pay.employeeId?.name?.[0] || '?'}
+                                                        {pay.employee?.name?.[0] || '?'}
                                                     </div>
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span className="text-gray-900 font-bold">{pay.employeeId?.name || 'Unknown'}</span>
+                                                        <span className="text-gray-900 font-bold">{pay.employee?.name || 'Unknown'}</span>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] text-gray-400">{pay.employeeId?.employeeId || 'No ID'}</span>
-                                                            {pay.employeeId?.bankDetails && (
+                                                            <span className="text-[10px] text-gray-400">{pay.employee?.employeeId || 'No ID'}</span>
+                                                            {pay.employee?.bankDetails && (
                                                                 <span className={clsx(
                                                                     'text-[9px] px-1.5 py-0.5 rounded-full border tracking-wide uppercase font-bold',
-                                                                    pay.employeeId.bankDetails.verificationStatus === 'verified' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' :
-                                                                        pay.employeeId.bankDetails.verificationStatus === 'pending' ? 'text-amber-600 bg-amber-50 border-amber-100' :
+                                                                    pay.employee.bankDetails.verificationStatus === 'verified' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' :
+                                                                        pay.employee.bankDetails.verificationStatus === 'pending' ? 'text-amber-600 bg-amber-50 border-amber-100' :
                                                                             'text-gray-400 bg-gray-50 border-gray-100'
                                                                 )}>
-                                                                    {pay.employeeId.bankDetails.verificationStatus || 'unverified'}
+                                                                    {pay.employee.bankDetails.verificationStatus || 'unverified'}
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-600">₹{pay.baseSalary?.toLocaleString() || 0}</td>
-                                            <td className="px-6 py-4 text-emerald-600">+₹{pay.bonuses?.toLocaleString() || 0}</td>
-                                            <td className="px-6 py-4 text-red-500">-₹{pay.deductions?.toLocaleString() || 0}</td>
+                                            <td className="px-6 py-4 text-gray-600">{currencySymbol}{pay.baseSalary?.toLocaleString() || 0}</td>
+                                            <td className="px-6 py-4 text-emerald-600">+{currencySymbol}{pay.bonuses?.toLocaleString() || 0}</td>
+                                            <td className="px-6 py-4 text-red-500">-{currencySymbol}{pay.deductions?.toLocaleString() || 0}</td>
                                             <td className="px-6 py-4">
-                                                <span className="font-black text-gray-900">₹{pay.netSalary?.toLocaleString() || 0}</span>
+                                                <span className="font-black text-gray-900">{currencySymbol}{pay.netSalary?.toLocaleString() || 0}</span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={clsx("badge gap-1", cfg.cls)}>
@@ -198,19 +201,19 @@ export default function SalaryPage() {
                                                     )}
                                                     {(pay.status === 'approved' || pay.status === 'hr_approved') && (
                                                         <>
-                                                            {pay.employeeId?.bankDetails?.verificationStatus === 'verified' ? (
+                                                            {pay.employee?.bankDetails?.verificationStatus === 'verified' ? (
                                                                 <button onClick={() => handleInitiatePayout(pay.id)} className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors">
-                                                                    <DollarSign className="w-3.5 h-3.5" /> Payout
+                                                                    <div className="w-3.5 h-3.5 flex items-center justify-center font-bold text-[10px]">{currencySymbol}</div> Payout
                                                                 </button>
                                                             ) : (
                                                                 <button
-                                                                    disabled={pay.employeeId?.bankDetails?.verificationStatus === 'pending'}
-                                                                    onClick={() => handleVerifyBank(pay.employeeId?.id)}
+                                                                    disabled={pay.employee?.bankDetails?.verificationStatus === 'pending'}
+                                                                    onClick={() => handleVerifyBank(pay.employee?.id)}
                                                                     className={clsx(
                                                                         "text-xs font-bold flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors border",
-                                                                        pay.employeeId?.bankDetails?.verificationStatus === 'pending' ? "text-amber-500 border-transparent cursor-wait" : "text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100"
+                                                                        pay.employee?.bankDetails?.verificationStatus === 'pending' ? "text-amber-500 border-transparent cursor-wait" : "text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100"
                                                                     )}>
-                                                                    <AlertCircle className="w-3.5 h-3.5" /> {pay.employeeId?.bankDetails?.verificationStatus === 'pending' ? 'Verifying Bank...' : 'Verify Bank First'}
+                                                                    <AlertCircle className="w-3.5 h-3.5" /> {pay.employee?.bankDetails?.verificationStatus === 'pending' ? 'Verifying Bank...' : 'Verify Bank First'}
                                                                 </button>
                                                             )}
                                                             <button onClick={() => handleMarkPaid(pay.id)} className="text-xs text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors">

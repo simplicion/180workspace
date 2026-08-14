@@ -15,6 +15,7 @@ export default function PublicContractView() {
     const [clientName, setClientName] = useState('');
     const [agreed, setAgreed] = useState(false);
     const sigCanvas = useRef<any>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     if (isLoading) return <div className="h-screen flex items-center justify-center text-zinc-500">Loading document...</div>;
     if (!contractData?.contract) return <div className="h-screen flex items-center justify-center text-zinc-500">Document not found or expired.</div>;
@@ -38,7 +39,6 @@ export default function PublicContractView() {
         }
     };
 
-    const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownloadPDF = async () => {
         setIsDownloading(true);

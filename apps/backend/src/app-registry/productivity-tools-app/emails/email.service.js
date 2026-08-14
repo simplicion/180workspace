@@ -122,8 +122,22 @@ async function getTransporter(category = CATEGORIES.WORK, companyPrisma = null) 
                     auth: { user: settings.smtpUser, pass: settings.smtpPass },
                 });
             }
-            console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for company. Throwing error.`);
-            throw new Error("Company SMTP is not configured. Please configure your email settings in the dashboard to send work emails.");
+            
+            // Fallback to Platform SMTP if company SMTP is not configured
+            const ps = await prisma.platformSettings.findFirst();
+            if (ps && ps.smtpHost && ps.smtpUser && ps.smtpPass) {
+                console.log(`[EmailService] [ISOLATION:WORK] Falling back to Platform SMTP: ${ps.smtpHost}`);
+                const port = Number(ps.smtpPort) || 587;
+                return nodemailer.createTransport({
+                    host: ps.smtpHost,
+                    port: port,
+                    secure: ps.smtpSecure !== undefined ? ps.smtpSecure : (port === 465),
+                    auth: { user: ps.smtpUser, pass: ps.smtpPass },
+                });
+            }
+
+            console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for company or platform. Throwing error.`);
+            throw new Error("SMTP is not configured. Please configure your email settings in the dashboard to send work emails.");
         } catch (e) {
             console.error('[EmailService] [ISOLATION:WORK] Error loading company SMTP:', e.message);
             return null;

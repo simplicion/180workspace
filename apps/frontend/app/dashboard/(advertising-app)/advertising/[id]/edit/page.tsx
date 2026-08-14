@@ -3,6 +3,12 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { BuilderElement } from './BuilderElement';
+import { getDefaultElementForType, getDefaultSectionsForPageType } from './ElementFactory';
+
 import { LayoutTemplate, Settings, Save, Eye, ArrowLeft, Monitor, Tablet, Smartphone, Search, RefreshCw, X, ChevronDown, Check, MousePointer2, Image as ImageIcon, Type, Layout, Palette, MapPin, Phone, Mail, Sparkles, ShieldCheck, User, CheckCircle2, Plus, Trash2, ArrowUp, ArrowDown, MessageSquare, List, GripVertical, Undo2, Redo2, RotateCcw } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -120,10 +126,10 @@ export default function WebsiteEditorPage() {
     const revertToDefault = () => {
         if (!confirm("Are you sure you want to revert to the default template? All your content changes will be lost.")) return;
         const defaultSections = [
-            { id: 'sec-' + Date.now() + 1, type: 'hero', data: getDefaultDataForType('hero', currencySymbol) },
-            { id: 'sec-' + Date.now() + 2, type: 'services', data: getDefaultDataForType('services', currencySymbol) },
-            { id: 'sec-' + Date.now() + 3, type: 'about', data: getDefaultDataForType('about', currencySymbol) },
-            { id: 'sec-' + Date.now() + 4, type: 'contact', data: getDefaultDataForType('contact', currencySymbol) }
+            { id: 'sec-' + Date.now() + 1, type: 'hero', data: getDefaultElementForType('hero', currencySymbol) },
+            { id: 'sec-' + Date.now() + 2, type: 'services', data: getDefaultElementForType('services', currencySymbol) },
+            { id: 'sec-' + Date.now() + 3, type: 'about', data: getDefaultElementForType('about', currencySymbol) },
+            { id: 'sec-' + Date.now() + 4, type: 'contact', data: getDefaultElementForType('contact', currencySymbol) }
         ];
         commitConfig({
             ...config,
@@ -139,22 +145,133 @@ export default function WebsiteEditorPage() {
         commitConfig(newConfig);
     };
 
-    const updateSection = (id: string, path: string, value: any) => {
+    
+    const updateElement = (id: string, path: string, value: any) => {
         const newConfig = JSON.parse(JSON.stringify(config));
-        const sIndex = newConfig.sections.findIndex((s: any) => s.id === id);
-        if (sIndex > -1) {
-            const keys = path.split('.');
-            let current = newConfig.sections[sIndex].data;
-            for (let i = 0; i < keys.length - 1; i++) {
-                if (!current[keys[i]]) current[keys[i]] = {};
-                current = current[keys[i]];
+        const pIndex = getActivePageIndex(newConfig);
+        if (pIndex === -1) return;
+        
+        const updateRecursive = (nodes: any[]): boolean => {
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i].id === id) {
+                    const keys = path.split('.');
+                    let current = nodes[i].data;
+                    if (path === 'style' || path.startsWith('style.')) {
+                        if (!nodes[i].style) nodes[i].style = {};
+                        current = nodes[i].style;
+                        const styleKeys = path === 'style' ? [] : path.split('.').slice(1);
+                        if (styleKeys.length === 0) {
+                            nodes[i].style = value;
+                        } else {
+                            for (let j = 0; j < styleKeys.length - 1; j++) {
+                                if (!current[styleKeys[j]]) current[styleKeys[j]] = {};
+                                current = current[styleKeys[j]];
+                            }
+                            current[styleKeys[styleKeys.length - 1]] = value;
+                        }
+                    } else if (path === 'all') {
+                        nodes[i].data = value;
+                    } else {
+                        for (let j = 0; j < keys.length - 1; j++) {
+                            if (!current[keys[j]]) current[keys[j]] = {};
+                            current = current[keys[j]];
+                        }
+                        current[keys[keys.length - 1]] = value;
+                    }
+                    return true;
+                }
+                if (nodes[i].children && updateRecursive(nodes[i].children)) {
+                    return true;
+                }
             }
-            current[keys[keys.length - 1]] = value;
-        }
+            return false;
+        };
+        
+        updateRecursive(newConfig.pages[pIndex].sections);
         commitConfig(newConfig);
     };
 
-    const moveSection = (index: number, direction: 'up' | 'down') => {
+    const removeElement = (id: string) => {
+        const newConfig = JSON.parse(JSON.stringify(config));
+        const pIndex = getActivePageIndex(newConfig);
+        if (pIndex === -1) return;
+        
+        const removeRecursive = (nodes: any[]): boolean => {
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i].id === id) {
+                    nodes.splice(i, 1);
+                    return true;
+                }
+                if (nodes[i].children && removeRecursive(nodes[i].children)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        
+        removeRecursive(newConfig.pages[pIndex].sections);
+        commitConfig(newConfig);
+        if (selectedElementId === id) setSelectedElementId(null);
+    };
+
+    const handleDragEndDnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const newConfig = JSON.parse(JSON.stringify(config));
+        const pIndex = getActivePageIndex(newConfig);
+        if (pIndex === -1) return;
+        
+        let draggedNode: any = null;
+        let sourceArray: any[] | null = null;
+        let sourceIndex = -1;
+
+        // Find and remove dragged element
+        const findAndRemove = (nodes: any[]): boolean => {
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i].id === active.id) {
+                    draggedNode = nodes[i];
+                    sourceArray = nodes;
+                    sourceIndex = i;
+                    nodes.splice(i, 1);
+                    return true;
+                }
+                if (nodes[i].children && findAndRemove(nodes[i].children)) return true;
+            }
+            return false;
+        };
+        findAndRemove(newConfig.pages[pIndex].sections);
+        
+        if (!draggedNode) return;
+
+        // Find target and insert
+        const findAndInsert = (nodes: any[]): boolean => {
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i].id === over.id) {
+                    // insert at same level
+                    nodes.splice(i, 0, draggedNode);
+                    return true;
+                }
+                if (nodes[i].children && findAndInsert(nodes[i].children)) return true;
+            }
+            return false;
+        };
+        
+        if (!findAndInsert(newConfig.pages[pIndex].sections)) {
+            // Fallback, put it back
+            if (sourceArray && sourceIndex !== -1) {
+                sourceArray.splice(sourceIndex, 0, draggedNode);
+            }
+        }
+        
+        commitConfig(newConfig);
+    };
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor)
+    );
+const moveSection = (index: number, direction: 'up' | 'down') => {
         const newConfig = JSON.parse(JSON.stringify(config));
         const sections = newConfig.sections;
         if (direction === 'up' && index > 0) {
@@ -176,7 +293,7 @@ export default function WebsiteEditorPage() {
         const newSection = {
             id: 'sec-' + Date.now(),
             type,
-            data: getDefaultDataForType(type, currencySymbol)
+            data: getDefaultElementForType(type, currencySymbol)
         };
         const newConfig = JSON.parse(JSON.stringify(config));
         newConfig.sections.splice(index, 0, newSection);
@@ -320,7 +437,7 @@ export default function WebsiteEditorPage() {
                 {/* Live Website Canvas */}
                 <div className="flex-1 overflow-auto p-4 md:p-8 bg-gray-100 flex justify-center">
                     <div 
-                        className={`bg-white shadow-xl overflow-hidden border border-gray-200 relative transition-all duration-300 ${viewMode === 'mobile' ? 'w-[375px]' : viewMode === 'tablet' ? 'w-[768px]' : 'w-full max-w-[1200px]'}`}
+                        className={`relative transition-all duration-300 ${viewMode === 'mobile' ? 'w-[375px]' : viewMode === 'tablet' ? 'w-[768px]' : 'w-full max-w-[1200px]'} ${viewMode !== 'desktop' ? 'bg-white shadow-[0_0_0_12px_rgba(0,0,0,0.8),0_0_0_14px_rgba(255,255,255,0.1)] rounded-[2.5rem] overflow-hidden my-8 border border-gray-800' : 'bg-white shadow-xl overflow-hidden border border-gray-200'}`}
                         style={{ 
                             fontFamily: brand.bodyFont || 'Inter',
                             color: brand.textColor || '#111827',
@@ -346,295 +463,20 @@ export default function WebsiteEditorPage() {
                         <SectionAdder onAdd={(type) => addSection(type, 0)} />
 
                         {/* Dynamic Sections Loop */}
-                        {sections.map((section: any, index: number) => {
-                            return (
-                                <div key={section.id}>
-                                    <div className="relative group/section hover:ring-2 hover:ring-indigo-400 transition-all">
-                                        
-                                        {/* Section Controls */}
-                                        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 opacity-0 group-hover/section:opacity-100 bg-white/90 backdrop-blur shadow-lg rounded-lg p-1 border border-gray-100">
-                                            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest px-2 py-1 text-center border-b border-gray-100 mb-1">{section.type}</div>
-                                            <div className="flex gap-1">
-                                                <button onClick={() => moveSection(index, 'up')} disabled={index === 0} className="p-1.5 hover:bg-gray-100 rounded text-gray-600 disabled:opacity-30"><ArrowUp className="w-4 h-4" /></button>
-                                                <button onClick={() => moveSection(index, 'down')} disabled={index === sections.length - 1} className="p-1.5 hover:bg-gray-100 rounded text-gray-600 disabled:opacity-30"><ArrowDown className="w-4 h-4" /></button>
-                                                <button onClick={() => removeSection(index)} className="p-1.5 hover:bg-red-50 text-red-500 rounded"><Trash2 className="w-4 h-4" /></button>
-                                            </div>
-                                        </div>
-
-                                        {/* Render Section Type */}
-                                        {section.type === 'hero' && (
-                                            <main className="px-6 py-12 md:py-20">
-                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
-                                                    <div className="text-left">
-                                                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-black/5 rounded-full text-xs font-bold uppercase tracking-widest mb-8">
-                                                            <Sparkles className="w-3.5 h-3.5" />
-                                                            <EditableText value={section.data.badge || 'Special Offer'} onChange={(v: string) => updateSection(section.id, 'badge', v)} tagName="span" />
-                                                        </div>
-                                                        <EditableText 
-                                                            tagName="h1"
-                                                            className="text-4xl md:text-6xl font-black leading-[1.1] mb-6"
-                                                            style={{ fontFamily: 'var(--heading-font), sans-serif' }}
-                                                            value={section.data.title}
-                                                            onChange={(v: string) => updateSection(section.id, 'title', v)}
-                                                        />
-                                                        <EditableText 
-                                                            tagName="p"
-                                                            className="text-lg md:text-xl opacity-80 mb-12 leading-relaxed"
-                                                            value={section.data.subtitle}
-                                                            onChange={(v: string) => updateSection(section.id, 'subtitle', v)}
-                                                        />
-                                                        <div className="hidden lg:block opacity-70 pointer-events-none text-gray-900">
-                                                            <FakeLeadForm primaryColor={primaryColor} buttonText={section.data.buttonText} />
-                                                        </div>
-                                                    </div>
-                                                    <div className="relative">
-                                                        <ImageEditor 
-                                                            imageUrl={section.data.imageUrl} 
-                                                            onChange={(url: string) => updateSection(section.id, 'imageUrl', url)} 
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </main>
-                                        )}
-
-                                        {(section.type === 'services' || section.type === 'products') && (
-                                            <section className="py-24 bg-black/5">
-                                                <div className="max-w-6xl mx-auto px-6">
-                                                    <div className="text-center mb-16">
-                                                        <EditableText 
-                                                            tagName="h2"
-                                                            className="text-3xl md:text-4xl font-black mb-4"
-                                                            style={{ fontFamily: 'var(--heading-font), sans-serif' }}
-                                                            value={section.data.title}
-                                                            onChange={(v: string) => updateSection(section.id, 'title', v)}
-                                                        />
-                                                        <EditableText 
-                                                            tagName="p"
-                                                            className="opacity-70 max-w-2xl mx-auto"
-                                                            value={section.data.subtitle || 'Discover what we have to offer.'}
-                                                            onChange={(v: string) => updateSection(section.id, 'subtitle', v)}
-                                                        />
-                                                    </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                                        {(section.data.items || []).map((item: any, i: number) => (
-                                                            <div key={i} className="bg-white/80 backdrop-blur p-8 rounded-3xl border border-white/20 shadow-sm relative group/item">
-                                                                <button onClick={() => {
-                                                                    const newItems = [...section.data.items];
-                                                                    newItems.splice(i, 1);
-                                                                    updateSection(section.id, 'items', newItems);
-                                                                }} className="absolute top-2 right-2 p-1 bg-red-100 text-red-500 rounded opacity-0 group-hover/item:opacity-100 z-10"><Trash2 className="w-3 h-3"/></button>
-                                                                
-                                                                <ImageEditor 
-                                                                    imageUrl={item.imageUrl} 
-                                                                    onChange={(url: string) => {
-                                                                        const newItems = [...section.data.items];
-                                                                        newItems[i].imageUrl = url;
-                                                                        updateSection(section.id, 'items', newItems);
-                                                                    }}
-                                                                    className="w-full h-40 rounded-xl mb-6 shadow-sm"
-                                                                    iconOnly={!item.imageUrl}
-                                                                    primaryColor={primaryColor}
-                                                                />
-                                                                <EditableText 
-                                                                    tagName="h3"
-                                                                    className="text-xl font-bold mb-3"
-                                                                    value={item.title}
-                                                                    onChange={(v: string) => {
-                                                                        const newItems = [...section.data.items];
-                                                                        newItems[i].title = v;
-                                                                        updateSection(section.id, 'items', newItems);
-                                                                    }}
-                                                                />
-                                                                <EditableText 
-                                                                    tagName="p"
-                                                                    className="opacity-70 text-sm leading-relaxed"
-                                                                    value={item.description}
-                                                                    onChange={(v: string) => {
-                                                                        const newItems = [...section.data.items];
-                                                                        newItems[i].description = v;
-                                                                        updateSection(section.id, 'items', newItems);
-                                                                    }}
-                                                                />
-                                                                {section.type === 'products' && (
-                                                                    <EditableText 
-                                                                        tagName="div"
-                                                                        className="mt-4 font-bold text-lg"
-                                                                        style={{ color: primaryColor }}
-                                                                        value={item.price || `${currencySymbol}0.00`}
-                                                                        onChange={(v: string) => {
-                                                                            const newItems = [...section.data.items];
-                                                                            newItems[i].price = v;
-                                                                            updateSection(section.id, 'items', newItems);
-                                                                        }}
-                                                                    />
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                        <button 
-                                                            onClick={() => updateSection(section.id, 'items', [...(section.data.items || []), { title: 'New Item', description: 'Description' }])}
-                                                            className="flex flex-col items-center justify-center p-8 rounded-3xl border-2 border-dashed border-gray-300 text-gray-400 hover:text-indigo-500 hover:border-indigo-300 hover:bg-white/50 transition-all min-h-[250px]"
-                                                        >
-                                                            <Plus className="w-8 h-8 mb-2" />
-                                                            <span className="font-bold text-sm">Add Item</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </section>
-                                        )}
-
-                                        {section.type === 'about' && (
-                                            <section className="py-24">
-                                                <div className="max-w-6xl mx-auto px-6">
-                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                                                        <ImageEditor 
-                                                            imageUrl={section.data.imageUrl} 
-                                                            onChange={(url: string) => updateSection(section.id, 'imageUrl', url)} 
-                                                            className="rounded-[2.5rem] shadow-2xl aspect-square"
-                                                        />
-                                                        <div className={!section.data.imageUrl ? "lg:col-span-2 text-center max-w-3xl mx-auto" : ""}>
-                                                            <EditableText 
-                                                                tagName="h2"
-                                                                className="text-3xl md:text-4xl font-black mb-6"
-                                                                style={{ fontFamily: 'var(--heading-font), sans-serif' }}
-                                                                value={section.data.title || 'About Us'}
-                                                                onChange={(v: string) => updateSection(section.id, 'title', v)}
-                                                            />
-                                                            <EditableText 
-                                                                tagName="div"
-                                                                className="opacity-80 leading-relaxed text-lg whitespace-pre-wrap"
-                                                                value={section.data.content || 'Share your story here.'}
-                                                                onChange={(v: string) => updateSection(section.id, 'content', v)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </section>
-                                        )}
-
-                                        {section.type === 'faq' && (
-                                            <section className="py-24 bg-black/5">
-                                                <div className="max-w-4xl mx-auto px-6">
-                                                    <div className="text-center mb-16">
-                                                        <EditableText 
-                                                            tagName="h2"
-                                                            className="text-3xl md:text-4xl font-black mb-4"
-                                                            style={{ fontFamily: 'var(--heading-font), sans-serif' }}
-                                                            value={section.data.title || 'FAQ'}
-                                                            onChange={(v: string) => updateSection(section.id, 'title', v)}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-4">
-                                                        {(section.data.items || []).map((f: any, i: number) => (
-                                                            <div key={i} className="p-6 bg-white/80 backdrop-blur border border-white/20 rounded-2xl shadow-sm relative group/faq">
-                                                                <button onClick={() => {
-                                                                    const newItems = [...section.data.items];
-                                                                    newItems.splice(i, 1);
-                                                                    updateSection(section.id, 'items', newItems);
-                                                                }} className="absolute top-2 right-2 p-1 bg-red-100 text-red-500 rounded opacity-0 group-hover/faq:opacity-100 z-10"><Trash2 className="w-3 h-3"/></button>
-                                                                <EditableText 
-                                                                    tagName="h4"
-                                                                    className="font-bold mb-2"
-                                                                    value={f.q}
-                                                                    onChange={(v: string) => {
-                                                                        const newItems = [...section.data.items];
-                                                                        newItems[i].q = v;
-                                                                        updateSection(section.id, 'items', newItems);
-                                                                    }}
-                                                                />
-                                                                <EditableText 
-                                                                    tagName="p"
-                                                                    className="text-sm opacity-70"
-                                                                    value={f.a}
-                                                                    onChange={(v: string) => {
-                                                                        const newItems = [...section.data.items];
-                                                                        newItems[i].a = v;
-                                                                        updateSection(section.id, 'items', newItems);
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        ))}
-                                                        <button 
-                                                            onClick={() => updateSection(section.id, 'items', [...(section.data.items || []), { q: 'New Question', a: 'Answer' }])}
-                                                            className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-400 font-bold hover:border-indigo-300 hover:text-indigo-500 hover:bg-white/50 transition-all flex justify-center items-center gap-2"
-                                                        >
-                                                            <Plus className="w-4 h-4" /> Add Question
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </section>
-                                        )}
-
-                                        {section.type === 'text' && (
-                                            <section className="py-16">
-                                                <div className="max-w-4xl mx-auto px-6 text-center">
-                                                    <EditableText 
-                                                        tagName="div"
-                                                        className="opacity-80 leading-relaxed text-lg whitespace-pre-wrap"
-                                                        value={section.data.content || 'Add custom text here.'}
-                                                        onChange={(v: string) => updateSection(section.id, 'content', v)}
-                                                    />
-                                                </div>
-                                            </section>
-                                        )}
-
-                                        {section.type === 'contact' && (
-                                            <section className="py-24 bg-black/5">
-                                                <div className="max-w-4xl mx-auto px-6">
-                                                    <div className="text-center mb-12">
-                                                        <EditableText 
-                                                            tagName="h2"
-                                                            className="text-3xl md:text-4xl font-black mb-4"
-                                                            style={{ fontFamily: 'var(--heading-font), sans-serif' }}
-                                                            value={section.data.title || 'Contact Us'}
-                                                            onChange={(v: string) => updateSection(section.id, 'title', v)}
-                                                        />
-                                                        <EditableText 
-                                                            tagName="p"
-                                                            className="opacity-70 max-w-2xl mx-auto"
-                                                            value={section.data.subtitle || 'We would love to hear from you.'}
-                                                            onChange={(v: string) => updateSection(section.id, 'subtitle', v)}
-                                                        />
-                                                    </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center text-gray-900">
-                                                        <div className="text-current space-y-6">
-                                                            <div className="flex items-center gap-4 p-6 bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white/20">
-                                                                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-indigo-50 text-indigo-600"><Mail className="w-5 h-5"/></div>
-                                                                <div className="w-full">
-                                                                    <div className="text-xs font-bold uppercase tracking-widest opacity-50">Email</div>
-                                                                    <EditableText 
-                                                                        tagName="div"
-                                                                        className="font-medium text-lg w-full"
-                                                                        value={section.data.email || 'email@example.com'}
-                                                                        onChange={(v: string) => updateSection(section.id, 'email', v)}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-4 p-6 bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white/20">
-                                                                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-emerald-50 text-emerald-600"><Phone className="w-5 h-5"/></div>
-                                                                <div className="w-full">
-                                                                    <div className="text-xs font-bold uppercase tracking-widest opacity-50">Phone</div>
-                                                                    <EditableText 
-                                                                        tagName="div"
-                                                                        className="font-medium text-lg w-full"
-                                                                        value={section.data.phone || '1-800-000-0000'}
-                                                                        onChange={(v: string) => updateSection(section.id, 'phone', v)}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="opacity-70 pointer-events-none">
-                                                            <FakeLeadForm primaryColor={primaryColor} buttonText="Send Message" />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </section>
-                                        )}
-                                    </div>
-
-                                    <SectionAdder onAdd={(type) => addSection(type, index + 1)} />
-                                </div>
-                            );
-                        })}
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndDnd}>
+                            <SortableContext items={sections.map((s:any) => s.id)} strategy={verticalListSortingStrategy}>
+                                {sections.map((section: any) => (
+                                    <BuilderElement 
+                                        key={section.id}
+                                        node={section}
+                                        selectedElementId={selectedElementId}
+                                        setSelectedElementId={setSelectedElementId}
+                                        updateElement={updateElement}
+                                        removeElement={removeElement}
+                                    />
+                                ))}
+                            </SortableContext>
+                        </DndContext>
 
                         <footer className="py-12 border-t border-black/10 text-center backdrop-blur-md bg-white/30 mt-12">
                             <p className="text-sm opacity-60 font-medium">© {new Date().getFullYear()} {website.name}. All Rights Reserved.</p>
@@ -648,57 +490,9 @@ export default function WebsiteEditorPage() {
 
 // Helpers
 
-function getDefaultDataForType(type: string, currencySymbol: string) {
-    if (type === 'hero') return { badge: 'New', title: 'Catchy Headline', subtitle: 'Supporting text.', buttonText: 'Get Started' };
-    if (type === 'features') return { title: 'Amazing Features', subtitle: 'Why choose us', items: [{ title: 'Feature 1', description: 'Desc' }, { title: 'Feature 2', description: 'Desc' }, { title: 'Feature 3', description: 'Desc' }] };
-    if (type === 'services') return { title: 'Our Services', subtitle: 'What we offer.', items: [{ title: 'Service 1', description: 'Desc' }] };
-    if (type === 'products') return { title: 'Our Products', subtitle: 'Buy now.', items: [{ title: 'Product 1', description: 'Desc', price: `${currencySymbol}99.00` }] };
-    if (type === 'pricing') return { title: 'Pricing Plans', subtitle: 'Choose your plan', items: [{ title: 'Basic', description: 'Good for starters', price: `${currencySymbol}29/mo` }] };
-    if (type === 'team') return { title: 'Meet the Team', subtitle: 'The people behind the magic', items: [{ title: 'Jane Doe', description: 'CEO' }, { title: 'John Smith', description: 'CTO' }] };
-    if (type === 'about') return { title: 'About Us', content: 'Our story.' };
-    if (type === 'faq') return { title: 'FAQ', items: [{ q: 'Question?', a: 'Answer.' }] };
-    if (type === 'text') return { content: 'Custom paragraph text here.' };
-    if (type === 'contact') return { title: 'Contact Us', subtitle: 'Get in touch.', email: 'hello@example.com', phone: '1-800-123-4567' };
-    return {};
-}
-
-function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, primaryColor = '#4f46e5' }: any) {
-    return (
-        <div className={`relative group/img overflow-hidden ${className}`}>
-            {imageUrl ? (
-                <img src={imageUrl} alt="img" className="w-full h-full object-cover" />
-            ) : (
-                <div className="w-full h-full bg-black/5 flex flex-col items-center justify-center gap-2">
-                    {iconOnly ? (
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 shadow-sm" style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}>
-                            <ShieldCheck className="w-6 h-6" />
-                        </div>
-                    ) : (
-                        <>
-                            <ImageIcon className="w-12 h-12 opacity-20" />
-                            <span className="text-sm font-medium opacity-40">Click to add image</span>
-                        </>
-                    )}
-                </div>
-            )}
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
-                <button 
-                    onClick={() => {
-                        const url = prompt("Enter image URL:");
-                        if (url !== null) onChange(url);
-                    }}
-                    className="px-4 py-2 bg-white rounded-lg text-sm font-bold text-gray-900 shadow-xl"
-                >
-                    {imageUrl ? 'Change Image URL' : 'Set Image URL'}
-                </button>
-            </div>
-        </div>
-    );
-}
-
 function FakeLeadForm({ primaryColor, buttonText }: any) {
     return (
-        <div className="space-y-5 bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl shadow-black/5 border border-gray-100 text-left pointer-events-none">
+        <div className="space-y-5 bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-black/5 border border-gray-100 text-left pointer-events-none">
             <div className="space-y-1">
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
                 <div className="relative">

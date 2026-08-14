@@ -60,6 +60,17 @@ export default function UserSelectionModal({
         );
     };
 
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
+
     const filteredItems = items.filter(item =>
         item.name?.toLowerCase().includes(search.toLowerCase()) ||
         (type === 'client' && item.company?.toLowerCase().includes(search.toLowerCase()))
@@ -120,7 +131,6 @@ export default function UserSelectionModal({
                                         isSelected ? "bg-indigo-500 shadow-sm" : "bg-gray-200"
                                     )}>
                                         {item.photoUrl ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
                                             <img src={item.photoUrl} alt={item.name || 'User photo'} className="w-full h-full rounded-full object-cover" />
                                         ) : (
                                             type === 'employee' ? <Users className="w-5 h-5" /> : <Building2 className="w-5 h-5" />

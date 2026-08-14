@@ -6,6 +6,7 @@ import { CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
+import { useSettings } from '@/lib/settings-context';
 
 export default function ReviewSalaryDrawer({ 
     open, 
@@ -22,6 +23,8 @@ export default function ReviewSalaryDrawer({
     const [bonuses, setBonuses] = useState<number | string>(0);
     const [notes, setNotes] = useState('');
     const [saving, setSaving] = useState(false);
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
 
     useEffect(() => {
         if (open && salary) {
@@ -63,15 +66,15 @@ export default function ReviewSalaryDrawer({
                 <div className="p-6 space-y-4 flex-1 overflow-y-auto">
                     <div>
                         <p className="text-sm font-medium text-gray-500">Base Salary</p>
-                        <p className="text-xl font-bold text-gray-900">₹{salary.baseSalary?.toLocaleString()}</p>
+                        <p className="text-xl font-bold text-gray-900">{currencySymbol}{salary.baseSalary?.toLocaleString()}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="label" htmlFor="review-deds">Deductions (₹)</label>
+                            <label className="label" htmlFor="review-deds">Deductions ({currencySymbol})</label>
                             <input title="Enter Deductions" id="review-deds" type="number" value={deductions} onChange={e => setDeductions(e.target.value)} className="input" min="0" />
                         </div>
                         <div>
-                            <label className="label" htmlFor="review-bonus">Bonuses (₹)</label>
+                            <label className="label" htmlFor="review-bonus">Bonuses ({currencySymbol})</label>
                             <input title="Enter Bonuses" id="review-bonus" type="number" value={bonuses} onChange={e => setBonuses(e.target.value)} className="input" min="0" />
                         </div>
                     </div>
