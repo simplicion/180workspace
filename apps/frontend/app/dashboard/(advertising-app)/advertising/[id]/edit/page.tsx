@@ -983,8 +983,7 @@ export default function WebsiteEditorPage() {
                     >
                         {/* Header */}
                         <header
-                            onClick={(e) => { e.stopPropagation(); setSelectedElementId('header'); }}
-                            className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all cursor-pointer ring-inset ${selectedElementId === 'header' ? 'ring-2 ring-indigo-500' : 'hover:ring-2 hover:ring-indigo-300'}`}
+                            className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all`}
                             style={{
                                 backgroundColor: hfStyles.backgroundColor,
                                 color: hfStyles.color,
@@ -1042,8 +1041,9 @@ export default function WebsiteEditorPage() {
                                 {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'terms' && p.id !== 'privacy').map((p: any) => (
                                     <button
                                         key={p.id}
-                                        onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }}
-                                        className={`hover:opacity-75 transition-colors py-1 ${activePageId === p.id ? 'border-b-2 border-current' : ''}`}
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }}
+                                        className={`hover:opacity-100 transition-opacity py-1 ${activePageId === p.id ? 'border-b-2 border-current' : ''}`}
+                                        style={{ color: 'inherit' }}
                                     >
                                         {p.name}
                                     </button>
@@ -1051,14 +1051,32 @@ export default function WebsiteEditorPage() {
                             </nav>
                         </header>
 
-                        <main className="w-full flex-1 flex flex-col min-h-[500px]">
-                        {/* Dynamic Sections Loop */}
+                        <main 
+                            className={`w-full flex-1 flex flex-col ${isCanvasDragOver && sections.length > 0 ? 'bg-indigo-50/10' : ''}`}
+                            onDragOver={(e) => { 
+                                e.preventDefault(); 
+                                if (sections.length > 0) setIsCanvasDragOver(true);
+                            }}
+                            onDragLeave={(e) => { 
+                                e.preventDefault(); 
+                                setIsCanvasDragOver(false);
+                            }}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setIsCanvasDragOver(false);
+                                // Only handle drop on main if we didn't drop on a specific dropzone
+                                if (nativeDragOverIndex === null && sections.length > 0) {
+                                    const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('text/plain');
+                                    if (type) addSection(type, sections.length);
+                                }
+                            }}
+                        >
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndDnd}>
                             <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
                                 {/* Empty State / First Dropzone */}
                                 {sections.length === 0 ? (
                                     <div
-                                        className={`w-full flex-1 min-h-[400px] transition-all duration-200 flex flex-col items-center justify-center p-12 relative z-50 ${nativeDragOverIndex === 0 || isCanvasDragOver ? 'bg-indigo-50 border-2 border-indigo-400 border-dashed' : 'bg-gray-50/90 border-2 border-dashed border-gray-200 hover:bg-gray-50'}`}
+                                        className={`w-full min-h-[200px] py-12 transition-all duration-200 flex flex-col items-center justify-center px-4 relative z-50 ${nativeDragOverIndex === 0 || isCanvasDragOver ? 'bg-indigo-50 border-2 border-indigo-400 border-dashed' : 'bg-gray-50/90 border-2 border-dashed border-gray-200 hover:bg-gray-50'}`}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
                                         onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
                                         onDrop={(e) => {
@@ -1117,10 +1135,10 @@ export default function WebsiteEditorPage() {
                                 ))}
                             </SortableContext>
                         </DndContext>
+                        </main>
 
                         <footer
-                            onClick={(e) => { e.stopPropagation(); setSelectedElementId('footer'); }}
-                            className={`border-t border-black/10 mt-12 transition-all cursor-pointer ring-inset ${selectedElementId === 'footer' ? 'ring-2 ring-indigo-500' : 'hover:ring-2 hover:ring-indigo-300'}`}
+                            className="border-t border-black/10 transition-all"
                             style={{
                                 backgroundColor: hfStyles.backgroundColor,
                                 color: hfStyles.color,
@@ -1131,8 +1149,8 @@ export default function WebsiteEditorPage() {
                                 paddingRight: config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem',
                             }}
                         >
-                            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left mb-12">
-                                <div>
+                            <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 text-left mb-12">
+                                <div className="flex flex-col">
                                     <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Company</h4>
                                     <EditableText
                                         tagName="div"
@@ -1142,31 +1160,33 @@ export default function WebsiteEditorPage() {
                                         onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, companyInfo: v } })}
                                     />
                                 </div>
-                                <div>
+                                <div className="flex flex-col">
                                     <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Links</h4>
-                                    <nav className="flex flex-col gap-3 text-sm opacity-70 font-medium animate-none">
+                                    <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
                                         {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about').map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
+                                            <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
                                         ))}
                                     </nav>
                                 </div>
-                                <div>
+                                <div className="flex flex-col">
                                     <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Legal</h4>
-                                    <nav className="flex flex-col gap-3 text-sm opacity-70 font-medium animate-none">
+                                    <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
                                         {config.pages?.filter((p: any) => p.isEnabled && (p.id === 'privacy' || p.id === 'terms')).map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
+                                            <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
                                         ))}
                                     </nav>
                                 </div>
                             </div>
-                            <div className="text-center pt-8 border-t border-black/10">
-                                <EditableText
-                                    tagName="p"
-                                    className="text-sm opacity-60 font-medium text-current inline-block"
-                                    style={{ color: 'inherit' }}
-                                    value={config.footer?.copyright || `© ${new Date().getFullYear()} ${website.name}. All Rights Reserved.`}
-                                    onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, copyright: v } })}
-                                />
+                            <div className="text-center pt-8 border-t border-current/20 flex flex-col items-center justify-center w-full">
+                                <div className="w-full max-w-lg mx-auto flex justify-center">
+                                    <EditableText
+                                        tagName="div"
+                                        className="text-sm opacity-60 font-medium text-current text-center"
+                                        style={{ color: 'inherit' }}
+                                        value={config.footer?.copyright || `© ${new Date().getFullYear()} ${website.name}. All Rights Reserved.`}
+                                        onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, copyright: v } })}
+                                    />
+                                </div>
                             </div>
                         </footer>
 
@@ -1279,80 +1299,58 @@ export default function WebsiteEditorPage() {
 
 // Helpers
 
-function getDefaultElementForType(type: string, currencySymbol: string) {
-    if (type === 'hero') return { badge: 'New', title: 'Catchy Headline', subtitle: 'Supporting text.', buttonText: 'Get Started' };
-    if (type === 'grid') return { title: 'Our Offerings', subtitle: 'What we offer.', columns: 4, items: [{ title: 'Item 1', description: 'Desc', price: `${currencySymbol}99.00`, images: [], padding: '2px', muted: true }] };
-    if (type === 'pricing') return { title: 'Pricing Plans', subtitle: 'Choose your plan', items: [{ title: 'Basic', description: 'Good for starters', price: `${currencySymbol}29/mo` }] };
-    if (type === 'team') return { title: 'Meet the Team', subtitle: 'The people behind the magic', items: [{ title: 'Jane Doe', description: 'CEO' }, { title: 'John Smith', description: 'CTO' }] };
-    if (type === 'about') return { title: 'About Us', content: 'Our story.' };
-    if (type === 'faq') return { title: 'FAQ', items: [{ q: 'Question?', a: 'Answer.' }] };
-    if (type === 'text') return { content: 'Custom paragraph text here.' };
-    if (type === 'contact') return { title: 'Contact Us', subtitle: 'Get in touch.', email: 'hello@example.com', phone: '1-800-123-4567' };
-    if (type === 'video') return { title: 'Watch Our Video', sourceType: 'youtube', videoUrl: '', autoplay: false, muted: true };
-    if (type === 'button') return { text: 'Click Here', url: '#' };
-    if (type === 'image') return { imageUrl: '' };
-    if (type === 'portfolio') return {
-        title: 'Our Portfolio',
-        subtitle: 'A showcase of our work.',
-        items: [
-            { title: 'Project One', description: 'Brief description.', imageUrl: '', link: '#' },
-            { title: 'Project Two', description: 'Brief description.', imageUrl: '', link: '#' },
-            { title: 'Project Three', description: 'Brief description.', imageUrl: '', link: '#' },
-            { title: 'Project Four', description: 'Brief description.', imageUrl: '', link: '#' }
-        ]
-    };
-    return {};
-}
-
 function getDefaultSectionsForPageType(pageType: string, currencySymbol: string) {
-    const ts = Date.now();
     if (pageType === 'home') {
         return [
-            { id: `sec-home-hero-${ts}`, type: 'hero', data: { badge: 'Welcome', title: 'Welcome to Our Website', subtitle: 'This is the home page.', buttonText: 'Get Started' } },
-            { id: `sec-home-grid-${ts}`, type: 'grid', data: getDefaultElementForType('grid', currencySymbol) },
-            { id: `sec-home-about-${ts}`, type: 'about', data: getDefaultElementForType('about', currencySymbol) },
-            { id: `sec-home-contact-${ts}`, type: 'contact', data: getDefaultElementForType('contact', currencySymbol) }
+            getDefaultElementForType('hero', currencySymbol),
+            getDefaultElementForType('grid', currencySymbol),
+            getDefaultElementForType('about', currencySymbol),
+            getDefaultElementForType('contact', currencySymbol)
         ];
     }
     if (pageType === 'about' || pageType.includes('about')) {
         return [
-            { id: `sec-about-hero-${ts}`, type: 'hero', data: { badge: 'About Us', title: 'Who We Are', subtitle: 'Learn more about our mission and values.', buttonText: 'Read Story' } },
-            { id: `sec-about-about-${ts}`, type: 'about', data: { title: 'Our Journey', content: 'Founded with a simple vision: to deliver excellence and build trust.' } },
-            { id: `sec-about-faq-${ts}`, type: 'faq', data: getDefaultElementForType('faq', currencySymbol) }
+            getDefaultElementForType('hero', currencySymbol),
+            getDefaultElementForType('about', currencySymbol),
+            getDefaultElementForType('faq', currencySymbol)
         ];
     }
     if (pageType === 'services' || pageType.includes('service')) {
         return [
-            { id: `sec-srv-hero-${ts}`, type: 'hero', data: { badge: 'Services', title: 'Professional Services', subtitle: 'Tailored solutions for your business needs.', buttonText: 'View Details' } },
-            { id: `sec-srv-grid-${ts}`, type: 'grid', data: { title: 'Our Services', subtitle: 'Explore our specialized services.', columns: 4, items: [{ title: 'Service A', description: 'Description of service A', price: `${currencySymbol}99/hr`, images: [], padding: '2px', muted: true }] } },
-            { id: `sec-srv-contact-${ts}`, type: 'contact', data: { title: 'Request a Quote', subtitle: 'Get in touch for a customized proposal.' } }
+            getDefaultElementForType('hero', currencySymbol),
+            getDefaultElementForType('grid', currencySymbol),
+            getDefaultElementForType('contact', currencySymbol)
         ];
     }
     if (pageType === 'contact' || pageType.includes('contact')) {
         return [
-            { id: `sec-cnt-hero-${ts}`, type: 'hero', data: { badge: 'Contact', title: 'Get In Touch', subtitle: 'Have questions? We are here to help.', buttonText: 'Send Message' } },
-            { id: `sec-cnt-contact-${ts}`, type: 'contact', data: getDefaultElementForType('contact', currencySymbol) }
+            getDefaultElementForType('hero', currencySymbol),
+            getDefaultElementForType('contact', currencySymbol)
         ];
     }
     if (pageType === 'portfolio' || pageType.includes('portfolio')) {
         return [
-            { id: `sec-pt-hero-${ts}`, type: 'hero', data: { badge: 'Portfolio', title: 'Our Work', subtitle: 'Explore our latest projects and case studies.', buttonText: 'View Work' } },
-            { id: `sec-pt-grid-${ts}`, type: 'grid', data: { title: 'Featured Projects', subtitle: 'A showcase of our recent works.', columns: 2, items: [{ title: 'Project One', description: 'Detailed case study and summary of outcomes.', price: '', images: [], padding: '2px', muted: true }] } }
+            getDefaultElementForType('hero', currencySymbol),
+            getDefaultElementForType('portfolio', currencySymbol)
         ];
     }
     if (pageType === 'terms' || pageType.includes('term')) {
-        return [
-            { id: `sec-terms-text-${ts}`, type: 'text', data: { content: '<h1>Terms and Conditions</h1><p>Please read these terms and conditions carefully before using our services...</p>' } }
-        ];
+        const textNode = getDefaultElementForType('text', currencySymbol);
+        if (textNode.children && textNode.children[0]) {
+            textNode.children[0].data = { content: '<h1>Terms and Conditions</h1><p>Please read these terms and conditions carefully before using our services...</p>' };
+        }
+        return [textNode];
     }
     if (pageType === 'privacy' || pageType.includes('privacy')) {
-        return [
-            { id: `sec-priv-text-${ts}`, type: 'text', data: { content: '<h1>Privacy Policy</h1><p>We value your privacy and protect your personal data in accordance with modern standards...</p>' } }
-        ];
+        const textNode = getDefaultElementForType('text', currencySymbol);
+        if (textNode.children && textNode.children[0]) {
+            textNode.children[0].data = { content: '<h1>Privacy Policy</h1><p>We value your privacy and protect your personal data in accordance with modern standards...</p>' };
+        }
+        return [textNode];
     }
     return [
-        { id: `sec-gen-hero-${ts}`, type: 'hero', data: getDefaultElementForType('hero', currencySymbol) },
-        { id: `sec-gen-text-${ts}`, type: 'text', data: getDefaultElementForType('text', currencySymbol) }
+        getDefaultElementForType('hero', currencySymbol),
+        getDefaultElementForType('text', currencySymbol)
     ];
 }
 

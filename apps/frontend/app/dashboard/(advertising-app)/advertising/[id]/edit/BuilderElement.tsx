@@ -154,6 +154,7 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
                         setSelectedElementId={setSelectedElementId}
                         updateElement={updateElement}
                         removeElement={removeElement}
+                        appendElementToNode={appendElementToNode}
                         depth={depth + 1}
                     />
                 ))}
