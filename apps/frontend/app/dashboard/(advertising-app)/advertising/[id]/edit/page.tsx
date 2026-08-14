@@ -1132,7 +1132,7 @@ export default function WebsiteEditorPage() {
                         >
                             <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left mb-12">
                                 <div>
-                                    <h4 className="font-bold mb-4 opacity-90">Company</h4>
+                                    <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Company</h4>
                                     <EditableText
                                         tagName="div"
                                         className="text-sm leading-relaxed whitespace-pre-wrap animate-none text-current"
@@ -1142,18 +1142,18 @@ export default function WebsiteEditorPage() {
                                     />
                                 </div>
                                 <div>
-                                    <h4 className="font-bold mb-4 opacity-90">Links</h4>
+                                    <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Links</h4>
                                     <nav className="flex flex-col gap-3 text-sm opacity-70 font-medium animate-none">
                                         {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about').map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity">{p.name}</button>
+                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
                                         ))}
                                     </nav>
                                 </div>
                                 <div>
-                                    <h4 className="font-bold mb-4 opacity-90">Legal</h4>
+                                    <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Legal</h4>
                                     <nav className="flex flex-col gap-3 text-sm opacity-70 font-medium animate-none">
                                         {config.pages?.filter((p: any) => p.isEnabled && (p.id === 'privacy' || p.id === 'terms')).map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity">{p.name}</button>
+                                            <button key={p.id} onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
                                         ))}
                                     </nav>
                                 </div>
