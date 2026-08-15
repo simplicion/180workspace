@@ -45,25 +45,24 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/dashboard/transactions': { appId: 'finance', moduleId: 'transactions' },
   '/dashboard/expenses': { appId: 'finance', moduleId: 'expenses' },
   
-  '/dashboard/assets': { appId: 'assets', moduleId: 'assets' },
+  // Communications App
+  '/dashboard/chat': { appId: 'communications', moduleId: 'chat' },
+  '/dashboard/meeting': { appId: 'communications', moduleId: 'meeting' },
+  '/dashboard/emails': { appId: 'communications', moduleId: 'emails' },
   
-  // Insights & Analytics
-  '/dashboard/analytics': { appId: 'insights', moduleId: 'analytics' },
-  '/dashboard/reports': { appId: 'insights', moduleId: 'reports' },
+  // Workspace Tools App
+  '/dashboard/calendar': { appId: 'workspace-tools', moduleId: 'calendar' },
+  '/dashboard/documents': { appId: 'workspace-tools', moduleId: 'documents' },
+  '/dashboard/assets': { appId: 'workspace-tools', moduleId: 'assets' },
+  '/user-preference': { appId: 'workspace-tools', moduleId: 'ai-assistant' }, // AI Assistant lives in prefs for now
+  '/dashboard/ai': { appId: 'workspace-tools', moduleId: 'ai-assistant', isShared: true },
   
-  // Communication & Productivity Tools
-  '/dashboard/chat': { appId: 'tools', moduleId: 'chat' },
-  '/dashboard/calendar': { appId: 'tools', moduleId: 'calendar' },
+  // System / Settings
+  '/dashboard/help-support': { appId: 'system', moduleId: 'help-support' },
   
   // Social Media Management
   '/dashboard/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
-  '/dashboard/asset-hub': { appId: 'social-media', moduleId: 'asset-hub' },
-  '/dashboard/saved-banks': { appId: 'social-media', moduleId: 'saved-banks' },
-  '/dashboard/meeting': { appId: 'tools', moduleId: 'meeting' },
-  '/dashboard/emails': { appId: 'tools', moduleId: 'emails' },
-  '/dashboard/documents': { appId: 'tools', moduleId: 'documents' },
-  '/user-preference': { appId: 'tools', moduleId: 'ai-assistant' }, // AI Assistant lives in prefs for now
-  '/dashboard/ai': { appId: 'tools', moduleId: 'ai-assistant', isShared: true }, // Add AI Assistant to dashboard
+  '/dashboard/social-media-assets': { appId: 'social-media', moduleId: 'social-media-assets' },
 };
 
 export interface ModuleConfig {
@@ -85,7 +84,7 @@ export interface AppConfig {
 
 import { 
     LayoutGrid, Smartphone, Globe, ShieldCheck, Database, CreditCard, Bell,
-    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2
+    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy
 } from 'lucide-react';
 
 export const APPS_CONFIG: AppConfig[] = [
@@ -168,16 +167,6 @@ export const APPS_CONFIG: AppConfig[] = [
         ]
     },
     { 
-        id: 'assets', 
-        name: 'Assets', 
-        icon: Database, 
-        tag: 'Operations',
-        description: 'Track company assets and property',
-        modules: [
-            { id: 'assets', name: 'Asset Registry' }
-        ]
-    },
-    { 
         id: 'insights', 
         name: 'Insights & Analytics', 
         icon: ShieldCheck, 
@@ -189,44 +178,55 @@ export const APPS_CONFIG: AppConfig[] = [
         ]
     },
     { 
-        id: 'tools', 
-        name: 'Workspace Tools', 
-        icon: Bell, 
+        id: 'communications', 
+        name: 'Communications', 
+        icon: MessageSquare, 
         tag: 'Communication',
-        description: 'Communication and Productivity tools',
+        description: 'Active, real-time internal and external communication.',
         modules: [
             { id: 'chat', name: 'Internal Chat' },
-            { id: 'calendar', name: 'Shared Calendar' },
             { id: 'meeting', name: 'Video Meetings' },
-            { id: 'emails', name: 'Email Integration' },
-            { id: 'documents', name: 'Document Cloud' },
+            { id: 'emails', name: 'Email Integration' }
+        ]
+    },
+    { 
+        id: 'workspace-tools', 
+        name: 'Workspace Tools', 
+        icon: FolderOpen, 
+        tag: 'Productivity',
+        description: 'Passive knowledge, resource management, and utilities.',
+        modules: [
+            { id: 'calendar', name: 'Shared Calendar' },
+            { id: 'documents', name: '180 Documents' },
+            { id: 'assets', name: 'IT Assets' },
             { id: 'ai-assistant', name: 'AI Assistant' }
         ]
     },
+
     {
         id: 'social-media',
         name: 'Social Media Management',
         icon: Share2,
         tag: 'Marketing',
-        description: 'Content calendar, asset hub, and social post visualizer',
+        description: 'Content calendar, asset hub, AI brainstormer, and social post visualizer',
         modules: [
             { id: 'content-calendar', name: 'Content Calendar' },
-            { id: 'asset-hub', name: 'Client Asset Hub' },
-            { id: 'saved-banks', name: 'Saved Banks' }
+            { id: 'social-media-assets', name: 'Social Media Assets' }
         ]
     }
 ];
 
 export const STARTER_SET = {
-    apps: ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising', 'social-media'],
+    apps: ['crm', 'projects', 'hr', 'finance', 'insights', 'communications', 'workspace-tools', 'advertising', 'social-media'],
     modules: [
         'sales', 'leads', 'pipeline', 'accounts', 'contacts', 'clients',
         'projects', 'tasks', 'work-logs',
         'employees', 'attendance', 'leaves', 'holidays',
         'finance-overview', 'transactions', 'invoices', 'expenses',
         'analytics', 'reports',
-        'chat', 'calendar', 'emails', 'documents', 'ai-assistant',
-        'content-calendar', 'asset-hub', 'saved-banks'
+        'chat', 'meeting', 'emails', 
+        'calendar', 'documents', 'assets', 'ai-assistant',
+        'content-calendar', 'social-media-assets'
     ]
 };
 
@@ -245,9 +245,9 @@ export const ALL_APPS = [
     { id: 'projects', name: 'Projects & Tasks', description: 'Project management, tasks, and time tracking.', icon: FolderKanban },
     { id: 'hr', name: 'Human Resources', description: 'Employee management, payroll, and attendance.', icon: Users },
     { id: 'finance', name: 'Finance', description: 'Invoices, expenses, and financial reporting.', icon: Landmark },
-    { id: 'assets', name: 'Assets', description: 'Track company assets.', icon: Package },
-    { id: 'collaboration', name: 'Collaboration', description: 'Real-time chat and team communication.', icon: MessageSquare },
-    { id: 'documents', name: 'Documents', description: 'Cloud storage and document management.', icon: FilePlus2 },
+    { id: 'communications', name: 'Communications', description: 'Active, real-time internal and external communication.', icon: MessageSquare },
+    { id: 'workspace-tools', name: 'Workspace Tools', description: 'Passive knowledge, resource management, and utilities.', icon: FolderOpen },
+
     { id: 'analytics', name: 'Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
     { id: 'social-media', name: 'Social Media Management', description: 'Content calendar, asset hub, and social post visualizer.', icon: Share2 },

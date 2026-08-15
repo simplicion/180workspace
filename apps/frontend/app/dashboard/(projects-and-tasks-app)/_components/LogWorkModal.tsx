@@ -7,6 +7,7 @@ import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, P
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import MultiVoiceRecorder from './MultiVoiceRecorder';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     onClose: () => void;
@@ -424,17 +425,17 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                             <label className="label">Project *</label>
                             <div className="relative">
                                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <select value={form.projectId} onChange={set('projectId')} className="select pl-9" required>
+                                <CustomSelect value={form.projectId} onChange={set('projectId')} className="select pl-9" required>
                                     <option value="">Select Project</option>
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
+                                </CustomSelect>
                             </div>
                         </div>
                         <div>
                             <label className="label">Module</label>
                             <div className="relative">
                                 <Layout className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <select 
+                                <CustomSelect 
                                     value={form.moduleId} 
                                     onChange={set('moduleId')} 
                                     className="select pl-9" 
@@ -442,7 +443,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                                 >
                                     <option value="">General Project Work</option>
                                     {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                </select>
+                                </CustomSelect>
                                 {loadingModules && <LogoLoader className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
                             </div>
                         </div>
@@ -453,7 +454,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                         <label className="label">Specific Task *</label>
                         <div className="relative">
                             <CheckSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <select 
+                            <CustomSelect 
                                 value={form.taskId} 
                                 onChange={set('taskId')} 
                                 className="select pl-9"
@@ -466,7 +467,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                                         {t.title} ({t.status.replace('_', ' ')})
                                     </option>
                                 ))}
-                            </select>
+                            </CustomSelect>
                             {loadingTasks && <LogoLoader className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
                         </div>
                     </div>

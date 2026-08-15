@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { prisma } = require('@workspace/db');
 
@@ -65,9 +65,13 @@ exports.updateConfig = async (req, res) => {
             ['razorpay', 'stripe'].forEach(provider => {
                 if (paymentConfig[provider]) {
                     mergedConfig[provider] = mergedConfig[provider] || {};
-                    if (paymentConfig[provider].keyId) mergedConfig[provider].keyId = paymentConfig[provider].keyId;
-                    if (paymentConfig[provider].secret) mergedConfig[provider].secret = paymentConfig[provider].secret;
-                    if (paymentConfig[provider].webhookSecret) mergedConfig[provider].webhookSecret = paymentConfig[provider].webhookSecret;
+                    const newKeyId = paymentConfig[provider].keyId;
+                    const newSecret = paymentConfig[provider].secret;
+                    const newWebhookSecret = paymentConfig[provider].webhookSecret;
+
+                    if (newKeyId && newKeyId !== '***configured***') mergedConfig[provider].keyId = newKeyId;
+                    if (newSecret && newSecret !== '***configured***') mergedConfig[provider].secret = newSecret;
+                    if (newWebhookSecret && newWebhookSecret !== '***configured***') mergedConfig[provider].webhookSecret = newWebhookSecret;
                 }
             });
             updateData.paymentConfig = mergedConfig;

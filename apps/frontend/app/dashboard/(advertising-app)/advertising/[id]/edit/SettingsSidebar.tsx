@@ -5,6 +5,7 @@ import { ArrowLeft, Monitor, Smartphone, Tablet, Save, GripVertical, Settings2, 
 import { ElementType, ElementNode } from './types';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 // Common Google Fonts
 const TOP_FONTS = [
@@ -234,7 +235,7 @@ export default function SettingsSidebar({
                                 </div>
                                 <div>
                                     <label className="text-xs text-gray-500 block mb-1">Position & Style</label>
-                                    <select
+                                    <CustomSelect
                                         value={config.whatsapp?.position || 'bottom-right'}
                                         onChange={(e) => {
                                             const newConfig = JSON.parse(JSON.stringify(config));
@@ -246,7 +247,7 @@ export default function SettingsSidebar({
                                         <option value="bottom-right">Bottom Right (Floating Circle)</option>
                                         <option value="middle-right">Middle Right (Rectangular Stick)</option>
                                         <option value="middle-left">Middle Left (Rectangular Stick)</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
                         )}

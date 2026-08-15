@@ -10,6 +10,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 // Lazy load heavy components
 const PayslipDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/PayslipDrawer'), {
@@ -132,17 +133,17 @@ export default function HRPage() {
                     <div className="flex gap-3 mb-5">
                         <div className="flex flex-col gap-1">
                             <label htmlFor="yearFilter" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Year</label>
-                            <select id="yearFilter" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="input w-32 h-10">
+                            <CustomSelect id="yearFilter" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="input w-32 h-10">
                                 {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div className="flex flex-col gap-1">
                             <label htmlFor="monthFilter" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Month</label>
-                            <select id="monthFilter" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="input w-32 h-10">
+                            <CustomSelect id="monthFilter" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="input w-32 h-10">
                                 {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
                                     <option key={m} value={i + 1}>{m}</option>
                                 ))}
-                            </select>
+                            </CustomSelect>
                         </div>
                     </div>
 

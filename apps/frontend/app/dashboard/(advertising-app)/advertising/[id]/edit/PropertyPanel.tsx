@@ -2,6 +2,7 @@ import { Settings, X, Image as ImageIcon, Video, Upload, Trash2, Plus } from 'lu
 import { useState, useRef } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface PropertyPanelProps {
     selectedElement: any;
@@ -137,26 +138,26 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                         
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Direction</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.flexDirection || 'column'} 
                                 onChange={(e) => onUpdate('style.flexDirection', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
                             >
                                 <option value="column">Vertical (Column)</option>
                                 <option value="row">Horizontal (Row)</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                         
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Wrap</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.flexWrap || 'nowrap'} 
                                 onChange={(e) => onUpdate('style.flexWrap', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
                             >
                                 <option value="nowrap">No Wrap</option>
                                 <option value="wrap">Wrap</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                         
                         <div>
@@ -175,7 +176,7 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                         
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Align Items (Cross Axis)</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.alignItems || 'stretch'} 
                                 onChange={(e) => onUpdate('style.alignItems', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -184,12 +185,12 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                 <option value="center">Center</option>
                                 <option value="flex-end">End</option>
                                 <option value="stretch">Stretch</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                         
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Justify Content (Main Axis)</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.justifyContent || 'flex-start'} 
                                 onChange={(e) => onUpdate('style.justifyContent', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -198,7 +199,7 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                 <option value="center">Center</option>
                                 <option value="flex-end">End</option>
                                 <option value="space-between">Space Between</option>
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         {/* Box Border */}
@@ -219,7 +220,7 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Style</label>
-                                <select 
+                                <CustomSelect 
                                     value={selectedElement.style?.borderStyle || 'solid'} 
                                     onChange={(e) => onUpdate('style.borderStyle', e.target.value)}
                                     className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -227,7 +228,7 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                     <option value="solid">Solid</option>
                                     <option value="dashed">Dashed</option>
                                     <option value="dotted">Dotted</option>
-                                </select>
+                                </CustomSelect>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Color</label>
@@ -385,14 +386,14 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                         
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Direction</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.direction || 'horizontal'} 
                                 onChange={(e) => onUpdate('style.direction', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
                             >
                                 <option value="horizontal">Horizontal</option>
                                 <option value="vertical">Vertical</option>
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         <div>
@@ -475,7 +476,7 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                         
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Tag</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.tagName || 'div'} 
                                 onChange={(e) => onUpdate('style.tagName', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -487,12 +488,12 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                 <option value="p">Paragraph (p)</option>
                                 <option value="div">Div Block</option>
                                 <option value="span">Inline Span</option>
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Font Size</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.fontSize || '1rem'} 
                                 onChange={(e) => onUpdate('style.fontSize', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -506,12 +507,12 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                 <option value="2.25rem">4XL (2.25rem)</option>
                                 <option value="3rem">5XL (3rem)</option>
                                 <option value="4.5rem">7XL (4.5rem)</option>
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Font Weight</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.fontWeight || '400'} 
                                 onChange={(e) => onUpdate('style.fontWeight', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -523,12 +524,12 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                 <option value="700">Bold</option>
                                 <option value="800">Extra Bold</option>
                                 <option value="900">Black</option>
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         <div>
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Text Align</label>
-                            <select 
+                            <CustomSelect 
                                 value={selectedElement.style?.textAlign || 'left'} 
                                 onChange={(e) => onUpdate('style.textAlign', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -537,7 +538,7 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                 <option value="center">Center</option>
                                 <option value="right">Right</option>
                                 <option value="justify">Justify</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                         
                         <div>

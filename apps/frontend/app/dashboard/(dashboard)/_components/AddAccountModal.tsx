@@ -5,6 +5,7 @@ import { X, Building2, Save, Activity } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     isOpen: boolean;
@@ -140,7 +141,7 @@ export default function AddAccountModal({ isOpen, onClose, onSuccess, account }:
 
                         <div className="space-y-1.5">
                             <label htmlFor="industry" className="text-sm font-bold text-indigo-900/60 font-mono uppercase tracking-tighter">Industry</label>
-                            <select
+                            <CustomSelect
                                 id="industry"
                                 required
                                 className="input w-full"
@@ -153,12 +154,12 @@ export default function AddAccountModal({ isOpen, onClose, onSuccess, account }:
                             >
                                 <option value="">Select Sector</option>
                                 {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         <div className="space-y-1.5">
                             <label htmlFor="employeeCount" className="text-sm font-bold text-indigo-900/60 font-mono uppercase tracking-tighter">Employee Count</label>
-                            <select
+                            <CustomSelect
                                 id="employeeCount"
                                 className="input w-full"
                                 value={formData.employeeCount}
@@ -166,7 +167,7 @@ export default function AddAccountModal({ isOpen, onClose, onSuccess, account }:
                             >
                                 <option value="">Select Size</option>
                                 {SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         {showCustomIndustry && (

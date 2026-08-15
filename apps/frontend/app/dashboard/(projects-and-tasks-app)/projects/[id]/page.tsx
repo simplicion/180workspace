@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import { FavoriteButton } from "@workspace/ui";
 import CreateModuleModal from '@/app/dashboard/(projects-and-tasks-app)/_components/CreateModuleModal';
 import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const STATUS_COLORS: Record<string, string> = {
     planning: 'badge-gray',
@@ -843,7 +844,7 @@ export default function ProjectDetailPage() {
                             {modules.length > 0 && (
                                 <>
                                     <div className="h-4 w-px bg-gray-200" />
-                                    <select 
+                                    <CustomSelect 
                                         className="text-xs font-bold text-gray-500 bg-gray-50 border-none rounded-lg focus:ring-0 cursor-pointer hover:bg-gray-100 transition-colors"
                                         value={selectedModuleFilter}
                                         onChange={(e) => setSelectedModuleFilter(e.target.value)}
@@ -853,7 +854,7 @@ export default function ProjectDetailPage() {
                                         {modules.map(m => (
                                             <option key={m.id} value={m.id}>{m.name}</option>
                                         ))}
-                                    </select>
+                                    </CustomSelect>
                                 </>
                             )}
                         </div>

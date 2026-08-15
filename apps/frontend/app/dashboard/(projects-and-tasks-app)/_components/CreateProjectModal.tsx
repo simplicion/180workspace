@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { X, FolderKanban, Plus, Users, Calendar, Flag, Tag, AlignLeft, CheckCircle2, DollarSign, Settings, User, Briefcase, Eye, Building } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     onClose: () => void;
@@ -197,17 +198,17 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label htmlFor="projectType" className="form-label">Project Type</label>
-                                    <select id="projectType" value={projectType} onChange={e => setProjectType(e.target.value)} className="select">
+                                    <CustomSelect id="projectType" value={projectType} onChange={e => setProjectType(e.target.value)} className="select">
                                         {PROJECT_TYPE_OPTS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                                 {projectType === 'client' && (
                                     <div>
                                         <label htmlFor="clientId" className="form-label flex items-center gap-1.5"><Building className="w-3.5 h-3.5" aria-hidden="true" />Client</label>
-                                        <select id="clientId" value={clientIds[0] || ''} onChange={e => setClientIds(e.target.value ? [e.target.value] : [])} className="select" disabled={loadingClients}>
+                                        <CustomSelect id="clientId" value={clientIds[0] || ''} onChange={e => setClientIds(e.target.value ? [e.target.value] : [])} className="select" disabled={loadingClients}>
                                             <option value="">Select a Client...</option>
                                             {clients.map(c => <option key={c.id || c.id} value={c.id || c.id}>{c.name}</option>)}
-                                        </select>
+                                        </CustomSelect>
                                     </div>
                                 )}
                             </div>
@@ -233,9 +234,9 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label htmlFor="projectStatus" className="form-label">Status</label>
-                                    <select id="projectStatus" value={status} onChange={e => setStatus(e.target.value)} className="select">
+                                    <CustomSelect id="projectStatus" value={status} onChange={e => setStatus(e.target.value)} className="select">
                                         {STATUS_OPTS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                                 <div>
                                     <span className="form-label flex items-center gap-1.5"><Flag className="w-3.5 h-3.5" aria-hidden="true" />Priority</span>
@@ -257,18 +258,18 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
                                 </div>
                                 <div>
                                     <label htmlFor="billingType" className="form-label">Billing Type</label>
-                                    <select id="billingType" value={billingType} onChange={e => setBillingType(e.target.value)} className="select">
+                                    <CustomSelect id="billingType" value={billingType} onChange={e => setBillingType(e.target.value)} className="select">
                                         {BILLING_TYPE_OPTS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
                             
                             {/* Visibility */}
                             <div>
                                 <label htmlFor="visibility" className="form-label flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" aria-hidden="true" />Visibility</label>
-                                <select id="visibility" value={visibility} onChange={e => setVisibility(e.target.value)} className="select">
+                                <CustomSelect id="visibility" value={visibility} onChange={e => setVisibility(e.target.value)} className="select">
                                     {VISIBILITY_OPTS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                </select>
+                                </CustomSelect>
                             </div>
 
                             {/* Tags */}
@@ -294,10 +295,10 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
                         <div className="p-6 flex flex-col h-full space-y-4">
                             <div>
                                 <label htmlFor="ownerSelect" className="form-label flex items-center gap-1.5"><User className="w-3.5 h-3.5" aria-hidden="true" />Project Owner</label>
-                                <select id="ownerSelect" value={ownerId} onChange={e => setOwnerId(e.target.value)} className="select">
+                                <CustomSelect id="ownerSelect" value={ownerId} onChange={e => setOwnerId(e.target.value)} className="select">
                                     <option value="">Myself (Default)</option>
                                     {users.map(u => <option key={u.id || u.id} value={u.id || u.id}>{u.name}</option>)}
-                                </select>
+                                </CustomSelect>
                             </div>
 
                             <div>

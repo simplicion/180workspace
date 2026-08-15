@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { CreditCard, Shield, Zap, Check, Tag, AlertCircle, Calendar, Users, ChevronRight, RefreshCw, XCircle, FileWarning } from 'lucide-react';
+import { CreditCard, Shield, Zap, Check, Tag, AlertCircle, Calendar, Users, ChevronRight, RefreshCw, XCircle, FileWarning, BarChart3 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useSubscription } from '@/lib/useSubscription';
@@ -85,6 +85,7 @@ export default function BillingPage() {
         autopayEnabled,
         autopayFailCount,
         nextChargeDate,
+        usage,
         refresh
     } = useSubscription();
 
@@ -194,6 +195,41 @@ export default function BillingPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Usage Metrics */}
+            {usage && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                    <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-indigo-500" />
+                        Current Usage & Overage
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                            <p className="text-sm text-gray-500 mb-1">Team Members</p>
+                            <p className="text-xl font-bold text-gray-900">{usage.currentMembers} <span className="text-sm font-normal text-gray-400">/ {usage.maxMembers === Infinity ? 'Unlimited' : usage.maxMembers}</span></p>
+                            {usage.extraMembers > 0 && (
+                                <p className="text-xs text-red-500 mt-2 font-medium">+{usage.extraMembers} extra (${usage.extraMembers * 2}/mo)</p>
+                            )}
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                            <p className="text-sm text-gray-500 mb-1">Storage</p>
+                            <p className="text-xl font-bold text-gray-900">{usage.storageUsedGB}GB <span className="text-sm font-normal text-gray-400">/ {usage.storageLimitGB}GB</span></p>
+                            {usage.extraStorageBlocks > 0 && (
+                                <p className="text-xs text-red-500 mt-2 font-medium">+{usage.extraStorageBlocks * 10}GB extra (${usage.extraStorageBlocks * 2}/mo)</p>
+                            )}
+                        </div>
+                    </div>
+                    {usage.overageCharges > 0 && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-bold text-red-900">Estimated Overage Charges: ${usage.overageCharges}</p>
+                                <p className="text-xs text-red-700 mt-0.5">These charges will be added to your next billing cycle.</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Autopay Management */}
             {status !== 'mandate_pending' && status !== 'expired' && (

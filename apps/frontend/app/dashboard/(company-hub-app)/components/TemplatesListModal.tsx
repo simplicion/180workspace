@@ -10,6 +10,7 @@ import api from '@/lib/api';
 import { useSettings } from '@/lib/settings-context';
 import { generatePDF } from '@/lib/pdf-utils';
 import { generateDOCX } from '@/lib/docx-utils';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
@@ -327,11 +328,11 @@ function TemplateEditor({
                         </div>
                         <div>
                             <label className="label">Category</label>
-                            <select value={docType} onChange={e => setDocType(e.target.value)} className="select">
+                            <CustomSelect value={docType} onChange={e => setDocType(e.target.value)} className="select">
                                 {['contract', 'offer_letter', 'payslip', 'policy', 'report', 'other'].map(t => (
                                     <option key={t} value={t}>{t.replace('_', ' ').replace(/^\w/, c => c.toUpperCase())}</option>
                                 ))}
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         {/* Branding info (read-only) */}

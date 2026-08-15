@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { Calendar, Clock, CheckCheck, Home, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Drawer } from "@/components/ui/Drawer";
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     open: boolean;
@@ -75,10 +76,10 @@ export default function MarkAttendanceDrawer({ open, onClose, onSuccess }: Props
             <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
                 <div>
                     <label htmlFor="employeeId" className="label">Employee *</label>
-                    <select id="employeeId" value={form.employeeId} onChange={set('employeeId')} className="select" required>
+                    <CustomSelect id="employeeId" value={form.employeeId} onChange={set('employeeId')} className="select" required>
                         <option value="">Select employee</option>
                         {employees.map(u => <option key={u.id} value={u.id}>{u.name} ({u.employeeId || u.department || 'Employee'})</option>)}
-                    </select>
+                    </CustomSelect>
                 </div>
 
                 <div>

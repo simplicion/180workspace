@@ -12,6 +12,7 @@ import AddClientDrawer from '@/app/dashboard/(crm-and-sales-app)/_components/Add
 import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const STATUS_COLORS: Record<string, string> = {
     active: 'badge-green',
@@ -171,7 +172,7 @@ export default function ClientsPage() {
                     </div>
                     <div className="relative">
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <select 
+                        <CustomSelect 
                             value={status} 
                             onChange={(e) => setStatus(e.target.value)} 
                             className="select pl-9 w-40"
@@ -180,7 +181,7 @@ export default function ClientsPage() {
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                             <option value="lead">Lead / Prospect</option>
-                        </select>
+                        </CustomSelect>
                     </div>
                 </div>
 

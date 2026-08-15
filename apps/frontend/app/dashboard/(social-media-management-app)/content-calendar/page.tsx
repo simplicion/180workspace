@@ -12,6 +12,7 @@ import { ConfirmModal } from "@workspace/ui";
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const STATUS_COLORS: Record<string, string> = {
     draft: 'badge-gray',
@@ -125,14 +126,14 @@ export default function ContentCalendarPage() {
                         className="input pl-9"
                     />
                 </div>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} className="select w-44" title="Filter by status">
+                <CustomSelect value={status} onChange={(e) => setStatus(e.target.value)} className="select w-44" title="Filter by status">
                     <option value="">All Statuses</option>
                     <option value="draft">Draft</option>
                     <option value="processing">Processing</option>
                     <option value="active">Active</option>
                     <option value="archived">Archived</option>
                     <option value="failed">Failed</option>
-                </select>
+                </CustomSelect>
             </div>
 
             {loading ? (

@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import MultiVoiceRecorder from './MultiVoiceRecorder';
 
 import { useAuth } from '@/lib/auth-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     onClose: () => void;
@@ -242,17 +243,17 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label htmlFor="taskProject" className="label">Project *</label>
-                            <select id="taskProject" value={form.projectId} onChange={set('projectId')} className="select" title="Select project" required>
+                            <CustomSelect id="taskProject" value={form.projectId} onChange={set('projectId')} className="select" title="Select project" required>
                                 <option value="" disabled>Select a project</option>
                                 {projects.map(p => <option key={p.id || p.id} value={p.id || p.id}>{p.name}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div>
                             <label htmlFor="taskAssignee" className="label">Assignee</label>
-                            <select id="taskAssignee" value={form.assigneeId} onChange={set('assigneeId')} className="select" title="Select assignee">
+                            <CustomSelect id="taskAssignee" value={form.assigneeId} onChange={set('assigneeId')} className="select" title="Select assignee">
                                 <option value="">Unassigned</option>
                                 {availableAssignees.map((u: any) => <option key={u.id || u.id} value={u.id || u.id}>{u.name}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                     </div>
 
@@ -262,7 +263,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                                 <label htmlFor="taskModule" className="label">Module (Optional)</label>
                                 <div className="relative">
                                     <Layout className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                                    <select 
+                                    <CustomSelect 
                                         id="taskModule" 
                                         value={form.moduleId} 
                                         onChange={set('moduleId')} 
@@ -277,7 +278,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                                                 {modules.map(m => <option key={m.id || m.id} value={m.id || m.id}>{m.name}</option>)}
                                             </>
                                         )}
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
                         </div>
@@ -320,13 +321,13 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label htmlFor="taskPriority" className="label">Priority</label>
-                            <select id="taskPriority" value={form.priority} onChange={set('priority')} className="select" title="Select priority">
+                            <CustomSelect id="taskPriority" value={form.priority} onChange={set('priority')} className="select" title="Select priority">
                                 {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div>
                             <label htmlFor="taskStatus" className="label">Status</label>
-                            <select id="taskStatus" value={form.status} onChange={set('status')} className="select" title="Select status">
+                            <CustomSelect id="taskStatus" value={form.status} onChange={set('status')} className="select" title="Select status">
                                 {STATUSES.map(s => {
                                 let label = s.replace('_', ' ');
                                 if (s === 'custom' && selectedProject?.customTaskStatusName) {
@@ -334,7 +335,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                                 }
                                 return <option key={s} value={s}>{label}</option>
                             })}
-                            </select>
+                            </CustomSelect>
                         </div>
                     </div>
 

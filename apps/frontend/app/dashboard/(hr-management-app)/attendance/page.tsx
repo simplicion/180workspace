@@ -30,6 +30,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> =
 
 import { LeaveRequestDrawer, ViewLeaveDrawer, LEAVE_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/LeaveDrawers';
 import HolidayDrawer, { HOLIDAY_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/HolidayDrawer';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 function thisMonthStr() { return new Date().toISOString().slice(0, 7); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
@@ -636,11 +637,11 @@ function AttendancePageInner() {
             {tab === 'holidays' && (
                 <>
                     <div className="flex gap-3 mb-5">
-                        <select value={year} onChange={e => setYear(Number(e.target.value))} className="select w-36" title="Select Year" aria-label="Filter holidays by year">
+                        <CustomSelect value={year} onChange={e => setYear(Number(e.target.value))} className="select w-36" title="Select Year" aria-label="Filter holidays by year">
                             {[thisYear() - 1, thisYear(), thisYear() + 1].map(y => (
                                 <option key={y} value={y}>{y}</option>
                             ))}
-                        </select>
+                        </CustomSelect>
                         <p className="text-sm text-gray-500 self-center">{holidays.length} holiday{holidays.length !== 1 ? 's' : ''} this year</p>
                     </div>
                     {holidaysLoading ? (

@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Drawer } from "@/components/ui/Drawer";
 import clsx from 'clsx';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export const LEAVE_TYPE_COLORS: Record<string, string> = {
     sick: 'badge-red', casual: 'badge-blue', annual: 'badge-green',
@@ -35,11 +36,11 @@ export function LeaveRequestDrawer({ open, onClose, onSuccess }: { open: boolean
             <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
                 <div>
                     <label className="label" htmlFor="leave-type">Leave Type</label>
-                    <select id="leave-type" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="select" title="Select leave type">
+                    <CustomSelect id="leave-type" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="select" title="Select leave type">
                         {['sick', 'casual', 'annual', 'maternity', 'paternity', 'unpaid', 'other'].map(t => (
                             <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
                         ))}
-                    </select>
+                    </CustomSelect>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div>

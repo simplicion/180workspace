@@ -1,5 +1,6 @@
 'use client';
 
+import CustomSelect from '@/components/ui/CustomSelect';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { CheckSquare, FolderKanban, Clock, Calendar, Star, AlertCircle, TrendingUp, ChevronRight, Award, CheckCircle2, Palmtree, Play, Eye, Code2, LogOut, BarChart2 } from 'lucide-react';
@@ -524,7 +525,7 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                                                             {task.status.replace('_', ' ')}
                                                         </span>
                                                     ) : (
-                                                        <select
+                                                        <CustomSelect
                                                             value={task.status}
                                                             onChange={(e) => handleStatusChange(task.id, e.target.value)}
                                                             className={clsx(
@@ -535,7 +536,7 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                                                         >
                                                             <option value="todo">Todo</option>
                                                             <option value="in_progress">In Progress</option>
-                                                        </select>
+                                                        </CustomSelect>
                                                     )}
                                                 </div>
                                         </div>

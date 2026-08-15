@@ -10,18 +10,27 @@ export const navigation = [
     },
 
     {
-        group: 'Productivity',
-        appId: 'tools',
-        icon: Sparkles,
+        group: 'Communications',
+        appId: 'communications',
+        icon: MessageSquare,
         roles: ['admin', 'manager', 'hr', 'employee'],
         items: [
             { id: 'chat', name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, roles: ['admin', 'manager', 'hr', 'employee'] },
-            { id: 'calendar', name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'meeting', name: 'Meetings', href: '/dashboard/meeting', icon: Video, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'emails', name: 'Emails', href: '/dashboard/emails', icon: Mail, roles: ['admin', 'manager', 'hr'] },
+        ]
+    },
+
+    {
+        group: 'Workspace Tools',
+        appId: 'workspace-tools',
+        icon: FolderOpen,
+        roles: ['admin', 'manager', 'hr', 'employee'],
+        items: [
+            { id: 'calendar', name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, roles: ['admin', 'manager', 'hr', 'employee'] },
             { id: 'documents', name: '180 Documents', href: '/dashboard/documents', icon: FolderOpen, roles: ['admin', 'manager', 'hr', 'employee'] },
+            { id: 'assets', name: 'IT Assets', href: '/dashboard/assets', icon: Monitor, roles: ['admin', 'manager'] },
             { id: 'ai-assistant', name: 'AI Assistant', href: '/dashboard/ai', icon: Bot, roles: ['admin', 'manager', 'hr', 'employee'] },
-            { id: 'help-support', name: 'Help & Support', href: '/dashboard/help-support', icon: LifeBuoy, roles: ['admin', 'manager', 'hr', 'employee', 'client'] },
         ]
     },
 
@@ -34,7 +43,6 @@ export const navigation = [
             { id: 'sales', name: 'Sales Overview', href: '/dashboard/sales', exact: true, icon: TrendingUp, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'leads', name: 'Leads Pipeline', href: '/dashboard/sales/leads-pipeline', icon: Magnet, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'opportunities', name: 'Deals Pipeline', href: '/dashboard/sales/deals', icon: PieChart, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'active-clients', name: 'Active Client Pipeline', href: '/dashboard/sales/active-clients', icon: Users, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'ai-insights', name: 'AI Insights', href: '/dashboard/sales/ai-insights', icon: Sparkles, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'productivity', name: 'Productivity', href: '/dashboard/sales/productivity', icon: ClipboardList, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'clients', name: 'Clients', href: '/dashboard/clients', icon: Building2, roles: ['admin', 'manager', 'hr'] },
@@ -48,7 +56,7 @@ export const navigation = [
         roles: ['admin', 'manager', 'sales'],
         items: [
             { id: 'ad-websites', name: 'Ad Websites', href: '/dashboard/advertising', icon: Globe, roles: ['admin', 'manager', 'sales'] },
-            { id: 'forms', name: 'Form Builder', href: '/dashboard/forms', icon: FileText, roles: ['admin', 'manager', 'sales'] },
+            { name: 'Form Builder', href: '/dashboard/forms', icon: FileText, roles: ['admin', 'manager', 'sales'] },
         ]
     },
 
@@ -59,8 +67,7 @@ export const navigation = [
         roles: ['admin', 'manager', 'marketing'],
         items: [
             { id: 'content-calendar', name: 'Content Calendar', href: '/dashboard/content-calendar', icon: CalendarDays, roles: ['admin', 'manager', 'marketing'] },
-            { id: 'asset-hub', name: 'Asset Hub', href: '/dashboard/asset-hub', icon: FolderOpen, roles: ['admin', 'manager', 'marketing'] },
-            { id: 'saved-banks', name: 'Saved Banks', href: '/dashboard/saved-banks', icon: Bookmark, roles: ['admin', 'manager', 'marketing'] },
+            { id: 'social-media-assets', name: 'Social Media Assets', href: '/dashboard/social-media-assets', icon: Bookmark, roles: ['admin', 'manager', 'marketing'] },
         ]
     },
 
@@ -80,15 +87,14 @@ export const navigation = [
         group: 'Finance',
         appId: 'finance',
         icon: Landmark,
-        roles: ['admin', 'finance', 'manager'],
+        roles: ['admin', 'finance', 'manager', 'employee'],
         items: [
             { id: 'finance-overview', name: 'Finance Overview', href: '/dashboard/finance', icon: BarChart3, roles: ['admin', 'finance', 'manager'] },
             { id: 'finance-overview', name: 'Transactions', href: '/dashboard/transactions', icon: Activity, roles: ['admin', 'finance', 'manager'] },
             { id: 'invoices', name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, roles: ['admin', 'finance', 'manager'] },
-            { id: 'expenses', name: 'Expenses', href: '/dashboard/expenses', icon: Wallet, roles: ['admin', 'finance', 'manager'] },
-            { id: 'salary', name: 'Salary Ledger', href: '/dashboard/salary', icon: Banknote, roles: ['admin', 'finance', 'manager'] },
-            { id: 'bills', name: 'Bills', href: '/dashboard/finance/bills', icon: Receipt, roles: ['admin', 'finance', 'manager'] },
-            { id: 'vendors', name: 'Vendors', href: '/dashboard/finance/vendors', icon: Building2, roles: ['admin', 'finance', 'manager'] },
+            { id: 'bills-and-expenses', name: 'Bills and Expenses', href: '/dashboard/bills-and-expenses', icon: Wallet, roles: ['admin', 'finance', 'manager', 'employee'] },
+            { id: 'salary', name: 'Salary Ledger', href: '/dashboard/salary', icon: Banknote, roles: ['admin', 'finance', 'manager', 'employee'] },
+            { id: 'vendors', name: 'Vendors', href: '/dashboard/vendors', icon: Building2, roles: ['admin', 'finance', 'manager'] },
         ]
     },
 
@@ -107,15 +113,6 @@ export const navigation = [
         ]
     },
 
-    {
-        group: 'Assets',
-        appId: 'assets',
-        icon: Package,
-        roles: ['admin', 'manager'],
-        items: [
-            { id: 'assets', name: 'Assets', href: '/dashboard/assets', icon: Monitor, roles: ['admin', 'manager'] },
-        ]
-    },
 
     {
         group: 'Insights',
@@ -131,12 +128,13 @@ export const navigation = [
     {
         group: 'Settings',
         icon: Settings,
-        roles: ['admin', 'manager'],
+        roles: ['admin', 'manager', 'hr', 'employee', 'client'],
         items: [
             { id: 'roles', name: 'Roles & Access', href: '/dashboard/settings/roles-access', icon: UserSquare, roles: ['admin', 'manager'] },
             { id: 'apps', name: 'Apps', href: '/dashboard/settings/apps', icon: LayoutGrid, roles: ['admin', 'manager'] },
             { id: 'system-configs', name: 'System Configs', href: '/dashboard/settings/system-configs', icon: Settings, roles: ['admin', 'manager'] },
             { id: 'billing', name: 'Billing', href: '/dashboard/billing', icon: CreditCard, roles: ['admin', 'manager'] },
+            { id: 'help-support', name: 'Help & Support', href: '/dashboard/help-support', icon: LifeBuoy, roles: ['admin', 'manager', 'hr', 'employee', 'client'] },
         ]
     }
 ];

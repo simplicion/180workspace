@@ -7,6 +7,7 @@ import { DollarSign, Calendar, User, AlertCircle, Plus, XCircle, Info } from 'lu
 import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
 import { useSettings } from '@/lib/settings-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     open: boolean;
@@ -164,26 +165,26 @@ export default function GeneratePayrollDrawer({ open, onClose, onSuccess }: Prop
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-1">
                             <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1.5 block">Year</label>
-                            <select title="Select year" value={form.year} onChange={(e) => setForm(f => ({ ...f, year: Number(e.target.value) }))} className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-indigo-100 rounded-xl text-sm py-2.5 px-3 font-medium">
+                            <CustomSelect title="Select year" value={form.year} onChange={(e) => setForm(f => ({ ...f, year: Number(e.target.value) }))} className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-indigo-100 rounded-xl text-sm py-2.5 px-3 font-medium">
                                 {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div className="col-span-1">
                             <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1.5 block">Month</label>
-                            <select title="Select month" value={form.month} onChange={(e) => setForm(f => ({ ...f, month: Number(e.target.value) }))} className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-indigo-100 rounded-xl text-sm py-2.5 px-3 font-medium">
+                            <CustomSelect title="Select month" value={form.month} onChange={(e) => setForm(f => ({ ...f, month: Number(e.target.value) }))} className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-indigo-100 rounded-xl text-sm py-2.5 px-3 font-medium">
                                 {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
                                     <option key={m} value={i + 1}>{m}</option>
                                 ))}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div className="col-span-2">
                             <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1.5 block">Select Staff Member</label>
                             <div className="relative">
                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
-                                <select title="Select employee" value={form.employeeId} onChange={set('employeeId')} className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-indigo-100 rounded-xl text-sm py-2.5 pl-10 font-medium appearance-none">
+                                <CustomSelect title="Select employee" value={form.employeeId} onChange={set('employeeId')} className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-indigo-100 rounded-xl text-sm py-2.5 pl-10 font-medium appearance-none">
                                     <option value="">Choose Employee</option>
                                     {employees.map(u => <option key={u.id} value={u.id}>{u.name} {u.salary ? `(${currencySymbol}${u.salary.toLocaleString()})` : ''}</option>)}
-                                </select>
+                                </CustomSelect>
                             </div>
                         </div>
                     </div>

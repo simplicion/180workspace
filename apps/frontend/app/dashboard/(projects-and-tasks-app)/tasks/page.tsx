@@ -11,6 +11,7 @@ import CreateTaskModal from '@/app/dashboard/(projects-and-tasks-app)/_component
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 function getInitials(name?: string) {
     if (!name) return '';
@@ -129,20 +130,20 @@ export default function TasksPage() {
 
             {/* Filters */}
             <div className="flex gap-3 mb-5 flex-wrap">
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="select w-40">
+                <CustomSelect value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="select w-40">
                     <option value="">All Statuses</option>
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
                     <option value="in_review">In Review</option>
                     <option value="done">Done</option>
-                </select>
-                <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="select w-40">
+                </CustomSelect>
+                <CustomSelect value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="select w-40">
                     <option value="">All Priorities</option>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                     <option value="critical">Critical</option>
-                </select>
+                </CustomSelect>
             </div>
 
             {loading ? (

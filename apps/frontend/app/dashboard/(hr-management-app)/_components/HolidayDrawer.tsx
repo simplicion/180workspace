@@ -5,6 +5,7 @@ import { useState } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Drawer } from "@/components/ui/Drawer";
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export const HOLIDAY_TYPE_COLORS: Record<string, string> = {
     national: 'badge-blue', optional: 'badge-orange', company: 'badge-green',
@@ -63,11 +64,11 @@ export default function HolidayDrawer({
                     </div>
                     <div>
                         <label className="label" htmlFor="holiday-type">Type</label>
-                        <select id="holiday-type" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="select" title="Holiday Type">
+                        <CustomSelect id="holiday-type" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="select" title="Holiday Type">
                             <option value="national">National</option>
                             <option value="optional">Optional</option>
                             <option value="company">Company</option>
-                        </select>
+                        </CustomSelect>
                     </div>
                 </div>
                 <div>

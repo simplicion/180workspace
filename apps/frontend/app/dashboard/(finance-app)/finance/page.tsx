@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Transaction { id?: string;
     _id: string;
@@ -166,7 +167,7 @@ export default function FinancialDashboard() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        <select
+                        <CustomSelect
                             value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
                             className="text-sm border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
@@ -176,9 +177,9 @@ export default function FinancialDashboard() {
                             <option value="">All Types</option>
                             <option value="inbound">Inbound (Revenue)</option>
                             <option value="outbound">Outbound (Payout)</option>
-                        </select>
+                        </CustomSelect>
 
-                        <select
+                        <CustomSelect
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
                             className="text-sm border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
@@ -189,7 +190,7 @@ export default function FinancialDashboard() {
                             <option value="completed">Completed</option>
                             <option value="pending">Pending</option>
                             <option value="failed">Failed</option>
-                        </select>
+                        </CustomSelect>
                     </div>
                 </div>
 

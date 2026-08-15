@@ -5,7 +5,7 @@ import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Save, Mail, Phone, MapPin, Landmark, PenTool, Hash, Globe, Image as ImageIcon, ArrowLeft, Upload, Clock } from 'lucide-react';
-import { SignaturePad } from '@/app/dashboard/(productivity-tools-app)/document-editor/_components/ui/SignaturePad';
+import { SignaturePad } from '@/app/dashboard/(workspace-tools-app)/document-editor/_components/ui/SignaturePad';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useSettings } from '@/lib/settings-context';

@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
 // Dynamically import charts to improve build performance
+import CustomSelect from '@/components/ui/CustomSelect';
 const WebsiteCharts = nextDynamic(() => import('./WebsiteCharts'), { 
     ssr: false,
     loading: () => <div className="h-[350px] w-full bg-gray-50 animate-pulse rounded-[2.5rem]" />
@@ -442,7 +443,7 @@ function TrackingTab({ website, onUpdate }: { website: any, onUpdate: () => void
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Platform</label>
-                                    <select 
+                                    <CustomSelect 
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white transition-all font-medium"
                                         value={pixel.type}
                                         onChange={(e) => {
@@ -454,7 +455,7 @@ function TrackingTab({ website, onUpdate }: { website: any, onUpdate: () => void
                                         <option value="facebook">Facebook Pixel</option>
                                         <option value="google">Google Analytics</option>
                                         <option value="tiktok">TikTok Pixel</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Pixel ID / Property ID</label>

@@ -5,6 +5,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
 import { Activity, Tag, AlignLeft, RefreshCw } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface AddTransactionDrawerProps {
     open: boolean;
@@ -67,10 +68,10 @@ export function AddTransactionDrawer({ open, onClose, onSuccess }: AddTransactio
                     <label className="label">Transaction Type</label>
                     <div className="relative">
                         <RefreshCw className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <select name="type" required className="input pl-9">
+                        <CustomSelect name="type" required className="input pl-9">
                             <option value="credit">Credit (Money In)</option>
                             <option value="debit">Debit (Money Out)</option>
-                        </select>
+                        </CustomSelect>
                     </div>
                 </div>
 
@@ -88,7 +89,7 @@ export function AddTransactionDrawer({ open, onClose, onSuccess }: AddTransactio
                     <label className="label">Category</label>
                     <div className="relative">
                         <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <select name="category" required className="input pl-9">
+                        <CustomSelect name="category" required className="input pl-9">
                             <option value="sales">Sales & Revenue</option>
                             <option value="software">Software/SaaS</option>
                             <option value="office">Office Supplies</option>
@@ -96,7 +97,7 @@ export function AddTransactionDrawer({ open, onClose, onSuccess }: AddTransactio
                             <option value="utilities">Utilities</option>
                             <option value="professional">Professional Services</option>
                             <option value="other">Other</option>
-                        </select>
+                        </CustomSelect>
                     </div>
                 </div>
 

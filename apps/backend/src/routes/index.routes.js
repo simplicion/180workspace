@@ -53,7 +53,7 @@ const leaveRoutes = require('../app-registry/hr-management-app/attendance/leave.
 const holidayRoutes = require('../app-registry/hr-management-app/attendance/holiday.routes');
 const superAdminRoutes = require('../app-registry/superadmin/superadmin.routes');
 const supportRoutes = require('../app-registry/productivity-tools-app/help-support/support.routes');
-const billingRoutes = require('../app-registry/finance-app/bills/billing.routes');
+
 const salesRoutes = require('../app-registry/crm-and-sales-app/sales/sales.routes');
 const formBuilderRoutes = require('../app-registry/advertising-app/forms/form-builder.routes');
 const analyticsRoutes = require('../app-registry/insights-app/analytics/analytics.routes');
@@ -97,9 +97,11 @@ router.use('/files', protect, fileRoutes);
 router.use('/jobs', protect, moduleGuard('hr'), jobRoutes);
 router.use('/applications', protect, moduleGuard('hr'), applicationRoutes);
 router.use('/salary', protect, moduleGuard('hr'), salaryRoutes);
-router.use('/ai', protect, moduleGuard('tools'), aiRoutes);
+const featureFlagGuard = require('../system-configs/middleware/billing/featureFlagGuard.js');
+
+router.use('/ai', protect, moduleGuard('tools'), featureFlagGuard('aiAssistant'), aiRoutes);
 router.use('/settings', protect, settingsRoutes);
-router.use('/emails', protect, moduleGuard('tools'), require('../app-registry/productivity-tools-app/emails/email.routes'));
+router.use('/emails', protect, moduleGuard('tools'), featureFlagGuard('emailServices'), require('../app-registry/productivity-tools-app/emails/email.routes'));
 router.use('/audit', protect, require('../platform-core/platform-security-audit/routes/audit.routes'));
 router.use('/activity', protect, require('../app-registry/projects-and-tasks-app/activities/activity.routes'));
 // ─── HR ──────────────────────────────────────────────────────────────────
@@ -114,7 +116,7 @@ router.use('/salaries', protect, moduleGuard('hr'), require('../app-registry/fin
 router.use('/calendar', protect, moduleGuard('tools'), require('../app-registry/productivity-tools-app/calendar/calendar.routes'));
 router.use('/meeting', protect, moduleGuard('tools'), require('../app-registry/productivity-tools-app/meetings/meeting.routes'));
 router.use('/timelogs', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/timelogs/timelog.routes'));
-router.use('/expenses', protect, moduleGuard('finance'), require('../app-registry/finance-app/expenses/expense.routes'));
+router.use('/expenses', protect, moduleGuard('finance'), require('../app-registry/finance-app/expense-transactions/expense.routes'));
 router.use('/invoices', protect, moduleGuard('crm'), require('../app-registry/finance-app/invoices/invoice.routes'));
 router.use('/onboarding', protect, moduleGuard('hr'), require('../app-registry/setup-app/onboarding.routes'));
 router.use('/milestones', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/milestones/milestone.routes'));
@@ -147,6 +149,6 @@ router.use('/superadmin', superAdminRoutes);
 
 // ─── Support & Billing ─────────────────────────────────────────────────────
 router.use('/support/tickets', supportRoutes);
-router.use('/billing', billingRoutes);
+
 
 module.exports = router;

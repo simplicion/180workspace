@@ -4,6 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import axios from 'axios';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -178,7 +179,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
               
               {field.type === 'SELECT' && (
                 <div className="relative">
-                  <select
+                  <CustomSelect
                     id={field.id}
                     required={field.required}
                     value={formData[field.id] || ''}
@@ -189,7 +190,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
                     {field.options?.map((option: string, i: number) => (
                       <option key={i} value={option}>{option}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>

@@ -7,6 +7,7 @@ import { contentCalendarService, CalendarConfig } from '@/lib/services/content-c
 import toast from 'react-hot-toast';
 import { Sparkles, ChevronRight, ChevronLeft, Calendar as CalendarIcon, Target, Users, Megaphone, Hash, BarChart3, Settings2, Building2, User } from 'lucide-react';
 import clsx from 'clsx';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const STEPS = [
     { id: 1, title: 'Basic Info', icon: Settings2 },
@@ -370,20 +371,20 @@ export default function CreateCalendarPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration <span className="text-red-500">*</span></label>
-                                <select className="select" title="Calendar duration" value={config.durationWords} onChange={(e) => handleChange('durationWords', e.target.value)}>
+                                <CustomSelect className="select" title="Calendar duration" value={config.durationWords} onChange={(e) => handleChange('durationWords', e.target.value)}>
                                     <option value="1 week">1 week</option>
                                     <option value="2 weeks">2 weeks</option>
                                     <option value="1 month">1 month</option>
-                                </select>
+                                </CustomSelect>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Posting Frequency <span className="text-red-500">*</span></label>
-                                <select className="select" title="Posting frequency" value={config.frequency} onChange={(e) => handleChange('frequency', e.target.value)}>
+                                <CustomSelect className="select" title="Posting frequency" value={config.frequency} onChange={(e) => handleChange('frequency', e.target.value)}>
                                     <option value="1x a week">1x a week</option>
                                     <option value="3x a week">3x a week</option>
                                     <option value="5x a week">5x a week</option>
                                     <option value="Daily">Daily</option>
-                                </select>
+                                </CustomSelect>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Start Date <span className="text-red-500">*</span></label>

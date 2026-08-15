@@ -15,6 +15,7 @@ import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
 import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
 import { format } from 'date-fns';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const STATUS_CONFIG: Record<string, { label: string, color: string, icon: any }> = {
     pending: { label: 'Pending', color: 'badge-orange', icon: Timer },
@@ -608,7 +609,7 @@ export default function WorkLogsPage() {
 
                                 <div>
                                     <label className="label text-[10px] uppercase font-bold text-gray-400">Project</label>
-                                    <select 
+                                    <CustomSelect 
                                         className="input py-2 text-xs mt-1"
                                         value={filters.projectId}
                                         onChange={(e) => setFilters({ ...filters, projectId: e.target.value })}
@@ -617,12 +618,12 @@ export default function WorkLogsPage() {
                                         {filterOptions.projects.map((p: any) => (
                                             <option key={p.id} value={p.id}>{p.name}</option>
                                         ))}
-                                    </select>
+                                    </CustomSelect>
                                 </div>
 
                                 <div>
                                     <label className="label text-[10px] uppercase font-bold text-gray-400">Module</label>
-                                    <select 
+                                    <CustomSelect 
                                         className="input py-2 text-xs mt-1"
                                         value={filters.moduleId}
                                         onChange={(e) => setFilters({ ...filters, moduleId: e.target.value })}
@@ -634,13 +635,13 @@ export default function WorkLogsPage() {
                                                 <option key={m.id} value={m.id}>{m.name}</option>
                                             ))
                                         }
-                                    </select>
+                                    </CustomSelect>
                                 </div>
 
                                 {isAdmin && (
                                     <div>
                                         <label className="label text-[10px] uppercase font-bold text-gray-400">Employee</label>
-                                        <select 
+                                        <CustomSelect 
                                             className="input py-2 text-xs mt-1"
                                             value={filters.userId}
                                             onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
@@ -649,7 +650,7 @@ export default function WorkLogsPage() {
                                             {filterOptions.users.map((u: any) => (
                                                 <option key={u.id} value={u.id}>{u.name}</option>
                                             ))}
-                                        </select>
+                                        </CustomSelect>
                                     </div>
                                 )}
                             </div>

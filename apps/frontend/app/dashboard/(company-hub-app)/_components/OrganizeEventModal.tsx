@@ -6,6 +6,7 @@ import { X, Upload, Calendar, MapPin, AlignLeft, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCreateEventMutation, useUpdateEventMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface OrganizeEventModalProps {
     isOpen: boolean;
@@ -190,7 +191,7 @@ export function OrganizeEventModal({ isOpen, onClose, eventToEdit, companyId }: 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-                                <select
+                                <CustomSelect
                                     name="eventType"
                                     value={formData.eventType}
                                     onChange={handleChange}
@@ -199,7 +200,7 @@ export function OrganizeEventModal({ isOpen, onClose, eventToEdit, companyId }: 
                                     <option value="in-person">In Person</option>
                                     <option value="online">Online / Virtual</option>
                                     <option value="hybrid">Hybrid</option>
-                                </select>
+                                </CustomSelect>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>

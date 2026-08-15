@@ -120,6 +120,9 @@ app.use(Sentry.Handlers.requestHandler());
 // ─── Company Scoped Context Middleware ─────────────────────────────────────────
 app.use(require('./src/system-configs/middleware/company/company-context'));
 
+// ─── Billing Status Enforcement ──────────────────────────────────────────────
+app.use(require('./src/system-configs/middleware/billing/checkBillingStatus'));
+
 // ─── Swagger Documentation ────────────────────────────────────────────────────
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./src/system-configs/config/swagger');

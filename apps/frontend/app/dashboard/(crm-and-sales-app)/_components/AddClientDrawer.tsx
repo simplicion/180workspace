@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { X, Building2, Mail, Phone, Globe, AlignLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
-import CreatableSelect from '@/components/shared/CreatableSelect';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const INDUSTRIES = [
     'Technology', 'Healthcare', 'Finance', 'Education', 'Retail', 
@@ -181,33 +181,35 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
             <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 mt-2">
                 <div>
                     <label htmlFor="clientType" className="label">Client Type</label>
-                    <select id="clientType" value={form.clientType} onChange={(e: any) => set('clientType')(e)} className="input">
+                    <CustomSelect id="clientType" value={form.clientType} onChange={(e: any) => set('clientType')(e)} className="input">
                         <option value="">Select Type</option>
                         <option value="Enterprise">Enterprise</option>
                         <option value="Startup">Startup</option>
                         <option value="Individual">Individual</option>
                         <option value="Other">Other</option>
-                    </select>
+                    </CustomSelect>
                 </div>
                 {isCompany && (
                     <div>
                         <label htmlFor="clientIndustry" className="label">Industry</label>
-                        <CreatableSelect
-                            id="clientIndustry"
+                        <CustomSelect
+                            label=""
                             value={form.industry}
                             onChange={(val: string) => setForm(prev => ({ ...prev, industry: val }))}
                             options={INDUSTRIES}
                             placeholder="Select or type..."
+                            searchable={true}
+                            creatable={true}
                         />
                     </div>
                 )}
                 <div>
                     <label htmlFor="clientStatus" className="label">Status</label>
-                    <select id="clientStatus" value={form.status} onChange={(e: any) => set('status')(e)} className="input">
+                    <CustomSelect id="clientStatus" value={form.status} onChange={(e: any) => set('status')(e)} className="input">
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                         <option value="lead">Lead / Prospect</option>
-                    </select>
+                    </CustomSelect>
                 </div>
             </div>
 
@@ -251,25 +253,25 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
             <div className="grid grid-cols-2 gap-3 mt-3">
                 <div>
                     <label htmlFor="paymentTerms" className="label">Payment Terms</label>
-                    <select id="paymentTerms" value={form.paymentTerms} onChange={(e: any) => set('paymentTerms')(e)} className="input">
+                    <CustomSelect id="paymentTerms" value={form.paymentTerms} onChange={(e: any) => set('paymentTerms')(e)} className="input">
                         <option value="">Select Terms...</option>
                         <option value="Due on Receipt">Due on Receipt</option>
                         <option value="Net 15">Net 15</option>
                         <option value="Net 30">Net 30</option>
                         <option value="Net 45">Net 45</option>
                         <option value="Net 60">Net 60</option>
-                    </select>
+                    </CustomSelect>
                 </div>
                 <div>
                     <label htmlFor="currency" className="label">Currency</label>
-                    <select id="currency" value={form.currency} onChange={(e: any) => set('currency')(e)} className="input">
+                    <CustomSelect id="currency" value={form.currency} onChange={(e: any) => set('currency')(e)} className="input">
                         <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
                         <option value="GBP">GBP (£)</option>
                         <option value="INR">INR (₹)</option>
                         <option value="AUD">AUD (A$)</option>
                         <option value="CAD">CAD (C$)</option>
-                    </select>
+                    </CustomSelect>
                 </div>
             </div>
 

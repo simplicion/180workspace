@@ -9,6 +9,7 @@ import { Star, Plus, X, ClipboardList, CheckCircle, Clock, Search, TrendingUp, S
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const CATEGORIES = ['Job Knowledge', 'Work Quality', 'Teamwork', 'Communication', 'Initiative'];
 
@@ -122,19 +123,19 @@ function CreateReviewModal({ onClose, onSuccess, employees }: { onClose: () => v
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="label text-[10px] uppercase font-black tracking-widest text-gray-400 mb-2">Employee *</label>
-                            <select title="Select Target Employee" required value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="select bg-gray-50 border-gray-100 rounded-xl">
+                            <CustomSelect title="Select Target Employee" required value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="select bg-gray-50 border-gray-100 rounded-xl">
                                 <option value="">Select Target</option>
                                 {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.department})</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div>
                             <label className="label text-[10px] uppercase font-black tracking-widest text-gray-400 mb-2">Evaluator *</label>
-                            <select title="Select Manager/Evaluator" required value={form.managerId} onChange={e => setForm(p => ({ ...p, managerId: e.target.value }))} className="select bg-gray-50 border-gray-100 rounded-xl">
+                            <CustomSelect title="Select Manager/Evaluator" required value={form.managerId} onChange={e => setForm(p => ({ ...p, managerId: e.target.value }))} className="select bg-gray-50 border-gray-100 rounded-xl">
                                 <option value="">Select Manager</option>
                                 {employees.filter(e => ['admin', 'ceo'].includes(e.role) || (e.permissions && (e.permissions.includes('can_manage_team') || e.permissions.includes('can_manage_hr')))).map(e => (
                                     <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
                                 ))}
-                            </select>
+                            </CustomSelect>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">

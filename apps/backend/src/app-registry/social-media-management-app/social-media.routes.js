@@ -1,6 +1,5 @@
 const express = require('express');
 const { SavedBanksController } = require('./saved-banks.controller');
-const { AIBrainstormerService } = require('./ai-brainstormer.service');
 
 const router = express.Router();
 
@@ -9,7 +8,5 @@ router.get('/saved-banks', SavedBanksController.getBanks);
 router.post('/saved-banks', SavedBanksController.createBank);
 router.delete('/saved-banks/:id', SavedBanksController.deleteBank);
 
-// AI Brainstormer
-router.post('/ai-brainstormer/pillars', AIBrainstormerService.generatePillars);
 
 module.exports = router;

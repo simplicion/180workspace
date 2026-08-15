@@ -18,6 +18,7 @@ export interface SubscriptionStatus {
     autopayEnabled: boolean;
     autopayFailCount: number;
     nextChargeDate: string | null;
+    usage?: any;
     loading: boolean;
     refresh: () => void;
 }

@@ -738,9 +738,9 @@ class SalesService {
         const leaderboard = [];
         for (const rep of allReps) {
             const [dealsClosed, revenue, activities] = await Promise.all([
-                companyPrisma.lead.count({ where: { owner: rep.id, stage: 'ClosedWon' } }),
-                companyPrisma.lead.aggregate({ where: { owner: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
-                companyPrisma.salesActivity.count({ where: { owner: rep.id } })
+                companyPrisma.lead.count({ where: { ownerId: rep.id, stage: 'ClosedWon' } }),
+                companyPrisma.lead.aggregate({ where: { ownerId: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
+                companyPrisma.salesActivity.count({ where: { ownerId: rep.id } })
             ]);
 
             const revValue = revenue.length ? revenue[0].total : 0;

@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     relatedId?: string;
@@ -441,7 +442,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                 <div className="mt-4 grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="label">Category</label>
-                                        <select value={category} onChange={e => setCategory(e.target.value)} className="input">
+                                        <CustomSelect value={category} onChange={e => setCategory(e.target.value)} className="input">
                                             <optgroup label="General">
                                                 <option value="General">General</option>
                                                 <option value="Project">Project File</option>
@@ -463,7 +464,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                             <optgroup label="Marketing">
                                                 <option value="Marketing">Marketing / Assets</option>
                                             </optgroup>
-                                        </select>
+                                        </CustomSelect>
                                     </div>
                                     <div>
                                         <label className="label">Confidentiality</label>
@@ -487,7 +488,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                         <Database className="w-3.5 h-3.5 text-indigo-500" />
                                         Storage Location
                                     </label>
-                                    <select 
+                                    <CustomSelect 
                                         value={storageProvider} 
                                         onChange={e => setStorageProvider(e.target.value as 'cloudinary' | 'google_drive' | 'r2')} 
                                         className="input w-full"
@@ -495,7 +496,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                         <option value="r2">180workspace Cloud</option>
                                         {cloudinaryConfigured && <option value="cloudinary">Cloudinary</option>}
                                         {driveConfigured && <option value="google_drive">Google Drive</option>}
-                                    </select>
+                                    </CustomSelect>
                                 </div>
 
                                 {storageProvider === 'google_drive' && googleDriveFolders.length > 0 && (
@@ -530,7 +531,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                                 </button>
                                             </div>
                                         ) : (
-                                        <select 
+                                        <CustomSelect 
                                             value={selectedDriveFolder} 
                                             onChange={e => setSelectedDriveFolder(e.target.value)} 
                                             className="input w-full"
@@ -539,7 +540,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                             {googleDriveFolders.map(f => (
                                                 <option key={f.id} value={f.id}>{f.name}</option>
                                             ))}
-                                        </select>
+                                        </CustomSelect>
                                         )}
                                     </div>
                                 )}
@@ -593,7 +594,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="linkCategory" className="label">Category</label>
-                                        <select 
+                                        <CustomSelect 
                                             id="linkCategory"
                                             value={category} 
                                             onChange={e => setCategory(e.target.value)}
@@ -620,7 +621,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                                             <optgroup label="Marketing">
                                                 <option value="Marketing">Marketing / Assets</option>
                                             </optgroup>
-                                        </select>
+                                        </CustomSelect>
                                     </div>
                                     <div>
                                         <label htmlFor="linkConfidential" className="label">Confidential</label>

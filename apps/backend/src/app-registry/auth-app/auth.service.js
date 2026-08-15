@@ -24,6 +24,9 @@ class AuthService {
             err.status = 409; throw err;
         }
 
+        const now = new Date();
+        const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
         // Create company
         const company = await globalPrisma.company.create({
             data: {
@@ -32,6 +35,9 @@ class AuthService {
                 databaseConfigured: true, 
                 isOnboardingComplete: false,
                 logoUrl: logoBase64 || null,
+                subscriptionStatus: 'trial',
+                trialStartDate: now,
+                trialEndDate: trialEnd,
             },
         });
 

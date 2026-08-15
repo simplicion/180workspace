@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { format, addDays, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import { Drawer } from "@/components/ui/Drawer";
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface LeadPipelineDrawerProps {
     open: boolean;
@@ -258,14 +259,14 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 </div>
                 <div>
                     <label htmlFor="source" className="label">Source</label>
-                    <select id="source" className="select" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })}>
+                    <CustomSelect id="source" className="select" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })}>
                         <option value="">Select Source</option>
                         <option value="Inbound">Inbound</option>
                         <option value="Outbound">Outbound</option>
                         <option value="Referral">Referral</option>
                         <option value="Event">Event</option>
                         <option value="Custom">Custom</option>
-                    </select>
+                    </CustomSelect>
                 </div>
                 <div>
                     <label htmlFor="industry" className="label">Industry</label>
@@ -287,20 +288,20 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 </div>
                 <div>
                     <label htmlFor="stage" className="label">Stage</label>
-                    <select id="stage" className="select" value={formData.stage} onChange={e => setFormData({ ...formData, stage: e.target.value })}>
+                    <CustomSelect id="stage" className="select" value={formData.stage} onChange={e => setFormData({ ...formData, stage: e.target.value })}>
                         {STAGES.map(s => (
                             <option key={s} value={s}>{s}</option>
                         ))}
-                    </select>
+                    </CustomSelect>
                 </div>
                 <div>
                     <label htmlFor="owner" className="label">Assign To</label>
-                    <select id="owner" className="select" value={formData.owner} onChange={e => setFormData({ ...formData, owner: e.target.value })}>
+                    <CustomSelect id="owner" className="select" value={formData.owner} onChange={e => setFormData({ ...formData, owner: e.target.value })}>
                         <option value="">Unassigned</option>
                         {users.map(u => (
                             <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
                         ))}
-                    </select>
+                    </CustomSelect>
                 </div>
                 <div>
                     <label htmlFor="followUpDate" className="label">Follow-up Date</label>

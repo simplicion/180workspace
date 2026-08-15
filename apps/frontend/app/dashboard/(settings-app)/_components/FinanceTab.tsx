@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { CreditCard, Save, Link2, ShieldAlert, Bell, Clock, Send } from 'lucide-react';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function FinanceTab() {
     const [loading, setLoading] = useState(true);
@@ -140,7 +141,7 @@ export default function FinanceTab() {
 
                     <div>
                         <label className="label">Active Payment Provider</label>
-                        <select
+                        <CustomSelect
                             value={activeProvider}
                             onChange={(e) => setActiveProvider(e.target.value as any)}
                             className="select"
@@ -148,7 +149,7 @@ export default function FinanceTab() {
                             <option value="manual">Manual (Bank Transfer / Cash)</option>
                             <option value="razorpay">Razorpay</option>
                             <option value="stripe">Stripe</option>
-                        </select>
+                        </CustomSelect>
                         <p className="text-xs text-gray-500 mt-2">
                             Select how you want to collect payments from your clients via invoices.
                         </p>

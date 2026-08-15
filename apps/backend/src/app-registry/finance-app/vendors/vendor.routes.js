@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 const express = require('express');
 const router = express.Router();
 const vendorController = require('./vendor.controller');
@@ -13,12 +13,6 @@ router.get('/', vendorController.getVendors);
 router.post('/', vendorController.createVendor);
 router.put('/:id', vendorController.updateVendor);
 
-// Bills
-router.get('/bills', vendorController.getBills);
-router.post('/bills', vendorController.createBill);
-router.patch('/bills/:id/status', vendorController.updateBillStatus);
 
-// Payouts
-router.post('/bills/:billId/payout', vendorController.initiatePayout);
 
 module.exports = router;

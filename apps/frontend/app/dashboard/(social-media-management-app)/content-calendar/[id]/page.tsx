@@ -10,7 +10,7 @@ import { CalendarDays, ArrowLeft, Calendar, Target, Hash, Info, CheckCircle2, Ci
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
-import ContentPieceDrawer from '@/app/dashboard/(productivity-tools-app)/_components/ContentPieceDrawer';
+import ContentPieceDrawer from '@/app/dashboard/(social-media-management-app)/_components/ContentPieceDrawer';
 
 const STATUS_COLORS: Record<string, string> = {
     ready: 'badge-gray',

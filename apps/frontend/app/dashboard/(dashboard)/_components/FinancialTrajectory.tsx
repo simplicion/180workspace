@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart, Scatter } from 'recharts';
 import api from '@/lib/api';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function FinancialTrajectory() {
     const [ceoInsights, setCeoInsights] = useState<any>(null);
@@ -223,7 +224,7 @@ export default function FinancialTrajectory() {
                         <p className="text-[11px] text-gray-400 font-medium">Revenue, burn rate & runway overview</p>
                     </div>
                 </div>
-                <select 
+                <CustomSelect 
                     value={timeRange}
                     onChange={(e) => setTimeRange(e.target.value as any)}
                     className="text-xs py-1.5 px-2.5 pr-8 bg-gray-50 border-gray-200 rounded-lg text-gray-600 focus:ring-emerald-500 focus:border-emerald-500"
@@ -234,7 +235,7 @@ export default function FinancialTrajectory() {
                     <option value="6M">6 Months</option>
                     <option value="1Y">1 Year</option>
                     <option value="ALL">All Time</option>
-                </select>
+                </CustomSelect>
             </div>
 
                 <div className="grid grid-cols-3 gap-2 w-full">

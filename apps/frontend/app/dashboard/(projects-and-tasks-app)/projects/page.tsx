@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import CreateProjectModal from '@/app/dashboard/(projects-and-tasks-app)/_components/CreateProjectModal';
 import { useAuth } from '@/lib/auth-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const STATUS_COLORS: Record<string, string> = {
     planning: 'badge-gray',
@@ -120,13 +121,13 @@ export default function ProjectsPage() {
                         className="input pl-9"
                     />
                 </div>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} className="select w-44" title="Filter by status">
+                <CustomSelect value={status} onChange={(e) => setStatus(e.target.value)} className="select w-44" title="Filter by status">
                     <option value="">All Statuses</option>
                     <option value="planning">Planning</option>
                     <option value="in_progress">In Progress</option>
                     <option value="on_hold">On Hold</option>
                     <option value="completed">Completed</option>
-                </select>
+                </CustomSelect>
             </div>
 
             {loading ? (

@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { User, Mail, Lock, Briefcase, Building2, DollarSign, Calendar, Shield, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import CreatableSelect from '@/components/shared/CreatableSelect';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { Drawer } from "@/components/ui/Drawer";
 import { navigation } from '@/lib/navigation';
 import { useSettings } from '@/lib/settings-context';
@@ -314,21 +314,25 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
                     {/* Designation + Department */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <CreatableSelect 
+                            <CustomSelect 
                                 label="Designation *"
                                 placeholder="Select or type to add..."
                                 value={form.designationId} 
                                 onChange={(val) => setForm(prev => ({ ...prev, designationId: val }))}
                                 options={DESIGNATIONS}
+                                searchable={true}
+                                creatable={true}
                             />
                         </div>
                         <div>
-                            <CreatableSelect 
+                            <CustomSelect 
                                 label="Department"
                                 placeholder="Select or type to add..."
                                 value={form.department} 
                                 onChange={(val) => setForm(prev => ({ ...prev, department: val }))}
                                 options={DEPARTMENTS}
+                                searchable={true}
+                                creatable={true}
                             />
                         </div>
                     </div>
@@ -337,24 +341,24 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
                     <div className="grid grid-cols-3 gap-3">
                         <div>
                             <label className="label">Employment Type</label>
-                            <select value={form.employmentType} onChange={set('employmentType')} className="select mt-1">
+                            <CustomSelect value={form.employmentType} onChange={set('employmentType')} className="select mt-1">
                                 <option value="">Select type</option>
                                 {EMPLOYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div>
                             <label className="label">Work Location</label>
-                            <select value={form.workLocation} onChange={set('workLocation')} className="select mt-1">
+                            <CustomSelect value={form.workLocation} onChange={set('workLocation')} className="select mt-1">
                                 <option value="">Select location</option>
                                 {WORK_LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div>
                             <label className="label">Reporting To (Manager)</label>
-                            <select value={form.managerId} onChange={set('managerId')} className="select mt-1">
+                            <CustomSelect value={form.managerId} onChange={set('managerId')} className="select mt-1">
                                 <option value="">Select manager</option>
                                 {users.map(u => <option key={u.id || u.id} value={u.id || u.id}>{u.name}</option>)}
-                            </select>
+                            </CustomSelect>
                         </div>
                     </div>
                     

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 type FieldType = 'TEXT' | 'EMAIL' | 'PHONE' | 'TEXTAREA' | 'SELECT' | 'RADIO' | 'CHECKBOX';
 
@@ -283,7 +284,7 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-gray-700">Field Type</label>
-                        <select 
+                        <CustomSelect 
                           className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
                           value={field.type} 
                           onChange={(e) => updateField(index, 'type', e.target.value as FieldType)}
@@ -295,7 +296,7 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
                           <option value="SELECT">Dropdown</option>
                           <option value="RADIO">Radio Buttons</option>
                           <option value="CHECKBOX">Checkboxes</option>
-                        </select>
+                        </CustomSelect>
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-gray-700">System Name (used for data mapping)</label>

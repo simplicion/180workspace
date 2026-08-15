@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { Briefcase, MapPin, Users, Calendar, AlignLeft, Tag, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Drawer } from "@/components/ui/Drawer";
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     open: boolean;
@@ -109,15 +110,15 @@ export default function PostJobDrawer({ open, onClose, onSuccess, editJob }: Pro
                 <div className="grid grid-cols-2 gap-3">
                     <div>
                         <label className="label">Role Category *</label>
-                        <select value={form.roleCategory} onChange={set('roleCategory')} className="select" required>
+                        <CustomSelect value={form.roleCategory} onChange={set('roleCategory')} className="select" required>
                             {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        </CustomSelect>
                     </div>
                     <div>
                         <label className="label">Employment Type</label>
-                        <select value={form.type} onChange={set('type')} className="select">
+                        <CustomSelect value={form.type} onChange={set('type')} className="select">
                             {JOB_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-                        </select>
+                        </CustomSelect>
                     </div>
                 </div>
 
@@ -177,7 +178,7 @@ export default function PostJobDrawer({ open, onClose, onSuccess, editJob }: Pro
                                         />
                                     </div>
                                     <div className="col-span-6 sm:col-span-4">
-                                        <select
+                                        <CustomSelect
                                             value={field.type}
                                             onChange={e => updateCustomField(idx, 'type', e.target.value)}
                                             className="select text-xs h-9"
@@ -187,7 +188,7 @@ export default function PostJobDrawer({ open, onClose, onSuccess, editJob }: Pro
                                             <option value="number">Number</option>
                                             <option value="url">URL</option>
                                             <option value="file">File Upload</option>
-                                        </select>
+                                        </CustomSelect>
                                     </div>
                                     <div className="col-span-6 sm:col-span-3 flex items-center px-1">
                                         <label className="flex items-center gap-2 cursor-pointer select-none">

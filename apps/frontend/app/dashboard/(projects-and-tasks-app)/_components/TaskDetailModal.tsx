@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { TimeProgressBar } from "@workspace/ui";
 import { toast } from 'react-hot-toast';
 import MultiVoiceRecorder from './MultiVoiceRecorder';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     taskId: string;
@@ -433,7 +434,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                         <User className="w-3 h-3" aria-hidden="true" />Assignee
                                     </label>
                                     {canEdit ? (
-                                        <select
+                                        <CustomSelect
                                             id="taskAssignee"
                                             value={assigneeId}
                                             onChange={(e) => setAssigneeId(e.target.value)}
@@ -444,7 +445,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                             {members.map(m => (
                                                     <option key={m.id} value={m.id}>{m.name}</option>
                                                 ))}
-                                        </select>
+                                        </CustomSelect>
                                     ) : (
                                         <div className="text-sm font-medium">
                                             {assignee ? assignee.name : 'Unassigned'}

@@ -18,6 +18,7 @@ import Link from 'next/link';
 import clsx from 'clsx';
 import nextDynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const SalesTrendAreaChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/SalesTrendAreaChart'), { ssr: false, loading: () => <SkeletonChart /> });
 const SalesPipelinePieChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/SalesPipelinePieChart'), { ssr: false, loading: () => <SkeletonChart /> });
@@ -100,7 +101,7 @@ export default function SalesDashboardPage() {
                 </div>
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <select 
+                        <CustomSelect 
                             className="input h-10 py-0 px-3 min-w-[140px]"
                             value={timeframe}
                             onChange={(e) => setTimeframe(e.target.value)}
@@ -110,7 +111,7 @@ export default function SalesDashboardPage() {
                             <option value="month">Last 30 Days</option>
                             <option value="months">Last 6 Months</option>
                             <option value="all">All Time</option>
-                        </select>
+                        </CustomSelect>
                         <button className="btn btn-secondary flex items-center gap-2 h-10">
                             <DocumentDownload size="18" variant="TwoTone" /> Export
                         </button>

@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Layout, User, AlignLeft, Type } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     projectId: string;
@@ -117,7 +118,7 @@ export default function CreateModuleModal({ projectId, onClose, onSuccess }: Pro
                         <label htmlFor="moduleOwner" className="label">Module Owner *</label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                            <select
+                            <CustomSelect
                                 id="moduleOwner"
                                 value={ownerId}
                                 onChange={(e) => setOwnerId(e.target.value)}
@@ -134,7 +135,7 @@ export default function CreateModuleModal({ projectId, onClose, onSuccess }: Pro
                                         {u.name} ({u.role})
                                     </option>
                                 ))}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <p className="mt-1 text-xs text-gray-400">
                             Owner will have manage permissions for tasks in this module

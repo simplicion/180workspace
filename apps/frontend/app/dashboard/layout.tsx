@@ -318,7 +318,7 @@ interface SidebarProps {
 function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: SidebarProps) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const currentTab = searchParams.get('tab');
+    const currentTab = searchParams?.get('tab');
     const router = useRouter();
 
     const handleLinkClick = () => {
@@ -336,7 +336,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
             return pathname === hrefPath && currentTab === hrefParams.get('tab');
         }
         if (exact) return pathname === href;
-        return pathname === href || pathname?.startsWith(href + '/');
+        return pathname === href || !!pathname?.startsWith(href + '/');
     }
     const { user, logout } = useAuth();
     const { company, settings, platform, refreshSettings } = useSettings();
@@ -421,7 +421,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
         if (roles.includes('admin') || normalizedRole === 'admin' || normalizedRole === 'ceo' || normalizedRole === 'superadmin' || normalizedRole === 'creator' || normalizedRole === 'owner' || normalizedRole === 'founder') {
             roles.push('admin');
         }
-        return roles.filter(Boolean).map(r => r.toLowerCase());
+        return roles.filter((r): r is string => Boolean(r)).map(r => r.toLowerCase());
     }, [user]);
 
     const filteredNav = useMemo(() => {
@@ -431,7 +431,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 const isAppEnabled = item.appId ? (company?.enabledApps || []).includes(item.appId) : true;
 
                 // 2. Filter individual modules within the group
-                const filteredItems = item.items.filter((subItem: any) => {
+                const filteredItems = (item.items || []).filter((subItem: any) => {
                     const hasGranularAccess = subItem.id && user?.permissions?.includes(subItem.id);
                     const roleMatch = userRoles.some(r => subItem.roles?.includes(r as string)) || hasGranularAccess;
                     if (!roleMatch) return false;
@@ -794,7 +794,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
                     <LogoLoader className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">Initializing {authLoading ? 'Profile' : 'Workspace'}...</p>
+                    <p className="text-gray-500 text-sm">{authLoading ? 'Authenticating session...' : 'Loading workspace environment...'}</p>
                 </div>
             </div>
         );
@@ -877,10 +877,13 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 )}
 
                 {!isMeetingFullscreen && <TrialBanner />}
-                {!isMeetingFullscreen && showWall && <SubscriptionExpiredWall />}
-                <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
-                    {children}
-                </div>
+                {!isMeetingFullscreen && showWall ? (
+                    <SubscriptionExpiredWall />
+                ) : (
+                    <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
+                        {children}
+                    </div>
+                )}
             </main>
             <FloatingMeetingPiP />
         </div>

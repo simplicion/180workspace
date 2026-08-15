@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { SkeletonChart } from '@workspace/ui';
 import { Activity, BarChart3 } from 'lucide-react';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface ActivityAnalyticsProps {
     chartData: any[];
@@ -40,7 +41,7 @@ export default function ActivityAnalytics({
                     </div>
                 </div>
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
-                    <select 
+                    <CustomSelect 
                         value={range}
                         onChange={(e) => setRange(e.target.value)}
                         className="text-xs font-semibold bg-gray-50 border border-gray-100 rounded-lg focus:ring-1 focus:ring-indigo-200 text-gray-600 px-3 py-1.5 cursor-pointer appearance-none pr-7"
@@ -50,7 +51,7 @@ export default function ActivityAnalytics({
                         <option value="30">Last 30 Days</option>
                         <option value="90">Last 90 Days</option>
                         <option value="all">All Time</option>
-                    </select>
+                    </CustomSelect>
                     <div className="flex items-center gap-0.5 p-0.5 bg-gray-50 border border-gray-100 rounded-lg">
                         {(['daily', 'weekly', 'monthly'] as const).map((g) => (
                             <button

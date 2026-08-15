@@ -7,6 +7,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
 import { FileText, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const STATUS_STYLES: Record<string, { badge: string; label: string; icon: any }> = {
     draft: { badge: 'badge-gray', label: 'Draft', icon: FileText },
@@ -91,19 +92,19 @@ export function CreateInvoiceDrawer({ isOpen, onClose, onSuccess, clients }: { i
                 <div className="grid grid-cols-2 gap-3">
                     <div>
                         <label htmlFor="clientId" className="label">Client *</label>
-                        <select id="clientId" value={form.clientId} onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))} className="select">
+                        <CustomSelect id="clientId" value={form.clientId} onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))} className="select">
                             <option value="">Select client</option>
                             {clients.map(c => <option key={c.id} value={c.id}>{c.name || c.company}</option>)}
-                        </select>
+                        </CustomSelect>
                         {!form.clientId && (
                             <input id="manualClientName" aria-label="Manual client name" value={form.clientName} onChange={e => setForm(p => ({ ...p, clientName: e.target.value }))} className="input mt-2" placeholder="Or enter client name manually" />
                         )}
                     </div>
                     <div>
                         <label htmlFor="invoiceStatus" className="label">Status</label>
-                        <select id="invoiceStatus" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="select">
+                        <CustomSelect id="invoiceStatus" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="select">
                             {Object.keys(STATUS_STYLES).map(s => <option key={s} value={s}>{STATUS_STYLES[s].label}</option>)}
-                        </select>
+                        </CustomSelect>
                     </div>
                     <div>
                         <label htmlFor="issueDate" className="label">Issue Date</label>

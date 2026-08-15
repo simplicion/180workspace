@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { LogoLoader } from "@workspace/ui";
 import { AddTransactionDrawer } from './_components/AddTransactionDrawer';
 import { useSettings } from '@/lib/settings-context';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function TransactionsPage() {
     const { company } = useSettings();
@@ -161,7 +162,7 @@ export default function TransactionsPage() {
                 </div>
                 
                 <div className="bg-white rounded-xl border border-gray-200 flex items-center pr-3">
-                    <select 
+                    <CustomSelect 
                         value={filterCategory} 
                         onChange={(e) => setFilterCategory(e.target.value)}
                         className="bg-transparent border-none text-sm font-medium text-gray-700 py-2 pl-4 pr-8 focus:ring-0 cursor-pointer outline-none capitalize"
@@ -169,7 +170,7 @@ export default function TransactionsPage() {
                         {categories.map(c => (
                             <option key={c} value={c}>{c === 'all' ? 'All Categories' : c}</option>
                         ))}
-                    </select>
+                    </CustomSelect>
                 </div>
             </div>
 

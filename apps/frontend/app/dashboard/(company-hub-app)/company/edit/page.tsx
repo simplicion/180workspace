@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useSettings } from '@/lib/settings-context';
 import EmailTab from '@/app/dashboard/(settings-app)/_components/EmailTab';
 import api from '@/lib/api';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function EditCompanyProfilePage() {
     const router = useRouter();
@@ -181,12 +182,12 @@ export default function EditCompanyProfilePage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium">Company Type</label>
-                                    <select name="companyType" value={formData.companyType} onChange={handleInputChange} className="w-full p-2 border rounded">
+                                    <CustomSelect name="companyType" value={formData.companyType} onChange={handleInputChange} className="w-full p-2 border rounded">
                                         <option value="B2B">B2B</option>
                                         <option value="B2C">B2C</option>
                                         <option value="B2B2C">B2B2C</option>
                                         <option value="D2C">D2C</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium">Startup Stage</label>

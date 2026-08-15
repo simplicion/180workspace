@@ -90,7 +90,7 @@ model Company {
   documents_CompanyDocuments               Document[]            @relation("CompanyDocuments")
   emailLogs_CompanyEmailLogs               EmailLog[]            @relation("CompanyEmailLogs")
   events_CompanyEvents                     Event[]               @relation("CompanyEvents")
-  expenses                                 Expense[]
+  expenseTransactions                      ExpenseTransaction[]
   goals                                    Goal[]
   holidays_CompanyHolidays                 Holiday[]             @relation("CompanyHolidays")
   jobs_CompanyJobs                         Job[]                 @relation("CompanyJobs")
@@ -106,11 +106,11 @@ model Company {
   CompanyTransaction             CompanyTransaction[]
   users                          User[]
   vendors_CompanyVendors         Vendor[]             @relation("CompanyVendors")
-  vendorBills_CompanyVendorBills VendorBill[]         @relation("CompanyVendorBills")
-  workLogs_CompanyWorkLogs       WorkLog[]            @relation("CompanyWorkLogs")
-  assets                         Asset[]
-  forms                          Form[]
-  knowledgeArticles              KnowledgeArticle[]
+
+  workLogs_CompanyWorkLogs WorkLog[]          @relation("CompanyWorkLogs")
+  assets                   Asset[]
+  forms                    Form[]
+  knowledgeArticles        KnowledgeArticle[]
 }
 
 model CompanyCoreValue {
@@ -203,7 +203,7 @@ model Client {
   company                                 Company?              @relation("CompanyClients", fields: [companyId], references: [id])
   ClientCommunication                     ClientCommunication[]
   contentCalendars_ClientContentCalendars ContentCalendar[]     @relation("ClientContentCalendars")
-  expenses                                Expense[]
+  expenseTransactions                     ExpenseTransaction[]
   invoices                                Invoice[]
   CompanyTransaction                      CompanyTransaction[]  @relation("TransactionClient")
   leads                                   Lead[]                @relation("ClientLeads")
@@ -299,8 +299,8 @@ model User {
   documentPagesCreated                  DocumentPage[]        @relation("UserDocumentPagesCreated")
   documentPagesUpdated                  DocumentPage[]        @relation("UserDocumentPagesUpdated")
   emailLogs_UserEmailLogs               EmailLog[]            @relation("UserEmailLogs")
-  expenses                              Expense[]             @relation("ExpenseEmployee")
-  expensesReviewed                      Expense[]             @relation("ExpenseReviewer")
+  expenseTransactions                   ExpenseTransaction[]  @relation("ExpenseTransactionEmployee")
+  expenseTransactionsReviewed           ExpenseTransaction[]  @relation("ExpenseTransactionReviewer")
   forumPosts_UserForumPosts             ForumPost[]           @relation("UserForumPosts")
   forumReplys_UserForumReplies          ForumReply[]          @relation("UserForumReplies")
   goalsOwned                            Goal[]                @relation("GoalOwner")
@@ -366,37 +366,37 @@ model User {
 }
 
 model Project {
-  id                                       String            @id @default(uuid())
+  id                                       String               @id @default(uuid())
   name                                     String
   description                              String?
-  status                                   String            @default("not_started")
-  priority                                 String            @default("medium")
+  status                                   String               @default("not_started")
+  priority                                 String               @default("medium")
   deadline                                 DateTime?
-  startDate                                DateTime          @default(now())
-  progress                                 Int               @default(0)
-  budget                                   Float             @default(0)
-  projectType                              String            @default("internal")
-  visibility                               String            @default("public")
-  billingType                              String            @default("non_billable")
+  startDate                                DateTime             @default(now())
+  progress                                 Int                  @default(0)
+  budget                                   Float                @default(0)
+  projectType                              String               @default("internal")
+  visibility                               String               @default("public")
+  billingType                              String               @default("non_billable")
   ownerId                                  String?
   memberIds                                String[]
   clientIds                                String[]
   tags                                     String[]
   companyId                                String?
-  createdAt                                DateTime          @default(now())
-  updatedAt                                DateTime          @updatedAt
+  createdAt                                DateTime             @default(now())
+  updatedAt                                DateTime             @updatedAt
   deletedAt                                DateTime?
-  customTaskStatusName                     String?           @default("Custom")
-  contentCalendars_ProjectContentCalendars ContentCalendar[] @relation("ProjectContentCalendars")
-  expenses                                 Expense[]
-  goals                                    Goal[]            @relation("GoalProject")
+  customTaskStatusName                     String?              @default("Custom")
+  contentCalendars_ProjectContentCalendars ContentCalendar[]    @relation("ProjectContentCalendars")
+  expenseTransactions                      ExpenseTransaction[]
+  goals                                    Goal[]               @relation("GoalProject")
   invoices                                 Invoice[]
-  milestones                               Milestone[]       @relation("ProjectMilestones")
-  modules_ProjectModules                   Module[]          @relation("ProjectModules")
-  company                                  Company?          @relation(fields: [companyId], references: [id])
+  milestones                               Milestone[]          @relation("ProjectMilestones")
+  modules_ProjectModules                   Module[]             @relation("ProjectModules")
+  company                                  Company?             @relation(fields: [companyId], references: [id])
   tasks                                    Task[]
-  timeLogs_ProjectTimeLogs                 TimeLog[]         @relation("ProjectTimeLogs")
-  workLogs_ProjectWorkLogs                 WorkLog[]         @relation("ProjectWorkLogs")
+  timeLogs_ProjectTimeLogs                 TimeLog[]            @relation("ProjectTimeLogs")
+  workLogs_ProjectWorkLogs                 WorkLog[]            @relation("ProjectWorkLogs")
 
   @@index([companyId, status])
   @@index([companyId])
@@ -505,32 +505,45 @@ model InvoiceReminder {
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
-model Expense {
-  id           String    @id @default(uuid())
-  title        String
-  amount       Float
-  category     String    @default("other")
-  date         DateTime
-  receiptUrl   String?
-  receiptLinks String[]
-  notes        String?
-  status       String    @default("pending")
-  reviewNote   String?
-  companyId    String
-  projectId    String?
-  clientId     String?
-  employeeId   String
-  reviewedById String?
-  reviewedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  client       Client?   @relation(fields: [clientId], references: [id])
-  company      Company   @relation(fields: [companyId], references: [id])
-  employee     User      @relation("ExpenseEmployee", fields: [employeeId], references: [id])
-  project      Project?  @relation(fields: [projectId], references: [id])
-  reviewedBy   User?     @relation("ExpenseReviewer", fields: [reviewedById], references: [id])
+model ExpenseTransaction {
+  id            String    @id @default(uuid())
+  companyId     String
+  type          String // "company_expense" | "employee_claim"
+  title         String
+  amount        Float
+  currency      String    @default("USD")
+  category      String    @default("other")
+  date          DateTime
+  dueDate       DateTime?
+  attachmentUrl String?
+  receiptLinks  String[]
+  notes         String?
+  status        String    @default("pending") // e.g., pending_approval, approved, unpaid, paid
+  reviewNote    String?
+
+  // Relations
+  projectId     String?
+  clientId      String?
+  vendorId      String?
+  employeeId    String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  payoutId      String?
+  transactionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client      Client?             @relation(fields: [clientId], references: [id])
+  company     Company             @relation(fields: [companyId], references: [id])
+  vendor      Vendor?             @relation(fields: [vendorId], references: [id])
+  employee    User?               @relation("ExpenseTransactionEmployee", fields: [employeeId], references: [id])
+  project     Project?            @relation(fields: [projectId], references: [id])
+  reviewedBy  User?               @relation("ExpenseTransactionReviewer", fields: [reviewedById], references: [id])
+  transaction CompanyTransaction? @relation("TransactionExpenseTransactions", fields: [transactionId], references: [id])
 
   @@index([companyId, employeeId, status])
+  @@index([companyId, vendorId])
   @@index([companyId, projectId])
 }
 
@@ -831,34 +844,34 @@ model Review {
 }
 
 model Salary {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   employeeId    String
-  amount        Float    @default(0)
-  currency      String   @default("USD")
+  amount        Float     @default(0)
+  currency      String    @default("USD")
   effectiveDate DateTime?
-  status        String   @default("pending")
+  status        String    @default("pending")
   companyId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  company       Company? @relation(fields: [companyId], references: [id])
-  employee      User     @relation("SalaryEmployee", fields: [employeeId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  company       Company?  @relation(fields: [companyId], references: [id])
+  employee      User      @relation("SalaryEmployee", fields: [employeeId], references: [id])
 
-  month         String?
-  baseSalary    Float?
-  deductions    Float?
-  bonuses       Float?
-  netSalary     Float?
-  notes         String?
-  generatedBy   String?
-  generatedByUser User?  @relation("SalaryGeneratedBy", fields: [generatedBy], references: [id])
-  totalDays     Float?
-  presentDays   Float?
-  halfDays      Float?
-  absentDays    Float?
-  paidLeaves    Float?
-  unpaidLeaves  Float?
-  perDaySalary  Float?
-  paidAt        DateTime?
+  month           String?
+  baseSalary      Float?
+  deductions      Float?
+  bonuses         Float?
+  netSalary       Float?
+  notes           String?
+  generatedBy     String?
+  generatedByUser User?     @relation("SalaryGeneratedBy", fields: [generatedBy], references: [id])
+  totalDays       Float?
+  presentDays     Float?
+  halfDays        Float?
+  absentDays      Float?
+  paidLeaves      Float?
+  unpaidLeaves    Float?
+  perDaySalary    Float?
+  paidAt          DateTime?
 
   @@unique([employeeId, month])
   @@index([status])
@@ -883,27 +896,27 @@ model Settings {
 }
 
 model CompanyTransaction {
-  id                                 String       @id @default(uuid())
-  companyId                          String
-  type                               String
-  amount                             Float
-  currency                           String       @default("USD")
-  status                             String       @default("pending")
-  provider                           String
-  providerTransactionId              String?      @unique
-  providerOrderId                    String?
-  referenceModel                     String
-  referenceId                        String
-  userId                             String?
-  clientId                           String?
-  failureReason                      String?
-  metadata                           Json?
-  createdAt                          DateTime     @default(now())
-  updatedAt                          DateTime     @updatedAt
-  client                             Client?      @relation("TransactionClient", fields: [clientId], references: [id])
-  company                            Company      @relation(fields: [companyId], references: [id])
-  user                               User?        @relation("TransactionUser", fields: [userId], references: [id])
-  vendorBills_TransactionVendorBills VendorBill[] @relation("TransactionVendorBills")
+  id                    String               @id @default(uuid())
+  companyId             String
+  type                  String
+  amount                Float
+  currency              String               @default("USD")
+  status                String               @default("pending")
+  provider              String
+  providerTransactionId String?              @unique
+  providerOrderId       String?
+  referenceModel        String
+  referenceId           String
+  userId                String?
+  clientId              String?
+  failureReason         String?
+  metadata              Json?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  client                Client?              @relation("TransactionClient", fields: [clientId], references: [id])
+  company               Company              @relation(fields: [companyId], references: [id])
+  user                  User?                @relation("TransactionUser", fields: [userId], references: [id])
+  expenseTransactions   ExpenseTransaction[] @relation("TransactionExpenseTransactions")
 
   @@index([companyId, type, status])
 }
@@ -1340,50 +1353,22 @@ model UserPreference {
 }
 
 model Vendor {
-  id          String       @id @default(uuid())
-  companyId   String
-  name        String
-  email       String?
-  phone       String?
-  category    String       @default("Other")
-  taxId       String?
-  address     Json?        @default("{}")
-  bankDetails Json?        @default("{}")
-  status      String       @default("active")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  company     Company      @relation("CompanyVendors", fields: [companyId], references: [id])
-  vendorBills VendorBill[]
+  id                  String               @id @default(uuid())
+  companyId           String
+  name                String
+  email               String?
+  phone               String?
+  category            String               @default("Other")
+  taxId               String?
+  address             Json?                @default("{}")
+  bankDetails         Json?                @default("{}")
+  status              String               @default("active")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  company             Company              @relation("CompanyVendors", fields: [companyId], references: [id])
+  expenseTransactions ExpenseTransaction[]
 
   @@index([companyId, name])
-  @@index([companyId, status])
-}
-
-model VendorBill {
-  id            String              @id @default(uuid())
-  companyId     String
-  vendorId      String
-  billNumber    String
-  amount        Float
-  currency      String              @default("INR")
-  date          DateTime
-  dueDate       DateTime
-  status        String              @default("pending")
-  attachmentUrl String?
-  notes         String?
-  paidAt        DateTime?
-  payoutId      String?
-  transactionId String?
-  fingerprint   String?
-  riskScore     Float               @default(0)
-  riskNotes     String[]            @default([])
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  company       Company             @relation("CompanyVendorBills", fields: [companyId], references: [id])
-  transaction   CompanyTransaction? @relation("TransactionVendorBills", fields: [transactionId], references: [id])
-  vendor        Vendor              @relation(fields: [vendorId], references: [id])
-
-  @@index([companyId, vendorId])
   @@index([companyId, status])
 }
 

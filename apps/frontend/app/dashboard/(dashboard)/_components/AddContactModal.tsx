@@ -6,6 +6,7 @@ import { X, User, Mail, Phone, Building2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface AddContactModalProps {
     isOpen: boolean;
@@ -129,7 +130,7 @@ export default function AddContactModal({ isOpen, onClose, onSuccess, contact }:
                                 <label htmlFor="contactAccount" className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4 mb-1 block">Account</label>
                                 <div className="relative">
                                     <Building2 className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <select
+                                    <CustomSelect
                                         id="contactAccount"
                                         required
                                         className="input w-full pl-11 bg-gray-50/50 border-gray-100 focus:bg-white appearance-none transition-all"
@@ -140,7 +141,7 @@ export default function AddContactModal({ isOpen, onClose, onSuccess, contact }:
                                         {accounts.map(acc => (
                                             <option key={acc.id} value={acc.id}>{acc.companyName}</option>
                                         ))}
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
                         </div>

@@ -14,6 +14,7 @@ import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
 import { useAccess } from '@/hooks/useAccess';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 const ROLE_COLORS: Record<string, string> = {
     admin: 'badge-purple',
@@ -115,13 +116,13 @@ export default function EmployeesPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employees..." className="input pl-9" />
                 </div>
-                <select value={role} onChange={(e) => setRole(e.target.value)} className="select w-40">
+                <CustomSelect value={role} onChange={(e) => setRole(e.target.value)} className="select w-40">
                     <option value="">All Roles</option>
                     <option value="admin">Admin</option>
                     <option value="manager">Manager</option>
                     <option value="hr">HR</option>
                     <option value="employee">Employee</option>
-                </select>
+                </CustomSelect>
             </div>
 
             {loading ? (

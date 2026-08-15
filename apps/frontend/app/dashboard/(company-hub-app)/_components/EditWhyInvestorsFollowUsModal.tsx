@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, TrendingUp, DollarSign, Trophy, CheckCircle2, FileText } from 'lucide-react';
 import { useUpdateCompanyFinanceTabMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface EditWhyInvestorsFollowUsModalProps {
     isOpen: boolean;
@@ -132,7 +133,7 @@ export function EditWhyInvestorsFollowUsModal({ isOpen, onClose, company, onSave
                                     <div key={index} className="flex gap-4 items-start p-4 bg-gray-50 rounded-xl border border-gray-100">
                                         <div className="w-1/4">
                                             <label className="block text-xs font-medium text-gray-700 mb-1">Icon</label>
-                                            <select 
+                                            <CustomSelect 
                                                 value={highlight.icon}
                                                 onChange={(e) => handleHighlightChange(index, 'icon', e.target.value)}
                                                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none"
@@ -140,7 +141,7 @@ export function EditWhyInvestorsFollowUsModal({ isOpen, onClose, company, onSave
                                                 {AVAILABLE_ICONS.map(i => (
                                                     <option key={i.id} value={i.id}>{i.label}</option>
                                                 ))}
-                                            </select>
+                                            </CustomSelect>
                                         </div>
                                         <div className="w-3/4 space-y-3">
                                             <div>
