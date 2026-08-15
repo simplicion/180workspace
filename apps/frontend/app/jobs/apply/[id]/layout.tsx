@@ -8,7 +8,8 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     try {
         const { id } = await params;
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/public/jobs/${id}`);
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://api.180workspace.com' : 'http://localhost:4002');
+        const res = await fetch(`${apiBase}/api/public/jobs/${id}`);
         const data = await res.json();
         
         if (!data || !data.job) {

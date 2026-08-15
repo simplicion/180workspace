@@ -2,6 +2,7 @@ import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, MapPin, Link as LinkIcon, Edit3, CheckCircle2, XCircle } from 'lucide-react';
+import api from '@/lib/api';
 
 export default function BasicProfile({ 
     onSubmit,
@@ -34,8 +35,8 @@ export default function BasicProfile({
         setUsernameStatus('checking');
         const delayDebounceFn = setTimeout(async () => {
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/check-username?username=${encodeURIComponent(formData.username)}`);
-                const data = await res.json();
+                const res = await api.get(`/api/auth/check-username?username=${encodeURIComponent(formData.username)}`);
+                const data = res.data;
                 if (data.success) {
                     if (data.available) setUsernameStatus('available');
                     else setUsernameStatus(data.message === 'Invalid format' ? 'invalid' : 'unavailable');
