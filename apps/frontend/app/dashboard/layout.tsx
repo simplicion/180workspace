@@ -511,16 +511,6 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                         <ChevronLeft className="w-4 h-4" />
                     </button>
                 )}
-                {!isExpanded && (
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="hidden lg:block p-1 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-400 hover:text-indigo-600 transition-colors absolute -right-3 top-1/2 -translate-y-1/2 z-40"
-                        aria-label="Expand Sidebar"
-                        title="Expand Sidebar"
-                    >
-                        <ChevronLeft className="w-4 h-4 rotate-180" />
-                    </button>
-                )}
             </div>
 
 
