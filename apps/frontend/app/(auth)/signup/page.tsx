@@ -110,13 +110,9 @@ export default function SignupFlow() {
         setEmail(submittedEmail);
         setLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/send-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: submittedEmail })
-            });
-            const data = await res.json();
-            if (res.ok && data.success !== false) {
+            const res = await api.post('/api/auth/send-otp', { email: submittedEmail });
+            const data = res.data;
+            if (data.success !== false) {
                 toast.success('OTP sent to your email!');
                 setStep(2); // Go to OTP verification
             } else {
@@ -125,8 +121,12 @@ export default function SignupFlow() {
                     router.push('/login');
                 }
             }
-        } catch (err) {
-            toast.error('Network error');
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Network error';
+            toast.error(msg);
+            if (err?.response?.data?.code === 'USER_EXISTS') {
+                router.push('/login');
+            }
         } finally {
             setLoading(false);
         }
@@ -136,20 +136,16 @@ export default function SignupFlow() {
     const handleVerifyOtp = async (otp: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/verify-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp })
-            });
-            const data = await res.json();
-            if (res.ok && data.success !== false) {
+            const res = await api.post('/api/auth/verify-otp', { email, otp });
+            const data = res.data;
+            if (data.success !== false) {
                 toast.success('Email verified!');
                 setStep(3); // Go to Password setup
             } else {
                 toast.error(data.message || 'Invalid OTP');
             }
-        } catch (err) {
-            toast.error('Network error');
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Invalid OTP');
         } finally {
             setLoading(false);
         }
@@ -160,31 +156,28 @@ export default function SignupFlow() {
         setPassword(newPassword);
         setLoading(true);
         try {
-            // First set password
-            if (googleTokenId) {
-                res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: profile.name || 'User', email, password: newPassword, companyName: 'Onboarding' }),
-                });
-            } else {
-                res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: 'User', email, password: newPassword, companyName: 'Onboarding' })
-                });
-            }
-            
-            const data = await res.json();
-            if (res.ok || data.success) {
+            // First register the tenant
+            const registerPayload = {
+                name: googleTokenId ? (profile.name || 'User') : 'User',
+                email,
+                password: newPassword,
+                companyName: 'Onboarding'
+            };
+            const registerRes = await api.post('/api/auth/register', registerPayload);
+            const data = registerRes.data;
+
+            if (data.success) {
                 let platformToken = '';
                 // Log them in so they get the JWT token
-                await api.post('/api/auth/login', { email, password: newPassword }).then(authRes => {
+                try {
+                    const authRes = await api.post('/api/auth/login', { email, password: newPassword });
                     platformToken = authRes.data.token;
                     localStorage.setItem('platform_auth_token', platformToken);
                     document.cookie = `platform_auth_token=${platformToken}; path=/; max-age=${60 * 60 * 24 * 7}`;
                     api.defaults.headers.common['Authorization'] = `Bearer ${platformToken}`;
-                }).catch(e => console.error("Auto login failed", e));
+                } catch (e) {
+                    console.error("Auto login failed", e);
+                }
 
                 // Also establish NextAuth session
                 if (platformToken) {
@@ -197,8 +190,8 @@ export default function SignupFlow() {
             } else {
                 toast.error(data.message || data.error || 'Failed to set password');
             }
-        } catch (err) {
-            toast.error('Network error');
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || err?.response?.data?.error || 'Registration failed');
         } finally {
             setLoading(false);
         }
