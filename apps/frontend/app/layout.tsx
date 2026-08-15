@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
 import DesktopSplitView from '@/components/shared/DesktopSplitView';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const viewport = {
     width: 'device-width',
@@ -97,6 +98,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         }}
                     />
                 </Providers>
+                <SpeedInsights />
             </body>
         </html>
     );
