@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 const DEFAULT_FLAGS = [
@@ -13,16 +14,16 @@ const DEFAULT_FLAGS = [
 
 exports.list = async (req, res) => {
     try {
-        let flags = await req.prisma.featureFlag.findMany({
+        let flags = await prisma.featureFlag.findMany({
             orderBy: [{ category: 'asc' }, { label: 'asc' }]
         });
         
         // Seed defaults if empty
         if (flags.length === 0) {
-            await req.prisma.featureFlag.createMany({
+            await prisma.featureFlag.createMany({
                 data: DEFAULT_FLAGS
             });
-            flags = await req.prisma.featureFlag.findMany({
+            flags = await prisma.featureFlag.findMany({
                 orderBy: [{ category: 'asc' }, { label: 'asc' }]
             });
         }
@@ -35,7 +36,7 @@ exports.list = async (req, res) => {
 
 exports.create = async (req, res) => {
     try {
-        const flag = await req.prisma.featureFlag.create({ 
+        const flag = await prisma.featureFlag.create({ 
             data: { ...req.body, updatedBy: req.superAdmin.id }
         });
         res.status(201).json({ flag });
@@ -48,10 +49,10 @@ exports.create = async (req, res) => {
 
 exports.toggle = async (req, res) => {
     try {
-        const flag = await req.prisma.featureFlag.findUnique({ where: { id: req.params.id } });
+        const flag = await prisma.featureFlag.findUnique({ where: { id: req.params.id } });
         if (!flag) return res.status(404).json({ error: 'Flag not found' });
         
-        const updatedFlag = await req.prisma.featureFlag.update({
+        const updatedFlag = await prisma.featureFlag.update({
             where: { id: req.params.id },
             data: { 
                 isEnabled: !flag.isEnabled,
@@ -67,7 +68,7 @@ exports.toggle = async (req, res) => {
 
 exports.remove = async (req, res) => {
     try {
-        await req.prisma.featureFlag.delete({ where: { id: req.params.id } });
+        await prisma.featureFlag.delete({ where: { id: req.params.id } });
         res.json({ message: 'Feature flag deleted' });
     } catch (err) {
         console.error('[FeatureFlag Controller] remove error:', err);

@@ -1,8 +1,9 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 exports.list = async (req, res) => {
     try {
-        const coupons = await req.prisma.coupon.findMany({
+        const coupons = await prisma.coupon.findMany({
             orderBy: { createdAt: 'desc' }
         });
         res.json({ coupons });
@@ -19,7 +20,7 @@ exports.create = async (req, res) => {
             couponCode: req.body.couponCode?.toUpperCase(), 
             createdBy: req.superAdmin.id 
         };
-        const coupon = await req.prisma.coupon.create({ data });
+        const coupon = await prisma.coupon.create({ data });
         res.status(201).json({ coupon });
     } catch (err) {
         console.error('[Coupon Controller] create error:', err);
@@ -30,7 +31,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-        const coupon = await req.prisma.coupon.update({
+        const coupon = await prisma.coupon.update({
             where: { id: req.params.id },
             data: req.body
         });
@@ -44,7 +45,7 @@ exports.update = async (req, res) => {
 
 exports.remove = async (req, res) => {
     try {
-        await req.prisma.coupon.delete({ where: { id: req.params.id } });
+        await prisma.coupon.delete({ where: { id: req.params.id } });
         res.json({ message: 'Coupon deleted' });
     } catch (err) {
         console.error('[Coupon Controller] remove error:', err);
@@ -55,10 +56,10 @@ exports.remove = async (req, res) => {
 
 exports.toggle = async (req, res) => {
     try {
-        const coupon = await req.prisma.coupon.findUnique({ where: { id: req.params.id } });
+        const coupon = await prisma.coupon.findUnique({ where: { id: req.params.id } });
         if (!coupon) return res.status(404).json({ error: 'Coupon not found' });
         
-        const updatedCoupon = await req.prisma.coupon.update({
+        const updatedCoupon = await prisma.coupon.update({
             where: { id: req.params.id },
             data: { isActive: !coupon.isActive }
         });
@@ -72,7 +73,7 @@ exports.toggle = async (req, res) => {
 exports.validate = async (req, res) => {
     try {
         const { code } = req.params;
-        const coupon = await req.prisma.coupon.findUnique({ 
+        const coupon = await prisma.coupon.findUnique({ 
             where: { couponCode: code.toUpperCase() } 
         });
         

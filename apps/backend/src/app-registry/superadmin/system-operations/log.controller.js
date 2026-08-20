@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 exports.activityLogs = async (req, res) => {
@@ -7,12 +8,11 @@ exports.activityLogs = async (req, res) => {
         const limitNum = Number(limit);
 
         const [logs, total] = await Promise.all([
-            req.prisma.activityLog.findMany({
+            prisma.activityLog.findMany({
                 orderBy: { createdAt: 'desc' },
                 skip: (pageNum - 1) * limitNum,
                 take: limitNum,
-            }),
-            req.prisma.activityLog.count(),
+            }).activityLog.count(),
         ]);
         res.json({ logs, total });
     } catch (err) {
@@ -32,13 +32,12 @@ exports.failedLogins = async (req, res) => {
         };
 
         const [logs, total] = await Promise.all([
-            req.prisma.activityLog.findMany({
+            prisma.activityLog.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
                 skip: (pageNum - 1) * limitNum,
                 take: limitNum,
-            }),
-            req.prisma.activityLog.count({ where }),
+            }).activityLog.count({ where }),
         ]);
         res.json({ logs, total });
     } catch (err) {

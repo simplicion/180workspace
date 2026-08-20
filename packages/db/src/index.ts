@@ -1,6 +1,8 @@
 import { PrismaClient, Prisma } from '../generated/client/index.js';
 import { AsyncLocalStorage } from 'async_hooks';
 
+export { PrismaClient, Prisma };
+
 export const queryMetricsStorage = new AsyncLocalStorage<any>();
 
 // Global singleton to prevent connection exhaustion in dev
@@ -76,7 +78,8 @@ export const getCompanyPrisma = (
   const extendedPrisma = basePrisma.$extends({
     query: {
       $allModels: {
-        async $allOperations({ model, operation, args, query }) {
+        async $allOperations({ model, operation, args, query }: any) {
+          // @ts-ignore
           let anyArgs: any = args || {};
 
           // 1. Company Scope Injection (Before Query)

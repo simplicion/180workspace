@@ -7,3 +7,4 @@ router.get('/:token', contractController.getContractByToken);
 router.post('/:token/sign', contractController.signContract);
 
 module.exports = router;
+

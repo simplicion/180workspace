@@ -11,3 +11,4 @@ router.delete('/:id', contractController.deleteContract);
 router.post('/:id/share', contractController.generateShareLink);
 
 module.exports = router;
+

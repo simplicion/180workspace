@@ -8,10 +8,8 @@ const crypto = require('crypto');
  */
 exports.getPublicJobs = async (req, res, next) => {
     try {
-        if (!req.prisma) {
-            return res.status(400).json({ error: 'Workspace context is required. Please access via your workspace subdomain.' });
-        }
-        const jobs = await req.prisma.job.findMany({
+        const db = req.company ? getCompanyPrisma(req.company.id) : prisma;
+        const jobs = await db.job.findMany({
             where: { status: 'open' },
             select: {
                 id: true,
@@ -50,7 +48,7 @@ exports.getPublicJobDetails = async (req, res, next) => {
         const { id } = req.params;
         const companyId = req.query.companyId;
 
-        let db = req.prisma;
+        let db = req.company ? getCompanyPrisma(req.company.id) : prisma;
 
         if (!db && companyId) {
             db = getCompanyPrisma(companyId);
@@ -58,7 +56,7 @@ exports.getPublicJobDetails = async (req, res, next) => {
 
         if (!db) {
             // Attempt to search primary DB if supported
-            db = prisma;
+            db = req.company ? getCompanyPrisma(req.company.id) : prisma;
         }
 
 
@@ -113,7 +111,7 @@ exports.getPublicJobDetails = async (req, res, next) => {
  */
 exports.submitApplication = async (req, res, next) => {
     try {
-        const db = req.prisma || prisma;
+        
         const { jobId, applicantName, applicantEmail, phone, resumeUrl, coverLetter, customFields } = req.body;
 
         if (!jobId || !applicantName || !applicantEmail) {
@@ -264,7 +262,8 @@ exports.getBranding = async (req, res, next) => {
  */
 exports.getExploreJobs = async (req, res, next) => {
     try {
-        const jobs = await prisma.job.findMany({
+        const db = req.company ? getCompanyPrisma(req.company.id) : prisma;
+        const jobs = await db.job.findMany({
             where: { status: 'open' },
             include: {
                 company: {
@@ -322,7 +321,7 @@ exports.getMyApplications = async (req, res, next) => {
  */
 exports.getPublicEvents = async (req, res, next) => {
     try {
-        let db = req.prisma;
+        let db = req.company ? getCompanyPrisma(req.company.id) : prisma;
         if (!db) {
             db = require('@workspace/db').prisma;
         }
@@ -353,7 +352,7 @@ exports.getPublicEvents = async (req, res, next) => {
 exports.getPublicEventDetails = async (req, res, next) => {
     try {
         const { id } = req.params;
-        let db = req.prisma;
+        let db = req.company ? getCompanyPrisma(req.company.id) : prisma;
         if (!db) {
             db = require('@workspace/db').prisma;
         }
@@ -389,7 +388,7 @@ exports.checkRegistration = async (req, res, next) => {
     try {
         const { eventId } = req.params;
         const { email } = req.query;
-        let db = req.prisma;
+        let db = req.company ? getCompanyPrisma(req.company.id) : prisma;
         if (!db) {
             db = require('@workspace/db').prisma;
         }
@@ -416,7 +415,7 @@ exports.submitEventRegistration = async (req, res, next) => {
         const { eventId } = req.params;
         const registrationData = req.body;
         
-        let db = req.prisma;
+        let db = req.company ? getCompanyPrisma(req.company.id) : prisma;
         if (!db) {
             db = require('@workspace/db').prisma;
         }

@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 'use strict';
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -18,7 +19,7 @@ exports.login = async (req, res) => {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
         
-        const admin = await req.prisma.superAdmin.findUnique({ 
+        const admin = await prisma.superAdmin.findUnique({ 
             where: { email: email.toLowerCase() } 
         });
         
@@ -44,7 +45,7 @@ exports.updateProfile = async (req, res) => {
         const { name, email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
 
-        const existingEmail = await req.prisma.superAdmin.findFirst({ 
+        const existingEmail = await prisma.superAdmin.findFirst({ 
             where: { 
                 email: email.toLowerCase(), 
                 id: { not: req.superAdmin.id } 
@@ -55,7 +56,7 @@ exports.updateProfile = async (req, res) => {
         const updateData = { email: email.toLowerCase() };
         if (name) updateData.name = name;
 
-        const updatedAdmin = await req.prisma.superAdmin.update({
+        const updatedAdmin = await prisma.superAdmin.update({
             where: { id: req.superAdmin.id },
             data: updateData
         });
@@ -72,14 +73,14 @@ exports.changePassword = async (req, res) => {
         const { currentPassword, newPassword } = req.body;
         if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
         
-        const admin = await req.prisma.superAdmin.findUnique({ where: { id: req.superAdmin.id } });
+        const admin = await prisma.superAdmin.findUnique({ where: { id: req.superAdmin.id } });
         
         const valid = await bcrypt.compare(currentPassword, admin.passwordHash);
         if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
 
         const hashedNewPassword = await bcrypt.hash(newPassword, 12);
         
-        await req.prisma.superAdmin.update({
+        await prisma.superAdmin.update({
             where: { id: admin.id },
             data: { passwordHash: hashedNewPassword }
         });

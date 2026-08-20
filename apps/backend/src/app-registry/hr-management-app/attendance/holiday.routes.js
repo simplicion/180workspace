@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 'use strict';
 
 const express = require('express');
@@ -19,7 +20,7 @@ router.get('/', protect, async (req, res, next) => {
                 lte: new Date(`${year}-12-31T23:59:59.999Z`)
             };
         }
-        const holidays = await req.prisma.holiday.findMany({
+        const holidays = await prisma.holiday.findMany({
             where: filter,
             orderBy: { date: 'asc' }
         });
@@ -33,7 +34,7 @@ router.post('/', protect, requireHR, async (req, res, next) => {
         const { name, date, type, description } = req.body;
         if (!name || !date) return res.status(400).json({ error: 'Name and date are required' });
         if (!req.user.companyId) return res.status(403).json({ error: 'Company ID is required to create a holiday' });
-        const holiday = await req.prisma.holiday.create({
+        const holiday = await prisma.holiday.create({
             data: { name, date: new Date(date), type, description, companyId: req.user.companyId }
         });
         res.status(201).json({ holiday });
@@ -50,12 +51,12 @@ router.put('/:id', protect, requireHR, async (req, res, next) => {
         const update = { name, type, description };
         if (date) update.date = new Date(date);
         
-        const existingHoliday = await req.prisma.holiday.findUnique({ where: { id: req.params.id } });
+        const existingHoliday = await prisma.holiday.findUnique({ where: { id: req.params.id } });
         if (!existingHoliday || existingHoliday.companyId !== req.user.companyId) {
             return res.status(404).json({ error: 'Holiday not found' });
         }
         
-        const holiday = await req.prisma.holiday.update({
+        const holiday = await prisma.holiday.update({
             where: { id: req.params.id },
             data: update
         });
@@ -69,12 +70,12 @@ router.put('/:id', protect, requireHR, async (req, res, next) => {
 // Delete a holiday (admin / hr only)
 router.delete('/:id', protect, requireHR, async (req, res, next) => {
     try {
-        const existingHoliday = await req.prisma.holiday.findUnique({ where: { id: req.params.id } });
+        const existingHoliday = await prisma.holiday.findUnique({ where: { id: req.params.id } });
         if (!existingHoliday || existingHoliday.companyId !== req.user.companyId) {
             return res.status(404).json({ error: 'Holiday not found' });
         }
 
-        await req.prisma.holiday.delete({
+        await prisma.holiday.delete({
             where: { id: req.params.id }
         });
         res.json({ message: 'Holiday deleted' });

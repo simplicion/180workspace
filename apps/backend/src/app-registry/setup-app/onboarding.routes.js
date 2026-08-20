@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 ﻿const express = require('express');
 const router = express.Router();
 const { protect, requireAdminOrHR } = require('../../system-configs/middleware/auth/auth.js');
@@ -6,13 +7,13 @@ const { protect, requireAdminOrHR } = require('../../system-configs/middleware/a
 router.get('/', protect, async (req, res, next) => {
     try {
         if (['admin', 'manager', 'hr'].includes(req.user.role)) {
-            const list = await req.prisma.onboarding.findMany({
+            const list = await prisma.onboarding.findMany({
                 include: { employee: { select: { name: true, email: true, department: true, role: true } } }
             });
             return res.json({ onboardings: list });
         }
         // Employee gets their own
-        const ob = await req.prisma.onboarding.findUnique({
+        const ob = await prisma.onboarding.findUnique({
             where: { employeeId: req.user.id },
             include: { employee: { select: { name: true, email: true, department: true, role: true } } }
         });
@@ -25,10 +26,10 @@ router.post('/', protect, requireAdminOrHR, async (req, res, next) => {
     try {
         const { employeeId, recruitmentId } = req.body;
 
-        let ob = await req.prisma.onboarding.findUnique({ where: { employeeId } });
+        let ob = await prisma.onboarding.findUnique({ where: { employeeId } });
         if (ob) return res.status(400).json({ error: 'Onboarding already exists for this employee' });
 
-        ob = await req.prisma.onboarding.create({
+        ob = await prisma.onboarding.create({
             data: { employeeId, recruitmentId, status: 'pending', step: 1 }
         });
         res.status(201).json({ onboarding: ob });
@@ -38,14 +39,14 @@ router.post('/', protect, requireAdminOrHR, async (req, res, next) => {
 // Update personal info (Step 1)
 router.put('/:id/personal', protect, async (req, res, next) => {
     try {
-        const ob = await req.prisma.onboarding.findUnique({ where: { id: req.params.id } });
+        const ob = await prisma.onboarding.findUnique({ where: { id: req.params.id } });
         if (!ob) return res.status(404).json({ error: 'Not found' });
         if (ob.employeeId !== req.user.id && !['admin', 'hr'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Not authorized' });
         }
 
         const currentPersonalInfo = typeof ob.personalInfo === 'object' && ob.personalInfo !== null ? ob.personalInfo : {};
-        const updatedOb = await req.prisma.onboarding.update({
+        const updatedOb = await prisma.onboarding.update({
             where: { id: req.params.id },
             data: {
                 personalInfo: { ...currentPersonalInfo, ...req.body },
@@ -60,14 +61,14 @@ router.put('/:id/personal', protect, async (req, res, next) => {
 // Update documents (Step 2)
 router.put('/:id/documents', protect, async (req, res, next) => {
     try {
-        const ob = await req.prisma.onboarding.findUnique({ where: { id: req.params.id } });
+        const ob = await prisma.onboarding.findUnique({ where: { id: req.params.id } });
         if (!ob) return res.status(404).json({ error: 'Not found' });
         if (ob.employeeId !== req.user.id && !['admin', 'hr'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Not authorized' });
         }
 
         const currentDocuments = typeof ob.documents === 'object' && ob.documents !== null ? ob.documents : {};
-        const updatedOb = await req.prisma.onboarding.update({
+        const updatedOb = await prisma.onboarding.update({
             where: { id: req.params.id },
             data: {
                 documents: { ...currentDocuments, ...req.body },
@@ -81,13 +82,13 @@ router.put('/:id/documents', protect, async (req, res, next) => {
 // Complete onboarding (acknowledge welcome, Step 3)
 router.put('/:id/complete', protect, async (req, res, next) => {
     try {
-        const ob = await req.prisma.onboarding.findUnique({ where: { id: req.params.id } });
+        const ob = await prisma.onboarding.findUnique({ where: { id: req.params.id } });
         if (!ob) return res.status(404).json({ error: 'Not found' });
         if (ob.employeeId !== req.user.id && !['admin', 'hr'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Not authorized' });
         }
 
-        const updatedOb = await req.prisma.onboarding.update({
+        const updatedOb = await prisma.onboarding.update({
             where: { id: req.params.id },
             data: {
                 welcomeAcknowledgedAt: new Date(),
@@ -101,7 +102,7 @@ router.put('/:id/complete', protect, async (req, res, next) => {
             const { createNotification } = require('../../platform-core/platform-communications/services/notify');
             const { getIo } = require('../../system-configs/sockets');
 
-            const admins = await req.prisma.user.findMany({
+            const admins = await prisma.user.findMany({
                 where: { role: { in: ['admin', 'hr'] } },
                 select: { id: true }
             });
@@ -115,7 +116,7 @@ router.put('/:id/complete', protect, async (req, res, next) => {
                     message: `${req.user.name} has completed their onboarding process.`,
                     actionUrl: `/dashboard/employees/${req.user.id}`,
                     io,
-                }, req.prisma);
+                });
             }
         } catch (e) { /* swallow */ }
 
@@ -126,7 +127,7 @@ router.put('/:id/complete', protect, async (req, res, next) => {
 // Delete onboarding record
 router.delete('/:id', protect, requireAdminOrHR, async (req, res, next) => {
     try {
-        await req.prisma.onboarding.delete({ where: { id: req.params.id } });
+        await prisma.onboarding.delete({ where: { id: req.params.id } });
         res.json({ success: true });
     } catch (error) {
         if (error.code === 'P2025') return res.status(404).json({ error: 'Not found' });

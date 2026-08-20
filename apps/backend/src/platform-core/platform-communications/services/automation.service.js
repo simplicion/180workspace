@@ -1,6 +1,6 @@
 'use strict';
 
-const EmailService = require('../../../app-registry/productivity-tools-app/emails/email.service');
+const EmailService = require('../../../app-registry/communications-app/emails/email.service');
 const SmartNotificationService = require('./smart-notification.service');
 
 /**

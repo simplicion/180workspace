@@ -1,105 +1,22 @@
-'use strict';
-
-const { prisma } = require('@workspace/db');
-
-/**
- * Modules that must always exist in enabledModules for the platform to work correctly.
- */
-const REQUIRED_MODULES = ['work-logs', 'projects', 'tasks'];
+const { CompanyConfigService } = require('@workspace/company');
 
 exports.getCompanyConfig = async (req, res, next) => {
     try {
         const companyId = req.user.companyId;
-
-        const company = await prisma.company.findUnique({
-            where: { id: companyId }
-        });
-
-        if (!company) {
-            return res.status(404).json({ error: 'Company not found' });
-        }
-
-        let metadata = company.metadata || {};
-        if (typeof metadata === 'string') {
-            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
-        }
-        if (typeof metadata === 'string') {
-            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
-        }
-        const safeCompany = { ...company };
-        delete safeCompany.adminPasswordHash;
-        
-        const config = {
-            ...safeCompany,
-            companyId: company.id,
-            companyName: company.name,
-            companyEmail: company.adminEmail,
-            companyLogo: company.logoUrl,
-            enabledApps: metadata.enabledApps || [],
-            enabledModules: metadata.enabledModules || [],
-            ...metadata
-        };
-
-        const REQUIRED_APPS = ['tools', 'projects', 'crm', 'hr', 'finance'];
-        const missingApps = REQUIRED_APPS.filter(a => !config.enabledApps?.includes(a));
-        const missingModules = REQUIRED_MODULES.filter(m => !config.enabledModules?.includes(m));
-
-        if (missingApps.length > 0 || missingModules.length > 0) {
-            const updatedApps = Array.from(new Set([...(config.enabledApps || []), ...missingApps]));
-            const updatedModules = Array.from(new Set([...(config.enabledModules || []), ...missingModules]));
-            await prisma.company.update({
-                where: { id: companyId },
-                data: {
-                    metadata: {
-                        ...metadata,
-                        enabledApps: updatedApps,
-                        enabledModules: updatedModules
-                    }
-                }
-            });
-            config.enabledApps = updatedApps;
-            config.enabledModules = updatedModules;
-        }
-
+        const config = await CompanyConfigService.getCompanyConfig(companyId);
         res.json({ config });
-    } catch (err) { next(err); }
+    } catch (err) {
+        if (err.message === 'Company not found') {
+            return res.status(404).json({ error: err.message });
+        }
+        next(err);
+    }
 };
 
 exports.updateCompanyConfig = async (req, res, next) => {
     try {
         const companyId = req.user.companyId;
-
-        const company = await prisma.company.findUnique({
-            where: { id: companyId }
-        });
-
-        if (!company) {
-            return res.status(404).json({ error: 'Company not found' });
-        }
-
-        let metadata = company.metadata || {};
-        if (typeof metadata === 'string') {
-            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
-        }
-        if (typeof metadata === 'string') {
-            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
-        }
-        const updatedCompany = await prisma.company.update({
-            where: { id: companyId },
-            data: {
-                name: req.body.companyName !== undefined ? req.body.companyName : company.name,
-                logoUrl: req.body.companyLogo !== undefined ? req.body.companyLogo : company.logoUrl,
-                currency: req.body.currency !== undefined ? req.body.currency : company.currency,
-                currencySymbol: req.body.currencySymbol !== undefined ? req.body.currencySymbol : company.currencySymbol,
-                metadata: {
-                    ...metadata,
-                    ...req.body
-                }
-            }
-        });
-
-        const safeCompany = { ...updatedCompany };
-        delete safeCompany.adminPasswordHash;
+        const { config, updatedCompany } = await CompanyConfigService.updateCompanyConfig(companyId, req.body);
 
         // Clear redis cache to prevent stale data
         const { redis } = require('../../../system-configs/config/redis');
@@ -118,52 +35,21 @@ exports.updateCompanyConfig = async (req, res, next) => {
             }
         }
 
-        const config = {
-            ...safeCompany,
-            companyId: updatedCompany.id,
-            companyName: updatedCompany.name,
-            companyEmail: updatedCompany.adminEmail,
-            companyLogo: updatedCompany.logoUrl,
-            enabledApps: updatedCompany.metadata?.enabledApps || [],
-            enabledModules: updatedCompany.metadata?.enabledModules || [],
-            ...updatedCompany.metadata
-        };
-
         res.json({ config, message: 'Company configuration updated successfully' });
-    } catch (err) { next(err); }
+    } catch (err) {
+        if (err.message === 'Company not found') {
+            return res.status(404).json({ error: err.message });
+        }
+        next(err);
+    }
 };
 
 exports.updateEnabledApps = async (req, res, next) => {
     try {
         const { apps } = req.body;
-        if (!Array.isArray(apps)) return res.status(400).json({ error: 'Apps must be an array' });
-
         const companyId = req.user.companyId;
 
-        const company = await prisma.company.findUnique({
-            where: { id: companyId }
-        });
-
-        if (!company) {
-            return res.status(404).json({ error: 'Company not found' });
-        }
-
-        let metadata = company.metadata || {};
-        if (typeof metadata === 'string') {
-            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
-        }
-        if (typeof metadata === 'string') {
-            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
-        }
-        const updatedCompany = await prisma.company.update({
-            where: { id: companyId },
-            data: {
-                metadata: {
-                    ...metadata,
-                    enabledApps: apps
-                }
-            }
-        });
+        const { config, updatedCompany } = await CompanyConfigService.updateEnabledApps(companyId, apps);
 
         const { redis } = require('../../../system-configs/config/redis');
         if (redis) {
@@ -181,45 +67,24 @@ exports.updateEnabledApps = async (req, res, next) => {
             }
         }
 
-        const config = {
-            id: updatedCompany.id,
-            companyId: updatedCompany.id,
-            companyName: updatedCompany.name,
-            companyEmail: updatedCompany.adminEmail,
-            companyLogo: updatedCompany.logoUrl,
-            enabledApps: updatedCompany.metadata?.enabledApps || [],
-            enabledModules: updatedCompany.metadata?.enabledModules || []
-        };
-
         res.json({ config, message: 'Apps updated successfully' });
-    } catch (err) { next(err); }
+    } catch (err) {
+        if (err.message === 'Apps must be an array') {
+            return res.status(400).json({ error: err.message });
+        }
+        if (err.message === 'Company not found') {
+            return res.status(404).json({ error: err.message });
+        }
+        next(err);
+    }
 };
 
 exports.updateEnabledModules = async (req, res, next) => {
     try {
         const { modules } = req.body;
-        if (!Array.isArray(modules)) return res.status(400).json({ error: 'Modules must be an array' });
-
         const companyId = req.user.companyId;
 
-        const company = await prisma.company.findUnique({
-            where: { id: companyId }
-        });
-
-        if (!company) {
-            return res.status(404).json({ error: 'Company not found' });
-        }
-
-        const metadata = company.metadata || {};
-        const updatedCompany = await prisma.company.update({
-            where: { id: companyId },
-            data: {
-                metadata: {
-                    ...metadata,
-                    enabledModules: modules
-                }
-            }
-        });
+        const { config, updatedCompany } = await CompanyConfigService.updateEnabledModules(companyId, modules);
 
         const { redis } = require('../../../system-configs/config/redis');
         if (redis) {
@@ -237,16 +102,14 @@ exports.updateEnabledModules = async (req, res, next) => {
             }
         }
 
-        const config = {
-            id: updatedCompany.id,
-            companyId: updatedCompany.id,
-            companyName: updatedCompany.name,
-            companyEmail: updatedCompany.adminEmail,
-            companyLogo: updatedCompany.logoUrl,
-            enabledApps: updatedCompany.metadata?.enabledApps || [],
-            enabledModules: updatedCompany.metadata?.enabledModules || []
-        };
-
         res.json({ config, message: 'Modules updated successfully' });
-    } catch (err) { next(err); }
+    } catch (err) {
+        if (err.message === 'Modules must be an array') {
+            return res.status(400).json({ error: err.message });
+        }
+        if (err.message === 'Company not found') {
+            return res.status(404).json({ error: err.message });
+        }
+        next(err);
+    }
 };

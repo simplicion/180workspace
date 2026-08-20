@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 'use strict';
 
 const express = require('express');
@@ -8,7 +9,7 @@ const { createNotification } = require('../../../platform-core/platform-communic
 
 /**
  * All Leave routes are company-isolated.
- * Models are retrieved from req.prisma to ensure data comes from the correct workspace.
+ * Models are retrieved from prisma to ensure data comes from the correct workspace.
  */
 
 // Employee applies for leave
@@ -21,7 +22,7 @@ router.post('/', protect, async (req, res, next) => {
         const end = new Date(endDate);
         const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
         
-        const leave = await req.prisma.leave.create({
+        const leave = await prisma.leave.create({
             data: {
                 employeeId: req.user.id,
                 type: type || 'casual',
@@ -52,7 +53,7 @@ router.get('/', protect, async (req, res, next) => {
             filter.startDate = { startsWith: month };
         }
         
-        const leaves = await req.prisma.leave.findMany({
+        const leaves = await prisma.leave.findMany({
             where: filter,
             include: {
                 employee: { select: { id: true, name: true, email: true, department: true } },
@@ -71,7 +72,7 @@ router.put('/:id/review', protect, requireHR, async (req, res, next) => {
         const { status, reviewNote } = req.body;
         if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
         
-        const leave = await req.prisma.leave.update({
+        const leave = await prisma.leave.update({
             where: { id: req.params.id },
             data: { 
                 status, 
@@ -106,7 +107,7 @@ router.put('/:id/review', protect, requireHR, async (req, res, next) => {
 // Delete own pending leave request
 router.delete('/:id', protect, async (req, res, next) => {
     try {
-        const leave = await req.prisma.leave.findUnique({ where: { id: req.params.id } });
+        const leave = await prisma.leave.findUnique({ where: { id: req.params.id } });
         if (!leave) return res.status(404).json({ error: 'Not found' });
         if (leave.status !== 'pending') return res.status(400).json({ error: 'Can only delete pending requests' });
         
@@ -115,7 +116,7 @@ router.delete('/:id', protect, async (req, res, next) => {
             return res.status(403).json({ error: 'Not authorized' });
         }
         
-        await req.prisma.leave.delete({ where: { id: req.params.id } });
+        await prisma.leave.delete({ where: { id: req.params.id } });
         res.json({ message: 'Leave request deleted' });
     } catch (err) { next(err); }
 });

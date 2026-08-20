@@ -1,333 +1,99 @@
 'use strict';
 
-const { logAction } = require('../../system-configs/middleware/audit/audit.js');
-const { deleteFromCloudinary } = require('../../system-configs/config/cloudinary.js');
-const { prisma: globalPrisma } = require('@workspace/db');
+const { UserService } = require('@workspace/identity');
 
 exports.getUsers = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        const { search, role, page = 1, limit = 50 } = req.query;
-        const query = {};
-        
-        if (search) {
-            query.OR = [
-                { name: { contains: search, mode: 'insensitive' } },
-                { email: { contains: search, mode: 'insensitive' } },
-                { employeeId: { contains: search, mode: 'insensitive' } }
-            ];
-        }
-        if (role) query.role = role;
-
-        const skip = (Number(page) - 1) * Number(limit);
-        const take = Number(limit);
-
-        const [users, total] = await Promise.all([
-            User.findMany({
-                where: query,
-                skip,
-                take,
-                orderBy: { createdAt: 'desc' },
-                include: { designation: true }
-            }),
-            User.count({ where: query })
-        ]);
-
-        res.json({ users, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) });
+        const result = await UserService.getUsers(req.query);
+        res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.getUserById = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        
-        // Prisma fetches all fields by default, so we don't need to conditionally add +apiKey etc.
-        // We can just fetch the user.
-        const user = await User.findUnique({ where: { id: req.params.id } });
-        
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        
-        // If not admin, we might want to manually strip sensitive fields
-        if (!['admin', 'manager'].includes(req.user.role)) {
-            delete user.apiKey;
-            delete user.apiKeyEnabled;
-            delete user.mfaSecret;
-            delete user.bankAccount;
-        }
-
-        res.json({ user });
+        const result = await UserService.getUserById(req.params.id, req.user.role);
+        res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.updateUser = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        const { id } = req.params;
-        const forbidden = ['password', 'email', 'refreshTokens', 'mfaSecret'];
-        
-        if (!['admin', 'ceo'].includes(req.user.role)) {
-            forbidden.push('roles', 'role', 'salary', 'employeeId', 'permissions');
-        }
-        forbidden.forEach((f) => delete req.body[f]);
-
-        const existingUser = await User.findUnique({ where: { id } });
-        if (!existingUser) return res.status(404).json({ error: 'User not found' });
-
-        if (req.body.designationId === "") req.body.designationId = null;
-        if (req.body.managerId === "") req.body.managerId = null;
-        if (req.body.salary !== undefined) req.body.salary = parseFloat(req.body.salary) || 0;
-        if (req.body.leaveBalance !== undefined) req.body.leaveBalance = parseFloat(req.body.leaveBalance) || 0;
-        
-        // Normalize fields coming from frontend
-        if (req.body.roles && Array.isArray(req.body.roles)) {
-            req.body.role = req.body.roles[0] || 'employee';
-            delete req.body.roles;
-        }
-        if (req.body.joiningDate) {
-            req.body.joinDate = new Date(req.body.joiningDate);
-            delete req.body.joiningDate;
-        }
-        if (req.body.joinDate && typeof req.body.joinDate === 'string') {
-            req.body.joinDate = new Date(req.body.joinDate);
-        }
-
-        if (req.body.designationId) {
-            const designationId = req.body.designationId;
-            const Designation = req.prisma.designation;
-            if (Designation) {
-                // Find or create designation
-                let existing = await Designation.findFirst({ 
-                    where: { 
-                        name: { equals: designationId, mode: 'insensitive' },
-                        OR: [{ companyId: req.company?.id }, { companyId: null }]
-                    } 
-                });
-                if (!existing) {
-                    existing = await Designation.create({ 
-                        data: { name: designationId, isCustom: true, companyId: req.company?.id } 
-                    });
-                }
-                req.body.designationId = existing.id;
-            }
-        }
-
-        const user = await User.update({
-            where: { id },
-            data: req.body
-        });
-
-        await logAction(req.user.id, 'UPDATE_USER', 'user', id, {}, req);
-        res.json({ user });
+        const result = await UserService.updateUser(req.params.id, req.body, req.user, req.company, req);
+        res.json(result);
     } catch (err) { 
-        if (err.code === 'P2025') return res.status(404).json({ error: 'User not found' });
+        if (err.message === 'User not found' || (err.code && err.code === 'P2025')) return res.status(404).json({ error: 'User not found' });
         next(err); 
     }
 };
 
 exports.deleteUser = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        const { id } = req.params;
-        const reqUserId = req.user.id;
-
-        if (id === String(reqUserId)) {
-            return res.status(400).json({ error: 'Cannot delete your own account' });
-        }
-
-        const targetUser = await User.findUnique({ where: { id } });
-        if (!targetUser) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const originalEmail = targetUser.email;
-
-        // 1. Delete photo from Cloudinary if exists
-        if (targetUser.photoUrl) {
-            try {
-                const publicId = targetUser.photoUrl.split('/').pop().split('.')[0];
-                await deleteFromCloudinary(publicId);
-            } catch (_) { /* non-critical */ }
-        }
-
-        // 2. Scrub ALL PII from the user document, keep _id & company-data fields
-        const scrubbed = {
-            name: `Deleted User`,
-            email: `deleted_${id}@removed.invalid`,
-            password: 'REDACTED',
-            phone: '',
-            photoUrl: '',
-            emergencyContact: '',
-            mfaEnabled: false,
-            mfaSecret: null,
-            apiKey: null,
-            apiKeyEnabled: false,
-            bankAccount: '',
-            isActive: false,
-            deletedAt: new Date(),
-        };
-
-        await User.update({ where: { id }, data: scrubbed });
-
-        await logAction(reqUserId, 'DELETE_USER', 'user', id, { originalEmail }, req);
-        res.json({ message: 'User account and personal data deleted successfully. Company data has been retained.' });
-    } catch (err) { next(err); }
+        const result = await UserService.deleteUser(req.params.id, req.user, req);
+        res.json(result);
+    } catch (err) { 
+        if (err.message === 'Cannot delete your own account') return res.status(400).json({ error: err.message });
+        if (err.message === 'User not found') return res.status(404).json({ error: err.message });
+        next(err); 
+    }
 };
 
 exports.updatePhoto = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        if (!req.storageResult) {
-            return res.status(400).json({ error: 'Photo upload failed' });
-        }
-        
-        const user = await User.update({ 
-            where: { id: req.params.id }, 
-            data: { photoUrl: req.storageResult.fileUrl } 
-        });
-        
-        res.json({ user, photoUrl: req.storageResult.fileUrl });
+        const result = await UserService.updatePhoto(req.params.id, req.storageResult);
+        res.json(result);
     } catch (err) { 
-        if (err.code === 'P2025') return res.status(404).json({ error: 'User not found' });
+        if (err.message === 'Photo upload failed') return res.status(400).json({ error: err.message });
+        if (err.message === 'User not found' || (err.code && err.code === 'P2025')) return res.status(404).json({ error: 'User not found' });
         next(err); 
     }
 };
 
 exports.getProfileStats = async (req, res, next) => {
     try {
-        const { id } = req.params;
-        
-        if (!/^[0-9a-fA-F]{24}$/.test(id) && !id) {
-            // Simplified validation fallback if not using ObjectId
-            return res.status(400).json({ error: 'Invalid User ID format' });
-        }
-
-        const Task = req.prisma.task;
-        const Project = req.prisma.project;
-
-        const [allTasks, projects] = await Promise.all([
-            Task.findMany({
-                where: { assigneeId: id, deletedAt: null },
-                select: { title: true, status: true, dueDate: true, completedOnTime: true, completedAt: true, projectId: true, priority: true, project: { select: { name: true } } }
-            }),
-            Project.findMany({
-                where: {
-                    OR: [
-                        { ownerId: id },
-                        { memberIds: { has: id } }
-                    ],
-                    deletedAt: null
-                },
-                select: { id: true, name: true, status: true, progress: true, deadline: true, startDate: true, ownerId: true, priority: true }
-            })
-        ]);
-
-        const taskStats = {
-            total: allTasks.length,
-            completed: allTasks.filter(t => t.status === 'done').length,
-            completedOnTime: allTasks.filter(t => t.completedOnTime === true).length,
-            completedLate: allTasks.filter(t => t.status === 'done' && t.completedOnTime === false).length,
-            pending: allTasks.filter(t => t.status !== 'done').length,
-            overdue: allTasks.filter(t =>
-                t.status !== 'done' && t.dueDate && new Date(t.dueDate) < new Date()
-            ).length,
-        };
-
-        const projectsWithRole = projects.map(p => ({
-            id: p.id,
-            name: p.name,
-            status: p.status,
-            progress: p.progress,
-            deadline: p.deadline,
-            startDate: p.startDate,
-            priority: p.priority,
-            role: p.ownerId === id ? 'owner' : 'member',
-        }));
-
-        res.json({ taskStats, projects: projectsWithRole });
-    } catch (err) { next(err); }
+        const result = await UserService.getProfileStats(req.params.id);
+        res.json(result);
+    } catch (err) { 
+        if (err.message === 'Invalid User ID format') return res.status(400).json({ error: err.message });
+        next(err); 
+    }
 };
 
 exports.toggleFollow = async (req, res, next) => {
     try {
-        const { id: targetId } = req.params;
-        const currentUserId = req.user.id;
-
-        if (targetId === String(currentUserId)) {
-            return res.status(400).json({ error: 'Cannot follow yourself' });
-        }
-
-        const User = req.prisma.user;
-        const targetUser = await User.findUnique({
-            where: { id: targetId },
-            include: { followers: true }
-        });
-
-        if (!targetUser) return res.status(404).json({ error: 'User not found' });
-
-        const isFollowing = targetUser.followers.some(f => f.id === String(currentUserId));
-
         const sockets = require('../../system-configs/sockets/index.js');
         const io = sockets.getIo();
-
-        if (isFollowing) {
-            await User.update({
-                where: { id: targetId },
-                data: { followers: { disconnect: { id: currentUserId } } }
-            });
-            io.emit('profile:follow_updated', { targetId, currentUserId, following: false });
-            res.json({ message: 'Unfollowed user successfully', following: false });
-        } else {
-            await User.update({
-                where: { id: targetId },
-                data: { followers: { connect: { id: currentUserId } } }
-            });
-            io.emit('profile:follow_updated', { targetId, currentUserId, following: true });
-            res.json({ message: 'Followed user successfully', following: true });
-        }
-    } catch (err) { next(err); }
+        const result = await UserService.toggleFollow(req.params.id, req.user.id, io);
+        res.json(result);
+    } catch (err) { 
+        if (err.message === 'Cannot follow yourself') return res.status(400).json({ error: err.message });
+        if (err.message === 'User not found') return res.status(404).json({ error: err.message });
+        next(err); 
+    }
 };
 
 exports.getFollowers = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        const user = await User.findUnique({
-            where: { id: req.params.id },
-            include: { followers: { select: { id: true, name: true, photoUrl: true, headline: true } } }
-        });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        res.json({ followers: user.followers });
-    } catch (err) { next(err); }
+        const result = await UserService.getFollowers(req.params.id);
+        res.json(result);
+    } catch (err) { 
+        if (err.message === 'User not found') return res.status(404).json({ error: err.message });
+        next(err); 
+    }
 };
 
 exports.getFollowing = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        const user = await User.findUnique({
-            where: { id: req.params.id },
-            include: { following: { select: { id: true, name: true, photoUrl: true, headline: true } } }
-        });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        res.json({ following: user.following });
-    } catch (err) { next(err); }
+        const result = await UserService.getFollowing(req.params.id);
+        res.json(result);
+    } catch (err) { 
+        if (err.message === 'User not found') return res.status(404).json({ error: err.message });
+        next(err); 
+    }
 };
 
 exports.searchMentions = async (req, res, next) => {
     try {
-        const User = req.prisma.user;
-        const { q } = req.query;
-        if (!q) return res.json({ users: [] });
-
-        const users = await User.findMany({
-            where: {
-                OR: [
-                    { name: { contains: q, mode: 'insensitive' } },
-                    { username: { contains: q, mode: 'insensitive' } }
-                ]
-            },
-            take: 10,
-            select: { id: true, name: true, username: true, photoUrl: true }
-        });
-
-        res.json({ users: users.map(u => ({ id: u.id, display: u.name, ...u })) });
+        const result = await UserService.searchMentions(req.query.q);
+        res.json(result);
     } catch (err) { next(err); }
 };

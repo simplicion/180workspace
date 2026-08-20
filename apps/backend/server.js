@@ -26,9 +26,23 @@ const rateLimit = require('express-rate-limit');
 const { connectDB } = require('./src/system-configs/config/db');
 const { initSocket } = require('./src/system-configs/sockets');
 const { initQueues } = require('./src/platform-core/platform-engine/services/queue.service');
-const AiJobsService = require('./src/app-registry/productivity-tools-app/ai-assistant/ai-jobs.service');
-const { initCronJobs } = require('./src/app-registry/productivity-tools-app/ai-assistant/ai.cron');
+const AiJobsService = require('./src/app-registry/workspace-tools-app/ai-assistant/ai-jobs.service');
+const { initCronJobs } = require('./src/app-registry/workspace-tools-app/ai-assistant/ai.cron');
 const errorHandler = require('./src/system-configs/middleware/system/error');
+
+// ─── Domain Event Wiring ──────────────────────────────────────────────────────
+const { registerAutomationProvider, registerSocketProvider } = require('@workspace/backend-common');
+const LegacyAutomationService = require('./src/platform-core/platform-communications/services/automation.service');
+const { getIo } = require('./src/system-configs/sockets');
+
+registerAutomationProvider(async (params, companyPrisma) => {
+    return LegacyAutomationService.trigger(params, companyPrisma);
+});
+
+registerSocketProvider((companyId, event, payload) => {
+    const io = getIo();
+    if (io) io.to(`company:${companyId}`).emit(event, payload);
+});
 
 // Routes are managed in src/routes/index.routes.js
 

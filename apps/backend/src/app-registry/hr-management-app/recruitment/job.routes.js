@@ -9,7 +9,7 @@ const { prisma } = require('@workspace/db');
 // ── Jobs ──────────────────────────────────────────────────────────────────────
 router.get('/', protect, async (req, res, next) => {
     try {
-        const jobs = await req.prisma.job.findMany({
+        const jobs = await prisma.job.findMany({
             where: { companyId: req.user.companyId },
             orderBy: { createdAt: 'desc' }
         });
@@ -19,7 +19,7 @@ router.get('/', protect, async (req, res, next) => {
 
 router.get('/public/:id', async (req, res, next) => {
     try {
-        const db = req.prisma || prisma;
+        
         const job = await db.job.findUnique({
             where: { id: req.params.id },
             include: { company: { select: { id: true, name: true, logoUrl: true } } }
@@ -33,7 +33,7 @@ router.get('/public/:id', async (req, res, next) => {
 
 router.post('/', protect, requireHR, async (req, res, next) => {
     try {
-        const job = await req.prisma.job.create({ 
+        const job = await prisma.job.create({ 
             data: { 
                 ...req.body, 
                 companyId: req.user.companyId 
@@ -45,7 +45,7 @@ router.post('/', protect, requireHR, async (req, res, next) => {
 
 router.put('/:id', protect, requireHR, async (req, res, next) => {
     try {
-        const job = await req.prisma.job.update({
+        const job = await prisma.job.update({
             where: { id: req.params.id },
             data: req.body
         }).catch(() => null);
@@ -55,7 +55,7 @@ router.put('/:id', protect, requireHR, async (req, res, next) => {
 
 router.delete('/:id', protect, requireHR, async (req, res, next) => {
     try {
-        await req.prisma.job.update({
+        await prisma.job.update({
             where: { id: req.params.id },
             data: { status: 'deleted' } // Assuming no deletedAt field on Job, marking status as deleted
         }).catch(() => null);
@@ -66,7 +66,7 @@ router.delete('/:id', protect, requireHR, async (req, res, next) => {
 // ── Applications ──────────────────────────────────────────────────────────────
 router.get('/:jobId/applications', protect, requireHR, async (req, res, next) => {
     try {
-        const applications = await req.prisma.application.findMany({
+        const applications = await prisma.application.findMany({
             where: { jobId: req.params.jobId },
             include: {
                 reviewedBy: { select: { id: true, name: true, email: true } }
@@ -79,11 +79,11 @@ router.get('/:jobId/applications', protect, requireHR, async (req, res, next) =>
 
 router.post('/:jobId/applications', async (req, res, next) => {
     try {
-        // We use req.prisma here because this might be a public route without protect?
-        // But the previous code used req.prisma. Let's keep using req.prisma if it's there.
-        // Actually without protect, req.prisma might not be set or might be set globally.
+        // We use prisma here because this might be a public route without protect?
+        // But the previous code used prisma. Let's keep using prisma if it's there.
+        // Actually without protectmight not be set or might be set globally.
         // Let's assume companyPrisma middleware sets it if subdomain exists.
-        const app = await req.prisma.application.create({ 
+        const app = await prisma.application.create({ 
             data: { 
                 ...req.body, 
                 jobId: req.params.jobId 
@@ -95,7 +95,7 @@ router.post('/:jobId/applications', async (req, res, next) => {
 
 router.put('/applications/:appId', protect, requireHR, async (req, res, next) => {
     try {
-        const app = await req.prisma.application.update({
+        const app = await prisma.application.update({
             where: { id: req.params.appId },
             data: req.body
         }).catch(() => null);
@@ -105,13 +105,13 @@ router.put('/applications/:appId', protect, requireHR, async (req, res, next) =>
         // Auto-trigger onboarding if hired
         if (req.body.status === 'hired') {
             // Check if user already created for this applicant email
-            let user = await req.prisma.user.findFirst({ 
+            let user = await prisma.user.findFirst({ 
                 where: { email: app.applicantEmail } 
             });
             
             if (!user) {
                 const generatedPassword = app.applicantName.split(' ')[0].toLowerCase() + Math.random().toString(36).slice(-4) + '!';
-                user = await req.prisma.user.create({
+                user = await prisma.user.create({
                     data: {
                         name: app.applicantName,
                         email: app.applicantEmail,
@@ -124,13 +124,13 @@ router.put('/applications/:appId', protect, requireHR, async (req, res, next) =>
 
                 // Send Welcome Email with Credentials
                 try {
-                    const EmailService = require('../../productivity-tools-app/emails/email.service');
-                    await EmailService.notify(user, 'welcome', { password: generatedPassword }, req.prisma);
+                    const EmailService = require('../../communications-app/emails/email.service');
+                    await EmailService.notify(user, 'welcome', { password: generatedPassword });
                 } catch (emailErr) {
                     console.error('[Jobs] Failed to send automated welcome email:', emailErr.message);
                 }
 
-                await req.prisma.onboarding.create({
+                await prisma.onboarding.create({
                     data: {
                         employeeId: user.id,
                         status: 'pending',

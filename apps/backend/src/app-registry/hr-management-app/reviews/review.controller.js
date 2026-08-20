@@ -1,10 +1,11 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 const PerformanceService = require('../hr/performance.service.js');
 
 exports.getReviews = async (req, res, next) => {
     try {
-        const Review = req.prisma.review;
+        const Review = prisma.review;
         const { employeeId, managerId, status } = req.query;
         let query = { companyId: req.user.companyId };
 
@@ -34,7 +35,7 @@ exports.getReviews = async (req, res, next) => {
 
 exports.getReviewById = async (req, res, next) => {
     try {
-        const Review = req.prisma.review;
+        const Review = prisma.review;
         const userId = req.user.id;
         const review = await Review.findUnique({ 
             where: { id: req.params.id },
@@ -60,14 +61,14 @@ exports.getPerformanceInsights = async (req, res, next) => {
             return res.status(400).json({ error: 'employeeId and period are required' });
         }
 
-        const insights = await PerformanceService.getPerformanceInsights(req.prisma, employeeId, period);
+        const insights = await PerformanceService.getPerformanceInsights(employeeId, period);
         res.json({ insights });
     } catch (error) { next(error); }
 };
 
 exports.createReview = async (req, res, next) => {
     try {
-        const Review = req.prisma.review;
+        const Review = prisma.review;
         if (!['admin', 'hr', 'manager'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Not authorized' });
         }
@@ -78,7 +79,7 @@ exports.createReview = async (req, res, next) => {
         if (exists) return res.status(400).json({ error: `Review for period ${period} already exists for this employee` });
 
         // Fetch performance snapshot
-        const performanceSnapshot = await PerformanceService.getPerformanceInsights(req.prisma, employeeId, period);
+        const performanceSnapshot = await PerformanceService.getPerformanceInsights(employeeId, period);
 
         const review = await Review.create({ data: {
             employeeId,
@@ -95,7 +96,7 @@ exports.createReview = async (req, res, next) => {
 
 exports.submitSelfEvaluation = async (req, res, next) => {
     try {
-        const Review = req.prisma.review;
+        const Review = prisma.review;
         const userId = req.user.id;
         const review = await Review.findUnique({ where: { id: req.params.id } });
         
@@ -122,7 +123,7 @@ exports.submitSelfEvaluation = async (req, res, next) => {
 
 exports.submitManagerEvaluation = async (req, res, next) => {
     try {
-        const Review = req.prisma.review;
+        const Review = prisma.review;
         const userId = req.user.id;
         const review = await Review.findUnique({ where: { id: req.params.id } });
         
@@ -152,7 +153,7 @@ exports.submitManagerEvaluation = async (req, res, next) => {
 
 exports.deleteReview = async (req, res, next) => {
     try {
-        const Review = req.prisma.review;
+        const Review = prisma.review;
         const review = await Review.findUnique({ where: { id: req.params.id } });
         if (!review || review.companyId !== req.user.companyId) return res.status(404).json({ error: 'Review not found' });
         

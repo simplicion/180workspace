@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 'use strict';
 const bcrypt = require('bcryptjs');
 
@@ -17,13 +18,12 @@ exports.list = async (req, res) => {
         if (status) where.subscriptionStatus = status;
 
         const [companies, total] = await Promise.all([
-            req.prisma.company.findMany({
+            prisma.company.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
                 skip: (pageNum - 1) * limitNum,
                 take: limitNum,
-            }),
-            req.prisma.company.count({ where }),
+            }).company.count({ where }),
         ]);
 
         res.json({ companies, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
@@ -35,12 +35,12 @@ exports.list = async (req, res) => {
 
 exports.getOne = async (req, res) => {
     try {
-        const company = await req.prisma.company.findUnique({
+        const company = await prisma.company.findUnique({
             where: { id: req.params.id },
         });
         if (!company) return res.status(404).json({ error: 'Company not found' });
 
-        const subscriptions = await req.prisma.subscription.findMany({
+        const subscriptions = await prisma.subscription.findMany({
             where: { companyId: company.id },
             include: {
                 plan: { select: { id: true, name: true, price: true } },
@@ -59,7 +59,7 @@ exports.getOne = async (req, res) => {
 exports.suspend = async (req, res) => {
     try {
         const { reason } = req.body;
-        const company = await req.prisma.company.update({
+        const company = await prisma.company.update({
             where: { id: req.params.id },
             data: {
                 accountStatus: 'suspended',
@@ -77,7 +77,7 @@ exports.suspend = async (req, res) => {
 
 exports.unsuspend = async (req, res) => {
     try {
-        const company = await req.prisma.company.update({
+        const company = await prisma.company.update({
             where: { id: req.params.id },
             data: {
                 accountStatus: 'active',
@@ -147,7 +147,7 @@ exports.bulkDelete = async (req, res) => {
 
 exports.resetAdminPassword = async (req, res) => {
     try {
-        const company = await req.prisma.company.findUnique({ where: { id: req.params.id } });
+        const company = await prisma.company.findUnique({ where: { id: req.params.id } });
         if (!company) return res.status(404).json({ error: 'Company not found' });
 
         const { newPassword } = req.body;
@@ -156,7 +156,7 @@ exports.resetAdminPassword = async (req, res) => {
         }
 
         const hashed = await bcrypt.hash(newPassword, 12);
-        await req.prisma.user.updateMany({
+        await prisma.user.updateMany({
             where: { email: company.adminEmail },
             data: { password: hashed },
         });
@@ -172,7 +172,7 @@ const LifecycleService = require('../system-operations/lifecycle.service');
 
 exports.create = async (req, res) => {
     try {
-        let company = await req.prisma.company.create({ data: req.body });
+        let company = await prisma.company.create({ data: req.body });
         // Initialize Lifecycle fields (Trial Dates, Status)
         company = await LifecycleService.handleOnboarding(company);
         res.status(201).json({ company });

@@ -1,16 +1,14 @@
 'use strict';
 
-const AuthService = require('./auth.service');
+const { AuthService } = require('@workspace/identity');
 const { logAction } = require('../../system-configs/middleware/audit/audit.js');
 const { sanitizeUser } = require('../../system-configs/utils/sanitize-user');
 
 exports.registerUser = async (req, res, next) => {
     try {
-        if (!req.prisma) {
-            return res.status(400).json({ error: 'Workspace context missing. Cannot register user.' });
-        }
         
-        const result = await AuthService.register(req.prisma, req.body, req.company, req.user);
+        
+        const result = await AuthService.register(req.body, req.company, req.user);
         
         await logAction(result.user.id, 'REGISTER', 'user', result.user.id, {}, req);
         res.status(201).json({ 
@@ -104,7 +102,7 @@ exports.refreshToken = async (req, res, next) => {
 
 exports.getMe = async (req, res, next) => {
     try {
-        const result = await AuthService.getMe(req.prisma, req.user, req.user.companyId || req.company?.id);
+        const result = await AuthService.getMe(req.user, req.user.companyId || req.company?.id);
         
         const sanitizedUser = sanitizeUser(result.user);
         sanitizedUser.isModuleLead = result.isModuleLead;
@@ -136,7 +134,7 @@ exports.getMe = async (req, res, next) => {
 
 exports.changePassword = async (req, res, next) => {
     try {
-        const user = await AuthService.changePassword(req.prisma, req.body, req.user, req.company);
+        const user = await AuthService.changePassword(req.body, req.user, req.company);
         await logAction(user.id, 'CHANGE_PASSWORD', 'user', user.id, {}, req);
         res.json({ message: 'Password updated successfully' });
     } catch (err) { next(err); }
@@ -144,14 +142,14 @@ exports.changePassword = async (req, res, next) => {
 
 exports.setupMFA = async (req, res, next) => {
     try {
-        const result = await AuthService.setupMFA(req.prisma, req.user, req.company);
+        const result = await AuthService.setupMFA(req.user, req.company);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.enableMFA = async (req, res, next) => {
     try {
-        const result = await AuthService.enableMFA(req.prisma, req.body, req.user);
+        const result = await AuthService.enableMFA(req.body, req.user);
         await logAction(req.user.id, 'MFA_ENABLED', 'user', req.user.id, {}, req);
         res.json(result);
     } catch (err) { next(err); }
@@ -165,7 +163,7 @@ exports.verifyMFA = async (req, res, next) => {
 
 exports.completeWorkspaceSetup = async (req, res, next) => {
     try {
-        const result = await AuthService.completeWorkspaceSetup(req.prisma, req.body, req.headers['x-onboarding-token'], req.user, req.company);
+        const result = await AuthService.completeWorkspaceSetup(req.body, req.headers['x-onboarding-token'], req.user, req.company);
         
         await logAction(result.user.id, 'WORKSPACE_SETUP_COMPLETED', 'system', result.user.id, { companyType: result.companyType, teamSize: result.teamSize, enabledApps: result.enabledApps }, req);
 
@@ -228,8 +226,6 @@ exports.googleLogin = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-const nodemailer = require('nodemailer');
-
 exports.sendOtpEmail = async (req, res, next) => {
     try {
         const { email, otpCode } = req.body;
@@ -238,35 +234,7 @@ exports.sendOtpEmail = async (req, res, next) => {
             return res.status(400).json({ success: false, message: "Email and OTP are required" });
         }
 
-        // Setup Nodemailer
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
-
-        // Send Email
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || '"180Workspace Auth" <noreply@180workspace.com>',
-            to: email,
-            subject: "Your PitchIn Verification Code",
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>Welcome to PitchIn!</h2>
-                    <p>Your verification code is: <strong>${otpCode}</strong></p>
-                    <p>This code will expire in 10 minutes.</p>
-                   </div>`,
-        };
-
-        if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-            await transporter.sendMail(mailOptions);
-        } else {
-            console.log(`[Development Mode] OTP for ${email} is ${otpCode}`);
-        }
-
+        await AuthService.sendOtpEmail(email, otpCode);
         res.json({ success: true, message: "OTP email sent successfully" });
     } catch (err) {
         console.error("Error sending OTP email:", err);
@@ -282,10 +250,9 @@ exports.sendOtp = async (req, res, next) => {
         }
         
         const result = await AuthService.sendOtp(email);
+        await AuthService.sendOtpEmail(email, result.otpCode);
         
-        // Use sendOtpEmail logic
-        req.body.otpCode = result.otpCode;
-        return exports.sendOtpEmail(req, res, next);
+        res.json({ success: true, message: "OTP email sent successfully" });
     } catch (err) {
         if (err.code === 'USER_EXISTS') {
             return res.status(400).json({ success: false, message: err.message, code: err.code });

@@ -1,7 +1,7 @@
 'use strict';
 
-const EmailService = require('../../../app-registry/productivity-tools-app/emails/email.service');
-const AnalyticsService = require('../../../app-registry/insights-app/analytics/analytics.service');
+const EmailService = require('../../../app-registry/communications-app/emails/email.service');
+const { AnalyticsScoringService } = require('@workspace/insights');
 
 /**
  * Smart Notification Service
@@ -57,7 +57,7 @@ class SmartNotificationService {
         }
 
         // 3. Smart Email Delivery
-        const score = AnalyticsService.calculateNotificationScore(
+        const score = AnalyticsScoringService.calculateNotificationScore(
             priority === 'high' ? 3 : (priority === 'medium' ? 2 : 1),
             ['meeting_reminder', 'project_deadline', 'project_risk_alert', 'task_overdue'].includes(type) ? 3 : 1,
             1 // Default relevance

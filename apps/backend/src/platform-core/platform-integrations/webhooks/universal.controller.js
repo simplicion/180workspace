@@ -6,7 +6,7 @@
  */
 
 const PaymentService = require('../../../app-registry/finance-app/payment/PaymentService');
-const BillingService = require('../../../app-registry/finance-app/bills/billing.service');
+const { BillingService } = require('@workspace/finance');
 
 // Handle incoming gateway callbacks safely
 exports.handleWebhook = async (req, res) => {

@@ -4,7 +4,7 @@
  * Company Services & Leads Controller
  */
 
-const { sendEmail } = require('../../../app-registry/productivity-tools-app/emails/email.service');
+const { sendEmail } = require('../../../app-registry/communications-app/emails/email.service');
 
 // SERVICES CRUD
 exports.addService = async (req, res) => {

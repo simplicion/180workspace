@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/backend-common",
+  "version": "1.0.0",
+  "description": "Shared Backend Utilities (EventBus, Audit, Automations)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "@workspace/typescript-config": "workspace:*"
+  }
+}

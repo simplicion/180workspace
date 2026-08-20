@@ -2,7 +2,7 @@
 
 const googleDriveService = require('../services/google-drive.service');
 const AutomationService = require('../../platform-communications/services/automation.service');
-const AIAutomationService = require('../../../app-registry/productivity-tools-app/ai-assistant/ai-automation.service.js');
+const AIAutomationService = require('../../../app-registry/workspace-tools-app/ai-assistant/ai-automation.service.js');
 
 exports.uploadFile = async (req, res, next) => {
     try {

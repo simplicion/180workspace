@@ -1,7 +1,7 @@
 'use strict';
 
 const { prisma, getCompanyPrisma } = require('@workspace/db');
-const CompanyPaymentService = require('../../../app-registry/finance-app/finance/CompanyPaymentService');
+const { CompanyPaymentService } = require('@workspace/finance');
 const AutomationService = require('../../platform-communications/services/automation.service');
 
 // This handles incoming webhooks directed at a specific company.
@@ -86,7 +86,7 @@ exports.handleWebhook = async (req, res, next) => {
                     }
                 }
             } else if (eventType.startsWith('fund_account.validation.')) {
-                const BankVerificationService = require('../../../app-registry/finance-app/finance/BankVerificationService');
+                const { BankVerificationService } = require('@workspace/finance');
                 await BankVerificationService.handleValidationWebhook(companyPrisma, req.body);
             }
         } else if (providerName === 'stripe') {

@@ -1,8 +1,9 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 exports.list = async (req, res) => {
     try {
-        const announcements = await req.prisma.announcement.findMany({
+        const announcements = await prisma.announcement.findMany({
             orderBy: { createdAt: 'desc' },
         });
         res.json({ announcements });
@@ -15,7 +16,7 @@ exports.list = async (req, res) => {
 exports.listActive = async (req, res) => {
     try {
         const now = new Date();
-        const announcements = await req.prisma.announcement.findMany({
+        const announcements = await prisma.announcement.findMany({
             where: {
                 isActive: true,
                 OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
@@ -31,7 +32,7 @@ exports.listActive = async (req, res) => {
 
 exports.create = async (req, res) => {
     try {
-        const announcement = await req.prisma.announcement.create({
+        const announcement = await prisma.announcement.create({
             data: { ...req.body, createdBy: req.superAdmin.id },
         });
         res.status(201).json({ announcement });
@@ -43,7 +44,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-        const announcement = await req.prisma.announcement.update({
+        const announcement = await prisma.announcement.update({
             where: { id: req.params.id },
             data: req.body,
         });
@@ -57,7 +58,7 @@ exports.update = async (req, res) => {
 
 exports.remove = async (req, res) => {
     try {
-        await req.prisma.announcement.delete({ where: { id: req.params.id } });
+        await prisma.announcement.delete({ where: { id: req.params.id } });
         res.json({ message: 'Announcement deleted' });
     } catch (err) {
         if (err.code === 'P2025') return res.status(404).json({ error: 'Announcement not found' });

@@ -26,23 +26,16 @@ const checkRecruitmentApiKey = async (req, res, next) => {
             return res.status(401).json({ error: 'Invalid or missing API key' });
         }
 
-        // 2. If req.prisma doesn't exist, establish it manually
-        if (!req.prisma) {
-            const company = await prisma.company.findUnique({
-                where: { id: settings.companyId }
-            });
-            if (!company) {
-                 return res.status(404).json({ error: 'Workspace configuration not found for this API key' });
-            }
-
-            req.prisma = getCompanyPrisma(company.id);
-            req.company = company;
-        } else {
-            // Check if the current company context matches the API key's company
-            if (req.company?.id !== settings.companyId) {
-                return res.status(403).json({ error: 'API key does not match current workspace context' });
-            }
+        
+        const company = await prisma.company.findUnique({
+            where: { id: settings.companyId }
+        });
+        
+        if (!company) {
+             return res.status(404).json({ error: 'Workspace configuration not found for this API key' });
         }
+
+        req.company = company;
 
 
         // 4. Domain Whitelisting Check (Security)

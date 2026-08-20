@@ -43,16 +43,16 @@ const contractRoutes = require('../app-registry/crm-and-sales-app/contracts/cont
 const publicContractRoutes = require('../app-registry/crm-and-sales-app/contracts/public-contract.routes');
 
 // Initialize CRM listeners
-require('../app-registry/crm-and-sales-app/sales/listeners')();
+require('@workspace/crm-and-sales').SalesListeners.initializeCRMListeners();
 
 const setupRoutes = require('../app-registry/setup-app/setup.routes');
 const healthRoutes = require('../platform-core/platform-engine/routes/health.routes');
-const aiRoutes = require('../app-registry/productivity-tools-app/ai-assistant/ai.routes');
+const aiRoutes = require('../app-registry/workspace-tools-app/ai-assistant/ai.routes');
 const settingsRoutes = require('../app-registry/settings-app/system-configs/settings.routes');
 const leaveRoutes = require('../app-registry/hr-management-app/attendance/leave.routes');
 const holidayRoutes = require('../app-registry/hr-management-app/attendance/holiday.routes');
 const superAdminRoutes = require('../app-registry/superadmin/superadmin.routes');
-const supportRoutes = require('../app-registry/productivity-tools-app/help-support/support.routes');
+const supportRoutes = require('../app-registry/settings-app/help-support/support.routes');
 
 const salesRoutes = require('../app-registry/crm-and-sales-app/sales/sales.routes');
 const formBuilderRoutes = require('../app-registry/advertising-app/forms/form-builder.routes');
@@ -90,7 +90,7 @@ router.use('/tasks', protect, moduleGuard('projects'), taskRoutes);
 router.use('/clients', protect, moduleGuard('crm'), clientRoutes);
 router.use('/attendance', protect, moduleGuard('hr'), attendanceRoutes);
 router.use('/hrms', protect, moduleGuard('hr'), hrmsRoutes);
-router.use('/chat', protect, require('../app-registry/productivity-tools-app/chat/chat.routes'));
+router.use('/chat', protect, require('../app-registry/communications-app/chat/chat.routes'));
 router.use('/notifications', protect, notificationRoutes);
 router.use('/files', protect, fileRoutes);
 
@@ -101,7 +101,7 @@ const featureFlagGuard = require('../system-configs/middleware/billing/featureFl
 
 router.use('/ai', protect, moduleGuard('tools'), featureFlagGuard('aiAssistant'), aiRoutes);
 router.use('/settings', protect, settingsRoutes);
-router.use('/emails', protect, moduleGuard('tools'), featureFlagGuard('emailServices'), require('../app-registry/productivity-tools-app/emails/email.routes'));
+router.use('/emails', protect, moduleGuard('tools'), featureFlagGuard('emailServices'), require('../app-registry/communications-app/emails/email.routes'));
 router.use('/audit', protect, require('../platform-core/platform-security-audit/routes/audit.routes'));
 router.use('/activity', protect, require('../app-registry/projects-and-tasks-app/activities/activity.routes'));
 // ─── HR ──────────────────────────────────────────────────────────────────
@@ -113,14 +113,14 @@ router.use('/attendance', protect, moduleGuard('hr'), require('../app-registry/h
 router.use('/reviews', protect, moduleGuard('hr'), require('../app-registry/hr-management-app/reviews/review.routes'));
 router.use('/hrms', protect, moduleGuard('hr'), require('../app-registry/hr-management-app/hr-operations/hrms.routes'));
 router.use('/salaries', protect, moduleGuard('hr'), require('../app-registry/finance-app/salary/salary.routes'));
-router.use('/calendar', protect, moduleGuard('tools'), require('../app-registry/productivity-tools-app/calendar/calendar.routes'));
-router.use('/meeting', protect, moduleGuard('tools'), require('../app-registry/productivity-tools-app/meetings/meeting.routes'));
+router.use('/calendar', protect, moduleGuard('tools'), require('../app-registry/workspace-tools-app/calendar/calendar.routes'));
+router.use('/meeting', protect, moduleGuard('tools'), require('../app-registry/communications-app/meetings/meeting.routes'));
 router.use('/timelogs', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/timelogs/timelog.routes'));
 router.use('/expenses', protect, moduleGuard('finance'), require('../app-registry/finance-app/expense-transactions/expense.routes'));
 router.use('/invoices', protect, moduleGuard('crm'), require('../app-registry/finance-app/invoices/invoice.routes'));
 router.use('/onboarding', protect, moduleGuard('hr'), require('../app-registry/setup-app/onboarding.routes'));
 router.use('/milestones', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/milestones/milestone.routes'));
-router.use('/assets', protect, require('../app-registry/assets-app/assets/asset.routes'));
+router.use('/assets', protect, require('../app-registry/workspace-tools-app/assets/asset.routes'));
 router.use('/content-calendar', protect, moduleGuard('tools'), require('../app-registry/social-media-management-app/content-calendar/content-calendar.routes'));
 router.use('/social-media', protect, moduleGuard('tools'), require('../app-registry/social-media-management-app/social-media.routes'));
 router.use('/company-config', protect, require('../app-registry/company-hub-app/company-config/company-config.routes'));
@@ -133,8 +133,8 @@ router.use('/transactions', protect, moduleGuard('finance'), require('../app-reg
 router.use('/vendors', protect, moduleGuard('finance'), require('../app-registry/finance-app/vendors/vendor.routes'));
 router.use('/search', protect, require('../platform-core/platform-integrations/routes/search.routes'));
 router.use('/user-preferences', protect, require('../app-registry/user-identity-app/user-preference.routes'));
-router.use('/180documents', protect, require('../app-registry/productivity-tools-app/documents/documents.routes'));
-router.use('/knowledge', protect, require('../app-registry/productivity-tools-app/knowledge/knowledge.routes')); // Deprecated
+router.use('/180documents', protect, require('../app-registry/workspace-tools-app/documents/documents.routes'));
+router.use('/knowledge', protect, require('../app-registry/workspace-tools-app/knowledge/knowledge.routes')); // Deprecated
 router.use('/work-logs', protect, moduleGuard('projects'), require('../app-registry/projects-and-tasks-app/work-logs/worklog.routes'));
 router.use('/apikey', require('../platform-core/platform-integrations/routes/apikey.routes'));
 router.use('/contracts', protect, moduleGuard('crm'), contractRoutes); // Deprecated
@@ -152,3 +152,4 @@ router.use('/support/tickets', supportRoutes);
 
 
 module.exports = router;
+

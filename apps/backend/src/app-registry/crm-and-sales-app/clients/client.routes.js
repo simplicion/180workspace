@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const express = require('express');
 const router = express.Router();
@@ -22,3 +22,4 @@ router.delete('/:id/communications/:commId', protect, ctrl.deleteCommunication);
 router.get('/:id/activity', protect, ctrl.getActivity);
 
 module.exports = router;
+

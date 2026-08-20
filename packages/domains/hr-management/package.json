@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/hr-management",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "@workspace/workspace-tools": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@workspace/typescript-config": "workspace:*"
+  }
+}

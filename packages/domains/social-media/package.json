@@ -1,0 +1,20 @@
+{
+  "name": "@workspace/social-media",
+  "version": "1.0.0",
+  "description": "Social Media Management Domain Services",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/workspace-tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "@workspace/typescript-config": "workspace:*"
+  }
+}

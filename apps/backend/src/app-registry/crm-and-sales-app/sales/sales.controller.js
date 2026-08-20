@@ -1,6 +1,6 @@
 'use strict';
 
-const SalesService = require('./sales.service');
+const { SalesService } = require('@workspace/crm-and-sales');
 const {
     calculateRFM,
     forecastPipeline,
@@ -8,7 +8,7 @@ const {
     calculateWinProbability,
     calculateCustomerRiskIndex,
     calculateRepProductivity
-} = require('../../company-hub-app/crm/CrmCalculationService.js');
+} = require('@workspace/crm-and-sales').CrmCalculationService;
 const { cacheGet, cacheSet, cacheDel } = require('../../../system-configs/middleware/system/cache.js');
 
 const clearCRMCache = async (companyId) => {
@@ -21,8 +21,8 @@ const clearCRMCache = async (companyId) => {
     await cacheDel(`company:${companyId}:productivity`);
 };
 
-const AIAutomationService = require('../../productivity-tools-app/ai-assistant/ai-automation.service');
-const SalesRuleEngine = require('./sales-rule-engine.service');
+const AIAutomationService = require('@workspace/workspace-tools').AIAssistantService;
+const { SalesRuleEngine } = require('@workspace/crm-and-sales');
 const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
@@ -34,13 +34,13 @@ const { generateQuotationPDF } = require('../../../platform-core/platform-engine
 // -------------------------------------------------------------
 exports.getDashboardMetrics = async (req, res, next) => {
     try {
-        const { user, company, prisma } = req;
+        const { user, company } = req;
         const timeframe = req.query.timeframe || 'all';
         const cacheKey = `company:${company.id}:dashboard_metrics_v2:${timeframe}`;
         const cached = await cacheGet(cacheKey);
         if (cached) return res.json(cached);
 
-        const result = await SalesService.getDashboardMetrics(prisma, user.id, company.id, timeframe);
+        const result = await SalesService.getDashboardMetrics(user.id, company.id, timeframe);
         
         await cacheSet(cacheKey, result, 300);
         res.json(result);
@@ -54,12 +54,12 @@ exports.getDashboardMetrics = async (req, res, next) => {
 
 exports.getProductivity = async (req, res, next) => {
     try {
-        const { user, company, prisma } = req;
+        const { user, company } = req;
         const cacheKey = `company:${company.id}:productivity`;
         const cached = await cacheGet(cacheKey);
         if (cached) return res.json(cached);
 
-        const result = await SalesService.getProductivity(prisma, user.id);
+        const result = await SalesService.getProductivity(user.id);
 
         await cacheSet(cacheKey, result, 300);
         res.json(result);
@@ -68,7 +68,7 @@ exports.getProductivity = async (req, res, next) => {
 
 exports.getRecommendations = async (req, res, next) => {
     try {
-        const result = await SalesService.getRecommendations(req.prisma, req.user.id);
+        const result = await SalesService.getRecommendations(req.user.id);
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -81,14 +81,14 @@ exports.getLeads = async (req, res, next) => {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
         
-        const result = await SalesService.getLeads(req.prisma, page, limit);
+        const result = await SalesService.getLeads(page, limit);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.createLead = async (req, res, next) => {
     try {
-        const lead = await SalesService.createLead(req.prisma, req.body, req.user.id);
+        const lead = await SalesService.createLead(req.body, req.user.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ lead });
@@ -114,7 +114,7 @@ exports.proposeContractUpdates = async (req, res, next) => {
 
 exports.createContractWithAI = async (req, res, next) => {
     try {
-        const contract = await SalesService.createContractWithAI(req.prisma, req.company, req.body.instructions, req.body.clientId);
+        const contract = await SalesService.createContractWithAI(req.company, req.body.instructions, req.body.clientId);
         res.json({ contract });
     } catch (err) { next(err); }
 };
@@ -124,7 +124,7 @@ exports.downloadContractPDF = async (req, res, next) => {
         const { contractTitle, contractText, clientId } = req.body;
         if (!contractText) return res.status(400).json({ error: 'Contract text is required' });
 
-        const clientObj = await SalesService.getClientObjForContract(req.prisma, clientId);
+        const clientObj = await SalesService.getClientObjForContract(clientId);
 
         const { generateContractPDF } = require('../../../platform-core/platform-engine/pdf/pdf.utils.js');
         const doc = new (require('pdfkit'))({ margin: 50 });
@@ -141,9 +141,7 @@ exports.downloadContractPDF = async (req, res, next) => {
 
 exports.emailContract = async (req, res, next) => {
     try {
-        const result = await SalesService.emailContract(
-            req.prisma, 
-            req.company, 
+        const result = await SalesService.emailContract(req.company, 
             req.user.id, 
             req.user.name, 
             req.body.contractTitle, 
@@ -157,14 +155,14 @@ exports.emailContract = async (req, res, next) => {
 
 exports.importLeads = async (req, res, next) => {
     try {
-        const count = await SalesService.importLeads(req.prisma, req.body.leads, req.user.id);
+        const count = await SalesService.importLeads(req.body.leads, req.user.id);
         res.status(201).json({ message: `Successfully imported ${count} leads`, count });
     } catch (err) { next(err); }
 };
 
 exports.updateLead = async (req, res, next) => {
     try {
-        const lead = await SalesService.updateLead(req.prisma, req.params.id, req.body);
+        const lead = await SalesService.updateLead(req.params.id, req.body);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ lead });
@@ -174,7 +172,7 @@ exports.updateLead = async (req, res, next) => {
 
 exports.deleteLead = async (req, res, next) => {
     try {
-        await SalesService.deleteLead(req.prisma, req.params.id);
+        await SalesService.deleteLead(req.params.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ message: 'Lead deleted' });
@@ -183,7 +181,7 @@ exports.deleteLead = async (req, res, next) => {
 
 exports.convertLead = async (req, res, next) => {
     try {
-        const result = await SalesService.convertLead(req.prisma, req.params.id, req.user.id);
+        const result = await SalesService.convertLead(req.params.id, req.user.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json({ 
@@ -201,14 +199,14 @@ exports.getOpportunities = async (req, res, next) => {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
         const pipelineType = req.query.pipelineType;
-        const result = await SalesService.getOpportunities(req.prisma, page, limit, pipelineType);
+        const result = await SalesService.getOpportunities(page, limit, pipelineType);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.createOpportunity = async (req, res, next) => {
     try {
-        const result = await SalesService.createOpportunity(req.prisma, req.body, req.user.id);
+        const result = await SalesService.createOpportunity(req.body, req.user.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ opportunity: result });
@@ -217,7 +215,7 @@ exports.createOpportunity = async (req, res, next) => {
 
 exports.updateOpportunity = async (req, res, next) => {
     try {
-        const result = await SalesService.updateOpportunity(req.prisma, req.params.id, req.body, req.company?.id);
+        const result = await SalesService.updateOpportunity(req.params.id, req.body, req.company?.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.json(result);
@@ -226,7 +224,7 @@ exports.updateOpportunity = async (req, res, next) => {
 
 exports.createProjectFromOpportunity = async (req, res, next) => {
     try {
-        const result = await SalesService.createProjectFromOpportunity(req.prisma, req.params.id, req.user.id);
+        const result = await SalesService.createProjectFromOpportunity(req.params.id, req.user.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json(result);
@@ -240,14 +238,14 @@ exports.getAccounts = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
-        const result = await SalesService.getAccounts(req.prisma, page, limit);
+        const result = await SalesService.getAccounts(page, limit);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.createAccount = async (req, res, next) => {
     try {
-        const account = await SalesService.createAccount(req.prisma, req.body, req.user.id);
+        const account = await SalesService.createAccount(req.body, req.user.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'CREATE_ACCOUNT', 'account', account.id, { companyName: account.companyName }, req);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -258,7 +256,7 @@ exports.createAccount = async (req, res, next) => {
 
 exports.updateAccount = async (req, res, next) => {
     try {
-        const account = await SalesService.updateAccount(req.prisma, req.params.id, req.body);
+        const account = await SalesService.updateAccount(req.params.id, req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'UPDATE_ACCOUNT', 'account', account.id, { companyName: account.companyName }, req);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -269,7 +267,7 @@ exports.updateAccount = async (req, res, next) => {
 
 exports.deleteAccount = async (req, res, next) => {
     try {
-        const account = await SalesService.deleteAccount(req.prisma, req.params.id);
+        const account = await SalesService.deleteAccount(req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_ACCOUNT', 'account', account.id, { companyName: account.companyName }, req);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -282,21 +280,21 @@ exports.getContacts = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
-        const result = await SalesService.getContacts(req.prisma, page, limit);
+        const result = await SalesService.getContacts(page, limit);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.getContact = async (req, res, next) => {
     try {
-        const result = await SalesService.getContact(req.prisma, req.params.id);
+        const result = await SalesService.getContact(req.params.id);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.createContact = async (req, res, next) => {
     try {
-        const contact = await SalesService.createContact(req.prisma, req.body);
+        const contact = await SalesService.createContact(req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'CREATE_CONTACT', 'contact', contact.id, { name: contact.name }, req);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -313,7 +311,7 @@ exports.createContact = async (req, res, next) => {
 
 exports.updateContact = async (req, res, next) => {
     try {
-        const contact = await SalesService.updateContact(req.prisma, req.params.id, req.body);
+        const contact = await SalesService.updateContact(req.params.id, req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'UPDATE_CONTACT', 'contact', contact.id, { name: contact.name }, req);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -324,7 +322,7 @@ exports.updateContact = async (req, res, next) => {
 
 exports.deleteContact = async (req, res, next) => {
     try {
-        const contact = await SalesService.deleteContact(req.prisma, req.params.id);
+        const contact = await SalesService.deleteContact(req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_CONTACT', 'contact', contact.id, { name: contact.name }, req);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -340,14 +338,14 @@ exports.getActivities = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
-        const result = await SalesService.getActivities(req.prisma, page, limit);
+        const result = await SalesService.getActivities(page, limit);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.createActivity = async (req, res, next) => {
     try {
-        const result = await SalesService.createActivity(req.prisma, req.body, req.user.id);
+        const result = await SalesService.createActivity(req.body, req.user.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
         res.status(201).json({ activity: result });
@@ -360,8 +358,7 @@ exports.createActivity = async (req, res, next) => {
 exports.generateEmailDraft = async (req, res, next) => {
     try {
         const { contextMessage } = req.body;
-        const Settings = req.prisma.settings;
-        const settings = await Settings.findFirst({ where: {} }) || {};
+        const settings = await SalesService.getSystemSettings();
 
         if (!settings.aiProvider || settings.aiProvider === 'none') {
             return res.status(400).json({ error: 'AI provider not configured in settings.' });
@@ -375,20 +372,14 @@ exports.generateEmailDraft = async (req, res, next) => {
 exports.salesChatAssistant = async (req, res, next) => {
     try {
         const { query } = req.body;
-        const Settings = req.prisma.settings;
-        const settings = await Settings.findFirst({ where: {} }) || {};
+        const settings = await SalesService.getSystemSettings();
 
         if (!settings.aiProvider || settings.aiProvider === 'none') {
             return res.status(400).json({ error: 'AI provider not configured in settings.' });
         }
 
         // Gather quick context for the AI
-        const [pipelines, leads] = await Promise.all([
-            req.prisma.opportunity.findMany({ where: { stage: { not: 'ClosedLost' } }, select: { title: true, value: true, stage: true, priorityScore: true } }),
-            req.prisma.lead.findMany({ where: { status: { not: 'Disqualified' } }, select: { name: true, client: { select: { companyName: true } }, leadScore: true } })
-        ]);
-
-        const contextData = { pipelines, leads };
+        const contextData = await SalesService.getSalesChatContext();
 
         const reply = await AIAutomationService.salesAssistantChat(query, contextData, settings);
         res.json(reply);
@@ -396,7 +387,7 @@ exports.salesChatAssistant = async (req, res, next) => {
 };
 exports.deleteOpportunity = async (req, res, next) => {
     try {
-        const opp = await SalesService.deleteOpportunity(req.prisma, req.params.id);
+        const opp = await SalesService.deleteOpportunity(req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_OPPORTUNITY', 'opportunity', opp.id, { title: opp.title }, req);
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -412,14 +403,14 @@ exports.getQuotes = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 100;
-        const result = await SalesService.getQuotes(req.prisma, page, limit);
+        const result = await SalesService.getQuotes(page, limit);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 exports.createQuote = async (req, res, next) => {
     try {
-        const quote = await SalesService.createQuote(req.prisma, req.body, req.user.id, req.company.id);
+        const quote = await SalesService.createQuote(req.body, req.user.id, req.company.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'CREATE_QUOTE', 'quote', quote.id, { quoteNumber: quote.quoteNumber }, req).catch(() => {});
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -434,7 +425,7 @@ exports.createQuote = async (req, res, next) => {
 exports.getRevenueStats = async (req, res, next) => {
     try {
         const timeframe = req.query.timeframe || 'all';
-        const result = await SalesService.getRevenueStats(req.prisma, timeframe);
+        const result = await SalesService.getRevenueStats(timeframe);
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -445,7 +436,7 @@ exports.getRevenueStats = async (req, res, next) => {
 
 exports.updateQuote = async (req, res, next) => {
     try {
-        const quote = await SalesService.updateQuote(req.prisma, req.params.id, req.body);
+        const quote = await SalesService.updateQuote(req.params.id, req.body);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'UPDATE_QUOTE', 'quote', quote.id, { quoteNumber: quote.quoteNumber }, req).catch(() => {});
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -456,7 +447,7 @@ exports.updateQuote = async (req, res, next) => {
 
 exports.deleteQuote = async (req, res, next) => {
     try {
-        const quote = await SalesService.deleteQuote(req.prisma, req.params.id);
+        const quote = await SalesService.deleteQuote(req.params.id);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'DELETE_QUOTE', 'quote', quote.id, { quoteNumber: quote.quoteNumber }, req).catch(() => {});
         if (req.company && req.company.id) await clearCRMCache(req.company.id);
@@ -467,7 +458,7 @@ exports.deleteQuote = async (req, res, next) => {
 
 exports.generateQuotePDF = async (req, res, next) => {
     try {
-        const quote = await SalesService.getQuoteForPdf(req.prisma, req.params.id);
+        const quote = await SalesService.getQuoteForPdf(req.params.id);
         const PDFDocument = require('pdfkit');
         const { generateQuotationPDF } = require('../../../platform-core/platform-engine/pdf/pdf.utils.js');
 
@@ -485,7 +476,7 @@ exports.generateQuotePDF = async (req, res, next) => {
 
 exports.sendQuoteEmail = async (req, res, next) => {
     try {
-        const result = await SalesService.sendQuoteEmail(req.prisma, req.params.id, req.user, req.body.email, req.company);
+        const result = await SalesService.sendQuoteEmail(req.params.id, req.user, req.body.email, req.company);
         const { logAction } = require('../../../system-configs/middleware/audit/audit.js');
         await logAction(req.user.id, 'SEND_QUOTE_EMAIL', 'quote', result.quote.id, { quoteNumber: result.quote.quoteNumber, recipient: req.body.email || result.quote.clientId?.email }, req).catch(() => {});
         res.json({ message: result.message });
@@ -496,3 +487,6 @@ exports.sendQuoteEmail = async (req, res, next) => {
         next(err); 
     }
 };
+
+
+

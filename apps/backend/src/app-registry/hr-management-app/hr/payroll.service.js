@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 'use strict';
 
 const moment = require('moment');

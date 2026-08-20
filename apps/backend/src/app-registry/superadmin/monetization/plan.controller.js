@@ -1,8 +1,9 @@
+const { prisma } = require('@workspace/db');
 'use strict';
 
 exports.list = async (req, res) => {
     try {
-        const plans = await req.prisma.plan.findMany({
+        const plans = await prisma.plan.findMany({
             orderBy: { price: 'asc' }
         });
         res.json({ plans });

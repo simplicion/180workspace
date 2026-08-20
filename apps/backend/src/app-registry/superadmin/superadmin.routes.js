@@ -22,7 +22,7 @@ const releaseNoteCtrl = require('./system-operations/releasenote.controller');
 const forumCtrl = require('../community/forum.controller');
 const logCtrl = require('./system-operations/log.controller');
 const databaseCtrl = require('./company-management/database.controller');
-const aiCtrl = require('../productivity-tools-app/ai-assistant/ai.controller');
+const aiCtrl = require('../workspace-tools-app/ai-assistant/ai.controller');
 
 const saLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many login attempts' } });
 

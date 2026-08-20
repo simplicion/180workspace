@@ -5,7 +5,7 @@
  * Returns 403 with { subscriptionExpired: true } if subscription has expired.
  */
 
-const BillingService = require('../../../app-registry/finance-app/bills/billing.service');
+const { BillingService } = require('@workspace/finance');
 
 module.exports = async function subscriptionGuard(req, res, next) {
     try {

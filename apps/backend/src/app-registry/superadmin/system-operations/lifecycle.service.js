@@ -52,7 +52,7 @@ class LifecycleService {
             }
         });
 
-        const EmailService = require('../../productivity-tools-app/emails/email.service.js');
+        const EmailService = require('../../communications-app/emails/email.service.js');
 
         for (const company of expiredCompanies) {
             console.log(`[Lifecycle] Trial expired for: ${company.name}`);
@@ -121,7 +121,7 @@ class LifecycleService {
             }
         });
 
-        const EmailService = require('../../productivity-tools-app/emails/email.service.js');
+        const EmailService = require('../../communications-app/emails/email.service.js');
 
         for (const company of companies) {
             const metadata = company.metadata || {};

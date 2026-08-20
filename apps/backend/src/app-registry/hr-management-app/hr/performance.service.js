@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 const { startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } = require('date-fns');

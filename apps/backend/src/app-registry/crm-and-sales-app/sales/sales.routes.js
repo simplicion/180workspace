@@ -100,3 +100,4 @@ router.post('/ai/email-draft', salesController.generateEmailDraft);
 router.post('/ai/chat', salesController.salesChatAssistant);
 
 module.exports = router;
+

@@ -1,3 +1,4 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 exports.list = async (req, res) => {
@@ -9,7 +10,7 @@ exports.list = async (req, res) => {
         if (status) where.status = status;
 
         const [subscriptions, total] = await Promise.all([
-            req.prisma.subscription.findMany({
+            prisma.subscription.findMany({
                 where,
                 include: {
                     plan: { select: { id: true, name: true, price: true } },
@@ -17,8 +18,7 @@ exports.list = async (req, res) => {
                 orderBy: { createdAt: 'desc' },
                 skip: (pageNum - 1) * limitNum,
                 take: limitNum,
-            }),
-            req.prisma.subscription.count({ where }),
+            }).subscription.count({ where }),
         ]);
         res.json({ subscriptions, total });
     } catch (err) {
@@ -29,7 +29,7 @@ exports.list = async (req, res) => {
 
 exports.cancel = async (req, res) => {
     try {
-        const sub = await req.prisma.subscription.update({
+        const sub = await prisma.subscription.update({
             where: { id: req.params.id },
             data: {
                 status: 'cancelled',
@@ -47,7 +47,7 @@ exports.cancel = async (req, res) => {
 
 exports.forceRenew = async (req, res) => {
     try {
-        const sub = await req.prisma.subscription.findUnique({
+        const sub = await prisma.subscription.findUnique({
             where: { id: req.params.id },
             include: { plan: true },
         });
@@ -56,7 +56,7 @@ exports.forceRenew = async (req, res) => {
         const renewal = new Date();
         renewal.setMonth(renewal.getMonth() + (sub.plan?.billingCycle === 'yearly' ? 12 : 1));
 
-        const updated = await req.prisma.subscription.update({
+        const updated = await prisma.subscription.update({
             where: { id: req.params.id },
             data: {
                 status: 'active',
@@ -73,7 +73,7 @@ exports.forceRenew = async (req, res) => {
 
 exports.refund = async (req, res) => {
     try {
-        const sub = await req.prisma.subscription.update({
+        const sub = await prisma.subscription.update({
             where: { id: req.params.id },
             data: {
                 paymentStatus: 'refunded',
@@ -90,7 +90,7 @@ exports.refund = async (req, res) => {
 
 exports.getHistoryByCompany = async (req, res) => {
     try {
-        const subscriptions = await req.prisma.subscription.findMany({
+        const subscriptions = await prisma.subscription.findMany({
             where: { companyId: req.params.id },
             include: {
                 plan: { select: { id: true, name: true, price: true, currency: true } },

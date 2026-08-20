@@ -111,6 +111,21 @@ model Company {
   assets                   Asset[]
   forms                    Form[]
   knowledgeArticles        KnowledgeArticle[]
+  savedBanks               SavedBank[]
+}
+
+model SavedBank {
+  id        String   @id @default(uuid())
+  companyId String
+  type      String
+  name      String
+  content   String
+  tags      String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model CompanyCoreValue {
@@ -122,6 +137,8 @@ model CompanyCoreValue {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CompanyPublicReview {
@@ -138,6 +155,8 @@ model CompanyPublicReview {
 
   @@index([companyId])
   @@index([userId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CompanyFollower {
@@ -151,6 +170,8 @@ model CompanyFollower {
   @@unique([userId, companyId])
   @@index([companyId])
   @@index([userId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CompanyConfig {
@@ -161,6 +182,7 @@ model CompanyConfig {
   companyPaymentConfig Json?     @default("{}")
 
   @@index([companyId])
+  @@index([companyId, id])
 }
 
 model Client {
@@ -210,6 +232,7 @@ model Client {
   salesActivities                         SalesActivity[]       @relation("ActivityClient")
 
   @@index([companyId])
+  @@index([companyId, id])
 }
 
 model Designation {
@@ -225,6 +248,8 @@ model Designation {
 
   @@unique([companyId, name])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model User {
@@ -363,6 +388,8 @@ model User {
   knowledgeVersions KnowledgeArticleVersion[] @relation("KnowledgeVersionCreator")
 
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Project {
@@ -400,6 +427,8 @@ model Project {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Task {
@@ -435,6 +464,7 @@ model Task {
   @@index([companyId, status])
   @@index([companyId, createdAt])
   @@index([companyId])
+  @@index([companyId, id])
 }
 
 model Invoice {
@@ -477,6 +507,8 @@ model Invoice {
   @@unique([fingerprint, companyId])
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model InvoiceLineItem {
@@ -545,6 +577,8 @@ model ExpenseTransaction {
   @@index([companyId, employeeId, status])
   @@index([companyId, vendorId])
   @@index([companyId, projectId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CalendarEvent {
@@ -597,6 +631,8 @@ model AuditLog {
   @@index([action])
   @@index([createdAt(sort: Desc)])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Attendance {
@@ -620,6 +656,8 @@ model Attendance {
   @@unique([employeeId, date])
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Asset {
@@ -645,6 +683,8 @@ model Asset {
 
   @@index([status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Chat {
@@ -737,6 +777,8 @@ model Goal {
   assignedTo  User[]    @relation("GoalAssignedTo")
 
   @@index([ownerId, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Leave {
@@ -760,6 +802,8 @@ model Leave {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Milestone {
@@ -841,6 +885,8 @@ model Review {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Salary {
@@ -876,6 +922,8 @@ model Salary {
   @@unique([employeeId, month])
   @@index([status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Settings {
@@ -893,6 +941,8 @@ model Settings {
   company                      Company  @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CompanyTransaction {
@@ -919,6 +969,8 @@ model CompanyTransaction {
   expenseTransactions   ExpenseTransaction[] @relation("TransactionExpenseTransactions")
 
   @@index([companyId, type, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model AiRequestLog {
@@ -959,6 +1011,8 @@ model AutomationLog {
   @@index([eventType, timestamp(sort: Desc)])
   @@index([companyId])
   @@index([companyId, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CalendarContentPiece {
@@ -1047,6 +1101,8 @@ model ContentCalendar {
   project               Project?               @relation("ProjectContentCalendars", fields: [projectId], references: [id])
 
   @@index([companyId, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Document {
@@ -1078,6 +1134,8 @@ model Document {
   @@index([relatedId, relatedModel])
   @@index([folder])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model DocumentPage {
@@ -1113,6 +1171,8 @@ model EmailLog {
   @@index([createdAt(sort: Desc)])
   @@index([companyId])
   @@index([companyId, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model ForumPost {
@@ -1187,6 +1247,8 @@ model Holiday {
   company     Company? @relation("CompanyHolidays", fields: [companyId], references: [id])
 
   @@index([companyId, date])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Job {
@@ -1217,6 +1279,8 @@ model Job {
   company         Company       @relation("CompanyJobs", fields: [companyId], references: [id])
 
   @@index([companyId, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Application {
@@ -1263,6 +1327,8 @@ model MeetingLog {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model MeetingTranscript {
@@ -1370,6 +1436,8 @@ model Vendor {
 
   @@index([companyId, name])
   @@index([companyId, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model WorkLog {
@@ -1403,6 +1471,8 @@ model WorkLog {
   @@index([reviewedById, status])
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Account {
@@ -1535,6 +1605,8 @@ model Subscription {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Coupon {
@@ -1567,6 +1639,8 @@ model PaymentHistory {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model SuperAdmin {
@@ -1592,6 +1666,8 @@ model DeletionLog {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model FeatureFlag {
@@ -1643,6 +1719,8 @@ model SupportTicket {
 
   @@index([companyId, status])
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model ActivityLog {
@@ -1723,6 +1801,8 @@ model CompanyService {
   requests            ServiceRequest[]
 
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CompanyProduct {
@@ -1737,6 +1817,8 @@ model CompanyProduct {
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CompanyMedia {
@@ -1748,6 +1830,8 @@ model CompanyMedia {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model ServiceRequest {
@@ -1769,6 +1853,8 @@ model ServiceRequest {
 
   @@index([companyId, status])
   @@index([serviceId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model CompanyInvestor {
@@ -1782,6 +1868,8 @@ model CompanyInvestor {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model AiChatSession {
@@ -1904,6 +1992,8 @@ model Event {
   registrations    EventRegistration[]
 
   @@index([companyId, status])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model EventRegistration {
@@ -2053,6 +2143,8 @@ model Quote {
 
   @@index([companyId])
   @@index([clientId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Form {
@@ -2071,6 +2163,8 @@ model Form {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model FormField {
@@ -2103,6 +2197,7 @@ model FormSubmission {
 
   @@index([formId])
   @@index([companyId])
+  @@index([companyId, id])
 }
 
 model FormSubmissionValue {
@@ -2138,6 +2233,8 @@ model Website {
 
   pixels      Pixel[]
   submissions WebsiteFormSubmission[]
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model Pixel {
@@ -2194,6 +2291,8 @@ model KnowledgeArticle {
 
   versions KnowledgeArticleVersion[]
   links    KnowledgeArticleLink[]
+  @@index([companyId, id])
+  @@index([companyId, createdAt])
 }
 
 model KnowledgeArticleVersion {

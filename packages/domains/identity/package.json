@@ -1,0 +1,26 @@
+{
+  "name": "@workspace/identity",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@workspace/backend-common": "workspace:^",
+    "@workspace/communications": "workspace:*",
+    "@workspace/db": "workspace:*",
+    "@workspace/finance": "workspace:*",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "otplib": "^12.0.1",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/qrcode": "^1.5.5",
+    "typescript": "^5.9.3",
+    "@workspace/typescript-config": "workspace:*"
+  }
+}

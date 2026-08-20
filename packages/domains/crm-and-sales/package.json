@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/crm-and-sales",
+  "version": "1.0.0",
+  "description": "CRM and Sales domain logic for 180workspace",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.x.x",
+    "@workspace/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "@workspace/typescript-config": "workspace:*"
+  }
+}

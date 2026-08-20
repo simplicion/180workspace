@@ -41,10 +41,10 @@ router.get('/bootstrap', protect, async (req, res, next) => {
       }) : null,
       prisma.userPreference.findFirst({
         where: { userId },
-        select: { favorites: true, recentItems: true, theme: true }
+        select: { favorites: true, recentItems: true }
       }),
       companyId ? companyPrisma.notification.count({
-        where: { userId, read: false }
+        where: { userId, isRead: false }
       }) : 0,
       companyId ? companyPrisma.notification.findMany({
         where: { userId },

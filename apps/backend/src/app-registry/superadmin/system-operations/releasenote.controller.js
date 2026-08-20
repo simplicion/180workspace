@@ -1,8 +1,9 @@
+const { prisma } = require('@workspace/db');
 ﻿'use strict';
 
 exports.list = async (req, res) => {
     try {
-        const notes = await req.prisma.releaseNote.findMany({
+        const notes = await prisma.releaseNote.findMany({
             orderBy: [{ version: 'desc' }, { createdAt: 'desc' }]
         });
         res.json(notes);
@@ -14,7 +15,7 @@ exports.list = async (req, res) => {
 
 exports.listPublished = async (req, res) => {
     try {
-        const notes = await req.prisma.releaseNote.findMany({
+        const notes = await prisma.releaseNote.findMany({
             where: { isPublished: true },
             orderBy: [{ version: 'desc' }, { createdAt: 'desc' }]
         });
@@ -27,7 +28,7 @@ exports.listPublished = async (req, res) => {
 
 exports.create = async (req, res) => {
     try {
-        const note = await req.prisma.releaseNote.create({
+        const note = await prisma.releaseNote.create({
             data: {
                 ...req.body,
                 createdBy: req.superAdmin.id
@@ -42,7 +43,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-        const note = await req.prisma.releaseNote.update({
+        const note = await prisma.releaseNote.update({
             where: { id: req.params.id },
             data: req.body
         });
@@ -55,7 +56,7 @@ exports.update = async (req, res) => {
 
 exports.remove = async (req, res) => {
     try {
-        await req.prisma.releaseNote.delete({ where: { id: req.params.id } });
+        await prisma.releaseNote.delete({ where: { id: req.params.id } });
         res.json({ message: 'Release note deleted' });
     } catch (error) {
         console.error('[ReleaseNote Controller] remove error:', error);

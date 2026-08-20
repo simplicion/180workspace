@@ -1,4 +1,4 @@
-'use strict';
+const { CompanyMediaService } = require('@workspace/company');
 
 exports.addMedia = async (req, res) => {
     try {
@@ -8,22 +8,14 @@ exports.addMedia = async (req, res) => {
         }
 
         const { imageUrl } = req.body;
-
-        if (!imageUrl) {
-            return res.status(400).json({ success: false, message: 'Image URL is required.' });
-        }
-
-        const media = await req.prisma.companyMedia.create({
-            data: {
-                companyId,
-                imageUrl
-            }
-        });
-
+        const media = await CompanyMediaService.addMedia(companyId, imageUrl);
         res.status(201).json({ success: true, data: media });
     } catch (error) {
         console.error('Add company media error:', error);
-        res.status(500).json({ success: false, message: 'Server error adding media.', error: error.message });
+        if (error.message === 'Image URL is required.') {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+        res.status(500).json({ success: false, message: error.message || 'Server error adding media.' });
     }
 };
 
@@ -36,21 +28,13 @@ exports.deleteMedia = async (req, res) => {
             return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
         }
 
-        const existing = await req.prisma.companyMedia.findFirst({
-            where: { id: mediaId, companyId }
-        });
-
-        if (!existing) {
-            return res.status(404).json({ success: false, message: 'Media not found.' });
-        }
-
-        await req.prisma.companyMedia.delete({
-            where: { id: mediaId }
-        });
-
+        await CompanyMediaService.deleteMedia(companyId, mediaId);
         res.json({ success: true, message: 'Media deleted successfully.' });
     } catch (error) {
         console.error('Delete company media error:', error);
-        res.status(500).json({ success: false, message: 'Server error deleting media.', error: error.message });
+        if (error.message === 'Media not found.') {
+            return res.status(404).json({ success: false, message: error.message });
+        }
+        res.status(500).json({ success: false, message: error.message || 'Server error deleting media.' });
     }
 };
