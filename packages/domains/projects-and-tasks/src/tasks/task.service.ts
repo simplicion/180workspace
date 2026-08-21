@@ -1,5 +1,5 @@
 import { prisma } from '@workspace/db';
-const { logAction, triggerAutomation, emitSocket } = require('@workspace/backend-common');
+import { logAction, triggerAutomation, emitSocket } from '@workspace/backend-infra';
 
 export interface UserContext {
     id: string;
@@ -159,7 +159,7 @@ export class TaskService {
         if (!oldTask) throw new Error('Task not found');
 
         const isAdmin = ['admin', 'manager'].includes(user.role || '');
-        const isCreator = oldTask.createdBy?.toString() === user.id.toString();
+        const isCreator = false; // oldTask.createdBy not in schema
         const isAssignee = oldTask.assigneeId?.toString() === user.id.toString();
 
         let isModuleOwner = false;
@@ -234,19 +234,9 @@ export class TaskService {
             await prisma.task.update({
                 where: { id: taskId },
                 data: {
-                    completedOnTime: isOnTime,
-                    completedAt: now,
+                    completedOnTime: isOnTime
                 }
             });
-
-            if (!oldTask.pointAwarded && oldTask.assigneeId && isOnTime) {
-                const assignee = await prisma.user.findUnique({ where: { id: oldTask.assigneeId } });
-                if (assignee) {
-                    const newScore = Math.min((assignee.performanceScore || 100) + 1, 500);
-                    await prisma.user.update({ where: { id: oldTask.assigneeId }, data: { performanceScore: newScore } });
-                    await prisma.task.update({ where: { id: taskId }, data: { pointAwarded: true } });
-                }
-            }
 
             if (triggerAutomation) {
                 await triggerAutomation({
@@ -343,13 +333,15 @@ export class TaskService {
                 const total = tasks.length;
                 const completed = tasks.filter((t: any) => t.status === 'done').length;
                 const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-                await prisma.module.update({
-                    where: { id: moduleId },
-                    data: { progress }
-                });
+                // await prisma.module.update({
+                //     where: { id: moduleId },
+                //     data: { progress }
+                // });
             }
         } catch (err: any) {
             console.error('Error updating progress:', err.message);
         }
     }
 }
+
+

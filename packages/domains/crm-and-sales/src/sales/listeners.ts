@@ -1,5 +1,5 @@
 // @ts-nocheck
-const eventBus = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'system-configs/utils/eventBus.js');
+import { eventBus } from '@workspace/backend-infra';
 const { prisma } = require('@workspace/db');
 
 export function initializeCRMListeners() {
@@ -52,6 +52,8 @@ export function initializeCRMListeners() {
 }
 
 export default initializeCRMListeners;
+
+
 
 
 

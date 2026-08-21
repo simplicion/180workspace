@@ -1,6 +1,6 @@
 import type { UserContext } from '../tasks/task.service.js';
 
-const { prisma } = require('@workspace/db');
+import { prisma } from '@workspace/db';
 
 export class MilestoneService {
     static async getMilestones(projectId: string, user: UserContext) {
@@ -102,3 +102,4 @@ export class MilestoneService {
         return { milestone: updatedMilestone };
     }
 }
+

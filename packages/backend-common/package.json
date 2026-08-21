@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/backend-common",
+  "name": "@workspace/backend-infra",
   "version": "1.0.0",
   "description": "Shared Backend Utilities (EventBus, Audit, Automations)",
   "main": "dist/index.js",
@@ -17,3 +17,4 @@
     "@workspace/typescript-config": "workspace:*"
   }
 }
+

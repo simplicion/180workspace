@@ -12,8 +12,6 @@ process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception thrown:', err);
 });
 
-// ─── Sentry must be initialized FIRST ────────────────────────────────────────
-const Sentry = require('./src/system-configs/config/sentry');
 
 const express = require('express');
 const http = require('http');
@@ -23,16 +21,16 @@ const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 
-const { connectDB } = require('./src/system-configs/config/db');
+const { prisma } = require('@workspace/db');
 const { initSocket } = require('./src/system-configs/sockets');
-const { initQueues } = require('./src/platform-core/platform-engine/services/queue.service');
-const AiJobsService = require('./src/app-registry/workspace-tools-app/ai-assistant/ai-jobs.service');
-const { initCronJobs } = require('./src/app-registry/workspace-tools-app/ai-assistant/ai.cron');
-const errorHandler = require('./src/system-configs/middleware/system/error');
+const { queueService } = require('@workspace/backend-infra');
+const { initQueues } = queueService;
+const { AiJobsService, AiCronService } = require('@workspace/workspace-tools');
+const errorHandler = require('./src/system-configs/middleware/system/error').default || require('./src/system-configs/middleware/system/error');
 
 // ─── Domain Event Wiring ──────────────────────────────────────────────────────
-const { registerAutomationProvider, registerSocketProvider } = require('@workspace/backend-common');
-const LegacyAutomationService = require('./src/platform-core/platform-communications/services/automation.service');
+const { registerAutomationProvider, registerSocketProvider } = require('@workspace/backend-infra');
+const { AutomationService: LegacyAutomationService } = require('@workspace/automations');
 const { getIo } = require('./src/system-configs/sockets');
 
 registerAutomationProvider(async (params, companyPrisma) => {
@@ -56,7 +54,7 @@ const server = http.createServer(app);
 app.set('trust proxy', 1);
 
 // ─── Performance Instrumentation ──────────────────────────────────────────────
-app.use(require('./src/system-configs/middleware/system/performance.middleware'));
+app.use(require('./src/system-configs/middleware/system/performance.middleware').default || require('./src/system-configs/middleware/system/performance.middleware'));
 
 // ─── JWT Hardening ──────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
@@ -83,7 +81,10 @@ const allowedOrigins = process.env.CLIENT_URL
 app.use(cors({
     origin: (origin, callback) => {
         console.log('RECEIVED ORIGIN:', origin);
-        return callback(null, true);
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.180workspace.com') || process.env.NODE_ENV === 'development') {
+            return callback(null, true);
+        }
+        return callback(new Error('CORS policy violation'), false);
     },
     credentials: true,
 }));
@@ -97,7 +98,7 @@ app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use('/uploads', express.static('uploads'));
 
 // ─── Global Payload Type Casting ──────────────────────────────────────────────
-app.use(require('./src/system-configs/middleware/system/type-caster.middleware'));
+app.use(require('./src/system-configs/middleware/system/type-caster.middleware').default || require('./src/system-configs/middleware/system/type-caster.middleware'));
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
@@ -128,22 +129,20 @@ const authLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// ─── Sentry request handler ───────────────────────────────────────────────────
-app.use(Sentry.Handlers.requestHandler());
 
 // ─── Company Scoped Context Middleware ─────────────────────────────────────────
-app.use(require('./src/system-configs/middleware/company/company-context'));
+app.use(require('./src/system-configs/middleware/company/company-context').default || require('./src/system-configs/middleware/company/company-context'));
 
 // ─── Billing Status Enforcement ──────────────────────────────────────────────
-app.use(require('./src/system-configs/middleware/billing/checkBillingStatus'));
+app.use(require('./src/system-configs/middleware/billing/checkBillingStatus').default || require('./src/system-configs/middleware/billing/checkBillingStatus'));
 
 // ─── Swagger Documentation ────────────────────────────────────────────────────
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./src/system-configs/config/swagger');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api', require('./src/routes/index.routes'));
+const apiRoutes = require('./src/routes/index.routes').default || require('./src/routes/index.routes');
+app.use('/api', apiRoutes);
 
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
@@ -156,8 +155,6 @@ app.get('/', (req, res) => {
     });
 });
 
-// ─── Sentry error handler ─────────────────────────────────────────────────────
-app.use(Sentry.Handlers.errorHandler());
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use(errorHandler);
@@ -173,7 +170,7 @@ const RUN_MODE = process.env.RUN_MODE || 'both'; // 'api', 'worker', or 'both'
 
 async function bootstrap() {
     try {
-        await connectDB();
+        await prisma.$connect();
         
         // Always initialize queues (API needs Queues to add jobs, Worker needs Workers to process)
         await initQueues();
@@ -186,7 +183,8 @@ async function bootstrap() {
             console.log('👷 Starting Worker Services (Delegated to external worker app)');
             // CronService.init(); -> Moved to apps/worker
             AiJobsService.init(); // Phase 6: Proactive AI Alerts
-            initCronJobs(); // AI Background Processes
+            const aiCron = new AiCronService();
+            aiCron.initCronJobs(); // AI Background Processes
         }
         
         if (RUN_MODE === 'both' || RUN_MODE === 'api') {
@@ -217,4 +215,5 @@ module.exports = app;
 
  
 // trigger restart 2
+
 

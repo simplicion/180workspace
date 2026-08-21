@@ -1,7 +1,7 @@
 import type { UserContext } from '../tasks/task.service.js';
 
-const { prisma } = require('@workspace/db');
-const { triggerAutomation } = require('@workspace/backend-common');
+import { prisma } from '@workspace/db';
+import { triggerAutomation } from '@workspace/backend-infra';
 
 const mapLogs = (logs: any[]) => logs.map(log => {
     const mapped: any = {
@@ -247,3 +247,5 @@ export class WorkLogService {
         return { success: true, data: workLog };
     }
 }
+
+

@@ -1,10 +1,7 @@
-// @ts-nocheck
-import type { Client, ClientCommunication } from '@prisma/client';
-import { prisma } from '@workspace/db';
 import bcrypt from 'bcryptjs';
-// Note: We'll inject these external dependencies or mock them in the service since we want thin controllers.
-// But for now, we will pass them or let the controller handle them if they depend on req.
-// However, the cleanest way is to do the heavy lifting here.
+// @ts-nocheck
+import { prisma } from '@workspace/db';
+
 
 export class ClientService {
     static async getClients(queryParams: any) {
@@ -205,7 +202,7 @@ export class ClientService {
         return map[log.action] || log.action.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c: string) => c.toUpperCase());
     }
     static async createPortalUser(client: any, password: string) {
-        const bcrypt = require('bcryptjs');
+
         const User = prisma.user;
         const existingUser = await User.findFirst({ where: { email: client.email } });
         if (!existingUser) {
@@ -226,3 +223,5 @@ export class ClientService {
 
 
 }
+
+

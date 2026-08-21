@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/automations",
+  "version": "1.0.0",
+  "description": "Workflow Orchestrations domain for 180workspace",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/common": "workspace:*",
+    "@workspace/communications": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "^5.0.0"
+  }
+}

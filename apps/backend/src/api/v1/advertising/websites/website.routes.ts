@@ -1,0 +1,18 @@
+import { Router } from 'express';
+import * as websiteController from './website.controller';
+
+const router = Router();
+
+router.get('/', websiteController.getWebsites);
+router.post('/', websiteController.createWebsite);
+router.get('/:id', websiteController.getWebsite);
+router.patch('/:id', websiteController.updateWebsite);
+router.put('/:id/primary', websiteController.setPrimaryWebsite);
+router.delete('/:id', websiteController.deleteWebsite);
+
+router.get('/:id/stats', websiteController.getWebsiteStats);
+router.get('/:id/leads', websiteController.getWebsiteLeads);
+router.get('/:id/pixels', websiteController.getWebsitePixels);
+router.post('/:id/pixels', websiteController.createWebsitePixel);
+
+export default router;

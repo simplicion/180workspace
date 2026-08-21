@@ -1,7 +1,7 @@
 import type { UserContext } from '../tasks/task.service.js';
 
-const { prisma } = require('@workspace/db');
-const { logAction, triggerAutomation } = require('@workspace/backend-common');
+import { prisma } from '@workspace/db';
+import { logAction, triggerAutomation } from '@workspace/backend-infra';
 
 export class ModuleService {
     static async getModulesByProject(projectId: string) {
@@ -77,7 +77,7 @@ export class ModuleService {
                 triggeredBy: user.id,
                 targetUser: newModule.ownerId,
                 targetClient: user.companyId,
-                relatedItem: { itemType: 'module', itemId: newModule.id, projectId: newModule.projectId },
+                relatedItem: { itemModel: 'module', itemId: newModule.id },
                 description: `You have been assigned as the owner of the module: ${newModule.title}`,
                 metadata: {
                     moduleName: newModule.title,
@@ -138,7 +138,7 @@ export class ModuleService {
                 triggeredBy: user.id,
                 targetUser: updatedModule.ownerId,
                 targetClient: user.companyId,
-                relatedItem: { itemType: 'module', itemId: updatedModule.id, projectId: updatedModule.projectId },
+                relatedItem: { itemModel: 'module', itemId: updatedModule.id },
                 description: `You have been assigned as the owner of the module: ${updatedModule.title}`,
                 metadata: {
                     moduleName: updatedModule.title,
@@ -205,3 +205,5 @@ export class ModuleService {
         }
     }
 }
+
+

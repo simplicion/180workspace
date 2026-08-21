@@ -4,20 +4,20 @@ export const supportApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         // Get all tickets for the company
         getTickets: builder.query({
-            query: () => '/api/v1/support/tickets',
+            query: () => '/api/support/tickets',
             providesTags: ['Support'],
         }),
 
         // Get single ticket
         getTicketById: builder.query({
-            query: (id) => `/api/v1/support/tickets/${id}`,
+            query: (id) => `/api/support/tickets/${id}`,
             providesTags: (result, error, id) => [{ type: 'Support', id }],
         }),
 
         // Create new ticket
         createTicket: builder.mutation({
             query: (data) => ({
-                url: '/api/v1/support/tickets',
+                url: '/api/support/tickets',
                 method: 'POST',
                 body: data,
             }),
@@ -27,7 +27,7 @@ export const supportApi = baseApi.injectEndpoints({
         // Add reply to ticket
         replyToTicket: builder.mutation({
             query: ({ id, text }) => ({
-                url: `/api/v1/support/tickets/${id}/reply`,
+                url: `/api/support/tickets/${id}/reply`,
                 method: 'POST',
                 body: { text },
             }),
@@ -37,7 +37,7 @@ export const supportApi = baseApi.injectEndpoints({
         // Update ticket
         updateTicket: builder.mutation({
             query: ({ id, ...data }) => ({
-                url: `/api/v1/support/tickets/${id}`,
+                url: `/api/support/tickets/${id}`,
                 method: 'PUT',
                 body: data,
             }),
@@ -47,7 +47,7 @@ export const supportApi = baseApi.injectEndpoints({
         // Delete ticket
         deleteTicket: builder.mutation({
             query: (id) => ({
-                url: `/api/v1/support/tickets/${id}`,
+                url: `/api/support/tickets/${id}`,
                 method: 'DELETE',
             }),
             invalidatesTags: ['Support'],

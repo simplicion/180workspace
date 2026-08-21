@@ -1,5 +1,5 @@
 import { prisma } from '@workspace/db';
-import { CompanyPaymentProviderInterface } from '../company-payment-provider.interface';
+import { CompanyPaymentProviderInterface } from '../company-payment/company-payment-provider.interface';
 import Stripe from 'stripe';
 
 export class StripeCompanyProvider implements CompanyPaymentProviderInterface {
@@ -99,3 +99,4 @@ export class StripeCompanyProvider implements CompanyPaymentProviderInterface {
         throw new Error('Stripe Payouts integration for individual companys is currently in development.');
     }
 }
+

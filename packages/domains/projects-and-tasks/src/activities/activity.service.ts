@@ -1,6 +1,6 @@
 import type { UserContext } from '../tasks/task.service.js';
 
-const { prisma } = require('@workspace/db');
+import { prisma } from '@workspace/db';
 
 export class ActivityService {
     static async getActivityLogs(queryOptions: any, user: UserContext) {
@@ -93,3 +93,4 @@ export class ActivityService {
         return { message: `Access ${user.canViewActivity ? 'granted' : 'revoked'} for ${user.name}`, user };
     }
 }
+

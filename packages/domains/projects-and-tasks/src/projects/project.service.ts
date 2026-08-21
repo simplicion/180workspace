@@ -1,5 +1,5 @@
 import { prisma } from '@workspace/db';
-const { logAction, triggerAutomation } = require('@workspace/backend-common');
+import { logAction, triggerAutomation } from '@workspace/backend-infra';
 
 interface UserContext {
     id: string;
@@ -367,3 +367,5 @@ export class ProjectService {
         return { message: 'Note deleted successfully' };
     }
 }
+
+

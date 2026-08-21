@@ -1,5 +1,5 @@
 import { prisma } from '@workspace/db';
-import { CompanyPaymentProviderInterface } from '../company-payment-provider.interface';
+import { CompanyPaymentProviderInterface } from '../company-payment/company-payment-provider.interface';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 
@@ -159,3 +159,4 @@ export class RazorpayCompanyProvider implements CompanyPaymentProviderInterface 
         }
     }
 }
+

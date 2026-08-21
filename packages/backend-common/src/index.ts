@@ -9,3 +9,6 @@ export {
   type AutomationEvent,
 } from './automation';
 export { emitSocket, registerSocketProvider } from './socket';
+export { EmailService } from './email.service';
+export * as queueService from './queue.service';
+export * as pdfUtils from './pdf.utils';

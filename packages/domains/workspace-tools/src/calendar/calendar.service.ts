@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { prisma } from '@workspace/db';
+
 export class CalendarService {
     static async sendMeetingInvites(EmailService: any, event: any, creator: any, appUrl: string) {
         if (event.type !== 'meeting') return;
@@ -28,7 +29,7 @@ export class CalendarService {
                     meetingTitle: event.title,
                     startTime: startTime ? `${dateStr} ${startTime}` : dateStr,
                     ctaUrl: meetingLink || `${appUrl}/dashboard/calendar`
-                }, db);
+                });
             } catch (e: any) {
                 console.error(`Failed to send meeting invite to ${target.email}:`, e.message);
             }
@@ -75,6 +76,13 @@ export class CalendarService {
     static async deleteEvent(id: string) {
         return prisma.calendarEvent.delete({
             where: { id }
+        });
+    }
+
+    static async getUser(id: string) {
+        return prisma.user.findUnique({
+            where: { id },
+            select: { name: true, email: true }
         });
     }
 }

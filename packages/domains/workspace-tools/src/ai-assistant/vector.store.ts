@@ -1,18 +1,19 @@
-// @ts-nocheck
-import { prisma } from '@workspace/db';
-// @ts-nocheck
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 // A very lightweight local in-memory vector store for demonstration
 // In a real enterprise system, this would use pgvector or Pinecone.
-class VectorStore {
+export class VectorStore {
+    private storePath: string;
+    private documents: any[];
+
     constructor() {
         this.storePath = path.join(__dirname, 'vector_store.json');
+        this.documents = [];
         this.loadStore();
     }
 
-    loadStore() {
+    private loadStore() {
         if (fs.existsSync(this.storePath)) {
             try {
                 this.documents = JSON.parse(fs.readFileSync(this.storePath, 'utf8'));
@@ -24,26 +25,30 @@ class VectorStore {
         }
     }
 
-    saveStore() {
+    private saveStore() {
         fs.writeFileSync(this.storePath, JSON.stringify(this.documents, null, 2));
     }
 
-    // Mock embedding generation - in production, call OpenAI/Gemini embeddings API
-    async generateEmbedding(text) {
-        // Mock a 10-dimensional vector based on simple character hashing
-        // This is purely for demonstration of semantic RAG architecture
-        const vec = new Array(10).fill(0);
-        const words = text.toLowerCase().split(/\s+/);
-        for (let i = 0; i < words.length; i++) {
-            const hash = words[i].charCodeAt(0) || 0;
-            vec[i % 10] += hash;
+    async generateEmbedding(text: string): Promise<number[]> {
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error("OPENAI_API_KEY is not set. Real embeddings require a valid API key.");
         }
-        // Normalize
-        const mag = Math.sqrt(vec.reduce((sum, val) => sum + val * val, 0));
-        return mag === 0 ? vec : vec.map(v => v / mag);
+        
+        try {
+            const { OpenAI } = require('openai');
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const response = await openai.embeddings.create({
+                model: 'text-embedding-3-small',
+                input: text,
+            });
+            return response.data[0].embedding;
+        } catch (err) {
+            console.error("OpenAI embedding failed:", err);
+            throw new Error(`Failed to generate embeddings: ${err}`);
+        }
     }
 
-    cosineSimilarity(vecA, vecB) {
+    private cosineSimilarity(vecA: number[], vecB: number[]): number {
         let dotProduct = 0;
         let normA = 0;
         let normB = 0;
@@ -52,13 +57,14 @@ class VectorStore {
             normA += vecA[i] * vecA[i];
             normB += vecB[i] * vecB[i];
         }
+        if (normA === 0 || normB === 0) return 0;
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    async addDocument(id, text, metadata = {}) {
+    async addDocument(id: string, text: string, metadata: any = {}) {
         const embedding = await this.generateEmbedding(text);
         
-        // Chunk document if it's too large (mocked simple chunking)
+        // Chunk document if it's too large (simple chunking)
         const chunks = text.match(/[\s\S]{1,1000}/g) || [];
         
         for (let i = 0; i < chunks.length; i++) {
@@ -74,7 +80,7 @@ class VectorStore {
         this.saveStore();
     }
 
-    async search(query, topK = 3, filter = null) {
+    async search(query: string, topK: number = 3, filter: ((meta: any) => boolean) | null = null) {
         const queryEmbedding = await this.generateEmbedding(query);
         
         const results = this.documents
@@ -90,4 +96,4 @@ class VectorStore {
     }
 }
 
-module.exports = new VectorStore();
+export const vectorStore = new VectorStore();

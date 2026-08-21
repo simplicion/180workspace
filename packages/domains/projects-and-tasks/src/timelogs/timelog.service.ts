@@ -1,6 +1,6 @@
 import type { UserContext } from '../tasks/task.service.js';
 
-const { prisma } = require('@workspace/db');
+import { prisma } from '@workspace/db';
 
 export class TimeLogService {
     static async getTimeLogs(queryOptions: any, user: UserContext) {
@@ -133,3 +133,4 @@ export class TimeLogService {
         return { message: 'Time log deleted successfully.' };
     }
 }
+

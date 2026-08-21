@@ -1,2 +1,2 @@
-export * from './content-calendar.service';
-export * from './saved-banks.service';
+export * from './content-calendar/content-calendar.service';
+export * from './saved-banks/saved-banks.service';

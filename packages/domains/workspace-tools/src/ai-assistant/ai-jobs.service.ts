@@ -1,13 +1,10 @@
-// @ts-nocheck
 import { prisma } from '@workspace/db';
-// @ts-nocheck
-const { prisma } = require('@workspace/db');
-const AIService = require('./ai.service');
+import { aiService } from './ai.service';
 
 // We will use a simple setInterval for the MVP background job
-let intervalId = null;
+let intervalId: any = null;
 
-class AiJobsService {
+export class AiJobsService {
     static init() {
         console.log('AI Background Jobs Initialized');
         // Run every 1 minute for testing, or set to 1 hour (3600000 ms) for prod
@@ -63,7 +60,7 @@ class AiJobsService {
                         const prompt = `System Prompt: You are a proactive AI assistant. The user has a task named "${task.title}" due soon. Write a very brief (2 sentences max) proactive message to the user reminding them and asking if they need help drafting anything related to it. Do not include placeholders, write a direct message.`;
                         
                         // We use a dummy empty settings object since it's a background task
-                        const generatedMsg = await AIService.getInsights(prompt, {});
+                        const generatedMsg = await aiService.getInsights(prompt, {});
 
                         await prisma.aiChatMessage.create({
                             data: {
@@ -81,4 +78,4 @@ class AiJobsService {
     }
 }
 
-module.exports = AiJobsService;
+

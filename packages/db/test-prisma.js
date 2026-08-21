@@ -1,24 +1,35 @@
-const { prisma } = require('@workspace/db');
+const { prisma } = require('./src/index.js');
 
-async function run() {
-  const c = await prisma.company.findFirst();
-  if (!c) return console.log("No company");
-  console.log("Before meta:", c.metadata);
-  
-  let metadata = c.metadata || {};
-  if (typeof metadata === 'string') {
-      try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
-  }
-  
-  const updated = await prisma.company.update({
-      where: { id: c.id },
-      data: {
-          metadata: { ...metadata, testField: "hello_world_123" }
-      }
-  });
-  console.log("Updated meta:", updated.metadata);
-  
-  const fetched = await prisma.company.findUnique({ where: { id: c.id } });
-  console.log("Fetched meta:", fetched.metadata);
+async function main() {
+    try {
+        console.log("Testing EmailLog.groupBy...");
+        const companyId = undefined; // Try undefined, which is what it might be if req.user.companyId is missing
+        
+        const statusGroups = await prisma.emailLog.groupBy({
+            by: ['status'],
+            where: { companyId }, // explicitly pass { companyId: undefined }
+            _count: { _all: true }
+        });
+        console.log("Status Groups:", statusGroups);
+
+        const templateGroups = await prisma.emailLog.groupBy({
+            by: ['templateName', 'status'],
+            _count: { _all: true }
+        });
+        console.log("Template Groups:", templateGroups);
+
+        const dateLimit = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const recentLogs = await prisma.emailLog.findMany({
+            where: { createdAt: { gte: dateLimit } },
+            select: { createdAt: true }
+        });
+        console.log("Recent Logs Count:", recentLogs.length);
+        
+    } catch (e) {
+        console.error("Error:", e);
+    } finally {
+        await prisma.$disconnect();
+    }
 }
-run().then(() => process.exit(0));
+
+main();

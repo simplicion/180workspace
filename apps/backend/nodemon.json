@@ -1,6 +1,7 @@
 {
     "watch": ["src", "server.js", "package.json"],
     "ext": "js,json,ts",
+    "exec": "tsx server.js",
     "ignore": [
         "node_modules",
         "*.test.js",

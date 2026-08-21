@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "@workspace/db": "workspace:*",
-    "@workspace/backend-common": "workspace:*"
+    "@workspace/backend-infra": "workspace:*"
   },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*"

@@ -1,4 +1,5 @@
-// @ts-nocheck
+import { prisma as db } from '@workspace/db';
+
 export class ChatService {
     static mapUser(user: any) {
         if (!user) return null;
@@ -54,7 +55,7 @@ export class ChatService {
         };
     }
 
-    static async canChatWith(db: any, senderRole: string, targetRole: string, companyId: string) {
+    static async canChatWith(senderRole: string, targetRole: string, companyId: string) {
         if (targetRole === 'client' || senderRole === 'client') {
             const company = await db.company.findUnique({
                 where: { id: companyId }
@@ -65,7 +66,7 @@ export class ChatService {
         return true;
     }
 
-    static async getChats(db: any, user: any) {
+    static async getChats(user: any) {
         const chats = await db.chat.findMany({
             where: {
                 members: {
@@ -87,7 +88,7 @@ export class ChatService {
         return chats.map((c: any) => this.mapChat(c));
     }
 
-    static async createOrGetChat(db: any, user: any, data: any) {
+    static async createOrGetChat(user: any, data: any) {
         const { memberId, isGroup, name, description, memberIds, avatar } = data;
 
         // 1:1 chat
@@ -95,7 +96,7 @@ export class ChatService {
             const targetUser = await db.user.findUnique({ where: { id: memberId } });
             if (!targetUser) throw new Error('User not found');
 
-            const allowed = await this.canChatWith(db, user.role, targetUser.role, user.companyId);
+            const allowed = await this.canChatWith(user.role, targetUser.role, user.companyId);
             if (!allowed) throw new Error('Chat with clients is disabled by admin. Contact your administrator.');
 
             const chats = await db.chat.findMany({
@@ -199,7 +200,7 @@ export class ChatService {
         return this.mapChat(updatedChat);
     }
 
-    static async getMessages(db: any, chatId: string, query: any) {
+    static async getMessages(chatId: string, query: any) {
         const { page = 1, limit = 50 } = query;
         const skip = (Number(page) - 1) * Number(limit);
         
@@ -221,7 +222,7 @@ export class ChatService {
         return messages.map((m: any) => this.mapMessage(m)).reverse();
     }
 
-    static async sendMessage(db: any, user: any, chatId: string, data: any) {
+    static async sendMessage(user: any, chatId: string, data: any) {
         const { content, attachmentUrl, attachmentType, replyTo, mentions } = data;
 
         const msg = await db.message.create({
@@ -264,7 +265,7 @@ export class ChatService {
         return this.mapMessage(msg);
     }
 
-    static async markAsRead(db: any, user: any, chatId: string) {
+    static async markAsRead(user: any, chatId: string) {
         const unreadMessages = await db.message.findMany({
             where: {
                 chatId,
@@ -290,7 +291,7 @@ export class ChatService {
         return { message: 'Marked as read' };
     }
 
-    static async reactToMessage(db: any, user: any, messageId: string, emoji: string) {
+    static async reactToMessage(user: any, messageId: string, emoji: string) {
         const uid = user.id;
 
         const msg = await db.message.findUnique({ where: { id: messageId } });
@@ -316,7 +317,7 @@ export class ChatService {
         return updated.reactions;
     }
 
-    static async deleteMessage(db: any, user: any, msgId: string) {
+    static async deleteMessage(user: any, msgId: string) {
         const msg = await db.message.findUnique({ where: { id: msgId } });
         if (!msg) throw new Error('Not found');
         if (msg.senderId !== user.id && !['admin', 'manager'].includes(user.role)) {
@@ -335,7 +336,7 @@ export class ChatService {
         return { message: 'Deleted' };
     }
 
-    static async addMembers(db: any, user: any, chatId: string, memberIds: string[]) {
+    static async addMembers(user: any, chatId: string, memberIds: string[]) {
         const chat = await db.chat.findUnique({
             where: { id: chatId },
             include: { members: true, admins: true }
@@ -385,7 +386,7 @@ export class ChatService {
         return this.mapChat(updatedChat);
     }
 
-    static async removeMember(db: any, user: any, chatId: string, memberId: string) {
+    static async removeMember(user: any, chatId: string, memberId: string) {
         const chat = await db.chat.findUnique({
             where: { id: chatId },
             include: { admins: true }
@@ -420,7 +421,7 @@ export class ChatService {
         return { message: 'Member removed' };
     }
 
-    static async getChatSettings(db: any, user: any) {
+    static async getChatSettings(user: any) {
         const company = await db.company.findUnique({
             where: { id: user.companyId }
         });
@@ -428,7 +429,7 @@ export class ChatService {
         return { employeeClientChatAllowed: metadata.employeeClientChatAllowed !== false };
     }
 
-    static async updateChatSettings(db: any, user: any, employeeClientChatAllowed: boolean) {
+    static async updateChatSettings(user: any, employeeClientChatAllowed: boolean) {
         if (!['admin', 'manager'].includes(user.role)) throw new Error('Admin only');
 
         const company = await db.company.findUnique({
@@ -448,7 +449,7 @@ export class ChatService {
         return { message: 'Settings updated', employeeClientChatAllowed };
     }
 
-    static async pinMessage(db: any, chatId: string, messageId: string) {
+    static async pinMessage(chatId: string, messageId: string) {
         const chat = await db.chat.findUnique({
             where: { id: chatId },
             include: { pinnedMessages: true }

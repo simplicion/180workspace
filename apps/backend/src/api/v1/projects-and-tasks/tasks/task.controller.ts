@@ -1,0 +1,44 @@
+import { Request, Response, NextFunction } from 'express';
+import { TaskService } from '@workspace/projects-and-tasks-domain';
+
+export const getTasks = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await TaskService.getTasks(req.query, (req as any).user);
+        res.json(result);
+    } catch (err) { next(err); }
+};
+
+export const createTask = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await TaskService.createTask(req.body, (req as any).user);
+        res.status(201).json({ success: true, ...result });
+    } catch (err) { next(err); }
+};
+
+export const getTaskById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await TaskService.getTaskById(req.params.id);
+        res.json(result);
+    } catch (err: any) {
+        if (err.message === 'Task not found') return res.status(404).json({ error: err.message });
+        next(err);
+    }
+};
+
+export const updateTask = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await TaskService.updateTask(req.params.id, req.body, (req as any).user);
+        res.json({ success: true, ...result });
+    } catch (err: any) {
+        if (err.message === 'Task not found') return res.status(404).json({ error: err.message });
+        if (err.message.includes('Access denied') || err.message.includes('Cannot change status')) return res.status(403).json({ error: err.message });
+        next(err);
+    }
+};
+
+export const deleteTask = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await TaskService.deleteTask(req.params.id, (req as any).user);
+        res.json(result);
+    } catch (err) { next(err); }
+};

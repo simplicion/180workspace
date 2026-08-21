@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@prisma/client": "^5.x.x",
-    "@workspace/db": "workspace:*"
+    "@workspace/db": "workspace:*",
+    "@workspace/backend-infra": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

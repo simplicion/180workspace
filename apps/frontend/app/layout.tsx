@@ -3,6 +3,10 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
 import DesktopSplitView from '@/components/shared/DesktopSplitView';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const viewport = {
     width: 'device-width',
@@ -31,7 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const session = await getServerSession(authOptions);
 
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
             <head>
                 <link
                     href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,300,400&display=swap"

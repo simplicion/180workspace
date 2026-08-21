@@ -72,11 +72,11 @@ export default function CustomSelect({
     }, []);
 
     const filteredOptions = normalizedOptions.filter(opt => 
-        opt.label.toLowerCase().includes(search.toLowerCase())
+        String(opt.label ?? '').toLowerCase().includes(search.toLowerCase())
     );
 
     const exactMatchExists = normalizedOptions.some(
-        opt => opt.label.toLowerCase() === search.toLowerCase()
+        opt => String(opt.label ?? '').toLowerCase() === search.toLowerCase()
     );
 
     const handleSelect = (val: string) => {

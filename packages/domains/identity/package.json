@@ -7,7 +7,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@workspace/backend-common": "workspace:^",
+    "@workspace/backend-infra": "workspace:^",
     "@workspace/communications": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/finance": "workspace:*",

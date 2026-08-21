@@ -1,28 +1,17 @@
-import { prisma } from '@workspace/db';
-// @ts-nocheck
-'use strict';
+import { aiService, AISettings } from './ai.service';
 
-const AIService = require('./ai.service');
-
-/**
- * AI Automation Service
- * Handles AI-driven logic like document classification, task priority, and risk prediction.
- * Multi-company aware: methods now accept company settings.
- */
-class AIAutomationService {
+export class AIAutomationService {
     /**
      * Classify content using the company's configured AI provider
-     * @param {string} text 
-     * @param {Object} settings - Company settings
      */
-    async classifyDocument(text, settings) {
+    async classifyDocument(text: string, settings: AISettings) {
         if (!text) return { category: 'General' };
 
         try {
             const prompt = `Classify the following document content/description into one of these categories: [Invoice, Contract, Report, Identity, Technical, Personal, General]. Return only the category name.\n\nContent: ${text}`;
-            const category = await AIService.getInsights(prompt, settings);
+            const category = await aiService.getInsights(prompt, settings);
             return { category: category.trim() || 'General' };
-        } catch (err) {
+        } catch (err: any) {
             console.error('[AIAutomationService] Classification failed:', err.message);
             return { category: 'General' };
         }
@@ -31,10 +20,10 @@ class AIAutomationService {
     /**
      * Detect priority for a task based on title and description
      */
-    async detectTaskPriority(title, description, settings) {
+    async detectTaskPriority(title: string, description: string, settings: AISettings) {
         try {
             const prompt = `Analyze the following task and determine its priority (High, Medium, Low). Return only the priority name.\n\nTask Title: ${title}\nDescription: ${description}`;
-            const priority = await AIService.getInsights(prompt, settings);
+            const priority = await aiService.getInsights(prompt, settings);
             return { priority: priority.trim() || 'Medium' };
         } catch (err) {
             return { priority: 'Medium' };
@@ -44,11 +33,11 @@ class AIAutomationService {
     /**
      * Predict project risk based on tasks
      */
-    async predictProjectRisk(tasks, settings) {
+    async predictProjectRisk(tasks: any[], settings: AISettings) {
         try {
             const taskData = tasks.map(t => `- ${t.title}: ${t.status}, due ${t.dueDate}`).join('\n');
             const prompt = `Analyze these project tasks and determine the overall project risk (High, Medium, Low). Also provide a brief reason.\n\nTasks:\n${taskData}`;
-            const response = await AIService.getInsights(prompt, settings);
+            const response = await aiService.getInsights(prompt, settings);
 
             let risk = 'Low';
             if (response.toLowerCase().includes('high')) risk = 'High';
@@ -63,7 +52,7 @@ class AIAutomationService {
     /**
      * Draft a follow-up email based on an opportunity or lead context
      */
-    async draftSalesEmail(context, settings) {
+    async draftSalesEmail(context: string, settings: AISettings) {
         try {
             const prompt = `You are a professional B2B sales representative drafting an email.
 Do not use placeholders, just write a clean, concise, active-voice email.
@@ -72,9 +61,9 @@ ${context}
 
 Draft a highly engaging, short follow-up or introductory email based on the context above.`;
 
-            const content = await AIService.getInsights(prompt, settings);
+            const content = await aiService.getInsights(prompt, settings);
             return { draft: content.trim() };
-        } catch (err) {
+        } catch (err: any) {
             console.error('[AIAutomationService] Draft email failed:', err.message);
             return { draft: 'Hello,\n\nI am reaching out regarding our recent connection. Let me know when you are available to chat.\n\nBest regards,' };
         }
@@ -83,7 +72,7 @@ Draft a highly engaging, short follow-up or introductory email based on the cont
     /**
      * Contextual conversational AI assistant for a sales representative
      */
-    async salesAssistantChat(query, contextData, settings) {
+    async salesAssistantChat(query: string, contextData: any, settings: AISettings) {
         try {
             const prompt = `You are a helpful and intelligent Sales Assistant CRM AI.
 You have access to the following context about the user's sales pipeline, leads, and metrics:
@@ -93,9 +82,9 @@ The user asks: "${query}"
 
 Answer the user strictly based on the provided context data. If the answer is not in the context, say so. Keep it professional, concise, and helpful.`;
 
-            const reply = await AIService.getInsights(prompt, settings);
+            const reply = await aiService.getInsights(prompt, settings);
             return { reply: reply.trim() };
-        } catch (err) {
+        } catch (err: any) {
             console.error('[AIAutomationService] Sales Chat failed:', err.message);
             return { reply: 'Sorry, I am having trouble connecting to the AI provider.' };
         }
@@ -104,7 +93,7 @@ Answer the user strictly based on the provided context data. If the answer is no
     /**
      * Generate an advanced forecast analysis relying on historical and current pipeline data.
      */
-    async generateAdvancedForecast(contextData, settings) {
+    async generateAdvancedForecast(contextData: any, settings: AISettings) {
         try {
             const prompt = `You are an expert Chief Revenue Officer and Data Scientist.
 Analyze the following sales pipeline and historical win/loss data to predict future revenue and provide actionable forecasting insights.
@@ -124,16 +113,16 @@ Provide a highly realistic assessment. Respond in this EXACT JSON structure, do 
 }
 Make sure revenue numbers are realistic given the current pipeline and historical win rates.`;
 
-            const reply = await AIService.getInsights(prompt, settings);
+            const reply = await aiService.getInsights(prompt, settings);
             // Parse JSON block
             let jsonString = reply.replace(/```json/g, '').replace(/```/g, '').trim();
             const result = JSON.parse(jsonString);
             return result;
-        } catch (err) {
+        } catch (err: any) {
             console.error('[AIAutomationService] Forecast generation failed:', err.message);
             return null;
         }
     }
 }
 
-module.exports = new AIAutomationService();
+export const aiAutomationService = new AIAutomationService();

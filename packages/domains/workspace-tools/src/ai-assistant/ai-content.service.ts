@@ -1,24 +1,21 @@
-// @ts-nocheck
 import { prisma } from '@workspace/db';
-// @ts-nocheck
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const OpenAI = require('openai');
-const Anthropic = require('@anthropic-ai/sdk');
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-class AiContentService {
+export class AiContentService {
     /**
      * Get the company-specific AI settings
-     * @param {Object} companyPrisma - The company's database connection
-     * @returns {Object|null} - The AI settings or null if not configured
+     * @param companyPrisma - The company's database connection
+     * @returns - The AI settings or null if not configured
      */
-    async getAiSettings(companyId) {
+    async getAiSettings(companyId: string) {
         if (!companyId) return null;
         
-        const { prisma } = require('@workspace/db');
         const company = await prisma.company.findUnique({
             where: { id: companyId }
         });
-        let metadata = company?.metadata || {};
+        let metadata: any = company?.metadata || {};
         if (typeof metadata === 'string') {
             try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
         }
@@ -35,10 +32,10 @@ class AiContentService {
 
     /**
      * Generates the master prompt for the AI based on user configuration
-     * @param {Object} config - The calendar configuration from the frontend
-     * @returns {string} - The configured master prompt
+     * @param config - The calendar configuration from the frontend
+     * @returns - The configured master prompt
      */
-    buildMasterPrompt(config) {
+    buildMasterPrompt(config: any) {
         const {
             durationWords = '1 month',
             startDate,
@@ -144,12 +141,12 @@ Ensure the structure exactly matches this format:
 
     /**
      * Generate the content calendar using the configured AI provider
-     * @param {Object} companyId - The company's database connection
-     * @param {Object} config - The calendar configuration
-     * @param {string} userId - The ID of the user requesting the calendar
-     * @returns {Object} - Result object containing { success, data, error }
+     * @param companyId - The company's database connection
+     * @param config - The calendar configuration
+     * @param userId - The ID of the user requesting the calendar
+     * @returns - Result object containing { success, data, error }
      */
-     async generateContentCalendar(companyId, config, userId) {
+     async generateContentCalendar(companyId: string, config: any, userId: string) {
         const startTime = Date.now();
         let providerUsed = 'unknown';
         let promptContent = this.buildMasterPrompt(config);
@@ -182,7 +179,7 @@ Ensure the structure exactly matches this format:
                     temperature: 0.7,
                     response_format: { type: "json_object" } // Using json_object might require prompting to return an object wrapping the array. Let's rely on strict prompting first, or try/catch parsing.
                 });
-                rawAiResponse = completion.choices[0].message.content;
+                rawAiResponse = completion.choices[0].message.content || '';
             } 
             else if (providerUsed === 'gemini') {
                 if (!settings.geminiKey) throw new Error("Gemini API key is missing in settings.");
@@ -207,11 +204,11 @@ Ensure the structure exactly matches this format:
                          { role: "user", content: promptContent }
                     ]
                 });
-                rawAiResponse = msg.content[0]?.text || '';
+                rawAiResponse = (msg.content[0] as any)?.text || '';
             }
 
             // --- Parse and Validate Response ---
-            let parsedData;
+            let parsedData: any;
             try {
                 // Sometimes AI still wraps in markdown despite instructions
                 let cleanResponse = rawAiResponse;
@@ -239,7 +236,7 @@ Ensure the structure exactly matches this format:
                 console.error("Raw Response:", rawAiResponse);
                 
                 // Log failure
-                await this.logAiRequest(companyPrisma, {
+                await this.logAiRequest(companyId, {
                     provider: providerUsed,
                     endpoint: 'generateContentCalendar',
                     durationMs: Date.now() - startTime,
@@ -252,7 +249,7 @@ Ensure the structure exactly matches this format:
             }
 
             // Map parsed data to standard CalendarContentPiece structure
-            const contentPieces = parsedData.map(item => ({
+            const contentPieces = parsedData.map((item: any) => ({
                 platform: item.platform || 'General',
                 contentType: item.contentType || 'Text',
                 pillar: item.pillar || item.category || 'General',
@@ -280,7 +277,7 @@ Ensure the structure exactly matches this format:
                 }
             };
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(`[AiContentService] Error generating calendar (${providerUsed}):`, error);
             
             return { 
@@ -296,18 +293,24 @@ Ensure the structure exactly matches this format:
 
     /**
      * Log an AI request to the company's database
-     * @param {Object} companyPrisma - The company's database connection
-     * @param {Object} data - The log data
+     * @param data - The log data
      */
-    async logAiRequest(companyPrisma, data) {
+    async logAiRequest(companyId: string, data: any) {
         try {
-            if (!companyPrisma) return;
-            const AiRequestLog = companyPrisma.model('AiRequestLog');
-            await AiRequestLog.create(data);
-        } catch (err) {
+            if (!companyId) return;
+            await prisma.aiRequestLog.create({
+                data: {
+                    ...data,
+                    companyId
+                }
+            });
+        } catch (err: any) {
             console.error('[AiContentService] Failed to log AI request:', err.message);
         }
     }
 }
 
-module.exports = new AiContentService();
+export const aiContentService = new AiContentService();
+
+
+

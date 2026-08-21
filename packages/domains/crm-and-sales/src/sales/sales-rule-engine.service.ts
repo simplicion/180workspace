@@ -1,15 +1,10 @@
 // @ts-nocheck
 import { prisma } from '@workspace/db';
-import { SalesService } from './sales.service.js';
-const AutomationService = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'platform-core/platform-communications/services/automation.service.js');
-const webhookRoutes = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'platform-core/platform-integrations/webhooks/webhook.routes.js');
 
-/**
- * Deterministic Rule Engine for Sales Context-Aware Suggestions 
- * and Automated Triggers.
- */
-export class SalesRuleEngine {
+import { SalesService } from './sales.service';
+import axios from 'axios';
 
+export class SalesRuleEngineService {
     /**
      * Triggered when a new lead is created
      */
@@ -55,7 +50,7 @@ export class SalesRuleEngine {
             });
 
             // Trigger internal system notification
-            await AutomationService.trigger({
+            await triggerAutomation({
                 eventType: 'sales_proposal_sent',
                 triggeredBy: ownerId,
                 targetUser: ownerId,
@@ -64,18 +59,18 @@ export class SalesRuleEngine {
             }, companyPrisma);
 
             // External Trigger (n8n Webhook)
-            await webhookRoutes.triggerN8nWebhook('sales-proposal-update', { opportunityId, stage: newStage });
+            await triggerN8nWebhook('sales-proposal-update', { opportunityId, stage: newStage });
         }
 
         // Rule 2: If ClosedWon, trigger onboarding or account handover
         if (newStage === 'ClosedWon') {
-            await AutomationService.trigger({
+            await triggerAutomation({
                 eventType: 'deal_closed_won',
                 triggeredBy: ownerId,
                 relatedItem: { itemId: opp.id, itemModel: 'Opportunity' },
                 description: `Deal ${opp.title} was won!`
             }, companyPrisma);
-            await webhookRoutes.triggerN8nWebhook('deal-closed-won', { opportunityId, value: opp.value });
+            await triggerN8nWebhook('deal-closed-won', { opportunityId, value: opp.value });
         }
     }
 
@@ -97,7 +92,7 @@ export class SalesRuleEngine {
 
                 // Rule X: Late Follow-up Warning (> 10 days)
                 if (daysStagnant >= 10 && opp.stage !== 'ClosedWon' && opp.stage !== 'ClosedLost') {
-                    await AutomationService.trigger({
+                    await triggerAutomation({
                         eventType: 'deal_stagnated',
                         triggeredBy: null, // System
                         targetUser: opp.owner,
@@ -108,7 +103,7 @@ export class SalesRuleEngine {
 
                 // Rule Y: Deal Value vs Engagement Risk Warning
                 if (opp.value >= 10000 && daysStagnant >= 7 && opp.stage !== 'ClosedWon' && opp.stage !== 'ClosedLost') {
-                    await AutomationService.trigger({
+                    await triggerAutomation({
                         eventType: 'high_value_deal_at_risk',
                         triggeredBy: null, // System
                         targetUser: opp.owner,
@@ -166,6 +161,9 @@ export class SalesRuleEngine {
         }
     }
 }
+
+
+
 
 
 

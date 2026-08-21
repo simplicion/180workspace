@@ -1,5 +1,6 @@
-import { prisma } from '@workspace/db';
-export * from './auth.service.js';
-export * from './user.service.js';
-export * from './profile.service.js';
-export * from './user-preference.service.js';
+export * from './auth/auth.service';
+export * from './profile/profile.service';
+export * from './user-preference/user-preference.service';
+export * from './user/user.service';
+export * from './setup/setup.service';
+export * from './types/app-error';

@@ -5,7 +5,7 @@ export const communityApi = baseApi.injectEndpoints({
         // Get all forum posts
         getPosts: builder.query({
             query: (params) => ({
-                url: '/api/v1/community/posts',
+                url: '/api/community/posts',
                 params
             }),
             providesTags: ['Community'],
@@ -13,14 +13,14 @@ export const communityApi = baseApi.injectEndpoints({
 
         // Get single post
         getPostById: builder.query({
-            query: (id) => `/api/v1/community/posts/${id}`,
+            query: (id) => `/api/community/posts/${id}`,
             providesTags: (result, error, id) => [{ type: 'Community', id }],
         }),
 
         // Create new post
         createPost: builder.mutation({
             query: (data) => ({
-                url: '/api/v1/community/posts',
+                url: '/api/community/posts',
                 method: 'POST',
                 body: data,
             }),
@@ -30,7 +30,7 @@ export const communityApi = baseApi.injectEndpoints({
         // Reply to post
         replyToPost: builder.mutation({
             query: ({ postId, content }) => ({
-                url: `/api/v1/community/posts/${postId}/replies`,
+                url: `/api/community/posts/${postId}/replies`,
                 method: 'POST',
                 body: { content },
             }),
@@ -40,7 +40,7 @@ export const communityApi = baseApi.injectEndpoints({
         // Toggle Like
         toggleLike: builder.mutation({
             query: (postId) => ({
-                url: `/api/v1/community/posts/${postId}/like`,
+                url: `/api/community/posts/${postId}/like`,
                 method: 'POST',
             }),
             // Optimistic update could go here, for now invalidate
@@ -49,7 +49,7 @@ export const communityApi = baseApi.injectEndpoints({
 
         // Get Trending Hashtags
         getHashtags: builder.query({
-            query: () => '/api/v1/community/hashtags',
+            query: () => '/api/community/hashtags',
         }),
     }),
 });

@@ -1,7 +1,7 @@
 // @ts-nocheck
-const { prisma } = require('@workspace/db');
-﻿const moment = require('moment');
-const salesMath = require('../utils/salesMath');
+import { prisma } from '@workspace/db';
+﻿import moment from 'moment';
+import * as salesMath from '../utils/salesMath';
 const bcrypt = require('bcryptjs');
 
 
@@ -733,7 +733,7 @@ export class SalesService {
     static async getProductivity(userId) {
         const User = prisma.user;
         const allReps = await User.findMany({ where: { role: { in: ['admin', 'sales', 'manager'] } } });
-        const { calculateRepProductivity } = require('./crm-calculation.service.js').CrmCalculationService;
+        
 
         const leaderboard = [];
         for (const rep of allReps) {
@@ -744,7 +744,7 @@ export class SalesService {
             ]);
 
             const revValue = revenue.length ? revenue[0].total : 0;
-            const score = calculateRepProductivity(dealsClosed, revValue, activities);
+            const score = CrmCalculationService.calculateRepProductivity(dealsClosed, revValue, activities);
 
             leaderboard.push({ id: rep.id, name: rep.name, email: rep.email, score, dealsClosed });
         }
@@ -812,15 +812,15 @@ export class SalesService {
         } });
 
         const settings = await prisma.settings.findFirst();
-        const { scoreLead } = require('./crm-calculation.service.js').CrmCalculationService;
-        const newScore = scoreLead(lead, settings?.salesConfig?.leadScoring);
+        
+        const newScore = CrmCalculationService.scoreLead(lead, settings?.salesConfig?.leadScoring);
         await Lead.update({ where: { id: lead.id }, data: { leadScore: newScore } });
 
-        const SalesRuleEngine = require('./sales-rule-engine.service');
+        
         await SalesRuleEngine.onLeadCreated(companyPrisma, lead.id);
 
         try {
-            const { triggerN8nWebhook } = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'platform-core/platform-integrations/webhooks/webhook.routes');
+            
             await triggerN8nWebhook('new-lead', {
                 leadId: lead.id,
                 name: lead.name,
@@ -845,8 +845,8 @@ export class SalesService {
 
         const inserted = await Lead.createMany({ data: newLeads });
         const settings = await prisma.settings.findFirst();
-        const { scoreLead } = require('./crm-calculation.service.js').CrmCalculationService;
-        const SalesRuleEngine = require('./sales-rule-engine.service');
+        
+        
 
         // Note: Using findMany to get the inserted leads for scoring/triggers would be better, 
         // but skipping for now to match old behavior exactly.
@@ -900,7 +900,7 @@ export class SalesService {
         } catch (scoringErr) {}
 
         try {
-            const { triggerN8nWebhook } = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'platform-core/platform-integrations/webhooks/webhook.routes');
+            
             triggerN8nWebhook('update-lead', {
                 leadId: lead.id,
                 name: lead.name,
@@ -1009,28 +1009,21 @@ export class SalesService {
             """${text.substring(0, 10000)}"""
         `;
 
-        if (!process.env.OPENAPI_KEY && !process.env.OPENAI_API_KEY) {
-            return {
-                title: "Mocked Service Agreement",
-                parties: ["Platform Corp", "Client LLC"],
-                value: "$50,000",
-                dates: { effectiveDate: "2024-01-01", expirationDate: "2025-01-01" },
-                keyObligations: ["Provide software access", "Provide 99.9% uptime"],
-                risks: ["Automatic renewal clause hidden in section 4", "High penalty for early termination", "Ambiguous liability limitation"]
-            };
+        const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAPI_KEY;
+        if (!apiKey) {
+            throw new Error('OpenAI API key is missing. Cannot perform contract analysis.');
         }
 
-        const { Configuration, OpenAIApi } = require("openai");
-        const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY || process.env.OPENAPI_KEY });
-        const openai = new OpenAIApi(configuration);
+        const { OpenAI } = require('openai');
+        const openai = new OpenAI({ apiKey });
 
-        const response = await openai.createChatCompletion({
+        const response = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.2
         });
 
-        let resultText = response.data.choices[0].message.content;
+        let resultText = response.choices[0].message.content;
         if (resultText.startsWith('```json')) {
             resultText = resultText.replace(/```json/g, '').replace(/```/g, '');
         }
@@ -1056,24 +1049,21 @@ export class SalesService {
             - "updatedContractText": The full, legally sound revised contract text incorporating the updates.
         `;
 
-        if (!process.env.OPENAPI_KEY && !process.env.OPENAI_API_KEY) {
-            return {
-                proposedChanges: "Mocked changes: Added standard limitation of liability and severability clauses to protect the company.",
-                updatedContractText: "[MOCKED REVISED CONTRACT]\n\n" + text + "\n\n[ADDED] Limitation of Liability: In no event shall the company be liable for indirect damages."
-            };
+        const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAPI_KEY;
+        if (!apiKey) {
+            throw new Error('OpenAI API key is missing. Cannot propose contract updates.');
         }
 
-        const { Configuration, OpenAIApi } = require("openai");
-        const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY || process.env.OPENAPI_KEY });
-        const openai = new OpenAIApi(configuration);
+        const { OpenAI } = require('openai');
+        const openai = new OpenAI({ apiKey });
 
-        const response = await openai.createChatCompletion({
+        const response = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.3
         });
 
-        let resultText = response.data.choices[0].message.content;
+        let resultText = response.choices[0].message.content;
         if (resultText.startsWith('```json')) resultText = resultText.replace(/```json/g, '').replace(/```/g, '');
 
         return JSON.parse(resultText);
@@ -1132,7 +1122,7 @@ export class SalesService {
             };
         }
 
-        const { Configuration, OpenAIApi } = require("openai");
+        const { Configuration, OpenAIApi } = require('openai');
         const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY || process.env.OPENAPI_KEY });
         const openai = new OpenAIApi(configuration);
 
@@ -1177,19 +1167,19 @@ export class SalesService {
 
         if (!recipientEmail) throw new Error('No recipient email found.');
 
-        const { generateContractPDF } = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'platform-core/platform-engine/pdf/pdf.utils.js');
-        const doc = new (require('pdfkit'))({ margin: 50 });
+        
+        const doc = new PDFDocument({ margin: 50 });
         
         let chunks = [];
         doc.on('data', chunk => chunks.push(chunk));
-        generateContractPDF(doc, { contractTitle, contractText }, company, clientObj);
+        pdfUtils.generateContractPDF(doc, { contractTitle, contractText }, company, clientObj);
         doc.end();
 
         const pdfBuffer = await new Promise((resolve) => {
             doc.on('end', () => resolve(Buffer.concat(chunks)));
         });
 
-        const emailService = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'app-registry/communications-app/emails/email.service.js');
+        
         const result = await emailService.sendGenericEmail(recipientEmail, 
             `${company?.companyName || '180workspace'} - ${contractTitle || 'Legal Agreement'}`,
             `Hello,\n\nPlease find the attached ${contractTitle || 'document'} prepared for you by ${company?.companyName || 'our team'}.\n\nBest regards,\n${userName}`,
@@ -1344,8 +1334,8 @@ export class SalesService {
         } });
 
         const settings = await prisma.settings.findFirst();
-        const { calculateWinProbability } = require('./crm-calculation.service.js').CrmCalculationService;
-        opp.probability = calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
+        
+        opp.probability = CrmCalculationService.calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
         
         await Opportunity.update({ where: { id: opp.id }, data: { probability: opp.probability } });
 
@@ -1512,7 +1502,7 @@ export class SalesService {
                     try {
                         const crypto = require('crypto');
                         const bcrypt = require('bcryptjs');
-                        const { sendWelcomeEmail } = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'app-registry/communications-app/emails/email.service.js');
+                        
                         
                         const generatedPassword = crypto.randomBytes(8).toString('hex');
                         const salt = await bcrypt.genSalt(10);
@@ -1528,7 +1518,7 @@ export class SalesService {
                             }
                         });
 
-                        await emailService.sendWelcomeEmail(clientUser, generatedPassword, companyPrisma);
+                        await emailService.EmailService.sendWelcomeEmail(clientUser, generatedPassword, companyPrisma);
                     } catch (err) {
                         console.error('Failed to create client user or send email on win:', err);
                     }
@@ -1587,8 +1577,8 @@ export class SalesService {
         }
 
         const settings = await prisma.settings.findFirst();
-        const { calculateWinProbability } = require('./crm-calculation.service.js').CrmCalculationService;
-        opp.probability = calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
+        
+        opp.probability = CrmCalculationService.calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
         
         await Opportunity.update({ where: { id: opp.id }, data: { probability: opp.probability } });
 
@@ -1653,7 +1643,7 @@ export class SalesService {
         const Opportunity = prisma.lead;
         const Contact = prisma.contact;
         const moment = require('moment');
-        const { calculateCustomerRiskIndex } = require('./crm-calculation.service.js').CrmCalculationService;
+        
 
         const accounts = await Promise.all(accountsRaw.map(async acc => {
             const [lostDeals, staleContacts] = await Promise.all([
@@ -1664,7 +1654,7 @@ export class SalesService {
                 } })
             ]);
 
-            const riskIndex = calculateCustomerRiskIndex(lostDeals, staleContacts);
+            const riskIndex = CrmCalculationService.calculateCustomerRiskIndex(lostDeals, staleContacts);
             let healthStatus = 'Healthy';
             if (riskIndex > 60) healthStatus = 'At Risk';
             if (riskIndex > 90) healthStatus = 'Churned';
@@ -1935,7 +1925,7 @@ export class SalesService {
         const Quote = prisma.quote;
         const Client = prisma.client;
         const PDFDocument = require('pdfkit');
-        const { generateQuotationPDF } = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'platform-core/platform-engine/pdf/pdf.utils.js');
+        
 
         const settings = await Settings.findFirst();
         const hasSmtp = settings && settings.smtpHost && settings.smtpUser && settings.smtpPass;
@@ -1972,14 +1962,14 @@ export class SalesService {
         let chunks = [];
         doc.on('data', chunk => chunks.push(chunk));
         
-        generateQuotationPDF(doc, quote, reqCompany);
+        pdfUtils.generateQuotationPDF(doc, quote, reqCompany);
         doc.end();
 
         const pdfBuffer = await new Promise((resolve) => {
             doc.on('end', () => resolve(Buffer.concat(chunks)));
         });
 
-        const emailService = require((process.cwd().endsWith('backend') ? process.cwd() + '/src/' : process.cwd() + '/apps/backend/src/') + 'app-registry/communications-app/emails/email.service.js');
+        
         const result = await emailService.sendQuotationEmail(recipientEmail, {
             quoteNumber: quote.quoteNumber,
             grandTotal: quote.grandTotal,
@@ -2191,6 +2181,8 @@ export class SalesService {
         return { pipelines, leads };
     }
 }
+
+
 
 
 

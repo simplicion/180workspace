@@ -1,0 +1,15 @@
+{
+  "name": "@workspace/public",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@workspace/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@workspace/typescript-config": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

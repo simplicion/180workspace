@@ -9,12 +9,15 @@
   },
   "dependencies": {
     "@prisma/client": "^5.x.x",
-    "@workspace/db": "workspace:*"
+    "@types/nodemailer": "^8.0.1",
+    "@workspace/db": "workspace:*",
+    "@workspace/backend-infra": "workspace:*",
+    "nodemailer": "^8.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "@workspace/typescript-config": "workspace:*"
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "^5.0.0"
   },
   "types": "dist/index.d.ts"
 }
