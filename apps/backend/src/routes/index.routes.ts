@@ -41,6 +41,60 @@ const setupRoutes = require('../api/v1/identity/setup/setup.routes').default;
 const insightsRoutes = require('../api/v1/insights/index').default;
 const publicRoutes = require('../api/v1/public/public.routes').default;
 
+// ─── Legacy Route Proxy ────────────────────────────────────────────────────
+// Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
+router.use((req, res, next) => {
+    // Only intercept requests missing /v1/, /auth, /setup, /public, /company-profile
+    if (req.url.startsWith('/v1/') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin')) {
+        return next();
+    }
+
+    const path = req.path; // e.g. /dashboard
+    
+    if (path === '/billing') {
+        // Return a mock billing response to satisfy useSubscription without 404s
+        return res.json({
+            subscription: null,
+            plan: null,
+            daysLeft: 999,
+            isExpired: false,
+            isWarning: false,
+            isTrialing: true,
+            status: 'trial',
+            paymentsEnabled: false,
+            currency: 'INR',
+            dataDeletionDate: null,
+            mandateStatus: 'pending',
+            autopayEnabled: false,
+            autopayFailCount: 0,
+            nextChargeDate: null
+        });
+    }
+    
+    // Explicit rewrites for components like CeoOverview and useSubscription
+    const rewrites = {
+        '/insights': '/v1/workspace-tools/ai-assistant/insights',
+        '/weekly-trends': '/v1/hr-management/hrms/weekly-trends',
+        '/dashboard': '/v1/hr-management/hrms/dashboard',
+        '/projects': '/v1/projects-and-tasks/projects',
+        '/calendar': '/v1/workspace-tools/calendar',
+        '/leaves': '/v1/hr-management/leaves',
+        '/goals': '/v1/hr-management/hrms/goals',
+        '/expenses': '/v1/finance/expenses',
+        '/ceo-insights': '/v1/hr-management/hrms/ceo-insights'
+    };
+
+    if (rewrites[path]) {
+        req.url = req.url.replace(path, rewrites[path]);
+    } else if (path.startsWith('/projects/')) {
+        req.url = req.url.replace('/projects', '/v1/projects-and-tasks/projects');
+    } else if (path.startsWith('/expenses/')) {
+        req.url = req.url.replace('/expenses', '/v1/finance/expenses');
+    }
+    
+    next();
+});
+
 // ─── Public & Core ─────────────────────────────────────────────────────────
 router.use('/v1/identity', identityRoutes);
 router.use('/auth', require('../api/v1/identity/auth/auth.routes').authRoutes);
