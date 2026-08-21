@@ -11,12 +11,14 @@ import api from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/auth-context';
 
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { platform, isLoading: settingsLoading } = useSettings();
     const { data: session, status } = useSession();
+    const { user: authUser, isLoading: authLoading, token } = useAuth();
     const user = session?.user;
     const isLoading = status === "loading";
 
@@ -70,10 +72,23 @@ function LoginForm() {
         }
     }, [isLoading, user, router, searchParams]);
 
+    // ── Auto-login: Sync platform_auth_token to NextAuth if missing ───────
+    useEffect(() => {
+        if (!isLoading && !authLoading && !user && authUser && token) {
+            // User is authenticated in backend but NextAuth session is missing
+            signIn('platform-token', { token, redirect: false }).then((result) => {
+                if (result?.ok) {
+                    const returnUrl = searchParams?.get('returnUrl');
+                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                }
+            });
+        }
+    }, [isLoading, authLoading, user, authUser, token, searchParams]);
+
     // While the auth context or settings context is resolving, show a spinner
     // so the login form never flickers on screen for logged-in users.
     // However, if they haven't finished onboarding, we let them see the form so they can switch accounts.
-    const shouldShowSpinner = isLoading || (user && (user as any).isFirstLogin === false) || settingsLoading;
+    const shouldShowSpinner = isLoading || authLoading || (user && (user as any).isFirstLogin === false) || settingsLoading;
     if (shouldShowSpinner) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">

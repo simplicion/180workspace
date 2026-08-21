@@ -282,6 +282,8 @@ export default function SettingsSidebar({
                                             name, 
                                             slug: `/${id}`, 
                                             isEnabled: true, 
+                                            isPublished: true,
+                                            navVisibility: 'both',
                                             sections: getDefaultSectionsForPageType(id, currencySymbol) 
                                         }
                                     ]
@@ -304,19 +306,38 @@ export default function SettingsSidebar({
                                     {activePageId === p.id && <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded ml-2">ACTIVE</span>}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100/50">
-                                <label className="flex items-center gap-2 text-xs text-gray-500 font-medium cursor-pointer">
+                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100/50 flex-wrap">
+                                <label className="flex items-center gap-2 text-xs text-gray-700 font-medium cursor-pointer">
                                     <input 
                                         type="checkbox" 
-                                        checked={p.isEnabled}
+                                        checked={p.isPublished !== false && p.isEnabled !== false}
                                         onChange={(e) => {
                                             const newConfig = JSON.parse(JSON.stringify(config));
+                                            newConfig.pages[i].isPublished = e.target.checked;
                                             newConfig.pages[i].isEnabled = e.target.checked;
                                             commitConfig(newConfig);
                                         }}
+                                        className="rounded text-indigo-600 focus:ring-indigo-500"
                                     />
-                                    Visible in Nav
+                                    Publish Page
                                 </label>
+
+                                {(p.isPublished !== false && p.isEnabled !== false) && (
+                                    <CustomSelect
+                                        value={p.navVisibility || 'both'}
+                                        onChange={(e) => {
+                                            const newConfig = JSON.parse(JSON.stringify(config));
+                                            newConfig.pages[i].navVisibility = e.target.value;
+                                            commitConfig(newConfig);
+                                        }}
+                                        className="text-xs p-1 border border-gray-200 rounded outline-none focus:border-indigo-500 bg-white"
+                                    >
+                                        <option value="both">Header & Footer</option>
+                                        <option value="header">Header Only</option>
+                                        <option value="footer">Footer Only</option>
+                                        <option value="none">Hidden</option>
+                                    </CustomSelect>
+                                )}
                                 <div className="flex-1"></div>
                                 <button 
                                     onClick={() => {
@@ -429,7 +450,7 @@ export default function SettingsSidebar({
                     <div>
                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Raw Elements</h4>
                         <div className="space-y-2">
-                            {['box', 'text', 'media', 'button', 'line'].map(type => (
+                            {['row', 'column', 'box', 'text', 'media', 'button', 'line'].map(type => (
                                 <div 
                                     key={type}
                                     draggable

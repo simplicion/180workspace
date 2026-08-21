@@ -1,5 +1,32 @@
 import React from 'react';
 import { ElementNode } from '../../../../dashboard/(advertising-app)/advertising/[id]/edit/types';
+import { motion } from 'framer-motion';
+
+const getAnimationProps = (animationType?: string) => {
+    switch (animationType) {
+        case 'fade-in':
+            return { initial: { opacity: 0 }, whileInView: { opacity: 1 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6 } };
+        case 'fade-up':
+            return { initial: { opacity: 0, y: 40 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6, ease: "easeOut" as const } };
+        case 'fade-left':
+            return { initial: { opacity: 0, x: -40 }, whileInView: { opacity: 1, x: 0 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6, ease: "easeOut" as const } };
+        case 'fade-right':
+            return { initial: { opacity: 0, x: 40 }, whileInView: { opacity: 1, x: 0 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6, ease: "easeOut" as const } };
+        case 'scale-up':
+            return { initial: { opacity: 0, scale: 0.8 }, whileInView: { opacity: 1, scale: 1 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.5, type: 'spring' as const, bounce: 0.3 } };
+        default:
+            return {};
+    }
+};
+
+const AnimatedWrapper = ({ animation, children, style, className }: any) => {
+    if (!animation || animation === 'none') {
+        return <>{children}</>;
+    }
+    const props = getAnimationProps(animation);
+    return <motion.div {...(props as any)} style={style} className={className}>{children}</motion.div>;
+};
+
 
 interface PublicRenderElementProps {
     node: ElementNode;
@@ -8,23 +35,43 @@ interface PublicRenderElementProps {
 export function PublicRenderElement({ node }: PublicRenderElementProps) {
     if (!node) return null;
 
-    // Standard DOM nodes
-    if (node.type === 'section' || node.type === 'box') {
+    if (node.type === 'section' || node.type === 'box' || node.type === 'row' || node.type === 'column') {
+        let display = node.style?.display;
+        let flexDirection = node.style?.flexDirection;
+        let flexWrap = node.style?.flexWrap;
+
+        if (node.type === 'row') {
+            display = 'flex';
+            flexDirection = 'row';
+            flexWrap = 'wrap';
+        } else if (node.type === 'column') {
+            display = 'flex';
+            flexDirection = 'column';
+        } else if (node.type === 'box') {
+            display = display || 'flex';
+        } else {
+            display = display || 'block';
+        }
+
         const style = {
             ...node.style,
-            display: node.style?.display || (node.type === 'box' ? 'flex' : 'block'),
+            display,
+            flexDirection,
+            flexWrap,
+            width: node.style?.width || '100%',
         };
-        return (
-            <div style={style} className="relative w-full">
+        const content = (
+            <div style={style as any} className="relative">
                 {node.children?.map(child => (
                     <PublicRenderElement key={child.id} node={child} />
                 ))}
             </div>
         );
+        return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
 
     if (node.type === 'text') {
-        const Tag = (node.style?.tagName || 'div') as keyof JSX.IntrinsicElements;
+        const Tag: any = node.style?.tagName || 'div';
         const style = {
             fontSize: node.style?.fontSize,
             fontWeight: node.style?.fontWeight,
@@ -34,16 +81,17 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
             marginBottom: node.style?.marginBottom,
             ...node.style
         };
-        return (
+        const content = (
             <Tag 
-                style={style} 
+                style={style as any} 
                 dangerouslySetInnerHTML={{ __html: node.data?.content || '' }} 
             />
         );
+        return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
 
-    if (node.type === 'media') {
-        const mediaUrl = node.data?.imageUrl || node.data?.videoUrl;
+    if (node.type === 'media' || node.type === 'image') {
+        const mediaUrl = node.data?.imageUrl || node.data?.videoUrl || node.data?.src;
         const isVideo = mediaUrl && (mediaUrl.endsWith('.m3u8') || mediaUrl.endsWith('.mp4'));
         const style = {
             width: '100%', 
@@ -55,10 +103,11 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
 
         if (!mediaUrl) return null;
 
-        if (isVideo) {
-            return <video src={mediaUrl} controls autoPlay muted loop style={style} />;
-        }
-        return <img src={mediaUrl} alt="" style={style} />;
+        const content = isVideo 
+            ? <video src={mediaUrl} controls autoPlay muted loop style={style as any} />
+            : <img src={mediaUrl} alt="" style={style as any} />;
+            
+        return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
 
     if (node.type === 'button') {
@@ -74,11 +123,12 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
             ...node.style
         };
         const link = node.data?.link || '#';
-        return (
-            <a href={link} style={style}>
-                {node.data?.content || 'Button'}
+        const content = (
+            <a href={link} style={style as any}>
+                {node.data?.content || node.data?.label || 'Button'}
             </a>
         );
+        return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
 
     if (node.type === 'line') {

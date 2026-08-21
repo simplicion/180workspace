@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as analyticsController from './analytics.controller';
-import { authorize } from '../../../../system-configs/middleware/auth/auth.ts';
+import { authorize } from '../../../../system-configs/middleware/auth/auth';
 
 const router = Router();
 
@@ -9,6 +9,9 @@ router.use(authorize('admin', 'manager'));
 
 router.get('/plausible', analyticsController.getPlausibleStats);
 router.post('/plausible/test', analyticsController.testPlausibleConnection);
+
+// Team Activity
+router.get('/team-activity', analyticsController.getTeamActivity);
 
 // Financial Analytics
 router.get('/financial/stats', analyticsController.getFinancialStats);

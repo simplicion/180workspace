@@ -1,42 +1,19 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function main() {
-    const company = await prisma.company.findFirst();
-    const companyId = company.id;
+async function run() {
+  try {
+    const res = await prisma.emailLog.groupBy({ by: ['status'], _count: { _all: true } });
+    console.log("Status Stats:", res);
 
-    console.log("Original Metadata:", company.metadata);
+    const res2 = await prisma.emailLog.groupBy({ by: ['templateName', 'status'], _count: { _all: true } });
+    console.log("Template Stats:", res2);
 
-    // Simulated updateSettings
-    let currentMeta = company.metadata || {};
-    if (typeof currentMeta === 'string') {
-        try { currentMeta = JSON.parse(currentMeta); } catch (e) { currentMeta = {}; }
-    }
-
-    const updateData = {
-        googleDriveServiceAccount: '{"type":"service_account","project_id":"test"}',
-        storageMode: 'google_drive'
-    };
-
-    const updated = await prisma.company.update({
-        where: { id: companyId },
-        data: {
-            metadata: {
-                ...currentMeta,
-                ...updateData
-            }
-        }
-    });
-
-    console.log("Updated Metadata:", updated.metadata);
-
-    // Simulated getSettings
-    const fetched = await prisma.company.findUnique({ where: { id: companyId }});
-    let fetchedMeta = fetched.metadata || {};
-    if (typeof fetchedMeta === 'string') {
-        try { fetchedMeta = JSON.parse(fetchedMeta); } catch (e) { fetchedMeta = {}; }
-    }
-    
-    console.log("Fetched Metadata googleDriveServiceAccount:", fetchedMeta.googleDriveServiceAccount);
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
-main().catch(console.error).finally(() => prisma.$disconnect());
+
+run();

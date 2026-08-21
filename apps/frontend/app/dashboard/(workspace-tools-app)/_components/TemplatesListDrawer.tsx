@@ -63,7 +63,7 @@ export default function TemplatesListDrawer({
                 const res = await api.get('/api/180documents/files?category=Template');
                 if (res.data?.success && res.data.articles) {
                     const parsedTemplates = res.data.articles.map((a: any) => {
-                        let content = null;
+                        let content: any = null;
                         try { content = JSON.parse(a.content); } catch (e) {}
                         return {
                             id: a.id,

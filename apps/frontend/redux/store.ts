@@ -1,10 +1,10 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { persistStore, persistReducer } from "redux-persist";
+import { persistStore, persistReducer, PersistConfig } from "redux-persist";
 import storage from "./storage";
 import rootReducer from "./rootReducers";
 import { baseApi } from "./api/baseApi";
 
-const persistConfig = {
+const persistConfig: PersistConfig<any> = {
   key: "root",
   storage,
   whitelist: ["theme", "auth"],
@@ -24,3 +24,7 @@ export const store = configureStore({
 });
 
 export const persistor = persistStore(store);
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;

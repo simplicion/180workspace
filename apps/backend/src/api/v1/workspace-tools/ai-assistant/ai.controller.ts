@@ -59,31 +59,34 @@ export const chatWithAI = async (req: Request, res: Response, next: NextFunction
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Connection', 'keep-alive');
-            
-            await aiAssistantService.chatWithAI((req as any).user, { 
-                message: req.body.message, 
-                history: req.body.history, 
-                sessionId: req.body.sessionId, 
-                isLegalMode: req.body.isLegalMode, 
-                fileContext: req.body.fileContext, 
-                stream: true 
+
+            const result = await aiAssistantService.chatWithAI((req as any).user, {
+                message: req.body.message,
+                history: req.body.history,
+                sessionId: req.body.sessionId,
+                isLegalMode: req.body.isLegalMode,
+                fileContext: req.body.fileContext,
+                stream: true
             }, (chunk: any) => {
-                res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+                res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
             });
-            
+
+            if (result && result.sessionId) {
+                res.write(`data: ${JSON.stringify({ sessionId: result.sessionId })}\n\n`);
+            }
             res.write(`data: [DONE]\n\n`);
             return res.end();
         }
 
-        const result = await aiAssistantService.chatWithAI((req as any).user, { 
-            message: req.body.message, 
-            history: req.body.history, 
-            sessionId: req.body.sessionId, 
-            isLegalMode: req.body.isLegalMode, 
-            fileContext: req.body.fileContext, 
-            stream: false 
+        const result = await aiAssistantService.chatWithAI((req as any).user, {
+            message: req.body.message,
+            history: req.body.history,
+            sessionId: req.body.sessionId,
+            isLegalMode: req.body.isLegalMode,
+            fileContext: req.body.fileContext,
+            stream: false
         });
-        
+
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -92,10 +95,10 @@ export const analyzeDocument = async (req: Request, res: Response, next: NextFun
     try {
         const serverPort = process.env.PORT || 4000;
         const reply = await aiAssistantService.analyzeDocumentText(
-            (req as any).user, 
-            req.body.documentId, 
-            req.body.message, 
-            req.body.summarizeOnly, 
+            (req as any).user,
+            req.body.documentId,
+            req.body.message,
+            req.body.summarizeOnly,
             req.body.history,
             serverPort
         );

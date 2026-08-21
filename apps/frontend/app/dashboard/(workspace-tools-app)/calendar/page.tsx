@@ -11,6 +11,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, i
 import { useSettings } from '@/lib/settings-context';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { MeetingSummaryDrawer } from '@/app/dashboard/(communications-app)/_components/MeetingSummaryDrawer';
+import { Drawer } from '@/components/ui/Drawer';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 const EVENT_TYPES = [
@@ -134,33 +135,49 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-                    <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Add Event — {format(date, 'MMM d, yyyy')}</h2>
-                        {isMeeting && (
-                            <p className="text-xs text-sky-500 mt-0.5 flex items-center gap-1">
-                                <Mail className="w-3 h-3" /> Invite emails will be sent automatically
-                            </p>
+        <Drawer
+            isOpen={true}
+            onClose={onClose}
+            maxWidth="max-w-md"
+            title={
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Add Event — {format(date, 'MMM d, yyyy')}</h2>
+                    {isMeeting && (
+                        <p className="text-xs text-sky-500 mt-0.5 flex items-center gap-1">
+                            <Mail className="w-3 h-3" /> Invite emails will be sent automatically
+                        </p>
+                    )}
+                </div>
+            }
+            footer={
+                <div className="flex justify-end gap-3 w-full">
+                    <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                    <button
+                        type="submit"
+                        form="event-form"
+                        disabled={loading}
+                        className="btn-primary min-w-[140px]"
+                    >
+                        {loading ? (
+                            <><LogoLoader className="w-4 h-4 animate-spin" /> {sendingEmail ? 'Sending Invites...' : 'Creating...'}</>
+                        ) : isMeeting ? (
+                            <><Video className="w-4 h-4" /> Create Meeting</>
+                        ) : (
+                            <><Plus className="w-4 h-4" /> Create Event</>
                         )}
-                    </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">
-                        <X className="w-4 h-4" />
                     </button>
                 </div>
-
-                {/* Body — scrollable */}
-                <div className="overflow-y-auto flex-1 px-6 py-5">
-                    <form id="event-form" onSubmit={handleSubmit} className="space-y-5">
-                        {/* Base Fields */}
+            }
+        >
+            <div className="px-1 py-2">
+                <form id="event-form" onSubmit={handleSubmit} className="space-y-5">
+                    {/* Base Fields */}
                         <div>
                             <label className="label">Event Title *</label>
                             <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="input" placeholder={isMeeting ? 'e.g. Q1 Strategy Meeting' : 'e.g. Company All Hands'} required />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className="label">Type</label>
                                 <CustomSelect value={form.type} onChange={e => changeType(e.target.value)} className="select">
@@ -173,7 +190,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className="label">Start Date</label>
                                 <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="input" />
@@ -201,7 +218,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                                 </div>
 
                                 {/* Time */}
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="label flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Start Time *</label>
                                         <input type="time" required value={meeting.startTime} onChange={e => setMeeting(m => ({ ...m, startTime: e.target.value }))} className="input" />
@@ -215,7 +232,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                                 {/* Platform */}
                                 <div>
                                     <label className="label flex items-center gap-1"><Video className="w-3.5 h-3.5" /> Platform</label>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                         {PLATFORMS.map(p => (
                                             <button
                                                 key={p.key}
@@ -333,7 +350,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                                 </div>
 
                                 {/* Notes & Reminder */}
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="label flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Reminder (minutes before)</label>
                                         <CustomSelect value={meeting.reminderMinutes} onChange={e => setMeeting(m => ({ ...m, reminderMinutes: Number(e.target.value) }))} className="select">
@@ -356,28 +373,8 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                             </div>
                         )}
                     </form>
-                </div>
-
-                {/* Footer */}
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-                    <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                    <button
-                        type="submit"
-                        form="event-form"
-                        disabled={loading}
-                        className="btn-primary min-w-[140px]"
-                    >
-                        {loading ? (
-                            <><LogoLoader className="w-4 h-4 animate-spin" /> {sendingEmail ? 'Sending Invites...' : 'Creating...'}</>
-                        ) : isMeeting ? (
-                            <><Video className="w-4 h-4" /> Create Meeting</>
-                        ) : (
-                            <><Plus className="w-4 h-4" /> Create Event</>
-                        )}
-                    </button>
-                </div>
             </div>
-        </div>
+        </Drawer>
     );
 }
 
@@ -456,7 +453,7 @@ export default function CalendarPage() {
 
     // Compare only date part (YYYY-MM-DD) to avoid UTC vs local timezone issues
     function toDateStr(d: Date) {
-        return d.toISOString().slice(0, 10);
+        return format(d, 'yyyy-MM-dd');
     }
     function toEventDateStr(dateStr: string) {
         // Handle both ISO strings and date-only strings

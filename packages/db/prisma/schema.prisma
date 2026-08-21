@@ -112,6 +112,7 @@ model Company {
   forms                    Form[]
   knowledgeArticles        KnowledgeArticle[]
   savedBanks               SavedBank[]
+  teamActivityLogs         TeamActivityLog[]
 }
 
 model SavedBank {
@@ -137,6 +138,7 @@ model CompanyCoreValue {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([companyId, id])
   @@index([companyId, createdAt])
 }
@@ -386,6 +388,7 @@ model User {
   knowledgeUpdated  KnowledgeArticle[]        @relation("KnowledgeUpdatedBy")
   knowledgeLocked   KnowledgeArticle[]        @relation("KnowledgeLockedBy")
   knowledgeVersions KnowledgeArticleVersion[] @relation("KnowledgeVersionCreator")
+  teamActivityLogs  TeamActivityLog[]         @relation("UserTeamActivityLogs")
 
   @@index([companyId])
   @@index([companyId, id])
@@ -2233,6 +2236,7 @@ model Website {
 
   pixels      Pixel[]
   submissions WebsiteFormSubmission[]
+
   @@index([companyId, id])
   @@index([companyId, createdAt])
 }
@@ -2291,6 +2295,7 @@ model KnowledgeArticle {
 
   versions KnowledgeArticleVersion[]
   links    KnowledgeArticleLink[]
+
   @@index([companyId, id])
   @@index([companyId, createdAt])
 }
@@ -2317,4 +2322,23 @@ model KnowledgeArticleLink {
   createdAt DateTime @default(now())
 
   @@unique([articleId, relatedModel, relatedId])
+}
+
+model TeamActivityLog {
+  id         String   @id @default(uuid())
+  companyId  String
+  actorId    String
+  actionType String
+  entityId   String?
+  entityType String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User    @relation("UserTeamActivityLogs", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([actorId])
+  @@index([createdAt])
 }

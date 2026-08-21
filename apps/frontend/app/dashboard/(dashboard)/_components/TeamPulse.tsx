@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, FileText, Receipt, ChevronRight } from 'lucide-react';
+import { Users, FileText, Receipt, ChevronRight, FolderKanban } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
 
@@ -90,12 +90,12 @@ export default function TeamPulse({ stats, getStatValue, getSubText }: TeamPulse
                 {/* Team Pulse */}
                 <div className="px-5 pb-4 flex flex-col gap-3">
                     <div className="grid grid-cols-2 gap-3">
-                        {/* Box 1: Attendance */}
+                        {/* Box 1: Attendance Today */}
                         <div className="bg-emerald-50/60 border border-emerald-100/60 rounded-xl p-4 relative overflow-hidden group">
                             <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-1">Attendance Today</p>
                             <div className="flex items-baseline gap-1.5">
                                 <p className="text-2xl font-black text-gray-900">{getStatValue('attendance')}</p>
-                                <p className="text-xs font-bold text-gray-500">/ {getStatValue('employees')}</p>
+                                <p className="text-xs font-semibold text-emerald-600/70">/ {getStatValue('employees')}</p>
                             </div>
                             <Users className="w-8 h-8 text-emerald-100 absolute -bottom-1 -right-1 group-hover:text-emerald-200 transition-colors" />
                         </div>

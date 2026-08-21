@@ -20,8 +20,9 @@ import OperationsOverview from '@/app/dashboard/(dashboard)/_components/Operatio
 import TeamPulse from '@/app/dashboard/(dashboard)/_components/TeamPulse';
 import ActivityAnalytics from '@/app/dashboard/(dashboard)/_components/ActivityAnalytics';
 import LiveActivityFeed from '@/app/dashboard/(dashboard)/_components/LiveActivityFeed';
-import ClientActivityFeed from '@/app/dashboard/(dashboard)/_components/ClientActivityFeed';
+import SalesActivityFeed from '@/app/dashboard/(dashboard)/_components/SalesActivityFeed';
 import SalesOverview from '@/app/dashboard/(dashboard)/_components/SalesOverview';
+import { useGetWeeklyTrendsQuery, useGetHrmsDashboardStatsQuery, useGetRecentProjectsQuery } from '@/redux/api/dashboardApi';
 
 interface DashboardStats {
     employees: { total: number; active: number };
@@ -79,12 +80,6 @@ function getFormattedDate(): string {
 export default function DashboardPage({ isMobileView }: { isMobileView?: boolean }) {
     const { user, company } = useAuth();
     const { settings } = useSettings();
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [chartData, setChartData] = useState<any[]>([]);
-    const [recentProjects, setRecentProjects] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [fetchingTrends, setFetchingTrends] = useState(false);
-    const [fetchingProjects, setFetchingProjects] = useState(true);
     const [error, setError] = useState('');
     const [range, setRange] = useState('7');
     const [grouping, setGrouping] = useState('daily');
@@ -95,32 +90,22 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     }
     const isAdmin = ['admin', 'ceo', 'accounting'].some(r => userRoles.includes(r)) || (user?.permissions && user.permissions.includes('can_manage_team')) || (user?.role !== 'employee' && user?.role !== 'USER');
 
-    useEffect(() => {
-        if (!isAdmin) return;
-        setFetchingProjects(true);
-        api.get('/api/projects?limit=5')
-            .then((res) => setRecentProjects(res.data.projects || []))
-            .catch(() => { })
-            .finally(() => setFetchingProjects(false));
-    }, [isAdmin]);
+    // RTK Query hooks — cached across navigations, no loading flash
+    const { data: recentProjectsData, isFetching: fetchingProjects } = useGetRecentProjectsQuery(
+        5,
+        { skip: !isAdmin, pollingInterval: 30000 }
+    );
+    const recentProjects = recentProjectsData?.projects || [];
 
-    useEffect(() => {
-        if (!isAdmin) return;
-        setFetchingTrends(true);
-        api.get(`/api/hrms/weekly-trends?range=${range}&grouping=${grouping}`)
-            .then((res) => setChartData(res.data))
-            .catch(() => setError('Failed to load chart data'))
-            .finally(() => setFetchingTrends(false));
-    }, [range, grouping, isAdmin]);
+    const { data: chartData, isFetching: fetchingTrends } = useGetWeeklyTrendsQuery(
+        { range, grouping },
+        { skip: !isAdmin, pollingInterval: 30000 }
+    );
 
-    useEffect(() => {
-        if (!isAdmin) return;
-        setLoading(true);
-        api.get('/api/hrms/dashboard')
-            .then((res) => setStats(res.data))
-            .catch((err) => setError(`Failed: ${err.message} - ${err.response?.data?.error || err.response?.data?.message || JSON.stringify(err.response?.data)}`))
-            .finally(() => setLoading(false));
-    }, [isAdmin]);
+    const { data: stats, isLoading: loading, error: statsError } = useGetHrmsDashboardStatsQuery(
+        undefined,
+        { skip: !isAdmin, pollingInterval: 30000 }
+    );
 
     if (!isAdmin) {
         return <EmployeeDashboard userName={user?.name} isMobileView={isMobileView} />;
@@ -183,38 +168,25 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
             <CeoOverview />
 
             {/* 2. The Engine (Operations & Sales - Urgent & Actionable) */}
-            {loading ? (
-                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    <Skeleton variant="rounded" height={400} className="w-full" />
-                    <Skeleton variant="rounded" height={400} className="w-full" />
-                </div>
-            ) : (
-                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    <OperationsOverview stats={stats} getStatValue={getStatValue} />
-                    <SalesOverview />
-                </div>
-            )}
+            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                <OperationsOverview stats={stats} getStatValue={getStatValue} />
+                <SalesOverview />
+            </div>
 
             {/* 3. Execution & Risk (Projects) */}
-            {!loading && (
-                <RecentProjects projects={recentProjects} loading={fetchingProjects} />
-            )}
+            <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />
 
             {/* 4. Health & Money (Team Pulse & Financials) */}
-            {!loading && (
-                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
-                    <FinancialTrajectory />
-                </div>
-            )}
+            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
+                <FinancialTrajectory />
+            </div>
 
             {/* 5. Live Awareness (Activity Feeds) */}
-            {!loading && (
-                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    <ClientActivityFeed />
-                    <LiveActivityFeed />
-                </div>
-            )}
+            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                <SalesActivityFeed />
+                <LiveActivityFeed />
+            </div>
 
             {/* 6. Deep Analytics (Historical/Trends - Least Urgent) */}
             <ActivityAnalytics

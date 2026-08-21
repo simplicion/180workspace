@@ -26,6 +26,17 @@ export const metadata: Metadata = {
     keywords: ['Business Operating System', 'HR', 'CRM', 'Project Management', 'Finance Management', '180workspace', 'Unified Workspace', 'Team Collaboration'],
     authors: [{ name: '180workspace Team' }],
     robots: 'index, follow',
+    manifest: "/manifest.json",
+    applicationName: "180workspace",
+    themeColor: "#ffffff",
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: "180workspace",
+    },
+    formatDetection: {
+        telephone: false,
+    }
 };
 
 

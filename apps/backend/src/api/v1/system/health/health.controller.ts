@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '@workspace/db';
 // Assuming queues are handled differently now or we just return a simplified response.
-import { getRedis } from '../../../../system-configs/utils/redis';
+import { redisClient } from '../../../../system-configs/utils/redis';
 
 export const getHealth = async (req: Request, res: Response, next: NextFunction) => {
     let dbStatus = 'disconnected';
@@ -16,9 +16,8 @@ export const getHealth = async (req: Request, res: Response, next: NextFunction)
     let redisConnected = false;
 
     try {
-        const redis = getRedis();
-        if (redis) {
-            redisConnected = redis.status === 'ready';
+        if (redisClient) {
+            redisConnected = redisClient.status === 'ready';
         }
     } catch (err) {
   redisConnected = false;

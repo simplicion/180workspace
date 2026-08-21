@@ -9,6 +9,8 @@ router.use(protect);
 router.get('/dashboard', ctrl.getDashboardMetrics);
 router.get('/productivity', ctrl.getProductivity);
 router.get('/recommendations', ctrl.getRecommendations);
+router.get('/activity', ctrl.getSalesActivity);
+
 
 router.get('/leads', ctrl.getLeads);
 router.post('/leads', ctrl.createLead);

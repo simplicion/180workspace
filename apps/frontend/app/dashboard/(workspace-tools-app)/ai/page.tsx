@@ -5,6 +5,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, User, RefreshCw, Copy, Check, MessageSquare, Plus, Trash2, ChevronLeft, ChevronRight, Menu, X, Paperclip, Scale, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
+import Image from 'next/image';
 
 interface Message {
     id: string;
@@ -43,6 +45,7 @@ const LEGAL_WELCOME_MESSAGE: Message = {
 };
 
 export default function AIAssistantPage() {
+    const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -428,14 +431,22 @@ export default function AIAssistantPage() {
                     {messages.map((msg) => (
                         <div key={msg.id} className={clsx('flex gap-3 md:gap-4 w-full max-w-4xl mx-auto', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
                             <div className={clsx(
-                                'w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1',
+                                'w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 overflow-hidden',
                                 msg.role === 'assistant' 
                                     ? (isLegalMode ? 'bg-amber-500' : 'bg-gradient-to-br from-indigo-500 to-purple-600') 
-                                    : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                    : 'bg-white shadow-sm border border-gray-200'
                             )}>
                                 {msg.role === 'assistant' 
-                                    ? (isLegalMode ? <Scale className="w-4 h-4 md:w-5 md:h-5 text-white" /> : <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />) 
-                                    : <User className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                    ? (isLegalMode ? <Scale className="w-4 h-4 md:w-5 md:h-5 text-white" /> : <img src="/white icon.svg" alt="AI" className="w-5 h-5 object-contain" />) 
+                                    : (
+                                        (user?.photoUrl || (user as any)?.companyLogo || (user as any)?.logoUrl) ? (
+                                            <img src={user?.photoUrl || (user as any)?.companyLogo || (user as any)?.logoUrl} alt={user?.name || "User"} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold">
+                                                {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
+                                            </div>
+                                        )
+                                    )
                                 }
                             </div>
                             <div className={clsx('max-w-[85%] md:max-w-[75%] group flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start')}>

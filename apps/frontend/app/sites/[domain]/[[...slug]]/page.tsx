@@ -100,7 +100,11 @@ export default function PublicWebsitePage() {
         );
     }
 
-    if (error || !website) {
+    const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';
+    const currentPage = website?.pages?.find((p: any) => p.slug === currentSlug);
+    const isPagePublished = currentPage ? (currentPage.isPublished !== false && currentPage.isEnabled !== false) : false;
+
+    if (error || !website || !currentPage || !isPagePublished) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
@@ -140,8 +144,6 @@ export default function PublicWebsitePage() {
     };
     const hfStyles = getHeaderFooterStyles(brand);
 
-    const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';
-    const currentPage = website.pages?.find((p: any) => p.slug === currentSlug);
     const hasDynamicSections = currentPage?.sections && currentPage.sections.length > 0;
 
     return (
@@ -155,13 +157,27 @@ export default function PublicWebsitePage() {
             } as any}
         >
             {/* Header */}
-            <header className="px-6 py-8 flex justify-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
-                <div className="flex items-center gap-3">
+            <header className="px-6 py-8 flex justify-between items-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
+                <a href="/" className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg text-white font-black text-xl" style={{ backgroundColor: primaryColor }}>
                         {website.name[0]}
                     </div>
                     <span className="text-xl font-black tracking-tight">{website.name}</span>
-                </div>
+                </a>
+                
+                <nav className="hidden md:flex items-center gap-6">
+                    {website.pages
+                        ?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header'))
+                        .map((p: any) => (
+                            <a 
+                                key={p.id} 
+                                href={p.slug} 
+                                className={`text-sm font-semibold hover:opacity-70 transition-opacity ${currentSlug === p.slug ? 'opacity-100 underline decoration-2 underline-offset-4' : 'opacity-80'}`}
+                            >
+                                {p.name}
+                            </a>
+                        ))}
+                </nav>
             </header>
 
             {/* Dynamic Builder Content */}
@@ -278,7 +294,20 @@ export default function PublicWebsitePage() {
             </>
             )}
 
-            <footer className="py-12 border-t border-black/10 text-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
+            <footer className="py-12 border-t border-black/10 text-center flex flex-col items-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
+                <nav className="flex flex-wrap items-center justify-center gap-6 mb-6">
+                    {website.pages
+                        ?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer'))
+                        .map((p: any) => (
+                            <a 
+                                key={p.id} 
+                                href={p.slug} 
+                                className={`text-sm font-semibold hover:opacity-70 transition-opacity ${currentSlug === p.slug ? 'opacity-100 underline decoration-2 underline-offset-4' : 'opacity-80'}`}
+                            >
+                                {p.name}
+                            </a>
+                        ))}
+                </nav>
                 <p className="text-sm font-medium opacity-60">© {new Date().getFullYear()} {website.name}. All Rights Reserved.</p>
                 <div className="mt-4 flex items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-black opacity-50">
                     <span>Privacy Policy</span>

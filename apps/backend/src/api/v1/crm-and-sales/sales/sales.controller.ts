@@ -438,3 +438,42 @@ export const getRevenueStats = async (req: Request, res: Response, next: NextFun
         res.json(result);
     } catch (err) { next(err); }
 };
+export const getSalesActivity = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const companyId = (req as any).user.companyId;
+        const { prisma } = require('@workspace/db');
+        const leads = await prisma.lead.findMany({
+            where: { companyId },
+            orderBy: { updatedAt: 'desc' },
+            take: 5
+        });
+        const deals = await prisma.deal.findMany({
+            where: { companyId },
+            orderBy: { updatedAt: 'desc' },
+            take: 5
+        });
+        
+        const activity = [
+            ...leads.map((l: any) => ({
+                id: 'lead_' + l.id,
+                client: l.clientName || l.title || 'Unknown Client',
+                action: 'updated lead',
+                target: l.title,
+                time: l.updatedAt,
+                type: 'lead'
+            })),
+            ...deals.map((d: any) => ({
+                id: 'deal_' + d.id,
+                client: d.companyName || d.name || 'Unknown Client',
+                action: 'updated deal',
+                target: d.name,
+                time: d.updatedAt,
+                type: 'deal'
+            }))
+        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
+        
+        res.json(activity);
+    } catch (error) {
+        next(error);
+    }
+};

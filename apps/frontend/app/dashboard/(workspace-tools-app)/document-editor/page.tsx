@@ -1242,7 +1242,7 @@ function DocumentEditorPageContent() {
                         if (res.data?.success && res.data.articles) {
                             const found = res.data.articles.find((a: any) => a.id === templateId);
                             if (found) {
-                                let content = null;
+                                let content: any = null;
                                 try { content = JSON.parse(found.content); } catch (e) {}
                                 setSelectedTemplate({
                                     id: found.id,

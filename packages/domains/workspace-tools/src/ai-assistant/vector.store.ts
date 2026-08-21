@@ -81,18 +81,23 @@ export class VectorStore {
     }
 
     async search(query: string, topK: number = 3, filter: ((meta: any) => boolean) | null = null) {
-        const queryEmbedding = await this.generateEmbedding(query);
-        
-        const results = this.documents
-            .filter(doc => filter ? filter(doc.metadata) : true)
-            .map(doc => ({
-                ...doc,
-                score: this.cosineSimilarity(queryEmbedding, doc.embedding)
-            }))
-            .sort((a, b) => b.score - a.score)
-            .slice(0, topK);
+        try {
+            const queryEmbedding = await this.generateEmbedding(query);
             
-        return results;
+            const results = this.documents
+                .filter(doc => filter ? filter(doc.metadata) : true)
+                .map(doc => ({
+                    ...doc,
+                    score: this.cosineSimilarity(queryEmbedding, doc.embedding)
+                }))
+                .sort((a, b) => b.score - a.score)
+                .slice(0, topK);
+                
+            return results;
+        } catch (err) {
+            console.warn("Vector search failed (likely missing OPENAI_API_KEY). Returning empty results.");
+            return [];
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Users, CheckSquare, FolderKanban, Target } from 'lucide-react';
+import { Calendar, Users, CheckSquare, FolderKanban, Target, Clock } from 'lucide-react';
 import api from '@/lib/api';
 
 interface OperationsOverviewProps {
@@ -124,7 +124,9 @@ export default function OperationsOverview({ stats, getStatValue }: OperationsOv
                 {/* Pending Salaries */}
                 <div className="bg-amber-50/60 border border-amber-100/60 rounded-xl p-3 relative overflow-hidden group hover:shadow-sm transition-shadow">
                     <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mb-1">Pending Salaries</p>
-                    <p className="text-xl font-black text-gray-900">{getStatValue('salary_pending')}</p>
+                    <div className="flex items-baseline gap-1.5">
+                        <p className="text-xl font-black text-gray-900">{getStatValue('salary_pending')}</p>
+                    </div>
                     <FolderKanban className="w-7 h-7 text-amber-100 absolute -bottom-1 -right-1 group-hover:text-amber-200 transition-colors" />
                 </div>
             </div>

@@ -3,6 +3,7 @@ import { CalendarService } from '@workspace/workspace-tools';
 // Using backend-common for email service if required, or importing it from communications
 import * as EmailService from '@workspace/communications';
 import { AutomationService } from '@workspace/communications';
+import { logAction } from '../../../../system-configs/utils/audit';
 
 export const getEvents = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -44,9 +45,14 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
             ...flattenedData,
         };
         
-        if (attendees && Array.isArray(attendees) && attendees.length > 0) {
+        if (createData.startDate) createData.startDate = new Date(createData.startDate);
+        if (createData.endDate) createData.endDate = new Date(createData.endDate);
+
+        const actualAttendees = attendees || meeting?.attendees;
+        delete createData.attendees;
+        if (actualAttendees && Array.isArray(actualAttendees) && actualAttendees.length > 0) {
             createData.attendees = {
-                connect: attendees.map((id: string) => ({ id }))
+                connect: actualAttendees.map((id: string) => ({ id }))
             };
         }
 
@@ -69,6 +75,8 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
                 });
             }
         }
+
+        await logAction((req as any).user.id, 'CREATE', 'CalendarEvent', event.id, { title: event.title, type: event.type }, req);
 
         res.status(201).json({ event });
     } catch (err) { next(err); }
@@ -95,13 +103,19 @@ export const updateEvent = async (req: Request, res: Response, next: NextFunctio
             ...flattenedData
         };
         
-        if (attendees && Array.isArray(attendees)) {
+        if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
+        if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
+
+        const actualAttendees = attendees || meeting?.attendees;
+        delete updateData.attendees;
+        if (actualAttendees && Array.isArray(actualAttendees)) {
             updateData.attendees = {
-                set: attendees.map((id: string) => ({ id }))
+                set: actualAttendees.map((id: string) => ({ id }))
             };
         }
         
         const event = await CalendarService.updateEvent(req.params.id, updateData);
+        await logAction((req as any).user.id, 'UPDATE', 'CalendarEvent', event.id, { title: event.title, type: event.type }, req);
         res.json({ event });
     } catch (err: any) { 
         if (err.code === 'P2025') return res.status(404).json({ error: 'Not found' });
@@ -139,6 +153,7 @@ export const deleteEvent = async (req: Request, res: Response, next: NextFunctio
         }
 
         await CalendarService.deleteEvent(req.params.id);
+        await logAction((req as any).user.id, 'DELETE', 'CalendarEvent', req.params.id, { title: eventToDelete.title }, req);
         res.json({ message: 'Deleted' });
     } catch (err: any) { 
         if (err.code === 'P2025') return res.status(404).json({ error: 'Not found' });

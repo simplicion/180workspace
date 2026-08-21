@@ -31,9 +31,10 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
                 
                 {/* Background Section */}
-                {!(isHeader || isFooter) && (
-                <div className="space-y-3">
+                {!isHeader && !isFooter && (
+                <div className="space-y-4">
                     <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Background</h4>
+                    
                     <div>
                         <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Color</label>
                         <div className="flex items-center gap-2">
@@ -49,6 +50,90 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                 onChange={(e) => onUpdate('style.backgroundColor', e.target.value)}
                                 className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none uppercase font-mono"
                             />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Image</label>
+                        {selectedElement.style?.backgroundImage && selectedElement.style.backgroundImage !== 'none' ? (
+                            <div className="relative group rounded-lg overflow-hidden border border-gray-200 h-24">
+                                <div 
+                                    className="w-full h-full bg-cover bg-center" 
+                                    style={{ backgroundImage: selectedElement.style.backgroundImage }} 
+                                />
+                                <button 
+                                    onClick={() => onUpdate('style.backgroundImage', 'none')}
+                                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded shadow-sm hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:text-indigo-600 hover:border-indigo-500 cursor-pointer transition-colors bg-gray-50">
+                                <Upload className="w-5 h-5 mb-1" />
+                                <span className="text-[10px] font-medium uppercase tracking-wider">Upload Bg Image</span>
+                                <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+
+                                        if (file.size > 5 * 1024 * 1024) {
+                                            toast.error('Image size must be less than 5MB');
+                                            return;
+                                        }
+
+                                        const toastId = toast.loading('Uploading image...');
+                                        try {
+                                            const formData = new FormData();
+                                            formData.append('file', file);
+                                            
+                                            const res = await api.post('/api/files/upload', formData, {
+                                                headers: { 'Content-Type': 'multipart/form-data' }
+                                            });
+
+                                            if (res.data.url) {
+                                                onUpdate('style.backgroundImage', `url(${res.data.url})`);
+                                                toast.success('Upload complete', { id: toastId });
+                                            } else {
+                                                toast.error('Upload failed', { id: toastId });
+                                            }
+                                        } catch (err: any) {
+                                            console.error('Upload error:', err);
+                                            toast.error(err.response?.data?.error || 'Failed to upload image', { id: toastId });
+                                        }
+                                        e.target.value = '';
+                                    }}
+                                />
+                            </label>
+                        )}
+                        <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                            <span>Bg Size:</span>
+                            <select 
+                                value={selectedElement.style?.backgroundSize || 'cover'}
+                                onChange={e => onUpdate('style.backgroundSize', e.target.value)}
+                                className="bg-transparent border-none outline-none font-medium cursor-pointer"
+                            >
+                                <option value="cover">Cover</option>
+                                <option value="contain">Contain</option>
+                                <option value="auto">Auto</option>
+                            </select>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                            <span>Bg Position:</span>
+                            <select 
+                                value={selectedElement.style?.backgroundPosition || 'center'}
+                                onChange={e => onUpdate('style.backgroundPosition', e.target.value)}
+                                className="bg-transparent border-none outline-none font-medium cursor-pointer"
+                            >
+                                <option value="center">Center</option>
+                                <option value="top">Top</option>
+                                <option value="bottom">Bottom</option>
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -131,8 +216,30 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                     </div>
                 )}
                 
+                {/* Animation Section */}
+                {!isHeader && !isFooter && (
+                    <div className="space-y-3">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Animation</h4>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Entrance Animation</label>
+                            <CustomSelect 
+                                value={selectedElement.animation || 'none'} 
+                                onChange={(e) => onUpdate('animation', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            >
+                                <option value="none">None</option>
+                                <option value="fade-in">Fade In</option>
+                                <option value="fade-up">Fade Up</option>
+                                <option value="fade-left">Fade Left</option>
+                                <option value="fade-right">Fade Right</option>
+                                <option value="scale-up">Scale Up</option>
+                            </CustomSelect>
+                        </div>
+                    </div>
+                )}
+                
                 {/* Box Settings */}
-                {selectedElement.type === 'box' && (
+                {['box', 'row', 'column'].includes(selectedElement.type) && (
                     <div className="space-y-4 pt-4 border-t border-gray-100">
                         <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2">Flex Layout</h4>
                         

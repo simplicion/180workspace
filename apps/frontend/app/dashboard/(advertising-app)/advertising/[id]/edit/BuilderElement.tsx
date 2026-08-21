@@ -31,11 +31,31 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
         isDragging,
     } = useSortable({ id: node.id, data: { type: node.type, node } });
 
+    let display = node.style?.display;
+    let flexDirection = node.style?.flexDirection;
+    let flexWrap = node.style?.flexWrap;
+
+    if (node.type === 'row') {
+        display = 'flex';
+        flexDirection = 'row';
+        flexWrap = 'wrap';
+    } else if (node.type === 'column') {
+        display = 'flex';
+        flexDirection = 'column';
+    } else if (node.type === 'box') {
+        display = display || 'flex';
+    } else if (node.type === 'section') {
+        display = display || 'block';
+    }
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        ...node.style
+        ...node.style,
+        ...(display && { display }),
+        ...(flexDirection && { flexDirection }),
+        ...(flexWrap && { flexWrap })
     };
 
     const isSelected = selectedElementId === node.id;
@@ -166,8 +186,8 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     const [isDragOver, setIsDragOver] = useState(false);
 
     const handleDragOver = (e: React.DragEvent) => {
-        // We only allow dropping elements on 'box' and 'section'
-        if (node.type !== 'box' && node.type !== 'section') return;
+        // We only allow dropping elements on containers
+        if (!['box', 'section', 'row', 'column'].includes(node.type)) return;
 
         // Only intercept if we are dragging an element, NOT a section
         if (e.dataTransfer.types.includes('application/vnd.builder.element')) {
@@ -182,7 +202,7 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        if (node.type !== 'box' && node.type !== 'section') return;
+        if (!['box', 'section', 'row', 'column'].includes(node.type)) return;
 
         // We already checked in dragover, but just to be safe
         if (!e.dataTransfer.types.includes('application/vnd.builder.element')) return;
@@ -196,7 +216,7 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
         }
     };
 
-    const dragHandlers = (node.type === 'section' || node.type === 'box') ? {
+    const dragHandlers = (['section', 'box', 'row', 'column'].includes(node.type)) ? {
         onDragOver: handleDragOver,
         onDragLeave: handleDragLeave,
         onDrop: handleDrop
@@ -246,7 +266,10 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     }
 
     switch (node.type) {
-        case 'box': return <BoxElement {...props} />;
+        case 'box':
+        case 'row':
+        case 'column':
+            return <BoxElement {...props} />;
         case 'text': return <TextElement {...props} />;
         case 'media': return <MediaElement {...props} />;
         case 'button': return <ButtonElement {...props} />;

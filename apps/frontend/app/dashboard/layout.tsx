@@ -11,6 +11,7 @@ import { navigation } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import PinnedItem from '@/app/dashboard/(dashboard)/_components/PinnedItem';
 import RecentItem from '@/app/dashboard/(dashboard)/_components/RecentItem';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
 import { HelpIcon , LogoLoader } from "@workspace/ui";
@@ -660,6 +661,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
     const { user, company, isLoading: authLoading } = useAuth();
+    const pwa = usePWAInstall();
     const { isLoading: settingsLoading } = useSettings();
     const { isExpired, status, mandateStatus, paymentsEnabled, loading: subLoading } = useSubscription();
     const router = useRouter();
@@ -837,7 +839,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             >
                 {/* Top bar */}
                 {!isMeetingFullscreen && (
-                <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
+                <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20 select-none">
                     <div className="flex items-center gap-3 flex-1 lg:flex-none">
                         <button
                             className="lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -852,6 +854,18 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     <div className="flex items-center gap-2 sm:gap-3">
                         <SystemSetupStatus />
                         <ToolsDropdown />
+                        {pwa.isInstallable && !pwa.isInstalled && (
+                            <button
+                                onClick={pwa.promptInstall}
+                                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3d3838] text-[#e8e6e3] hover:bg-[#2c2828] transition-colors text-sm font-medium"
+                                title="Open in app"
+                            >
+                                <div className="w-5 h-5 bg-[#ff6b00] rounded-sm flex items-center justify-center text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                                </div>
+                                Open in app
+                            </button>
+                        )}
                         <HelpIcon slug={getHelpSlug()} className="w-9 h-9" />
                         <Link
                             href="/dashboard/activity"

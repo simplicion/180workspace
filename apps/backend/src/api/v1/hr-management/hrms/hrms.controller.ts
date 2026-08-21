@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { HrManagementService } from '@workspace/hr-management';
+import { prisma } from '@workspace/db';
 
 export const getDashboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -52,5 +53,21 @@ export const getAttendanceTrend = async (req: Request, res: Response, next: Next
         const service = new HrManagementService();
         const data = await service.getAttendanceTrend((req as any).user?.companyId, req.query.range as string, req.query.grouping as string);
         res.json(data);
+    } catch (err) { next(err); }
+};
+
+export const getGoals = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+        const ownerId = (req as any).user?.id;
+        if (!ownerId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const goals = await prisma.goal.findMany({
+            where: { ownerId },
+            take: limit,
+            orderBy: { createdAt: 'desc' }
+        });
+
+        res.json({ success: true, goals });
     } catch (err) { next(err); }
 };

@@ -11,5 +11,6 @@ router.get('/weekly-trends', protect, ctrl.getWeeklyTrends);
 router.get('/attendance-trend', protect, ctrl.getAttendanceTrend);
 router.get('/attendance-report', protect, requireHR, ctrl.getAttendanceReport);
 router.get('/salary-report', protect, requireHR, ctrl.getSalaryReport);
+router.get('/goals', protect, ctrl.getGoals);
 
 export default router;

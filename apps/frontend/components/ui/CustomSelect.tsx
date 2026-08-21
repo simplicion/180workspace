@@ -10,7 +10,7 @@ export interface SelectOption {
 }
 
 export interface CustomSelectProps {
-    value: any;
+    value?: any;
     onChange: any;
     options?: (string | SelectOption)[];
     placeholder?: string;
@@ -23,6 +23,7 @@ export interface CustomSelectProps {
     id?: string;
     title?: string;
     required?: boolean;
+    disabled?: boolean;
 }
 
 export default function CustomSelect({ 
@@ -38,7 +39,8 @@ export default function CustomSelect({
     children,
     id,
     title,
-    required
+    required,
+    disabled
 }: CustomSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -53,9 +55,10 @@ export default function CustomSelect({
     if (children) {
         React.Children.toArray(children).forEach((child: any) => {
             if (React.isValidElement(child) && child.type === 'option') {
+                const props = child.props as any;
                 normalizedOptions.push({
-                    value: child.props.value !== undefined ? child.props.value : String(child.props.children),
-                    label: child.props.children as string
+                    value: props.value !== undefined ? props.value : String(props.children),
+                    label: props.children as string
                 });
             }
         });

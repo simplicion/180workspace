@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { redis } from '../../../../system-configs/config/redis.ts';
+import { redis } from '../../../../system-configs/config/redis';
 import { FinanceOverviewService } from '@workspace/finance';
 import { PlausibleService } from '@workspace/insights';
+import { prisma } from '@workspace/db';
 
 export const getFinancialStats = async (req: Request, res: Response, next: NextFunction) => {
     const companyId = (req as any).user.companyId;
@@ -88,4 +89,26 @@ export const testPlausibleConnection = async (req: Request, res: Response, next:
     } catch (error: any) {
   next(error);
 }
+};
+
+export const getTeamActivity = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const companyId = (req as any).user.companyId;
+        const activities = await prisma.teamActivityLog.findMany({
+            where: { companyId },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+            include: {
+                actor: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        profilePictureUrl: true,
+                    }
+                }
+            }
+        });
+        res.json({ success: true, activities });
+    } catch (err) { next(err); }
 };
