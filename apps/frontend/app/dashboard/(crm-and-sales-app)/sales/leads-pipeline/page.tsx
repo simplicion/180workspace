@@ -120,7 +120,7 @@ export default function LeadPipelinesKanbanPage() {
         setleadPipelines(updatedOpps);
 
         try {
-            await api.put(`/api/sales/leads-pipeline/${activeId}`, { stage: newStage });
+            await api.put(`/api/sales/opportunities/${activeId}`, { stage: newStage });
             toast.success(`Moved to ${STAGE_LABELS[newStage]}`);
         } catch (error) {
             toast.error('Failed to move leadPipeline');
@@ -132,7 +132,7 @@ export default function LeadPipelinesKanbanPage() {
         if (!showDeleteConfirm) return;
         setDeleting(true);
         try {
-            await api.delete(`/api/sales/leads-pipeline/${showDeleteConfirm.id}`);
+            await api.delete(`/api/sales/opportunities/${showDeleteConfirm.id}`);
             toast.success('leadPipeline deleted');
             setleadPipelines(prev => prev.filter(o => o.id !== showDeleteConfirm.id));
         } catch (error: any) {
@@ -146,7 +146,7 @@ export default function LeadPipelinesKanbanPage() {
     const handleConvertToDeal = async (id: string) => {
         setConvertingId(id);
         try {
-            await api.put(`/api/sales/leads-pipeline/${id}`, { convertToDeal: true });
+            await api.put(`/api/sales/opportunities/${id}`, { convertToDeal: true });
             toast.success('Converted to Deal!');
             fetchleadPipelines();
         } catch (error: any) {
@@ -159,7 +159,7 @@ export default function LeadPipelinesKanbanPage() {
     const fetchleadPipelines = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/api/sales/leads-pipeline?pipelineType=DEAL');
+            const { data } = await api.get('/api/sales/opportunities?pipelineType=DEAL');
             setleadPipelines(data.opportunities || data.leadPipelines || (Array.isArray(data) ? data : []));
         } catch (err) {
             setError('Failed to load leadPipelines');
