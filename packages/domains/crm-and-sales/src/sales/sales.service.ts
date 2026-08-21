@@ -634,13 +634,13 @@ export class SalesService {
             totalLeadMoneyAggr,
             pipelineValueAggr
         ] = await Promise.all([
-            this.calculateWeightedForecast(companyPrisma, currentMonth).catch(() => null),
-            this.calculateFunnelConversion(companyPrisma).catch(() => null),
-            this.calculateDashboardCharts(companyPrisma, userId, timeframe).catch(() => null),
-            this.calculateSalesCycleLength(companyPrisma).catch(() => null),
-            this.calculateRepProductivity(companyPrisma, userId, settings).catch(() => null),
-            this.detectChurnStagnation(companyPrisma).catch(() => null),
-            this.detectStagnantOpportunities(companyPrisma, 14).catch(() => null),
+            this.calculateWeightedForecast(currentMonth).catch(() => null),
+            this.calculateFunnelConversion().catch(() => null),
+            this.calculateDashboardCharts(userId, timeframe).catch(() => null),
+            this.calculateSalesCycleLength().catch(() => null),
+            this.calculateRepProductivity(userId, settings).catch(() => null),
+            this.detectChurnStagnation().catch(() => null),
+            this.detectStagnantOpportunities(14).catch(() => null),
             Lead.count({ where: { deletedAt: null, status: { not: 'converted' }, ...dateFilter } }).catch(() => 0),
             Opportunity.count({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) } }).catch(() => 0),
             Account.count({ where: dateFilter }).catch(() => 0),
@@ -750,7 +750,7 @@ export class SalesService {
         }
         leaderboard.sort((a, b) => b.score - a.score);
 
-        const suggestedRepId = await this.suggestRepForLead(companyPrisma);
+        const suggestedRepId = await this.suggestRepForLead();
         let suggestedRep = null;
         if (suggestedRepId) {
             const r = await User.findUnique({ where: { id: suggestedRepId } });
@@ -817,7 +817,7 @@ export class SalesService {
         await Lead.update({ where: { id: lead.id }, data: { leadScore: newScore } });
 
         
-        await SalesRuleEngine.onLeadCreated(companyPrisma, lead.id);
+        await SalesRuleEngine.onLeadCreated(lead.id);
 
         try {
             
@@ -896,7 +896,7 @@ export class SalesService {
 
         try {
             const settings = await prisma.settings.findFirst();
-            await this.calculateLeadScore(companyPrisma, lead, settings);
+            await this.calculateLeadScore(lead, settings);
         } catch (scoringErr) {}
 
         try {
@@ -1161,7 +1161,7 @@ export class SalesService {
         let recipientEmail = email;
 
         if (clientId) {
-            clientObj = await this.getClientObjForContract(companyPrisma, clientId);
+            clientObj = await this.getClientObjForContract(clientId);
             if (clientObj && !recipientEmail) recipientEmail = clientObj.email;
         }
 
@@ -1188,8 +1188,7 @@ export class SalesService {
                     filename: `${contractTitle ? contractTitle.replace(/\s+/g, '_') : 'Contract'}.pdf`,
                     content: pdfBuffer
                 }
-            ], 
-            companyPrisma
+            ]
         );
 
         if (!result.success) throw new Error('Failed to send email');
@@ -1518,7 +1517,7 @@ export class SalesService {
                             }
                         });
 
-                        await emailService.EmailService.sendWelcomeEmail(clientUser, generatedPassword, companyPrisma);
+                        await emailService.EmailService.sendWelcomeEmail(clientUser, generatedPassword);
                     } catch (err) {
                         console.error('Failed to create client user or send email on win:', err);
                     }
@@ -1982,7 +1981,7 @@ export class SalesService {
                 filename: `Quote_${quote.quoteNumber}.pdf`,
                 content: pdfBuffer
             }
-        ], companyPrisma);
+        ]);
 
         if (!result.success) {
             const err = new Error('Failed to send email: ' + result.error);
