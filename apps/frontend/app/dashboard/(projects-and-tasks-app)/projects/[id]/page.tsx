@@ -82,11 +82,11 @@ export default function ProjectDetailPage() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            const tab = params.get('tab');
+            const tab = params?.get('tab');
             if (tab && ['overview', 'modules', 'tasks', 'work-logs', 'milestones', 'files', 'notes', 'timelogs', 'team', 'clients'].includes(tab)) {
                 setActiveTab(tab as any);
             }
-            const taskId = params.get('taskId');
+            const taskId = params?.get('taskId');
             if (taskId) {
                 setSelectedTaskId(taskId);
                 setActiveTab('tasks');

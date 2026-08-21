@@ -23,8 +23,8 @@ export function BoxElement({ node, setNodeRef, style, wrapperClass, handleClick,
             {node.children && node.children.length > 0 ? (
                 renderChildren?.()
             ) : (
-                <div className="p-4 border-2 border-dashed border-gray-300 text-center text-gray-400 text-sm font-bold rounded-lg min-h-[100px] flex items-center justify-center">
-                    Empty Box - Drop items here
+                <div className="p-4 border-2 border-dashed border-gray-300 bg-gray-50/50 text-center text-gray-400 text-sm font-bold rounded-lg min-h-[100px] flex items-center justify-center">
+                    Empty Container - Drop items here
                 </div>
             )}
         </div>

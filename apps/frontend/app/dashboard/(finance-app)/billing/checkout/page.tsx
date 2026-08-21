@@ -19,7 +19,7 @@ function CheckoutContent() {
     const { refresh, paymentsEnabled } = useSubscription();
     const { settings, platform } = useSettings();
 
-    const planId = searchParams.get('planId');
+    const planId = searchParams?.get('planId');
     const [plan, setPlan] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [coupon, setCoupon] = useState('');

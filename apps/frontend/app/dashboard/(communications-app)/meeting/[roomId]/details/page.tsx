@@ -8,7 +8,8 @@ import { ArrowLeft, CheckSquare, FileText, Sparkles, AlertCircle } from 'lucide-
 import toast from 'react-hot-toast';
 
 export default function MeetingDetails() {
-    const { roomId } = useParams();
+    const params = useParams();
+    const roomId = params?.roomId;
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [summary, setSummary] = useState<any>(null);

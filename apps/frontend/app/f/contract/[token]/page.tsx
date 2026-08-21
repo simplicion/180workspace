@@ -7,7 +7,8 @@ import SignatureCanvas from 'react-signature-canvas';
 import toast from 'react-hot-toast';
 
 export default function PublicContractView() {
-    const { token } = useParams();
+    const params = useParams();
+    const token = params?.token;
     const { data: contractData, isLoading, refetch } = useGetContractByTokenQuery(token);
     const [signContract, { isLoading: isSigning }] = useSignContractMutation();
     

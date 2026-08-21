@@ -247,7 +247,7 @@ export default function TextEditor({ anchorRef, visible, onClose }: TextEditorPr
                     const fontElements = el.querySelectorAll('font[size="7"]');
                     fontElements.forEach((fontEl) => {
                         fontEl.removeAttribute('size');
-                        fontEl.style.fontSize = `${size}px`;
+                        (fontEl as HTMLElement).style.fontSize = `${size}px`;
                     });
                 }
                 triggerInput();
@@ -267,7 +267,7 @@ export default function TextEditor({ anchorRef, visible, onClose }: TextEditorPr
                     const fontElements = Array.from(el.querySelectorAll('font[face="TempFontWeight"]'));
                     fontElements.forEach((fontEl) => {
                         fontEl.removeAttribute('face');
-                        fontEl.style.fontWeight = weight;
+                        (fontEl as HTMLElement).style.fontWeight = weight;
                     });
                 }
                 triggerInput();

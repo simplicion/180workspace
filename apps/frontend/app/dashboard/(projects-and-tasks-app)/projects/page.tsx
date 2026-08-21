@@ -87,7 +87,7 @@ export default function ProjectsPage() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            if (params.get('create') === 'true') {
+            if (params?.get('create') === 'true') {
                 setShowCreate(true);
                 window.history.replaceState({}, '', '/dashboard/projects');
             }

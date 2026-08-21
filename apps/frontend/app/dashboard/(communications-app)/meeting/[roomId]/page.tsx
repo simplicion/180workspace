@@ -28,7 +28,8 @@ declare global {
 }
 
 export default function MeetingRoom() {
-    const { roomId } = useParams();
+    const params = useParams();
+    const roomId = params?.roomId;
     const router = useRouter();
     const { user } = useAuth();
     const modal = useModal();

@@ -67,7 +67,7 @@ export default function EmailManagementPage() {
         setLoadingLogs(true);
         try {
             const params: any = { page, limit: 15 };
-            if (statusFilter) params.status = statusFilter;
+            if (statusFilter) params?.status = statusFilter;
             const res = await api.get('/api/emails/logs', { params });
             setLogs(res.data.logs || []);
             setTotal(res.data.total || 0);

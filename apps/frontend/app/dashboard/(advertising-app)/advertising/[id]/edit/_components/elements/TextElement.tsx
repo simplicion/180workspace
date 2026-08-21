@@ -15,7 +15,7 @@ export interface ElementProps {
 }
 
 export function TextElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
-    const Tag = (node.style?.tagName || 'div') as keyof JSX.IntrinsicElements;
+    const Tag = (node.style?.tagName || 'div') as React.ElementType;
     return (
         <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass}>
             {renderControls()}

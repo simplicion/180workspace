@@ -27,14 +27,15 @@ export default function WebsiteDashboardPage() {
 }
 
 function WebsiteDashboardInner() {
-    const { id } = useParams();
+    const params = useParams();
+    const id = params?.id;
     const router = useRouter();
     const searchParams = useSearchParams();
     const [website, setWebsite] = useState<any>(null);
     const [leads, setLeads] = useState<any[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview');
+    const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'overview');
 
     useEffect(() => {
         fetchWebsiteData();
@@ -723,9 +724,9 @@ function UTMBuilder({ website }: any) {
         // Safe check for window
         if (typeof window === 'undefined') return '';
         const url = new URL(`${window.location.origin}/p/${website.slug}`);
-        if (params.source) url.searchParams.set('utm_source', params.source);
-        if (params.medium) url.searchParams.set('utm_medium', params.medium);
-        if (params.campaign) url.searchParams.set('utm_campaign', params.campaign);
+        if (params?.source) url.searchParams.set('utm_source', params?.source);
+        if (params?.medium) url.searchParams.set('utm_medium', params?.medium);
+        if (params?.campaign) url.searchParams.set('utm_campaign', params?.campaign);
         return url.toString();
     };
 
@@ -753,7 +754,7 @@ function UTMBuilder({ website }: any) {
                         <input 
                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white outline-none"
                             placeholder="facebook, google, newsletter"
-                            value={params.source}
+                            value={params?.source}
                             onChange={e => setParams({ ...params, source: e.target.value })}
                         />
                     </div>
@@ -762,7 +763,7 @@ function UTMBuilder({ website }: any) {
                         <input 
                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white outline-none"
                             placeholder="cpc, organic, email"
-                            value={params.medium}
+                            value={params?.medium}
                             onChange={e => setParams({ ...params, medium: e.target.value })}
                         />
                     </div>
@@ -772,7 +773,7 @@ function UTMBuilder({ website }: any) {
                     <input 
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white outline-none"
                         placeholder="summer_sale_2024"
-                        value={params.campaign}
+                        value={params?.campaign}
                         onChange={e => setParams({ ...params, campaign: e.target.value })}
                     />
                 </div>

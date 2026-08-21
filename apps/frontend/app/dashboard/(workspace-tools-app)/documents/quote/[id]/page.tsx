@@ -18,7 +18,7 @@ export default function QuoteViewerPage() {
 
     useEffect(() => {
         if (!params?.id) return;
-        api.get(`/api/sales/quotes/${params.id}`)
+        api.get(`/api/sales/quotes/${params?.id}`)
             .then(res => setQuote(res.data.quote || res.data))
             .catch(() => toast.error('Failed to load quote'))
             .finally(() => setLoading(false));

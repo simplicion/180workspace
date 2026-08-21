@@ -5,6 +5,8 @@ import { SortableContext, verticalListSortingStrategy, horizontalListSortingStra
 import { ElementNode } from './types';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { BoxElement } from './_components/elements/BoxElement';
+import { RowElement } from './_components/elements/RowElement';
+import { ColumnElement } from './_components/elements/ColumnElement';
 import { TextElement } from './_components/elements/TextElement';
 import { MediaElement } from './_components/elements/MediaElement';
 import { ButtonElement } from './_components/elements/ButtonElement';
@@ -17,11 +19,11 @@ interface BuilderElementProps {
     setSelectedElementId: (id: string | null) => void;
     updateElement: (id: string, path: string, value: any) => void;
     removeElement: (id: string) => void;
-    appendElementToNode?: (parentId: string, type: string) => void;
+    insertElementRelative?: (targetId: string, type: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => void;
     depth?: number;
 }
 
-export function BuilderElement({ node, selectedElementId, setSelectedElementId, updateElement, removeElement, appendElementToNode, depth = 0 }: BuilderElementProps) {
+export function BuilderElement({ node, selectedElementId, setSelectedElementId, updateElement, removeElement, insertElementRelative, depth = 0 }: BuilderElementProps) {
     const {
         attributes,
         listeners,
@@ -146,16 +148,30 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
 
     const renderControls = () => {
         if (!isSelected) return null;
+        
+        const bgColor = 'bg-indigo-500';
+
         return (
-            <div className="absolute -top-8 right-0 z-50 flex gap-2 bg-white backdrop-blur shadow-lg rounded-lg p-1 border border-gray-100 items-center">
-                <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-gray-100 text-gray-400 rounded" title="Drag to reorder">
-                    <GripVertical className="w-4 h-4" />
+            <>
+                <div className={`absolute -top-[21px] -left-[2px] z-50 ${bgColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-t-md rounded-br-md shadow-sm tracking-wide`}>
+                    {node.name ? (
+                        <>
+                            <span className="font-normal opacity-90">{node.name}</span>
+                            <span className="capitalize ml-1">{node.type}</span>
+                        </>
+                    ) : (
+                        <span className="capitalize">{node.type}</span>
+                    )}
                 </div>
-                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-2 py-1 text-center border-x border-gray-100">{node.type}</div>
-                <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1.5 hover:bg-red-50 text-red-500 rounded ml-1" title="Delete">
-                    <Trash2 className="w-4 h-4" />
-                </button>
-            </div>
+                <div className="absolute -top-8 right-0 z-50 flex gap-1 bg-white backdrop-blur shadow-lg rounded-lg p-1 border border-gray-100 items-center">
+                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-gray-100 text-gray-400 rounded" title="Drag to reorder">
+                        <GripVertical className="w-4 h-4" />
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            </>
         );
     };
 
@@ -174,7 +190,7 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
                         setSelectedElementId={setSelectedElementId}
                         updateElement={updateElement}
                         removeElement={removeElement}
-                        appendElementToNode={appendElementToNode}
+                        insertElementRelative={insertElementRelative}
                         depth={depth + 1}
                     />
                 ))}
@@ -183,46 +199,69 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     };
 
     // Generic wrapper class for all elements
-    const [isDragOver, setIsDragOver] = useState(false);
+    const [dragPosition, setDragPosition] = useState<'none' | 'left' | 'right' | 'top' | 'bottom' | 'inside'>('none');
 
     const handleDragOver = (e: React.DragEvent) => {
-        // We only allow dropping elements on containers
-        if (!['box', 'section', 'row', 'column'].includes(node.type)) return;
+        if (!e.dataTransfer.types.includes('application/vnd.builder.element')) return;
+        e.preventDefault();
+        e.stopPropagation();
 
-        // Only intercept if we are dragging an element, NOT a section
-        if (e.dataTransfer.types.includes('application/vnd.builder.element')) {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDragOver(true);
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Define edge thresholds based on element size, capped at 24px
+        const xThreshold = Math.min(24, rect.width * 0.25);
+        const yThreshold = Math.min(24, rect.height * 0.25);
+
+        let pos: 'left' | 'right' | 'top' | 'bottom' | 'inside' = 'inside';
+        const isContainer = ['box', 'section', 'row', 'column'].includes(node.type);
+        
+        if (x < xThreshold) pos = 'left';
+        else if (x > rect.width - xThreshold) pos = 'right';
+        else if (y < yThreshold) pos = 'top';
+        else if (y > rect.height - yThreshold) pos = 'bottom';
+        
+        if (pos === 'inside' && !isContainer) {
+            // Default to bottom for non-containers if not near an edge
+            pos = 'bottom';
         }
+
+        setDragPosition(pos);
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
-        setIsDragOver(false);
+        setDragPosition('none');
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        if (!['box', 'section', 'row', 'column'].includes(node.type)) return;
-
-        // We already checked in dragover, but just to be safe
         if (!e.dataTransfer.types.includes('application/vnd.builder.element')) return;
+        if (dragPosition === 'none') return;
 
         e.preventDefault();
         e.stopPropagation();
-        setIsDragOver(false);
+        
         const newType = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('newsectiontype') || e.dataTransfer.getData('text/plain');
-        if (newType && appendElementToNode) {
-            appendElementToNode(node.id, newType);
+        if (newType && insertElementRelative) {
+            insertElementRelative(node.id, newType, dragPosition);
         }
+        setDragPosition('none');
     };
 
-    const dragHandlers = (['section', 'box', 'row', 'column'].includes(node.type)) ? {
+    const dragHandlers = {
         onDragOver: handleDragOver,
         onDragLeave: handleDragLeave,
         onDrop: handleDrop
-    } : {};
+    };
 
-    const wrapperClass = `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-300'} ${isDragOver ? 'ring-2 ring-green-500 bg-green-50/10' : ''}`;
+    let dragIndicatorClass = '';
+    if (dragPosition === 'left') dragIndicatorClass = 'border-l-4 border-l-indigo-500';
+    else if (dragPosition === 'right') dragIndicatorClass = 'border-r-4 border-r-indigo-500';
+    else if (dragPosition === 'top') dragIndicatorClass = 'border-t-4 border-t-indigo-500';
+    else if (dragPosition === 'bottom') dragIndicatorClass = 'border-b-4 border-b-indigo-500';
+    else if (dragPosition === 'inside') dragIndicatorClass = 'ring-2 ring-indigo-500 bg-indigo-50/10';
+
+    const wrapperClass = `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-500/50'} ${dragIndicatorClass}`;
 
 
     const props = {
@@ -266,10 +305,9 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     }
 
     switch (node.type) {
-        case 'box':
-        case 'row':
-        case 'column':
-            return <BoxElement {...props} />;
+        case 'box': return <BoxElement {...props} />;
+        case 'row': return <RowElement {...props} />;
+        case 'column': return <ColumnElement {...props} />;
         case 'text': return <TextElement {...props} />;
         case 'media': return <MediaElement {...props} />;
         case 'button': return <ButtonElement {...props} />;

@@ -20,6 +20,35 @@ export const createBox = (children: ElementNode[] = [], style: any = {}): Elemen
     children
 });
 
+export const createRow = (children: ElementNode[] = [], style: any = {}): ElementNode => ({
+    id: generateId('row'),
+    type: 'row',
+    data: {},
+    style: {
+        display: 'flex',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        padding: '1rem',
+        ...style
+    },
+    children
+});
+
+export const createColumn = (children: ElementNode[] = [], style: any = {}): ElementNode => ({
+    id: generateId('column'),
+    type: 'column',
+    data: {},
+    style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
+        padding: '1rem',
+        ...style
+    },
+    children
+});
+
 export const createText = (content: string, style: any = {}): ElementNode => ({
     id: generateId('text'),
     type: 'text',
@@ -149,6 +178,10 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
                 ]
             };
 
+        case 'row':
+            return createRow();
+        case 'column':
+            return createColumn();
         case 'box':
             return createBox();
         case 'text':

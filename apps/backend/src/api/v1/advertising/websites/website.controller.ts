@@ -127,9 +127,12 @@ export const getWebsiteStats = async (req: Request, res: Response, next: NextFun
 export const publicGetWebsite = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { domain, slug } = req.query;
+        console.log('publicGetWebsite called with:', { domain, slug });
         const result = await WebsitesService.publicGetWebsite(domain as string, slug as string);
+        console.log('publicGetWebsite success:', result.website?.id);
         res.json(result);
     } catch (err: any) {
+        console.error('publicGetWebsite error:', err.message);
         if (err.message === 'Domain is required') {
             return res.status(400).json({ error: err.message });
         }

@@ -18,7 +18,7 @@ export default function InvoiceViewerPage() {
 
     useEffect(() => {
         if (!params?.id) return;
-        api.get(`/api/invoices/${params.id}`)
+        api.get(`/api/invoices/${params?.id}`)
             .then(res => setInvoice(res.data.invoice || res.data))
             .catch(() => toast.error('Failed to load invoice'))
             .finally(() => setLoading(false));

@@ -31,7 +31,7 @@ export default function CalendarDetailView() {
 
     const fetchDetails = async () => {
         try {
-            const { calendar: calData, pieces: pieceData } = await contentCalendarService.getCalendar(params.id as string);
+            const { calendar: calData, pieces: pieceData } = await contentCalendarService.getCalendar(params?.id as string);
             setCalendar(calData);
             setPieces(pieceData);
         } catch (err: any) {
@@ -43,8 +43,8 @@ export default function CalendarDetailView() {
     };
 
     useEffect(() => {
-        if (params.id) fetchDetails();
-    }, [params.id]);
+        if (params?.id) fetchDetails();
+    }, [params?.id]);
 
     const handleUpdatePieceStatus = async (pieceId: string, status: ContentPiece['status']) => {
         try {

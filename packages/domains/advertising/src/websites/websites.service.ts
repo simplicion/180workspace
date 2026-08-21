@@ -231,6 +231,8 @@ export class WebsitesService {
     const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
     const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
 
+    console.log('Resolving domain:', domain, 'subdomainSlug:', subdomainSlug);
+
     let company = await prisma.company.findFirst({
       where: {
         OR: [
@@ -251,20 +253,34 @@ export class WebsitesService {
       }
     }
 
-    if (!company) throw new Error('Company not found for this domain');
+    if (!company) {
+        console.error('Company not found for domain:', domain, 'subdomainSlug:', subdomainSlug);
+        throw new Error('Company not found for this domain');
+    }
+    console.log('Found company:', company.id, company.slug);
 
     let website;
     if (resolvedSlug) {
+      console.log('Looking for website by slug:', resolvedSlug);
       website = await prisma.website.findFirst({
         where: { companyId: company.id, slug: resolvedSlug, status: 'active' }
       });
     } else {
+      console.log('Looking for primary website');
       website = await prisma.website.findFirst({
         where: { companyId: company.id, isPrimary: true, status: 'active' }
       });
     }
 
-    if (!website) throw new Error('Website not found');
+    if (!website) {
+        console.error('Website not found. resolvedSlug:', resolvedSlug, 'isPrimary:', !resolvedSlug);
+        
+        // Debug check all websites for this company
+        const allWebsites = await prisma.website.findMany({ where: { companyId: company.id } });
+        console.log('All websites for company:', allWebsites.map(w => ({ id: w.id, slug: w.slug, isPrimary: w.isPrimary, status: w.status })));
+        
+        throw new Error('Website not found');
+    }
 
     // Fire and forget view count update
     Promise.resolve().then(async () => {

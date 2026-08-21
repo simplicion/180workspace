@@ -26,6 +26,20 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
             console.error('Error parsing tags in uploadFile:', e);
         }
 
+        const { replaceUrl } = req.body;
+        if (replaceUrl && typeof replaceUrl === 'string') {
+            try {
+                const { PrismaClient } = require('@workspace/db');
+                const prisma = new PrismaClient();
+                await prisma.document.updateMany({
+                    where: { fileUrl: replaceUrl, companyId },
+                    data: { deletedAt: new Date() }
+                });
+            } catch (e) {
+                console.error('Error deleting replaced file:', e);
+            }
+        }
+
         const result = await StorageService.uploadFile({
             userId,
             companyId,

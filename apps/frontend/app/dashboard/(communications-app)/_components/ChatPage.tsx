@@ -146,7 +146,7 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
                     role: 'client'
                 }));
                 const combined = [...allUsers, ...allClients];
-                setUsers(combined.filter((u: User) => (u._id || u.id) !== (currentUser._id || currentUser.id)));
+                setUsers(combined.filter((u: User) => ((u._id || u.id) as string) !== (currentUser._id || currentUser.id)));
             } catch (err: any) {
                 console.error('Error fetching chat users:', err);
                 toast.error('Failed to load users for chat');
@@ -159,9 +159,9 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
 
 
     const filtered = users.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase()) ||
-        u.role.toLowerCase().includes(search.toLowerCase())
+        (u.name || "")?.toLowerCase().includes(search.toLowerCase()) ||
+        (u.email || "").toLowerCase().includes(search.toLowerCase()) ||
+        (u.role || "user").toLowerCase().includes(search.toLowerCase())
     );
 
     function toggle(id: string) {
@@ -250,9 +250,9 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
                         ) : filtered.length === 0 ? (
                             <p className="text-center text-gray-400 text-sm py-6">No users found</p>
                         ) : filtered.map(u => {
-                            const isSelected = selected.includes((u._id || u.id));
+                            const isSelected = selected.includes(((u._id || u.id) as string));
                             return (
-                                <button key={(u._id || u.id)} onClick={() => toggle((u._id || u.id))}
+                                <button key={((u._id || u.id) as string)} onClick={() => toggle(((u._id || u.id) as string))}
                                     className={clsx('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all', isSelected ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50 border border-transparent')}>
                                     <div className="w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-all">
                                         {isSelected && <CheckCheck className="w-3 h-3 text-white" />}
@@ -260,9 +260,9 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
                                     <Avatar user={u} size="sm" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
-                                        <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                                        <p className="text-xs text-gray-400 truncate">{(u.email || "")}</p>
                                     </div>
-                                    <RoleBadge role={u.role} />
+                                    <RoleBadge role={(u.role || "user") || 'user'} />
                                 </button>
                             );
                         })}
@@ -303,8 +303,8 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
                 role: 'client'
             }));
             const combined = [...allUsers, ...allClients];
-            const memberIds = chat.members.map(m => m._id || (m._id || m.id));
-            setUsers(combined.filter((u: User) => !memberIds.includes(u._id || (u._id || u.id))));
+            const memberIds = chat.members.map(m => m._id || ((m._id || m.id) as string));
+            setUsers(combined.filter((u: User) => !memberIds.includes(u._id || ((u._id || u.id) as string))));
         })
             .catch(() => { });
     }, [chat.members]);
@@ -351,17 +351,17 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Members</p>
                     <div className="space-y-1">
                         {chat.members.map(m => (
-                            <div key={(m._id || m.id)} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
+                            <div key={((m._id || m.id) as string)} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
                                 <Avatar user={m} size="sm" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-gray-800 truncate">{m.name}{(m._id || m.id) === (currentUser._id || currentUser.id) && ' (You)'}</p>
+                                    <p className="text-xs font-medium text-gray-800 truncate">{m.name}{((m._id || m.id) as string) === (currentUser._id || currentUser.id) && ' (You)'}</p>
                                     <p className="text-[10px] text-gray-400">{m.role}</p>
                                 </div>
-                                {chat.admins?.some(a => a.id === (m._id || m.id)) && (
+                                {chat.admins?.some(a => a.id === ((m._id || m.id) as string)) && (
                                     <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full font-bold">Admin</span>
                                 )}
-                                {isAdmin && (m._id || m.id) !== (currentUser._id || currentUser.id) && (
-                                    <button onClick={() => setMemberToRemove((m._id || m.id))} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600" aria-label={`Remove ${m.name}`}>
+                                {isAdmin && ((m._id || m.id) as string) !== (currentUser._id || currentUser.id) && (
+                                    <button onClick={() => setMemberToRemove(((m._id || m.id) as string))} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600" aria-label={`Remove ${m.name}`}>
                                         <X className="w-3 h-3" />
                                     </button>
                                 )}
@@ -381,12 +381,12 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
                             <div className="space-y-2">
                                 <input aria-label="Search users to add" className="input text-xs py-1.5" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} />
                                 <div className="max-h-32 overflow-y-auto space-y-1">
-                                    {users.filter(u => u.name.toLowerCase().includes(search.toLowerCase())).map(u => (
-                                        <button key={(u._id || u.id)} onClick={() => setSelectedToAdd(p => p.includes((u._id || u.id)) ? p.filter(x => x !== (u._id || u.id)) : [...p, (u._id || u.id)])}
-                                            className={clsx('w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs', selectedToAdd.includes((u._id || u.id)) ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700')}>
+                                    {users.filter(u => (u.name || "")?.toLowerCase().includes(search.toLowerCase())).map(u => (
+                                        <button key={((u._id || u.id) as string)} onClick={() => setSelectedToAdd(p => p.includes(((u._id || u.id) as string)) ? p.filter(x => x !== ((u._id || u.id) as string)) : [...p, ((u._id || u.id) as string)])}
+                                            className={clsx('w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs', selectedToAdd.includes(((u._id || u.id) as string)) ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700')}>
                                             <Avatar user={u} size="sm" />
                                             <span className="truncate">{u.name}</span>
-                                            <RoleBadge role={u.role} />
+                                            <RoleBadge role={(u.role || "user") || 'user'} />
                                         </button>
                                     ))}
                                 </div>
@@ -441,7 +441,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const userIdQuery = searchParams.get('userId');
+    const userIdQuery = searchParams?.get('userId');
     const [chats, setChats] = useState<Chat[]>([]);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
     const activeChatRef = useRef<Chat | null>(null);
@@ -479,7 +479,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                 if (c.isGroup) {
                     uniqueChats.push(c);
                 } else {
-                    const otherId = c.members.find((m: User) => (m._id || m.id) !== (user?._id || user?.id))?._id || c.members.find((m: User) => (m._id || m.id) !== (user?._id || user?.id))?.id;
+                    const otherId = c.members.find((m: User) => ((m._id || m.id) as string) !== (user?._id || user?.id))?._id || c.members.find((m: User) => ((m._id || m.id) as string) !== (user?._id || user?.id))?.id;
                     if (otherId && !seenUsers.has(otherId)) {
                         seenUsers.add(otherId);
                         uniqueChats.push(c);
@@ -513,7 +513,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     useEffect(() => {
         if (loadingChats || !userIdQuery || !user) return;
         const autoStartChat = async () => {
-            const existingChat = chats.find(c => !c.isGroup && c.members.some(m => (m._id || m.id) === userIdQuery));
+            const existingChat = chats.find(c => !c.isGroup && c.members.some(m => ((m._id || m.id) as string) === userIdQuery));
             if (existingChat) {
                 selectChat(existingChat);
             } else {
@@ -533,7 +533,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     // Socket events
     useEffect(() => {
         if (!socket) return;
-        socket.on('chat:message', (msg: Message) => {
+        socket?.on('chat:message', (msg: Message) => {
             console.log('[Socket] Received message:', msg);
             setChats(prev => prev.map(c => c._id === msg.chatId ? { ...c, lastMessage: msg, lastActivity: msg.createdAt } : c));
             
@@ -543,7 +543,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             setMessages(prev => {
                 // If the message is for the chat we're currently looking at
                 if (currentActiveChat && msg.chatId === currentActiveChat._id) {
-                    return prev.find(m => (m._id || m.id) === msg._id) ? prev : [...prev, msg];
+                    return prev.find(m => ((m._id || m.id) as string) === msg._id) ? prev : [...prev, msg];
                 }
                 return prev;
             });
@@ -551,18 +551,18 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                 setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
             }
         });
-        socket.on('chat:typing', ({ userId }: { userId: string }) => setTypingUsers(p => p.includes(userId) ? p : [...p, userId]));
-        socket.on('chat:stop_typing', ({ userId }: { userId: string }) => setTypingUsers(p => p.filter(id => id !== userId)));
-        socket.on('user:online', ({ userId }: { userId: string }) => setOnlineUsers(p => new Set([...p, userId])));
-        socket.on('user:offline', ({ userId }: { userId: string }) => setOnlineUsers(p => { const s = new Set(p); s.delete(userId); return s; }));
-        socket.on('users:online_list', ({ onlineUsers: list }: { onlineUsers: string[] }) => setOnlineUsers(new Set(list)));
+        socket?.on('chat:typing', ({ userId }: { userId: string }) => setTypingUsers(p => p.includes(userId) ? p : [...p, userId]));
+        socket?.on('chat:stop_typing', ({ userId }: { userId: string }) => setTypingUsers(p => p.filter(id => id !== userId)));
+        socket?.on('user:online', ({ userId }: { userId: string }) => setOnlineUsers(p => new Set([...p, userId])));
+        socket?.on('user:offline', ({ userId }: { userId: string }) => setOnlineUsers(p => { const s = new Set(p); s.delete(userId); return s; }));
+        socket?.on('users:online_list', ({ onlineUsers: list }: { onlineUsers: string[] }) => setOnlineUsers(new Set(list)));
 
         // Call signaling
-        socket.on('call:request', (data) => {
+        socket?.on('call:request', (data) => {
             setIncomingCall(data);
         });
 
-        socket.on('call:response', ({ accepted, roomId, callerId }) => {
+        socket?.on('call:response', ({ accepted, roomId, callerId }) => {
             if (accepted) {
                 router.push(`/dashboard/meeting/${roomId}`);
             } else if (callerId === (user?._id || user?.id)) {
@@ -571,26 +571,26 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         });
 
         return () => {
-            socket.off('chat:message');
-            socket.off('chat:typing');
-            socket.off('chat:stop_typing');
-            socket.off('user:online');
-            socket.off('user:offline');
-            socket.off('call:request');
-            socket.off('call:response');
+            socket?.off('chat:message');
+            socket?.off('chat:typing');
+            socket?.off('chat:stop_typing');
+            socket?.off('user:online');
+            socket?.off('user:offline');
+            socket?.off('call:request');
+            socket?.off('call:response');
         };
     }, [(user?._id || user?.id)]);
 
     const selectChat = async (chat: Chat) => {
-        if (activeChat) socket.emit('chat:leave', { chatId: activeChat._id });
+        if (activeChat) socket?.emit('chat:leave', { chatId: activeChat._id });
         setActiveChat(chat);
         activeChatRef.current = chat;
         setMessages([]);
         setReplyTo(null);
         setShowGroupInfo(false);
         setLoadingMessages(true);
-        socket.emit('chat:join', { chatId: chat._id });
-        socket.emit('chat:read', { chatId: chat._id });
+        socket?.emit('chat:join', { chatId: chat._id });
+        socket?.emit('chat:read', { chatId: chat._id });
         try {
             const { data } = await api.get(`/api/chat/${chat._id}/messages`);
             setMessages(data.messages);
@@ -620,7 +620,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             setMessages(prev => [...prev, optimisticMsg]);
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
-            socket.emit('chat:message', {
+            socket?.emit('chat:message', {
                 chatId: activeChat._id,
                 content: text.trim(),
                 replyTo: replyTo?._id || null,
@@ -629,7 +629,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             setText('');
             setReplyTo(null);
             if (typingTimeout.current) clearTimeout(typingTimeout.current);
-            socket.emit('chat:stop_typing', { chatId: activeChat._id });
+            socket?.emit('chat:stop_typing', { chatId: activeChat._id });
         } catch (err) {
             console.error('[Chat] Send message error:', err);
             toast.error('Failed to send message');
@@ -644,7 +644,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             const names = matches.map(m => m[1].toLowerCase());
             return activeChat.members
                 .filter(m => m && m.name && names.some(n => m.name.toLowerCase().startsWith(n)))
-                .map(m => (m._id || m.id));
+                .map(m => ((m._id || m.id) as string));
         } catch (err) {
             console.error('[Chat] Mention extraction error:', err);
             return [];
@@ -668,9 +668,9 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             setShowMentions(false);
         }
 
-        socket.emit('chat:typing', { chatId: activeChat._id });
+        socket?.emit('chat:typing', { chatId: activeChat._id });
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => socket.emit('chat:stop_typing', { chatId: activeChat._id }), 2000);
+        typingTimeout.current = setTimeout(() => socket?.emit('chat:stop_typing', { chatId: activeChat._id }), 2000);
     };
 
     function insertMention(u: User) {
@@ -692,7 +692,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         if (!activeChat) return;
         try {
             const res = await api.post(`/api/chat/${activeChat._id}/react`, { messageId: msgId, emoji });
-            setMessages(ms => ms.map(m => (m._id || m.id) === msgId ? { ...m, reactions: res.data.reactions } : m));
+            setMessages(ms => ms.map(m => ((m._id || m.id) as string) === msgId ? { ...m, reactions: res.data.reactions } : m));
         } catch { /* silent */ }
         setEmojiPicker(null);
     }
@@ -705,7 +705,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         if (!activeChat || !messageToDelete) return;
         try {
             await api.delete(`/api/chat/${activeChat._id}/messages/${messageToDelete}`);
-            setMessages(ms => ms.map(m => (m._id || m.id) === messageToDelete ? { ...m, content: 'This message was deleted', deletedAt: new Date().toISOString() } : m));
+            setMessages(ms => ms.map(m => ((m._id || m.id) as string) === messageToDelete ? { ...m, content: 'This message was deleted', deletedAt: new Date().toISOString() } : m));
         } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed'); }
         setMessageToDelete(null);
     }
@@ -721,15 +721,15 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
     const getChatName = (chat: Chat) => {
         if (chat.isGroup) return chat.name || 'Group Chat';
-        const other = chat.members.find(m => (m._id || m.id) !== (user?._id || user?.id));
+        const other = chat.members.find(m => ((m._id || m.id) as string) !== (user?._id || user?.id));
         return other?.name || 'Chat';
     };
-    const getChatOther = (chat: Chat) => chat.members.find(m => (m._id || m.id) !== (user?._id || user?.id));
+    const getChatOther = (chat: Chat) => chat.members.find(m => ((m._id || m.id) as string) !== (user?._id || user?.id));
     const isOtherOnline = (chat: Chat) => { const o = getChatOther(chat); return o ? onlineUsers.has(o._id || o.id) : false; };
 
     const handleCallResponse = (accepted: boolean) => {
         if (!incomingCall) return;
-        socket.emit('call:response', {
+        socket?.emit('call:response', {
             callerId: incomingCall.callerId,
             accepted,
             roomId: incomingCall.roomId
@@ -746,7 +746,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         if (!other) return toast.error('Group calling coming soon!');
 
         const roomId = `v-${(company?._id || company?.id)}-call-${Date.now()}`;
-        socket.emit('call:initiate', {
+        socket?.emit('call:initiate', {
             recipientId: (other._id || other.id),
             roomId,
             type,
@@ -761,7 +761,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         if (!activeChat) return;
         const roomId = `v-${(company?._id || company?.id)}-meeting-${Date.now()}`;
         // In a real app, you might want to send a system message to the chat
-        socket.emit('chat:message', {
+        socket?.emit('chat:message', {
             chatId: activeChat._id,
             content: `Started a meeting: [Join Meeting](${window.location.origin}/dashboard/meeting/${roomId})`,
             isSystem: true
@@ -770,8 +770,8 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     };
 
     const mentionSuggestions = allUsers.filter(u =>
-        (u._id || u.id) !== (user?._id || user?.id) &&
-        (clientChatAllowed || u.role !== 'client') &&
+        ((u._id || u.id) as string) !== (user?._id || user?.id) &&
+        (clientChatAllowed || (u.role || "user") !== 'client') &&
         (u.name || '').toLowerCase().includes((mentionQuery || '').toLowerCase())
     ) || [];
 
@@ -1054,10 +1054,10 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                                 {showMentions && mentionSuggestions.length > 0 && (
                                     <div className="mx-4 mb-0 border border-gray-200 rounded-xl shadow-lg bg-white overflow-hidden">
                                         {mentionSuggestions.slice(0, 5).map(u => (
-                                            <button key={(u._id || u.id)} onClick={() => insertMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left text-sm">
+                                            <button key={((u._id || u.id) as string)} onClick={() => insertMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left text-sm">
                                                 <Avatar user={u} size="sm" />
                                                 <span className="font-medium text-gray-800">{u.name}</span>
-                                                <RoleBadge role={u.role} />
+                                                <RoleBadge role={(u.role || "user") || 'user'} />
                                             </button>
                                         ))}
                                     </div>

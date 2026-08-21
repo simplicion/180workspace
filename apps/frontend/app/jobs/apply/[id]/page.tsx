@@ -10,7 +10,7 @@ import Link from 'next/link';
 
 export default function PublicJobApplyPage() {
     const params = useParams();
-    const jobId = params.id as string;
+    const jobId = params?.id as string;
 
     const [job, setJob] = useState<any>(null);
     const [loading, setLoading] = useState(true);

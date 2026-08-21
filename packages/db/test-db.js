@@ -1,10 +1,15 @@
 const { PrismaClient } = require('./node_modules/@prisma/client');
 const prisma = new PrismaClient();
+
 async function main() {
-  const companies = await prisma.company.findMany({ select: { id: true, name: true, slug: true } });
-  console.table(companies);
-  
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, companyId: true } });
-  console.table(users);
+    console.log('Connecting...');
+    const company = await prisma.company.findFirst({ where: { slug: 'prince' }});
+    console.log('Company:', company ? company.name : 'Not Found');
+    
+    if (company) {
+        const websites = await prisma.website.findMany({ where: { companyId: company.id }});
+        console.log('Websites:', websites.map(w => ({ id: w.id, slug: w.slug, name: w.name, status: w.status, isPrimary: w.isPrimary })));
+    }
 }
+
 main().catch(console.error).finally(() => prisma.$disconnect());

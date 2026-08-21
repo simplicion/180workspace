@@ -4,7 +4,7 @@ import { prisma } from '@workspace/db';
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const slug = searchParams.get('slug');
+    const slug = searchParams?.get('slug');
 
     if (!slug) {
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 });

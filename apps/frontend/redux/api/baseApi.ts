@@ -104,6 +104,6 @@ export const baseApi = createApi({
     "DashboardMetrics",
     "SalesPipeline",
     "Activity",
-    "TeamActivity",
+    "TeamActivity", "advertising", "communications", "crm-and-sales", "finance", "hr-management", "insights", "settings", "workspace-tools", "dashboard", "projects-and-tasks", "social-media-management", "company-hub"
   ],
 });

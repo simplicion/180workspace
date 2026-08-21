@@ -84,6 +84,9 @@ router.use((req, res, next) => {
         '/expenses': '/v1/finance/expenses',
         '/ceo-insights': '/v1/hr-management/hrms/ceo-insights',
         '/files': '/v1/workspace-tools/documents/files',
+        '/files/upload': '/v1/workspace-tools/storage/upload',
+        '/files/upload-video': '/v1/workspace-tools/storage/upload-video',
+        '/files/upload-voice': '/v1/workspace-tools/storage/upload-voice',
         '/invoices': '/v1/finance/invoices',
         '/work-logs': '/v1/projects-and-tasks/work-logs',
         '/activity': '/v1/projects-and-tasks/activity'

@@ -8,7 +8,8 @@ import { ArrowLeft, Save, Send, Share2, Plus, GripVertical, Trash2, Settings, Ey
 import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function ContractEditorPage() {
-    const { id } = useParams();
+    const params = useParams();
+    const id = params?.id;
     const router = useRouter();
     const { data: contractData, isLoading, refetch } = useGetContractByIdQuery(id);
     const [updateContract, { isLoading: isUpdating }] = useUpdateContractMutation();

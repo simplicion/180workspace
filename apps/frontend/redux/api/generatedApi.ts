@@ -154,8 +154,8 @@ export const generatedApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['workspace-tools'],
     }),
-    getUsers?limit=200: builder.query({
-      query: () => '/api/users?limit=200',
+    getUsersLimit200: builder.query({
+      query: () => '/api/usersLimit200',
       providesTags: ['workspace-tools'],
     }),
     postEmailSenddocument: builder.mutation({
@@ -198,8 +198,8 @@ export const generatedApi = baseApi.injectEndpoints({
       query: () => '/api/ai/dashboard',
       providesTags: ['dashboard'],
     }),
-    getProjects?limit=5: builder.query({
-      query: () => '/api/projects?limit=5',
+    getProjectsLimit5: builder.query({
+      query: () => '/api/projectsLimit5',
       providesTags: ['dashboard'],
     }),
     getEmployeeDashboard: builder.query({
@@ -234,16 +234,16 @@ export const generatedApi = baseApi.injectEndpoints({
       query: () => '/api/v1/crm-and-sales/sales/activity',
       providesTags: ['dashboard'],
     }),
-    getLeaves?status=pending: builder.query({
-      query: () => '/api/leaves?status=pending',
+    getLeavesStatusPending: builder.query({
+      query: () => '/api/leavesStatusPending',
       providesTags: ['dashboard'],
     }),
-    getLeaves?status=approved: builder.query({
-      query: () => '/api/leaves?status=approved',
+    getLeavesStatusApproved: builder.query({
+      query: () => '/api/leavesStatusApproved',
       providesTags: ['dashboard'],
     }),
-    getExpenses?status=pending: builder.query({
-      query: () => '/api/expenses?status=pending',
+    getExpensesStatusPending: builder.query({
+      query: () => '/api/expensesStatusPending',
       providesTags: ['dashboard'],
     }),
     getBillingPlans: builder.query({
@@ -598,8 +598,8 @@ export const generatedApi = baseApi.injectEndpoints({
       query: () => '/api/sales/quotes',
       providesTags: ['workspace-tools'],
     }),
-    get180documentsFiles?category=Template: builder.query({
-      query: () => '/api/180documents/files?category=Template',
+    get180documentsFilesCategoryTemplate: builder.query({
+      query: () => '/api/180documents/filesCategoryTemplate',
       providesTags: ['workspace-tools'],
     }),
     getAiSessions: builder.query({
@@ -694,8 +694,8 @@ export const generatedApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['crm-and-sales'],
     }),
-    getSalesLeadspipeline?pipelineType=DEAL: builder.query({
-      query: () => '/api/sales/leads-pipeline?pipelineType=DEAL',
+    getSalesLeadspipelinePipelineTypeDEAL: builder.query({
+      query: () => '/api/sales/leads-pipelinePipelineTypeDEAL',
       providesTags: ['crm-and-sales'],
     }),
     getSalesProductivity: builder.query({
@@ -778,10 +778,7 @@ export const generatedApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['settings'],
     }),
-    getSalesDeals: builder.query({
-      query: () => '/sales/deals',
-      providesTags: ['workspace-tools'],
-    }),
+
   }),
   overrideExisting: false,
 });
@@ -811,7 +808,7 @@ export const {
   usePostBrandingLogoMutation,
   usePostEventsUploadbannerMutation,
   usePostAiAnalyzedocumentMutation,
-  useGetUsers?limit=200Query,
+  useGetUsersLimit200Query,
   usePostEmailSenddocumentMutation,
   usePostFilesUploadMutation,
   useGetSalesAccountsQuery,
@@ -819,16 +816,16 @@ export const {
   usePostSalesContactsMutation,
   useGetAiInsightsQuery,
   useGetAiDashboardQuery,
-  useGetProjects?limit=5Query,
+  useGetProjectsLimit5Query,
   useGetEmployeeDashboardQuery,
   usePostAttendanceAutocheckinMutation,
   usePostAttendanceAutocheckoutMutation,
   useGetHrmsCeoinsightsQuery,
   useGetGoalsQuery,
   useGetV1CrmandsalesSalesActivityQuery,
-  useGetLeaves?status=pendingQuery,
-  useGetLeaves?status=approvedQuery,
-  useGetExpenses?status=pendingQuery,
+  useGetLeavesStatusPendingQuery,
+  useGetLeavesStatusApprovedQuery,
+  useGetExpensesStatusPendingQuery,
   useGetBillingPlansQuery,
   useGetBillingHistoryQuery,
   usePostBillingAutopayCancelMutation,
@@ -889,7 +886,7 @@ export const {
   usePostSocialmediaSavedbanksMutation,
   usePostSocialmediaAssetsMutation,
   useGetSalesQuotesQuery,
-  useGet180documentsFiles?category=TemplateQuery,
+  useGet180documentsFilesCategoryTemplateQuery,
   useGetAiSessionsQuery,
   usePostAiUploadMutation,
   useGetAssetsStatsQuery,
@@ -902,9 +899,9 @@ export const {
   usePostMeetingTranscriptMutation,
   usePostMeetingAichatMutation,
   usePostMeetingAiProcessMutation,
-  useGetSalesDealsQuery,
+
   usePostSalesDealsImportMutation,
-  useGetSalesLeadspipeline?pipelineType=DEALQuery,
+  useGetSalesLeadspipelinePipelineTypeDEALQuery,
   useGetSalesProductivityQuery,
   usePostBillingCouponMutation,
   usePostBillingActivateMutation,
@@ -916,6 +913,6 @@ export const {
   usePostApikeyGenerateMutation,
   useGetRolesaccessMatrixQuery,
   usePostFilesUploadvideoMutation,
-  usePatchCompanyconfigModulesMutation,
-  useGetSalesDealsQuery,
+
+
 } = generatedApi;

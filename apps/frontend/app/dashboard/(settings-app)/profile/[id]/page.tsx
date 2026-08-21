@@ -13,7 +13,8 @@ import EmployeeBankDetails from '@/app/dashboard/(settings-app)/_components/Empl
 import { FavoriteButton , LogoLoader } from "@workspace/ui";
 
 export default function UnifiedProfilePage() {
-    const { id } = useParams();
+    const params = useParams();
+    const id = params?.id;
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user: currentUser, company } = useAuth();
@@ -23,10 +24,10 @@ export default function UnifiedProfilePage() {
     const [showEdit, setShowEdit] = useState(false);
 
     useEffect(() => {
-        const tab = searchParams.get('tab');
+        const tab = searchParams?.get('tab');
         if (tab) setActiveTab(tab);
         
-        const edit = searchParams.get('edit');
+        const edit = searchParams?.get('edit');
         if (edit === 'true') setShowEdit(true);
     }, [searchParams]);
 

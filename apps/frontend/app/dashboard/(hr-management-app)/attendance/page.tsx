@@ -44,7 +44,7 @@ function AttendancePageInner() {
     const { user } = useAuth();
     const { company, refreshSettings } = useSettings();
 
-    const initialTab = (searchParams.get('tab') as TabType) || 'attendance';
+    const initialTab = (searchParams?.get('tab') as TabType) || 'attendance';
     const [tab, setTab] = useState<TabType>(initialTab);
 
     // Sync tab with URL
@@ -167,7 +167,7 @@ function AttendancePageInner() {
 
     // Sync tab if URL param changes externally (e.g. sidebar link)
     useEffect(() => {
-        const t = (searchParams.get('tab') as TabType) || 'attendance';
+        const t = (searchParams?.get('tab') as TabType) || 'attendance';
         setTab(t);
     }, [searchParams]);
 

@@ -326,7 +326,8 @@ function VideoEditor({ sectionData, onChange, className = '' }: any) {
 }
 
 export default function WebsiteEditorPage() {
-    const { id } = useParams();
+    const params = useParams();
+    const id = params?.id;
     const router = useRouter();
     const [website, setWebsite] = useState<any>(null);
     const [config, setConfig] = useState<any>(null);
@@ -365,8 +366,9 @@ export default function WebsiteEditorPage() {
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
     const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
 
-    // Drag-to-Resize Padding (Moved to BuilderElement)
-
+    // Hover and Padding Drag for Sections/Images
+    const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
+    const [paddingDrag, setPaddingDrag] = useState<any>(null);
     const [isCanvasDragOver, setIsCanvasDragOver] = useState(false);
 
     const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -718,7 +720,7 @@ export default function WebsiteEditorPage() {
         if (!findAndInsert(newConfig.pages[pIndex].sections)) {
             // Fallback, put it back
             if (sourceArray && sourceIndex !== -1) {
-                sourceArray.splice(sourceIndex, 0, draggedNode);
+                (sourceArray as any[]).splice(sourceIndex, 0, draggedNode);
             }
         }
 
@@ -784,28 +786,35 @@ export default function WebsiteEditorPage() {
         }
     };
 
-    const appendElementToNode = (parentId: string, elementType: string) => {
+    const insertElementRelative = (targetId: string, elementType: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => {
         const newConfig = JSON.parse(JSON.stringify(config));
         const pIndex = getActivePageIndex(newConfig);
         if (pIndex === -1) return;
 
-        let appended = false;
-        const appendToTarget = (nodes: any[]): boolean => {
+        let inserted = false;
+        const insertTarget = (nodes: any[]): boolean => {
             for (let i = 0; i < nodes.length; i++) {
-                if (nodes[i].id === parentId) {
-                    if (!nodes[i].children) nodes[i].children = [];
+                if (nodes[i].id === targetId) {
                     const newNode = getDefaultElementForType(elementType, currencySymbol);
                     newNode.id = 'el-' + Date.now(); // Generate unique ID
-                    nodes[i].children.push(newNode);
+                    
+                    if (position === 'inside') {
+                        if (!nodes[i].children) nodes[i].children = [];
+                        nodes[i].children.push(newNode);
+                    } else if (position === 'left' || position === 'top') {
+                        nodes.splice(i, 0, newNode);
+                    } else if (position === 'right' || position === 'bottom') {
+                        nodes.splice(i + 1, 0, newNode);
+                    }
                     return true;
                 }
-                if (nodes[i].children && appendToTarget(nodes[i].children)) return true;
+                if (nodes[i].children && insertTarget(nodes[i].children)) return true;
             }
             return false;
         };
 
-        appended = appendToTarget(newConfig.pages[pIndex].sections || []);
-        if (appended) {
+        inserted = insertTarget(newConfig.pages[pIndex].sections || []);
+        if (inserted) {
             commitConfig(newConfig);
         }
     };
@@ -982,6 +991,7 @@ export default function WebsiteEditorPage() {
                         } as any}
                     >
                         {/* Header */}
+                        {config.header?.enabled !== false && activePage.showHeader !== false && (
                         <header
                             className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all`}
                             style={{
@@ -1038,7 +1048,7 @@ export default function WebsiteEditorPage() {
                             </div>
 
                             <nav className="flex flex-wrap justify-center items-center gap-6 text-sm font-bold opacity-80">
-                                {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'terms' && p.id !== 'privacy').map((p: any) => (
+                                {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'terms' && p.id !== 'privacy' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header')).map((p: any) => (
                                     <button
                                         key={p.id}
                                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }}
@@ -1050,6 +1060,7 @@ export default function WebsiteEditorPage() {
                                 ))}
                             </nav>
                         </header>
+                        )}
 
                         <main 
                             className={`w-full flex-1 flex flex-col ${isCanvasDragOver && sections.length > 0 ? 'bg-indigo-50/10' : ''}`}
@@ -1116,7 +1127,7 @@ export default function WebsiteEditorPage() {
                                             setSelectedElementId={setSelectedElementId}
                                             updateElement={updateElement}
                                             removeElement={removeElement}
-                                            appendElementToNode={appendElementToNode}
+                                            insertElementRelative={insertElementRelative}
                                         />
                                         {/* Dropzone after this section */}
                                         <div
@@ -1137,6 +1148,7 @@ export default function WebsiteEditorPage() {
                         </DndContext>
                         </main>
 
+                        {config.footer?.enabled !== false && activePage.showFooter !== false && (
                         <footer
                             className="border-t border-black/10 transition-all"
                             style={{
@@ -1149,34 +1161,49 @@ export default function WebsiteEditorPage() {
                                 paddingRight: config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem',
                             }}
                         >
-                            <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 text-left mb-12">
-                                <div className="flex flex-col">
-                                    <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Company</h4>
-                                    <EditableText
-                                        tagName="div"
-                                        className="text-sm leading-relaxed whitespace-pre-wrap animate-none text-current"
-                                        style={{ color: 'inherit' }}
-                                        value={config.footer?.companyInfo || `${settingsCompany?.name || website.name}\n${settingsCompany?.headquarters || '123 Business Avenue'}\n${settingsCompany?.email || 'email@example.com'}`}
-                                        onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, companyInfo: v } })}
-                                    />
-                                </div>
-                                <div className="flex flex-col">
-                                    <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Links</h4>
-                                    <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
-                                        {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about').map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
-                                        ))}
-                                    </nav>
-                                </div>
-                                <div className="flex flex-col">
-                                    <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Legal</h4>
-                                    <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
-                                        {config.pages?.filter((p: any) => p.isEnabled && (p.id === 'privacy' || p.id === 'terms')).map((p: any) => (
-                                            <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
-                                        ))}
-                                    </nav>
-                                </div>
-                            </div>
+                            {(() => {
+                                const footerLinks = config.pages?.filter((p: any) => p.isEnabled && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
+                                const legalLinks = config.pages?.filter((p: any) => p.isEnabled && (p.id === 'privacy' || p.id === 'terms') && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
+                                return (
+                                    <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 text-left mb-12">
+                                        <div className="flex flex-col">
+                                            {config.header?.logo && (
+                                                <div className="mb-4">
+                                                    <img src={config.header.logo} alt={config.header?.title || website.name} className="h-10 w-auto object-contain" />
+                                                </div>
+                                            )}
+                                            <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Company</h4>
+                                            <EditableText
+                                                tagName="div"
+                                                className="text-sm leading-relaxed whitespace-pre-wrap animate-none text-current"
+                                                style={{ color: 'inherit' }}
+                                                value={config.footer?.companyInfo || `${settingsCompany?.name || website.name}\n${settingsCompany?.headquarters || '123 Business Avenue'}\n${settingsCompany?.email || 'email@example.com'}`}
+                                                onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, companyInfo: v } })}
+                                            />
+                                        </div>
+                                        {footerLinks.length > 0 && (
+                                            <div className="flex flex-col">
+                                                <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Links</h4>
+                                                <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
+                                                    {footerLinks.map((p: any) => (
+                                                        <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
+                                                    ))}
+                                                </nav>
+                                            </div>
+                                        )}
+                                        {legalLinks.length > 0 && (
+                                            <div className="flex flex-col">
+                                                <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Legal</h4>
+                                                <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
+                                                    {legalLinks.map((p: any) => (
+                                                        <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
+                                                    ))}
+                                                </nav>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                             <div className="text-center pt-8 border-t border-current/20 flex flex-col items-center justify-center w-full">
                                 <div className="w-full max-w-lg mx-auto flex justify-center">
                                     <EditableText
@@ -1189,6 +1216,7 @@ export default function WebsiteEditorPage() {
                                 </div>
                             </div>
                         </footer>
+                        )}
 
                         {/* WhatsApp Floating Button */}
                         {config.whatsapp?.enabled && (

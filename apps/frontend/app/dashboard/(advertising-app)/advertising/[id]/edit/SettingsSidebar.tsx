@@ -120,6 +120,30 @@ export default function SettingsSidebar({
                     </div>
 
                     <div className="space-y-3">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Visibility</label>
+                        <div className="flex flex-col gap-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={config.header?.enabled !== false} 
+                                    onChange={(e) => commitConfig({ ...config, header: { ...config.header, enabled: e.target.checked } })}
+                                    className="w-4 h-4 text-indigo-600 rounded border-gray-300" 
+                                />
+                                <span className="text-sm">Show Header</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={config.footer?.enabled !== false} 
+                                    onChange={(e) => commitConfig({ ...config, footer: { ...config.footer, enabled: e.target.checked } })}
+                                    className="w-4 h-4 text-indigo-600 rounded border-gray-300" 
+                                />
+                                <span className="text-sm">Show Footer</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
                         <label className="text-xs font-bold text-gray-500 uppercase">Header & Footer Theme</label>
                         <div className="flex flex-col gap-2">
                             <label className={`flex items-center justify-between p-2 rounded border cursor-pointer ${brand.headerFooterTheme === 'light' || !brand.headerFooterTheme ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -322,23 +346,53 @@ export default function SettingsSidebar({
                                     Publish Page
                                 </label>
 
-                                {(p.isPublished !== false && p.isEnabled !== false) && (
-                                    <CustomSelect
-                                        value={p.navVisibility || 'both'}
-                                        onChange={(e) => {
-                                            const newConfig = JSON.parse(JSON.stringify(config));
-                                            newConfig.pages[i].navVisibility = e.target.value;
-                                            commitConfig(newConfig);
-                                        }}
-                                        className="text-xs p-1 border border-gray-200 rounded outline-none focus:border-indigo-500 bg-white"
-                                    >
-                                        <option value="both">Header & Footer</option>
-                                        <option value="header">Header Only</option>
-                                        <option value="footer">Footer Only</option>
-                                        <option value="none">Hidden</option>
-                                    </CustomSelect>
-                                )}
-                                <div className="flex-1"></div>
+                                    <div className="w-full flex items-center gap-2 mt-2">
+                                        <label className="flex items-center gap-2 text-xs text-gray-700 font-medium cursor-pointer flex-1">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={p.showHeader !== false}
+                                                onChange={(e) => {
+                                                    const newConfig = JSON.parse(JSON.stringify(config));
+                                                    newConfig.pages[i].showHeader = e.target.checked;
+                                                    commitConfig(newConfig);
+                                                }}
+                                                className="rounded text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            Show Header
+                                        </label>
+                                        <label className="flex items-center gap-2 text-xs text-gray-700 font-medium cursor-pointer flex-1">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={p.showFooter !== false}
+                                                onChange={(e) => {
+                                                    const newConfig = JSON.parse(JSON.stringify(config));
+                                                    newConfig.pages[i].showFooter = e.target.checked;
+                                                    commitConfig(newConfig);
+                                                }}
+                                                className="rounded text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            Show Footer
+                                        </label>
+                                    </div>
+                                    <div className="w-full mt-2">
+                                        <label className="text-[10px] font-semibold text-gray-500 block mb-1 uppercase">Show Link In Navbar/Footer</label>
+                                        <CustomSelect
+                                            value={p.navVisibility || 'both'}
+                                            onChange={(e) => {
+                                                const newConfig = JSON.parse(JSON.stringify(config));
+                                                newConfig.pages[i].navVisibility = e.target.value;
+                                                commitConfig(newConfig);
+                                            }}
+                                            className="w-full text-xs p-1.5 border border-gray-200 rounded outline-none focus:border-indigo-500 bg-white"
+                                        >
+                                            <option value="both">Both Navbar & Footer</option>
+                                            <option value="header">Navbar Only</option>
+                                            <option value="footer">Footer Only</option>
+                                            <option value="none">Hidden</option>
+                                        </CustomSelect>
+                                    </div>
+                                </div>
+                                <div className="flex-1 w-full flex justify-end gap-3 mt-2">
                                 <button 
                                     onClick={() => {
                                         const newName = prompt("Rename page:", p.name);
@@ -406,6 +460,90 @@ export default function SettingsSidebar({
             ) : (
                 <div className="p-4 space-y-6">
                     <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Base Elements</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                            {[
+                                { 
+                                    type: 'text', 
+                                    label: 'Text', 
+                                    icon: <svg width="24" height="24" viewBox="0 0 32 32" fill="currentColor" className="mb-2"><path d="M6 8v3h4v13h4V11h4V8H6zm12 5v2.5h2.5v7.5h3v-7.5H26V13h-8z"/></svg> 
+                                },
+                                { 
+                                    type: 'column', 
+                                    label: 'Column', 
+                                    icon: <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><line x1="8" y1="6" x2="8" y2="26" /><line x1="24" y1="6" x2="24" y2="26" /><rect x="13" y="7" width="6" height="4" rx="1" /><rect x="13" y="14" width="6" height="4" rx="1" /><rect x="13" y="21" width="6" height="4" rx="1" /></svg> 
+                                },
+                                { 
+                                    type: 'row', 
+                                    label: 'Row', 
+                                    icon: <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><line x1="6" y1="8" x2="26" y2="8" /><line x1="6" y1="24" x2="26" y2="24" /><rect x="7" y="13" width="4" height="6" rx="1" /><rect x="14" y="13" width="4" height="6" rx="1" /><rect x="21" y="13" width="4" height="6" rx="1" /></svg> 
+                                },
+                                { 
+                                    type: 'box', 
+                                    label: 'Container', 
+                                    icon: <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5" className="mb-2"><rect x="6" y="6" width="20" height="20" rx="3" /></svg> 
+                                },
+                                { 
+                                    type: 'media', 
+                                    label: 'Image', 
+                                    icon: <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" className="mb-2"><rect x="4" y="6" width="24" height="17" rx="4" /><circle cx="10" cy="11" r="2.5" fill="currentColor" stroke="none" /><path d="M4 19l6-6 6 6 4-3 4 3" strokeLinecap="round" /><line x1="8" y1="27" x2="24" y2="27" strokeLinecap="round" /></svg> 
+                                },
+                                { 
+                                    type: 'button', 
+                                    label: 'Button', 
+                                    icon: <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5" className="mb-2"><rect x="4" y="6" width="24" height="20" rx="6" /><text x="16" y="20.5" fontSize="10" fontWeight="bold" fill="currentColor" stroke="none" textAnchor="middle" fontFamily="sans-serif">BTN</text></svg> 
+                                }
+                            ].map(({type, label, icon}) => (
+                                <div 
+                                    key={type}
+                                    draggable
+                                    onDragStart={(e) => {
+                                        e.dataTransfer.setData('newSectionType', type);
+                                        e.dataTransfer.setData('application/vnd.builder.element', type);
+                                        e.dataTransfer.setData('text/plain', type);
+                                    }}
+                                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl bg-white text-gray-700 cursor-grab active:cursor-grabbing hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all aspect-square shadow-sm"
+                                >
+                                    {icon}
+                                    <span className="font-medium text-[11px] text-center">{label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Composite Elements</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { 
+                                    type: 'product', 
+                                    label: 'Product / Service',
+                                    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                                },
+                                { 
+                                    type: 'portfolio-element', 
+                                    label: 'Project / Portfolio',
+                                    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                                }
+                            ].map(({type, label, icon}) => (
+                                <div 
+                                    key={type}
+                                    draggable
+                                    onDragStart={(e) => {
+                                        e.dataTransfer.setData('newSectionType', type);
+                                        e.dataTransfer.setData('application/vnd.builder.element', type);
+                                        e.dataTransfer.setData('text/plain', type);
+                                    }}
+                                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl bg-white text-gray-700 cursor-grab active:cursor-grabbing hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm text-center min-h-[90px]"
+                                >
+                                    {icon}
+                                    <span className="font-medium text-[11px] leading-tight mt-1">{label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Pre-built Sections</h4>
                         <div className="space-y-2">
                             {(() => {
@@ -428,7 +566,7 @@ export default function SettingsSidebar({
                                             className={`p-3.5 border rounded-xl flex items-center justify-between transition-colors ${
                                                 isVideoDisabled 
                                                     ? 'border-gray-200 bg-gray-100/50 text-gray-400 cursor-not-allowed opacity-50' 
-                                                    : 'border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:bg-indigo-50'
+                                                    : 'border-gray-200 bg-white shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50'
                                             }`}
                                         >
                                             <span className="font-bold text-sm capitalize">
@@ -444,48 +582,6 @@ export default function SettingsSidebar({
                                     );
                                 });
                             })()}
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Raw Elements</h4>
-                        <div className="space-y-2">
-                            {['row', 'column', 'box', 'text', 'media', 'button', 'line'].map(type => (
-                                <div 
-                                    key={type}
-                                    draggable
-                                    onDragStart={(e) => {
-                                        e.dataTransfer.setData('newSectionType', type);
-                                        e.dataTransfer.setData('application/vnd.builder.element', type);
-                                        e.dataTransfer.setData('text/plain', type);
-                                    }}
-                                    className="p-3.5 border border-gray-200 rounded-xl bg-gray-50 cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-between"
-                                >
-                                    <span className="font-bold text-sm capitalize">{type} Element</span>
-                                    <GripVertical className="w-4 h-4 text-gray-400" />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mt-6">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Composite Elements</h4>
-                        <div className="space-y-2">
-                            {['product', 'portfolio-element'].map(type => (
-                                <div 
-                                    key={type}
-                                    draggable
-                                    onDragStart={(e) => {
-                                        e.dataTransfer.setData('newSectionType', type);
-                                        e.dataTransfer.setData('application/vnd.builder.element', type);
-                                        e.dataTransfer.setData('text/plain', type);
-                                    }}
-                                    className="p-3.5 border border-gray-200 rounded-xl bg-gray-50 cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-between"
-                                >
-                                    <span className="font-bold text-sm capitalize">{type === 'product' ? 'Product/Service' : 'Project/Portfolio'} Element</span>
-                                    <GripVertical className="w-4 h-4 text-gray-400" />
-                                </div>
-                            ))}
                         </div>
                     </div>
                 </div>

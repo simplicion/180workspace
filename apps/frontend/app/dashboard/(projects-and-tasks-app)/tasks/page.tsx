@@ -57,7 +57,7 @@ export default function TasksPage() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            const taskId = params.get('taskId');
+            const taskId = params?.get('taskId');
             if (taskId) {
                 setSelectedTask(taskId);
             }

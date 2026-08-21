@@ -7,4 +7,5 @@ export interface ElementNode {
     style: any;
     animation?: string;
     children?: ElementNode[];
+    name?: string;
 }

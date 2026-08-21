@@ -7,7 +7,9 @@ import axios from 'axios';
 import { CheckCircle2, ArrowRight, Mail, Phone, User, ShieldCheck, Layout, Sparkles } from 'lucide-react';
 import { PublicRenderElement } from './_components/PublicRenderElement';
 export default function PublicWebsitePage() {
-    const { domain, slug } = useParams();
+    const params = useParams();
+    const domain = params?.domain;
+    const slug = params?.slug;
     const [website, setWebsite] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -30,13 +32,13 @@ export default function PublicWebsitePage() {
             const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
             
             const params = new URLSearchParams();
-            params.append('domain', domain as string);
+            params?.append('domain', domain as string);
             if (slug) {
                 const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
-                params.append('slug', slugStr);
+                params?.append('slug', slugStr);
             }
 
-            const targetUrl = `${apiBase}/api/public/websites/resolve?${params.toString()}`;
+            const targetUrl = `${apiBase}/api/public/websites/resolve?${params?.toString()}`;
 
             const res = await axios.get(targetUrl);
             setWebsite(res.data.website);
@@ -73,13 +75,13 @@ export default function PublicWebsitePage() {
             const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
             
             const params = new URLSearchParams();
-            params.append('domain', domain as string);
+            params?.append('domain', domain as string);
             if (slug) {
                 const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
-                params.append('slug', slugStr);
+                params?.append('slug', slugStr);
             }
 
-            const targetUrl = `${apiBase}/api/public/websites/resolve/lead?${params.toString()}`;
+            const targetUrl = `${apiBase}/api/public/websites/resolve/lead?${params?.toString()}`;
 
             await axios.post(targetUrl, formData);
             setSubmitted(true);
@@ -101,7 +103,20 @@ export default function PublicWebsitePage() {
     }
 
     const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';
-    const currentPage = website?.pages?.find((p: any) => p.slug === currentSlug);
+    
+    // Default to empty object if no config
+    const config = website?.config || {};
+    
+    // Provide v1 backward compatibility
+    let currentPage;
+    if (config.version !== 2) {
+        if (currentSlug === '/') {
+            currentPage = { isPublished: true, isEnabled: true, sections: config.sections || [] };
+        }
+    } else {
+        currentPage = config.pages?.find((p: any) => p.slug === currentSlug);
+    }
+
     const isPagePublished = currentPage ? (currentPage.isPublished !== false && currentPage.isEnabled !== false) : false;
 
     if (error || !website || !currentPage || !isPagePublished) {
@@ -116,7 +131,6 @@ export default function PublicWebsitePage() {
         );
     }
 
-    const config = website.config || {};
     const hero = config.hero || {};
     const colors = config.colors || { primary: '#4f46e5', secondary: '#ffffff', accent: '#10b981' };
     const primaryColor = colors.primary;
@@ -157,16 +171,21 @@ export default function PublicWebsitePage() {
             } as any}
         >
             {/* Header */}
+            {config.header?.enabled !== false && (
             <header className="px-6 py-8 flex justify-between items-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
                 <a href="/" className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg text-white font-black text-xl" style={{ backgroundColor: primaryColor }}>
-                        {website.name[0]}
-                    </div>
-                    <span className="text-xl font-black tracking-tight">{website.name}</span>
+                    {config.header?.logo ? (
+                        <img src={config.header.logo} alt={config.header?.title || website.name} className="h-10 w-auto object-contain" />
+                    ) : (
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg text-white font-black text-xl" style={{ backgroundColor: primaryColor }}>
+                            {website.name[0]}
+                        </div>
+                    )}
+                    <span className="text-xl font-black tracking-tight">{config.header?.title || website.name}</span>
                 </a>
                 
                 <nav className="hidden md:flex items-center gap-6">
-                    {website.pages
+                    {(config.pages || [])
                         ?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header'))
                         .map((p: any) => (
                             <a 
@@ -179,6 +198,7 @@ export default function PublicWebsitePage() {
                         ))}
                 </nav>
             </header>
+            )}
 
             {/* Dynamic Builder Content */}
             {hasDynamicSections ? (
@@ -294,27 +314,57 @@ export default function PublicWebsitePage() {
             </>
             )}
 
+            {config.footer?.enabled !== false && (
             <footer className="py-12 border-t border-black/10 text-center flex flex-col items-center" style={{ ...hfStyles, backdropFilter: 'blur(12px)' }}>
-                <nav className="flex flex-wrap items-center justify-center gap-6 mb-6">
-                    {website.pages
-                        ?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer'))
-                        .map((p: any) => (
-                            <a 
-                                key={p.id} 
-                                href={p.slug} 
-                                className={`text-sm font-semibold hover:opacity-70 transition-opacity ${currentSlug === p.slug ? 'opacity-100 underline decoration-2 underline-offset-4' : 'opacity-80'}`}
-                            >
-                                {p.name}
-                            </a>
-                        ))}
-                </nav>
-                <p className="text-sm font-medium opacity-60">© {new Date().getFullYear()} {website.name}. All Rights Reserved.</p>
-                <div className="mt-4 flex items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-black opacity-50">
-                    <span>Privacy Policy</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-200" />
-                    <span>Terms of Service</span>
-                </div>
+                {config.header?.logo && (
+                    <div className="mb-6 flex justify-center">
+                        <img src={config.header.logo} alt={config.header?.title || website.name} className="h-10 w-auto object-contain" />
+                    </div>
+                )}
+                {(() => {
+                    const footerLinks = (config.pages || [])?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
+                    if (footerLinks.length > 0) {
+                        return (
+                            <nav className="flex flex-wrap items-center justify-center gap-6 mb-6">
+                                {footerLinks.map((p: any) => (
+                                    <a 
+                                        key={p.id} 
+                                        href={p.slug} 
+                                        className={`text-sm font-semibold hover:opacity-70 transition-opacity ${currentSlug === p.slug ? 'opacity-100 underline decoration-2 underline-offset-4' : 'opacity-80'}`}
+                                    >
+                                        {p.name}
+                                    </a>
+                                ))}
+                            </nav>
+                        );
+                    }
+                    return null;
+                })()}
+                <p className="text-sm font-medium opacity-60">
+                    {config.footer?.copyright || `© ${new Date().getFullYear()} ${website.name}. All Rights Reserved.`}
+                </p>
+                {(() => {
+                    const legalLinks = (config.pages || [])?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (p.id === 'privacy' || p.id === 'terms') && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
+                    if (legalLinks.length > 0) {
+                        return (
+                            <div className="mt-4 flex items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-black opacity-50">
+                                {legalLinks.map((p: any, idx: number) => (
+                                    idx === 0 ? (
+                                        <a key={p.id} href={p.slug} className="hover:opacity-100 transition-opacity">{p.name}</a>
+                                    ) : (
+                                        <span key={p.id} className="flex items-center gap-4">
+                                            <span className="w-1 h-1 rounded-full bg-gray-200" />
+                                            <a href={p.slug} className="hover:opacity-100 transition-opacity">{p.name}</a>
+                                        </span>
+                                    )
+                                ))}
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
             </footer>
+            )}
         </div>
     );
 }

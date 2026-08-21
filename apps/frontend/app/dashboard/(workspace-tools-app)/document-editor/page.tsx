@@ -1227,7 +1227,7 @@ function DocumentEditorPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { settings } = useSettings();
-    const templateId = searchParams.get('templateId');
+    const templateId = searchParams?.get('templateId');
     const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
 
     useEffect(() => {

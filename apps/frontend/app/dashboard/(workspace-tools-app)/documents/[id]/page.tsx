@@ -37,7 +37,7 @@ export default function ArticleEditorPage() {
     const params = useParams();
     const router = useRouter();
     const { user } = useAuth();
-    const id = params.id as string;
+    const id = params?.id as string;
 
     const { data, isLoading, refetch } = useGetArticleByIdQuery(id);
     const [updateArticle, { isLoading: isSaving }] = useUpdateArticleMutation();

@@ -60,7 +60,8 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
 };
 
 export default function AppConfigPage() {
-    const { appId } = useParams();
+    const params = useParams();
+    const appId = params?.appId;
     const router = useRouter();
     const { company, settings, refreshSettings } = useSettings();
     

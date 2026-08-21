@@ -62,11 +62,11 @@ export default function WorkLogsPage() {
             else if (activeTab === 'all_logs') endpoint = '/api/work-logs/all';
             
             const params = new URLSearchParams();
-            if (filters.projectId) params.append('projectId', filters.projectId);
-            if (filters.moduleId) params.append('moduleId', filters.moduleId);
-            if (filters.userId) params.append('userId', filters.userId);
+            if (filters.projectId) params?.append('projectId', filters.projectId);
+            if (filters.moduleId) params?.append('moduleId', filters.moduleId);
+            if (filters.userId) params?.append('userId', filters.userId);
 
-            const { data } = await api.get(`${endpoint}?${params.toString()}`);
+            const { data } = await api.get(`${endpoint}?${params?.toString()}`);
             let mergedLogs = data?.logs || [];
             
             if (activeTab === 'my_logs' || activeTab === 'all_logs') {
@@ -111,13 +111,13 @@ export default function WorkLogsPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            if (filters.startDate) params.append('startDate', filters.startDate);
-            if (filters.endDate) params.append('endDate', filters.endDate);
-            if (filters.projectId) params.append('projectId', filters.projectId);
-            if (filters.moduleId) params.append('moduleId', filters.moduleId);
-            if (filters.userId) params.append('userId', filters.userId);
+            if (filters.startDate) params?.append('startDate', filters.startDate);
+            if (filters.endDate) params?.append('endDate', filters.endDate);
+            if (filters.projectId) params?.append('projectId', filters.projectId);
+            if (filters.moduleId) params?.append('moduleId', filters.moduleId);
+            if (filters.userId) params?.append('userId', filters.userId);
 
-            const { data } = await api.get(`/api/work-logs/stats?${params.toString()}`);
+            const { data } = await api.get(`/api/work-logs/stats?${params?.toString()}`);
             setStats(data || null);
             if (data?.filterOptions) {
                 setFilterOptions(data.filterOptions);

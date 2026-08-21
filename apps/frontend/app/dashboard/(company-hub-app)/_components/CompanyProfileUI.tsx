@@ -61,7 +61,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
     const pathname = usePathname();
     const searchParams = useSearchParams();
     
-    const tabFromUrl = searchParams.get('tab');
+    const tabFromUrl = searchParams?.get('tab');
 
     const [activeMainTab, setActiveMainTabState] = useState(tabFromUrl || 'Overview');
     const [isHeaderEditModalOpen, setIsHeaderEditModalOpen] = useState(false);
@@ -102,8 +102,8 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
     const setActiveMainTab = (tab: string) => {
         setActiveMainTabState(tab);
         const params = new URLSearchParams(searchParams.toString());
-        params.set('tab', tab);
-        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+        params?.set('tab', tab);
+        router.push(`${pathname}?${params?.toString()}`, { scroll: false });
     };
 
     useEffect(() => {

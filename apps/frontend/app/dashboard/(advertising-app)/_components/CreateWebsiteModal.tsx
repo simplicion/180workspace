@@ -40,7 +40,7 @@ function FontPicker({ value, onChange }) {
     }, []);
 
     useEffect(() => {
-        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
@@ -76,7 +76,7 @@ function FontPicker({ value, onChange }) {
     );
 }
 
-const getInitialSectionsForPage = (pageType, companyData = null) => {
+const getInitialSectionsForPage = (pageType: string, companyData: any = null) => {
     const ts = Date.now();
     const companyName = companyData?.name || 'Your Company Name';
     const companyEmail = companyData?.email || 'hello@yourcompany.com';

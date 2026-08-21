@@ -22,7 +22,7 @@ const STEPS = [
 export default function CreateCalendarPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const extendFrom = searchParams.get('extendFrom');
+    const extendFrom = searchParams?.get('extendFrom');
     
     const [currentStep, setCurrentStep] = useState(0);
     const [isGenerating, setIsGenerating] = useState(false);

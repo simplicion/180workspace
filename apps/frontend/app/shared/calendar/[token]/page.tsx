@@ -12,7 +12,7 @@ import { LinkedInMockup } from '@/components/social-mockups/LinkedInMockup';
 
 export default function SharedCalendarPage() {
     const params = useParams();
-    const token = params.token as string;
+    const token = params?.token as string;
     
     const [calendar, setCalendar] = useState<any>(null);
     const [loading, setLoading] = useState(true);

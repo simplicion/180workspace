@@ -1,0 +1,143 @@
+import React from 'react';
+import CustomSelect from '@/components/ui/CustomSelect';
+
+interface Props {
+    selectedElement: any;
+    onUpdate: (key: string, value: any) => void;
+}
+
+export default function ContainerProperties({ selectedElement, onUpdate }: Props) {
+    if (!['box', 'row', 'column'].includes(selectedElement.type)) return null;
+
+    return (
+        <div className="space-y-4 pt-4 border-t border-gray-100">
+            <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2">Flex Layout</h4>
+            
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Direction</label>
+                <CustomSelect 
+                    value={selectedElement.style?.flexDirection || 'column'} 
+                    onChange={(e: any) => onUpdate('style.flexDirection', e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                    <option value="column">Vertical (Column)</option>
+                    <option value="row">Horizontal (Row)</option>
+                </CustomSelect>
+            </div>
+            
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Wrap</label>
+                <CustomSelect 
+                    value={selectedElement.style?.flexWrap || 'nowrap'} 
+                    onChange={(e: any) => onUpdate('style.flexWrap', e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                    <option value="nowrap">No Wrap</option>
+                    <option value="wrap">Wrap</option>
+                </CustomSelect>
+            </div>
+            
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                    <span>Gap (rem)</span>
+                    <span className="text-indigo-600">{selectedElement.style?.gap ? parseFloat(selectedElement.style.gap) : 1}</span>
+                </label>
+                <input 
+                    type="range" 
+                    min="0" max="10" step="0.25" 
+                    value={selectedElement.style?.gap ? parseFloat(selectedElement.style.gap) : 1} 
+                    onChange={(e) => onUpdate('style.gap', `${e.target.value}rem`)}
+                    className="w-full accent-indigo-600"
+                />
+            </div>
+            
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Align Items (Cross Axis)</label>
+                <CustomSelect 
+                    value={selectedElement.style?.alignItems || 'stretch'} 
+                    onChange={(e: any) => onUpdate('style.alignItems', e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                    <option value="flex-start">Start</option>
+                    <option value="center">Center</option>
+                    <option value="flex-end">End</option>
+                    <option value="stretch">Stretch</option>
+                </CustomSelect>
+            </div>
+            
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Justify Content (Main Axis)</label>
+                <CustomSelect 
+                    value={selectedElement.style?.justifyContent || 'flex-start'} 
+                    onChange={(e: any) => onUpdate('style.justifyContent', e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                    <option value="flex-start">Start</option>
+                    <option value="center">Center</option>
+                    <option value="flex-end">End</option>
+                    <option value="space-between">Space Between</option>
+                </CustomSelect>
+            </div>
+
+            {/* Box Border */}
+            <div className="pt-4 border-t border-gray-100 space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2">Border</h4>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                        <span>Border Width</span>
+                        <span className="text-indigo-600">{selectedElement.style?.borderWidth || '0px'}</span>
+                    </label>
+                    <input 
+                        type="range" 
+                        min="0" max="20" step="1" 
+                        value={selectedElement.style?.borderWidth ? parseInt(selectedElement.style.borderWidth) : 0} 
+                        onChange={(e) => onUpdate('style.borderWidth', `${e.target.value}px`)}
+                        className="w-full accent-indigo-600"
+                    />
+                </div>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Style</label>
+                    <CustomSelect 
+                        value={selectedElement.style?.borderStyle || 'solid'} 
+                        onChange={(e: any) => onUpdate('style.borderStyle', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="solid">Solid</option>
+                        <option value="dashed">Dashed</option>
+                        <option value="dotted">Dotted</option>
+                    </CustomSelect>
+                </div>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Color</label>
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="color" 
+                            value={selectedElement.style?.borderColor || '#000000'} 
+                            onChange={(e) => onUpdate('style.borderColor', e.target.value)}
+                            className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
+                        />
+                        <input 
+                            type="text" 
+                            value={selectedElement.style?.borderColor || '#000000'} 
+                            onChange={(e) => onUpdate('style.borderColor', e.target.value)}
+                            className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none font-mono uppercase"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                        <span>Border Radius</span>
+                        <span className="text-indigo-600">{selectedElement.style?.borderRadius || '0px'}</span>
+                    </label>
+                    <input 
+                        type="range" 
+                        min="0" max="150" step="1" 
+                        value={selectedElement.style?.borderRadius ? parseInt(selectedElement.style.borderRadius) : 0} 
+                        onChange={(e) => onUpdate('style.borderRadius', `${e.target.value}px`)}
+                        className="w-full accent-indigo-600"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
