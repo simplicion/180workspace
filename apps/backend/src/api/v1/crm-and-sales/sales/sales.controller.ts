@@ -443,10 +443,12 @@ export const getSalesActivity = async (req: Request, res: Response, next: NextFu
         const companyId = (req as any).user.companyId;
         const { prisma } = require('@workspace/db');
         const leads = await prisma.lead.findMany({
+            where: { companyId },
             orderBy: { updatedAt: 'desc' },
             take: 5
         });
         const deals = await prisma.deal.findMany({
+            where: { companyId },
             orderBy: { updatedAt: 'desc' },
             take: 5
         });

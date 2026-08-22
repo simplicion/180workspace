@@ -335,12 +335,6 @@ function CheckoutContent() {
                                             <span className="text-sm font-medium">{f}</span>
                                         </li>
                                     ))}
-                                    {plan.trialDays > 0 && (
-                                        <li className="flex items-center gap-3 text-slate-600">
-                                            <CheckCircle2 className="w-4 h-4 text-indigo-500" />
-                                            <span className="text-sm font-bold">{plan.trialDays} Days Trial</span>
-                                        </li>
-                                    )}
                                 </ul>
                             </div>
 
@@ -392,10 +386,6 @@ function CheckoutContent() {
                             <div>
                                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Amount</p>
                                 <p className="text-4xl font-black italic tracking-tighter text-slate-900">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-slate-400 text-[10px] font-bold uppercase">Due Today</p>
-                                <p className="text-indigo-600 font-bold text-xl">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                             </div>
                         </div>
 

@@ -4,63 +4,11 @@ import { prisma } from '@workspace/db';
 import crypto from 'crypto';
 
 export class BillingController {
-    private static async getCurrencyInfo(req: Request): Promise<{ currency: string, rate: number, country: string }> {
-        let country = 'US';
-        let targetCurrency = (req.query.currency as string) || '';
-        
-        try {
-            const cfCountry = req.headers['cf-ipcountry'];
-            if (cfCountry) {
-                country = cfCountry as string;
-            } else {
-                const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-                if (ip && typeof ip === 'string' && ip !== '::1' && ip !== '127.0.0.1') {
-                    const actualIp = ip.split(',')[0].trim();
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 1500);
-                    const response = await fetch(`http://ip-api.com/json/${actualIp}?fields=countryCode,currency`, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data && data.countryCode) {
-                            country = data.countryCode;
-                        }
-                        if (data && data.currency && !targetCurrency) {
-                            targetCurrency = data.currency;
-                        }
-                    }
-                }
-            }
-        } catch (e) {
-            // Ignore error
-        }
-        
-        targetCurrency = targetCurrency || (country === 'IN' ? 'INR' : 'USD');
-        
-        let rate = 1;
-        if (targetCurrency !== 'USD') {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000);
-                const response = await fetch('https://open.er-api.com/v6/latest/USD', { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data && data.rates && data.rates[targetCurrency]) {
-                        rate = data.rates[targetCurrency];
-                    }
-                }
-            } catch (e) {
-                // Fallback to static rate if API fails
-                if (targetCurrency === 'INR') rate = 83;
-                if (targetCurrency === 'NPR') rate = 133;
-                if (targetCurrency === 'EUR') rate = 0.9;
-                if (targetCurrency === 'GBP') rate = 0.75;
-            }
-        }
-
-        return { currency: targetCurrency, rate, country };
+    static async getCurrencyInfo(req: Request): Promise<{ currency: string, rate: number, country: string }> {
+        // Hardcoded to INR per user request
+        return { currency: 'INR', rate: 83, country: 'IN' };
     }
+
     static async getBillingInfo(req: Request, res: Response, next: NextFunction) {
         try {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
@@ -79,8 +27,26 @@ export class BillingController {
             
             const companyConfig = await prisma.companyConfig.findUnique({ where: { companyId } });
             const teamMembersCount = await prisma.user.count({ where: { companyId } });
-            const activeAppsCount = await prisma.project.count({ where: { companyId } });
             
+            let activeAppsCount = 0;
+            if (company?.metadata && typeof company.metadata === 'object' && Array.isArray((company.metadata as any).enabledApps)) {
+                activeAppsCount = (company.metadata as any).enabledApps.length;
+            } else {
+                // fallback to projects if enabledApps isn't found
+                activeAppsCount = await prisma.project.count({ where: { companyId } });
+            }
+
+            // Real-time calculation of Storage Used
+            const storageAgg = await prisma.document.aggregate({
+                where: { companyId },
+                _sum: { fileSize: true }
+            });
+            const storageUsedBytes = storageAgg._sum.fileSize || 0;
+            
+            if (companyConfig) {
+                companyConfig.storageUsedBytes = storageUsedBytes;
+            }
+
             const isExpired = !currentSubscription || currentSubscription.status !== 'ACTIVE';
 
             res.json({
