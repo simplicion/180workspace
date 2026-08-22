@@ -17,7 +17,7 @@ export interface ElementProps {
 
 export function BoxElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {} }: ElementProps) {
     return (
-        <div ref={setNodeRef} style={style} onClick={handleClick} className={`w-full ${wrapperClass}`} {...dragHandlers}>
+        <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass} {...dragHandlers}>
             {renderControls()}
             {renderPaddingControls()}
             {node.children && node.children.length > 0 ? (
