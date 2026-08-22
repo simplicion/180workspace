@@ -13,6 +13,7 @@ export const viewport = {
     initialScale: 1,
     maximumScale: process.env.NODE_ENV === 'production' ? 1 : 5,
     userScalable: process.env.NODE_ENV !== 'production',
+    themeColor: "#ffffff",
 };
 
 
@@ -28,7 +29,6 @@ export const metadata: Metadata = {
     robots: 'index, follow',
     manifest: "/manifest.json",
     applicationName: "180workspace",
-    themeColor: "#ffffff",
     appleWebApp: {
         capable: true,
         statusBarStyle: "default",
