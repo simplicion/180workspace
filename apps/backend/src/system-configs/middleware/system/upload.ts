@@ -156,33 +156,22 @@ function handleUpload(folder: string = 'general', options: any = {}) {
                 }
             }
 
+            // Force R2 for everything to use centralized storage
+            preferredMode = 'r2';
+            let isDriveConfigured = false;
+            // Trigger backend restart after integrations build
+
             // Attempt Preferred Storage for Non-System Assets
-            if (!isSystemAsset && preferredMode === 'google_drive' && (settings.googleDriveServiceAccount || metadata.googleDriveTokens)) {
-                try {
-                    const driveResult = await googleDriveService.uploadFile(req.file.buffer, {
-                        name: req.file.originalname,
-                        mimeType: req.file.mimetype,
-                    }, settings);
-
-                    result = {
-                        fileUrl: driveResult.webViewLink || driveResult.webContentLink,
-                        fileId: driveResult.id,
-                        storageType: 'google_drive'
-                    };
-                } catch (err: any) {
-                    console.warn('[Upload Middleware] Google Drive upload failed:', err.message);
-                }
-            } 
-            
-
+            // (Skipped, since we force R2)
 
             // Fallback to R2 if no result yet
             if (!result) {
                 try {
                     const companyId = req.user?.companyId || settings.companyId;
                     if (companyId) {
-                        const { BillingService } = require('@workspace/platform-billing');
-                        const limits = await BillingService.getSubscriptionLimits(companyId);
+                        const { SubscriptionService } = require('@workspace/platform-billing');
+                        const subscriptionService = new SubscriptionService();
+                        const limits = await subscriptionService.getSubscriptionLimits(companyId);
                         if (limits) {
                             const newTotal = (limits.storageUsedBytes || 0) + req.file.buffer.length;
                             if (newTotal > limits.maxStorageBytes) {
@@ -216,7 +205,12 @@ function handleUpload(folder: string = 'general', options: any = {}) {
                         });
                     }
                 } catch (err: any) {
-                    console.warn('[Upload Middleware] R2 upload failed:', err.message);
+                    console.error('[Upload Middleware] R2 upload failed:', err);
+                    return res.status(500).json({ 
+                        error: 'UPLOAD_FAILED', 
+                        message: 'Storage providers failed to process the file. R2 Error: ' + err.message,
+                        details: err.stack
+                    });
                 }
             }
 
@@ -224,9 +218,10 @@ function handleUpload(folder: string = 'general', options: any = {}) {
             if (!result) {
                 return res.status(500).json({ 
                     error: 'UPLOAD_FAILED', 
-                    message: 'Storage providers failed to process the file. Please check your storage credentials in Settings.' 
+                    message: 'Storage providers failed to process the file. No result was generated.' 
                 });
             }
+
 
             req.storageResult = result;
             next();
