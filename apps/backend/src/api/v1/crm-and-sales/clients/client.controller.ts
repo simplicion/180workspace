@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ClientService } from '@workspace/crm-and-sales';
 import { logAction } from '../../../../system-configs/utils/audit';
 import { triggerN8nWebhook } from '../../integrations/webhooks/webhook.routes';
-import { cacheDel } from '../../../../system-configs/middleware/cache/redis-cache';
+import { cacheDel } from '../../../../system-configs/middleware/system/cache';
 import { sendWelcomeEmail } from '@workspace/communications';
 
 const clearCRMCache = async (companyId: string, res: Response) => {

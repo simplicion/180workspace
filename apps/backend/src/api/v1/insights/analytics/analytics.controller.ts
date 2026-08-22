@@ -94,17 +94,16 @@ export const testPlausibleConnection = async (req: Request, res: Response, next:
 export const getTeamActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const companyId = (req as any).user.companyId;
-        const activities = await prisma.teamActivityLog.findMany({
+        const activities = await prisma.activityLog.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' },
             take: 20,
             include: {
                 actor: {
                     select: {
-                        firstName: true,
-                        lastName: true,
+                        name: true,
                         email: true,
-                        profilePictureUrl: true,
+                        image: true,
                     }
                 }
             }

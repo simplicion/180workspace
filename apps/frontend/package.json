@@ -13,7 +13,7 @@
         "lint": "next lint",
         "test": "jest",
         "test:coverage": "jest --coverage",
-        "vercel-build": "pnpm prisma:generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build"
+        "vercel-build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build"
     },
     "engines": {
         "node": "24.x"

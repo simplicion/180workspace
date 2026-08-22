@@ -262,7 +262,7 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
                                         <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
                                         <p className="text-xs text-gray-400 truncate">{(u.email || "")}</p>
                                     </div>
-                                    <RoleBadge role={(u.role || "user") || 'user'} />
+                                    <RoleBadge role={u.role || 'user'} />
                                 </button>
                             );
                         })}
@@ -386,7 +386,7 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
                                             className={clsx('w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs', selectedToAdd.includes(((u._id || u.id) as string)) ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700')}>
                                             <Avatar user={u} size="sm" />
                                             <span className="truncate">{u.name}</span>
-                                            <RoleBadge role={(u.role || "user") || 'user'} />
+                                            <RoleBadge role={u.role || 'user'} />
                                         </button>
                                     ))}
                                 </div>
@@ -1057,7 +1057,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                                             <button key={((u._id || u.id) as string)} onClick={() => insertMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left text-sm">
                                                 <Avatar user={u} size="sm" />
                                                 <span className="font-medium text-gray-800">{u.name}</span>
-                                                <RoleBadge role={(u.role || "user") || 'user'} />
+                                                <RoleBadge role={u.role || 'user'} />
                                             </button>
                                         ))}
                                     </div>

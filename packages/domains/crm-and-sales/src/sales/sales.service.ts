@@ -249,28 +249,30 @@ export class SalesService {
                 intervals.push(moment().subtract(i, dateInterval).format(formatStr));
             }
 
+            const globalStartDate = moment(intervals[0], formatStr).startOf(dateInterval === 'days' ? 'day' : 'month').toDate();
+            const globalEndDate = moment(intervals[intervals.length - 1], formatStr).endOf(dateInterval === 'days' ? 'day' : 'month').toDate();
+
+            const allOppsInInterval = await prisma.lead.findMany({
+                where: {
+                    expectedCloseDate: { gte: globalStartDate, lte: globalEndDate }
+                },
+                select: { stage: true, value: true, expectedCloseDate: true }
+            });
+
             const trendData = [];
             for (const m of intervals) {
                 const startDate = moment(m, formatStr).startOf(dateInterval === 'days' ? 'day' : 'month').toDate();
                 const endDate = moment(m, formatStr).endOf(dateInterval === 'days' ? 'day' : 'month').toDate();
 
-                const wonMonth = await prisma.lead.findMany({
-                    where: {
-                        stage: 'ClosedWon',
-                        expectedCloseDate: { gte: startDate, lte: endDate }
-                    },
-                    select: { value: true }
-                });
-                const wonTotal = wonMonth.reduce((sum, o) => sum + (o.value || 0), 0);
+                let wonTotal = 0;
+                let pipeTotal = 0;
 
-                const pipeMonth = await prisma.lead.findMany({
-                    where: {
-                        stage: { notIn: ['ClosedWon', 'ClosedLost'] },
-                        expectedCloseDate: { gte: startDate, lte: endDate }
-                    },
-                    select: { value: true }
-                });
-                const pipeTotal = pipeMonth.reduce((sum, o) => sum + (o.value || 0), 0);
+                for (const o of allOppsInInterval) {
+                    if (o.expectedCloseDate >= startDate && o.expectedCloseDate <= endDate) {
+                        if (o.stage === 'ClosedWon') wonTotal += (o.value || 0);
+                        else if (o.stage !== 'ClosedLost') pipeTotal += (o.value || 0);
+                    }
+                }
 
                 trendData.push({
                     name: moment(m, formatStr).format(dateInterval === 'days' ? 'MMM DD' : 'MMM'),

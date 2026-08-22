@@ -47,7 +47,7 @@ export default function CustomSelect({
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Normalize options to { label, value } objects
-    let normalizedOptions: SelectOption[] = options.map(opt => 
+    const normalizedOptions: SelectOption[] = options.map(opt => 
         typeof opt === 'string' ? { label: opt, value: opt } : opt
     );
 

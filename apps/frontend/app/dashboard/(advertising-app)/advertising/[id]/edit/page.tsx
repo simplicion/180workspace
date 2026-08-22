@@ -791,7 +791,7 @@ export default function WebsiteEditorPage() {
         const pIndex = getActivePageIndex(newConfig);
         if (pIndex === -1) return;
 
-        let inserted = false;
+
         const insertTarget = (nodes: any[]): boolean => {
             for (let i = 0; i < nodes.length; i++) {
                 if (nodes[i].id === targetId) {
@@ -813,7 +813,7 @@ export default function WebsiteEditorPage() {
             return false;
         };
 
-        inserted = insertTarget(newConfig.pages[pIndex].sections || []);
+        const inserted = insertTarget(newConfig.pages[pIndex].sections || []);
         if (inserted) {
             commitConfig(newConfig);
         }
@@ -880,7 +880,7 @@ export default function WebsiteEditorPage() {
     const getHeaderFooterStyles = (b: any) => {
         const theme = b.headerFooterTheme || 'light';
         const customTextColor = b.headerFooterTextColor;
-        let styles: any = {};
+        let styles: any;
 
         if (theme === 'dark') {
             styles = { backgroundColor: '#111827', color: customTextColor || '#ffffff' };
@@ -938,7 +938,7 @@ export default function WebsiteEditorPage() {
                         onClick={() => {
                             const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
                             const isLocal = rootDomain.includes('localhost');
-                            let url = '';
+                            let url: string;
                             if (website.company?.customDomain) {
                                 url = website.isPrimary
                                     ? `https://${website.company.customDomain}`

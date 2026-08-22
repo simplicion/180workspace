@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { getCompanyPrisma } from '@workspace/db';
-
+import { redis } from '../../config/redis';
 /**
  * Protect routes — verifies JWT Bearer token, attaches req.user
  */
@@ -33,10 +33,36 @@ export async function protect(req: any, res: Response, next: NextFunction) {
             return res.status(500).json({ error: 'We couldn\'t identify your workspace connection. Please ensure your Company ID is correct.' });
         }
 
-        const user = await req.prisma.user.findUnique({
-            where: { id: decoded.id }
-        });
+        let user: any = null;
+        const cacheKey = `auth:user:${decoded.id}`;
+        
+        try {
+            if (redis) {
+                const cachedUser = await redis.get(cacheKey);
+                if (cachedUser) {
+                    user = JSON.parse(cachedUser);
+                }
+            }
+        } catch (cacheErr) {
+            console.warn('[Auth] Redis cache error:', cacheErr);
+        }
 
+        if (!user) {
+            user = await req.prisma.user.findUnique({
+                where: { id: decoded.id }
+            });
+
+            if (user) {
+                try {
+                    if (redis) {
+                        // Cache for 60 seconds to reduce DB load while keeping auth responsive to role changes
+                        await redis.set(cacheKey, JSON.stringify(user), 'EX', 60);
+                    }
+                } catch (cacheSetErr) {
+                    // Ignore cache set errors
+                }
+            }
+        }
 
         if (!user) {
             return res.status(401).json({ error: 'Your account could not be found. Please sign in again.' });

@@ -761,7 +761,7 @@ export class AuthService {
             console.error('[GoogleLogin] Expected Audience:', clientId);
             console.error('[GoogleLogin] Actual Token Audience:', decoded?.aud);
 
-            throw AppError.unauthorized('Google authentication failed: ' + error.message);
+            throw AppError.unauthorized('Google authentication failed. Please try again.');
         }
 
         const payload = ticket.getPayload() as TokenPayload;

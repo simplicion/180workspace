@@ -140,7 +140,7 @@ export default function PublicWebsitePage() {
     const getHeaderFooterStyles = (b: any) => {
         const theme = b.headerFooterTheme || 'light';
         const customTextColor = b.headerFooterTextColor;
-        let styles: any = {};
+        let styles: any;
         
         if (theme === 'dark') {
             styles = { backgroundColor: '#111827', color: customTextColor || '#ffffff' };

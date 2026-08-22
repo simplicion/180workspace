@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { SalesService } from '@workspace/crm-and-sales';
-import { cacheGet, cacheSet, cacheDel } from '../../../../system-configs/middleware/cache/redis-cache';
+import { cacheGet, cacheSet, cacheDel } from '../../../../system-configs/middleware/system/cache';
 import { logAction } from '../../../../system-configs/utils/audit';
 import * as PDFDocument from 'pdfkit';
 import { pdfUtils } from '@workspace/backend-common';
