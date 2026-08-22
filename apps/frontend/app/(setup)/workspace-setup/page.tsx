@@ -191,13 +191,21 @@ function WorkspaceSetup() {
         }
         if (step === 2) {
             // Advancing to app selection, preset core apps and recommended apps if they fit
-            const coreApps = ['projects', 'workspace-tools', 'communications'];
-            const allRecommended = [...new Set([...coreApps, ...getRecommendedApps(industry)])];
+            const defaultApps = ['projects', 'workspace-tools', 'communications'];
+            const coreApps = ['system'];
             
-            let limit = 5; // Kickstart default limit
+            // Get recommendations and remove duplicates
+            const recommended = getRecommendedApps(industry);
+            const allRecommended = [...new Set([...coreApps, ...defaultApps, ...recommended])];
             
-            // Apply limit
-            const appsToEnable = allRecommended.slice(0, limit);
+            // We want to enable coreApps + defaultApps + up to 2 custom apps
+            const customLimit = 2;
+            const customApps = allRecommended
+                .filter(id => !defaultApps.includes(id) && !coreApps.includes(id))
+                .slice(0, customLimit);
+            
+            const appsToEnable = [...coreApps, ...defaultApps, ...customApps];
+            
             setEnabledApps(appsToEnable);
             setEnabledModules(getRecommendedModules(appsToEnable, industry));
         }
@@ -208,18 +216,21 @@ function WorkspaceSetup() {
 
     const toggleApp = (appId: string, isCore: boolean) => {
         const defaultApps = ['projects', 'workspace-tools', 'communications'];
-        if (isCore || defaultApps.includes(appId)) {
+        const coreApps = ['system'];
+        const excludedFromCustomCount = [...defaultApps, ...coreApps];
+
+        if (isCore || defaultApps.includes(appId) || coreApps.includes(appId)) {
             toast.error("This app is essential and cannot be removed.");
             return;
         }
 
-        // Kickstart plan: 5 total apps = 3 default + 2 custom
-        const totalAppLimit = 5;
-        const customAppLimit = totalAppLimit - defaultApps.length; // 2 custom slots
+        // Kickstart plan: 5 total apps = 3 default + 2 custom. (Core 'system' is excluded from this limit)
+        const customAppLimit = 2; // 2 custom slots
 
         setEnabledApps(prev => {
             const isNowEnabled = !prev.includes(appId);
-            const customAppCount = prev.filter(id => !defaultApps.includes(id)).length;
+            const customAppCount = prev.filter(id => !excludedFromCustomCount.includes(id)).length;
+            
             if (isNowEnabled && customAppCount >= customAppLimit) {
                 setShowUpgradeModal(true);
                 return prev;
@@ -684,9 +695,9 @@ function WorkspaceSetup() {
                                 <div className="mt-auto flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 p-5 sm:p-6 border-t border-gray-100 rounded-b-3xl">
                                     <div className="flex flex-col text-center sm:text-left w-full sm:w-auto">
                                         <p className="text-sm font-bold text-gray-900">
-                                            {enabledApps.length} Apps Selected
+                                            {enabledApps.filter(id => id !== 'system').length} Apps Selected
                                             <span className="font-normal text-gray-500 ml-1">
-                                                ({enabledApps.filter(id => !['projects', 'workspace-tools', 'communications'].includes(id)).length}/2 custom)
+                                                ({enabledApps.filter(id => !['projects', 'workspace-tools', 'communications', 'system'].includes(id)).length}/2 custom)
                                             </span>
                                         </p>
                                         <p className="text-xs text-gray-500">3 default apps + up to 2 custom apps on your plan.</p>
