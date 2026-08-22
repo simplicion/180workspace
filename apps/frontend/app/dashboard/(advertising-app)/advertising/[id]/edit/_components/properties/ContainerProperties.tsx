@@ -12,6 +12,20 @@ export default function ContainerProperties({ selectedElement, onUpdate }: Props
     return (
         <div className="space-y-4 pt-4 border-t border-gray-100">
             <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2">Flex Layout</h4>
+
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                    <span>Width (%)</span>
+                    <span className="text-indigo-600">{selectedElement.style?.width || 'Auto'}</span>
+                </label>
+                <input 
+                    type="range" 
+                    min="10" max="100" step="5" 
+                    value={selectedElement.style?.width ? parseInt(selectedElement.style.width) : 100} 
+                    onChange={(e) => onUpdate('style.width', `${e.target.value}%`)}
+                    className="w-full accent-indigo-600"
+                />
+            </div>
             
             <div>
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Direction</label>

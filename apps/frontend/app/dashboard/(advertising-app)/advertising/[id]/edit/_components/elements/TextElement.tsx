@@ -4,6 +4,7 @@ import { ImageIcon } from 'lucide-react';
 
 export interface ElementProps {
     node: ElementNode;
+    brand?: any;
     setNodeRef: (node: HTMLElement | null) => void;
     style: React.CSSProperties;
     wrapperClass: string;
@@ -14,8 +15,17 @@ export interface ElementProps {
     updateElement: (id: string, path: string, value: any) => void;
 }
 
-export function TextElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
+export function TextElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
     const Tag = (node.style?.tagName || 'div') as React.ElementType;
+    
+    // Process variables like {{brand.companyName}}
+    let displayContent = node.data?.content || 'Text';
+    if (brand && typeof displayContent === 'string') {
+        displayContent = displayContent.replace(/\{\{brand\.([a-zA-Z0-9_]+)\}\}/g, (match, key) => {
+            return brand[key] !== undefined ? brand[key] : match;
+        });
+    }
+
     return (
         <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass}>
             {renderControls()}
@@ -33,9 +43,10 @@ export function TextElement({ node, setNodeRef, style, wrapperClass, handleClick
                 contentEditable={true}
                 suppressContentEditableWarning={true}
                 onBlur={(e: React.FocusEvent<HTMLElement>) => {
+                    // Note: if a user edits a node with an interpolated variable, the variable will be replaced with the static text.
                     updateElement(node.id, 'data.content', e.currentTarget.innerHTML);
                 }}
-                dangerouslySetInnerHTML={{ __html: node.data?.content || 'Text' }}
+                dangerouslySetInnerHTML={{ __html: displayContent }}
                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleClick(e); }}
             />
         </div>

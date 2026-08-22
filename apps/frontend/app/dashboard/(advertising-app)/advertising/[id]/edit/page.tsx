@@ -156,13 +156,13 @@ function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, pri
             setUploading(true);
             const formData = new FormData();
             formData.append('file', file);
-
-            const res = await api.post('/api/files/upload', formData, {
+            const res = await api.post('/api/v1/workspace-tools/storage/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            if (res.data.url) {
-                onChange(res.data.url);
+            if (res.data.url || res.data.fileUrl) {
+                const url = res.data.url || res.data.fileUrl;
+                onChange(url);
             } else {
                 toast.error('Upload failed');
             }
@@ -231,13 +231,13 @@ function VideoEditor({ sectionData, onChange, className = '' }: any) {
             setUploading(true);
             const formData = new FormData();
             formData.append('file', file);
-
-            const res = await api.post('/api/files/upload-video', formData, {
+            const res = await api.post('/api/v1/workspace-tools/storage/upload-video', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            if (res.data.url) {
-                onChange({ ...sectionData, sourceType: 'upload', videoUrl: res.data.url });
+            if (res.data.url || res.data.fileUrl) {
+                const url = res.data.url || res.data.fileUrl;
+                onChange({ ...sectionData, sourceType: 'upload', videoUrl: url });
             } else {
                 toast.error('Upload failed');
             }
@@ -445,11 +445,11 @@ export default function WebsiteEditorPage() {
             setUploadingLogo(true);
             const formData = new FormData();
             formData.append('file', file);
-            const res = await api.post('/api/files/upload', formData, {
+            const res = await api.post('/api/v1/workspace-tools/storage/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            if (res.data.url) {
-                commitConfig({ ...config, header: { ...config.header, logo: res.data.url } });
+            if (res.data.url || res.data.fileUrl) {
+                commitConfig({ ...config, header: { ...config.header, logo: res.data.url || res.data.fileUrl } });
             } else {
                 toast.error('Upload failed');
             }
@@ -612,7 +612,9 @@ export default function WebsiteEditorPage() {
         if (pIndex === -1) return;
 
         const updateRecursive = (nodes: any[]): boolean => {
+            if (!nodes) return false;
             for (let i = 0; i < nodes.length; i++) {
+                if (!nodes[i]) continue;
                 if (nodes[i].id === id) {
                     const keys = path.split('.');
                     let current = nodes[i].data;
@@ -647,6 +649,15 @@ export default function WebsiteEditorPage() {
             return false;
         };
 
+        if (newConfig.header && updateRecursive([newConfig.header])) {
+            commitConfig(newConfig);
+            return;
+        }
+        if (newConfig.footer && updateRecursive([newConfig.footer])) {
+            commitConfig(newConfig);
+            return;
+        }
+        
         updateRecursive(newConfig.pages[pIndex].sections);
         commitConfig(newConfig);
     };
@@ -657,8 +668,14 @@ export default function WebsiteEditorPage() {
         if (pIndex === -1) return;
 
         const removeRecursive = (nodes: any[]): boolean => {
+            if (!nodes) return false;
             for (let i = 0; i < nodes.length; i++) {
+                if (!nodes[i]) continue;
                 if (nodes[i].id === id) {
+                    // Prevent removing root header/footer by checking if it's the only element in a single-element wrapper
+                    if (nodes.length === 1 && (nodes[0].type === 'header' || nodes[0].type === 'footer')) {
+                        return false; 
+                    }
                     nodes.splice(i, 1);
                     return true;
                 }
@@ -669,10 +686,153 @@ export default function WebsiteEditorPage() {
             return false;
         };
 
-        removeRecursive(newConfig.pages[pIndex].sections);
-        commitConfig(newConfig);
-        if (selectedElementId === id) setSelectedElementId(null);
+        let found = false;
+        if (newConfig.header && removeRecursive([newConfig.header])) found = true;
+        else if (newConfig.footer && removeRecursive([newConfig.footer])) found = true;
+        else if (removeRecursive(newConfig.pages[pIndex].sections)) found = true;
+
+        if (found) {
+            commitConfig(newConfig);
+            if (selectedElementId === id) setSelectedElementId(null);
+        }
     };
+
+    const duplicateElement = (id: string) => {
+        const newConfig = JSON.parse(JSON.stringify(config));
+        const pIndex = getActivePageIndex(newConfig);
+        if (pIndex === -1) return;
+
+        const duplicateRecursive = (nodes: any[]): boolean => {
+            if (!nodes) return false;
+            for (let i = 0; i < nodes.length; i++) {
+                if (!nodes[i]) continue;
+                if (nodes[i].id === id) {
+                    if (nodes.length === 1 && (nodes[0].type === 'header' || nodes[0].type === 'footer')) {
+                        return false; 
+                    }
+                    const clone = JSON.parse(JSON.stringify(nodes[i]));
+                    const updateIds = (node: any) => {
+                        node.id = node.type + '-' + Math.random().toString(36).substring(2, 9);
+                        if (node.children) node.children.forEach(updateIds);
+                    };
+                    updateIds(clone);
+                    nodes.splice(i + 1, 0, clone);
+                    return true;
+                }
+                if (nodes[i].children && duplicateRecursive(nodes[i].children)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        let found = false;
+        if (newConfig.header && duplicateRecursive([newConfig.header])) found = true;
+        else if (newConfig.footer && duplicateRecursive([newConfig.footer])) found = true;
+        else if (duplicateRecursive(newConfig.pages[pIndex].sections)) found = true;
+
+        if (found) commitConfig(newConfig);
+    };
+
+    const moveElementUp = (id: string) => {
+        const newConfig = JSON.parse(JSON.stringify(config));
+        const pIndex = getActivePageIndex(newConfig);
+        if (pIndex === -1) return;
+
+        const moveRecursive = (nodes: any[]): boolean => {
+            if (!nodes) return false;
+            for (let i = 0; i < nodes.length; i++) {
+                if (!nodes[i]) continue;
+                if (nodes[i].id === id) {
+                    if (i > 0) {
+                        const temp = nodes[i];
+                        nodes[i] = nodes[i - 1];
+                        nodes[i - 1] = temp;
+                    }
+                    return true;
+                }
+                if (nodes[i].children && moveRecursive(nodes[i].children)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        let found = false;
+        if (newConfig.header && moveRecursive([newConfig.header])) found = true;
+        else if (newConfig.footer && moveRecursive([newConfig.footer])) found = true;
+        else if (moveRecursive(newConfig.pages[pIndex].sections)) found = true;
+
+        if (found) commitConfig(newConfig);
+    };
+
+    const moveElementDown = (id: string) => {
+        const newConfig = JSON.parse(JSON.stringify(config));
+        const pIndex = getActivePageIndex(newConfig);
+        if (pIndex === -1) return;
+
+        const moveRecursive = (nodes: any[]): boolean => {
+            if (!nodes) return false;
+            for (let i = 0; i < nodes.length; i++) {
+                if (!nodes[i]) continue;
+                if (nodes[i].id === id) {
+                    if (i < nodes.length - 1) {
+                        const temp = nodes[i];
+                        nodes[i] = nodes[i + 1];
+                        nodes[i + 1] = temp;
+                    }
+                    return true;
+                }
+                if (nodes[i].children && moveRecursive(nodes[i].children)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        let found = false;
+        if (newConfig.header && moveRecursive([newConfig.header])) found = true;
+        else if (newConfig.footer && moveRecursive([newConfig.footer])) found = true;
+        else if (moveRecursive(newConfig.pages[pIndex].sections)) found = true;
+
+        if (found) commitConfig(newConfig);
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const activeElement = document.activeElement as HTMLElement;
+            const isInput = activeElement && (
+                activeElement.tagName === 'INPUT' || 
+                activeElement.tagName === 'TEXTAREA' || 
+                activeElement.tagName === 'SELECT' ||
+                activeElement.isContentEditable
+            );
+
+            if (isInput) return;
+
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                handleUndo();
+            }
+            
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                handleRedo();
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+                e.preventDefault(); // Prevent native text selection outside inputs
+            }
+
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementId) {
+                e.preventDefault();
+                removeElement(selectedElementId);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [history, historyIndex, selectedElementId, config, activePageId]);
 
     const handleDragEndDnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -688,7 +848,9 @@ export default function WebsiteEditorPage() {
 
         // Find and remove dragged element
         const findAndRemove = (nodes: any[]): boolean => {
+            if (!nodes) return false;
             for (let i = 0; i < nodes.length; i++) {
+                if (!nodes[i]) continue;
                 if (nodes[i].id === active.id) {
                     draggedNode = nodes[i];
                     sourceArray = nodes;
@@ -700,13 +862,19 @@ export default function WebsiteEditorPage() {
             }
             return false;
         };
-        findAndRemove(newConfig.pages[pIndex].sections);
+
+        let foundSource = false;
+        if (newConfig.header && findAndRemove([newConfig.header])) foundSource = true;
+        else if (newConfig.footer && findAndRemove([newConfig.footer])) foundSource = true;
+        else if (findAndRemove(newConfig.pages[pIndex].sections)) foundSource = true;
 
         if (!draggedNode) return;
 
         // Find target and insert
         const findAndInsert = (nodes: any[]): boolean => {
+            if (!nodes) return false;
             for (let i = 0; i < nodes.length; i++) {
+                if (!nodes[i]) continue;
                 if (nodes[i].id === over.id) {
                     // insert at same level
                     nodes.splice(i, 0, draggedNode);
@@ -717,7 +885,12 @@ export default function WebsiteEditorPage() {
             return false;
         };
 
-        if (!findAndInsert(newConfig.pages[pIndex].sections)) {
+        let foundTarget = false;
+        if (newConfig.header && findAndInsert([newConfig.header])) foundTarget = true;
+        else if (newConfig.footer && findAndInsert([newConfig.footer])) foundTarget = true;
+        else if (findAndInsert(newConfig.pages[pIndex].sections)) foundTarget = true;
+
+        if (!foundTarget) {
             // Fallback, put it back
             if (sourceArray && sourceIndex !== -1) {
                 (sourceArray as any[]).splice(sourceIndex, 0, draggedNode);
@@ -938,13 +1111,17 @@ export default function WebsiteEditorPage() {
                         onClick={() => {
                             const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
                             const isLocal = rootDomain.includes('localhost');
+                            const port = isLocal && window.location.port ? `:${window.location.port}` : '';
+                            // If rootDomain already includes a port, don't append it again
+                            const domainWithPort = rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`;
+
                             let url: string;
                             if (website.company?.customDomain) {
                                 url = website.isPrimary
                                     ? `https://${website.company.customDomain}`
                                     : `https://${website.slug}.${website.company.customDomain}`;
                             } else {
-                                url = `http${isLocal ? '' : 's'}://${website.company?.slug || 'company'}.${rootDomain}${website.isPrimary ? '' : `/${website.slug}`}`;
+                                url = `http${isLocal ? '' : 's'}://${website.company?.slug || 'company'}.${domainWithPort}${website.isPrimary ? '' : `/${website.slug}`}`;
                             }
                             window.open(url, '_blank');
                         }}
@@ -1042,7 +1219,7 @@ export default function WebsiteEditorPage() {
                                     tagName="span"
                                     className="text-xl font-black tracking-tight text-current"
                                     style={{ color: 'inherit' }}
-                                    value={config.header?.title || website.name}
+                                    value={config.header?.title || brand?.companyName || website.name}
                                     onChange={(v: string) => commitConfig({ ...config, header: { ...config.header, title: v } })}
                                 />
                             </div>
@@ -1127,6 +1304,9 @@ export default function WebsiteEditorPage() {
                                             setSelectedElementId={setSelectedElementId}
                                             updateElement={updateElement}
                                             removeElement={removeElement}
+                                            duplicateElement={duplicateElement}
+                                            moveElementUp={moveElementUp}
+                                            moveElementDown={moveElementDown}
                                             insertElementRelative={insertElementRelative}
                                         />
                                         {/* Dropzone after this section */}
@@ -1173,13 +1353,22 @@ export default function WebsiteEditorPage() {
                                                 </div>
                                             )}
                                             <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Company</h4>
-                                            <EditableText
-                                                tagName="div"
-                                                className="text-sm leading-relaxed whitespace-pre-wrap animate-none text-current"
+                                            <div 
+                                                className="text-sm leading-relaxed whitespace-pre-wrap animate-none text-current cursor-pointer hover:opacity-75 transition-opacity" 
                                                 style={{ color: 'inherit' }}
-                                                value={config.footer?.companyInfo || `${settingsCompany?.name || website.name}\n${settingsCompany?.headquarters || '123 Business Avenue'}\n${settingsCompany?.email || 'email@example.com'}`}
-                                                onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, companyInfo: v } })}
-                                            />
+                                                onClick={(e) => { e.stopPropagation(); setSelectedElementId('footer'); }}
+                                                title="Click to edit Company Information"
+                                            >
+                                                <div className="font-semibold">{brand?.companyName || settingsCompany?.name || website.name}</div>
+                                                <div className="opacity-90">{brand?.address || settingsCompany?.headquarters || '123 Business Avenue'}</div>
+                                                <div className="opacity-90">{brand?.email || settingsCompany?.email || 'email@example.com'}</div>
+                                                {brand?.phone && <div className="opacity-90">{brand.phone}</div>}
+                                                {brand?.twitter && (
+                                                    <div className="opacity-90 mt-1">
+                                                        <a href={brand.twitter} target="_blank" rel="noopener noreferrer" className="hover:underline" onClick={e => e.preventDefault()}>Twitter</a>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                         {footerLinks.length > 0 && (
                                             <div className="flex flex-col">
@@ -1210,7 +1399,7 @@ export default function WebsiteEditorPage() {
                                         tagName="div"
                                         className="text-sm opacity-60 font-medium text-current text-center"
                                         style={{ color: 'inherit' }}
-                                        value={config.footer?.copyright || `© ${new Date().getFullYear()} ${website.name}. All Rights Reserved.`}
+                                        value={config.footer?.copyright || `© ${new Date().getFullYear()} ${brand?.companyName || website.name}. All Rights Reserved.`}
                                         onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, copyright: v } })}
                                     />
                                 </div>
@@ -1244,8 +1433,14 @@ export default function WebsiteEditorPage() {
                                 selectedElement={
                                     selectedElementId === 'header' ? { id: 'header', type: 'header', style: config.header?.style || {}, logo: config.header?.logo } :
                                         selectedElementId === 'footer' ? { id: 'footer', type: 'footer', style: config.footer?.style || {} } :
-                                            findElementById(sections, selectedElementId)
+                                            (
+                                                findElementById(sections, selectedElementId) ||
+                                                (config.header && findElementById([config.header], selectedElementId)) ||
+                                                (config.footer && findElementById([config.footer], selectedElementId))
+                                            )
                                 }
+                                brand={config.brand}
+                                onUpdateBrand={updateBrand}
                                 onUpdate={(key: string, value: any) => {
                                     if (selectedElementId === 'header') {
                                         const keys = key.split('.');

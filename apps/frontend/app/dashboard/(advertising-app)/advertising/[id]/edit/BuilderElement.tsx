@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { ElementNode } from './types';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react';
 import { BoxElement } from './_components/elements/BoxElement';
 import { RowElement } from './_components/elements/RowElement';
 import { ColumnElement } from './_components/elements/ColumnElement';
@@ -15,15 +15,19 @@ import { LineElement } from './_components/elements/LineElement';
 
 interface BuilderElementProps {
     node: ElementNode;
+    brand?: any;
     selectedElementId: string | null;
     setSelectedElementId: (id: string | null) => void;
     updateElement: (id: string, path: string, value: any) => void;
     removeElement: (id: string) => void;
+    duplicateElement?: (id: string) => void;
+    moveElementUp?: (id: string) => void;
+    moveElementDown?: (id: string) => void;
     insertElementRelative?: (targetId: string, type: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => void;
     depth?: number;
 }
 
-export function BuilderElement({ node, selectedElementId, setSelectedElementId, updateElement, removeElement, insertElementRelative, depth = 0 }: BuilderElementProps) {
+export function BuilderElement({ node, brand, selectedElementId, setSelectedElementId, updateElement, removeElement, duplicateElement, moveElementUp, moveElementDown, insertElementRelative, depth = 0 }: BuilderElementProps) {
     const {
         attributes,
         listeners,
@@ -50,6 +54,13 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
         display = display || 'block';
     }
 
+    // --- Padding Drag Logic ---
+    const startPosRef = useRef({ x: 0, y: 0 });
+    const startPaddingRef = useRef(0);
+    const latestPaddingRef = useRef<string | null>(null);
+    const [draggingSide, setDraggingSide] = useState<string | null>(null);
+    const [localPadding, setLocalPadding] = useState<Record<string, string> | null>(null);
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -57,17 +68,13 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
         ...node.style,
         ...(display && { display }),
         ...(flexDirection && { flexDirection }),
-        ...(flexWrap && { flexWrap })
+        ...(flexWrap && { flexWrap }),
+        ...(localPadding || {})
     };
 
     const isSelected = selectedElementId === node.id;
 
     // Stop propagation so clicking a child doesn't select the parent
-
-    // --- Padding Drag Logic ---
-    const startPosRef = useRef({ x: 0, y: 0 });
-    const startPaddingRef = useRef(0);
-    const [draggingSide, setDraggingSide] = useState<string | null>(null);
 
     const handlePaddingDragStart = (e: React.MouseEvent, side: string) => {
         e.preventDefault();
@@ -82,35 +89,46 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
         let currentPad = parseFloat(currentPadStr.toString().replace('rem', '').replace('px', ''));
         if (isNaN(currentPad)) currentPad = 0;
 
+        const paddingKey = `padding${side.charAt(0).toUpperCase() + side.slice(1)}`;
+
         startPosRef.current = { x: e.clientX, y: e.clientY };
         startPaddingRef.current = currentPad;
+        latestPaddingRef.current = currentPadStr;
+        
         setDraggingSide(side);
+        setLocalPadding({ [paddingKey]: currentPadStr });
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = moveEvent.clientX - startPosRef.current.x;
             const deltaY = moveEvent.clientY - startPosRef.current.y;
 
-            // 1 rem = 16px roughly. Let's make 16px drag = 1rem change
             let deltaRem = 0;
-
-            if (side === 'top') deltaRem = deltaY / 16; // Inverted: Drag down (positive deltaY) increases top padding
-            if (side === 'bottom') deltaRem = -deltaY / 16; // Inverted: Drag up (negative deltaY) increases bottom padding
-            if (side === 'left') deltaRem = deltaX / 16; // Inverted: Drag right (positive deltaX) increases left padding
-            if (side === 'right') deltaRem = -deltaX / 16; // Inverted: Drag left (negative deltaX) increases right padding
+            if (side === 'top') deltaRem = deltaY / 16;
+            if (side === 'bottom') deltaRem = -deltaY / 16;
+            if (side === 'left') deltaRem = deltaX / 16;
+            if (side === 'right') deltaRem = -deltaX / 16;
 
             const newPadding = Math.max(0, startPaddingRef.current + deltaRem);
             const newPaddingStr = `${newPadding}rem`;
-
-            if (side === 'top') updateElement(node.id, 'style.paddingTop', newPaddingStr);
-            if (side === 'bottom') updateElement(node.id, 'style.paddingBottom', newPaddingStr);
-            if (side === 'left') updateElement(node.id, 'style.paddingLeft', newPaddingStr);
-            if (side === 'right') updateElement(node.id, 'style.paddingRight', newPaddingStr);
+            
+            latestPaddingRef.current = newPaddingStr;
+            setLocalPadding({ [paddingKey]: newPaddingStr });
         };
 
         const handleMouseUp = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
             setDraggingSide(null);
+            
+            // Commit to global config
+            if (latestPaddingRef.current) {
+                if (side === 'top') updateElement(node.id, 'style.paddingTop', latestPaddingRef.current);
+                if (side === 'bottom') updateElement(node.id, 'style.paddingBottom', latestPaddingRef.current);
+                if (side === 'left') updateElement(node.id, 'style.paddingLeft', latestPaddingRef.current);
+                if (side === 'right') updateElement(node.id, 'style.paddingRight', latestPaddingRef.current);
+            }
+            
+            setLocalPadding(null);
         };
 
         document.addEventListener('mousemove', handleMouseMove);
@@ -120,26 +138,47 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     const renderPaddingControls = () => {
         if (!isSelected) return null;
         
-        const handleClass = "absolute w-3 h-3 bg-white border-2 border-cyan-400 rounded-full z-20 hover:scale-125 transition-transform";
+        const stripeBg = {
+            backgroundImage: `repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.2) 8px, rgba(99, 102, 241, 0.3) 8px, rgba(99, 102, 241, 0.3) 16px)`
+        };
+        
+        const dragHandle = (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-1.5 rounded-full bg-white border border-indigo-500 shadow-sm" />
+        );
+        const dragHandleVertical = (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-4 rounded-full bg-white border border-indigo-500 shadow-sm" />
+        );
 
         return (
             <>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'top')}
-                    className={`${handleClass} top-[-6px] left-1/2 -translate-x-1/2 cursor-ns-resize`}
-                />
+                    style={{ ...stripeBg, height: localPadding?.paddingTop || node.style?.paddingTop || node.style?.paddingY || '0' }}
+                    className="absolute top-0 left-0 right-0 min-h-[4px] cursor-ns-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-b border-indigo-500/30"
+                >
+                    {dragHandle}
+                </div>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'bottom')}
-                    className={`${handleClass} bottom-[-6px] left-1/2 -translate-x-1/2 cursor-ns-resize`}
-                />
+                    style={{ ...stripeBg, height: localPadding?.paddingBottom || node.style?.paddingBottom || node.style?.paddingY || '0' }}
+                    className="absolute bottom-0 left-0 right-0 min-h-[4px] cursor-ns-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-t border-indigo-500/30"
+                >
+                    {dragHandle}
+                </div>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'left')}
-                    className={`${handleClass} left-[-6px] top-1/2 -translate-y-1/2 cursor-ew-resize`}
-                />
+                    style={{ ...stripeBg, width: localPadding?.paddingLeft || node.style?.paddingLeft || node.style?.paddingX || '0' }}
+                    className="absolute top-0 bottom-0 left-0 min-w-[4px] cursor-ew-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-r border-indigo-500/30"
+                >
+                    {dragHandleVertical}
+                </div>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'right')}
-                    className={`${handleClass} right-[-6px] top-1/2 -translate-y-1/2 cursor-ew-resize`}
-                />
+                    style={{ ...stripeBg, width: localPadding?.paddingRight || node.style?.paddingRight || node.style?.paddingX || '0' }}
+                    className="absolute top-0 bottom-0 right-0 min-w-[4px] cursor-ew-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-l border-indigo-500/30"
+                >
+                    {dragHandleVertical}
+                </div>
             </>
         );
     };
@@ -151,16 +190,39 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
 
     const renderControls = () => {
         if (!isSelected) return null;
+        
+        const bgColor = 'bg-indigo-500';
 
         return (
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 flex gap-2 bg-slate-800 shadow-xl rounded-md px-2 py-1.5 items-center">
-                <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors" title="Drag to move">
-                    <GripVertical className="w-4 h-4" />
+            <>
+                <div className={`absolute -top-[21px] -left-[2px] z-50 ${bgColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-t-md rounded-br-md shadow-sm tracking-wide`}>
+                    {node.name ? (
+                        <>
+                            <span className="font-normal opacity-90">{node.name}</span>
+                            <span className="capitalize ml-1">{node.type}</span>
+                        </>
+                    ) : (
+                        <span className="capitalize">{node.type}</span>
+                    )}
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1.5 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded transition-colors" title="Delete">
-                    <Trash2 className="w-4 h-4" />
-                </button>
-            </div>
+                <div className="absolute -top-10 right-0 z-50 flex gap-0.5 bg-gray-800 text-white shadow-lg rounded p-0.5 items-center">
+                    <button onClick={(e) => { e.stopPropagation(); if (moveElementUp) moveElementUp(node.id); }} className="p-1 hover:bg-gray-700 rounded" title="Move Up">
+                        <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); if (moveElementDown) moveElementDown(node.id); }} className="p-1 hover:bg-gray-700 rounded" title="Move Down">
+                        <ChevronDown className="w-4 h-4" />
+                    </button>
+                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-700 rounded" title="Drag to reorder">
+                        <GripVertical className="w-4 h-4" />
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); if (duplicateElement) duplicateElement(node.id); }} className="p-1 hover:bg-gray-700 rounded" title="Duplicate">
+                        <Copy className="w-4 h-4" />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded" title="Delete">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            </>
         );
     };
 
@@ -179,8 +241,12 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
                         setSelectedElementId={setSelectedElementId}
                         updateElement={updateElement}
                         removeElement={removeElement}
+                        duplicateElement={duplicateElement}
+                        moveElementUp={moveElementUp}
+                        moveElementDown={moveElementDown}
                         insertElementRelative={insertElementRelative}
                         depth={depth + 1}
+                        brand={brand}
                     />
                 ))}
             </SortableContext>
@@ -244,17 +310,18 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     };
 
     let dragIndicatorClass = '';
-    if (dragPosition === 'left') dragIndicatorClass = 'border-l-4 border-l-cyan-400';
-    else if (dragPosition === 'right') dragIndicatorClass = 'border-r-4 border-r-cyan-400';
-    else if (dragPosition === 'top') dragIndicatorClass = 'border-t-4 border-t-cyan-400';
-    else if (dragPosition === 'bottom') dragIndicatorClass = 'border-b-4 border-b-cyan-400';
-    else if (dragPosition === 'inside') dragIndicatorClass = 'ring-2 ring-cyan-400 bg-cyan-50/10';
+    if (dragPosition === 'left') dragIndicatorClass = 'border-l-4 border-l-indigo-500';
+    else if (dragPosition === 'right') dragIndicatorClass = 'border-r-4 border-r-indigo-500';
+    else if (dragPosition === 'top') dragIndicatorClass = 'border-t-4 border-t-indigo-500';
+    else if (dragPosition === 'bottom') dragIndicatorClass = 'border-b-4 border-b-indigo-500';
+    else if (dragPosition === 'inside') dragIndicatorClass = 'ring-2 ring-indigo-500 bg-indigo-50/10';
 
-    const wrapperClass = `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-cyan-400' : 'hover:ring-1 hover:ring-cyan-400/50'} ${dragIndicatorClass}`;
+    const wrapperClass = `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-500/50'} ${dragIndicatorClass}`;
 
 
     const props = {
         node,
+        brand,
         setNodeRef,
         style,
         wrapperClass,

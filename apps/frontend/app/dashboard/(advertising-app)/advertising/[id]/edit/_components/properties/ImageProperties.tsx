@@ -42,36 +42,55 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                                 return;
                             }
 
+                            // Capture existing URL before optimistic update (ignore previous blobs)
+                            const existingUrl = isVideo ? selectedElement.data?.videoUrl : selectedElement.data?.imageUrl;
+                            
+                            // Optimistic update for instant preview
+                            const objectUrl = URL.createObjectURL(file);
+                            if (isVideo) {
+                                onUpdate('data.videoUrl', objectUrl);
+                                onUpdate('data.imageUrl', ''); // Clear other
+                            } else {
+                                onUpdate('data.imageUrl', objectUrl);
+                                onUpdate('data.videoUrl', ''); // Clear other
+                            }
+
                             const toastId = toast.loading('Uploading media...');
                             try {
                                 const formData = new FormData();
                                 formData.append('file', file);
                                 
-                                const existingUrl = isVideo ? selectedElement.data?.videoUrl : selectedElement.data?.imageUrl;
-                                if (existingUrl) {
+                                if (existingUrl && !existingUrl.startsWith('blob:')) {
                                     formData.append('replaceUrl', existingUrl);
                                 }
                                 
-                                const endpoint = isVideo ? '/api/files/upload-video' : '/api/files/upload';
+                                const endpoint = isVideo ? '/api/v1/workspace-tools/storage/upload-video' : '/api/v1/workspace-tools/storage/upload';
                                 const res = await api.post(endpoint, formData, {
                                     headers: { 'Content-Type': 'multipart/form-data' }
                                 });
 
-                                if (res.data.url) {
+                                const url = res.data.url || res.data.fileUrl;
+                                if (url) {
                                     if (isVideo) {
-                                        onUpdate('data.videoUrl', res.data.url);
-                                        onUpdate('data.imageUrl', ''); // Clear other
+                                        onUpdate('data.videoUrl', url);
                                     } else {
-                                        onUpdate('data.imageUrl', res.data.url);
-                                        onUpdate('data.videoUrl', ''); // Clear other
+                                        onUpdate('data.imageUrl', url);
                                     }
                                     toast.success('Upload complete', { id: toastId });
+                                    URL.revokeObjectURL(objectUrl); // Clean up memory
                                 } else {
-                                    toast.error('Upload failed', { id: toastId });
+                                    throw new Error('No URL returned');
                                 }
                             } catch (err) {
                                 console.error(err);
                                 toast.error('Upload failed', { id: toastId });
+                                // Revert to existing URL on failure
+                                if (isVideo) {
+                                    onUpdate('data.videoUrl', existingUrl || '');
+                                } else {
+                                    onUpdate('data.imageUrl', existingUrl || '');
+                                }
+                                URL.revokeObjectURL(objectUrl);
                             }
                             e.target.value = ''; // Reset
                         }}
@@ -79,27 +98,7 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                 </label>
             </div>
             
-            <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Or Media URL</label>
-                <input 
-                    type="text" 
-                    value={selectedElement.data?.imageUrl || selectedElement.data?.videoUrl || ''} 
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        const isVid = val.endsWith('.mp4') || val.endsWith('.m3u8') || val.endsWith('.webm');
-                        if(isVid) {
-                            onUpdate('data.videoUrl', val);
-                            onUpdate('data.imageUrl', '');
-                        } else {
-                            onUpdate('data.imageUrl', val);
-                            onUpdate('data.videoUrl', '');
-                        }
-                    }}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="https://..."
-                />
-            </div>
-            
+
             <div className="pt-2">
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
                     <span>Width (%)</span>

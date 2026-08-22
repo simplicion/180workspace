@@ -13,11 +13,13 @@ import PaddingControl from './_components/properties/PaddingControl';
 
 interface PropertyPanelProps {
     selectedElement: any;
+    brand?: any;
+    onUpdateBrand?: (key: string, value: any) => void;
     onUpdate: (key: string, value: any) => void;
     onClose: () => void;
 }
 
-export default function PropertyPanel({ selectedElement, onUpdate, onClose }: PropertyPanelProps) {
+export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, onUpdate, onClose }: PropertyPanelProps) {
     if (!selectedElement) return null;
 
     const isHeader = selectedElement.type === 'header';
@@ -36,6 +38,64 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                
+                {/* Company Information (Header/Footer Only) */}
+                {(isHeader || isFooter) && (
+                    <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Company Information</h4>
+                        
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Company Name</label>
+                            <input 
+                                type="text" 
+                                value={brand?.companyName || ''} 
+                                onChange={(e) => onUpdateBrand?.('companyName', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. Acme Corp"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Address</label>
+                            <input 
+                                type="text" 
+                                value={brand?.address || ''} 
+                                onChange={(e) => onUpdateBrand?.('address', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. 123 Business Ave"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Email</label>
+                            <input 
+                                type="email" 
+                                value={brand?.email || ''} 
+                                onChange={(e) => onUpdateBrand?.('email', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. hello@example.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Phone</label>
+                            <input 
+                                type="text" 
+                                value={brand?.phone || ''} 
+                                onChange={(e) => onUpdateBrand?.('phone', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. +1 234 567 8900"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Twitter URL</label>
+                            <input 
+                                type="text" 
+                                value={brand?.twitter || ''} 
+                                onChange={(e) => onUpdateBrand?.('twitter', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. https://twitter.com/acme"
+                            />
+                        </div>
+                    </div>
+                )}
                 
                 {/* Background Section */}
                 {!isHeader && !isFooter && (
@@ -60,8 +120,9 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                         </div>
                     </div>
 
-                    <div>
-                        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Image</label>
+                    {selectedElement.type !== 'media' && (
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Image</label>
                         {selectedElement.style?.backgroundImage && selectedElement.style.backgroundImage !== 'none' ? (
                             <div className="relative group rounded-lg overflow-hidden border border-gray-200 h-24">
                                 <div 
@@ -97,12 +158,13 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                                             const formData = new FormData();
                                             formData.append('file', file);
                                             
-                                            const res = await api.post('/api/files/upload', formData, {
+                                            const res = await api.post('/api/v1/workspace-tools/storage/upload', formData, {
                                                 headers: { 'Content-Type': 'multipart/form-data' }
                                             });
 
-                                            if (res.data.url) {
-                                                onUpdate('style.backgroundImage', `url(${res.data.url})`);
+                                            if (res.data.url || res.data.fileUrl) {
+                                                const url = res.data.url || res.data.fileUrl;
+                                                onUpdate('style.backgroundImage', `url(${url})`);
                                                 toast.success('Upload complete', { id: toastId });
                                             } else {
                                                 toast.error('Upload failed', { id: toastId });
@@ -143,6 +205,7 @@ export default function PropertyPanel({ selectedElement, onUpdate, onClose }: Pr
                             </select>
                         </div>
                     </div>
+                    )}
                 </div>
                 )}
 
