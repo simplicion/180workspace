@@ -207,18 +207,20 @@ function WorkspaceSetup() {
     const handleBack = () => setStep(prev => prev - 1);
 
     const toggleApp = (appId: string, isCore: boolean) => {
-        const coreApps = ['projects', 'workspace-tools', 'communications'];
-        if (isCore || coreApps.includes(appId)) {
+        const defaultApps = ['projects', 'workspace-tools', 'communications'];
+        if (isCore || defaultApps.includes(appId)) {
             toast.error("This app is essential and cannot be removed.");
             return;
         }
 
-        let limit = 5; // Default Kickstart limit
+        // Kickstart plan: 5 total apps = 3 default + 2 custom
+        const totalAppLimit = 5;
+        const customAppLimit = totalAppLimit - defaultApps.length; // 2 custom slots
 
         setEnabledApps(prev => {
             const isNowEnabled = !prev.includes(appId);
-            const nonCoreCount = prev.filter(id => !coreApps.includes(id)).length;
-            if (isNowEnabled && nonCoreCount >= limit) {
+            const customAppCount = prev.filter(id => !defaultApps.includes(id)).length;
+            if (isNowEnabled && customAppCount >= customAppLimit) {
                 setShowUpgradeModal(true);
                 return prev;
             }
@@ -681,8 +683,13 @@ function WorkspaceSetup() {
 
                                 <div className="mt-auto flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 p-5 sm:p-6 border-t border-gray-100 rounded-b-3xl">
                                     <div className="flex flex-col text-center sm:text-left w-full sm:w-auto">
-                                        <p className="text-sm font-bold text-gray-900">{enabledApps.length} Apps Selected</p>
-                                        <p className="text-xs text-gray-500">You're configuring a powerful workspace.</p>
+                                        <p className="text-sm font-bold text-gray-900">
+                                            {enabledApps.length} Apps Selected
+                                            <span className="font-normal text-gray-500 ml-1">
+                                                ({enabledApps.filter(id => !['projects', 'workspace-tools', 'communications'].includes(id)).length}/2 custom)
+                                            </span>
+                                        </p>
+                                        <p className="text-xs text-gray-500">3 default apps + up to 2 custom apps on your plan.</p>
                                     </div>
                                     <button onClick={completeSetup} disabled={saving} className="btn-primary shadow-lg shadow-indigo-500/25 px-8 py-3 h-auto text-base font-semibold w-full sm:w-auto flex justify-center items-center hover:-translate-y-0.5 transition-all rounded-xl">
                                         {saving ? <LogoLoader className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
@@ -735,21 +742,39 @@ function WorkspaceSetup() {
                             className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden"
                         >
                             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                                <h3 className="text-xl font-bold text-gray-900">Plan Limit Reached</h3>
+                                <h3 className="text-xl font-bold text-gray-900">Custom App Limit Reached</h3>
                                 <button onClick={() => setShowUpgradeModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
                             <div className="p-6 text-gray-600">
-                                <p className="mb-4">You are currently on the Kickstart Plan. After creating the workspace, you can upgrade your plan to access more apps.</p>
-                                <p className="font-semibold text-gray-900">Right now you can only access 5 apps.</p>
+                                <p className="mb-4">You are currently on the <span className="font-semibold text-gray-900">Kickstart Plan</span> which gives you access to <span className="font-semibold text-gray-900">5 apps</span> total.</p>
+                                <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-2 text-sm">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-500">Core System</span>
+                                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-medium">Not counted</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-500">Default Apps (Projects, Communications, Workspace Tools)</span>
+                                        <span className="font-semibold text-gray-900">3</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-500">Custom Apps</span>
+                                        <span className="font-semibold text-gray-900">2</span>
+                                    </div>
+                                    <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
+                                        <span className="font-semibold text-gray-900">Total</span>
+                                        <span className="font-bold text-indigo-600">5 apps</span>
+                                    </div>
+                                </div>
+                                <p className="text-sm">After creating the workspace, you can <span className="font-semibold text-indigo-600">upgrade your plan</span> to unlock more apps.</p>
                             </div>
                             <div className="p-6 pt-0 flex justify-end">
                                 <button 
                                     onClick={() => setShowUpgradeModal(false)}
                                     className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
                                 >
-                                    OK
+                                    Got it
                                 </button>
                             </div>
                         </motion.div>
