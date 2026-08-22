@@ -661,7 +661,7 @@ export class SalesService {
                     owner: { select: { id: true, name: true, email: true } },
                     lead: { select: { id: true, title: true, source: true } },
                     deal: { select: { id: true, name: true, companyName: true, source: true } },
-                    relatedClient: { select: { id: true, name: true, company: true, source: true } }
+                    relatedClient: { select: { id: true, name: true, company: true } }
                 }
             }).catch(() => []),
             Lead.count({ where: { deletedAt: null, status: { in: ['new', 'pending'] }, ...dateFilter } }).catch(() => 0),

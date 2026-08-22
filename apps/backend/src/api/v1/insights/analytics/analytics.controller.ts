@@ -95,18 +95,8 @@ export const getTeamActivity = async (req: Request, res: Response, next: NextFun
     try {
         const companyId = (req as any).user.companyId;
         const activities = await prisma.activityLog.findMany({
-            where: { companyId },
             orderBy: { createdAt: 'desc' },
-            take: 20,
-            include: {
-                actor: {
-                    select: {
-                        name: true,
-                        email: true,
-                        image: true,
-                    }
-                }
-            }
+            take: 20
         });
         res.json({ success: true, activities });
     } catch (err) { next(err); }

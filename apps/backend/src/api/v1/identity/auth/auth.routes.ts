@@ -22,7 +22,7 @@ router.post('/logout', protect, AuthController.logout);
 router.post('/refresh', AuthController.refreshToken);
 router.get('/me', protect, AuthController.getMe);
 router.put('/change-password', protect, validateRequest(AuthValidation.changePassword), AuthController.changePassword);
-router.put('/complete-workspace-setup', AuthController.completeWorkspaceSetup);
+router.put('/complete-workspace-setup', protect, AuthController.completeWorkspaceSetup);
 
 // MFA
 router.post('/mfa/setup', protect, AuthController.setupMFA);

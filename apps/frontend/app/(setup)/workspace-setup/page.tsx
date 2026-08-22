@@ -1,81 +1,54 @@
 'use client';
 
 import { LogoLoader } from "@workspace/ui";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useSettings } from '@/lib/settings-context';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Users, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, TrendingUp, Briefcase, Globe, Info, Target, FileText } from 'lucide-react';
+import { Building2, Users, ArrowRight, CheckCircle2, Sparkles, LayoutDashboard, TrendingUp, Briefcase, Globe, Info, Target, FileText, UploadCloud, X, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { ALL_APPS } from '@/lib/module-map';
+import { APPS_CONFIG } from '@/lib/module-map';
 import { LocationSearch } from '@/components/ui/LocationSearch';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { locationService, FormattedLocation } from '@/lib/location-service';
 import api from '@/lib/api';
-// Detailed mapping of sub-modules (screens) for each app
-const APP_MODULES: Record<string, { id: string; name: string; desc: string }[]> = {
-    crm: [
-        { id: 'crm-leads', name: 'Leads & Prospects', desc: 'Track potential customers and sales pipeline.' },
-        { id: 'crm-accounts', name: 'Company Accounts', desc: 'Manage B2B relationships and hierarchies.' },
-        { id: 'crm-contacts', name: 'Contact Directory', desc: 'Centralized database for all business contacts.' },
-        { id: 'crm-deals', name: 'Deal Management', desc: 'Close opportunities and track revenue state.' },
-        { id: 'crm-automation', name: 'Sales Automation', desc: 'Automate follow-ups and repetitive tasks.' },
-        { id: 'crm-ai', name: 'AI Insights', desc: 'Predictive analytics and lead scoring.' },
-    ],
-    projects: [
-        { id: 'proj-active', name: 'Active Projects', desc: 'High-level project tracking and timelines.' },
-        { id: 'proj-tasks', name: 'Task Boards', desc: 'Kanban and list views for team tasks.' },
-        { id: 'proj-time', name: 'Time Sheets', desc: 'Track billable hours and team productivity.' },
-        { id: 'proj-goals', name: 'Milestones', desc: 'Set and monitor high-level project goals.' },
-    ],
-    hr: [
-        { id: 'hr-directory', name: 'Team Directory', desc: 'Access employee profiles and files.' },
-        { id: 'hr-attendance', name: 'Attendance & Time', desc: 'Monitor check-ins, shifts, and hours.' },
-        { id: 'hr-payroll', name: 'Payroll & Salary', desc: 'Automate salary processing and invoices.' },
-        { id: 'hr-recruitment', name: 'Recruitment', desc: 'Manage job postings and candidate funnel.' },
-        { id: 'hr-performance', name: 'Reviews & Feedback', desc: 'Track team performance and growth.' },
-        { id: 'hr-leaves', name: 'Leaves Management', desc: 'Track employee time off and vacations.' },
-        { id: 'hr-holidays', name: 'Holidays', desc: 'Manage company-wide public holidays.' },
-    ],
-    finance: [
-        { id: 'fin-invoices', name: 'Invoicing', desc: 'Create and send professional invoices.' },
-        { id: 'fin-expenses', name: 'Expense Tracking', desc: 'Monitor company spending and reimbursements.' },
-        { id: 'fin-reports', name: 'Financial Reports', desc: 'P&L statements and balance sheets.' },
-    ],
-};
-
-const COMPANY_TYPES = [
-    { id: 'agency', label: 'Creative Agency', icon: Sparkles, desc: 'Design, Marketing, Web3' },
-    { id: 'saas', label: 'Tech & SaaS', icon: LayoutDashboard, desc: 'Software, AI, App Development' },
-    { id: 'ecommerce', label: 'E-Commerce', icon: TrendingUp, desc: 'Retail, D2C, Marketplaces' },
-    { id: 'consulting', label: 'Consulting', icon: Briefcase, desc: 'Finance, Legal, Advisory' },
-    { id: 'general', label: 'General Business', icon: Building2, desc: 'Other Industries' },
+const INDUSTRIES = [
+    { label: 'Technology', value: 'Technology' },
+    { label: 'Healthcare', value: 'Healthcare' },
+    { label: 'Finance', value: 'Finance' },
+    { label: 'Education', value: 'Education' },
+    { label: 'Retail', value: 'Retail' },
+    { label: 'Manufacturing', value: 'Manufacturing' },
+    { label: 'Real Estate', value: 'Real Estate' },
+    { label: 'Consulting', value: 'Consulting' },
+    { label: 'Other', value: 'Other' },
 ];
 
 const STARTUP_STAGES = [
-    { id: 'Idea', label: 'Idea Stage' },
-    { id: 'MVP', label: 'MVP / Prototype' },
-    { id: 'Beta', label: 'Beta / Launching' },
-    { id: 'Revenue', label: 'Early Revenue' },
-    { id: 'Scaling', label: 'Scaling / Growth' },
+    { value: 'Idea', label: 'Idea Stage' },
+    { value: 'MVP', label: 'MVP / Prototype' },
+    { value: 'Beta', label: 'Beta / Launching' },
+    { value: 'Revenue', label: 'Early Revenue' },
+    { value: 'Scaling', label: 'Scaling / Growth' },
 ];
 
 const TEAM_SIZES = [
-    { id: '1', label: 'Just me' },
-    { id: '2-10', label: '2 - 10' },
-    { id: '11-50', label: '11 - 50' },
-    { id: '51-200', label: '51 - 200' },
-    { id: '200+', label: '200+' },
+    { value: '1', label: 'Just me' },
+    { value: '2-10', label: '2 - 10' },
+    { value: '11-50', label: '11 - 50' },
+    { value: '51-200', label: '51 - 200' },
+    { value: '200+', label: '200+' },
 ];
 
 // Helper to determine recommended apps based on company type
 function getRecommendedApps(type: string) {
-    const core = ['system', 'collaboration', 'documents']; // Always needed
+    const core = ['system', 'communications', 'workspace-tools']; // Always needed (some are core/hidden)
     switch (type) {
         case 'agency': return [...core, 'projects', 'crm', 'finance'];
-        case 'saas': return [...core, 'projects', 'analytics', 'hr'];
-        case 'ecommerce': return [...core, 'crm', 'finance', 'analytics'];
+        case 'saas': return [...core, 'projects', 'insights', 'hr'];
+        case 'ecommerce': return [...core, 'crm', 'finance', 'insights'];
         case 'consulting': return [...core, 'projects', 'finance', 'crm'];
         default: return [...core, 'projects', 'hr', 'finance'];
     }
@@ -84,14 +57,14 @@ function getRecommendedApps(type: string) {
 function getRecommendedModules(apps: string[], type: string) {
     const modules: string[] = [];
     apps.forEach(appId => {
-        const sub = APP_MODULES[appId];
-        if (sub) {
+        const app = APPS_CONFIG.find(a => a.id === appId);
+        if (app && app.modules) {
             if (type === 'agency' && appId === 'projects') {
-                modules.push('proj-active', 'proj-tasks', 'proj-time');
+                modules.push('projects', 'tasks', 'timetracking');
             } else if (type === 'saas' && appId === 'projects') {
-                modules.push('proj-active', 'proj-tasks');
+                modules.push('projects', 'tasks');
             } else {
-                modules.push(...sub.map(m => m.id));
+                modules.push(...app.modules.map(m => m.id));
             }
         }
     });
@@ -191,6 +164,12 @@ function WorkspaceSetup() {
     const [enabledApps, setEnabledApps] = useState<string[]>([]);
     const [enabledModules, setEnabledModules] = useState<string[]>([]);
     
+    // Logo Upload State
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    
+    const logoInputRef = useRef<HTMLInputElement>(null);
+
     const [saving, setSaving] = useState(false);
 
     // Initial load recommendations
@@ -207,7 +186,8 @@ function WorkspaceSetup() {
                 return;
             }
         }
-        if (step === 3) {
+        
+        if (step === 2) {
             // Advancing to app selection, preset recommended apps & modules
             const apps = getRecommendedApps(industry);
             setEnabledApps(apps);
@@ -228,7 +208,8 @@ function WorkspaceSetup() {
                 const recommended = getRecommendedModules([appId], industry);
                 setEnabledModules(m => [...new Set([...m, ...recommended])]);
             } else {
-                const subIds = APP_MODULES[appId]?.map(m => m.id) || [];
+                const appConfig = APPS_CONFIG.find(a => a.id === appId);
+                const subIds = appConfig?.modules.map(m => m.id) || [];
                 setEnabledModules(m => m.filter(id => !subIds.includes(id)));
             }
             return newApps;
@@ -238,6 +219,22 @@ function WorkspaceSetup() {
     const completeSetup = async () => {
         setSaving(true);
         try {
+            let uploadedLogoUrl = '';
+            
+            if (logoFile) {
+                const form = new FormData();
+                form.append('file', logoFile);
+                form.append('folder', 'companyLogo');
+                try {
+                    const uploadRes = await api.post('/api/files/upload', form);
+                    if (uploadRes.data?.document?.fileUrl) {
+                        uploadedLogoUrl = uploadRes.data.document.fileUrl;
+                    }
+                } catch (uploadError) {
+                    console.error("Logo upload failed", uploadError);
+                }
+            }
+
             const res = await api.put('/api/auth/complete-workspace-setup', {
                 companyName,
                 slug,
@@ -250,7 +247,8 @@ function WorkspaceSetup() {
                 enabledModules,
                 currency,
                 currencySymbol,
-                country
+                country,
+                logoUrl: uploadedLogoUrl || undefined
             });
 
             const data = res.data;
@@ -265,7 +263,7 @@ function WorkspaceSetup() {
                     companySlug: data.companySlug,
                     companyCustomDomain: data.companyCustomDomain,
                 });
-                setStep(5); // Success screen is now step 5
+                setStep(4); // Success screen is now step 4
             } else if (res.status === 401) {
                 toast.error(data.error || 'Session invalid. Logging out...');
                 setTimeout(() => signOut({ callbackUrl: '/login' }), 2000);
@@ -288,11 +286,11 @@ function WorkspaceSetup() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50/50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="h-screen bg-gray-50/50 flex flex-col justify-center py-6 px-4 sm:px-6 lg:px-8 overflow-hidden">
             <div className="absolute inset-0 z-[-1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/40 via-gray-50/50 to-white pointer-events-none" />
 
             <div className="max-w-3xl w-full mx-auto relative">
-                {step < 5 && (
+                {step < 4 && (
                     <button
                         onClick={() => {
                             window.location.href = '/dashboard';
@@ -303,19 +301,19 @@ function WorkspaceSetup() {
                         Go to <span className="font-bold tracking-tight text-gray-900 inline-block mx-1">{platform?.platformName || <><span className="text-blue-600">180</span>workspace</>}</span> App
                     </button>
                 )}
-                <div className="text-center mb-10">
-                    <div className="w-16 h-16 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/20 mb-6 p-2 border border-gray-100">
-                        <img src="/black icon.svg" alt="Icon" className="w-12 h-12" />
+                <div className="text-center mb-6">
+                    <div className="w-12 h-12 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/20 mb-4 p-2 border border-gray-100">
+                        <img src="/black icon.svg" alt="Icon" className="w-8 h-8" />
                     </div>
-                    <h2 className="mt-2 text-3xl font-extrabold text-gray-900 tracking-tight">
+                    <h2 className="mt-2 text-2xl font-extrabold text-gray-900 tracking-tight">
                         Setup Your Workspace
                     </h2>
-                    <p className="mt-3 text-lg text-gray-500 max-w-xl mx-auto">
+                    <p className="mt-2 text-base text-gray-500 max-w-xl mx-auto">
                         Tell us about your startup to personalize your experience.
                     </p>
                 </div>
 
-                <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden relative min-h-[550px]">
+                <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-visible relative h-[540px] flex flex-col">
                     <AnimatePresence mode="wait">
                         {step === 1 && (
                             <motion.div
@@ -323,66 +321,69 @@ function WorkspaceSetup() {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                className="p-8 sm:p-12 h-full flex flex-col"
+                                className="p-6 sm:p-8 h-full flex flex-col"
                             >
-                                <h3 className="text-xl font-bold text-gray-900 mb-6">Basic Information</h3>
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Basic Information</h3>
                                 
-                                <div className="space-y-6 mb-8 max-h-[350px] overflow-y-auto pr-2">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Startup Name *</label>
-                                        <div className="relative">
-                                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                            <input
-                                                type="text"
-                                                value={companyName}
-                                                onChange={(e) => setCompanyName(e.target.value)}
-                                                placeholder="Acme Corp"
-                                                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all"
-                                            />
+                                <div className="space-y-4 mb-6 pr-2 flex-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Startup Name *</label>
+                                            <div className="relative">
+                                                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    value={companyName}
+                                                    onChange={(e) => setCompanyName(e.target.value)}
+                                                    placeholder="Acme Corp"
+                                                    className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all"
+                                                />
+                                            </div>
+                                            <div className="mt-2 text-xs flex items-center">
+                                                <span className="text-gray-500">URL: </span>
+                                                <span className="font-medium text-gray-900 ml-1 truncate max-w-[120px] sm:max-w-[160px]">
+                                                    {slug || 'acme'}
+                                                </span>
+                                                <span className="text-gray-900">.{(platform as any)?.domain || process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host.replace(/^(app|admin)\./, '') : '')}</span>
+                                                {slug && (
+                                                    <div className="ml-2 flex items-center shrink-0">
+                                                        {isCheckingSlug ? (
+                                                            <span className="text-gray-400 text-xs">Checking...</span>
+                                                        ) : slugAvailable ? (
+                                                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                                        ) : (
+                                                            <span className="text-red-500 text-xs font-medium">Not available</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="mt-2 text-sm flex items-center">
-                                            <span className="text-gray-500">Your workspace URL: </span>
-                                            <span className="font-medium text-gray-900 ml-1">
-                                                {slug || 'acme'}.{(platform as any)?.domain || process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host.replace(/^(app|admin)\./, '') : '')}
-                                            </span>
-                                            {slug && (
-                                                <div className="ml-2 flex items-center">
-                                                    {isCheckingSlug ? (
-                                                        <span className="text-gray-400 text-xs">Checking...</span>
-                                                    ) : slugAvailable ? (
-                                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                                    ) : (
-                                                        <span className="text-red-500 text-xs font-medium">Not available</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Website (Optional)</label>
-                                        <div className="relative">
-                                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                            <input
-                                                type="url"
-                                                value={website}
-                                                onChange={(e) => setWebsite(e.target.value)}
-                                                placeholder="https://acme.com"
-                                                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all"
-                                            />
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Website (Optional)</label>
+                                            <div className="relative">
+                                                <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                <input
+                                                    type="url"
+                                                    value={website}
+                                                    onChange={(e) => setWebsite(e.target.value)}
+                                                    placeholder="https://acme.com"
+                                                    className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">One-line Description</label>
                                         <div className="relative">
-                                            <FileText className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
+                                            <FileText className="absolute left-4 top-3 w-5 h-5 text-gray-400" />
                                             <textarea
                                                 value={oneLineDescription}
                                                 onChange={(e) => setOneLineDescription(e.target.value)}
                                                 placeholder="We are building the next generation of..."
-                                                rows={3}
-                                                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all resize-none"
+                                                rows={2}
+                                                className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all resize-none"
                                             />
                                         </div>
                                     </div>
@@ -422,64 +423,103 @@ function WorkspaceSetup() {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                className="p-8 sm:p-12 h-full flex flex-col"
+                                className="p-6 sm:p-8 h-full flex flex-col relative overflow-hidden"
                             >
-                                <button onClick={handleBack} className="text-sm font-medium text-gray-400 hover:text-gray-600 mb-6 w-max">&larr; Back</button>
+                                {/* Aesthetic background gradients */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full mix-blend-multiply filter blur-3xl opacity-50 pointer-events-none transform translate-x-1/2 -translate-y-1/2" />
+                                <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-50 rounded-full mix-blend-multiply filter blur-3xl opacity-50 pointer-events-none transform -translate-x-1/2 translate-y-1/2" />
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 max-h-[350px] overflow-y-auto pr-2">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900 mb-4">Select Industry</h3>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            {COMPANY_TYPES.map(type => (
-                                                <button
-                                                    key={type.id}
-                                                    onClick={() => setIndustry(type.id)}
-                                                    className={clsx(
-                                                        "p-3 rounded-xl border-2 text-left transition-all duration-200 flex items-center gap-3",
-                                                        industry === type.id
-                                                            ? "border-indigo-600 bg-indigo-50/50 shadow-sm"
-                                                            : "border-gray-100 hover:border-indigo-200 hover:bg-gray-50"
-                                                    )}
-                                                >
-                                                    <div className={clsx("p-2 rounded-lg", industry === type.id ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500")}>
-                                                        <type.icon className="w-4 h-4" />
-                                                    </div>
-                                                    <div>
-                                                        <span className={clsx("font-bold text-sm", industry === type.id ? "text-indigo-900" : "text-gray-700")}>{type.label}</span>
-                                                    </div>
-                                                </button>
-                                            ))}
+                                <button onClick={handleBack} className="text-sm font-medium text-gray-400 hover:text-gray-600 mb-2 w-max relative z-10">&larr; Back</button>
+                                
+                                <div className="relative z-10 text-center mb-6">
+                                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Company Details</h3>
+                                    <p className="text-sm text-gray-500">Make it yours. Upload a logo and tell us about your startup.</p>
+                                </div>
+                                
+                                <div className="flex-1 flex flex-col gap-5 relative z-10">
+                                    {/* Logo Upload - Center Stage */}
+                                    <div className="flex flex-col items-center justify-center">
+                                        <input 
+                                            type="file" 
+                                            ref={logoInputRef} 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={(e) => {
+                                                if (e.target.files && e.target.files[0]) {
+                                                    const file = e.target.files[0];
+                                                    setLogoFile(file);
+                                                    setLogoPreview(URL.createObjectURL(file));
+                                                }
+                                            }}
+                                        />
+                                        <div className="relative group cursor-pointer" onClick={() => logoInputRef.current?.click()}>
+                                            {logoPreview ? (
+                                                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white shadow-xl overflow-hidden ring-2 ring-indigo-50">
+                                                    <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setLogoFile(null); setLogoPreview(null); if (logoInputRef.current) logoInputRef.current.value = ''; }}
+                                                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-all backdrop-blur-sm rounded-full"
+                                                    >
+                                                        <X className="w-6 h-6 mb-1" />
+                                                        <span className="text-[10px] font-medium uppercase tracking-wider">Remove</span>
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white border-2 border-dashed border-indigo-200 flex flex-col items-center justify-center text-indigo-400 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all shadow-sm ring-4 ring-white">
+                                                    <UploadCloud className="w-8 h-8 sm:w-10 sm:h-10 mb-2 group-hover:scale-110 transition-transform duration-300" />
+                                                    <span className="text-[10px] sm:text-xs font-semibold">Upload Logo</span>
+                                                </div>
+                                            )}
+                                            {/* decorative sparkles around logo if empty */}
+                                            {!logoPreview && (
+                                                <>
+                                                    <Sparkles className="absolute -top-2 -right-2 w-5 h-5 text-indigo-300 animate-pulse" />
+                                                    <Sparkles className="absolute -bottom-1 -left-3 w-4 h-4 text-blue-300 animate-pulse delay-150" />
+                                                </>
+                                            )}
                                         </div>
                                     </div>
-                                    
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900 mb-4">Startup Stage</h3>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            {STARTUP_STAGES.map(stage => (
-                                                <button
-                                                    key={stage.id}
-                                                    onClick={() => setStartupStage(stage.id)}
-                                                    className={clsx(
-                                                        "p-3 rounded-xl border-2 text-left transition-all duration-200 flex items-center gap-3",
-                                                        startupStage === stage.id
-                                                            ? "border-indigo-600 bg-indigo-50/50 shadow-sm"
-                                                            : "border-gray-100 hover:border-indigo-200 hover:bg-gray-50"
-                                                    )}
-                                                >
-                                                    <div className={clsx("p-2 rounded-lg", startupStage === stage.id ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500")}>
-                                                        <Target className="w-4 h-4" />
-                                                    </div>
-                                                    <span className={clsx("font-bold text-sm", startupStage === stage.id ? "text-indigo-900" : "text-gray-700")}>{stage.label}</span>
-                                                </button>
-                                            ))}
+
+                                    {/* Fields */}
+                                    <div className="bg-white/60 backdrop-blur-md border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+                                        <div className="relative z-[60]">
+                                            <CustomSelect
+                                                label="Select Industry"
+                                                value={industry}
+                                                onChange={(e: any) => setIndustry(e.target.value)}
+                                                options={INDUSTRIES}
+                                                searchable={true}
+                                                creatable={true}
+                                                placeholder="e.g. Technology"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="relative z-[50]">
+                                                <CustomSelect
+                                                    label="Startup Stage"
+                                                    value={startupStage}
+                                                    onChange={(e: any) => setStartupStage(e.target.value)}
+                                                    options={STARTUP_STAGES}
+                                                    placeholder="Select stage"
+                                                />
+                                            </div>
+                                            <div className="relative z-[40]">
+                                                <CustomSelect
+                                                    label="Team Size"
+                                                    value={teamSize}
+                                                    onChange={(e: any) => setTeamSize(e.target.value)}
+                                                    options={TEAM_SIZES}
+                                                    placeholder="Select team size"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-auto flex justify-end">
-                                    <button onClick={handleNext} className="btn-primary space-x-2">
+                                <div className="mt-6 flex justify-end">
+                                    <button onClick={handleNext} className="btn-primary px-8 py-3 rounded-xl shadow-lg shadow-indigo-500/25 space-x-2 text-base font-semibold flex items-center justify-center hover:-translate-y-0.5 transition-all w-full sm:w-auto">
                                         <span>Next Step</span>
-                                        <ArrowRight className="w-4 h-4" />
+                                        <ArrowRight className="w-5 h-5" />
                                     </button>
                                 </div>
                             </motion.div>
@@ -491,122 +531,100 @@ function WorkspaceSetup() {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                className="p-8 sm:p-12 h-full flex flex-col"
+                                className="p-6 sm:p-8 h-full flex flex-col relative"
                             >
-                                <button onClick={handleBack} className="text-sm font-medium text-gray-400 hover:text-gray-600 mb-6 w-max">&larr; Back</button>
-                                <h3 className="text-xl font-bold text-gray-900 mb-6">What&apos;s your team size?</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-                                    {TEAM_SIZES.map(size => (
-                                        <button
-                                            key={size.id}
-                                            onClick={() => setTeamSize(size.id)}
-                                            className={clsx(
-                                                "py-4 px-6 rounded-2xl border-2 text-center transition-all duration-200 font-bold",
-                                                teamSize === size.id
-                                                    ? "border-indigo-600 bg-indigo-50/50 text-indigo-700 shadow-md ring-4 ring-indigo-500/10"
-                                                    : "border-gray-100 text-gray-600 hover:border-indigo-200 hover:bg-gray-50"
-                                            )}
-                                        >
-                                            <Users className={clsx("w-6 h-6 mx-auto mb-2", teamSize === size.id ? "text-indigo-600" : "text-gray-400")} />
-                                            {size.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="mt-auto flex justify-end">
-                                    <button onClick={handleNext} className="btn-primary space-x-2">
-                                        <span>Next Step</span>
-                                        <ArrowRight className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
+                                <button onClick={handleBack} disabled={saving} className="text-sm font-medium text-gray-400 hover:text-gray-600 mb-2 w-max">&larr; Back</button>
 
-                        {step === 4 && (
-                            <motion.div
-                                key="step4"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="p-8 sm:p-12 h-full flex flex-col"
-                            >
-                                <button onClick={handleBack} disabled={saving} className="text-sm font-medium text-gray-400 hover:text-gray-600 mb-6 w-max">&larr; Back</button>
-
-                                <div className="mb-8">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Select Your Apps</h3>
-                                    <p className="text-sm text-gray-500">Enable the apps your team needs. You can change this later in settings.</p>
+                                <div className="mb-4 text-center">
+                                    <h3 className="text-2xl font-bold text-gray-900 mb-1">Select Your Apps</h3>
+                                    <p className="text-sm text-gray-500">Pick the modules you need. You can always add more later.</p>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8 max-h-[300px] overflow-y-auto pr-2 pb-4">
-                                    {ALL_APPS.map(app => {
+                                <div className="flex-1 overflow-y-auto -mx-2 px-2 pb-2 custom-scrollbar mb-4">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-2">
+                                    {/* Static Core System Card */}
+                                    <div className="relative overflow-hidden border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50/30 rounded-2xl p-4 flex flex-col cursor-default shadow-sm group">
+                                        <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-100 rounded-bl-full opacity-50" />
+                                        <div className="absolute top-3 right-3 text-indigo-500">
+                                            <ShieldCheck className="w-5 h-5" />
+                                        </div>
+                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-white shadow-sm text-indigo-600 ring-1 ring-indigo-100 relative z-10">
+                                            <ShieldCheck className="w-5 h-5" />
+                                        </div>
+                                        <h4 className="font-bold text-gray-900 text-sm mb-1 relative z-10">Core System</h4>
+                                        <p className="text-[11px] text-gray-500 line-clamp-2 mt-auto leading-relaxed relative z-10">Essential dashboard & settings modules.</p>
+                                        <div className="mt-3 relative z-10">
+                                            <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md">Required</span>
+                                        </div>
+                                    </div>
+
+                                    {APPS_CONFIG.map(app => {
                                         const isEnabled = enabledApps.includes(app.id);
-                                        const isCore = app.core;
                                         const isRecommended = recommendedApps.includes(app.id);
                                         const Icon = app.icon;
 
                                         return (
-                                            <button
+                                            <div 
                                                 key={app.id}
-                                                onClick={() => toggleApp(app.id, isCore || false)}
-                                                disabled={isCore}
+                                                onClick={() => toggleApp(app.id, false)}
                                                 className={clsx(
-                                                    "relative p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all duration-200 group text-center",
+                                                    "relative overflow-hidden rounded-2xl p-4 flex flex-col cursor-pointer transition-all duration-300 group",
                                                     isEnabled 
-                                                        ? "border-indigo-600 bg-indigo-50/50 shadow-md ring-4 ring-indigo-500/10" 
-                                                        : "border-gray-100 bg-white hover:border-indigo-200 hover:bg-gray-50"
+                                                        ? "border-2 border-indigo-500 bg-gradient-to-br from-indigo-50/80 to-blue-50/50 shadow-md transform scale-[1.02]" 
+                                                        : "border border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm"
                                                 )}
                                             >
-                                                {isEnabled && (
-                                                    <div className="absolute top-3 right-3 text-indigo-600">
-                                                        <CheckCircle2 className="w-5 h-5" />
+                                                {/* Selection Checkmark */}
+                                                <div className="absolute top-3 right-3 z-10">
+                                                    <div className={clsx(
+                                                        "w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300",
+                                                        isEnabled ? "bg-indigo-500 text-white scale-100" : "bg-gray-100 text-gray-300 scale-90 group-hover:scale-100"
+                                                    )}>
+                                                        <CheckCircle2 className="w-3.5 h-3.5" />
                                                     </div>
-                                                )}
-                                                
-                                                {isCore && (
-                                                    <span className="absolute top-2 left-2 text-[8px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 uppercase tracking-wider">Required</span>
-                                                )}
-                                                
-                                                {isRecommended && !isCore && !isEnabled && (
-                                                    <span className="absolute top-2 left-2 text-[8px] font-black px-1.5 py-0.5 rounded bg-green-100 text-green-700 uppercase tracking-wider">Suggested</span>
-                                                )}
+                                                </div>
 
                                                 <div className={clsx(
-                                                    "p-3 rounded-xl transition-colors duration-200",
-                                                    isEnabled ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-600"
+                                                    "w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors duration-300 relative z-10",
+                                                    isEnabled ? "bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100" : "bg-gray-50 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-500"
                                                 )}>
-                                                    <Icon className="w-8 h-8" />
+                                                    <Icon className="w-5 h-5" />
                                                 </div>
-                                                
-                                                <div>
-                                                    <span className={clsx("block font-bold text-sm", isEnabled ? "text-indigo-900" : "text-gray-700")}>
-                                                        {app.name}
-                                                    </span>
-                                                    <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-relaxed">{app.description}</p>
-                                                </div>
-                                            </button>
+
+                                                <h4 className={clsx("font-bold text-sm mb-1 relative z-10 transition-colors", isEnabled ? "text-indigo-950" : "text-gray-900")}>{app.name}</h4>
+                                                <p className="text-[11px] text-gray-500 line-clamp-2 mt-auto leading-relaxed relative z-10">{app.description}</p>
+
+                                                {isRecommended && !isEnabled && (
+                                                    <div className="mt-3 relative z-10">
+                                                        <span className="text-[10px] font-semibold bg-blue-50 text-blue-600 px-2 py-1 rounded-md ring-1 ring-blue-100">Recommended</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         );
                                     })}
+                                    </div>
                                 </div>
 
-                                <div className="mt-auto flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50 -mx-8 sm:-mx-12 -mb-8 sm:-mb-12 p-6 sm:p-8 border-t border-gray-100">
+                                <div className="mt-auto flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 p-5 sm:p-6 border-t border-gray-100 rounded-b-3xl">
                                     <div className="flex flex-col text-center sm:text-left w-full sm:w-auto">
-                                        <p className="text-xs font-bold text-gray-900">{enabledApps.length} Apps Selected</p>
-                                        <p className="text-[10px] text-gray-500">Essential features automatically enabled</p>
+                                        <p className="text-sm font-bold text-gray-900">{enabledApps.length} Apps Selected</p>
+                                        <p className="text-xs text-gray-500">You're configuring a powerful workspace.</p>
                                     </div>
-                                    <button onClick={completeSetup} disabled={saving} className="btn-primary shadow-lg shadow-indigo-500/20 px-8 py-3 h-auto text-base w-full sm:w-auto flex justify-center items-center">
+                                    <button onClick={completeSetup} disabled={saving} className="btn-primary shadow-lg shadow-indigo-500/25 px-8 py-3 h-auto text-base font-semibold w-full sm:w-auto flex justify-center items-center hover:-translate-y-0.5 transition-all rounded-xl">
                                         {saving ? <LogoLoader className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
-                                        <span>{saving ? "Saving..." : "Start Using Workspace"}</span>
+                                        <span>{saving ? "Creating Workspace..." : "Start Using Workspace"}</span>
                                     </button>
                                 </div>
                             </motion.div>
                         )}
 
 
-                        {step === 5 && (
+                        {step === 4 && (
                             <motion.div
                                 key="step5"
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="p-8 sm:p-16 h-full flex flex-col items-center justify-center text-center min-h-[500px]"
+                                className="p-6 sm:p-8 h-full flex flex-col items-center justify-center text-center"
                             >
                                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-8 relative">
                                     <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20" />

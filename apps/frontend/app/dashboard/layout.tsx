@@ -857,11 +857,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                         {pwa.isInstallable && !pwa.isInstalled && (
                             <button
                                 onClick={pwa.promptInstall}
-                                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3d3838] text-[#e8e6e3] hover:bg-[#2c2828] transition-colors text-sm font-medium"
+                                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 transition-colors text-sm font-medium"
                                 title="Open in app"
                             >
-                                <div className="w-5 h-5 bg-[#ff6b00] rounded-sm flex items-center justify-center text-white">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                                <div className="w-5 h-5 flex items-center justify-center text-indigo-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                                 </div>
                                 Open in app
                             </button>

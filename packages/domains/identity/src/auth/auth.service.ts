@@ -564,7 +564,8 @@ export class AuthService {
             companyName, slug, website, oneLineDescription, 
             industry, startupStage, teamSize, 
             enabledApps, enabledModules, 
-            currency, currencySymbol, country 
+            currency, currencySymbol, country,
+            logoUrl
         } = body;
         let user = currentUser;
         let companyId = reqCompany?.id;
@@ -585,17 +586,7 @@ export class AuthService {
         let config = await companyPrisma.companyConfig.findFirst();
         if (!config) {
             config = await companyPrisma.companyConfig.create({
-                data: { companyType: industry, teamSize, enabledApps: enabledApps || [], enabledModules: enabledModules || [] }
-            });
-        } else {
-            await companyPrisma.companyConfig.update({
-                where: { id: config.id },
-                data: {
-                    ...(industry && { companyType: industry }),
-                    ...(teamSize && { teamSize }),
-                    ...(enabledApps && { enabledApps }),
-                    ...(enabledModules && { enabledModules })
-                }
+                data: {}
             });
         }
 
@@ -608,6 +599,8 @@ export class AuthService {
         let metadata: any = company?.metadata || {};
         if (typeof metadata === 'string') { try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; } }
         metadata.onboardingToken = null;
+        if (enabledApps) metadata.enabledApps = enabledApps;
+        if (enabledModules) metadata.enabledModules = enabledModules;
 
         const resolvedCompanyType = industry || config?.companyType || undefined;
 
@@ -624,6 +617,7 @@ export class AuthService {
                 ...(country && { country }),
                 ...(currency && { currency }),
                 ...(currencySymbol && { currencySymbol }),
+                ...(logoUrl && { logoUrl }),
                 metadata
             }
         });
@@ -634,6 +628,7 @@ export class AuthService {
             if (Redis && process.env.REDIS_URL) {
                 const redisClient = new Redis.default(process.env.REDIS_URL);
                 await redisClient.del(`company:${companyId.toString()}`);
+                await redisClient.del(`init:user:${user.id}:company:${companyId.toString()}`);
                 await redisClient.quit();
             }
         } catch (err) { /* Redis not available, skip cache invalidation */ }
