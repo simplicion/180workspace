@@ -65,11 +65,10 @@ export default function PaymentFailedPage() {
                 </Link>
             </div>
 
-            <Link href="/dashboard/billing" className="inline-flex items-center gap-2 mt-12 text-sm font-medium text-slate-400 hover:text-indigo-600 transition-colors">
+            <Link href="/dashboard/settings/platform-billing" className="inline-flex items-center gap-2 mt-12 text-sm font-medium text-slate-400 hover:text-indigo-600 transition-colors">
                 <ArrowLeft className="w-4 h-4" />
-                Back to Billing Overview
+                Return to Dashboard
             </Link>
         </div>
     );
 }
-

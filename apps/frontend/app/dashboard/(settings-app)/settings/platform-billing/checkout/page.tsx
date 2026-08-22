@@ -20,6 +20,7 @@ function CheckoutContent() {
     const { settings, platform } = useSettings();
 
     const planId = searchParams?.get('planId');
+    const addonType = searchParams?.get('addonType');
     const [plan, setPlan] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [coupon, setCoupon] = useState('');
@@ -32,18 +33,63 @@ function CheckoutContent() {
     const currency = plan?.currency || platform?.currency || 'INR';
 
     useEffect(() => {
-        if (!planId) {
-            router.push('/dashboard/billing');
+        if (!planId && !addonType) {
+            router.push('/dashboard/settings/platform-billing');
             return;
         }
 
         const fetchPlan = async () => {
             try {
-                const { data } = await api.get('/api/billing/plans');
+                if (addonType) {
+                    // pseudo plan for addons
+                    const isUsd = currency === 'USD';
+                    const qty = parseInt(searchParams?.get('quantity') || '1', 10);
+                    
+                    if (addonType === 'storage') {
+                        setPlan({
+                            planName: `${qty * 5}GB Storage Add-on`,
+                            price: (isUsd ? 0.60 : 50) * qty,
+                            billingCycle: 'One-time',
+                            features: [`${qty * 5}GB Additional Workspace Storage`, 'Immediate Activation', 'Never Expires'],
+                            isAddon: true,
+                            addonType: 'storage',
+                            currency: isUsd ? 'USD' : 'INR',
+                            quantity: qty
+                        });
+                    } else if (addonType === 'team') {
+                        setPlan({
+                            planName: `${qty} Team Member Add-on`,
+                            price: (isUsd ? 1 : 83) * qty,
+                            billingCycle: 'One-time',
+                            features: [`${qty} Extra Team Member Seat${qty > 1 ? 's' : ''}`, 'Immediate Activation', 'Never Expires'],
+                            isAddon: true,
+                            addonType: 'team',
+                            currency: isUsd ? 'USD' : 'INR',
+                            quantity: qty
+                        });
+                    } else if (addonType === 'app') {
+                        setPlan({
+                            planName: `${qty} App Add-on`,
+                            price: (isUsd ? 0.50 : 41) * qty,
+                            billingCycle: 'One-time',
+                            features: [`${qty} Extra App${qty > 1 ? 's' : ''}`, 'Immediate Activation', 'Never Expires'],
+                            isAddon: true,
+                            addonType: 'app',
+                            currency: isUsd ? 'USD' : 'INR',
+                            quantity: qty
+                        });
+                    } else {
+                        router.push('/dashboard/settings/platform-billing');
+                    }
+                    setLoading(false);
+                    return;
+                }
+
+                const { data } = await api.get('/api/v1/platform-billing/plans');
                 const selected = data.plans.find((p: any) => p.id === planId);
                 if (!selected) {
                     toast.error('Invalid plan selected');
-                    router.push('/dashboard/billing');
+                    router.push('/dashboard/settings/platform-billing');
                 } else {
                     setPlan(selected);
                 }
@@ -55,9 +101,7 @@ function CheckoutContent() {
         };
 
         fetchPlan();
-
-        fetchPlan();
-    }, [planId, router]);
+    }, [planId, addonType, router, currency]);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && !window.Razorpay) {
@@ -71,7 +115,7 @@ function CheckoutContent() {
         if (!coupon || !plan) return;
         setCouponLoading(true);
         try {
-            const { data } = await api.post('/api/billing/coupon', {
+            const { data } = await api.post('/api/v1/platform-billing/coupon', {
                 couponCode: coupon,
                 planId: plan.id
             });
@@ -94,19 +138,63 @@ function CheckoutContent() {
 
         setPaymentLoading(true);
         try {
-            // Logic for Free Plans or Trial Plan (Price = 0)
-            if (plan.price === 0) {
-                await api.post('/api/billing/activate', {
-                    planId: plan.id,
+
+            if (plan.isAddon) {
+                const { data: order } = await api.post(`/api/v1/platform-billing/${plan.addonType}/checkout`, {
+                    gigabytes: plan.addonType === 'storage' ? 5 * (plan.quantity || 1) : undefined,
+                    users: plan.addonType === 'team' ? plan.quantity || 1 : undefined,
+                    apps: plan.addonType === 'app' ? plan.quantity || 1 : undefined
                 });
-                toast.success(`${plan.planName} activated successfully!`);
-                refresh();
-                router.push('/dashboard/billing/success');
-                return;
+
+                if (order.providerName === 'razorpay') {
+                    if (typeof window !== 'undefined' && !window.Razorpay) {
+                        toast.error('Payment gateway SDK not loaded');
+                        setPaymentLoading(false);
+                        return;
+                    }
+
+                    const options = {
+                        key: order.keyId,
+                        amount: order.amount,
+                        currency: order.currency || platform?.currency || 'INR',
+                        name: settings?.companyName || effectivePlatformName,
+                        description: `Purchase ${plan.planName}`,
+                        order_id: order.orderId,
+                        handler: async (response: any) => {
+                            try {
+                                await api.post(`/api/v1/platform-billing/${plan.addonType}/verify`, {
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_signature: response.razorpay_signature,
+                                    ...(plan.addonType === 'team' ? { users: plan.quantity || 1 } : {}),
+                                    ...(plan.addonType === 'storage' ? { gigabytes: 5 * (plan.quantity || 1) } : {}),
+                                    ...(plan.addonType === 'app' ? { apps: plan.quantity || 1 } : {}),
+                                });
+                                refresh();
+                                router.push('/dashboard/settings/platform-billing/success');
+                            } catch (err) {
+                                router.push('/dashboard/settings/platform-billing/failed');
+                            }
+                        },
+                        prefill: {
+                            name: user?.name,
+                            email: user?.email,
+                        },
+                        theme: { color: '#4f46e5' },
+                        modal: {
+                            ondismiss: () => setPaymentLoading(false)
+                        },
+                    };
+                    const rz = new window.Razorpay(options);
+                    rz.open();
+                    return;
+                }
+                throw new Error(`Unsupported payment provider for addons: ${order.providerName}`);
             }
 
-            const { data: order } = await api.post('/api/billing/mandate/initiate', {
+            const { data: order } = await api.post('/api/v1/platform-billing/plan/checkout', {
                 planId: plan.id,
+                ...(couponResult && { couponCode: couponResult.code || coupon })
             });
             // ... (rest of the Razorypay/Stripe logic stays same)
 
@@ -136,16 +224,17 @@ function CheckoutContent() {
                     recurring: 1, // Indicate this is a recurring mandate natively for RAZORPAY
                     handler: async (response: any) => {
                         try {
-                            await api.post('/api/billing/mandate/verify', {
-                                providerOrderId: response.razorpay_order_id,
-                                providerPaymentId: response.razorpay_payment_id,
-                                signature: response.razorpay_signature,
+                            await api.post('/api/v1/platform-billing/plan/verify', {
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id, // e-mandates sometimes have order id sometimes they don't based on implementation, added this just in case
+                                razorpay_signature: response.razorpay_signature,
                                 planId: plan.id,
+                                ...(couponResult && { couponCode: couponResult.code || coupon })
                             });
                             refresh();
-                            router.push('/dashboard/billing/success');
+                            router.push('/dashboard/settings/platform-billing/success');
                         } catch (err) {
-                            router.push('/dashboard/billing/failed');
+                            router.push('/dashboard/settings/platform-billing/failed');
                         }
                     },
                     prefill: {
@@ -179,33 +268,54 @@ function CheckoutContent() {
 
     if (!plan) return null;
 
-    const finalPrice = couponResult ? couponResult.finalAmount : plan.price;
-    const discountAmount = couponResult ? couponResult.discountAmount : 0;
+    const subTotal = plan?.price || 0;
+    let discountAmount = 0;
+    if (couponResult) {
+        if (couponResult.discountType === 'percentage') {
+            discountAmount = subTotal * (couponResult.discountValue / 100);
+        } else {
+            discountAmount = couponResult.discountValue;
+        }
+    }
+    const discountedTotal = Math.max(0, subTotal - discountAmount);
+    const taxAmount = discountedTotal * 0.18; // 18% GST on the discounted total
+    let finalPrice = discountedTotal + taxAmount;
+    
+    // Enforce 1 unit minimum (e.g., ₹1 or $1) if they applied a 100% discount or for natively free plans for Razorpay validation
+    if (finalPrice <= 0) {
+        finalPrice = 1;
+    }
 
     return (
-        <div className="max-w-5xl mx-auto py-8 px-4">
-            <Toaster position="top-center" />
+        <div className="min-h-[80vh] relative overflow-hidden bg-slate-50/50 rounded-3xl">
+            {/* Background elements */}
+            <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-br from-indigo-600/10 via-purple-600/5 to-transparent -z-10" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-400/20 blur-[100px] rounded-full -z-10" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-400/20 blur-[100px] rounded-full -z-10" />
+            
+            <div className="max-w-5xl mx-auto py-12 px-6 relative z-10">
+                <Toaster position="top-center" />
 
-            <button
-                onClick={() => router.back()}
-                className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors mb-8 font-medium group"
-            >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                Back to Plans
-            </button>
+                <button
+                    onClick={() => router.back()}
+                    className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors mb-8 font-medium group bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm w-fit"
+                >
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                    Back to Plans
+                </button>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-                {/* Plan Details - Left Column */}
-                <div className="lg:col-span-7 space-y-8">
-                    <div className="space-y-2">
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Checkout</h1>
-                        <p className="text-slate-500">Review your plan details and complete the secure payment.</p>
-                    </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                    {/* Plan Details - Left Column */}
+                    <div className="lg:col-span-7 space-y-8">
+                        <div className="space-y-2">
+                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Checkout</h1>
+                            <p className="text-slate-500 text-lg">Review your plan details and complete the secure payment.</p>
+                        </div>
 
-                    <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
+                        <div className="bg-white/70 backdrop-blur-md border border-white rounded-3xl p-8 shadow-xl shadow-slate-200/50">
                         <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-50">
-                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                <Zap className="w-8 h-8" />
+                            <div className="w-16 h-16 flex items-center justify-center">
+                                <LogoLoader className="w-12 h-12 text-indigo-600" />
                             </div>
                             <div>
                                 <h1 className="text-3xl font-black text-slate-900 tracking-tight">
@@ -258,62 +368,62 @@ function CheckoutContent() {
 
                 {/* Pricing Summary - Right Column */}
                 <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
-                    <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl shadow-indigo-100">
+                    <div className="bg-white rounded-3xl p-8 text-slate-900 shadow-2xl shadow-indigo-100/50 border border-slate-100">
                         <h3 className="text-lg font-bold mb-6">Order Summary</h3>
 
-                        <div className="space-y-4 pb-6 border-b border-white/10 text-sm">
-                            <div className="flex justify-between items-center opacity-70">
+                        <div className="space-y-4 pb-6 border-b border-slate-100 text-sm">
+                            <div className="flex justify-between items-center text-slate-500">
                                 <span>Subtotal</span>
-                                <span>{currencySym}{plan.price.toLocaleString('en-IN')}</span>
+                                <span>{currencySym}{subTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                             </div>
                             {discountAmount > 0 && (
-                                <div className="flex justify-between items-center text-emerald-400">
+                                <div className="flex justify-between items-center text-emerald-500">
                                     <span>Discount</span>
-                                    <span>-{currencySym}{discountAmount.toLocaleString('en-IN')}</span>
+                                    <span>-{currencySym}{discountAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                                 </div>
                             )}
-                            <div className="flex justify-between items-center opacity-70">
-                                <span>Tax (GST 0%)</span>
-                                <span>₹0</span>
+                            <div className="flex justify-between items-center text-slate-500">
+                                <span>GST (18%)</span>
+                                <span>{currencySym}{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                             </div>
                         </div>
 
                         <div className="py-6 flex justify-between items-end">
                             <div>
-                                <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-1">Total Amount</p>
-                                <p className="text-4xl font-black italic tracking-tighter">{currencySym}{finalPrice.toLocaleString('en-IN')}</p>
+                                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Amount</p>
+                                <p className="text-4xl font-black italic tracking-tighter text-slate-900">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-white/40 text-[10px] font-bold uppercase">Due Today</p>
-                                <p className="text-indigo-400 font-bold">{currencySym}{plan.price === 0 ? '0' : '1'}</p>
+                                <p className="text-slate-400 text-[10px] font-bold uppercase">Due Today</p>
+                                <p className="text-indigo-600 font-bold text-xl">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                             </div>
                         </div>
 
-                        {plan.price > 0 ? (
-                            <div className="bg-indigo-900/40 border border-indigo-500/30 rounded-xl p-4 mb-6 text-sm text-indigo-200">
-                                <strong>Note:</strong> You will only be charged {currencySym}1 today to verify your payment method. The full plan amount will be automatically charged after your trial ends.
+                        {discountedTotal <= 0 ? (
+                            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-6 text-sm text-emerald-700">
+                                <strong>Free Plan / 100% Discount:</strong> To activate your plan and set up auto-renewal, a minimal validation transaction of {currencySym}1 is required today.
                             </div>
                         ) : (
-                            <div className="bg-emerald-900/40 border border-emerald-500/30 rounded-xl p-4 mb-6 text-sm text-emerald-200">
-                                <strong>Free Activation:</strong> You are activating a free or trial plan. No payment method is required to get started today.
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6 text-sm text-indigo-700">
+                                <strong>Note:</strong> You will be charged {currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })} today.
                             </div>
                         )}
 
                         <div className="space-y-4">
-                            {plan.price > 0 && (
+                            {plan.price > 0 && !plan.isAddon && (
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-white/40 uppercase tracking-widest ml-1">Have a coupon?</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Have a coupon?</label>
                                     <div className="flex gap-2">
                                         <input
                                             value={coupon}
                                             onChange={e => { setCoupon(e.target.value.toUpperCase()); setCouponResult(null); }}
                                             placeholder="SALE10"
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono"
+                                            className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono text-slate-900"
                                         />
                                         <button
                                             onClick={validateCoupon}
                                             disabled={!coupon || couponLoading || paymentLoading}
-                                            className="px-6 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-xl text-sm font-bold transition-all"
+                                            className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-50 rounded-xl text-sm font-bold transition-all border border-slate-200"
                                         >
                                             {couponLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Apply'}
                                         </button>
@@ -324,7 +434,7 @@ function CheckoutContent() {
                             <button
                                 onClick={handlePayment}
                                 disabled={paymentLoading}
-                                className={`w-full py-5 ${plan.price === 0 ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500'} disabled:bg-slate-700 text-white font-black rounded-2xl transition-all shadow-xl ${plan.price === 0 ? 'shadow-emerald-600/20' : 'shadow-indigo-600/20'} flex items-center justify-center gap-3 text-lg group`}
+                                className={`w-full py-5 ${plan.price === 0 ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500'} disabled:bg-slate-300 disabled:text-slate-500 text-white font-black rounded-2xl transition-all shadow-xl ${plan.price === 0 ? 'shadow-emerald-600/20' : 'shadow-indigo-600/20'} flex items-center justify-center gap-3 text-lg group`}
                             >
                                 {paymentLoading ? (
                                     <>
@@ -339,7 +449,7 @@ function CheckoutContent() {
                                 )}
                             </button>
 
-                            <p className="text-center text-[10px] text-white/30 font-medium">
+                            <p className="text-center text-[10px] text-slate-400 font-medium">
                                 By clicking &quot;Complete Purchase&quot;, you agree to our Terms of Service and Refund Policy.
                             </p>
                         </div>
@@ -356,6 +466,7 @@ function CheckoutContent() {
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     );
 }

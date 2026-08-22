@@ -622,14 +622,43 @@ export class AuthService {
             }
         });
 
-        // Trigger trial if a plan was selected
         if (planId) {
             try {
-                const subscriptionService = new SubscriptionService();
-                await subscriptionService.startFrictionlessTrial(planId, companyId, couponCode || '');
+                const plan = await globalPrisma.plan.findUnique({ where: { id: planId } });
+                
+                if (plan && plan.price > 0) {
+                    // Paid plan, start a frictionless trial
+                    const { SubscriptionService } = require('@workspace/platform-billing');
+                    const subscriptionService = new SubscriptionService();
+                    await subscriptionService.startFrictionlessTrial(planId, companyId, couponCode || 'FREETRIAL14');
+                }
             } catch (err) {
-                console.error('Failed to start trial:', err);
+                console.error('Failed to start subscription:', err);
                 // Non-blocking for setup
+            }
+        } else {
+            // Assign default free Kickstart plan
+            try {
+                const freePlan = await globalPrisma.plan.findFirst({
+                    where: { price: 0, isActive: true },
+                    orderBy: { price: 'asc' }
+                });
+                
+                if (freePlan) {
+                    await globalPrisma.subscription.create({
+                        data: {
+                            companyId: companyId,
+                            planId: freePlan.id,
+                            status: 'ACTIVE',
+                            provider: 'system',
+                            currency: 'USD',
+                            mandateStatus: 'COMPLETED',
+                            mandateAmount: 0
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to assign default Kickstart plan:', err);
             }
         }
 

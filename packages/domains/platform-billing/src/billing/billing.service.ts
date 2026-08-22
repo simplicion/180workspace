@@ -576,8 +576,9 @@ export class BillingService {
         const sub = await this.getActiveSubscription(companyId);
         if (!sub || !sub.plan) return { allowed: true, current: 0, max: Infinity };
 
-        const maxUsers = sub.plan.maxUsers;
+        let maxUsers = sub.plan.maxUsers;
         if (!maxUsers || maxUsers <= 0) return { allowed: true, current: 0, max: Infinity };
+
 
         const current = await prisma.user.count({
             where: { companyId, isActive: true, deletedAt: null }

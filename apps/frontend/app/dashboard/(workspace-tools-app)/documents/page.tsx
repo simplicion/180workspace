@@ -211,8 +211,7 @@ export default function DocumentsPage() {
                 const plan = res.data.plan;
                 if (config && plan) {
                     const maxStorage = plan.maxStorageBytes || 0;
-                    const extraStorage = config.extraStoragePurchasedBytes || 0;
-                    const totalStorage = maxStorage + extraStorage;
+                    const totalStorage = maxStorage;
                     const storageUsed = config.storageUsedBytes || 0;
                     
                     setStorageStats({

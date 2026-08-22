@@ -28,11 +28,11 @@ async function main() {
             billingCycle: 'monthly',
             maxUsers: 5,
             maxApps: 7,
-            maxStorageBytes: 5 * 1024 * 1024 * 1024, // 5GB
+            maxStorageBytes: 10 * 1024 * 1024 * 1024, // 10GB
             features: [
                 'Access to 7 Apps',
                 'Up to 5 Team Members',
-                '5GB Cloud Storage',
+                '10GB Cloud Storage',
                 'Priority Support',
                 'AI Assistant Access',
                 'Custom Email SMTP'
@@ -47,11 +47,11 @@ async function main() {
             billingCycle: 'monthly',
             maxUsers: 20,
             maxApps: 999, // practically unlimited
-            maxStorageBytes: 10 * 1024 * 1024 * 1024, // 10GB
+            maxStorageBytes: 20 * 1024 * 1024 * 1024, // 20GB
             features: [
                 'Unlimited Access to All Apps',
                 'Up to 20 Team Members',
-                '10GB Cloud Storage',
+                '20GB Cloud Storage',
                 'Dedicated Team Support',
                 'AI Assistant Access',
                 'Custom Email SMTP'
@@ -62,10 +62,22 @@ async function main() {
     ];
 
     for (const plan of plans) {
-        await prisma.plan.create({
-            data: plan
+        const existing = await prisma.plan.findFirst({
+            where: { planName: plan.planName }
         });
-        console.log(`Created plan: ${plan.planName}`);
+        
+        if (existing) {
+            await prisma.plan.update({
+                where: { id: existing.id },
+                data: plan
+            });
+            console.log(`Updated plan: ${plan.planName}`);
+        } else {
+            await prisma.plan.create({
+                data: plan
+            });
+            console.log(`Created plan: ${plan.planName}`);
+        }
     }
 
     console.log('Finished seeding plans.');

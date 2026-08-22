@@ -177,14 +177,17 @@ model CompanyFollower {
 }
 
 model CompanyConfig {
-  id                         String    @id @default(uuid())
-  companyId                  String    @unique
-  company                    Company   @relation(fields: [companyId], references: [id])
-  invoices                   Invoice[]
-  companyPaymentConfig       Json?     @default("{}")
-  storageUsedBytes           Float     @default(0)
-  extraStoragePurchasedBytes Float     @default(0)
-  extraTeamMembersPurchased  Int       @default(0)
+  id                   String    @id @default(uuid())
+  companyId            String    @unique
+  company              Company   @relation(fields: [companyId], references: [id])
+  invoices             Invoice[]
+  companyPaymentConfig Json?     @default("{}")
+  storageUsedBytes     Float     @default(0)
+  onboardingCompleted  Boolean   @default(false)
+  timezone             String    @default("Asia/Kolkata")
+  dateFormat           String    @default("DD/MM/YYYY")
+  timeFormat           String    @default("12h")
+  createdAt            DateTime  @default(now())
 
   @@index([companyId])
   @@index([companyId, id])

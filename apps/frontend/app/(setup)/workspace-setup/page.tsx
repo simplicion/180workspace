@@ -174,23 +174,8 @@ function WorkspaceSetup() {
     const [saving, setSaving] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
 
-    // Step 4: Plan
-    const [plans, setPlans] = useState<any[]>([]);
-    const [selectedPlanId, setSelectedPlanId] = useState<string>('');
-    const [loadingPlans, setLoadingPlans] = useState(false);
-
     // Initial load recommendations
     const recommendedApps = getRecommendedApps(industry);
-
-    useEffect(() => {
-        if (step === 3 && plans.length === 0) {
-            setLoadingPlans(true);
-            api.get('/api/v1/platform-billing/plans')
-                .then(({ data }) => setPlans(data.plans || []))
-                .catch(console.error)
-                .finally(() => setLoadingPlans(false));
-        }
-    }, [step, plans.length]);
 
     const handleNext = () => {
         if (step === 1) {
@@ -203,26 +188,12 @@ function WorkspaceSetup() {
                 return;
             }
         }
-        
         if (step === 2) {
-            // Advancing to plan selection
-        }
-        if (step === 3) {
-            if (!selectedPlanId) {
-                toast.error("Please select a plan to continue.");
-                return;
-            }
             // Advancing to app selection, preset core apps and recommended apps if they fit
             const coreApps = ['projects', 'workspace-tools', 'communications'];
             const allRecommended = [...new Set([...coreApps, ...getRecommendedApps(industry)])];
             
-            // Determine limit based on selected plan
-            const plan = plans.find(p => p.id === selectedPlanId);
-            let limit = 999;
-            if (plan) {
-                if (plan.planName.toLowerCase().includes('kickstart')) limit = 5;
-                if (plan.planName.toLowerCase().includes('momentum')) limit = 7;
-            }
+            let limit = 5; // Kickstart default limit
             
             // Apply limit
             const appsToEnable = allRecommended.slice(0, limit);
@@ -241,17 +212,12 @@ function WorkspaceSetup() {
             return;
         }
 
-        const plan = plans.find(p => p.id === selectedPlanId);
-        let limit = 999;
-        if (plan) {
-            if (plan.planName.toLowerCase().includes('kickstart')) limit = 5;
-            if (plan.planName.toLowerCase().includes('momentum')) limit = 7;
-        }
+        let limit = 5; // Default Kickstart limit
 
         setEnabledApps(prev => {
             const isNowEnabled = !prev.includes(appId);
             if (isNowEnabled && prev.length >= limit) {
-                toast.error(`Your current plan limits you to ${limit} apps.`);
+                toast.error(`Kickstart Plan allows up to ${limit} apps. Upgrade your plan to add more!`);
                 return prev;
             }
             const newApps = isNowEnabled ? [...prev, appId] : prev.filter(id => id !== appId);
@@ -303,9 +269,7 @@ function WorkspaceSetup() {
                 currency,
                 currencySymbol,
                 country,
-                logoUrl: uploadedLogoUrl || undefined,
-                planId: selectedPlanId,
-                couponCode: 'FREETRIAL14' // Automatically apply free trial coupon
+                logoUrl: uploadedLogoUrl
             });
 
             const data = res.data;
@@ -349,10 +313,10 @@ function WorkspaceSetup() {
     }
 
     return (
-        <div className="h-screen bg-gray-50/50 flex flex-col justify-center py-6 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        <div className="min-h-screen bg-gray-50/50 flex flex-col py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
             <div className="absolute inset-0 z-[-1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/40 via-gray-50/50 to-white pointer-events-none" />
 
-            <div className="max-w-3xl w-full mx-auto relative">
+            <div className="max-w-4xl w-full mx-auto my-auto relative">
                 <div className="text-center mb-6">
                     <div className="w-12 h-12 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/20 mb-4 p-2 border border-gray-100">
                         <img src="/black icon.svg" alt="Icon" className="w-8 h-8" />
@@ -365,7 +329,7 @@ function WorkspaceSetup() {
                     </p>
                 </div>
 
-                <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden relative h-[540px] flex flex-col">
+                <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden relative min-h-[600px] flex flex-col">
                     <AnimatePresence mode="wait">
                         {saving && (
                             <motion.div
@@ -417,7 +381,7 @@ function WorkspaceSetup() {
                             >
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">Basic Information</h3>
                                 
-                                <div className="space-y-4 mb-6 pr-2 flex-1">
+                                <div className="space-y-4 mb-6 pr-2 flex-1 overflow-y-auto custom-scrollbar min-h-0">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">Startup Name *</label>
@@ -500,7 +464,7 @@ function WorkspaceSetup() {
                                     </div>
                                 </div>
 
-                                <div className="mt-auto flex justify-end">
+                                <div className="mt-auto pt-6 flex justify-end border-t border-gray-100 bg-white relative z-10 shrink-0">
                                     <button onClick={handleNext} className="btn-primary space-x-2">
                                         <span>Next Step</span>
                                         <ArrowRight className="w-4 h-4" />
@@ -608,7 +572,7 @@ function WorkspaceSetup() {
                                     </div>
                                 </div>
 
-                                <div className="mt-6 flex justify-end">
+                                <div className="mt-auto pt-6 flex justify-end border-t border-gray-100 bg-white relative z-10 shrink-0">
                                     <button onClick={handleNext} className="btn-primary px-8 py-3 rounded-xl shadow-lg shadow-indigo-500/25 space-x-2 text-base font-semibold flex items-center justify-center hover:-translate-y-0.5 transition-all w-full sm:w-auto">
                                         <span>Next Step</span>
                                         <ArrowRight className="w-5 h-5" />
@@ -617,9 +581,9 @@ function WorkspaceSetup() {
                             </motion.div>
                         )}
 
-                        {step === 4 && !saving && (
+                        {step === 3 && !saving && (
                             <motion.div
-                                key="step4"
+                                key="step3"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
@@ -632,7 +596,7 @@ function WorkspaceSetup() {
                                     <p className="text-sm text-gray-500">Pick the modules you need. You can always add more later.</p>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto -mx-2 px-2 pb-2 custom-scrollbar mb-4">
+                                <div className="flex-1 overflow-y-auto -mx-2 px-2 pb-2 custom-scrollbar mb-4 min-h-0">
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-2">
                                     {/* Static Core System Card */}
                                     <div className="relative overflow-hidden border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50/30 rounded-2xl p-4 flex flex-col cursor-default shadow-sm group">
@@ -717,70 +681,12 @@ function WorkspaceSetup() {
                             </motion.div>
                         )}
 
-                        {step === 3 && !saving && (
+
+
+
+                        {step === 4 && !saving && (
                             <motion.div
-                                key="step3"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="p-6 sm:p-8 h-full flex flex-col relative"
-                            >
-                                <button onClick={handleBack} disabled={saving} className="text-sm font-medium text-gray-400 hover:text-gray-600 mb-2 w-max">&larr; Back</button>
-                                
-                                <div className="mb-6 text-center">
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-1">Choose Your Plan</h3>
-                                    <p className="text-sm text-gray-500">Start your 14-day free trial. No credit card required.</p>
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 pb-2">
-                                    {loadingPlans ? (
-                                        <div className="flex justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {plans.map(plan => (
-                                                <SubscriptionPlan
-                                                    key={plan.id}
-                                                    id={plan.id}
-                                                    name={plan.planName}
-                                                    description={`Best for ${plan.planName.toLowerCase()} teams`}
-                                                    price={plan.price}
-                                                    currencySymbol={currencySymbol || '$'}
-                                                    features={plan.features || []}
-                                                    isPopular={plan.planName.toLowerCase().includes('pro')}
-                                                    isSelected={selectedPlanId === plan.id}
-                                                    onSelect={() => setSelectedPlanId(plan.id)}
-                                                    buttonText={selectedPlanId === plan.id ? 'Selected' : 'Select'}
-                                                />
-                                            ))}
-                                            {plans.length === 0 && (
-                                                <div className="col-span-full text-center text-gray-500 py-10">
-                                                    No plans available at the moment.
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="mt-auto pt-6 flex justify-end border-t border-gray-100">
-                                    <button 
-                                        onClick={handleNext} 
-                                        disabled={!selectedPlanId} 
-                                        className={clsx(
-                                            "btn-primary shadow-lg shadow-indigo-500/25 px-8 py-3 h-auto text-base font-semibold w-full sm:w-auto flex justify-center items-center hover:-translate-y-0.5 transition-all rounded-xl",
-                                            !selectedPlanId && "opacity-50 cursor-not-allowed hover:-translate-y-0"
-                                        )}
-                                    >
-                                        <span>Next Step</span>
-                                        <ArrowRight className="w-5 h-5 ml-2" />
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
-
-
-                        {step === 5 && !saving && (
-                            <motion.div
-                                key="step5"
+                                key="step4"
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="p-6 sm:p-8 h-full flex flex-col items-center justify-center text-center"

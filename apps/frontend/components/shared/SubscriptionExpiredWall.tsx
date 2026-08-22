@@ -43,7 +43,7 @@ export default function SubscriptionExpiredWall() {
                     </h1>
                     <p className="text-slate-400 leading-relaxed px-4">
                         {isAdmin
-                            ? "Your company's subscription has ended. Please upgrade your plan to restore full access to your data and team tools."
+                            ? "Your company's subscription has ended. Please upgrade to the Professional or Enterprise plan to access full features of the platform."
                             : "Your company's subscription has expired. Please contact your administrator to reactivate the account and regain access."
                         }
                     </p>

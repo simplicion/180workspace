@@ -9,12 +9,12 @@ async function cleanupPlans() {
     console.log("Total plans found:", plans.length);
 
     // Identify the valid plans we want to keep
-    const validKickstart = plans.find(p => p.planName === '180 Kickstart' && p.price === 10);
+    const validKickstart = plans.find(p => p.planName === '180 Kickstart' && p.price === 0);
     const validMomentum = plans.find(p => p.planName === '180 Momentum' && p.price === 12);
     const validLimitless = plans.find(p => p.planName === '180 Limitless' && p.price === 15);
 
     if (!validKickstart || !validMomentum || !validLimitless) {
-        console.error("Missing one of the target valid plans ($10/$12/$15). Cannot proceed safely.");
+        console.error("Missing one of the target valid plans ($0/$12/$15). Cannot proceed safely.");
         console.log("Found plans:");
         plans.forEach(p => console.log(`${p.planName} - $${p.price} (${p.id})`));
         return;

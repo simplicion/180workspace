@@ -42,28 +42,6 @@ export class SubscriptionService {
     return subscription;
   }
 
-  /**
-   * Generates a checkout session or mandate link to purchase additional storage via Razorpay.
-   */
-  async purchaseStorageAddon(gbAmount: number, companyId: string) {
-    // Note: Integration with Razorpay will be built here when actual payment is made.
-    // For now, it updates the DB if they have somehow processed the payment.
-    
-    // Convert GB to Bytes
-    const bytesToAdd = gbAmount * 1073741824;
-
-    const companyConfig = await prisma.companyConfig.update({
-      where: { companyId },
-      data: {
-        extraStoragePurchasedBytes: {
-          increment: bytesToAdd
-        }
-      }
-    });
-
-    console.log(`Added ${gbAmount}GB extra storage for company ${companyId}`);
-    return companyConfig;
-  }
 
   /**
    * Checks if the company's subscription is active or in trial.
@@ -76,7 +54,7 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      return false; // No subscription found
+      return true; // Graceful fallback to free starter plan
     }
 
     if (subscription.status === 'active') {
@@ -111,16 +89,30 @@ export class SubscriptionService {
     });
 
     if (!subscription || !subscription.plan || !companyConfig) {
+      // Dynamic fallback to the starter/free plan
+      const freePlan = await prisma.plan.findFirst({ where: { price: 0 }});
+      if (freePlan && companyConfig) {
+        return {
+          planName: freePlan.planName,
+          maxUsers: freePlan.maxUsers,
+          maxApps: freePlan.maxApps,
+          maxStorageBytes: freePlan.maxStorageBytes,
+          storageUsedBytes: companyConfig.storageUsedBytes || 0,
+          status: 'active',
+          trialEndDate: null
+        };
+      }
       return null;
     }
 
     const plan = subscription.plan;
-    const maxStorageBytes = plan.maxStorageBytes + (companyConfig.extraStoragePurchasedBytes || 0);
+    const maxStorageBytes = plan.maxStorageBytes;
+    const maxApps = plan.maxApps;
 
     return {
       planName: plan.planName,
       maxUsers: plan.maxUsers,
-      maxApps: plan.maxApps,
+      maxApps,
       maxStorageBytes,
       storageUsedBytes: companyConfig.storageUsedBytes || 0,
       status: subscription.status,

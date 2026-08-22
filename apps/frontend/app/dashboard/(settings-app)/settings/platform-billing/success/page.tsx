@@ -83,7 +83,7 @@ export default function PaymentSuccessPage() {
                     Go to Dashboard
                 </Link>
                 <Link
-                    href="/dashboard/billing"
+                    href="/dashboard/settings/platform-billing"
                     className="w-full sm:w-auto px-8 py-4 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-slate-50 text-slate-600 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 group"
                 >
                     View Billing History

@@ -22,7 +22,7 @@ export default function TrialBanner() {
             <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 {isExpired ? (
-                    <span>Your {isTrialing ? 'trial' : 'subscription'} has <strong>expired</strong>. Upgrade to restore access.</span>
+                    <span>To access full features of the platform, upgrade to the <strong>Momentum</strong> or <strong>Limitless</strong> plan.</span>
                 ) : (
                     <span>
                         {isTrialing ? 'Trial' : 'Subscription'} expires in{' '}
@@ -32,17 +32,15 @@ export default function TrialBanner() {
                 )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-                <Link href="/dashboard/billing"
+                <Link href="/dashboard/settings/platform-billing"
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors
                         ${isCritical ? 'bg-white text-red-600 hover:bg-red-50' : 'bg-amber-900/20 text-amber-900 hover:bg-amber-900/30'}`}>
                     <Zap className="w-3.5 h-3.5" />
                     Upgrade Plan
                 </Link>
-                {!isExpired && (
-                    <button onClick={() => setDismissed(true)} className="opacity-70 hover:opacity-100 transition-opacity">
-                        <X className="w-4 h-4" />
-                    </button>
-                )}
+                <button onClick={() => setDismissed(true)} className="opacity-70 hover:opacity-100 transition-opacity ml-2">
+                    <X className="w-4 h-4" />
+                </button>
             </div>
         </div>
     );
