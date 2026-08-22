@@ -653,7 +653,8 @@ export class AuthService {
                             provider: 'system',
                             currency: 'USD',
                             mandateStatus: 'COMPLETED',
-                            mandateAmount: 0
+                            mandateAmount: 0,
+                            amount: 0
                         }
                     });
                 }
