@@ -206,13 +206,21 @@ export default function DocumentsPage() {
         
         // Fetch storage stats from platform-billing
         api.get('/api/v1/platform-billing').then(res => {
-            if (res.data?.usageStats) {
-                const { storageUsedBytes, maxStorageBytes } = res.data.usageStats;
-                setStorageStats({
-                    used: storageUsedBytes || 0,
-                    total: maxStorageBytes || 0,
-                    usagePercent: maxStorageBytes ? Math.min((storageUsedBytes / maxStorageBytes) * 100, 100) : 0
-                });
+            if (res.data) {
+                const config = res.data.companyConfig;
+                const plan = res.data.plan;
+                if (config && plan) {
+                    const maxStorage = plan.maxStorageBytes || 0;
+                    const extraStorage = config.extraStoragePurchasedBytes || 0;
+                    const totalStorage = maxStorage + extraStorage;
+                    const storageUsed = config.storageUsedBytes || 0;
+                    
+                    setStorageStats({
+                        used: storageUsed,
+                        total: totalStorage,
+                        usagePercent: totalStorage > 0 ? Math.min((storageUsed / totalStorage) * 100, 100) : 0
+                    });
+                }
             }
         }).catch(() => {});
         
@@ -381,7 +389,7 @@ export default function DocumentsPage() {
                                     </p>
                                 </div>
                             </div>
-                            <Link href="/dashboard/billing/add-storage" className="btn-secondary text-xs px-3 py-1.5 shadow-sm">
+                            <Link href="/dashboard/settings/platform-billing" className="btn-secondary text-xs px-3 py-1.5 shadow-sm">
                                 Add Storage
                             </Link>
                         </div>

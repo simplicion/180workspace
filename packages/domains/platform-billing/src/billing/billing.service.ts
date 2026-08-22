@@ -573,7 +573,7 @@ export class BillingService {
 
     // â”€â”€â”€ Enforce User Limit
     static async enforceUserLimit(companyId: string) {
-        const sub = await this.getActiveSubscription(prisma, companyId);
+        const sub = await this.getActiveSubscription(companyId);
         if (!sub || !sub.plan) return { allowed: true, current: 0, max: Infinity };
 
         const maxUsers = sub.plan.maxUsers;
@@ -611,7 +611,7 @@ export class BillingService {
 
     // â”€â”€â”€ Legacy Mapping
     static async processPayment({ planId, razorpayOrderId, razorpayPaymentId, razorpaySignature, couponCode, companyId }: any) {
-        return this.activateManualPlan(prisma, {
+        return this.activateManualPlan({
             planId,
             orderId: razorpayOrderId,
             paymentId: razorpayPaymentId,

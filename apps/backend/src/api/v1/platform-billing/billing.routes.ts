@@ -9,6 +9,9 @@ router.get('/history', BillingController.getHistory);
 router.post('/storage/checkout', BillingController.checkoutStorage);
 router.post('/storage/verify', BillingController.verifyStorage);
 
+router.post('/team/checkout', BillingController.checkoutTeamMembers);
+router.post('/team/verify', BillingController.verifyTeamMembers);
+
 router.post('/plan/checkout', BillingController.checkoutPlan);
 router.post('/plan/verify', BillingController.verifyPlan);
 

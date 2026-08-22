@@ -184,6 +184,7 @@ model CompanyConfig {
   companyPaymentConfig       Json?     @default("{}")
   storageUsedBytes           Float     @default(0)
   extraStoragePurchasedBytes Float     @default(0)
+  extraTeamMembersPurchased  Int       @default(0)
 
   @@index([companyId])
   @@index([companyId, id])

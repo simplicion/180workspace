@@ -341,7 +341,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
     }
     const { user, logout } = useAuth();
     const { company, settings, platform, refreshSettings } = useSettings();
-    const { isExpired, isTrialing, daysLeft } = useSubscription();
+    const { isExpired, isTrialing, daysLeft, plan, status } = useSubscription();
 
     const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
     const [favorites, setFavorites] = useState<any[]>([]);
@@ -428,8 +428,34 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
     const filteredNav = useMemo(() => {
         return navigation.map(item => {
             if ('group' in item) {
-                // 1. App Level Toggling
-                const isAppEnabled = item.appId ? (company?.enabledApps || []).includes(item.appId) : true;
+                // 1. App Level Toggling with Subscription Limits
+                const defaultApps = ['projects', 'communications', 'workspace-tools'];
+                const isDefaultApp = item.appId ? defaultApps.includes(item.appId) : false;
+                const hasActivePlan = !isExpired && status !== 'expired' && status !== 'cancelled' && status !== 'No Active Plan';
+                
+                let isAppEnabled = false;
+                if (!item.appId) {
+                    isAppEnabled = true; // Settings, Dashboard, etc.
+                } else if (hasActivePlan) {
+                    // Check against the plan's max apps
+                    const maxApps = plan?.maxApps || 3;
+                    const companyEnabledApps = company?.enabledApps || [];
+                    // We only allow up to maxApps from their enabled list.
+                    // Assuming the array is ordered, the first `maxApps` are allowed.
+                    // If the app is in this allowed subset, it's enabled.
+                    const allowedSubset = companyEnabledApps.slice(0, maxApps);
+                    
+                    // Default apps are always available and don't count towards the limit, 
+                    // OR they do count? Usually defaults are always allowed.
+                    if (isDefaultApp) {
+                        isAppEnabled = companyEnabledApps.includes(item.appId);
+                    } else {
+                        isAppEnabled = allowedSubset.includes(item.appId);
+                    }
+                } else {
+                    // No active plan: only allow default apps if they are in enabledApps
+                    isAppEnabled = isDefaultApp && (company?.enabledApps || []).includes(item.appId);
+                }
 
                 // 2. Filter individual modules within the group
                 const filteredItems = (item.items || []).filter((subItem: any) => {
@@ -444,14 +470,6 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     return isAppEnabled;
                 });
 
-                if (item.group === 'Company Hub') {
-                    console.log('Company Hub subItems:', item.items);
-                    console.log('Company Hub filteredItems:', filteredItems);
-                    console.log('User roles:', userRoles);
-                    console.log('Company enabledApps:', company?.enabledApps);
-                    console.log('Company enabledModules:', company?.enabledModules);
-                }
-
                 if (filteredItems.length === 0) return null;
                 return { ...item, items: filteredItems };
             } else {
@@ -462,7 +480,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 return null;
             }
         }).filter(Boolean) as any[];
-    }, [userRoles, company?.enabledApps, company?.enabledModules]);
+    }, [userRoles, company?.enabledApps, company?.enabledModules, isExpired, status, plan]);
 
     useEffect(() => {
         const activeGroup = filteredNav.find(n =>
@@ -709,8 +727,46 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     const isAdmin = ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder', 'accounting', 'finance_admin', 'hr_admin', 'manager'].includes(normalizedRole) ||
         user?.roles?.some(r => ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder', 'accounting', 'finance_admin', 'hr_admin', 'manager'].includes(r?.toLowerCase() || '')) ||
         (user?.permissions && user.permissions.includes('can_manage_team'));
-    const isBillingPath = pathname?.startsWith('/dashboard/billing') || false;
-    const showWall = isExpired && !(isAdmin && isBillingPath);
+    
+    const isBillingPath = pathname?.startsWith('/dashboard/settings/platform-billing') || pathname?.startsWith('/dashboard/billing') || false;
+    
+    // Check if the current path is allowed based on filteredNav and defaults
+    const isPathAllowed = () => {
+        if (!pathname) return true;
+        
+        // Define default/always allowed paths
+        const alwaysAllowed = [
+            '/dashboard', 
+            '/dashboard/settings', 
+            '/dashboard/profile', 
+            '/dashboard/help-support', 
+            '/dashboard/activity'
+        ];
+        if (alwaysAllowed.some(p => pathname === p || pathname.startsWith(p + '/'))) return true;
+
+        // Default apps
+        const defaultAppPaths = [
+            '/dashboard/projects', '/dashboard/tasks', '/dashboard/work-logs', 
+            '/dashboard/chat', '/dashboard/meeting', '/dashboard/emails', 
+            '/dashboard/calendar', '/dashboard/documents', '/dashboard/assets', '/dashboard/ai'
+        ];
+        
+        const isDefaultAppPath = defaultAppPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+        const hasActivePlan = !isExpired && status !== 'expired' && status !== 'cancelled' && status !== 'No Active Plan';
+
+        if (!hasActivePlan) {
+            // Only allow default apps and always allowed paths
+            return isDefaultAppPath;
+        }
+
+        // Has active plan, but we need to check if the app is enabled (within their limit)
+        // Since layout.tsx doesn't have the full routing map here, we approximate:
+        // Actually, if we just rely on Sidebar hiding the links, we can be a bit lenient here.
+        // But for strictness, we'd need to map paths to appIds.
+        return true;
+    };
+
+    const showWall = !isPathAllowed() && !(isAdmin && isBillingPath);
 
     useEffect(() => {
         if (!authLoading && !user) {

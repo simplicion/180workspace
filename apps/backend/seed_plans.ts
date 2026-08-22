@@ -45,14 +45,14 @@ async function main() {
             price: 15, // USD
             currency: 'USD',
             billingCycle: 'monthly',
-            maxUsers: 99999, // practically unlimited
+            maxUsers: 20,
             maxApps: 999, // practically unlimited
             maxStorageBytes: 10 * 1024 * 1024 * 1024, // 10GB
             features: [
                 'Unlimited Access to All Apps',
-                'Unlimited Team Members',
+                'Up to 20 Team Members',
                 '10GB Cloud Storage',
-                'Dedicated Account Manager',
+                'Dedicated Team Support',
                 'AI Assistant Access',
                 'Custom Email SMTP'
             ],

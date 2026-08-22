@@ -9,8 +9,31 @@ export class BillingController {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
             if (!companyId) return res.status(400).json({ error: 'Company ID required' });
 
-            const status = await BillingService.getSubscriptionStatus(companyId);
-            res.json(status);
+            const currentSubscription = await BillingService.getActiveSubscription(companyId);
+            const plan = currentSubscription?.planId 
+                ? await prisma.plan.findUnique({ where: { id: currentSubscription.planId } }) 
+                : null;
+            
+            const companyConfig = await prisma.companyConfig.findUnique({ where: { companyId } });
+            
+            const teamMembersCount = await prisma.user.count({ where: { companyId } });
+            
+            const isExpired = !currentSubscription || currentSubscription.status !== 'ACTIVE';
+
+            res.json({
+                currentSubscription: currentSubscription 
+                    ? { ...currentSubscription, plan: plan || null }
+                    : null,
+                plan: plan || null,
+                companyConfig: companyConfig || null,
+                teamMembersCount,
+                isExpired,
+                status: currentSubscription?.status || 'expired',
+                daysLeft: currentSubscription?.currentPeriodEnd 
+                    ? Math.max(0, Math.ceil((new Date(currentSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : 0,
+                paymentsEnabled: true
+            });
         } catch (err) { next(err); }
     }
 
@@ -38,11 +61,11 @@ export class BillingController {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
             const { gigabytes } = req.body;
             
-            if (!gigabytes || gigabytes < 1) {
-                return res.status(400).json({ error: 'Invalid gigabytes amount' });
+            if (!gigabytes || gigabytes < 5 || gigabytes % 5 !== 0) {
+                return res.status(400).json({ error: 'Invalid gigabytes amount, must be in multiples of 5' });
             }
 
-            const amount = gigabytes * 50 * 100; // 50 INR per GB
+            const amount = (gigabytes / 5) * 50 * 100; // 50 INR per 5GB
 
             const Razorpay = require('razorpay');
             const rzp = new Razorpay({
@@ -87,6 +110,58 @@ export class BillingController {
         } catch (err) { next(err); }
     }
 
+    static async checkoutTeamMembers(req: Request, res: Response, next: NextFunction) {
+        try {
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            const { users } = req.body;
+            
+            if (!users || users < 1) {
+                return res.status(400).json({ error: 'Invalid users amount' });
+            }
+
+            const amount = users * 2 * 100; // $2 USD per user
+
+            const Razorpay = require('razorpay');
+            const rzp = new Razorpay({
+                key_id: process.env.RAZORPAY_KEY_ID,
+                key_secret: process.env.RAZORPAY_KEY_SECRET,
+            });
+
+            const order = await rzp.orders.create({
+                amount,
+                currency: 'USD',
+                receipt: `team_${companyId}_${Date.now()}`,
+                notes: { companyId, users }
+            });
+
+            res.json({ orderId: order.id, amount, currency: 'USD' });
+        } catch (err) { next(err); }
+    }
+
+    static async verifyTeamMembers(req: Request, res: Response, next: NextFunction) {
+        try {
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            const { razorpay_payment_id, razorpay_order_id, razorpay_signature, users } = req.body;
+
+            const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '');
+            hmac.update(razorpay_order_id + '|' + razorpay_payment_id);
+            const expectedSignature = hmac.digest('hex');
+
+            if (expectedSignature !== razorpay_signature) {
+                return res.status(400).json({ error: 'Invalid signature' });
+            }
+
+            await prisma.companyConfig.update({
+                where: { companyId },
+                data: {
+                    extraTeamMembersPurchased: { increment: users }
+                }
+            });
+
+            res.json({ success: true, message: `Added ${users} team members.` });
+        } catch (err) { next(err); }
+    }
+
     static async checkoutPlan(req: Request, res: Response, next: NextFunction) {
         try {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
@@ -99,26 +174,8 @@ export class BillingController {
 
             const company = await prisma.company.findUnique({ where: { id: companyId } });
             
-            // Check App limits
-            let metadata: any = company?.metadata || {};
-            if (typeof metadata === 'string') { try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; } }
-            const activeAppsCount = metadata.enabledApps ? metadata.enabledApps.length : 0;
-
-            if (activeAppsCount > targetPlan.maxApps) {
-                return res.status(400).json({ 
-                    error: `Limit Exceeded`,
-                    details: `You have ${activeAppsCount} apps active. The ${targetPlan.planName} plan only allows up to ${targetPlan.maxApps} apps. Please remove some apps before downgrading.`
-                });
-            }
-
-            // Check User limits
-            const activeUsersCount = await prisma.user.count({ where: { companyId } });
-            if (activeUsersCount > targetPlan.maxUsers) {
-                return res.status(400).json({ 
-                    error: `Limit Exceeded`,
-                    details: `You have ${activeUsersCount} team members. The ${targetPlan.planName} plan only allows up to ${targetPlan.maxUsers} users. Please remove some team members before downgrading.`
-                });
-            }
+            // App and User limits are now enforced dynamically on the frontend and middleware,
+            // so we don't block plan downgrades here. Users can downgrade and their excess apps/users will be disabled.
 
             const amount = targetPlan.price * 100; // Assuming Razorpay needs it in cents/paise
 
