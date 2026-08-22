@@ -155,7 +155,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                 // but we can pass params
                 const params: any = { projectId: form.projectId, limit: 200 };
                 if (form.moduleId) {
-                    params?.moduleId = form.moduleId;
+                    params.moduleId = form.moduleId;
                 }
                 
                 const { data } = await api.get('/api/tasks', { params });
