@@ -136,7 +136,7 @@ export default function BillingPage() {
         trial: 'bg-amber-100 text-amber-700 border border-amber-200',
         active: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
         expired: 'bg-red-100 text-red-700 border border-red-200',
-        paused: 'bg-orange-100 text-orange-700 border border-orange-200',
+        paused: 'bg-transparent text-indigo-600 border border-indigo-600',
         mandate_pending: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
     }[status] || 'bg-gray-100 text-gray-600';
 
@@ -211,12 +211,18 @@ export default function BillingPage() {
                                 <p className="text-xs text-red-500 mt-2 font-medium">+{usage.extraMembers} extra (${usage.extraMembers * 2}/mo)</p>
                             )}
                         </div>
-                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 relative">
                             <p className="text-sm text-gray-500 mb-1">Storage</p>
                             <p className="text-xl font-bold text-gray-900">{usage.storageUsedGB}GB <span className="text-sm font-normal text-gray-400">/ {usage.storageLimitGB}GB</span></p>
                             {usage.extraStorageBlocks > 0 && (
-                                <p className="text-xs text-red-500 mt-2 font-medium">+{usage.extraStorageBlocks * 10}GB extra (${usage.extraStorageBlocks * 2}/mo)</p>
+                                <p className="text-xs text-indigo-600 mt-2 font-medium">+{usage.extraStorageBlocks}GB extra purchased (₹{usage.extraStorageBlocks * 50}/mo)</p>
                             )}
+                            <button 
+                                onClick={() => router.push('/dashboard/billing/add-storage')}
+                                className="mt-3 w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-colors"
+                            >
+                                Add Storage (₹50/GB)
+                            </button>
                         </div>
                     </div>
                     {usage.overageCharges > 0 && (

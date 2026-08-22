@@ -2,7 +2,7 @@ name: Master CI/CD Pipeline
 
 on:
   push:
-    branches: [ "Production" ]
+    branches: [ "Production", "main", "Testing-updates" ]
 
 jobs:
   # ==========================================
@@ -79,8 +79,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ubuntu/app
-            git fetch origin Production
-            git reset --hard origin/Production
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
             pnpm install --frozen-lockfile
             pnpm turbo run build --filter=backend --filter=worker
             pm2 restart all --update-env

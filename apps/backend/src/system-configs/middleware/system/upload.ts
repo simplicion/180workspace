@@ -179,6 +179,22 @@ function handleUpload(folder: string = 'general', options: any = {}) {
             // Fallback to R2 if no result yet
             if (!result) {
                 try {
+                    const companyId = req.user?.companyId || settings.companyId;
+                    if (companyId) {
+                        const { BillingService } = require('@workspace/platform-billing');
+                        const limits = await BillingService.getSubscriptionLimits(companyId);
+                        if (limits) {
+                            const newTotal = (limits.storageUsedBytes || 0) + req.file.buffer.length;
+                            if (newTotal > limits.maxStorageBytes) {
+                                return res.status(402).json({
+                                    error: 'Storage Limit Exceeded',
+                                    message: 'Your R2 storage limit has been exceeded. Please add more storage or upgrade your plan.',
+                                    code: 'STORAGE_FULL'
+                                });
+                            }
+                        }
+                    }
+
                     const extension = req.file.originalname.split('.').pop();
                     const r2Key = `${folder}/${Date.now()}-${Math.round(Math.random() * 1E9)}.${extension}`;
                     const r2Result = await uploadBufferToR2(req.file.buffer, r2Key, req.file.mimetype);
@@ -187,6 +203,18 @@ function handleUpload(folder: string = 'general', options: any = {}) {
                         fileId: r2Result.key,
                         storageType: 'r2'
                     };
+
+                    if (companyId) {
+                        const { prisma } = require('@workspace/db');
+                        await prisma.companyConfig.update({
+                            where: { companyId },
+                            data: {
+                                storageUsedBytes: {
+                                    increment: req.file.buffer.length
+                                }
+                            }
+                        });
+                    }
                 } catch (err: any) {
                     console.warn('[Upload Middleware] R2 upload failed:', err.message);
                 }

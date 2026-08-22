@@ -3,7 +3,7 @@
  * Returns 403 with { subscriptionExpired: true } if subscription has expired.
  */
 
-import { BillingService } from '@workspace/finance';
+import { BillingService } from '@workspace/platform-billing';
 import { Request, Response, NextFunction } from 'express';
 
 export default async function subscriptionGuard(req: any, res: Response, next: NextFunction) {

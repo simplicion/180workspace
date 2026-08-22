@@ -1,5 +1,4 @@
 export * from './bank-verification/bank-verification.service';
-export * from './billing/billing.service';
 export * from './categorization/categorization.service';
 export * from './company-financials/company-financials.service';
 export * from './company-payment/company-payment-provider.interface';
@@ -14,4 +13,3 @@ export * from './reminder/reminder.service';
 export * from './salary/salary.service';
 export * from './transaction/transaction.service';
 export * from './vendor/vendor.service';
-export * from './platform-payment/platform-payment.service';

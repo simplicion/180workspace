@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma, getCompanyPrisma } from '@workspace/db';
-import { PlatformPaymentService, CompanyPaymentService, BillingService } from '@workspace/finance';
+import { PlatformPaymentService, BillingService } from '@workspace/platform-billing';
+import { CompanyPaymentService } from '@workspace/finance';
 
 // Removed legacy fallback, using AutomationService from @workspace/automations
 import { AutomationService } from '@workspace/automations';

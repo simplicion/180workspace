@@ -38,10 +38,10 @@ const releaseNotesRoutes = require('../api/v1/communications/index').default;
 require('@workspace/crm-and-sales').SalesListeners.initializeCRMListeners();
 
 const setupRoutes = require('../api/v1/identity/setup/setup.routes').default;
+const platformBillingRoutes = require('../api/v1/platform-billing/index').default;
 // Health is now in system
 const insightsRoutes = require('../api/v1/insights/index').default;
 const publicRoutes = require('../api/v1/public/public.routes').default;
-
 // ─── Legacy Route Proxy ────────────────────────────────────────────────────
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
 router.use((req, res, next) => {
@@ -52,26 +52,9 @@ router.use((req, res, next) => {
 
     const path = req.path; // e.g. /dashboard
     
-    if (path === '/billing') {
-        // Return a mock billing response to satisfy useSubscription without 404s
-        return res.json({
-            subscription: null,
-            plan: null,
-            daysLeft: 999,
-            isExpired: false,
-            isWarning: false,
-            isTrialing: true,
-            status: 'trial',
-            paymentsEnabled: false,
-            currency: 'INR',
-            dataDeletionDate: null,
-            mandateStatus: 'pending',
-            autopayEnabled: false,
-            autopayFailCount: 0,
-            nextChargeDate: null
-        });
+    if (path === '/billing' || path.startsWith('/billing/')) {
+        req.url = req.url.replace('/billing', '/v1/platform-billing');
     }
-    
     // Explicit rewrites for components like CeoOverview and useSubscription
     const rewrites = {
         '/insights': '/v1/workspace-tools/ai-assistant/insights',
@@ -188,6 +171,7 @@ router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
 router.use('/v1/social-media', protect, moduleGuard('tools'), socialMediaRoutes);
 router.use('/v1/insights', protect, moduleGuard('insights'), insightsRoutes);
+router.use('/v1/platform-billing', protect, platformBillingRoutes);
 router.use('/p/contract', publicContractRoutes);
 router.use('/public', publicRoutes);
 router.use('/public', advertisingPublicRoutes);

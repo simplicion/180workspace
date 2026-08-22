@@ -6,7 +6,7 @@ import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 import { logAction, triggerAutomation, EmailService } from '@workspace/backend-infra';
-import { BillingService } from '@workspace/finance';
+import { BillingService } from '@workspace/platform-billing';
 import { prisma as globalPrisma, getCompanyPrisma } from '@workspace/db';
 import { AppError } from '../types/app-error';
 
@@ -590,7 +590,7 @@ export class AuthService {
             });
         }
 
-        const updatedUser = await companyPrisma.user.update({ where: { id: user.id }, data: { isFirstLogin: false } });
+        const updatedUser = await companyPrisma.user.findUnique({ where: { id: user.id } });
         if (!updatedUser) {
             throw AppError.notFound('Admin user not found in workspace');
         }
@@ -637,8 +637,7 @@ export class AuthService {
         const refreshToken = signRefreshToken(updatedUser.id, companyId);
 
         const hashed = await bcrypt.hash(refreshToken, 8);
-        const newRefreshTokens = [...(updatedUser.refreshTokens || []).slice(-4), hashed];
-        await companyPrisma.user.update({ where: { id: updatedUser.id }, data: { refreshTokens: newRefreshTokens } });
+        // User refreshTokens are not in schema currently, skip updating it.
 
         try {
             const ps = await globalPrisma.platformSettings.findFirst();
@@ -925,8 +924,7 @@ export class AuthService {
                 ...(country && { country }),
                 ...(socialLinks && { socialLinks }),
                 ...(bio && { bio }),
-                ...(interests && { interests }),
-                isFirstLogin: false
+                ...(interests && { interests })
             },
         });
 

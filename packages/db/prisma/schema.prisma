@@ -177,11 +177,13 @@ model CompanyFollower {
 }
 
 model CompanyConfig {
-  id                   String    @id @default(uuid())
-  companyId            String    @unique
-  company              Company   @relation(fields: [companyId], references: [id])
-  invoices             Invoice[]
-  companyPaymentConfig Json?     @default("{}")
+  id                         String    @id @default(uuid())
+  companyId                  String    @unique
+  company                    Company   @relation(fields: [companyId], references: [id])
+  invoices                   Invoice[]
+  companyPaymentConfig       Json?     @default("{}")
+  storageUsedBytes           Float     @default(0)
+  extraStoragePurchasedBytes Float     @default(0)
 
   @@index([companyId])
   @@index([companyId, id])
@@ -1556,18 +1558,20 @@ model PlatformSettings {
 }
 
 model Plan {
-  id            String         @id @default(uuid())
-  planName      String
-  price         Float
-  currency      String         @default("INR")
-  billingCycle  String         @default("monthly")
-  maxUsers      Int            @default(10)
-  features      String[]
-  isActive      Boolean        @default(true)
-  trialDays     Int            @default(14)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  subscriptions Subscription[]
+  id              String         @id @default(uuid())
+  planName        String
+  price           Float
+  currency        String         @default("INR")
+  billingCycle    String         @default("monthly")
+  maxUsers        Int            @default(10)
+  maxApps         Int            @default(5)
+  maxStorageBytes Float          @default(1073741824)
+  features        String[]
+  isActive        Boolean        @default(true)
+  trialDays       Int            @default(14)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  subscriptions   Subscription[]
 }
 
 model Subscription {

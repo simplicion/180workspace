@@ -171,6 +171,7 @@ function WorkspaceSetup() {
     const logoInputRef = useRef<HTMLInputElement>(null);
 
     const [saving, setSaving] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
 
     // Initial load recommendations
     const recommendedApps = getRecommendedApps(industry);
@@ -218,10 +219,12 @@ function WorkspaceSetup() {
 
     const completeSetup = async () => {
         setSaving(true);
+        setLoadingMessage('Initializing setup...');
         try {
             let uploadedLogoUrl = '';
             
             if (logoFile) {
+                setLoadingMessage('Uploading your logo...');
                 const form = new FormData();
                 form.append('file', logoFile);
                 form.append('folder', 'companyLogo');
@@ -235,6 +238,7 @@ function WorkspaceSetup() {
                 }
             }
 
+            setLoadingMessage('Collecting apps & configuring workspace...');
             const res = await api.put('/api/auth/complete-workspace-setup', {
                 companyName,
                 slug,
@@ -253,6 +257,7 @@ function WorkspaceSetup() {
 
             const data = res.data;
             if (data.success) {
+                setLoadingMessage('Activating modules...');
                 if (data.platformToken) {
                     localStorage.setItem('platform_auth_token', data.platformToken);
                 }
@@ -263,6 +268,10 @@ function WorkspaceSetup() {
                     companySlug: data.companySlug,
                     companyCustomDomain: data.companyCustomDomain,
                 });
+                
+                setLoadingMessage('Setting up dashboard...');
+                await new Promise(resolve => setTimeout(resolve, 800)); // allow user to read the message and see smooth transition
+                
                 setStep(4); // Success screen is now step 4
             } else if (res.status === 401) {
                 toast.error(data.error || 'Session invalid. Logging out...');
@@ -274,6 +283,7 @@ function WorkspaceSetup() {
             toast.error('Network error during workspace setup');
         } finally {
             setSaving(false);
+            setLoadingMessage('');
         }
     };
 
@@ -290,17 +300,6 @@ function WorkspaceSetup() {
             <div className="absolute inset-0 z-[-1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/40 via-gray-50/50 to-white pointer-events-none" />
 
             <div className="max-w-3xl w-full mx-auto relative">
-                {step < 4 && (
-                    <button
-                        onClick={() => {
-                            window.location.href = '/dashboard';
-                        }}
-                        className="absolute top-0 left-0 flex items-center text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium z-10"
-                    >
-                        <ArrowRight className="w-4 h-4 mr-1 rotate-180" />
-                        Go to <span className="font-bold tracking-tight text-gray-900 inline-block mx-1">{platform?.platformName || <><span className="text-blue-600">180</span>workspace</>}</span> App
-                    </button>
-                )}
                 <div className="text-center mb-6">
                     <div className="w-12 h-12 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/20 mb-4 p-2 border border-gray-100">
                         <img src="/black icon.svg" alt="Icon" className="w-8 h-8" />
@@ -313,9 +312,49 @@ function WorkspaceSetup() {
                     </p>
                 </div>
 
-                <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-visible relative h-[540px] flex flex-col">
+                <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden relative h-[540px] flex flex-col">
                     <AnimatePresence mode="wait">
-                        {step === 1 && (
+                        {saving && (
+                            <motion.div
+                                key="loading-overlay"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center"
+                            >
+                                <div className="w-24 h-24 mb-6 relative flex items-center justify-center">
+                                    <div className="absolute inset-0 border-4 border-indigo-100 rounded-full" />
+                                    <motion.div 
+                                        className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent"
+                                        animate={{ rotate: 360 }}
+                                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                                    />
+                                    <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center shadow-sm relative z-10">
+                                        <img src="/black icon.svg" alt="Icon" className="w-8 h-8" />
+                                    </div>
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-3">Creating Workspace</h3>
+                                <div className="flex flex-col items-center space-y-3">
+                                    <motion.p 
+                                        key={loadingMessage}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="text-indigo-600 font-medium"
+                                    >
+                                        {loadingMessage || 'Setting up...'}
+                                    </motion.p>
+                                    <div className="w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            className="h-full bg-indigo-500 rounded-full"
+                                            animate={{ x: ["-100%", "100%"] }}
+                                            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                                        />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                        
+                        {step === 1 && !saving && (
                             <motion.div
                                 key="step1"
                                 initial={{ opacity: 0, x: 20 }}
@@ -417,7 +456,7 @@ function WorkspaceSetup() {
                             </motion.div>
                         )}
 
-                        {step === 2 && (
+                        {step === 2 && !saving && (
                             <motion.div
                                 key="step2"
                                 initial={{ opacity: 0, x: 20 }}
@@ -525,7 +564,7 @@ function WorkspaceSetup() {
                             </motion.div>
                         )}
 
-                        {step === 3 && (
+                        {step === 3 && !saving && (
                             <motion.div
                                 key="step3"
                                 initial={{ opacity: 0, x: 20 }}
@@ -619,7 +658,7 @@ function WorkspaceSetup() {
                         )}
 
 
-                        {step === 4 && (
+                        {step === 4 && !saving && (
                             <motion.div
                                 key="step5"
                                 initial={{ opacity: 0, scale: 0.95 }}
