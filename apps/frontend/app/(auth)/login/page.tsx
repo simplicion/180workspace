@@ -302,7 +302,7 @@ function LoginForm() {
                                     <LogoLoader className="w-5 h-5 animate-spin text-primary" />
                                 </div>
                             ) : (
-                                <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded overflow-hidden">
+                                <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded overflow-hidden flex justify-center">
                                     <GoogleLogin 
                                         onSuccess={handleGoogleSuccess}
                                         onError={() => toast.error('Google Auth Failed')}
@@ -311,7 +311,7 @@ function LoginForm() {
                                         theme="outline"
                                         size="large"
                                         text="continue_with"
-                                        width="100%"
+                                        width="340"
                                         shape="pill"
                                     />
                                 </div>

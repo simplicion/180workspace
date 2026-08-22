@@ -1,4 +1,3 @@
-import { PRICING_PLANS } from '@workspace/common';
 import { Request, Response, NextFunction } from 'express';
 
 const checkBillingStatus = async (req: any, res: Response, next: NextFunction) => {
@@ -6,6 +5,7 @@ const checkBillingStatus = async (req: any, res: Response, next: NextFunction) =
     const openRoutes = [
         '/api/auth',
         '/api/billing', // allow access to billing so they can upgrade
+        '/api/v1/platform-billing', // allow fetching plans and checkout
         '/api/webhooks'
     ];
 

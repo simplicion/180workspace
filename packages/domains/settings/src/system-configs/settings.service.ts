@@ -84,6 +84,50 @@ export class SettingsService {
         const forbiddenFields = ['id', 'companyId', 'createdAt', 'updatedAt'];
         forbiddenFields.forEach(f => delete bodyData[f]);
 
+        const subscription = company?.id ? await prisma.subscription.findFirst({
+            where: { companyId: company.id, status: { in: ['ACTIVE', 'active', 'trial', 'TRIAL'] } },
+            include: { plan: true },
+            orderBy: { createdAt: 'desc' }
+        }) : null;
+
+        let plan = subscription?.plan;
+        if (!plan) {
+             plan = await prisma.plan.findFirst({
+                 where: { planName: { contains: 'Kickstart' } }
+             }) as any;
+        }
+
+        if (!plan) {
+            throw new Error('Plan details not found.');
+        }
+
+        const aiFields = ['aiProvider', 'openaiKey', 'geminiKey', 'claudeKey', 'customAiKey', 'customAiUrl', 'customAiModel'];
+        const smtpFields = ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'emailFrom'];
+
+        const hasAIAssistant = plan.features.some((f: string) => f.toLowerCase().includes('ai assistant'));
+        const hasEmailServices = plan.features.some((f: string) => f.toLowerCase().includes('email smtp'));
+
+        const tryingToUpdateAI = aiFields.some(f => {
+            const val = bodyData[f];
+            if (f === 'aiProvider') return val && val !== 'none';
+            return val && val !== '********' && val !== '';
+        });
+
+        const tryingToUpdateSMTP = smtpFields.some(f => {
+            const val = bodyData[f];
+            return val && val !== '********' && val !== '';
+        });
+
+        if (tryingToUpdateAI && !hasAIAssistant) {
+            console.log(`[ACCESS DENIED] Company ${company?.id} attempted to configure AI Assistant without the required plan.`);
+            throw new Error(`The AI Assistant feature is not available on the ${plan.planName} plan. Please upgrade your plan to access this feature.`);
+        }
+
+        if (tryingToUpdateSMTP && !hasEmailServices) {
+            console.log(`[ACCESS DENIED] Company ${company?.id} attempted to configure Custom SMTP without the required plan.`);
+            throw new Error(`The Custom Email SMTP feature is not available on the ${plan.planName} plan. Please upgrade your plan to access this feature.`);
+        }
+
         const metadataUpdate: any = {};
         const settingsUpdate: any = {};
 

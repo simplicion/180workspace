@@ -181,6 +181,7 @@ export default function DocumentsPage() {
     const [editingQuote, setEditingQuote] = useState<any | null>(null);
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [selectedEmailQuote, setSelectedEmailQuote] = useState<any | null>(null);
+    const [storageStats, setStorageStats] = useState<{ used: number, total: number, usagePercent: number } | null>(null);
     const { user } = useAuth();
     const router = useRouter();
     const [deleteArticle] = useDeleteArticleMutation();
@@ -202,6 +203,19 @@ export default function DocumentsPage() {
             setQuotes([]);
             setInvoices([]);
         }).finally(() => setLoading(false));
+        
+        // Fetch storage stats from platform-billing
+        api.get('/api/v1/platform-billing').then(res => {
+            if (res.data?.usageStats) {
+                const { storageUsedBytes, maxStorageBytes } = res.data.usageStats;
+                setStorageStats({
+                    used: storageUsedBytes || 0,
+                    total: maxStorageBytes || 0,
+                    usagePercent: maxStorageBytes ? Math.min((storageUsedBytes / maxStorageBytes) * 100, 100) : 0
+                });
+            }
+        }).catch(() => {});
+        
         refetchArticles();
         refetchContracts();
     }
@@ -351,6 +365,39 @@ export default function DocumentsPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* Storage Progress Bar */}
+                {storageStats && storageStats.total > 0 && (
+                    <div className="mt-5 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                    <FileIcon className="w-4 h-4 text-indigo-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-900">Storage Usage</h3>
+                                    <p className="text-xs text-gray-500">
+                                        {formatBytes(storageStats.used)} used of {formatBytes(storageStats.total)}
+                                    </p>
+                                </div>
+                            </div>
+                            <Link href="/dashboard/billing/add-storage" className="btn-secondary text-xs px-3 py-1.5 shadow-sm">
+                                Add Storage
+                            </Link>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                            <div 
+                                className={`h-2.5 rounded-full ${storageStats.usagePercent >= 90 ? 'bg-red-500' : 'bg-indigo-600'}`} 
+                                style={{ width: `${storageStats.usagePercent}%` }}
+                            ></div>
+                        </div>
+                        {storageStats.usagePercent >= 90 && (
+                            <p className="text-xs text-red-500 mt-2 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" /> Storage is almost full. Upgrade to avoid interruptions.
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Search + Filters */}

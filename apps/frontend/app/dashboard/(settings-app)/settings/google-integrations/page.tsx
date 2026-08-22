@@ -1,6 +1,7 @@
 import GoogleIntegrationsTab from '@/app/dashboard/(settings-app)/_components/GoogleIntegrationsTab';
 import Link from 'next/link';
 import { ArrowLeft, Globe } from 'lucide-react';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 
 export default function GoogleIntegrationsPage() {
     return (
@@ -22,7 +23,9 @@ export default function GoogleIntegrationsPage() {
                 </div>
             </div>
 
-            <GoogleIntegrationsTab />
+            <PremiumFeatureLock>
+                <GoogleIntegrationsTab />
+            </PremiumFeatureLock>
         </div>
     );
 }

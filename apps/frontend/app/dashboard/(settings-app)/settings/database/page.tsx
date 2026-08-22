@@ -4,6 +4,7 @@
 import { ArrowLeft, Database, Shield } from 'lucide-react';
 import Link from 'next/link';
 import DatabaseTab from '@/app/dashboard/(settings-app)/_components/DatabaseTab';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 
 export default function DatabaseSettingsPage() {
     return (
@@ -43,7 +44,9 @@ export default function DatabaseSettingsPage() {
 
             {/* Content Area */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-                <DatabaseTab />
+                <PremiumFeatureLock>
+                    <DatabaseTab />
+                </PremiumFeatureLock>
             </div>
         </div>
     );

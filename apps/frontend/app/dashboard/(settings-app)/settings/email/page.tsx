@@ -4,6 +4,7 @@
 import { Mail, ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
 import EmailTab from '@/app/dashboard/(settings-app)/_components/EmailTab';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 
 export default function EmailSettingsPage() {
     return (
@@ -25,7 +26,9 @@ export default function EmailSettingsPage() {
             </div>
 
             {/* Email Tab Component */}
-            <EmailTab />
+            <PremiumFeatureLock>
+                <EmailTab />
+            </PremiumFeatureLock>
         </div>
     );
 }

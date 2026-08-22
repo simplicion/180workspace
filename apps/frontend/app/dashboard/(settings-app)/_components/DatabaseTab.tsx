@@ -284,6 +284,24 @@ export default function DatabaseTab() {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl pb-12">
+            {(!globalSettings || Object.keys(globalSettings).length === 0) ? (
+                <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex items-center justify-center min-h-[400px]">
+                    <LogoLoader className="w-8 h-8 animate-spin" />
+                </div>
+            ) : (globalSettings as any).planLocked ? (
+                <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Lock className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900">Premium Feature Locked</h3>
+                        <p className="text-sm text-gray-500 max-w-md mx-auto mt-2">
+                            Advanced configuration requires an active subscription. Upgrade your workspace to unlock this capability.
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                <>
             {/* Database Connection Card */}
             <div className="bg-white rounded-[20px] shadow-sm border border-slate-200">
                 <div className="p-8 border-b border-slate-100 flex items-start gap-4">
@@ -643,6 +661,8 @@ export default function DatabaseTab() {
                 onClose={() => setShowGuide(false)} 
                 platformName={platform?.name || platform?.platformName}
             />
+            </>
+            )}
         </div>
     );
 }

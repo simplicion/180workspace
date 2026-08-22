@@ -99,6 +99,17 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        // Handle billing lockouts
+        if (
+            (error.response?.status === 402) || 
+            (error.response?.status === 403 && error.response?.data?.error === 'SUBSCRIPTION_EXPIRED')
+        ) {
+            if (typeof window !== 'undefined' && window.location.pathname !== '/subscription-expired') {
+                window.location.href = '/subscription-expired';
+            }
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 404 && error.response?.data?.error === 'Your workspace could not be found. Please check your URL or contact support.') {
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('platform_auth_token');

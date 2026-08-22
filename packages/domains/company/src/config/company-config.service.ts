@@ -1,6 +1,6 @@
 import { prisma } from '@workspace/db';
 import { PrismaClient } from '@workspace/db';
-import { BillingService } from '@workspace/platform-billing';
+import { SubscriptionService } from '@workspace/platform-billing';
 
 const REQUIRED_MODULES = ['work-logs', 'projects', 'tasks'];
 const REQUIRED_APPS = ['tools', 'projects', 'crm', 'hr', 'finance'];
@@ -112,7 +112,8 @@ export class CompanyConfigService {
             throw new Error('Apps must be an array');
         }
 
-        const limits = await BillingService.getSubscriptionLimits(companyId);
+        const subService = new SubscriptionService();
+        const limits = await subService.getSubscriptionLimits(companyId);
         if (limits && apps.length > limits.maxApps) {
             throw new Error(`Your current plan limits you to a maximum of ${limits.maxApps} apps. Please upgrade your plan to activate more apps.`);
         }

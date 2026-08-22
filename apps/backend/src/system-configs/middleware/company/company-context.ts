@@ -56,7 +56,7 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
         }
 
         // 0.5 Skip for public routes that don't strictly require company context
-        const publicRoutes = ['/api/auth', '/api/setup', '/api/public', '/api/health'];
+        const publicRoutes = ['/api/auth', '/api/setup', '/api/public', '/api/health', '/api/v1/platform-billing/plans'];
         const isPublic = publicRoutes.some(route => req.path.startsWith(route));
         const isOnboardingRoute = (req.originalUrl || req.url).includes('/api/auth/complete-workspace-setup') || 
                                  (req.originalUrl || req.url).includes('/api/setup/configure') ||

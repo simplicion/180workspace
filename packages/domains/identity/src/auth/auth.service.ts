@@ -6,7 +6,7 @@ import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 import { logAction, triggerAutomation, EmailService } from '@workspace/backend-infra';
-import { BillingService } from '@workspace/platform-billing';
+import { BillingService, SubscriptionService } from '@workspace/platform-billing';
 import { prisma as globalPrisma, getCompanyPrisma } from '@workspace/db';
 import { AppError } from '../types/app-error';
 
@@ -565,7 +565,7 @@ export class AuthService {
             industry, startupStage, teamSize, 
             enabledApps, enabledModules, 
             currency, currencySymbol, country,
-            logoUrl
+            logoUrl, planId, couponCode
         } = body;
         let user = currentUser;
         let companyId = reqCompany?.id;
@@ -621,6 +621,17 @@ export class AuthService {
                 metadata
             }
         });
+
+        // Trigger trial if a plan was selected
+        if (planId) {
+            try {
+                const subscriptionService = new SubscriptionService();
+                await subscriptionService.startFrictionlessTrial(planId, companyId, couponCode || '');
+            } catch (err) {
+                console.error('Failed to start trial:', err);
+                // Non-blocking for setup
+            }
+        }
 
         // Redis cache invalidation (optional — only if redis is available)
         try {

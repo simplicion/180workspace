@@ -14,6 +14,7 @@ import { LocationSearch } from '@/components/ui/LocationSearch';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { locationService, FormattedLocation } from '@/lib/location-service';
 import api from '@/lib/api';
+import { SubscriptionPlan } from '@/components/shared/SubscriptionPlan';
 const INDUSTRIES = [
     { label: 'Technology', value: 'Technology' },
     { label: 'Healthcare', value: 'Healthcare' },
@@ -173,8 +174,23 @@ function WorkspaceSetup() {
     const [saving, setSaving] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
 
+    // Step 4: Plan
+    const [plans, setPlans] = useState<any[]>([]);
+    const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+    const [loadingPlans, setLoadingPlans] = useState(false);
+
     // Initial load recommendations
     const recommendedApps = getRecommendedApps(industry);
+
+    useEffect(() => {
+        if (step === 3 && plans.length === 0) {
+            setLoadingPlans(true);
+            api.get('/api/v1/platform-billing/plans')
+                .then(({ data }) => setPlans(data.plans || []))
+                .catch(console.error)
+                .finally(() => setLoadingPlans(false));
+        }
+    }, [step, plans.length]);
 
     const handleNext = () => {
         if (step === 1) {
@@ -189,10 +205,29 @@ function WorkspaceSetup() {
         }
         
         if (step === 2) {
-            // Advancing to app selection, preset recommended apps & modules
-            const apps = getRecommendedApps(industry);
-            setEnabledApps(apps);
-            setEnabledModules(getRecommendedModules(apps, industry));
+            // Advancing to plan selection
+        }
+        if (step === 3) {
+            if (!selectedPlanId) {
+                toast.error("Please select a plan to continue.");
+                return;
+            }
+            // Advancing to app selection, preset core apps and recommended apps if they fit
+            const coreApps = ['projects', 'workspace-tools', 'communications'];
+            const allRecommended = [...new Set([...coreApps, ...getRecommendedApps(industry)])];
+            
+            // Determine limit based on selected plan
+            const plan = plans.find(p => p.id === selectedPlanId);
+            let limit = 999;
+            if (plan) {
+                if (plan.planName.toLowerCase().includes('kickstart')) limit = 5;
+                if (plan.planName.toLowerCase().includes('momentum')) limit = 7;
+            }
+            
+            // Apply limit
+            const appsToEnable = allRecommended.slice(0, limit);
+            setEnabledApps(appsToEnable);
+            setEnabledModules(getRecommendedModules(appsToEnable, industry));
         }
         setStep(prev => prev + 1);
     };
@@ -200,9 +235,25 @@ function WorkspaceSetup() {
     const handleBack = () => setStep(prev => prev - 1);
 
     const toggleApp = (appId: string, isCore: boolean) => {
-        if (isCore) return;
+        const coreApps = ['projects', 'workspace-tools', 'communications'];
+        if (isCore || coreApps.includes(appId)) {
+            toast.error("This app is essential and cannot be removed.");
+            return;
+        }
+
+        const plan = plans.find(p => p.id === selectedPlanId);
+        let limit = 999;
+        if (plan) {
+            if (plan.planName.toLowerCase().includes('kickstart')) limit = 5;
+            if (plan.planName.toLowerCase().includes('momentum')) limit = 7;
+        }
+
         setEnabledApps(prev => {
             const isNowEnabled = !prev.includes(appId);
+            if (isNowEnabled && prev.length >= limit) {
+                toast.error(`Your current plan limits you to ${limit} apps.`);
+                return prev;
+            }
             const newApps = isNowEnabled ? [...prev, appId] : prev.filter(id => id !== appId);
 
             if (isNowEnabled) {
@@ -252,7 +303,9 @@ function WorkspaceSetup() {
                 currency,
                 currencySymbol,
                 country,
-                logoUrl: uploadedLogoUrl || undefined
+                logoUrl: uploadedLogoUrl || undefined,
+                planId: selectedPlanId,
+                couponCode: 'FREETRIAL14' // Automatically apply free trial coupon
             });
 
             const data = res.data;
@@ -272,7 +325,7 @@ function WorkspaceSetup() {
                 setLoadingMessage('Setting up dashboard...');
                 await new Promise(resolve => setTimeout(resolve, 800)); // allow user to read the message and see smooth transition
                 
-                setStep(4); // Success screen is now step 4
+                setStep(5); // Success screen is now step 5
             } else if (res.status === 401) {
                 toast.error(data.error || 'Session invalid. Logging out...');
                 setTimeout(() => signOut({ callbackUrl: '/login' }), 2000);
@@ -564,9 +617,9 @@ function WorkspaceSetup() {
                             </motion.div>
                         )}
 
-                        {step === 3 && !saving && (
+                        {step === 4 && !saving && (
                             <motion.div
-                                key="step3"
+                                key="step4"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
@@ -599,6 +652,8 @@ function WorkspaceSetup() {
 
                                     {APPS_CONFIG.map(app => {
                                         const isEnabled = enabledApps.includes(app.id);
+                                        const coreApps = ['projects', 'workspace-tools', 'communications'];
+                                        const isLocked = coreApps.includes(app.id);
                                         const isRecommended = recommendedApps.includes(app.id);
                                         const Icon = app.icon;
 
@@ -633,7 +688,12 @@ function WorkspaceSetup() {
                                                 <h4 className={clsx("font-bold text-sm mb-1 relative z-10 transition-colors", isEnabled ? "text-indigo-950" : "text-gray-900")}>{app.name}</h4>
                                                 <p className="text-[11px] text-gray-500 line-clamp-2 mt-auto leading-relaxed relative z-10">{app.description}</p>
 
-                                                {isRecommended && !isEnabled && (
+                                                {isLocked && (
+                                                    <div className="mt-3 relative z-10">
+                                                        <span className="text-[10px] font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded-md ring-1 ring-gray-200">Required</span>
+                                                    </div>
+                                                )}
+                                                {isRecommended && !isEnabled && !isLocked && (
                                                     <div className="mt-3 relative z-10">
                                                         <span className="text-[10px] font-semibold bg-blue-50 text-blue-600 px-2 py-1 rounded-md ring-1 ring-blue-100">Recommended</span>
                                                     </div>
@@ -651,14 +711,74 @@ function WorkspaceSetup() {
                                     </div>
                                     <button onClick={completeSetup} disabled={saving} className="btn-primary shadow-lg shadow-indigo-500/25 px-8 py-3 h-auto text-base font-semibold w-full sm:w-auto flex justify-center items-center hover:-translate-y-0.5 transition-all rounded-xl">
                                         {saving ? <LogoLoader className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
-                                        <span>{saving ? "Creating Workspace..." : "Start Using Workspace"}</span>
+                                        <span>{saving ? "Creating Workspace..." : "Complete Setup"}</span>
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {step === 3 && !saving && (
+                            <motion.div
+                                key="step3"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="p-6 sm:p-8 h-full flex flex-col relative"
+                            >
+                                <button onClick={handleBack} disabled={saving} className="text-sm font-medium text-gray-400 hover:text-gray-600 mb-2 w-max">&larr; Back</button>
+                                
+                                <div className="mb-6 text-center">
+                                    <h3 className="text-2xl font-bold text-gray-900 mb-1">Choose Your Plan</h3>
+                                    <p className="text-sm text-gray-500">Start your 14-day free trial. No credit card required.</p>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 pb-2">
+                                    {loadingPlans ? (
+                                        <div className="flex justify-center py-20"><LogoLoader className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {plans.map(plan => (
+                                                <SubscriptionPlan
+                                                    key={plan.id}
+                                                    id={plan.id}
+                                                    name={plan.planName}
+                                                    description={`Best for ${plan.planName.toLowerCase()} teams`}
+                                                    price={plan.price}
+                                                    currencySymbol={currencySymbol || '$'}
+                                                    features={plan.features || []}
+                                                    isPopular={plan.planName.toLowerCase().includes('pro')}
+                                                    isSelected={selectedPlanId === plan.id}
+                                                    onSelect={() => setSelectedPlanId(plan.id)}
+                                                    buttonText={selectedPlanId === plan.id ? 'Selected' : 'Select'}
+                                                />
+                                            ))}
+                                            {plans.length === 0 && (
+                                                <div className="col-span-full text-center text-gray-500 py-10">
+                                                    No plans available at the moment.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-auto pt-6 flex justify-end border-t border-gray-100">
+                                    <button 
+                                        onClick={handleNext} 
+                                        disabled={!selectedPlanId} 
+                                        className={clsx(
+                                            "btn-primary shadow-lg shadow-indigo-500/25 px-8 py-3 h-auto text-base font-semibold w-full sm:w-auto flex justify-center items-center hover:-translate-y-0.5 transition-all rounded-xl",
+                                            !selectedPlanId && "opacity-50 cursor-not-allowed hover:-translate-y-0"
+                                        )}
+                                    >
+                                        <span>Next Step</span>
+                                        <ArrowRight className="w-5 h-5 ml-2" />
                                     </button>
                                 </div>
                             </motion.div>
                         )}
 
 
-                        {step === 4 && !saving && (
+                        {step === 5 && !saving && (
                             <motion.div
                                 key="step5"
                                 initial={{ opacity: 0, scale: 0.95 }}

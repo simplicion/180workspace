@@ -4,6 +4,7 @@
 import PlausibleAnalyticsTab from '@/app/dashboard/(settings-app)/_components/PlausibleAnalyticsTab';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 
 export default function PlausibleAnalyticsPage() {
     return (
@@ -22,7 +23,9 @@ export default function PlausibleAnalyticsPage() {
             </div>
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <PlausibleAnalyticsTab />
+                <PremiumFeatureLock>
+                    <PlausibleAnalyticsTab />
+                </PremiumFeatureLock>
             </div>
         </div>
     );

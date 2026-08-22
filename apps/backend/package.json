@@ -32,6 +32,7 @@
     "@workspace/insights": "workspace:*",
     "@workspace/integrations": "workspace:*",
     "@workspace/platform-admin": "workspace:*",
+    "@workspace/platform-billing": "workspace:*",
     "@workspace/projects-and-tasks-domain": "workspace:*",
     "@workspace/public": "workspace:*",
     "@workspace/settings": "workspace:*",

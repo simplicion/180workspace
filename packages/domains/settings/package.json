@@ -4,7 +4,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@workspace/db": "workspace:*"
+    "@workspace/db": "workspace:*",
+    "@workspace/common": "workspace:*"
   },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*"

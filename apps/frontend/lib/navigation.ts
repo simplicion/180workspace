@@ -133,7 +133,7 @@ export const navigation = [
             { id: 'roles', name: 'Roles & Access', href: '/dashboard/settings/roles-access', icon: UserSquare, roles: ['admin', 'manager'] },
             { id: 'apps', name: 'Apps', href: '/dashboard/settings/apps', icon: LayoutGrid, roles: ['admin', 'manager'] },
             { id: 'system-configs', name: 'System Configs', href: '/dashboard/settings/system-configs', icon: Settings, roles: ['admin', 'manager'] },
-            { id: 'billing', name: 'Billing', href: '/dashboard/billing', icon: CreditCard, roles: ['admin', 'manager'] },
+            { id: 'platform-billing', name: 'Platform Billing', href: '/dashboard/settings/platform-billing', icon: CreditCard, roles: ['admin'] },
             { id: 'help-support', name: 'Help & Support', href: '/dashboard/help-support', icon: LifeBuoy, roles: ['admin', 'manager', 'hr', 'employee', 'client'] },
         ]
     }

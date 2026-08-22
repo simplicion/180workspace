@@ -4,6 +4,7 @@
 import AiTab from '@/app/dashboard/(settings-app)/_components/AiTab';
 import { ChevronLeft, Brain } from 'lucide-react';
 import Link from 'next/link';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 
 export default function AiSettingsPage() {
     return (
@@ -31,7 +32,9 @@ export default function AiSettingsPage() {
             </div>
 
             <div className="mt-8">
-                <AiTab />
+                <PremiumFeatureLock>
+                    <AiTab />
+                </PremiumFeatureLock>
             </div>
         </div>
     );

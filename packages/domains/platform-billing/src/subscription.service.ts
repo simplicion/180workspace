@@ -1,5 +1,4 @@
 import { prisma } from '@workspace/db';
-import { Logger } from '@workspace/backend-infra';
 
 export class SubscriptionService {
   /**
@@ -34,11 +33,12 @@ export class SubscriptionService {
         trialStartDate,
         trialEndDate,
         mandateStatus: 'bypassed', // Bypassed for card-free trial
-        cancelReason: null
+        cancelReason: null,
+        amount: plan.price
       }
     });
 
-    Logger.info(`Frictionless trial started for company ${companyId} on plan ${plan.planName} until ${trialEndDate}`);
+    console.log(`Frictionless trial started for company ${companyId} on plan ${plan.planName} until ${trialEndDate}`);
     return subscription;
   }
 
@@ -61,7 +61,7 @@ export class SubscriptionService {
       }
     });
 
-    Logger.info(`Added ${gbAmount}GB extra storage for company ${companyId}`);
+    console.log(`Added ${gbAmount}GB extra storage for company ${companyId}`);
     return companyConfig;
   }
 

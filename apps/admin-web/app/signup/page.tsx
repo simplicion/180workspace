@@ -387,7 +387,7 @@ function SignupForm() {
                                 {/* Google Auth Shortcut */}
                                 {!googleTokenId && (
                                     <div className="mb-6">
-                                        <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded overflow-hidden">
+                                        <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded overflow-hidden flex justify-center">
                                             <GoogleLogin 
                                                 onSuccess={handleGoogleSuccess}
                                                 onError={() => toast.error('Google Sign Up Failed')}
@@ -395,7 +395,7 @@ function SignupForm() {
                                                 theme="outline"
                                                 size="large"
                                                 text="signup_with"
-                                                width="100%"
+                                                width="340"
                                                 shape="pill"
                                             />
                                         </div>

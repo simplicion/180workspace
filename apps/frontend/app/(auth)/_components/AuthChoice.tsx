@@ -52,12 +52,12 @@ export default function AuthChoice({
                             <LogoLoader className="w-5 h-5 animate-spin text-blue-600" />
                         </div>
                     ) : (
-                        <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden">
+                        <div className="w-full relative shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden flex justify-center">
                             <GoogleLogin 
                                 onSuccess={onGoogleSuccess}
                                 onError={() => toast.error('Google Auth Failed')}
                                 text="signup_with"
-                                width="100%"
+                                width="340"
                                 logo_alignment="center"
                             />
                         </div>

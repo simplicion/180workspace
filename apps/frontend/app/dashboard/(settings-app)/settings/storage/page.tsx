@@ -3,6 +3,7 @@
 import StorageTab from '@/app/dashboard/(settings-app)/_components/StorageTab';
 import { ChevronLeft, Cloud } from 'lucide-react';
 import Link from 'next/link';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 
 export default function StorageSettingsPage() {
     return (
@@ -30,7 +31,9 @@ export default function StorageSettingsPage() {
             </div>
 
             <div className="mt-8">
-                <StorageTab />
+                <PremiumFeatureLock>
+                    <StorageTab />
+                </PremiumFeatureLock>
             </div>
         </div>
     );

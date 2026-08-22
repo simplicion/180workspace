@@ -4,6 +4,7 @@
 import FinanceTab from '@/app/dashboard/(settings-app)/_components/FinanceTab';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 
 export default function FinanceSettingsPage() {
     return (
@@ -22,7 +23,9 @@ export default function FinanceSettingsPage() {
             </div>
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <FinanceTab />
+                <PremiumFeatureLock>
+                    <FinanceTab />
+                </PremiumFeatureLock>
             </div>
         </div>
     );
