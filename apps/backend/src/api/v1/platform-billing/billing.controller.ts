@@ -47,13 +47,24 @@ export class BillingController {
                 companyConfig.storageUsedBytes = storageUsedBytes;
             }
 
-            const isExpired = !currentSubscription || currentSubscription.status !== 'ACTIVE';
+            const isTrial = company?.subscriptionStatus === 'trial';
+            let isExpired = false;
+            let currentStatus = currentSubscription?.status || (isTrial ? 'trial' : 'expired');
+
+            if (isTrial) {
+                if (company?.trialEndDate && new Date() > new Date(company.trialEndDate)) {
+                    isExpired = true;
+                    currentStatus = 'expired';
+                }
+            } else {
+                isExpired = !currentSubscription || currentSubscription.status !== 'ACTIVE';
+            }
 
             res.json({
                 currentSubscription: currentSubscription 
                     ? { ...currentSubscription, plan: plan || null }
                     : { 
-                        status: 'active', 
+                        status: currentStatus, 
                         billingCycle: 'Monthly',
                         plan: plan || null,
                         createdAt: company?.createdAt 
@@ -63,10 +74,12 @@ export class BillingController {
                 teamMembersCount,
                 activeAppsCount,
                 isExpired,
-                status: currentSubscription?.status || 'expired',
-                daysLeft: currentSubscription?.currentPeriodEnd 
-                    ? Math.max(0, Math.ceil((new Date(currentSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-                    : 0,
+                status: currentStatus,
+                daysLeft: isTrial && company?.trialEndDate
+                    ? Math.max(0, Math.ceil((new Date(company.trialEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : currentSubscription?.currentPeriodEnd 
+                        ? Math.max(0, Math.ceil((new Date(currentSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                        : 0,
                 paymentsEnabled: true
             });
         } catch (err) { next(err); }

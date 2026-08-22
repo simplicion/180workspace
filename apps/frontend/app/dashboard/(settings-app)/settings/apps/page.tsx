@@ -18,9 +18,10 @@ const APP_COLORS: Record<string, { bg: string; text: string; light: string; tagB
     projects:      { bg: 'bg-indigo-600',  text: 'text-indigo-600',  light: 'bg-indigo-50',  tagBg: 'bg-indigo-50',  tagText: 'text-indigo-700' },
     hr:            { bg: 'bg-emerald-600', text: 'text-emerald-600', light: 'bg-emerald-50', tagBg: 'bg-emerald-50', tagText: 'text-emerald-700' },
     finance:       { bg: 'bg-amber-500',   text: 'text-amber-600',   light: 'bg-amber-50',   tagBg: 'bg-amber-50',   tagText: 'text-amber-700' },
-    assets:        { bg: 'bg-orange-600',  text: 'text-orange-600',  light: 'bg-orange-50',  tagBg: 'bg-orange-50',  tagText: 'text-orange-700' },
-    insights:      { bg: 'bg-rose-600',    text: 'text-rose-600',    light: 'bg-rose-50',    tagBg: 'bg-rose-50',    tagText: 'text-rose-700' },
-    tools:         { bg: 'bg-violet-600',  text: 'text-violet-600',  light: 'bg-violet-50',  tagBg: 'bg-violet-50',  tagText: 'text-violet-700' },
+    insights:          { bg: 'bg-rose-600',    text: 'text-rose-600',    light: 'bg-rose-50',    tagBg: 'bg-rose-50',    tagText: 'text-rose-700' },
+    'workspace-tools': { bg: 'bg-violet-600',  text: 'text-violet-600',  light: 'bg-violet-50',  tagBg: 'bg-violet-50',  tagText: 'text-violet-700' },
+    communications:    { bg: 'bg-cyan-600',    text: 'text-cyan-600',    light: 'bg-cyan-50',    tagBg: 'bg-cyan-50',    tagText: 'text-cyan-700' },
+    'social-media':    { bg: 'bg-teal-600',    text: 'text-teal-600',    light: 'bg-teal-50',    tagBg: 'bg-teal-50',    tagText: 'text-teal-700' },
 };
 
 // ─── Filter Tab Definitions ───

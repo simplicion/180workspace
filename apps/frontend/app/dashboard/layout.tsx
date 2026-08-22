@@ -440,10 +440,8 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps || 3;
                     const companyEnabledApps = company?.enabledApps || [];
-                    // We only allow up to maxApps from their enabled list.
-                    // Assuming the array is ordered, the first `maxApps` are allowed.
-                    // If the app is in this allowed subset, it's enabled.
-                    const allowedSubset = companyEnabledApps.slice(0, maxApps);
+                    const appsWithoutSystem = companyEnabledApps.filter((a: string) => a !== 'system');
+                    const allowedSubset = appsWithoutSystem.slice(0, maxApps);
                     
                     // Default apps are always available and don't count towards the limit, 
                     // OR they do count? Usually defaults are always allowed.
