@@ -939,7 +939,7 @@ export class AuthService {
     }
 
     static async onboarding(email: string, data: any) {
-        const { role, name, username, headline, city, country, socialLinks, bio, interests } = data;
+        const { role, name, username, headline, title, city, country, socialLinks, bio, interests, imageBase64 } = data;
         
         if (username) {
             const existingUser = await globalPrisma.user.findFirst({
@@ -960,13 +960,16 @@ export class AuthService {
                 ...(role && { role }),
                 ...(username && { username }),
                 ...(headline && { headline }),
+                ...(title && { title }),
                 ...(city && { city }),
                 ...(country && { country }),
                 ...(socialLinks && { socialLinks }),
                 ...(bio && { bio }),
-                ...(interests && { interests })
+                ...(interests && { interests }),
+                ...(imageBase64 && { photoUrl: imageBase64 })
             },
         });
+
 
         return user;
     }

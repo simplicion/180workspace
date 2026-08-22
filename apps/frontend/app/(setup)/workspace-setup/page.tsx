@@ -91,6 +91,7 @@ function WorkspaceSetup() {
     const { platform } = useSettings();
 
     const [step, setStep] = useState(1);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     
     // Step 1: Text inputs
     const [companyName, setCompanyName] = useState('');
@@ -216,8 +217,9 @@ function WorkspaceSetup() {
 
         setEnabledApps(prev => {
             const isNowEnabled = !prev.includes(appId);
-            if (isNowEnabled && prev.length >= limit) {
-                toast.error(`Kickstart Plan allows up to ${limit} apps. Upgrade your plan to add more!`);
+            const nonCoreCount = prev.filter(id => !coreApps.includes(id)).length;
+            if (isNowEnabled && nonCoreCount >= limit) {
+                setShowUpgradeModal(true);
                 return prev;
             }
             const newApps = isNowEnabled ? [...prev, appId] : prev.filter(id => id !== appId);
@@ -614,14 +616,22 @@ function WorkspaceSetup() {
                                         </div>
                                     </div>
 
-                                    {APPS_CONFIG.map(app => {
-                                        const isEnabled = enabledApps.includes(app.id);
+                                    {(() => {
                                         const coreApps = ['projects', 'workspace-tools', 'communications'];
-                                        const isLocked = coreApps.includes(app.id);
-                                        const isRecommended = recommendedApps.includes(app.id);
-                                        const Icon = app.icon;
+                                        const sortedApps = [...APPS_CONFIG].sort((a, b) => {
+                                            const aIsCore = coreApps.includes(a.id);
+                                            const bIsCore = coreApps.includes(b.id);
+                                            if (aIsCore && !bIsCore) return -1;
+                                            if (!aIsCore && bIsCore) return 1;
+                                            return 0;
+                                        });
+                                        return sortedApps.map(app => {
+                                            const isEnabled = enabledApps.includes(app.id);
+                                            const isLocked = coreApps.includes(app.id);
+                                            const isRecommended = recommendedApps.includes(app.id);
+                                            const Icon = app.icon;
 
-                                        return (
+                                            return (
                                             <div 
                                                 key={app.id}
                                                 onClick={() => toggleApp(app.id, false)}
@@ -664,7 +674,8 @@ function WorkspaceSetup() {
                                                 )}
                                             </div>
                                         );
-                                    })}
+                                        });
+                                    })()}
                                     </div>
                                 </div>
 
@@ -712,6 +723,36 @@ function WorkspaceSetup() {
                         {[1, 2, 3, 4].map(i => (
                             <div key={i} className={clsx("h-1.5 rounded-full transition-all duration-300", step >= i ? "w-8 bg-indigo-600" : "w-4 bg-gray-200")} />
                         ))}
+                    </div>
+                )}
+
+                {/* Upgrade Modal */}
+                {showUpgradeModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden"
+                        >
+                            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                                <h3 className="text-xl font-bold text-gray-900">Plan Limit Reached</h3>
+                                <button onClick={() => setShowUpgradeModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="p-6 text-gray-600">
+                                <p className="mb-4">You are currently on the Kickstart Plan. After creating the workspace, you can upgrade your plan to access more apps.</p>
+                                <p className="font-semibold text-gray-900">Right now you can only access 5 apps.</p>
+                            </div>
+                            <div className="p-6 pt-0 flex justify-end">
+                                <button 
+                                    onClick={() => setShowUpgradeModal(false)}
+                                    className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                                >
+                                    OK
+                                </button>
+                            </div>
+                        </motion.div>
                     </div>
                 )}
             </div>

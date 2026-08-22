@@ -1,7 +1,7 @@
 import { LogoLoader } from "@workspace/ui";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, MapPin, Link as LinkIcon, Edit3, CheckCircle2, XCircle } from 'lucide-react';
+import { User, Edit3, CheckCircle2, XCircle, Camera, Briefcase, AlignLeft } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function BasicProfile({ 
@@ -17,12 +17,13 @@ export default function BasicProfile({
         name: '',
         username: '',
         headline: '',
-        city: '',
-        country: '',
-        linkedin: '',
-        website: '',
+        title: '',
         bio: ''
     });
+
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageBase64, setImageBase64] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
 
@@ -61,29 +62,72 @@ export default function BasicProfile({
         setFormData({ ...formData, [e.target.name]: value });
     };
 
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Size check (2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Image size must be less than 2MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result as string;
+            setImagePreview(result);
+            setImageBase64(result);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(formData);
+        onSubmit({
+            ...formData,
+            ...(imageBase64 && { imageBase64 })
+        });
     };
 
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md mx-auto relative">
-            {onBack && (
-                <button 
-                    type="button"
-                    onClick={onBack}
-                    className="mb-6 flex items-center text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium z-10"
-                >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                    Back
-                </button>
-            )}
             <div className="text-center mb-6">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Complete your profile</h3>
                 <p className="text-gray-500 text-sm">Tell us a bit about yourself.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto p-1 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                
+                {/* Profile Image Upload */}
+                <div className="flex justify-center mb-2">
+                    <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="relative w-20 h-20 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 group overflow-hidden"
+                    >
+                        {imagePreview ? (
+                            <img src={imagePreview} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                            <Camera className="w-6 h-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                        )}
+                        {imagePreview && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                                <Camera className="w-5 h-5 text-white" />
+                            </div>
+                        )}
+                    </div>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                    />
+                </div>
+                <p className="text-center text-xs text-gray-400 -mt-2 mb-2">
+                    {imagePreview ? 'Tap to change' : 'Add a profile photo'}
+                </p>
+
+                {/* Full Name */}
                 <div className="relative group/input">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within/input:text-blue-600 transition-colors" />
                     <input
@@ -97,6 +141,7 @@ export default function BasicProfile({
                     />
                 </div>
                 
+                {/* Username */}
                 <div className="relative group/input flex flex-col">
                     <div className="flex">
                         <span className="inline-flex items-center px-4 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm">
@@ -129,6 +174,20 @@ export default function BasicProfile({
                     )}
                 </div>
 
+                {/* Title / Role */}
+                <div className="relative group/input">
+                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within/input:text-blue-600 transition-colors" />
+                    <input
+                        type="text"
+                        name="title"
+                        value={formData.title}
+                        onChange={handleChange}
+                        placeholder="Title (e.g. CEO, CTO, Founder)"
+                        className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-gray-900 text-sm focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm"
+                    />
+                </div>
+
+                {/* Headline */}
                 <div className="relative group/input">
                     <Edit3 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within/input:text-blue-600 transition-colors" />
                     <input
@@ -141,51 +200,21 @@ export default function BasicProfile({
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="relative group/input">
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within/input:text-blue-600 transition-colors" />
-                        <input
-                            type="text"
-                            name="city"
-                            value={formData.city}
-                            onChange={handleChange}
-                            placeholder="City"
-                            className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-gray-900 text-sm focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm"
-                        />
-                    </div>
-                    <div className="relative group/input">
-                        <input
-                            type="text"
-                            name="country"
-                            value={formData.country}
-                            onChange={handleChange}
-                            placeholder="Country"
-                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm"
-                        />
-                    </div>
-                </div>
-
+                {/* Bio */}
                 <div className="relative group/input">
-                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within/input:text-blue-600 transition-colors" />
-                    <input
-                        type="url"
-                        name="linkedin"
-                        value={formData.linkedin}
-                        onChange={handleChange}
-                        placeholder="LinkedIn URL"
-                        className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-gray-900 text-sm focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm"
-                    />
-                </div>
-
-                <div className="relative group/input">
+                    <AlignLeft className="absolute left-4 top-4 w-5 h-5 text-gray-400 group-focus-within/input:text-blue-600 transition-colors" />
                     <textarea
                         name="bio"
                         value={formData.bio}
                         onChange={handleChange}
-                        placeholder="Write a short bio about yourself..."
+                        placeholder="Short bio — tell people about yourself"
                         rows={3}
-                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm resize-none"
+                        maxLength={300}
+                        className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-gray-900 text-sm focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all shadow-sm resize-none"
                     />
+                    {formData.bio.length > 0 && (
+                        <span className="absolute right-3 bottom-2 text-[10px] text-gray-400">{formData.bio.length}/300</span>
+                    )}
                 </div>
 
                 <button
