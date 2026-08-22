@@ -119,23 +119,26 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
 
     const renderPaddingControls = () => {
         if (!isSelected) return null;
+        
+        const handleClass = "absolute w-3 h-3 bg-white border-2 border-cyan-400 rounded-full z-20 hover:scale-125 transition-transform";
+
         return (
             <>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'top')}
-                    className="absolute top-0 left-0 right-0 h-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ns-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
+                    className={`${handleClass} top-[-6px] left-1/2 -translate-x-1/2 cursor-ns-resize`}
                 />
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'bottom')}
-                    className="absolute bottom-0 left-0 right-0 h-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ns-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
+                    className={`${handleClass} bottom-[-6px] left-1/2 -translate-x-1/2 cursor-ns-resize`}
                 />
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'left')}
-                    className="absolute top-0 bottom-0 left-0 w-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ew-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
+                    className={`${handleClass} left-[-6px] top-1/2 -translate-y-1/2 cursor-ew-resize`}
                 />
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'right')}
-                    className="absolute top-0 bottom-0 right-0 w-2 bg-indigo-500/20 hover:bg-indigo-500/50 cursor-ew-resize z-20 transition-colors opacity-0 group-hover/element:opacity-100"
+                    className={`${handleClass} right-[-6px] top-1/2 -translate-y-1/2 cursor-ew-resize`}
                 />
             </>
         );
@@ -148,30 +151,16 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
 
     const renderControls = () => {
         if (!isSelected) return null;
-        
-        const bgColor = 'bg-indigo-500';
 
         return (
-            <>
-                <div className={`absolute -top-[21px] -left-[2px] z-50 ${bgColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-t-md rounded-br-md shadow-sm tracking-wide`}>
-                    {node.name ? (
-                        <>
-                            <span className="font-normal opacity-90">{node.name}</span>
-                            <span className="capitalize ml-1">{node.type}</span>
-                        </>
-                    ) : (
-                        <span className="capitalize">{node.type}</span>
-                    )}
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 flex gap-2 bg-slate-800 shadow-xl rounded-md px-2 py-1.5 items-center">
+                <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors" title="Drag to move">
+                    <GripVertical className="w-4 h-4" />
                 </div>
-                <div className="absolute -top-8 right-0 z-50 flex gap-1 bg-white backdrop-blur shadow-lg rounded-lg p-1 border border-gray-100 items-center">
-                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-gray-100 text-gray-400 rounded" title="Drag to reorder">
-                        <GripVertical className="w-4 h-4" />
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-            </>
+                <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1.5 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded transition-colors" title="Delete">
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
         );
     };
 
@@ -255,13 +244,13 @@ export function BuilderElement({ node, selectedElementId, setSelectedElementId, 
     };
 
     let dragIndicatorClass = '';
-    if (dragPosition === 'left') dragIndicatorClass = 'border-l-4 border-l-indigo-500';
-    else if (dragPosition === 'right') dragIndicatorClass = 'border-r-4 border-r-indigo-500';
-    else if (dragPosition === 'top') dragIndicatorClass = 'border-t-4 border-t-indigo-500';
-    else if (dragPosition === 'bottom') dragIndicatorClass = 'border-b-4 border-b-indigo-500';
-    else if (dragPosition === 'inside') dragIndicatorClass = 'ring-2 ring-indigo-500 bg-indigo-50/10';
+    if (dragPosition === 'left') dragIndicatorClass = 'border-l-4 border-l-cyan-400';
+    else if (dragPosition === 'right') dragIndicatorClass = 'border-r-4 border-r-cyan-400';
+    else if (dragPosition === 'top') dragIndicatorClass = 'border-t-4 border-t-cyan-400';
+    else if (dragPosition === 'bottom') dragIndicatorClass = 'border-b-4 border-b-cyan-400';
+    else if (dragPosition === 'inside') dragIndicatorClass = 'ring-2 ring-cyan-400 bg-cyan-50/10';
 
-    const wrapperClass = `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-500/50'} ${dragIndicatorClass}`;
+    const wrapperClass = `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-cyan-400' : 'hover:ring-1 hover:ring-cyan-400/50'} ${dragIndicatorClass}`;
 
 
     const props = {
