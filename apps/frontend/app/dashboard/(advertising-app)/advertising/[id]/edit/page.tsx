@@ -1295,6 +1295,7 @@ export default function WebsiteEditorPage() {
                                     <React.Fragment key={section.id}>
                                         <BuilderElement
                                             node={section}
+                                            brand={brand}
                                             selectedElementId={selectedElementId}
                                             setSelectedElementId={setSelectedElementId}
                                             updateElement={updateElement}
