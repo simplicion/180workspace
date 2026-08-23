@@ -87,6 +87,15 @@ jobs:
         with:
           name: compiled-backend
 
+      - name: Stop PM2 before SCP (Free up memory)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            pm2 stop all || true
+
       - name: Copy compiled files to EC2
         uses: appleboy/scp-action@master
         with:
