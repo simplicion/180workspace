@@ -204,7 +204,7 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                 {/* Dedicated Property Panels */}
                 <ContainerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <ButtonProperties selectedElement={selectedElement} onUpdate={onUpdate} brand={brand} />
-                <TextProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <TextProperties selectedElement={selectedElement} onUpdate={onUpdate} brand={brand} />
                 <ImageProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <DividerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <CodeProperties selectedElement={selectedElement} onUpdate={onUpdate} />

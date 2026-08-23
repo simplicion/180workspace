@@ -167,10 +167,17 @@ export function PublicRenderElement({ node, brand }: PublicRenderElementProps) {
     if (node.type === 'text') {
         const Tag: any = node.style?.tagName || 'div';
         const normalizedStyle = normalizeStyle(node.style);
-        const tagStyle = {
+        const tagStyle: React.CSSProperties = {
             fontSize: normalizedStyle.fontSize,
             fontWeight: normalizedStyle.fontWeight,
+            fontFamily: normalizedStyle.fontFamily,
+            fontStyle: normalizedStyle.fontStyle,
+            textDecoration: normalizedStyle.textDecoration,
+            textTransform: normalizedStyle.textTransform,
+            lineHeight: normalizedStyle.lineHeight,
+            letterSpacing: normalizedStyle.letterSpacing,
             textAlign: normalizedStyle.textAlign,
+            textShadow: normalizedStyle.textShadow,
             color: normalizedStyle.color,
             opacity: normalizedStyle.opacity,
             marginBottom: normalizedStyle.marginBottom,
@@ -183,12 +190,28 @@ export function PublicRenderElement({ node, brand }: PublicRenderElementProps) {
             });
         }
         
+        const isLink = !!node.data?.link;
+        const textElement = (
+            <Tag 
+                style={tagStyle as any} 
+                dangerouslySetInnerHTML={{ __html: displayContent }} 
+            />
+        );
+
         const content = (
             <div style={normalizedStyle} className="relative group/element ring-inset transition-all">
-                <Tag 
-                    style={tagStyle as any} 
-                    dangerouslySetInnerHTML={{ __html: displayContent }} 
-                />
+                {isLink ? (
+                    <a
+                        href={node.data.link}
+                        target={node.data.openInNewTab ? '_blank' : '_self'}
+                        rel={node.data.openInNewTab ? 'noopener noreferrer' : undefined}
+                        className="no-underline text-inherit block"
+                    >
+                        {textElement}
+                    </a>
+                ) : (
+                    textElement
+                )}
             </div>
         );
         return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;

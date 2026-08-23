@@ -26,20 +26,29 @@ export function TextElement({ node, brand, setNodeRef, style, wrapperClass, hand
         });
     }
 
+    const textStyle: React.CSSProperties = {
+        fontSize: node.style?.fontSize,
+        fontWeight: node.style?.fontWeight,
+        fontFamily: node.style?.fontFamily,
+        fontStyle: node.style?.fontStyle,
+        textDecoration: node.style?.textDecoration,
+        textTransform: node.style?.textTransform,
+        lineHeight: node.style?.lineHeight,
+        letterSpacing: node.style?.letterSpacing,
+        textAlign: node.style?.textAlign,
+        textShadow: node.style?.textShadow,
+        color: node.style?.color,
+        opacity: node.style?.opacity,
+        marginBottom: node.style?.marginBottom,
+        outline: 'none'
+    };
+
     return (
         <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass}>
             {renderControls()}
             {renderPaddingControls()}
             <Tag
-                style={{
-                    fontSize: node.style?.fontSize,
-                    fontWeight: node.style?.fontWeight,
-                    textAlign: node.style?.textAlign,
-                    color: node.style?.color,
-                    opacity: node.style?.opacity,
-                    marginBottom: node.style?.marginBottom,
-                    outline: 'none'
-                }}
+                style={textStyle}
                 contentEditable={true}
                 suppressContentEditableWarning={true}
                 onBlur={(e: React.FocusEvent<HTMLElement>) => {
