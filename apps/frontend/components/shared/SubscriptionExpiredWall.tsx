@@ -62,7 +62,7 @@ export default function SubscriptionExpiredWall() {
                 </div>
 
                 {isAdmin ? (
-                    <Link href="/dashboard/billing"
+                    <Link href="/dashboard/settings/platform-billing"
                         className="flex items-center justify-center gap-2 w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors text-sm shadow-lg shadow-indigo-500/20">
                         <Zap className="w-4 h-4" />
                         Upgrade My Plan

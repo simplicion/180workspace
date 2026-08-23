@@ -780,7 +780,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             // Gate 3: Mandate setup required for admins
             if (isAdmin && paymentsEnabled && !subLoading) {
                 if (status === 'mandate_pending' && mandateStatus === 'pending' && !isBillingPath) {
-                    router.push('/dashboard/billing');
+                    router.push('/dashboard/settings/platform-billing');
                 }
             }
         }
