@@ -58,13 +58,7 @@ export default function AdvertisingPage() {
                     <p className="text-sm text-gray-500 mt-1">Manage your marketing landing pages and track performance.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Link 
-                        href="/dashboard/advertising/settings"
-                        className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2.5 rounded-xl font-bold hover:bg-gray-50 border border-gray-200 transition-all shadow-sm"
-                    >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                    </Link>
+
                     <button 
                         className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
                         onClick={() => setIsCreateModalOpen(true)}

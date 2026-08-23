@@ -251,8 +251,14 @@ export class AuthService {
                 const ps = await globalPrisma.platformSettings.findFirst();
                 const trialResult = await BillingService.createTrialSubscription(company.id, user.id);
                 const trialDaysActive = trialResult.trialDays || ps?.trialDays || 14;
+                const isForeverFree = trialResult.isForeverFree;
+                
+                const title = isForeverFree ? 'Welcome to 180workspace!' : 'Trial Evaluation Active';
+                const message = isForeverFree 
+                    ? `Welcome! You are currently on the free-forever Kickstart plan. Enjoy the platform.` 
+                    : `Welcome! You are currently on a ${trialDaysActive}-day free trial plan. Enjoy the platform.`;
 
-                await EmailService.notify(user, 'trial_started', {
+                await EmailService.notify(user, isForeverFree ? 'welcome_started' : 'trial_started', {
                     trialDays: trialDaysActive,
                     category: EmailService.CATEGORIES.SYSTEM
                 }, companyPrisma);
@@ -264,8 +270,8 @@ export class AuthService {
                     data: {
                         userId: user.id,
                         type: 'system_alert',
-                        title: 'Trial Evaluation Active',
-                        message: `Welcome! You are currently on a ${trialDaysActive}-day free trial plan. Enjoy the platform.`,
+                        title,
+                        message,
                         link: '/dashboard/settings',
                     }
                 });
@@ -275,8 +281,8 @@ export class AuthService {
                     io.to(user.id.toString()).emit('notification:new', {
                         _id: trialNotification.id.toString(),
                         type: 'system_alert',
-                        title: 'Trial Evaluation Active',
-                        message: `Welcome! You are currently on a ${trialDaysActive}-day free trial plan. Enjoy the platform.`,
+                        title,
+                        message,
                         link: '/dashboard/settings',
                         isRead: false,
                         createdAt: trialNotification.createdAt

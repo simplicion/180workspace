@@ -5,7 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Globe, MousePointer2, Users, Plus, Trash2, ArrowLeft, ExternalLink, Code, Activity, Clock, Sparkles, Edit3 } from 'lucide-react';
+import { Globe, MousePointer2, Users, Plus, Trash2, ArrowLeft, ExternalLink, Code, Activity, Clock, Sparkles, Edit3, X, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -36,6 +36,7 @@ function WebsiteDashboardInner() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'overview');
+    const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
 
     useEffect(() => {
         fetchWebsiteData();
@@ -96,14 +97,21 @@ function WebsiteDashboardInner() {
                                 website.status === 'active' ? "bg-emerald-500" : "bg-gray-300"
                             )} />
                             <p className="text-sm text-gray-500 font-medium">
-                                {website.company?.customDomain 
-                                    ? `${website.company.customDomain}${website.isPrimary ? '' : `/${website.slug}`}`
-                                    : `${website.company?.slug || 'company'}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}${website.isPrimary ? '' : `/${website.slug}`}`}
+                                {website.customDomain 
+                                    ? website.customDomain
+                                    : `${website.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`}
                             </p>
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsDomainModalOpen(true)}
+                        className="p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-all"
+                        title="Website Settings"
+                    >
+                        <Globe className="w-4 h-4" />
+                    </button>
                     <button
                         onClick={() => router.push(`/dashboard/advertising/${website.id}/edit`)}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-sm font-bold text-indigo-600 hover:bg-indigo-100 transition-all"
@@ -115,12 +123,10 @@ function WebsiteDashboardInner() {
                         href={(() => {
                             const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
                             const isLocal = rootDomain.includes('localhost');
-                            if (website.company?.customDomain) {
-                                return website.isPrimary 
-                                    ? `https://${website.company.customDomain}`
-                                    : `https://${website.slug}.${website.company.customDomain}`;
+                            if (website.customDomain) {
+                                return `https://${website.customDomain}`;
                             }
-                            return `http${isLocal ? '' : 's'}://${website.company?.slug || 'company'}.${rootDomain}${website.isPrimary ? '' : `/${website.slug}`}`;
+                            return `http${isLocal ? '' : 's'}://${website.slug}.${rootDomain}`;
                         })()}
                         target="_blank"
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all"
@@ -171,6 +177,13 @@ function WebsiteDashboardInner() {
                     {activeTab === 'settings' && <SettingsTab website={website} onUpdate={fetchWebsiteData} />}
                 </motion.div>
             </AnimatePresence>
+            
+            <CustomDomainModal 
+                isOpen={isDomainModalOpen} 
+                onClose={() => setIsDomainModalOpen(false)} 
+                website={website} 
+                onUpdate={fetchWebsiteData} 
+            />
         </div>
     );
 }
@@ -548,6 +561,7 @@ function ToolsTab({ website }: { website: any }) {
 
 function SettingsTab({ website, onUpdate }: { website: any, onUpdate: () => void }) {
     const [loading, setLoading] = useState(false);
+    const [customDomain, setCustomDomain] = useState(website.customDomain || '');
     const router = useRouter();
 
     const handleStatusToggle = async () => {
@@ -563,15 +577,14 @@ function SettingsTab({ website, onUpdate }: { website: any, onUpdate: () => void
         }
     };
 
-    const handleSetPrimary = async () => {
-        if (website.isPrimary) return;
+    const handleSaveCustomDomain = async () => {
         try {
             setLoading(true);
-            await api.put(`/api/websites/${website.id}/primary`);
-            toast.success('Website set as primary');
+            await api.patch(`/api/websites/${website.id}`, { customDomain });
+            toast.success('Custom domain updated');
             onUpdate();
-        } catch (error) {
-            toast.error('Failed to set primary website');
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to update custom domain');
         } finally {
             setLoading(false);
         }
@@ -623,33 +636,6 @@ function SettingsTab({ website, onUpdate }: { website: any, onUpdate: () => void
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                    <div>
-                        <p className="font-bold text-gray-900">Primary Website</p>
-                        <p className="text-xs text-gray-500 mt-1">Set this website to load when visiting your company&apos;s root domain.</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <span className={clsx(
-                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                            website.isPrimary ? "bg-indigo-50 text-indigo-600" : "bg-gray-100 text-gray-400"
-                        )}>
-                            {website.isPrimary ? 'PRIMARY' : 'STANDARD'}
-                        </span>
-                        <button 
-                            onClick={handleSetPrimary}
-                            disabled={loading || website.isPrimary}
-                            className={clsx(
-                                "w-12 h-6 rounded-full relative transition-all",
-                                website.isPrimary ? "bg-indigo-600 cursor-default" : "bg-gray-300"
-                            )}
-                        >
-                            <div className={clsx(
-                                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
-                                website.isPrimary ? "left-7" : "left-1"
-                            )} />
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <div className="bg-white p-8 rounded-3xl border border-red-50 shadow-sm space-y-6">
@@ -794,3 +780,83 @@ function UTMBuilder({ website }: any) {
     );
 }
 
+function CustomDomainModal({ isOpen, onClose, website, onUpdate }: any) {
+    const [customDomain, setCustomDomain] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (website?.customDomain) {
+            setCustomDomain(website.customDomain);
+        }
+    }, [website]);
+
+    const handleSave = async () => {
+        try {
+            setLoading(true);
+            await api.patch(`/api/websites/${website.id}`, { customDomain: customDomain || null });
+            toast.success('Custom domain updated!');
+            onUpdate();
+            onClose();
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to update custom domain');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                            <Globe className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">Custom Domain</h2>
+                            <p className="text-xs text-gray-500">Connect a domain to this website</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-5 space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Domain Name</label>
+                        <input 
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                            placeholder="www.example.com"
+                            value={customDomain}
+                            onChange={e => setCustomDomain(e.target.value)}
+                        />
+                    </div>
+                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                        <p className="text-xs text-amber-800 leading-relaxed">
+                            <strong>Important:</strong> Please ensure you have added a CNAME or A record in your DNS settings pointing to our servers for this domain to work.
+                        </p>
+                    </div>
+                </div>
+                <div className="p-5 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                    <button 
+                        onClick={onClose}
+                        className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={handleSave}
+                        disabled={loading || customDomain === (website?.customDomain || '')}
+                        className="flex items-center justify-center min-w-[100px] px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Domain'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}

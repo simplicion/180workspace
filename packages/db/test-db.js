@@ -8,7 +8,7 @@ async function main() {
     
     if (company) {
         const websites = await prisma.website.findMany({ where: { companyId: company.id }});
-        console.log('Websites:', websites.map(w => ({ id: w.id, slug: w.slug, name: w.name, status: w.status, isPrimary: w.isPrimary })));
+        console.log('Websites:', websites.map(w => ({ id: w.id, slug: w.slug, name: w.name, status: w.status })));
     }
 }
 

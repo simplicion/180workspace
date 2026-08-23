@@ -14,7 +14,7 @@ interface WebsiteCardProps {
     onRefresh: () => void;
 }
 
-function ThreeDotMenu({ websiteId, onDelete, isPrimary, onSetPrimary }: any) {
+function ThreeDotMenu({ websiteId, onDelete }: any) {
     const [open, setOpen] = useState(false);
     const ref = useRef<any>(null);
     const router = useRouter();
@@ -49,15 +49,7 @@ function ThreeDotMenu({ websiteId, onDelete, isPrimary, onSetPrimary }: any) {
                             <Edit3 className="w-4 h-4" />
                             Edit Website
                         </button>
-                        {!isPrimary && (
-                            <button
-                                onClick={e => { e.stopPropagation(); setOpen(false); onSetPrimary(); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
-                            >
-                                <Star className="w-4 h-4" />
-                                Set as Primary
-                            </button>
-                        )}
+
                         <div className="h-px bg-gray-100 mx-2" />
                         <button
                             onClick={e => { e.stopPropagation(); setOpen(false); onDelete(); }}
@@ -87,26 +79,13 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
     }, [baseDomain]);
 
     const isLocal = rootDomain.includes('localhost');
-    let liveUrl = `http${isLocal ? '' : 's'}://${companyData?.slug || 'company'}.${rootDomain}${website.isPrimary ? '' : `/${website.slug}`}`;
-    if (companyData?.customDomain) {
-        liveUrl = website.isPrimary
-            ? `https://${companyData.customDomain}`
-            : `https://${website.slug}.${companyData.customDomain}`;
-    }
+    let liveUrl = website.customDomain
+        ? `https://${website.customDomain}`
+        : `http${isLocal ? '' : 's'}://${website.slug}.${rootDomain}`;
+    
     const displayUrl = liveUrl.replace(/^https?:\/\//, '');
 
     // ── Handlers ──────────────────────────────────────────────────────────────
-    const handleSetPrimary = async () => {
-        if (website.isPrimary) return;
-        try {
-            await api.put(`/api/websites/${website.id}`, { isPrimary: true });
-            toast.success('Set as primary website');
-            onRefresh();
-        } catch {
-            toast.error('Failed to update');
-        }
-    };
-
     const handleDelete = async () => {
         if (!confirm(`Delete "${website.name}"? This cannot be undone.`)) return;
         try {
@@ -148,9 +127,6 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${website.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                         {website.status === 'active' ? 'Active' : 'Paused'}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${website.isPrimary ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {website.isPrimary ? 'Primary' : 'Secondary'}
-                    </span>
                 </div>
                 <a
                     href={liveUrl}
@@ -184,7 +160,7 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
                 >
                     View Details
                 </Link>
-                <ThreeDotMenu websiteId={website.id} onDelete={handleDelete} isPrimary={website.isPrimary} onSetPrimary={handleSetPrimary} />
+                <ThreeDotMenu websiteId={website.id} onDelete={handleDelete} />
             </div>
         </motion.div>
     );

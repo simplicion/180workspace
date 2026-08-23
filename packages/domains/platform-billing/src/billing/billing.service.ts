@@ -57,11 +57,17 @@ export class BillingService {
     static async createTrialSubscription(companyId: string, userId: string) {
         const settings = await this.getPlatformSettingsInstance();
         const plan = await this.getOrCreateDefaultPlan(settings);
-        const trialDays = (plan.trialDays > 0) ? plan.trialDays : (settings.trialDays || 14);
+        
+        const isForeverFree = plan.price === 0;
+        const trialDays = isForeverFree ? 0 : ((plan.trialDays > 0) ? plan.trialDays : (settings.trialDays || 14));
 
         const now = new Date();
-        const trialEndDate = new Date(now);
-        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+        let trialEndDate = null;
+        
+        if (!isForeverFree) {
+            trialEndDate = new Date(now);
+            trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+        }
 
         // Clean up any existing subscriptions for this company (safety check)
         await prisma.subscription.deleteMany({ where: { companyId } });
@@ -70,13 +76,13 @@ export class BillingService {
             data: {
                 companyId,
                 planId: plan.id,
-                status: 'trial', // Start as 'trial' for immediate access
-                mandateStatus: 'pending',
+                status: isForeverFree ? 'active' : 'trial',
+                mandateStatus: isForeverFree ? 'authorized' : 'pending',
                 autopayEnabled: false,
-                trialStartDate: now,
+                trialStartDate: isForeverFree ? null : now,
                 trialEndDate,
                 startDate: now,
-                paymentStatus: 'pending',
+                paymentStatus: isForeverFree ? 'paid' : 'pending',
                 amount: plan.price,
                 currency: plan.currency
             }
@@ -85,14 +91,14 @@ export class BillingService {
         await prisma.company.update({
             where: { id: companyId },
             data: {
-                trialStartDate: now,
+                trialStartDate: isForeverFree ? null : now,
                 trialEndDate: trialEndDate,
-                subscriptionStatus: 'trial',
+                subscriptionStatus: isForeverFree ? 'active' : 'trial',
                 accountStatus: 'active',
             }
         });
 
-        return { subscription, trialDays };
+        return { subscription, trialDays, isForeverFree };
     }
 
     // â”€â”€â”€ Initiate Mandate / Checkout Order
@@ -495,7 +501,7 @@ export class BillingService {
 
     // â”€â”€â”€ Get Current Subscription
     static async getActiveSubscription(companyId: string) {
-        return prisma.subscription.findFirst({
+        let sub = await prisma.subscription.findFirst({
             where: {
                 companyId,
                 status: { in: ['trial', 'active'] },
@@ -503,6 +509,37 @@ export class BillingService {
             include: { plan: true },
             orderBy: { createdAt: 'desc' }
         });
+
+        const now = new Date();
+        let isExpired = false;
+
+        if (sub) {
+            if (sub.status === 'trial' && sub.trialEndDate && sub.trialEndDate < now) {
+                isExpired = true;
+            } else if (sub.status === 'active' && sub.subscriptionEndDate && sub.subscriptionEndDate < now) {
+                isExpired = true;
+            }
+        }
+
+        if (!sub || isExpired) {
+            // Fallback to the Free Forever plan (price 0)
+            const settings = await this.getPlatformSettingsInstance();
+            const defaultPlan = await this.getOrCreateDefaultPlan(settings);
+            
+            // If they had an expired sub and the default plan is free, 
+            // create a new active subscription for the free plan
+            if (defaultPlan && defaultPlan.price === 0) {
+                const newSubResult = await this.createTrialSubscription(companyId, 'system');
+                sub = await prisma.subscription.findUnique({
+                    where: { id: newSubResult.subscription.id },
+                    include: { plan: true }
+                });
+            } else if (isExpired) {
+                return null;
+            }
+        }
+
+        return sub;
     }
 
     static async getCurrentSubscription(companyId: string) {
@@ -588,7 +625,24 @@ export class BillingService {
         return { allowed, current, max: maxUsers, plan: sub.plan.planName };
     }
 
-    // â”€â”€â”€ Apply Coupon
+    // ——— Enforce Website Limit
+    static async enforceWebsiteLimit(companyId: string) {
+        const sub = await this.getActiveSubscription(companyId);
+        if (!sub || !sub.plan) return { allowed: true, current: 0, max: Infinity };
+
+        const maxWebsites = (sub.plan as any).maxWebsites;
+        // -1 or null/undefined means unlimited
+        if (!maxWebsites || maxWebsites < 0) return { allowed: true, current: 0, max: Infinity };
+
+        const current = await prisma.website.count({
+            where: { companyId }
+        });
+        const allowed = current < maxWebsites;
+
+        return { allowed, current, max: maxWebsites, plan: sub.plan.planName };
+    }
+
+    // ——— Apply Coupon
     static async applyCoupon(couponCode: string, originalAmount: number) {
         if (!couponCode) return { discountAmount: 0, finalAmount: originalAmount, coupon: null };
 

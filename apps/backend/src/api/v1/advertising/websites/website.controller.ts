@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { WebsitesService } from '@workspace/advertising';
+import { BillingService } from '@workspace/platform-billing';
 
 
 export const getWebsites = async (req: Request, res: Response, next: NextFunction) => {
@@ -34,11 +35,18 @@ export const createWebsite = async (req: Request, res: Response, next: NextFunct
         const companyId = (req as any).user.companyId;
         const userId = (req as any).user.id;
         
+        const limitCheck = await BillingService.enforceWebsiteLimit(companyId);
+        if (!limitCheck.allowed) {
+            return res.status(403).json({ 
+                error: `Your current plan (${limitCheck.plan}) only allows ${limitCheck.max} websites. Please upgrade to create more.` 
+            });
+        }
+
         const website = await WebsitesService.createWebsite(userId, companyId, req.body);
 
         res.status(201).json({ website });
     } catch (err: any) {
-        if (err.message === 'A website with this slug already exists.' || err.message === 'This company subdomain is already taken. Please try another one.') {
+        if (err.message === 'A website with this slug already exists.') {
             return res.status(400).json({ error: err.message });
         }
         next(err);
@@ -143,9 +151,9 @@ export const getWebsiteStats = async (req: Request, res: Response, next: NextFun
 
 export const publicGetWebsite = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { domain, slug } = req.query;
-        console.log('publicGetWebsite called with:', { domain, slug });
-        const result = await WebsitesService.publicGetWebsite(domain as string, slug as string);
+        const { domain } = req.query;
+        console.log('publicGetWebsite called with:', { domain });
+        const result = await WebsitesService.publicGetWebsite(domain as string);
         console.log('publicGetWebsite success:', result.website?.id);
         res.json(result);
     } catch (err: any) {
@@ -180,10 +188,10 @@ export const publicSubmitLead = async (req: Request, res: Response, next: NextFu
         limitInfo.count++;
         rateLimitCache.set(ip, limitInfo);
 
-        const { domain, slug } = req.query;
+        const { domain } = req.query;
         const userAgent = req.headers['user-agent'] || 'unknown';
         
-        const { lead, website } = await WebsitesService.publicSubmitLead(domain as string, slug as string, req.body, ip, userAgent);
+        const { lead, website } = await WebsitesService.publicSubmitLead(domain as string, undefined, req.body, ip, userAgent);
 
         res.status(201).json({ success: true, leadId: lead.id });
     } catch (err: any) {
@@ -197,18 +205,3 @@ export const publicSubmitLead = async (req: Request, res: Response, next: NextFu
     }
 };
 
-export const setPrimaryWebsite = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const websiteId = req.params.id;
-        const companyId = (req as any).user.companyId;
-
-        const updated = await WebsitesService.setPrimaryWebsite(companyId, websiteId);
-
-        res.json({ message: 'Primary website updated successfully', website: updated });
-    } catch (error: any) {
-        if (error.message === 'Website not found or unauthorized') {
-            return res.status(404).json({ error: error.message });
-        }
-        next(error);
-    }
-};

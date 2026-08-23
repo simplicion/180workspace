@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Globe, ArrowRight, ChevronDown, Check, Search, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import api from '@/lib/api';
+import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
@@ -119,13 +120,15 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
     const [companySlugInput, setCompanySlugInput] = useState('');
 
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    const isPrimary = websiteCount === 0;
     const baseDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
     const [rootDomain, setRootDomain] = useState(baseDomain);
     
     const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
     const [checkingSlug, setCheckingSlug] = useState(false);
     const [slugError, setSlugError] = useState('');
+
+    const [billingInfo, setBillingInfo] = useState<any>(null);
+    const [loadingBilling, setLoadingBilling] = useState(false);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && (baseDomain === 'localhost' || baseDomain === '')) {
@@ -136,22 +139,29 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
+            // Fetch billing info to check website limits
+            const checkLimit = async () => {
+                setLoadingBilling(true);
+                try {
+                    const res = await api.get('/api/v1/platform-billing');
+                    setBillingInfo(res.data);
+                } catch (err) {
+                    console.error('Failed to fetch billing info', err);
+                } finally {
+                    setLoadingBilling(false);
+                }
+            };
+            checkLimit();
         } else {
             document.body.style.overflow = 'unset';
+            setBillingInfo(null);
         }
-        return () => {
-            document.body.style.overflow = 'unset';
-        };
+        return () => { document.body.style.overflow = 'unset'; };
     }, [isOpen]);
     
-    const displayCompanySlug = isPrimary 
-        ? (companySlugInput || name.toLowerCase().replace(/[^a-z0-9]/g, '')) 
-        : (companyData?.slug || 'yourcompany');
-
     useEffect(() => {
         const checkSlugAvailability = async () => {
-            const currentSlugToCheck = isPrimary ? displayCompanySlug : slug;
-            if (!currentSlugToCheck) {
+            if (!slug) {
                 setSlugAvailable(null);
                 setSlugError('');
                 return;
@@ -161,9 +171,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
             setSlugError('');
             try {
                 const res = await api.get('/api/websites/check-slug', {
-                    params: {
-                        ...(isPrimary ? { companySlug: currentSlugToCheck } : { slug: currentSlugToCheck })
-                    }
+                    params: { slug }
                 });
                 
                 if (res.data.available) {
@@ -182,7 +190,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
 
         const timer = setTimeout(checkSlugAvailability, 500);
         return () => clearTimeout(timer);
-    }, [slug, displayCompanySlug, isPrimary]);
+    }, [slug]);
 
     const togglePage = (id, locked) => {
         if (locked) return;
@@ -211,8 +219,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
             const res = await api.post('/api/websites', { 
                 name: name.trim(), 
                 slug, 
-                config,
-                companySlug: isPrimary ? displayCompanySlug : undefined
+                config
             });
             const created = res.data.website;
             toast.success('Website created!');
@@ -232,6 +239,11 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
         setSlugAvailable(null); setSlugError('');
         onClose();
     };
+
+    const isLimitReached = billingInfo && 
+        (billingInfo.currentSubscription?.plan?.maxWebsites !== undefined) &&
+        (billingInfo.currentSubscription?.plan?.maxWebsites !== -1) &&
+        (billingInfo.activeWebsitesCount >= billingInfo.currentSubscription?.plan?.maxWebsites);
 
     if (!isOpen) return null;
 
@@ -255,89 +267,83 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
                     </button>
                 </div>
 
-                {/* Scrollable Body */}
-                <div className="flex-1 overflow-y-auto p-5 space-y-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    {/* Website Name */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Website Name</label>
-                        <input type="text" required autoFocus placeholder="E.g. Summer Campaign 2024" className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" value={name} onChange={e => setName(e.target.value)} />
-                        
-                        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500">
-                            <Globe className="w-3.5 h-3.5 shrink-0" />
-                            <span className="font-mono flex items-center">
-                                {companyData?.customDomain ? (
-                                    isPrimary ? (
-                                        <span className="text-indigo-600 font-medium">https://{companyData.customDomain}</span>
-                                    ) : (
-                                        <><span className="text-gray-400">https://{companyData.customDomain}/</span><span className="text-indigo-600 font-medium">{slug || 'website-name'}</span></>
-                                    )
-                                ) : (
-                                    isPrimary ? (
-                                        <>
-                                            https://
-                                            <input 
-                                                type="text" 
-                                                placeholder={name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'yourcompany'}
-                                                className="bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 text-indigo-600 font-medium outline-none px-0.5 min-w-[50px] w-auto max-w-[120px] transition-colors" 
-                                                value={companySlugInput} 
-                                                onChange={e => setCompanySlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
-                                            />
-                                            .{rootDomain}
-                                        </>
-                                    ) : (
-                                        <><span className="text-gray-400">https://{displayCompanySlug}.{rootDomain}/</span><span className="text-indigo-600 font-medium">{slug || 'website-name'}</span></>
-                                    )
-                                )}
-                            </span>
-                            {isPrimary && <span className="ml-1 px-1.5 py-0.5 text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200 rounded uppercase tracking-wide">Primary</span>}
-                            
-                            <div className="ml-2 flex items-center">
-                                {checkingSlug && <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin" />}
-                                {!checkingSlug && slugAvailable === true && (
-                                    <div className="flex items-center gap-1 text-emerald-600 font-medium">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        <span>Available</span>
+                {loadingBilling ? (
+                    <div className="flex-1 flex items-center justify-center p-12">
+                        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                    </div>
+                ) : isLimitReached ? (
+                    <div className="flex-1 overflow-y-auto p-5">
+                        <PremiumFeatureLock 
+                            title="Website Limit Reached"
+                            description={`Your current plan allows up to ${billingInfo.currentSubscription?.plan?.maxWebsites} websites. Upgrade to create more.`}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        {/* Scrollable Body */}
+                        <div className="flex-1 overflow-y-auto p-5 space-y-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            {/* Website Name */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Website Name</label>
+                                <input type="text" required autoFocus placeholder="E.g. Summer Campaign 2024" className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" value={name} onChange={e => setName(e.target.value)} />
+                                
+                                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500">
+                                    <Globe className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="font-mono flex items-center">
+                                        <span className="text-gray-400">https://</span>
+                                        <span className="text-indigo-600 font-medium">{slug || 'website-name'}</span>
+                                        <span className="text-gray-400">.{rootDomain}</span>
+                                    </span>
+                                    
+                                    <div className="ml-2 flex items-center">
+                                        {checkingSlug && <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin" />}
+                                        {!checkingSlug && slugAvailable === true && (
+                                            <div className="flex items-center gap-1 text-emerald-600 font-medium">
+                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                <span>Available</span>
+                                            </div>
+                                        )}
+                                        {!checkingSlug && slugAvailable === false && (
+                                            <div className="flex items-center gap-1 text-red-500 font-medium" title={slugError}>
+                                                <XCircle className="w-3.5 h-3.5" />
+                                                <span>Unavailable</span>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                                {!checkingSlug && slugAvailable === false && (
-                                    <div className="flex items-center gap-1 text-red-500 font-medium" title={slugError}>
-                                        <XCircle className="w-3.5 h-3.5" />
-                                        <span>Unavailable</span>
-                                    </div>
+                                </div>
+                                {!checkingSlug && slugAvailable === false && slugError && (
+                                    <p className="mt-1.5 text-xs text-red-500 font-medium">{slugError}</p>
                                 )}
                             </div>
-                        </div>
-                        {!checkingSlug && slugAvailable === false && slugError && (
-                            <p className="mt-1.5 text-xs text-red-500 font-medium">{slugError}</p>
-                        )}
-                    </div>
 
-                    {/* Font Family */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Font Family</label>
-                        <FontPicker value={fontFamily} onChange={setFontFamily} />
-                    </div>
-
-                    {/* Brand Color */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Brand Color</label>
-                        <div className="flex items-center gap-3">
-                            <div className="relative w-9 h-9 rounded-md overflow-hidden border border-gray-300 shadow-sm cursor-pointer shrink-0">
-                                <input type="color" className="absolute inset-0 w-full h-full scale-150 cursor-pointer" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
+                            {/* Font Family */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Font Family</label>
+                                <FontPicker value={fontFamily} onChange={setFontFamily} />
                             </div>
-                            <input type="text" className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-mono shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors uppercase" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
-                        </div>
-                    </div>
-                </div>
 
-                {/* Footer */}
-                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2 shrink-0">
-                    <button type="button" onClick={handleClose} className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Cancel</button>
-                    <button onClick={handleSubmit} disabled={loading || !name.trim() || checkingSlug || slugAvailable === false} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                        {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : null}
-                        Create Website
-                    </button>
-                </div>
+                            {/* Brand Color */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Brand Color</label>
+                                <div className="flex items-center gap-3">
+                                    <div className="relative w-9 h-9 rounded-md overflow-hidden border border-gray-300 shadow-sm cursor-pointer shrink-0">
+                                        <input type="color" className="absolute inset-0 w-full h-full scale-150 cursor-pointer" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
+                                    </div>
+                                    <input type="text" className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-mono shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors uppercase" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2 shrink-0">
+                            <button type="button" onClick={handleClose} className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Cancel</button>
+                            <button onClick={handleSubmit} disabled={loading || !name.trim() || checkingSlug || slugAvailable === false} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : null}
+                                Create Website
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

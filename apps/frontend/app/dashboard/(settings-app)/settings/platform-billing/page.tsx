@@ -159,6 +159,14 @@ export default function PlatformBillingPage() {
                                 formattedMax={maxApps > 1000 ? 'Unlimited' : undefined}
                             />
                         </div>
+                        <div>
+                            <UsageProgressBar 
+                                label="Websites Count"
+                                current={billingInfo?.activeWebsitesCount || 0}
+                                max={currentSubscription?.plan?.maxWebsites || 0}
+                                formattedMax={(currentSubscription?.plan?.maxWebsites || 0) > 1000 ? 'Unlimited' : undefined}
+                            />
+                        </div>
                     </div>
                 </motion.div>
 

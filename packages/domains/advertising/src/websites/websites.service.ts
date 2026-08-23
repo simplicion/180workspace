@@ -8,20 +8,10 @@ export class WebsitesService {
       orderBy: { createdAt: 'desc' }
     });
 
-    let companySlug = '';
-    let customDomain = null;
-    try {
-      const company = await prisma.company.findUnique({ where: { id: companyId } });
-      if (company) {
-        companySlug = company.slug || '';
-        customDomain = company.customDomain || null;
-      }
-    } catch (e) {}
-
-    return { websites, company: { slug: companySlug, customDomain } };
+    return { websites };
   }
 
-  static async checkAvailability(companyId: string, slug?: string, companySlug?: string) {
+  static async checkAvailability(companyId: string, slug?: string, customDomain?: string) {
     if (slug) {
       const existing = await prisma.website.findFirst({ where: { slug } });
       if (existing) {
@@ -29,16 +19,10 @@ export class WebsitesService {
       }
     }
 
-    if (companySlug) {
-      const existingCompany = await prisma.company.findFirst({
-        where: {
-          slug: companySlug,
-          id: { not: companyId }
-        }
-      });
-
-      if (existingCompany) {
-        return { available: false, reason: 'This company subdomain is already taken. Please try another one.' };
+    if (customDomain) {
+      const existing = await prisma.website.findFirst({ where: { customDomain } });
+      if (existing) {
+        return { available: false, reason: 'This custom domain is already taken.' };
       }
     }
 
@@ -46,32 +30,18 @@ export class WebsitesService {
   }
 
   static async createWebsite(userId: string, companyId: string, data: any) {
-    const { name, slug, template, companySlug, config } = data;
+    const { name, slug, template, config, customDomain } = data;
 
     const existing = await prisma.website.findFirst({ where: { slug } });
     if (existing) {
       throw new Error('A website with this slug already exists.');
     }
 
-    const count = await prisma.website.count({ where: { companyId } });
-    const isFirstWebsite = count === 0;
-
-    if (isFirstWebsite && companySlug) {
-      const existingCompany = await prisma.company.findFirst({
-        where: {
-          slug: companySlug,
-          id: { not: companyId }
-        }
-      });
-
-      if (existingCompany) {
-        throw new Error('This company subdomain is already taken. Please try another one.');
+    if (customDomain) {
+      const existingDomain = await prisma.website.findFirst({ where: { customDomain } });
+      if (existingDomain) {
+        throw new Error('This custom domain is already taken.');
       }
-
-      await prisma.company.update({
-        where: { id: companyId },
-        data: { slug: companySlug }
-      });
     }
 
     const initialConfig = {
@@ -88,12 +58,12 @@ export class WebsitesService {
       data: {
         name,
         slug,
+        customDomain: customDomain || null,
         template: template || 'default',
         config: config || initialConfig,
         owner: userId,
         companyId,
-        status: 'active',
-        isPrimary: isFirstWebsite
+        status: 'active'
       }
     });
 
@@ -119,7 +89,7 @@ export class WebsitesService {
   }
 
   static async updateWebsite(companyId: string, id: string, data: any) {
-    const { name, slug, template, config, status, isPrimary } = data;
+    const { name, slug, template, config, status, customDomain } = data;
 
     const currentWebsite = await prisma.website.findUnique({ where: { id } });
     if (!currentWebsite || currentWebsite.companyId !== companyId) {
@@ -132,13 +102,13 @@ export class WebsitesService {
     if (template !== undefined) updateData.template = template;
     if (config !== undefined) updateData.config = config;
     if (status !== undefined) updateData.status = status;
-
-    if (isPrimary === true) {
-      updateData.isPrimary = true;
-      await prisma.website.updateMany({
-        where: { companyId, id: { not: id } },
-        data: { isPrimary: false }
-      });
+    
+    if (customDomain !== undefined) {
+      if (customDomain) {
+        const existing = await prisma.website.findFirst({ where: { customDomain, id: { not: id } } });
+        if (existing) throw new Error('Custom domain already taken');
+      }
+      updateData.customDomain = customDomain || null;
     }
 
     const website = await prisma.website.update({
@@ -245,84 +215,44 @@ export class WebsitesService {
   }
 
   // --- Public Endpoints ---
-  static async publicGetWebsite(domain: string, slug?: string) {
+  static async publicGetWebsite(domain: string) {
     if (!domain) throw new Error('Domain is required');
-
-    let resolvedSlug = slug;
     
-    // In actual implementation, process.env.NEXT_PUBLIC_ROOT_DOMAIN could be passed or injected.
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
     const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
     const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
 
-    console.log('Resolving domain:', domain, 'subdomainSlug:', subdomainSlug);
+    console.log('Resolving website domain:', domain, 'subdomainSlug:', subdomainSlug);
 
-    let company = await prisma.company.findFirst({
+    let website = await prisma.website.findFirst({
       where: {
         OR: [
           { customDomain: domain },
-          { slug: subdomainSlug || '' }
-        ]
+          ...(subdomainSlug ? [{ slug: subdomainSlug }] : [])
+        ],
+        status: 'active'
       }
     });
 
-    if (!company && !isSubdomain) {
+    if (!website && !isSubdomain) {
       const parts = domain.split('.');
-      if (parts.length > 2) {
+      if (parts.length > 2 && parts[0] === 'www') {
         const baseDomain = parts.slice(1).join('.');
-        company = await prisma.company.findFirst({ where: { customDomain: baseDomain }});
-        if (company && !resolvedSlug) {
-          resolvedSlug = parts[0];
-        }
+        website = await prisma.website.findFirst({ where: { customDomain: baseDomain, status: 'active' }});
       }
-    }
-
-    if (!company) {
-        console.error('Company not found for domain:', domain, 'subdomainSlug:', subdomainSlug);
-        throw new Error('Company not found for this domain');
-    }
-    console.log('Found company:', company.id, company.slug);
-
-    let website;
-    if (resolvedSlug) {
-      console.log('Looking for website by slug:', resolvedSlug);
-      website = await prisma.website.findFirst({
-        where: { companyId: company.id, slug: resolvedSlug, status: 'active' }
-      });
-      
-      // Fallback: If a website matching the slug is not found, it's likely a page slug for the primary website
-      if (!website) {
-        console.log('Website with slug not found, falling back to primary website');
-        website = await prisma.website.findFirst({
-          where: { companyId: company.id, isPrimary: true, status: 'active' }
-        });
-      }
-    } else {
-      console.log('Looking for primary website');
-      website = await prisma.website.findFirst({
-        where: { companyId: company.id, isPrimary: true, status: 'active' }
-      });
     }
 
     if (!website) {
-        console.error('Website not found. resolvedSlug:', resolvedSlug, 'isPrimary:', !resolvedSlug);
-        
-        // Debug check all websites for this company
-        const allWebsites = await prisma.website.findMany({ where: { companyId: company.id } });
-        console.log('All websites for company:', allWebsites.map(w => ({ id: w.id, slug: w.slug, isPrimary: w.isPrimary, status: w.status })));
-        
+        console.error('Website not found for domain:', domain, 'subdomainSlug:', subdomainSlug);
         throw new Error('Website not found');
     }
 
     // Fire and forget view count update
     Promise.resolve().then(async () => {
       try {
-        const w = await prisma.website.findUnique({ where: { id: website.id } });
-        if (w) {
-          const stats: any = w.stats || { views: 0, leads: 0 };
-          stats.views = (stats.views || 0) + 1;
-          await prisma.website.update({ where: { id: website.id }, data: { stats } });
-        }
+        const stats: any = website.stats || { views: 0, leads: 0 };
+        stats.views = (stats.views || 0) + 1;
+        await prisma.website.update({ where: { id: website.id }, data: { stats } });
       } catch(e) {}
     });
 
@@ -340,33 +270,22 @@ export class WebsitesService {
     const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
     const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
 
-    const company = await prisma.company.findFirst({
+    let website = await prisma.website.findFirst({
       where: {
         OR: [
           { customDomain: domain },
-          { slug: subdomainSlug || '' }
-        ]
+          ...(subdomainSlug ? [{ slug: subdomainSlug }] : [])
+        ],
+        status: 'active'
       }
     });
 
-    if (!company) throw new Error('Company not found for this domain');
-
-    let website;
-    if (slug) {
-      website = await prisma.website.findFirst({
-        where: { companyId: company.id, slug, status: 'active' }
-      });
-      
-      // Fallback: If a website matching the slug is not found, it's likely a page slug for the primary website
-      if (!website) {
-        website = await prisma.website.findFirst({
-          where: { companyId: company.id, isPrimary: true, status: 'active' }
-        });
+    if (!website && !isSubdomain) {
+      const parts = domain.split('.');
+      if (parts.length > 2 && parts[0] === 'www') {
+        const baseDomain = parts.slice(1).join('.');
+        website = await prisma.website.findFirst({ where: { customDomain: baseDomain, status: 'active' }});
       }
-    } else {
-      website = await prisma.website.findFirst({
-        where: { companyId: company.id, isPrimary: true, status: 'active' }
-      });
     }
 
     if (!website) throw new Error('Website not found');
@@ -384,32 +303,9 @@ export class WebsitesService {
     stats.leads = (stats.leads || 0) + 1;
     await prisma.website.update({ where: { id: website.id }, data: { stats } });
 
-    // Emit global event for CRM Integration
     eventBus.emit('website.lead.captured', { lead, website });
 
     return { lead, website };
-  }
-
-  static async setPrimaryWebsite(companyId: string, websiteId: string) {
-    const website = await prisma.website.findUnique({
-      where: { id: websiteId }
-    });
-
-    if (!website || website.companyId !== companyId) {
-      throw new Error('Website not found or unauthorized');
-    }
-
-    await prisma.website.updateMany({
-      where: { companyId },
-      data: { isPrimary: false }
-    });
-
-    const updated = await prisma.website.update({
-      where: { id: websiteId },
-      data: { isPrimary: true }
-    });
-
-    return updated;
   }
 }
 

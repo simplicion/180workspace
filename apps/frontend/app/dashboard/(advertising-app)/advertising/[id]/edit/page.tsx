@@ -1506,13 +1506,10 @@ export default function WebsiteEditorPage() {
                                         const isLocal = rootDomain.includes('localhost');
                                         const port = isLocal && window.location.port ? `:${window.location.port}` : '';
                                         const domainWithPort = rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`;
-                                        let url: string;
-                                        if (website.company?.customDomain) {
-                                            url = website.isPrimary
-                                                ? `https://${website.company.customDomain}`
-                                                : `https://${website.slug}.${website.company.customDomain}`;
+                                        if (website.customDomain) {
+                                            url = `https://${website.customDomain}`;
                                         } else {
-                                            url = `http${isLocal ? '' : 's'}://${website.company?.slug || 'company'}.${domainWithPort}${website.isPrimary ? '' : `/${website.slug}`}`;
+                                            url = `http${isLocal ? '' : 's'}://${website.slug}.${domainWithPort}`;
                                         }
                                         window.open(url, '_blank');
                                     }} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>

@@ -30,11 +30,14 @@ export class BillingController {
             
             let activeAppsCount = 0;
             if (company?.metadata && typeof company.metadata === 'object' && Array.isArray((company.metadata as any).enabledApps)) {
-                activeAppsCount = (company.metadata as any).enabledApps.length;
+                const enabledApps = (company.metadata as any).enabledApps;
+                activeAppsCount = enabledApps.filter((app: string) => app !== 'system' && app !== 'settings').length;
             } else {
                 // fallback to projects if enabledApps isn't found
                 activeAppsCount = await prisma.project.count({ where: { companyId } });
             }
+
+            const activeWebsitesCount = await prisma.website.count({ where: { companyId } });
 
             // Real-time calculation of Storage Used
             const storageAgg = await prisma.document.aggregate({
@@ -73,6 +76,7 @@ export class BillingController {
                 companyConfig: companyConfig || null,
                 teamMembersCount,
                 activeAppsCount,
+                activeWebsitesCount,
                 isExpired,
                 status: currentStatus,
                 daysLeft: isTrial && company?.trialEndDate

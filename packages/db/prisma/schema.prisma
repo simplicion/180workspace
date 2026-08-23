@@ -1568,6 +1568,7 @@ model Plan {
   currency        String         @default("INR")
   billingCycle    String         @default("monthly")
   maxUsers        Int            @default(10)
+  maxWebsites     Int            @default(1)
   maxApps         Int            @default(5)
   maxStorageBytes Float          @default(1073741824)
   features        String[]
@@ -2231,10 +2232,11 @@ model FormSubmissionValue {
 model Website {
   id        String   @id @default(uuid())
   companyId String? // Optional for now to not break existing data, strict data isolation
-  isPrimary Boolean  @default(false)
-  name      String
-  slug      String   @unique
-  template  String?
+
+  name         String
+  slug         String   @unique
+  customDomain String?  @unique
+  template     String?
   config    Json?    @default("{}") // Stores hero, colors, etc.
   owner     String
   status    String   @default("active")

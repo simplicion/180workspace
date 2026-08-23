@@ -8,7 +8,6 @@ router.post('/', websiteController.createWebsite);
 router.get('/check-slug', websiteController.checkAvailability);
 router.get('/:id', websiteController.getWebsite);
 router.patch('/:id', websiteController.updateWebsite);
-router.put('/:id/primary', websiteController.setPrimaryWebsite);
 router.delete('/:id', websiteController.deleteWebsite);
 
 router.get('/:id/stats', websiteController.getWebsiteStats);

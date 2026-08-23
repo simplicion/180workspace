@@ -33,7 +33,7 @@ async function main() {
     if (!website) {
       console.log('Website with slug not found, falling back to primary website');
       website = await prisma.website.findFirst({
-        where: { companyId: company.id, isPrimary: true, status: 'active' }
+        where: { companyId: company.id, status: 'active' }
       });
       console.log('website fallback:', website?.id, website?.slug);
     }
@@ -42,7 +42,7 @@ async function main() {
   if (!website) {
     console.log('Website NOT FOUND!');
     const allWebsites = await prisma.website.findMany({ where: { companyId: company.id } });
-    console.log('All websites:', allWebsites.map((w: any) => ({ id: w.id, slug: w.slug, isPrimary: w.isPrimary, status: w.status })));
+    console.log('All websites:', allWebsites.map((w: any) => ({ id: w.id, slug: w.slug, status: w.status })));
   } else {
     console.log('Website FOUND!');
   }
