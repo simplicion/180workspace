@@ -22,7 +22,7 @@ importers:
         specifier: latest
         version: 2.10.5
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.9.3
         version: 5.9.3
 
   apps/admin-web:
@@ -739,7 +739,7 @@ importers:
         specifier: workspace:*
         version: link:../typescript-config
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.9.3
         version: 5.9.3
 
   packages/common: {}
