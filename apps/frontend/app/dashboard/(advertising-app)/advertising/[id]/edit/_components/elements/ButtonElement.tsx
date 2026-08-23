@@ -21,7 +21,6 @@ export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, ha
         transition: style.transition,
         opacity: style.opacity,
         display: style.display || 'inline-block',
-        margin: style.margin,
         marginTop: style.marginTop,
         marginBottom: style.marginBottom,
         marginLeft: style.marginLeft,

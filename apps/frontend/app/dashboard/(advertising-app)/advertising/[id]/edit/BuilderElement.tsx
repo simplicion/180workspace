@@ -14,6 +14,95 @@ import { LineElement } from './_components/elements/LineElement';
 import CodeElement from './_components/elements/CodeElement';
 
 
+function normalizeStyle(rawStyle: any = {}): React.CSSProperties {
+    if (!rawStyle) return {};
+    const style: any = { ...rawStyle };
+
+    // Always decompose shorthand 'padding' into individual longhands to prevent React conflicting property warnings
+    if (style.padding !== undefined) {
+        const p = String(style.padding).trim();
+        delete style.padding;
+        
+        if (style.paddingTop === undefined || style.paddingBottom === undefined || style.paddingLeft === undefined || style.paddingRight === undefined) {
+            const parts = p.split(/\s+/);
+            let top = p, right = p, bottom = p, left = p;
+            if (parts.length === 1) {
+                top = right = bottom = left = parts[0];
+            } else if (parts.length === 2) {
+                top = bottom = parts[0];
+                right = left = parts[1];
+            } else if (parts.length === 3) {
+                top = parts[0];
+                right = left = parts[1];
+                bottom = parts[2];
+            } else if (parts.length >= 4) {
+                top = parts[0];
+                right = parts[1];
+                bottom = parts[2];
+                left = parts[3];
+            }
+            if (style.paddingTop === undefined) style.paddingTop = top;
+            if (style.paddingRight === undefined) style.paddingRight = right;
+            if (style.paddingBottom === undefined) style.paddingBottom = bottom;
+            if (style.paddingLeft === undefined) style.paddingLeft = left;
+        }
+    }
+
+    if (style.paddingY !== undefined) {
+        const val = typeof style.paddingY === 'number' ? `${style.paddingY}rem` : style.paddingY;
+        if (style.paddingTop === undefined) style.paddingTop = val;
+        if (style.paddingBottom === undefined) style.paddingBottom = val;
+        delete style.paddingY;
+    }
+    if (style.paddingX !== undefined) {
+        const val = typeof style.paddingX === 'number' ? `${style.paddingX}rem` : style.paddingX;
+        if (style.paddingLeft === undefined) style.paddingLeft = val;
+        if (style.paddingRight === undefined) style.paddingRight = val;
+        delete style.paddingX;
+    }
+
+    // Always decompose shorthand 'margin' if any longhand or axis is present or might be toggled
+    if (style.margin !== undefined && (style.marginTop !== undefined || style.marginBottom !== undefined || style.marginLeft !== undefined || style.marginRight !== undefined || style.marginY !== undefined || style.marginX !== undefined)) {
+        const m = String(style.margin).trim();
+        delete style.margin;
+        const parts = m.split(/\s+/);
+        let top = m, right = m, bottom = m, left = m;
+        if (parts.length === 1) {
+            top = right = bottom = left = parts[0];
+        } else if (parts.length === 2) {
+            top = bottom = parts[0];
+            right = left = parts[1];
+        } else if (parts.length === 3) {
+            top = parts[0];
+            right = left = parts[1];
+            bottom = parts[2];
+        } else if (parts.length >= 4) {
+            top = parts[0];
+            right = parts[1];
+            bottom = parts[2];
+            left = parts[3];
+        }
+        if (style.marginTop === undefined) style.marginTop = top;
+        if (style.marginRight === undefined) style.marginRight = right;
+        if (style.marginBottom === undefined) style.marginBottom = bottom;
+        if (style.marginLeft === undefined) style.marginLeft = left;
+    }
+    if (style.marginY !== undefined) {
+        const val = typeof style.marginY === 'number' ? `${style.marginY}rem` : style.marginY;
+        if (style.marginTop === undefined) style.marginTop = val;
+        if (style.marginBottom === undefined) style.marginBottom = val;
+        delete style.marginY;
+    }
+    if (style.marginX !== undefined) {
+        const val = typeof style.marginX === 'number' ? `${style.marginX}rem` : style.marginX;
+        if (style.marginLeft === undefined) style.marginLeft = val;
+        if (style.marginRight === undefined) style.marginRight = val;
+        delete style.marginX;
+    }
+
+    return style;
+}
+
 interface BuilderElementProps {
     node: ElementNode;
     brand?: any;
@@ -62,7 +151,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
     const [draggingSide, setDraggingSide] = useState<string | null>(null);
     const [localPadding, setLocalPadding] = useState<Record<string, string> | null>(null);
 
-    const style = {
+    const rawStyle = {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
@@ -72,6 +161,8 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         ...(flexWrap && { flexWrap }),
         ...(localPadding || {})
     };
+
+    const style = normalizeStyle(rawStyle);
 
     const isSelected = selectedElementId === node.id;
 

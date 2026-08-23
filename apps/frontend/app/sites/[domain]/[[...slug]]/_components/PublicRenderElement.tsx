@@ -40,16 +40,86 @@ export function PublicRenderElement({ node, brand }: PublicRenderElementProps) {
     const normalizeStyle = (rawStyle: any) => {
         if (!rawStyle) return {};
         const finalStyle = { ...rawStyle };
+
+        if (finalStyle.padding !== undefined) {
+            const p = String(finalStyle.padding).trim();
+            delete finalStyle.padding;
+            if (finalStyle.paddingTop === undefined || finalStyle.paddingBottom === undefined || finalStyle.paddingLeft === undefined || finalStyle.paddingRight === undefined) {
+                const parts = p.split(/\s+/);
+                let top = p, right = p, bottom = p, left = p;
+                if (parts.length === 1) {
+                    top = right = bottom = left = parts[0];
+                } else if (parts.length === 2) {
+                    top = bottom = parts[0];
+                    right = left = parts[1];
+                } else if (parts.length === 3) {
+                    top = parts[0];
+                    right = left = parts[1];
+                    bottom = parts[2];
+                } else if (parts.length >= 4) {
+                    top = parts[0];
+                    right = parts[1];
+                    bottom = parts[2];
+                    left = parts[3];
+                }
+                if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = top;
+                if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = right;
+                if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = bottom;
+                if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = left;
+            }
+        }
+
         if (finalStyle.paddingY !== undefined) {
-            if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = `${finalStyle.paddingY}rem`;
-            if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = `${finalStyle.paddingY}rem`;
+            const val = typeof finalStyle.paddingY === 'number' ? `${finalStyle.paddingY}rem` : finalStyle.paddingY;
+            if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = val;
+            if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = val;
             delete finalStyle.paddingY;
         }
         if (finalStyle.paddingX !== undefined) {
-            if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = `${finalStyle.paddingX}rem`;
-            if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = `${finalStyle.paddingX}rem`;
+            const val = typeof finalStyle.paddingX === 'number' ? `${finalStyle.paddingX}rem` : finalStyle.paddingX;
+            if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = val;
+            if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = val;
             delete finalStyle.paddingX;
         }
+
+        if (finalStyle.margin !== undefined && (finalStyle.marginTop !== undefined || finalStyle.marginBottom !== undefined || finalStyle.marginLeft !== undefined || finalStyle.marginRight !== undefined || finalStyle.marginY !== undefined || finalStyle.marginX !== undefined)) {
+            const m = String(finalStyle.margin).trim();
+            delete finalStyle.margin;
+            const parts = m.split(/\s+/);
+            let top = m, right = m, bottom = m, left = m;
+            if (parts.length === 1) {
+                top = right = bottom = left = parts[0];
+            } else if (parts.length === 2) {
+                top = bottom = parts[0];
+                right = left = parts[1];
+            } else if (parts.length === 3) {
+                top = parts[0];
+                right = left = parts[1];
+                bottom = parts[2];
+            } else if (parts.length >= 4) {
+                top = parts[0];
+                right = parts[1];
+                bottom = parts[2];
+                left = parts[3];
+            }
+            if (finalStyle.marginTop === undefined) finalStyle.marginTop = top;
+            if (finalStyle.marginRight === undefined) finalStyle.marginRight = right;
+            if (finalStyle.marginBottom === undefined) finalStyle.marginBottom = bottom;
+            if (finalStyle.marginLeft === undefined) finalStyle.marginLeft = left;
+        }
+        if (finalStyle.marginY !== undefined) {
+            const val = typeof finalStyle.marginY === 'number' ? `${finalStyle.marginY}rem` : finalStyle.marginY;
+            if (finalStyle.marginTop === undefined) finalStyle.marginTop = val;
+            if (finalStyle.marginBottom === undefined) finalStyle.marginBottom = val;
+            delete finalStyle.marginY;
+        }
+        if (finalStyle.marginX !== undefined) {
+            const val = typeof finalStyle.marginX === 'number' ? `${finalStyle.marginX}rem` : finalStyle.marginX;
+            if (finalStyle.marginLeft === undefined) finalStyle.marginLeft = val;
+            if (finalStyle.marginRight === undefined) finalStyle.marginRight = val;
+            delete finalStyle.marginX;
+        }
+
         return finalStyle;
     };
 
