@@ -67,7 +67,7 @@ function LoginForm() {
                 }
 
                 const returnUrl = searchParams?.get('returnUrl');
-                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
             }
         }
     }, [isLoading, user, router, searchParams]);
@@ -79,7 +79,7 @@ function LoginForm() {
             signIn('platform-token', { token, redirect: false }).then((result) => {
                 if (result?.ok) {
                     const returnUrl = searchParams?.get('returnUrl');
-                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
                 }
             });
         }
@@ -126,7 +126,7 @@ function LoginForm() {
                 } else if (result?.ok) {
                     toast.success('Logged in successfully!');
                     const returnUrl = searchParams?.get('returnUrl');
-                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
                 }
             }
         } catch (err: any) {
@@ -173,7 +173,7 @@ function LoginForm() {
                 toast.success('Logged in successfully!');
                 const returnUrl = searchParams?.get('returnUrl');
                 // The Next.js middleware will automatically redirect if onboarding is not complete
-                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
             }
         } catch (err: any) {
             console.error('Login error:', err);
