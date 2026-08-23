@@ -3,7 +3,7 @@ version: '3.8'
 services:
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY_LOWER}:latest
-    container_name: simplicion-backend
+    container_name: 180workspace-backend
     ports:
       - "4000:4000"
     env_file:
@@ -12,7 +12,7 @@ services:
 
   worker:
     image: ghcr.io/${GITHUB_REPOSITORY_LOWER}:latest
-    container_name: simplicion-worker
+    container_name: 180workspace-worker
     command: ["tsx", "server.js"]
     environment:
       - RUN_MODE=worker
