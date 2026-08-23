@@ -3,7 +3,7 @@ import { SalesService } from '@workspace/crm-and-sales';
 import { cacheGet, cacheSet, cacheDel } from '../../../../system-configs/middleware/system/cache';
 import { logAction } from '../../../../system-configs/utils/audit';
 import * as PDFDocument from 'pdfkit';
-import { pdfUtils } from '@workspace/backend-common';
+import { pdfUtils } from '@workspace/backend-infra';
 const { generateQuotationPDF, generateContractPDF } = pdfUtils;
 
 // AIAssistantService is typically in @workspace/workspace-tools now

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { redis } from '@workspace/backend-common';
+import { redis } from '@workspace/backend-infra';
 // Using backend-common for redis if needed, but the original code had it in system-configs. We will use the common redis client.
 import { aiAssistantService } from '@workspace/workspace-tools';
 

@@ -1,4 +1,4 @@
-import { logAction as commonLogAction } from '@workspace/backend-common';
+import { logAction as commonLogAction } from '@workspace/backend-infra';
 
 export const logAction = async (userId: string, action: string, entityType: string, entityId: string, meta: any, req: any) => {
     await commonLogAction(userId, action, entityType, entityId, meta, {
