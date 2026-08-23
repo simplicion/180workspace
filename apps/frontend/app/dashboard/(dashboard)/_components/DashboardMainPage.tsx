@@ -92,7 +92,7 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
 
     // RTK Query hooks — cached across navigations, no loading flash
     const { data: recentProjectsData, isFetching: fetchingProjects } = useGetRecentProjectsQuery(
-        5,
+        undefined,
         { skip: !isAdmin, pollingInterval: 30000 }
     );
     const recentProjects = recentProjectsData?.projects || [];

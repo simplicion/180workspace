@@ -11,7 +11,7 @@ export default function ContainerProperties({ selectedElement, onUpdate }: Props
 
     return (
         <div className="space-y-4 pt-4 border-t border-gray-100">
-            <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2">Flex Layout</h4>
+            <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2">Container Layout</h4>
 
             <div>
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
@@ -26,30 +26,91 @@ export default function ContainerProperties({ selectedElement, onUpdate }: Props
                     className="w-full accent-indigo-600"
                 />
             </div>
-            
+
             <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Direction</label>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Layout Type</label>
                 <CustomSelect 
-                    value={selectedElement.style?.flexDirection || 'column'} 
-                    onChange={(e: any) => onUpdate('style.flexDirection', e.target.value)}
+                    value={selectedElement.style?.display || 'flex'} 
+                    onChange={(e: any) => onUpdate('style.display', e.target.value)}
                     className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
-                    <option value="column">Vertical (Column)</option>
-                    <option value="row">Horizontal (Row)</option>
+                    <option value="flex">Flexbox</option>
+                    <option value="grid">CSS Grid</option>
                 </CustomSelect>
             </div>
             
-            <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Wrap</label>
-                <CustomSelect 
-                    value={selectedElement.style?.flexWrap || 'nowrap'} 
-                    onChange={(e: any) => onUpdate('style.flexWrap', e.target.value)}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                    <option value="nowrap">No Wrap</option>
-                    <option value="wrap">Wrap</option>
-                </CustomSelect>
-            </div>
+            {(!selectedElement.style?.display || selectedElement.style?.display === 'flex') && (
+                <>
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Direction</label>
+                        <CustomSelect 
+                            value={selectedElement.style?.flexDirection || 'column'} 
+                            onChange={(e: any) => onUpdate('style.flexDirection', e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            <option value="column">Vertical (Column)</option>
+                            <option value="row">Horizontal (Row)</option>
+                        </CustomSelect>
+                    </div>
+                    
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Wrap</label>
+                        <CustomSelect 
+                            value={selectedElement.style?.flexWrap || 'nowrap'} 
+                            onChange={(e: any) => onUpdate('style.flexWrap', e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            <option value="nowrap">No Wrap</option>
+                            <option value="wrap">Wrap</option>
+                        </CustomSelect>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Align Items (Cross Axis)</label>
+                        <CustomSelect 
+                            value={selectedElement.style?.alignItems || 'stretch'} 
+                            onChange={(e: any) => onUpdate('style.alignItems', e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            <option value="flex-start">Start</option>
+                            <option value="center">Center</option>
+                            <option value="flex-end">End</option>
+                            <option value="stretch">Stretch</option>
+                        </CustomSelect>
+                    </div>
+                    
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Justify Content (Main Axis)</label>
+                        <CustomSelect 
+                            value={selectedElement.style?.justifyContent || 'flex-start'} 
+                            onChange={(e: any) => onUpdate('style.justifyContent', e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            <option value="flex-start">Start</option>
+                            <option value="center">Center</option>
+                            <option value="flex-end">End</option>
+                            <option value="space-between">Space Between</option>
+                        </CustomSelect>
+                    </div>
+                </>
+            )}
+
+            {selectedElement.style?.display === 'grid' && (
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Grid Columns</label>
+                    <CustomSelect 
+                        value={selectedElement.style?.gridTemplateColumns || 'repeat(auto-fit, minmax(250px, 1fr))'} 
+                        onChange={(e: any) => onUpdate('style.gridTemplateColumns', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="repeat(auto-fit, minmax(250px, 1fr))">Auto Fit (Responsive)</option>
+                        <option value="repeat(1, 1fr)">1 Column</option>
+                        <option value="repeat(2, 1fr)">2 Columns</option>
+                        <option value="repeat(3, 1fr)">3 Columns</option>
+                        <option value="repeat(4, 1fr)">4 Columns</option>
+                    </CustomSelect>
+                </div>
+            )}
             
             <div>
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
@@ -63,34 +124,6 @@ export default function ContainerProperties({ selectedElement, onUpdate }: Props
                     onChange={(e) => onUpdate('style.gap', `${e.target.value}rem`)}
                     className="w-full accent-indigo-600"
                 />
-            </div>
-            
-            <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Align Items (Cross Axis)</label>
-                <CustomSelect 
-                    value={selectedElement.style?.alignItems || 'stretch'} 
-                    onChange={(e: any) => onUpdate('style.alignItems', e.target.value)}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                    <option value="flex-start">Start</option>
-                    <option value="center">Center</option>
-                    <option value="flex-end">End</option>
-                    <option value="stretch">Stretch</option>
-                </CustomSelect>
-            </div>
-            
-            <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Justify Content (Main Axis)</label>
-                <CustomSelect 
-                    value={selectedElement.style?.justifyContent || 'flex-start'} 
-                    onChange={(e: any) => onUpdate('style.justifyContent', e.target.value)}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                    <option value="flex-start">Start</option>
-                    <option value="center">Center</option>
-                    <option value="flex-end">End</option>
-                    <option value="space-between">Space Between</option>
-                </CustomSelect>
             </div>
 
             {/* Box Border */}

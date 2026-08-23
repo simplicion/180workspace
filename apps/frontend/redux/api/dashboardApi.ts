@@ -23,7 +23,7 @@ export const dashboardApi = baseApi.injectEndpoints({
       providesTags: ["DashboardMetrics"],
     }),
     getRecentProjects: builder.query({
-      query: (limit: number = 5) => `/api/projects?limit=${limit}`,
+      query: () => `/api/projects`,
       providesTags: ["Project"],
     }),
   }),

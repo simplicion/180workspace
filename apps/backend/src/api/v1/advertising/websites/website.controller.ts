@@ -12,6 +12,23 @@ export const getWebsites = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
+export const checkAvailability = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const companyId = (req as any).user.companyId;
+        const { slug, companySlug } = req.query;
+        
+        const result = await WebsitesService.checkAvailability(
+            companyId,
+            typeof slug === 'string' ? slug : undefined,
+            typeof companySlug === 'string' ? companySlug : undefined
+        );
+        
+        res.json(result);
+    } catch (err) {
+        next(err);
+    }
+};
+
 export const createWebsite = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const companyId = (req as any).user.companyId;

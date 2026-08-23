@@ -81,14 +81,20 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         e.preventDefault();
         e.stopPropagation();
 
-        let currentPadStr = '0';
-        if (side === 'top') currentPadStr = node.style?.paddingTop || node.style?.paddingY || '0';
-        if (side === 'bottom') currentPadStr = node.style?.paddingBottom || node.style?.paddingY || '0';
-        if (side === 'left') currentPadStr = node.style?.paddingLeft || node.style?.paddingX || '0';
-        if (side === 'right') currentPadStr = node.style?.paddingRight || node.style?.paddingX || '0';
+        const parsePad = (val: any) => {
+            if (val === undefined || val === null) return undefined;
+            if (typeof val === 'number') return val;
+            const parsed = parseFloat(String(val).replace('rem', '').replace('px', '').replace('em', ''));
+            return isNaN(parsed) ? undefined : parsed;
+        };
 
-        let currentPad = parseFloat(currentPadStr.toString().replace('rem', '').replace('px', ''));
-        if (isNaN(currentPad)) currentPad = 0;
+        let currentPad = 0;
+        if (side === 'top') currentPad = parsePad(node.style?.paddingTop) ?? parsePad(node.style?.paddingY) ?? parsePad(node.style?.padding) ?? 0;
+        if (side === 'bottom') currentPad = parsePad(node.style?.paddingBottom) ?? parsePad(node.style?.paddingY) ?? parsePad(node.style?.padding) ?? 0;
+        if (side === 'left') currentPad = parsePad(node.style?.paddingLeft) ?? parsePad(node.style?.paddingX) ?? parsePad(node.style?.padding) ?? 0;
+        if (side === 'right') currentPad = parsePad(node.style?.paddingRight) ?? parsePad(node.style?.paddingX) ?? parsePad(node.style?.padding) ?? 0;
+        
+        let currentPadStr = `${currentPad}rem`;
 
         const paddingKey = `padding${side.charAt(0).toUpperCase() + side.slice(1)}`;
 
@@ -150,32 +156,38 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-4 rounded-full bg-white border border-indigo-500 shadow-sm" />
         );
 
+        const getPadStr = (val: any) => val !== undefined ? (typeof val === 'number' ? `${val}rem` : val) : undefined;
+        const ptStr = localPadding?.paddingTop || getPadStr(node.style?.paddingTop) || getPadStr(node.style?.paddingY) || getPadStr(node.style?.padding) || '0';
+        const pbStr = localPadding?.paddingBottom || getPadStr(node.style?.paddingBottom) || getPadStr(node.style?.paddingY) || getPadStr(node.style?.padding) || '0';
+        const plStr = localPadding?.paddingLeft || getPadStr(node.style?.paddingLeft) || getPadStr(node.style?.paddingX) || getPadStr(node.style?.padding) || '0';
+        const prStr = localPadding?.paddingRight || getPadStr(node.style?.paddingRight) || getPadStr(node.style?.paddingX) || getPadStr(node.style?.padding) || '0';
+
         return (
             <>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'top')}
-                    style={{ ...stripeBg, height: localPadding?.paddingTop || node.style?.paddingTop || node.style?.paddingY || '0' }}
+                    style={{ ...stripeBg, height: ptStr }}
                     className="absolute top-0 left-0 right-0 min-h-[4px] cursor-ns-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-b border-indigo-500/30"
                 >
                     {dragHandle}
                 </div>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'bottom')}
-                    style={{ ...stripeBg, height: localPadding?.paddingBottom || node.style?.paddingBottom || node.style?.paddingY || '0' }}
+                    style={{ ...stripeBg, height: pbStr }}
                     className="absolute bottom-0 left-0 right-0 min-h-[4px] cursor-ns-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-t border-indigo-500/30"
                 >
                     {dragHandle}
                 </div>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'left')}
-                    style={{ ...stripeBg, width: localPadding?.paddingLeft || node.style?.paddingLeft || node.style?.paddingX || '0' }}
+                    style={{ ...stripeBg, width: plStr }}
                     className="absolute top-0 bottom-0 left-0 min-w-[4px] cursor-ew-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-r border-indigo-500/30"
                 >
                     {dragHandleVertical}
                 </div>
                 <div
                     onMouseDown={(e) => handlePaddingDragStart(e, 'right')}
-                    style={{ ...stripeBg, width: localPadding?.paddingRight || node.style?.paddingRight || node.style?.paddingX || '0' }}
+                    style={{ ...stripeBg, width: prStr }}
                     className="absolute top-0 bottom-0 right-0 min-w-[4px] cursor-ew-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-l border-indigo-500/30"
                 >
                     {dragHandleVertical}
@@ -337,13 +349,13 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
     if (node.type === 'section') {
         const finalStyle = { ...style };
         if (finalStyle.paddingY !== undefined) {
-            finalStyle.paddingTop = `${finalStyle.paddingY}rem`;
-            finalStyle.paddingBottom = `${finalStyle.paddingY}rem`;
+            if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = `${finalStyle.paddingY}rem`;
+            if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = `${finalStyle.paddingY}rem`;
             delete finalStyle.paddingY;
         }
         if (finalStyle.paddingX !== undefined) {
-            finalStyle.paddingLeft = `${finalStyle.paddingX}rem`;
-            finalStyle.paddingRight = `${finalStyle.paddingX}rem`;
+            if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = `${finalStyle.paddingX}rem`;
+            if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = `${finalStyle.paddingX}rem`;
             delete finalStyle.paddingX;
         }
         

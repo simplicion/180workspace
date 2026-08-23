@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ElementNode } from '../../types';
-import { Code2 } from 'lucide-react';
+import { Code2, Maximize2 } from 'lucide-react';
+import CodeEditorModal from '../../CodeEditorModal';
 
 interface CodePropertiesProps {
     selectedElement: ElementNode;
@@ -8,6 +9,8 @@ interface CodePropertiesProps {
 }
 
 export default function CodeProperties({ selectedElement, onUpdate }: CodePropertiesProps) {
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+
     if (selectedElement.type !== 'code') return null;
     return (
         <div className="space-y-4">
@@ -21,15 +24,23 @@ export default function CodeProperties({ selectedElement, onUpdate }: CodeProper
             </p>
 
             <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">Raw Code</label>
-                <textarea
-                    value={selectedElement.data?.html || ''}
-                    onChange={(e) => onUpdate('data.html', e.target.value)}
-                    placeholder="<div>Hello World</div>"
-                    className="w-full h-64 p-3 font-mono text-xs border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-gray-50 resize-y"
-                    spellCheck="false"
-                />
+                <button
+                    onClick={() => setIsEditorOpen(true)}
+                    className="w-full py-3 px-4 bg-gray-50 hover:bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                    <Maximize2 className="w-4 h-4" />
+                    Open Full-Screen Editor
+                </button>
             </div>
+
+            <CodeEditorModal
+                isOpen={isEditorOpen}
+                onClose={() => setIsEditorOpen(false)}
+                initialCode={selectedElement.data?.html || ''}
+                onSave={(newCode) => {
+                    onUpdate('data.html', newCode);
+                }}
+            />
         </div>
     );
 }

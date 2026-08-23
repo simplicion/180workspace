@@ -21,6 +21,30 @@ export class WebsitesService {
     return { websites, company: { slug: companySlug, customDomain } };
   }
 
+  static async checkAvailability(companyId: string, slug?: string, companySlug?: string) {
+    if (slug) {
+      const existing = await prisma.website.findFirst({ where: { slug } });
+      if (existing) {
+        return { available: false, reason: 'A website with this slug already exists.' };
+      }
+    }
+
+    if (companySlug) {
+      const existingCompany = await prisma.company.findFirst({
+        where: {
+          slug: companySlug,
+          id: { not: companyId }
+        }
+      });
+
+      if (existingCompany) {
+        return { available: false, reason: 'This company subdomain is already taken. Please try another one.' };
+      }
+    }
+
+    return { available: true };
+  }
+
   static async createWebsite(userId: string, companyId: string, data: any) {
     const { name, slug, template, companySlug, config } = data;
 

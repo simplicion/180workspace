@@ -6,6 +6,9 @@ import { ElementType, ElementNode } from './types';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
+import PageSettingsModal, { PageModalConfigType } from './PageSettingsModal';
+import GlobalScriptsModal from './GlobalScriptsModal';
+
 
 // Common Google Fonts
 const TOP_FONTS = [
@@ -16,31 +19,26 @@ const TOP_FONTS = [
 interface SettingsSidebarProps {
     brand: any;
     updateBrand: (key: string, value: any) => void;
-    revertToDefault: () => void;
     config: any;
     commitConfig: (config: any) => void;
     activePageId: string;
     changeActivePage: (id: string) => void;
     sections: any[];
-    currencySymbol: string;
-    getDefaultSectionsForPageType: (pageType: string, currencySymbol: string) => any[];
 }
 
 export default function SettingsSidebar({
     brand,
     updateBrand,
-    revertToDefault,
     config,
     commitConfig,
     activePageId,
     changeActivePage,
-    sections,
-    currencySymbol,
-    getDefaultSectionsForPageType,
+    sections
 }: SettingsSidebarProps) {
     const [sidebarTab, setSidebarTab] = useState<'styles' | 'sections' | 'pages'>('sections');
     const [uploadingBg, setUploadingBg] = useState(false);
     const [showScriptsModal, setShowScriptsModal] = useState(false);
+    const [pageModalConfig, setPageModalConfig] = useState<PageModalConfigType>(null);
     const [availableFonts, setAvailableFonts] = useState<string[]>([
         'Inter', 'Roboto', 'Playfair Display', 'Montserrat', 'Open Sans', 'Outfit', 'Poppins', 'Lato', 'Arial'
     ]);
@@ -278,17 +276,6 @@ export default function SettingsSidebar({
                         )}
                     </div>
 
-                    <div className="pt-4 border-t border-gray-200">
-                        <button 
-                            onClick={revertToDefault}
-                            className="w-full py-2 flex items-center justify-center gap-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            Revert to Default Theme
-                        </button>
-                        <p className="text-xs text-gray-500 text-center mt-2">Warning: Resets all custom sections.</p>
-                    </div>
-
                     <div className="space-y-3 pt-6 border-t border-gray-200">
                         <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><FileCode2 className="w-4 h-4" /> Global Scripts</label>
                         <p className="text-xs text-gray-500">Add tracking codes (like Meta Pixel, Google Analytics) to the entire website.</p>
@@ -307,26 +294,15 @@ export default function SettingsSidebar({
                         <h3 className="font-bold text-gray-900">Website Pages</h3>
                         <button 
                             onClick={() => {
-                                const name = prompt("Enter page name:");
-                                if (!name) return;
-                                const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-                                const newConfig = {
-                                    ...config,
-                                    pages: [
-                                        ...(config.pages || []),
-                                        { 
-                                            id, 
-                                            name, 
-                                            slug: `/${id}`, 
-                                            isEnabled: true, 
-                                            isPublished: true,
-                                            navVisibility: 'both',
-                                            sections: getDefaultSectionsForPageType(id, currencySymbol) 
-                                        }
-                                    ]
-                                };
-                                commitConfig(newConfig);
-                                changeActivePage(id);
+                                setPageModalConfig({
+                                    isOpen: true,
+                                    mode: 'add',
+                                    name: '',
+                                    metaTitle: '',
+                                    metaDescription: '',
+                                    isPublished: true,
+                                    navVisibility: 'both'
+                                });
                             }}
                             className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100"
                         >
@@ -342,131 +318,44 @@ export default function SettingsSidebar({
                                     <span className="font-bold text-sm text-gray-800">{p.name}</span>
                                     {activePageId === p.id && <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded ml-2">ACTIVE</span>}
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100/50 flex-wrap">
-                                <label className="flex items-center gap-2 text-xs text-gray-700 font-medium cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={p.isPublished !== false && p.isEnabled !== false}
-                                        onChange={(e) => {
-                                            const newConfig = JSON.parse(JSON.stringify(config));
-                                            newConfig.pages[i].isPublished = e.target.checked;
-                                            newConfig.pages[i].isEnabled = e.target.checked;
-                                            commitConfig(newConfig);
-                                        }}
-                                        className="rounded text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    Publish Page
-                                </label>
-
-                                    <div className="w-full flex items-center gap-2 mt-2">
-                                        <label className="flex items-center gap-2 text-xs text-gray-700 font-medium cursor-pointer flex-1">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={p.showHeader !== false}
-                                                onChange={(e) => {
-                                                    const newConfig = JSON.parse(JSON.stringify(config));
-                                                    newConfig.pages[i].showHeader = e.target.checked;
-                                                    commitConfig(newConfig);
-                                                }}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500"
-                                            />
-                                            Show Header
-                                        </label>
-                                        <label className="flex items-center gap-2 text-xs text-gray-700 font-medium cursor-pointer flex-1">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={p.showFooter !== false}
-                                                onChange={(e) => {
-                                                    const newConfig = JSON.parse(JSON.stringify(config));
-                                                    newConfig.pages[i].showFooter = e.target.checked;
-                                                    commitConfig(newConfig);
-                                                }}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500"
-                                            />
-                                            Show Footer
-                                        </label>
-                                    </div>
-                                    <div className="w-full mt-2">
-                                        <label className="text-[10px] font-semibold text-gray-500 block mb-1 uppercase">Show Link In Navbar/Footer</label>
-                                        <CustomSelect
-                                            value={p.navVisibility || 'both'}
-                                            onChange={(e) => {
-                                                const newConfig = JSON.parse(JSON.stringify(config));
-                                                newConfig.pages[i].navVisibility = e.target.value;
-                                                commitConfig(newConfig);
-                                            }}
-                                            className="w-full text-xs p-1.5 border border-gray-200 rounded outline-none focus:border-indigo-500 bg-white"
-                                        >
-                                            <option value="both">Both Navbar & Footer</option>
-                                            <option value="header">Navbar Only</option>
-                                            <option value="footer">Footer Only</option>
-                                            <option value="none">Hidden</option>
-                                        </CustomSelect>
-                                    </div>
-                                </div>
-                                <div className="flex-1 w-full flex justify-end gap-3 mt-2">
-                                <button 
-                                    onClick={() => {
-                                        const newName = prompt("Rename page:", p.name);
-                                        if (!newName) return;
-                                        const newConfig = JSON.parse(JSON.stringify(config));
-                                        newConfig.pages[i].name = newName;
-                                        commitConfig(newConfig);
-                                    }}
-                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
-                                >
-                                    Rename
-                                </button>
-                                {p.id !== 'home' && (
+                                <div className="flex items-center gap-1">
                                     <button 
-                                        onClick={() => {
-                                            if (!confirm(`Delete page ${p.name}?`)) return;
-                                            const newConfig = JSON.parse(JSON.stringify(config));
-                                            newConfig.pages.splice(i, 1);
-                                            commitConfig(newConfig);
-                                             if (activePageId === p.id) changeActivePage('home');
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPageModalConfig({
+                                                isOpen: true,
+                                                mode: 'edit',
+                                                pageId: p.id,
+                                                name: p.name,
+                                                metaTitle: p.metaTitle || '',
+                                                metaDescription: p.metaDescription || '',
+                                                isPublished: p.isPublished !== false && p.isEnabled !== false,
+                                                navVisibility: p.navVisibility || 'both'
+                                            });
                                         }}
-                                        className="text-xs font-bold text-red-500 hover:text-red-700 ml-2"
+                                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                        title="Edit Page Settings"
                                     >
-                                        Delete
+                                        <Settings className="w-4 h-4" />
                                     </button>
-                                )}
-                            </div>
-                            
-                            {activePageId === p.id && (
-                                <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500">SEO Settings</h4>
-                                    <div>
-                                        <label className="text-[10px] font-semibold text-gray-600 block mb-1">Meta Title</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Page Title"
-                                            value={p.metaTitle || ''}
-                                            onChange={(e) => {
+                                    {p.id !== 'home' && (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (!confirm(`Delete page ${p.name}?`)) return;
                                                 const newConfig = JSON.parse(JSON.stringify(config));
-                                                newConfig.pages[i].metaTitle = e.target.value;
+                                                newConfig.pages.splice(i, 1);
                                                 commitConfig(newConfig);
+                                                if (activePageId === p.id) changeActivePage('home');
                                             }}
-                                            className="w-full text-xs p-2 border border-gray-200 rounded-lg outline-none focus:border-indigo-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-semibold text-gray-600 block mb-1">Meta Description</label>
-                                        <textarea
-                                            placeholder="Page Description..."
-                                            value={p.metaDescription || ''}
-                                            rows={2}
-                                            onChange={(e) => {
-                                                const newConfig = JSON.parse(JSON.stringify(config));
-                                                newConfig.pages[i].metaDescription = e.target.value;
-                                                commitConfig(newConfig);
-                                            }}
-                                            className="w-full text-xs p-2 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 resize-none"
-                                        />
-                                    </div>
+                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                            title="Delete Page"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -566,6 +455,45 @@ export default function SettingsSidebar({
                         </div>
                     </div>
 
+                    {(() => {
+                        const activePageIndex = config.pages?.findIndex((p: any) => p.id === activePageId);
+                        if (activePageIndex === undefined || activePageIndex === -1) return null;
+                        const activePage = config.pages[activePageIndex];
+                        return (
+                            <div className="pt-2 border-t border-gray-100">
+                                <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Page Visibility</h4>
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={activePage.showHeader !== false}
+                                            onChange={(e) => {
+                                                const newConfig = JSON.parse(JSON.stringify(config));
+                                                newConfig.pages[activePageIndex].showHeader = e.target.checked;
+                                                commitConfig(newConfig);
+                                            }}
+                                            className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                        />
+                                        Show Header
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-gray-700 font-medium cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={activePage.showFooter !== false}
+                                            onChange={(e) => {
+                                                const newConfig = JSON.parse(JSON.stringify(config));
+                                                newConfig.pages[activePageIndex].showFooter = e.target.checked;
+                                                commitConfig(newConfig);
+                                            }}
+                                            className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                        />
+                                        Show Footer
+                                    </label>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     <div>
                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Pre-built Sections</h4>
                         <div className="space-y-2">
@@ -610,56 +538,53 @@ export default function SettingsSidebar({
                 </div>
             )}
 
-            {showScriptsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
-                            <h3 className="font-black text-gray-800 flex items-center gap-2">
-                                <FileCode2 className="w-5 h-5 text-indigo-600" />
-                                Global Scripts
-                            </h3>
-                            <button onClick={() => setShowScriptsModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        </div>
-                        <div className="p-6 overflow-y-auto space-y-6 flex-1">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">
-                                    Head Script <code>&lt;head&gt;</code>
-                                </label>
-                                <p className="text-xs text-gray-500 mb-3">Code placed here will be injected inside the <code>&lt;head&gt;</code> tag of every page. Good for Meta Pixel, Analytics, or external CSS.</p>
-                                <textarea 
-                                    value={brand.headScript || ''}
-                                    onChange={(e) => updateBrand('headScript', e.target.value)}
-                                    className="w-full h-40 p-4 font-mono text-sm border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-gray-50"
-                                    placeholder="<!-- e.g. Facebook Pixel Code -->&#10;<script>&#10;  !function(f,b,e,v,n,t,s)&#10;...&#10;</script>"
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">
-                                    Body Script <code>&lt;body&gt;</code>
-                                </label>
-                                <p className="text-xs text-gray-500 mb-3">Code placed here will be injected just before the closing <code>&lt;/body&gt;</code> tag. Good for chat widgets or slower scripts.</p>
-                                <textarea 
-                                    value={brand.bodyScript || ''}
-                                    onChange={(e) => updateBrand('bodyScript', e.target.value)}
-                                    className="w-full h-40 p-4 font-mono text-sm border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-gray-50"
-                                    placeholder="<!-- e.g. Chat Widget Code -->&#10;<script src='...'></script>"
-                                />
-                            </div>
-                        </div>
-                        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end rounded-b-xl">
-                            <button 
-                                onClick={() => setShowScriptsModal(false)}
-                                className="px-6 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-                            >
-                                Done
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
+            <PageSettingsModal 
+                config={pageModalConfig} 
+                setConfig={setPageModalConfig} 
+                onSave={(newConfigData) => {
+                    const newConfig = JSON.parse(JSON.stringify(config));
+                    
+                    if (newConfigData?.mode === 'add') {
+                        const id = newConfigData.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                        if (newConfig.pages.find((p: any) => p.id === id)) {
+                            toast.error('A page with a similar name already exists');
+                            return;
+                        }
+                        newConfig.pages.push({
+                            id,
+                            name: newConfigData.name,
+                            slug: `/${id}`,
+                            isEnabled: newConfigData.isPublished,
+                            isPublished: newConfigData.isPublished,
+                            navVisibility: newConfigData.navVisibility,
+                            metaTitle: newConfigData.metaTitle,
+                            metaDescription: newConfigData.metaDescription,
+                            sections: []
+                        });
+                        commitConfig(newConfig);
+                        changeActivePage(id);
+                    } else if (newConfigData?.mode === 'edit') {
+                        const pageIndex = newConfig.pages.findIndex((p: any) => p.id === newConfigData.pageId);
+                        if (pageIndex !== -1) {
+                            newConfig.pages[pageIndex].name = newConfigData.name;
+                            newConfig.pages[pageIndex].isEnabled = newConfigData.isPublished;
+                            newConfig.pages[pageIndex].isPublished = newConfigData.isPublished;
+                            newConfig.pages[pageIndex].navVisibility = newConfigData.navVisibility;
+                            newConfig.pages[pageIndex].metaTitle = newConfigData.metaTitle;
+                            newConfig.pages[pageIndex].metaDescription = newConfigData.metaDescription;
+                            commitConfig(newConfig);
+                        }
+                    }
+                }}
+            />
+
+            <GlobalScriptsModal 
+                isOpen={showScriptsModal} 
+                setIsOpen={setShowScriptsModal} 
+                brand={brand} 
+                updateBrand={updateBrand} 
+            />
         </>
     );
 }

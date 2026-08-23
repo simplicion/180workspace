@@ -96,7 +96,12 @@ export default async function PublicWebsitePage({
             className="min-h-screen bg-white font-sans text-gray-900 selection:bg-indigo-100" 
             style={{ 
                 fontFamily: `"${config.typography?.body || brand?.fontFamily || 'Inter'}", sans-serif`,
-                backgroundColor: colors.secondary,
+                color: brand?.textColor || '#111827',
+                backgroundColor: brand?.bgType === 'color' ? (brand.bgValue || colors.secondary || brand.secondaryColor) : (brand?.bgType === 'image' ? 'transparent' : colors.secondary),
+                backgroundImage: brand?.bgType === 'image' && brand?.bgValue ? `url(${brand.bgValue})` : 'none',
+                backgroundSize: 'cover',
+                backgroundAttachment: 'fixed',
+                backgroundPosition: 'center',
                 '--primary': primaryColor,
                 '--heading-font': config.typography?.heading || 'Inter'
             } as any}
@@ -123,7 +128,7 @@ export default async function PublicWebsitePage({
                 >
                     <a href="/" className="flex items-center gap-3">
                         {config.header?.logo && (
-                            <img src={config.header.logo} alt={config.header?.title || website.name} className="h-10 w-auto object-contain" />
+                            <img src={config.header.logo} alt={config.header?.title || website.name} style={{ height: config.header?.style?.logoHeight ? `${config.header.style.logoHeight}px` : '40px' }} className="w-auto object-contain" />
                         )}
                         <span className="text-xl font-black tracking-tight text-current" style={{ color: 'inherit' }}>
                             {config.header?.title ?? (brand?.companyName || website?.name || 'Website Name')}
@@ -132,7 +137,7 @@ export default async function PublicWebsitePage({
 
                     <nav className="flex flex-wrap justify-center items-center gap-6 text-sm font-bold opacity-80">
                         {(config.pages || [])
-                            ?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && p.id !== 'terms' && p.id !== 'privacy' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header'))
+                            ?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header'))
                             .map((p: any) => (
                                 <a
                                     key={p.id}
@@ -176,11 +181,19 @@ export default async function PublicWebsitePage({
                     }}
                 >
                     {(() => {
-                        const footerLinks = config.pages?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
+                        const footerLinks = config.pages?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && p.id !== 'privacy' && p.id !== 'terms' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
                         const legalLinks = config.pages?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (p.id === 'privacy' || p.id === 'terms') && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
+                        
+                        const chunkArray = (arr: any[], size: number) => {
+                            return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+                                arr.slice(i * size, i * size + size)
+                            );
+                        };
+                        const footerLinkChunks = chunkArray(footerLinks, 4);
+
                         return (
-                            <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 text-left mb-12">
-                                <div className="flex flex-col">
+                            <div className="max-w-4xl mx-auto flex flex-wrap justify-between gap-10 text-left mb-12">
+                                <div className="flex flex-col flex-1 min-w-[200px] max-w-sm">
                                     {config.header?.logo && (
                                         <div className="mb-4">
                                             <img src={config.header.logo} alt={config.header?.title || website.name} className="h-10 w-auto object-contain" />
@@ -199,26 +212,29 @@ export default async function PublicWebsitePage({
                                         )}
                                     </div>
                                 </div>
-                                {footerLinks.length > 0 && (
-                                    <div className="flex flex-col">
-                                        <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Links</h4>
-                                        <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
-                                            {footerLinks.map((p: any) => (
-                                                <a key={p.id} href={p.slug} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</a>
-                                            ))}
-                                        </nav>
-                                    </div>
-                                )}
-                                {legalLinks.length > 0 && (
-                                    <div className="flex flex-col">
-                                        <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Legal</h4>
-                                        <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
-                                            {legalLinks.map((p: any) => (
-                                                <a key={p.id} href={p.slug} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</a>
-                                            ))}
-                                        </nav>
-                                    </div>
-                                )}
+                                
+                                <div className="flex flex-wrap gap-10">
+                                    {footerLinkChunks.length > 0 && footerLinkChunks.map((chunk, index) => (
+                                        <div className="flex flex-col min-w-[120px]" key={`footer-links-${index}`}>
+                                            <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>{index === 0 ? 'Links' : '\u00A0'}</h4>
+                                            <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
+                                                {chunk.map((p: any) => (
+                                                    <a key={p.id} href={p.slug} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</a>
+                                                ))}
+                                            </nav>
+                                        </div>
+                                    ))}
+                                    {legalLinks.length > 0 && (
+                                        <div className="flex flex-col min-w-[120px]">
+                                            <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Legal</h4>
+                                            <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
+                                                {legalLinks.map((p: any) => (
+                                                    <a key={p.id} href={p.slug} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</a>
+                                                ))}
+                                            </nav>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })()}

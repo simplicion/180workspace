@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, Globe, ArrowRight, ChevronDown, Check, Search } from 'lucide-react';
+import { X, Globe, ArrowRight, ChevronDown, Check, Search, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -13,12 +13,6 @@ const TOP_FONTS = [
 
 const ALL_PAGES = [
     { id: 'home',         name: 'Home',             locked: true },
-    { id: 'about',        name: 'About',            locked: false },
-    { id: 'services',     name: 'Services',         locked: false },
-    { id: 'portfolio',    name: 'Portfolio',        locked: false },
-    { id: 'contact',      name: 'Contact',          locked: false },
-    { id: 'terms',        name: 'Terms of Service', locked: false },
-    { id: 'privacy',      name: 'Privacy Policy',   locked: false },
 ];
 
 function FontPicker({ value, onChange }) {
@@ -49,25 +43,29 @@ function FontPicker({ value, onChange }) {
 
     return (
         <div className="relative" ref={ref}>
-            <div onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-indigo-400 transition-colors">
-                <span className="text-sm font-semibold text-gray-800" style={{ fontFamily: `"${value}", sans-serif` }}>{value}</span>
+            <div onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors">
+                <span className="text-sm font-medium text-gray-800" style={{ fontFamily: `"${value}", sans-serif` }}>{value}</span>
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
             </div>
             {open && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-60">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 overflow-hidden flex flex-col max-h-60">
                     <div className="p-2 border-b border-gray-100">
                         <div className="relative">
                             <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                            <input autoFocus type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search fonts..." className="w-full text-xs pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 transition-colors" />
+                            <input autoFocus type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search fonts..." className="w-full text-xs pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-indigo-500 transition-colors" />
                         </div>
                     </div>
                     <div className="overflow-y-auto flex-1 p-1">
-                        {search.trim() === '' && <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">Popular Fonts</div>}
+                        {search.trim() === '' && <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Popular Fonts</div>}
                         {filtered.length === 0 ? <div className="p-3 text-center text-xs text-gray-400">No fonts found</div> : filtered.map(font => (
-                            <button key={font} type="button" onClick={() => { onChange(font); setOpen(false); setSearch(''); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between transition-colors ${value === font ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-700 hover:bg-gray-50'}`} style={{ fontFamily: `"${font}", sans-serif` }}>
-                                {font}
-                                {value === font && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                            </button>
+                            <div
+                                key={font}
+                                onClick={() => { onChange(font); setOpen(false); setSearch(''); }}
+                                className={`px-3 py-2 text-sm rounded-md cursor-pointer flex items-center justify-between ${font === value ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                            >
+                                <span style={{ fontFamily: `"${font}", sans-serif` }}>{font}</span>
+                                {font === value && <Check className="w-4 h-4" />}
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -124,6 +122,10 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
     const isPrimary = websiteCount === 0;
     const baseDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
     const [rootDomain, setRootDomain] = useState(baseDomain);
+    
+    const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+    const [checkingSlug, setCheckingSlug] = useState(false);
+    const [slugError, setSlugError] = useState('');
 
     useEffect(() => {
         if (typeof window !== 'undefined' && (baseDomain === 'localhost' || baseDomain === '')) {
@@ -145,6 +147,42 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
     const displayCompanySlug = isPrimary 
         ? (companySlugInput || name.toLowerCase().replace(/[^a-z0-9]/g, '')) 
         : (companyData?.slug || 'yourcompany');
+
+    useEffect(() => {
+        const checkSlugAvailability = async () => {
+            const currentSlugToCheck = isPrimary ? displayCompanySlug : slug;
+            if (!currentSlugToCheck) {
+                setSlugAvailable(null);
+                setSlugError('');
+                return;
+            }
+
+            setCheckingSlug(true);
+            setSlugError('');
+            try {
+                const res = await api.get('/api/websites/check-slug', {
+                    params: {
+                        ...(isPrimary ? { companySlug: currentSlugToCheck } : { slug: currentSlugToCheck })
+                    }
+                });
+                
+                if (res.data.available) {
+                    setSlugAvailable(true);
+                } else {
+                    setSlugAvailable(false);
+                    setSlugError(res.data.reason || 'This URL is already taken.');
+                }
+            } catch (err) {
+                setSlugAvailable(false);
+                setSlugError('Failed to check availability.');
+            } finally {
+                setCheckingSlug(false);
+            }
+        };
+
+        const timer = setTimeout(checkSlugAvailability, 500);
+        return () => clearTimeout(timer);
+    }, [slug, displayCompanySlug, isPrimary]);
 
     const togglePage = (id, locked) => {
         if (locked) return;
@@ -189,48 +227,49 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
     };
 
     const handleClose = () => {
-        setName(''); setFontFamily('Inter'); setPrimaryColor('#4f46e5');
+        setName(''); setFontFamily('Inter'); setPrimaryColor('#4f46e5'); setCompanySlugInput('');
         setEnabledPages(new Set(['home']));
+        setSlugAvailable(null); setSlugError('');
         onClose();
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
-            <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="relative w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden max-h-[90vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-100">
-                            <Globe className="w-5 h-5 text-white" />
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                            <Globe className="w-4 h-4 text-indigo-600" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-gray-900">Create New Website</h2>
+                            <h2 className="text-base font-semibold text-gray-900 leading-tight">Create New Website</h2>
                             <p className="text-xs text-gray-500">Set up your new landing page</p>
                         </div>
                     </div>
-                    <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                        <X className="w-5 h-5 text-gray-400" />
+                    <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-md transition-colors text-gray-400 hover:text-gray-600">
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Scrollable Body */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex-1 overflow-y-auto p-5 space-y-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {/* Website Name */}
                     <div>
-                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 mb-2">Website Name</label>
-                        <input type="text" required autoFocus placeholder="E.g. Summer Campaign 2024" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" value={name} onChange={e => setName(e.target.value)} />
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Website Name</label>
+                        <input type="text" required autoFocus placeholder="E.g. Summer Campaign 2024" className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" value={name} onChange={e => setName(e.target.value)} />
                         
-                        <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 pl-1">
-                            <Globe className="w-3 h-3 shrink-0 text-gray-300" />
+                        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500">
+                            <Globe className="w-3.5 h-3.5 shrink-0" />
                             <span className="font-mono flex items-center">
                                 {companyData?.customDomain ? (
                                     isPrimary ? (
-                                        <span className="text-indigo-600 font-semibold">https://{companyData.customDomain}</span>
+                                        <span className="text-indigo-600 font-medium">https://{companyData.customDomain}</span>
                                     ) : (
-                                        <><span className="text-gray-400">https://{companyData.customDomain}/</span><span className="text-indigo-600 font-semibold">{slug || 'website-name'}</span></>
+                                        <><span className="text-gray-400">https://{companyData.customDomain}/</span><span className="text-indigo-600 font-medium">{slug || 'website-name'}</span></>
                                     )
                                 ) : (
                                     isPrimary ? (
@@ -239,72 +278,63 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
                                             <input 
                                                 type="text" 
                                                 placeholder={name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'yourcompany'}
-                                                className="bg-transparent border-b border-transparent hover:border-indigo-400 focus:border-indigo-500 text-indigo-600 font-semibold outline-none px-0.5 min-w-[50px] w-auto max-w-[120px] transition-colors" 
+                                                className="bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 text-indigo-600 font-medium outline-none px-0.5 min-w-[50px] w-auto max-w-[120px] transition-colors" 
                                                 value={companySlugInput} 
                                                 onChange={e => setCompanySlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
                                             />
                                             .{rootDomain}
                                         </>
                                     ) : (
-                                        <><span className="text-gray-400">https://{displayCompanySlug}.{rootDomain}/</span><span className="text-indigo-600 font-semibold">{slug || 'website-name'}</span></>
+                                        <><span className="text-gray-400">https://{displayCompanySlug}.{rootDomain}/</span><span className="text-indigo-600 font-medium">{slug || 'website-name'}</span></>
                                     )
                                 )}
                             </span>
-                            {isPrimary && <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-700 rounded-full uppercase tracking-wider">Primary</span>}
+                            {isPrimary && <span className="ml-1 px-1.5 py-0.5 text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200 rounded uppercase tracking-wide">Primary</span>}
+                            
+                            <div className="ml-2 flex items-center">
+                                {checkingSlug && <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin" />}
+                                {!checkingSlug && slugAvailable === true && (
+                                    <div className="flex items-center gap-1 text-emerald-600 font-medium">
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <span>Available</span>
+                                    </div>
+                                )}
+                                {!checkingSlug && slugAvailable === false && (
+                                    <div className="flex items-center gap-1 text-red-500 font-medium" title={slugError}>
+                                        <XCircle className="w-3.5 h-3.5" />
+                                        <span>Unavailable</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
+                        {!checkingSlug && slugAvailable === false && slugError && (
+                            <p className="mt-1.5 text-xs text-red-500 font-medium">{slugError}</p>
+                        )}
                     </div>
 
                     {/* Font Family */}
                     <div>
-                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 mb-2">Font Family</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Font Family</label>
                         <FontPicker value={fontFamily} onChange={setFontFamily} />
                     </div>
 
                     {/* Brand Color */}
                     <div>
-                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 mb-2">Brand Color</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Brand Color</label>
                         <div className="flex items-center gap-3">
-                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md cursor-pointer shrink-0">
+                            <div className="relative w-9 h-9 rounded-md overflow-hidden border border-gray-300 shadow-sm cursor-pointer shrink-0">
                                 <input type="color" className="absolute inset-0 w-full h-full scale-150 cursor-pointer" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
                             </div>
-                            <input type="text" className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono uppercase focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
-                        </div>
-                    </div>
-
-                    {/* Pages */}
-                    <div>
-                        <div className="flex items-center justify-between mb-3">
-                            <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400">Pages</label>
-                            <span className="text-[10px] text-gray-400 font-medium">{enabledPages.size} selected</span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2">
-                            {ALL_PAGES.map(page => {
-                                const isOn = enabledPages.has(page.id);
-                                return (
-                                    <label key={page.id} className={`flex items-start gap-2 p-2.5 rounded-xl border transition-colors ${!page.locked ? 'cursor-pointer hover:border-indigo-300' : ''} ${isOn ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 bg-gray-50'}`}>
-                                        <input
-                                            type="checkbox"
-                                            disabled={page.locked}
-                                            checked={isOn}
-                                            onChange={() => togglePage(page.id, page.locked)}
-                                            className="w-4 h-4 mt-0.5 text-indigo-600 bg-white border-gray-300 rounded focus:ring-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                                        />
-                                        <div className="flex flex-col overflow-hidden">
-                                            <span className={`text-xs font-semibold truncate ${isOn ? 'text-indigo-900' : 'text-gray-600'}`} title={page.name}>{page.name}</span>
-                                            {page.locked && <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider mt-0.5">Req</span>}
-                                        </div>
-                                    </label>
-                                );
-                            })}
+                            <input type="text" className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-mono shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors uppercase" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} />
                         </div>
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
-                    <button type="button" onClick={handleClose} className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-200 transition-all">Cancel</button>
-                    <button onClick={handleSubmit} disabled={loading || !name.trim()} className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2 shrink-0">
+                    <button type="button" onClick={handleClose} className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Cancel</button>
+                    <button onClick={handleSubmit} disabled={loading || !name.trim() || checkingSlug || slugAvailable === false} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : null}
                         Create Website
                     </button>
                 </div>

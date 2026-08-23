@@ -46,7 +46,7 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Company Information</h4>
                         
                         <div>
-                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Company Name</label>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Company/Website Name</label>
                             <input 
                                 type="text" 
                                 value={brand?.companyName || ''} 
@@ -98,8 +98,89 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                     </div>
                 )}
                 
+                {/* Header Settings */}
+                {isHeader && (
+                    <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Header Settings</h4>
+                        
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Website Name (Header Title)</label>
+                            <input 
+                                type="text" 
+                                value={selectedElement.title || ''} 
+                                onChange={(e) => onUpdate('title', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. Acme Corp"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-gray-600 block">Sticky Header</label>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only peer"
+                                    checked={selectedElement.style?.isSticky !== false}
+                                    onChange={(e) => onUpdate('style.isSticky', e.target.checked)}
+                                />
+                                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                                <span>Logo Height</span>
+                                <span className="text-indigo-600">{selectedElement.style?.logoHeight ?? 40}px</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                min="20" max="100" step="1" 
+                                value={selectedElement.style?.logoHeight ?? 40} 
+                                onChange={(e) => onUpdate('style.logoHeight', parseInt(e.target.value))}
+                                className="w-full accent-indigo-600"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Footer Settings */}
+                {isFooter && (
+                    <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Footer Settings</h4>
+                        
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Layout</label>
+                            <select 
+                                value={selectedElement.style?.layout || 'centered'} 
+                                onChange={(e) => onUpdate('style.layout', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                            >
+                                <option value="centered">Centered</option>
+                                <option value="left-aligned">Left Aligned</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Copyright Text</label>
+                            <input 
+                                type="text" 
+                                value={selectedElement.copyright || ''} 
+                                onChange={(e) => onUpdate('copyright', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. © 2024 Acme Corp. All rights reserved."
+                            />
+                        </div>
+                    </div>
+                )}
+                
+                {/* Dedicated Property Panels */}
+                <ContainerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <ButtonProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <TextProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <ImageProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <DividerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <CodeProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+
                 {/* Background Section */}
-                {!isHeader && !isFooter && (
                 <div className="space-y-4">
                     <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Background</h4>
                     
@@ -159,7 +240,7 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                                             const formData = new FormData();
                                             formData.append('file', file);
                                             
-                                            const res = await api.post('/api/v1/workspace-tools/storage/upload', formData, {
+                                            const res = await api.post('/api/files/upload', formData, {
                                                 headers: { 'Content-Type': 'multipart/form-data' }
                                             });
 
@@ -208,30 +289,25 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                     </div>
                     )}
                 </div>
-                )}
-
-                {/* Spacing Section */}
                 <PaddingControl selectedElement={selectedElement} onUpdate={onUpdate} />
 
                 {/* Appearance Section */}
-                {!isHeader && !isFooter && (
-                    <div className="space-y-3">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Appearance</h4>
-                        <div>
-                            <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
-                                <span>Opacity</span>
-                                <span className="text-indigo-600">{selectedElement.style?.opacity ?? 1}</span>
-                            </label>
-                            <input 
-                                type="range" 
-                                min="0" max="1" step="0.1" 
-                                value={selectedElement.style?.opacity ?? 1} 
-                                onChange={(e) => onUpdate('style.opacity', parseFloat(e.target.value))}
-                                className="w-full accent-indigo-600"
-                            />
-                        </div>
+                <div className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Appearance</h4>
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                            <span>Opacity</span>
+                            <span className="text-indigo-600">{selectedElement.style?.opacity ?? 1}</span>
+                        </label>
+                        <input 
+                            type="range" 
+                            min="0" max="1" step="0.1" 
+                            value={selectedElement.style?.opacity ?? 1} 
+                            onChange={(e) => onUpdate('style.opacity', parseFloat(e.target.value))}
+                            className="w-full accent-indigo-600"
+                        />
                     </div>
-                )}
+                </div>
                 
                 {/* Animation Section */}
                 {!isHeader && !isFooter && (
@@ -254,14 +330,6 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                         </div>
                     </div>
                 )}
-                
-                {/* Dedicated Property Panels */}
-                <ContainerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
-                <ButtonProperties selectedElement={selectedElement} onUpdate={onUpdate} />
-                <TextProperties selectedElement={selectedElement} onUpdate={onUpdate} />
-                <ImageProperties selectedElement={selectedElement} onUpdate={onUpdate} />
-                <DividerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
-                <CodeProperties selectedElement={selectedElement} onUpdate={onUpdate} />
             </div>
         </div>
     );

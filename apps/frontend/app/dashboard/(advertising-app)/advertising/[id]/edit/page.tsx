@@ -156,7 +156,7 @@ function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, pri
             setUploading(true);
             const formData = new FormData();
             formData.append('file', file);
-            const res = await api.post('/api/v1/workspace-tools/storage/upload', formData, {
+            const res = await api.post('/api/files/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -368,7 +368,6 @@ export default function WebsiteEditorPage() {
 
     // Confirmation Modals
     const [showDiscardModal, setShowDiscardModal] = useState(false);
-    const [showRevertModal, setShowRevertModal] = useState(false);
 
     // Hover and Padding Drag for Sections/Images
     const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
@@ -511,27 +510,7 @@ export default function WebsiteEditorPage() {
                     ]
                 };
             }
-            if (loadedConfig.pages) {
-                const standardPages = [
-                    { id: 'about', name: 'About', slug: '/about' },
-                    { id: 'services', name: 'Services', slug: '/services' },
-                    { id: 'contact', name: 'Contact', slug: '/contact' },
-                    { id: 'portfolio', name: 'Portfolio', slug: '/portfolio' },
-                    { id: 'terms', name: 'Terms & Conditions', slug: '/terms' },
-                    { id: 'privacy', name: 'Privacy Policy', slug: '/privacy' }
-                ];
-                standardPages.forEach(sp => {
-                    if (!loadedConfig.pages.some((p: any) => p.id === sp.id)) {
-                        loadedConfig.pages.push({
-                            id: sp.id,
-                            name: sp.name,
-                            slug: sp.slug,
-                            isEnabled: false,
-                            sections: getDefaultSectionsForPageType(sp.id, symbol)
-                        });
-                    }
-                });
-            }
+
             setConfig(loadedConfig);
             setHistory([JSON.parse(JSON.stringify(loadedConfig))]);
             setHistoryIndex(0);
@@ -588,24 +567,6 @@ export default function WebsiteEditorPage() {
             setHistoryIndex(historyIndex + 1);
             setConfig(JSON.parse(JSON.stringify(history[historyIndex + 1])));
         }
-    };
-
-    const revertToDefault = () => {
-        setShowRevertModal(true);
-    };
-
-    const executeRevertToDefault = () => {
-        const defaultSections = [
-            { id: 'sec-' + Date.now() + 1, type: 'hero', data: getDefaultElementForType('hero', currencySymbol) },
-            { id: 'sec-' + Date.now() + 2, type: 'grid', data: getDefaultElementForType('grid', currencySymbol) },
-            { id: 'sec-' + Date.now() + 3, type: 'about', data: getDefaultElementForType('about', currencySymbol) },
-            { id: 'sec-' + Date.now() + 4, type: 'contact', data: getDefaultElementForType('contact', currencySymbol) }
-        ];
-        commitConfig({
-            ...config,
-            pages: config.pages.map((p: any) => p.id === activePageId ? { ...p, sections: defaultSections } : p)
-        });
-        setShowRevertModal(false);
     };
 
     const updateBrand = (key: string, value: any) => {
@@ -1123,9 +1084,17 @@ export default function WebsiteEditorPage() {
                         <div className="w-px h-8 bg-gray-200 mx-2 hidden md:block"></div>
 
                         <div className="hidden md:flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-                            <button onClick={() => setViewMode('desktop')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Monitor className="w-4 h-4" /></button>
-                            <button onClick={() => setViewMode('tablet')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'tablet' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Tablet className="w-4 h-4" /></button>
-                            <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Smartphone className="w-4 h-4" /></button>
+                            {viewMode === 'desktop' ? (
+                                <button onClick={() => setViewMode('mobile')} className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors bg-white shadow-sm text-indigo-600">
+                                    <Smartphone className="w-4 h-4" />
+                                    <span className="text-sm font-medium">Mobile Preview</span>
+                                </button>
+                            ) : (
+                                <button onClick={() => setViewMode('desktop')} className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors bg-white shadow-sm text-indigo-600">
+                                    <Monitor className="w-4 h-4" />
+                                    <span className="text-sm font-medium">PC View</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -1156,7 +1125,7 @@ export default function WebsiteEditorPage() {
 
                 {/* Live Website Canvas */}
                 <div
-                    className={`flex-1 overflow-y-auto scrollbar-hide flex justify-center items-start transition-colors ${viewMode !== 'desktop' ? 'bg-[#2A303C] py-12 px-4' : 'bg-gray-100'} ${isCanvasDragOver ? 'bg-indigo-50/50' : ''}`}
+                    className={`flex-1 overflow-hidden flex justify-center items-center transition-colors ${viewMode !== 'desktop' ? 'bg-[#2A303C] py-8 px-4' : 'bg-gray-100'} ${isCanvasDragOver ? 'bg-indigo-50/50' : ''}`}
                     onClick={() => setSelectedElementId(null)}
                     onDragOver={(e) => handleDragOver(e)}
                     onDragLeave={handleDragLeave}
@@ -1165,10 +1134,10 @@ export default function WebsiteEditorPage() {
                     {/* Device Frame Wrapper */}
                     <div className={`relative transition-all duration-300 flex-shrink-0 ${
                         viewMode === 'mobile' 
-                            ? 'w-[375px] h-[812px] bg-white rounded-[3rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2' 
+                            ? 'w-[375px] h-[812px] max-h-full bg-white rounded-[3rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2 flex flex-col' 
                             : viewMode === 'tablet' 
-                            ? 'w-[768px] h-[1024px] bg-white rounded-[2rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2' 
-                            : 'w-full min-h-full'
+                            ? 'w-[768px] h-[1024px] max-h-full bg-white rounded-[2rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2 flex flex-col' 
+                            : 'w-full h-full flex flex-col'
                     } ${isCanvasDragOver ? 'ring-4 ring-indigo-500 scale-[0.99] shadow-2xl' : ''}`}>
                         
                         {/* Mobile/Tablet Notch & Sensors */}
@@ -1180,7 +1149,7 @@ export default function WebsiteEditorPage() {
                         )}
 
                         <div
-                            className={`bg-white relative overflow-y-auto overflow-x-hidden h-full scrollbar-hide ${viewMode !== 'desktop' ? 'rounded-[2.5rem]' : ''}`}
+                            className={`bg-white relative overflow-y-auto overflow-x-hidden flex-1 scrollbar-hide ${viewMode !== 'desktop' ? 'rounded-[2.5rem]' : ''}`}
                             style={{
                                 fontFamily: `"${brand.fontFamily || 'Inter'}", sans-serif`,
                                 color: brand.textColor || '#111827',
@@ -1195,7 +1164,8 @@ export default function WebsiteEditorPage() {
                         {/* Header */}
                         {config.header?.enabled !== false && activePage.showHeader !== false && (
                         <header
-                            className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all`}
+                            onClick={(e) => { e.stopPropagation(); setSelectedElementId('header'); }}
+                            className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-500/50 hover:ring-inset`}
                             style={{
                                 backgroundColor: hfStyles.backgroundColor,
                                 color: hfStyles.color,
@@ -1209,7 +1179,7 @@ export default function WebsiteEditorPage() {
                             <div className="flex items-center gap-3">
                                 {config.header?.logo ? (
                                     <div className="relative group/logo">
-                                        <img src={config.header.logo} alt={config.header?.title || website.name} className="h-10 w-auto object-contain" />
+                                        <img src={config.header.logo} alt={config.header?.title || website.name} style={{ height: config.header?.style?.logoHeight ? `${config.header.style.logoHeight}px` : '40px' }} className="w-auto object-contain" />
                                         <div
                                             className="absolute inset-0 bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center rounded cursor-pointer"
                                             onClick={(e) => { e.stopPropagation(); logoInputRef.current?.click(); }}
@@ -1250,7 +1220,7 @@ export default function WebsiteEditorPage() {
                             </div>
 
                             <nav className="flex flex-wrap justify-center items-center gap-6 text-sm font-bold opacity-80">
-                                {config.pages?.filter((p: any) => p.isEnabled && p.id !== 'terms' && p.id !== 'privacy' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header')).map((p: any) => (
+                                {config.pages?.filter((p: any) => p.isEnabled && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header')).map((p: any) => (
                                     <button
                                         key={p.id}
                                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }}
@@ -1355,7 +1325,8 @@ export default function WebsiteEditorPage() {
 
                         {config.footer?.enabled !== false && activePage.showFooter !== false && (
                         <footer
-                            className="border-t border-black/10 transition-all"
+                            onClick={(e) => { e.stopPropagation(); setSelectedElementId('footer'); }}
+                            className="border-t border-black/10 transition-all cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-500/50 hover:ring-inset"
                             style={{
                                 backgroundColor: hfStyles.backgroundColor,
                                 color: hfStyles.color,
@@ -1367,11 +1338,11 @@ export default function WebsiteEditorPage() {
                             }}
                         >
                             {(() => {
-                                const footerLinks = config.pages?.filter((p: any) => p.isEnabled && p.id !== 'privacy' && p.id !== 'terms' && p.id !== 'home' && p.id !== 'about' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
+                                const footerLinks = config.pages?.filter((p: any) => p.isEnabled && p.id !== 'privacy' && p.id !== 'terms' && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
                                 const legalLinks = config.pages?.filter((p: any) => p.isEnabled && (p.id === 'privacy' || p.id === 'terms') && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'footer')) || [];
                                 return (
-                                    <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 text-left mb-12">
-                                        <div className="flex flex-col">
+                                    <div className={`max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 mb-12 ${config.footer?.style?.layout === 'left-aligned' ? 'text-left' : 'text-center'}`}>
+                                        <div className={`flex flex-col ${config.footer?.style?.layout === 'left-aligned' ? 'items-start' : 'items-center'}`}>
                                             {config.header?.logo && (
                                                 <div className="mb-4">
                                                     <img src={config.header.logo} alt={config.header?.title || website.name} className="h-10 w-auto object-contain" />
@@ -1396,9 +1367,9 @@ export default function WebsiteEditorPage() {
                                             </div>
                                         </div>
                                         {footerLinks.length > 0 && (
-                                            <div className="flex flex-col">
+                                            <div className={`flex flex-col ${config.footer?.style?.layout === 'left-aligned' ? 'items-start' : 'items-center'}`}>
                                                 <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Links</h4>
-                                                <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
+                                                <nav className={`flex flex-col gap-3 text-sm opacity-80 font-medium animate-none ${config.footer?.style?.layout === 'left-aligned' ? 'text-left' : 'text-center'}`}>
                                                     {footerLinks.map((p: any) => (
                                                         <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
                                                     ))}
@@ -1406,9 +1377,9 @@ export default function WebsiteEditorPage() {
                                             </div>
                                         )}
                                         {legalLinks.length > 0 && (
-                                            <div className="flex flex-col">
+                                            <div className={`flex flex-col ${config.footer?.style?.layout === 'left-aligned' ? 'items-start' : 'items-center'}`}>
                                                 <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Legal</h4>
-                                                <nav className="flex flex-col gap-3 text-sm opacity-80 font-medium animate-none">
+                                                <nav className={`flex flex-col gap-3 text-sm opacity-80 font-medium animate-none ${config.footer?.style?.layout === 'left-aligned' ? 'text-left' : 'text-center'}`}>
                                                     {legalLinks.map((p: any) => (
                                                         <button key={p.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }} className="text-left hover:opacity-100 transition-opacity text-current" style={{ color: 'inherit' }}>{p.name}</button>
                                                     ))}
@@ -1462,7 +1433,15 @@ export default function WebsiteEditorPage() {
                                     <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Undo2 className="w-4 h-4" /></button>
                                     <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Redo2 className="w-4 h-4" /></button>
                                     <div className="w-px h-4 bg-gray-200 mx-1"></div>
-                                    <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded transition-colors ${viewMode === 'mobile' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`} title="Mobile View"><Smartphone className="w-4 h-4" /></button>
+                                    {viewMode === 'desktop' ? (
+                                        <button onClick={() => setViewMode('mobile')} className="p-1.5 rounded transition-colors text-gray-500 hover:text-gray-900 hover:bg-gray-100" title="Mobile Preview">
+                                            <Smartphone className="w-4 h-4" />
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => setViewMode('desktop')} className="p-1.5 rounded transition-colors bg-indigo-50 text-indigo-600" title="PC View">
+                                            <Monitor className="w-4 h-4" />
+                                        </button>
+                                    )}
                                     <button onClick={() => {
                                         const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
                                         const isLocal = rootDomain.includes('localhost');
@@ -1492,8 +1471,8 @@ export default function WebsiteEditorPage() {
                         {selectedElementId ? (
                             <PropertyPanel
                                 selectedElement={
-                                    selectedElementId === 'header' ? { id: 'header', type: 'header', style: config.header?.style || {}, logo: config.header?.logo } :
-                                        selectedElementId === 'footer' ? { id: 'footer', type: 'footer', style: config.footer?.style || {} } :
+                                    selectedElementId === 'header' ? { id: 'header', type: 'header', style: config.header?.style || {}, logo: config.header?.logo, title: config.header?.title } :
+                                        selectedElementId === 'footer' ? { id: 'footer', type: 'footer', style: config.footer?.style || {}, copyright: config.footer?.copyright } :
                                             (
                                                 findElementById(sections, selectedElementId) ||
                                                 (config.header && findElementById([config.header], selectedElementId)) ||
@@ -1535,14 +1514,11 @@ export default function WebsiteEditorPage() {
                             <SettingsSidebar
                                 brand={brand}
                                 updateBrand={updateBrand}
-                                revertToDefault={revertToDefault}
                                 config={config}
                                 commitConfig={commitConfig}
                                 activePageId={activePageId}
                                 changeActivePage={changeActivePage}
                                 sections={sections}
-                                currencySymbol={currencySymbol}
-                                getDefaultSectionsForPageType={getDefaultSectionsForPageType}
                             />
                         )}
                     </div>
@@ -1591,77 +1567,13 @@ export default function WebsiteEditorPage() {
                 variant="danger"
             />
 
-            <ConfirmModal 
-                isOpen={showRevertModal}
-                title="Revert to Default"
-                message="Are you sure you want to revert to the default template? All your content changes will be lost."
-                confirmText="Revert"
-                cancelText="Cancel"
-                onConfirm={executeRevertToDefault}
-                onCancel={() => setShowRevertModal(false)}
-                variant="warning"
-            />
-
         </div>
     );
 }
 
 // Helpers
 
-function getDefaultSectionsForPageType(pageType: string, currencySymbol: string) {
-    if (pageType === 'home') {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('grid', currencySymbol),
-            getDefaultElementForType('about', currencySymbol),
-            getDefaultElementForType('contact', currencySymbol)
-        ];
-    }
-    if (pageType === 'about' || pageType.includes('about')) {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('about', currencySymbol),
-            getDefaultElementForType('faq', currencySymbol)
-        ];
-    }
-    if (pageType === 'services' || pageType.includes('service')) {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('grid', currencySymbol),
-            getDefaultElementForType('contact', currencySymbol)
-        ];
-    }
-    if (pageType === 'contact' || pageType.includes('contact')) {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('contact', currencySymbol)
-        ];
-    }
-    if (pageType === 'portfolio' || pageType.includes('portfolio')) {
-        return [
-            getDefaultElementForType('hero', currencySymbol),
-            getDefaultElementForType('portfolio', currencySymbol)
-        ];
-    }
-    if (pageType === 'terms' || pageType.includes('term')) {
-        const textNode = getDefaultElementForType('text', currencySymbol);
-        if (textNode.children && textNode.children[0]) {
-            textNode.children[0].data = { content: '<h1>Terms and Conditions</h1><p>Please read these terms and conditions carefully before using our services...</p>' };
-        }
-        return [textNode];
-    }
-    if (pageType === 'privacy' || pageType.includes('privacy')) {
-        const textNode = getDefaultElementForType('text', currencySymbol);
-        if (textNode.children && textNode.children[0]) {
-            textNode.children[0].data = { content: '<h1>Privacy Policy</h1><p>We value your privacy and protect your personal data in accordance with modern standards...</p>' };
-        }
-        return [textNode];
-    }
-    return [
-        getDefaultElementForType('hero', currencySymbol),
-        getDefaultElementForType('text', currencySymbol)
-    ];
-}
+
 
 function FakeLeadForm({ primaryColor, buttonText }: any) {
     return (

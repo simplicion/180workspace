@@ -1,4 +1,5 @@
 import React from 'react';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 interface Props {
     selectedElement: any;
@@ -31,23 +32,137 @@ export default function ButtonProperties({ selectedElement, onUpdate }: Props) {
                     placeholder="https://..."
                 />
             </div>
-            <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Text Color</label>
-                <div className="flex items-center gap-2">
-                    <input 
-                        type="color" 
-                        value={selectedElement.style?.color || '#ffffff'} 
-                        onChange={(e) => onUpdate('style.color', e.target.value)}
-                        className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
-                    />
-                    <input 
-                        type="text" 
-                        value={selectedElement.style?.color || '#ffffff'} 
-                        onChange={(e) => onUpdate('style.color', e.target.value)}
-                        className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-mono"
-                    />
+            
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Font Size</label>
+                    <CustomSelect 
+                        value={selectedElement.style?.fontSize || '1rem'} 
+                        onChange={(e: any) => onUpdate('style.fontSize', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="0.75rem">XS (0.75rem)</option>
+                        <option value="0.875rem">SM (0.875rem)</option>
+                        <option value="1rem">Base (1rem)</option>
+                        <option value="1.125rem">LG (1.125rem)</option>
+                        <option value="1.25rem">XL (1.25rem)</option>
+                        <option value="1.5rem">2XL (1.5rem)</option>
+                        <option value="2.25rem">4XL (2.25rem)</option>
+                    </CustomSelect>
+                </div>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Font Weight</label>
+                    <CustomSelect 
+                        value={selectedElement.style?.fontWeight || 'bold'} 
+                        onChange={(e: any) => onUpdate('style.fontWeight', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="400">Normal</option>
+                        <option value="500">Medium</option>
+                        <option value="600">Semi Bold</option>
+                        <option value="700">Bold</option>
+                        <option value="800">Extra Bold</option>
+                        <option value="900">Black</option>
+                    </CustomSelect>
                 </div>
             </div>
+
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Font Family</label>
+                <CustomSelect 
+                    value={selectedElement.style?.fontFamily || 'inherit'} 
+                    onChange={(e: any) => onUpdate('style.fontFamily', e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                    <option value="inherit">Default</option>
+                    <option value="Inter, sans-serif">Inter</option>
+                    <option value="Roboto, sans-serif">Roboto</option>
+                    <option value="Open Sans, sans-serif">Open Sans</option>
+                    <option value="Montserrat, sans-serif">Montserrat</option>
+                    <option value="Poppins, sans-serif">Poppins</option>
+                    <option value="Playfair Display, serif">Playfair Display</option>
+                    <option value="Merriweather, serif">Merriweather</option>
+                    <option value="monospace">Monospace</option>
+                </CustomSelect>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                <div className="w-full overflow-hidden">
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Background Color</label>
+                    <div className="flex items-center gap-1">
+                        <input 
+                            type="color" 
+                            value={selectedElement.style?.backgroundColor || '#4f46e5'} 
+                            onChange={(e) => onUpdate('style.backgroundColor', e.target.value)}
+                            className="w-8 h-8 shrink-0 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
+                        />
+                        <input 
+                            type="text" 
+                            value={selectedElement.style?.backgroundColor || '#4f46e5'} 
+                            onChange={(e) => onUpdate('style.backgroundColor', e.target.value)}
+                            className="w-full min-w-0 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-mono"
+                        />
+                    </div>
+                </div>
+                <div className="w-full overflow-hidden">
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Text Color</label>
+                    <div className="flex items-center gap-1">
+                        <input 
+                            type="color" 
+                            value={selectedElement.style?.color || '#ffffff'} 
+                            onChange={(e) => onUpdate('style.color', e.target.value)}
+                            className="w-8 h-8 shrink-0 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
+                        />
+                        <input 
+                            type="text" 
+                            value={selectedElement.style?.color || '#ffffff'} 
+                            onChange={(e) => onUpdate('style.color', e.target.value)}
+                            className="w-full min-w-0 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-mono"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                <div className="w-full overflow-hidden">
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Color</label>
+                    <div className="flex items-center gap-1">
+                        <input 
+                            type="color" 
+                            value={selectedElement.style?.borderColor || '#000000'} 
+                            onChange={(e) => onUpdate('style.borderColor', e.target.value)}
+                            className="w-8 h-8 shrink-0 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
+                        />
+                        <input 
+                            type="text" 
+                            value={selectedElement.style?.borderColor || '#000000'} 
+                            onChange={(e) => onUpdate('style.borderColor', e.target.value)}
+                            className="w-full min-w-0 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-mono"
+                        />
+                    </div>
+                </div>
+                <div></div>
+            </div>
+
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                    <span>Border Width</span>
+                    <span className="text-indigo-600">{selectedElement.style?.borderWidth || '0px'}</span>
+                </label>
+                <input 
+                    type="range" 
+                    min="0" max="10" step="1" 
+                    value={selectedElement.style?.borderWidth ? parseInt(selectedElement.style.borderWidth) : 0} 
+                    onChange={(e) => {
+                        onUpdate('style.borderWidth', `${e.target.value}px`);
+                        if (parseInt(e.target.value) > 0 && !selectedElement.style?.borderStyle) {
+                            onUpdate('style.borderStyle', 'solid');
+                        }
+                    }}
+                    className="w-full accent-indigo-600"
+                />
+            </div>
+
             <div>
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
                     <span>Corner Radius</span>

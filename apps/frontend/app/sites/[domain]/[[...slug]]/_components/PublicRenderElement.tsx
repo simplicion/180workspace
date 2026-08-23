@@ -73,40 +73,52 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
 
     if (node.type === 'text') {
         const Tag: any = node.style?.tagName || 'div';
-        const style = {
+        const tagStyle = {
             fontSize: node.style?.fontSize,
             fontWeight: node.style?.fontWeight,
             textAlign: node.style?.textAlign,
             color: node.style?.color,
             opacity: node.style?.opacity,
             marginBottom: node.style?.marginBottom,
-            ...node.style
         };
         const content = (
-            <Tag 
-                style={style as any} 
-                dangerouslySetInnerHTML={{ __html: node.data?.content || '' }} 
-            />
+            <div style={node.style} className="relative group/element ring-inset transition-all">
+                <Tag 
+                    style={tagStyle as any} 
+                    dangerouslySetInnerHTML={{ __html: node.data?.content || '' }} 
+                />
+            </div>
         );
         return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
 
     if (node.type === 'media' || node.type === 'image') {
-        const mediaUrl = node.data?.imageUrl || node.data?.videoUrl || node.data?.src;
-        const isVideo = mediaUrl && (mediaUrl.endsWith('.m3u8') || mediaUrl.endsWith('.mp4'));
+        const url = node.data?.imageUrl || node.data?.url || '';
+        const isVideo = url.match(/\.(mp4|webm|ogg)$/i) || url.includes('youtube.com') || url.includes('vimeo.com');
+        
         const style = {
-            width: '100%', 
-            height: '100%', 
-            objectFit: 'cover' as any, 
-            borderRadius: node.style?.borderRadius,
-            ...node.style
+            width: '100%',
+            height: 'auto',
+            aspectRatio: node.style?.aspectRatio,
+            objectFit: node.style?.objectFit || 'cover',
+            borderRadius: node.style?.borderRadius || '0.5rem',
         };
-
-        if (!mediaUrl) return null;
-
-        const content = isVideo 
-            ? <video src={mediaUrl} controls autoPlay muted loop style={style as any} />
-            : <img src={mediaUrl} alt="" style={style as any} />;
+        
+        const content = (
+            <div style={node.style} className="relative group/element ring-inset transition-all">
+                {url ? (
+                    isVideo ? (
+                        <video src={url} autoPlay loop muted playsInline style={style as any} />
+                    ) : (
+                        <img src={url} alt={node.data?.alt || 'Media'} style={style as any} />
+                    )
+                ) : (
+                    <div style={style as any} className="bg-gray-100 flex items-center justify-center">
+                        <span className="text-gray-400">Media</span>
+                    </div>
+                )}
+            </div>
+        );
             
         return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
@@ -121,13 +133,15 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
             textDecoration: 'none',
             display: 'inline-block',
             textAlign: 'center' as any,
-            ...node.style
+            minWidth: '120px'
         };
         const link = node.data?.link || '#';
         const content = (
-            <a href={link} style={style as any}>
-                {node.data?.content || node.data?.label || 'Button'}
-            </a>
+            <div style={node.style} className="flex justify-center relative group/element ring-inset transition-all">
+                <a href={link} style={style as any}>
+                    {node.data?.content || node.data?.label || 'Button'}
+                </a>
+            </div>
         );
         return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
@@ -138,10 +152,13 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
             width: isVertical ? (node.style?.thickness || '2px') : '100%',
             height: isVertical ? '100%' : (node.style?.thickness || '2px'),
             backgroundColor: node.style?.backgroundColor || '#e5e7eb',
-            margin: isVertical ? '0 1rem' : '1rem 0',
-            ...node.style
         };
-        return <div style={style} />;
+        const content = (
+            <div style={node.style} className={`flex items-center justify-center relative group/element ring-inset transition-all ${isVertical ? 'h-full w-auto min-w-[24px] px-2' : 'w-full h-auto min-h-[24px] py-2'}`}>
+                <div style={style} />
+            </div>
+        );
+        return <AnimatedWrapper animation={node.animation}>{content}</AnimatedWrapper>;
     }
 
     if (node.type === 'code') {
