@@ -21,6 +21,9 @@ importers:
       turbo:
         specifier: latest
         version: 2.10.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
 
   apps/admin-web:
     dependencies:
