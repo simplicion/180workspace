@@ -5,7 +5,8 @@ import EmailProvider from "next-auth/providers/email"
 
 const useSecureCookies = process.env.NODE_ENV === "production"
 const cookiePrefix = useSecureCookies ? "__Secure-" : ""
-const cookieDomain = process.env.NODE_ENV === "production" ? `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}` : undefined
+const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN
+const cookieDomain = process.env.NODE_ENV === "production" && rootDomain ? `.${rootDomain}` : undefined
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || "5196aa96c36083e22fda242c96eb50b636d481f16da7117177ba037334341575",
