@@ -1,36 +1,58 @@
-# ACTIVE DEPLOYMENT CONFIG: Used for deploying the apps/backend service.
-FROM node:20-slim
-
-# Install pnpm and openssl for Prisma, plus tsx for running TS imports
+# ---------------------------------------------
+# Base image for node
+# ---------------------------------------------
+FROM node:20-slim AS base
+# Install OpenSSL for Prisma
 RUN apt-get update -y && apt-get install -y openssl
-RUN npm install -g pnpm tsx
+RUN npm install -g pnpm turbo tsx
 
-# Set working directory
+# ---------------------------------------------
+# Stage 1: Prune the workspace
+# ---------------------------------------------
+FROM base AS builder
+WORKDIR /app
+COPY . .
+# Extract only the necessary files for the backend app
+RUN turbo prune backend --docker
+
+# ---------------------------------------------
+# Stage 2: Install dependencies
+# ---------------------------------------------
+FROM base AS installer
 WORKDIR /app
 
-# Copy root workspace configurations
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-
-# Copy packages and apps
-COPY packages ./packages
-COPY apps/backend ./apps/backend
-
-# Install dependencies for the workspace
+# First install the dependencies (as they change less often)
+# Copy the lockfile and package.jsons
+COPY --from=builder /app/out/json/ .
+COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile --prod=false
+
+# Now copy the source code of the pruned app
+COPY --from=builder /app/out/full/ .
 
 # Generate Prisma Client
 WORKDIR /app/packages/db
-RUN npx prisma generate
+RUN pnpm dlx prisma generate
 
-# Switch to backend directory
+# ---------------------------------------------
+# Stage 3: Runner
+# ---------------------------------------------
+FROM base AS runner
+WORKDIR /app
+
+# Don't run production as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 backend-user
+USER backend-user
+
+# Copy installed dependencies and source code
+COPY --from=installer --chown=backend-user:nodejs /app .
+
 WORKDIR /app/apps/backend
 
-# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=4000
 
-# Expose the API port
 EXPOSE 4000
 
-# Start the server using tsx so it can run TypeScript files from @workspace/db
 CMD ["tsx", "server.js"]

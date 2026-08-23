@@ -6,118 +6,73 @@ on:
 
 jobs:
   # ==========================================
-  # Phase 1: Preparation
+  # Phase 1: Build & Push Docker Image
   # ==========================================
-  prepare:
-    name: Prepare & Setup
+  build-and-push:
+    name: Build & Push to GHCR
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
         with:
-          version: 9
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup pnpm cache
-        id: pnpm-cache
-        shell: bash
+      - name: Extract repository name (lowercase)
+        id: repo-name
         run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+          REPO=${{ github.repository }}
+          echo "REPO_LOWER=${REPO,,}" >> $GITHUB_OUTPUT
 
-      - name: Restore Cache
-        uses: actions/cache@v4
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-  # ==========================================
-  # Phase 2: Build Backend
-  # ==========================================
-  build-backend:
-    name: Build Backend Services
-    needs: prepare
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build Database & Packages
-        run: pnpm turbo run build --filter=backend --filter=worker
-        
-      - name: Bundle compiled files
-        run: |
-          find packages apps/backend apps/worker -type d -name "dist" -not -path "*/node_modules/*" 2>/dev/null | tar -czf dists.tar.gz -T - || echo "No dist directories found"
-          
-      - name: Upload compiled files
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiled-backend
-          path: dists.tar.gz
-          retention-days: 1
+          context: .
+          push: true
+          tags: ghcr.io/${{ steps.repo-name.outputs.REPO_LOWER }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ==========================================
-  # Phase 3: Deploy Backend to AWS EC2
+  # Phase 2: Deploy Backend to AWS EC2
   # ==========================================
   deploy-backend:
     name: Deploy to AWS EC2
-    needs: build-backend
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Download compiled files
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-backend
-
-      - name: Stop PM2 before SCP (Free up memory)
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            pm2 stop all || true
-
-      - name: Copy compiled files to EC2
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "dists.tar.gz"
-          target: "/tmp"
-
+      - name: Extract repository name (lowercase)
+        id: repo-name
+        run: |
+          REPO=${{ github.repository }}
+          echo "REPO_LOWER=${REPO,,}" >> $GITHUB_OUTPUT
+          
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_LOWER: ${{ steps.repo-name.outputs.REPO_LOWER }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN
+          envs: GITHUB_TOKEN,REPO_LOWER
           command_timeout: 30m
           script: |
             set -e
             cd /home/ubuntu/app
+            
+            # Update codebase to get latest docker-compose.yml
             if [ ! -d ".git" ]; then
               git init
             fi
@@ -126,25 +81,22 @@ jobs:
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
             
-            # Extract compiled files from GitHub Actions
-            tar -xzf /tmp/dists.tar.gz -C /home/ubuntu/app || echo "No dists to extract"
+            # Login to GHCR to pull the image
+            echo $GITHUB_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Add swap space to prevent Out Of Memory (OOM) during install
-            if [ ! -f /swapfile ]; then
-              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
-              sudo chmod 600 /swapfile
-              sudo mkswap /swapfile
-              sudo swapon /swapfile || true
-            fi
-
-            # Stop all PM2 processes to free up memory/CPU
+            # Export GITHUB_REPOSITORY_LOWER so docker-compose can use it
+            export GITHUB_REPOSITORY_LOWER=$REPO_LOWER
+            
+            # Pull the latest image
+            docker-compose pull
+            
+            # Start the new container (recreates automatically, zero downtime style if configured properly)
+            docker-compose up -d
+            
+            # Stop pm2 if it's still running (Migration step)
             pm2 stop all || true
+            pm2 delete all || true
+            pm2 save || true
             
-            # Install dependencies (runs prisma generate via postinstall)
-            pnpm install --prod=false --frozen-lockfile
-            
-            # Restart processes
-            pm2 restart all --update-env || pm2 start ecosystem.config.js
-            pm2 save
-
-
+            # Clean up old docker images
+            docker image prune -af
