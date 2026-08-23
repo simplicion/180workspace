@@ -1,5 +1,11 @@
 {
   "buildCommand": "pnpm run build",
   "installCommand": "pnpm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/_next/dynamic-css-manifest.json",
+      "destination": "/api/empty-manifest"
+    }
+  ]
 }
