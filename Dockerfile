@@ -34,9 +34,6 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Now copy the source code of the pruned app
 COPY --from=builder /app/out/full/ .
 
-# Generate Prisma Client
-WORKDIR /app/packages/db
-RUN pnpm dlx prisma generate
 
 # ---------------------------------------------
 # Stage 3: Runner
