@@ -31,9 +31,10 @@ const AnimatedWrapper = ({ animation, children, style, className }: any) => {
 
 interface PublicRenderElementProps {
     node: ElementNode;
+    brand?: any;
 }
 
-export function PublicRenderElement({ node }: PublicRenderElementProps) {
+export function PublicRenderElement({ node, brand }: PublicRenderElementProps) {
     if (!node) return null;
 
     const normalizeStyle = (rawStyle: any) => {
@@ -64,9 +65,18 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
         } else if (node.type === 'column' || node.type === 'box') {
             if (!display) display = 'flex';
             if (!flexDirection) flexDirection = 'column';
+        } else if (node.type === 'section') {
+            if (!display) display = 'block';
         }
 
         const normalizedStyle = normalizeStyle(node.style);
+        
+        if (node.type === 'section') {
+            if (!normalizedStyle.backgroundColor || normalizedStyle.backgroundColor === 'transparent') {
+                normalizedStyle.backgroundColor = '#ffffff';
+            }
+        }
+
         const style = {
             ...normalizedStyle,
             ...(display && { display }),
@@ -77,7 +87,7 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
         const content = (
             <div style={style as any} className="relative">
                 {node.children?.map(child => (
-                    <PublicRenderElement key={child.id} node={child} />
+                    <PublicRenderElement key={child.id} node={child} brand={brand} />
                 ))}
             </div>
         );
@@ -86,19 +96,28 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
 
     if (node.type === 'text') {
         const Tag: any = node.style?.tagName || 'div';
+        const normalizedStyle = normalizeStyle(node.style);
         const tagStyle = {
-            fontSize: node.style?.fontSize,
-            fontWeight: node.style?.fontWeight,
-            textAlign: node.style?.textAlign,
-            color: node.style?.color,
-            opacity: node.style?.opacity,
-            marginBottom: node.style?.marginBottom,
+            fontSize: normalizedStyle.fontSize,
+            fontWeight: normalizedStyle.fontWeight,
+            textAlign: normalizedStyle.textAlign,
+            color: normalizedStyle.color,
+            opacity: normalizedStyle.opacity,
+            marginBottom: normalizedStyle.marginBottom,
         };
+        
+        let displayContent = node.data?.content || '';
+        if (brand && typeof displayContent === 'string') {
+            displayContent = displayContent.replace(/\{\{brand\.([a-zA-Z0-9_]+)\}\}/g, (match: string, key: string) => {
+                return brand[key] !== undefined ? brand[key] : match;
+            });
+        }
+        
         const content = (
-            <div style={node.style} className="relative group/element ring-inset transition-all">
+            <div style={normalizedStyle} className="relative group/element ring-inset transition-all">
                 <Tag 
                     style={tagStyle as any} 
-                    dangerouslySetInnerHTML={{ __html: node.data?.content || '' }} 
+                    dangerouslySetInnerHTML={{ __html: displayContent }} 
                 />
             </div>
         );
@@ -109,16 +128,17 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
         const url = node.data?.imageUrl || node.data?.url || '';
         const isVideo = url.match(/\.(mp4|webm|ogg)$/i) || url.includes('youtube.com') || url.includes('vimeo.com');
         
+        const normalizedStyle = normalizeStyle(node.style);
         const style = {
             width: '100%',
             height: 'auto',
-            aspectRatio: node.style?.aspectRatio,
-            objectFit: node.style?.objectFit || 'cover',
-            borderRadius: node.style?.borderRadius || '0.5rem',
+            aspectRatio: normalizedStyle.aspectRatio,
+            objectFit: normalizedStyle.objectFit || 'cover',
+            borderRadius: normalizedStyle.borderRadius || '0.5rem',
         };
         
         const content = (
-            <div style={node.style} className="relative group/element ring-inset transition-all">
+            <div style={normalizedStyle} className="relative group/element ring-inset transition-all">
                 {url ? (
                     isVideo ? (
                         <video src={url} autoPlay loop muted playsInline style={style as any} />
@@ -171,13 +191,14 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
 
     if (node.type === 'line') {
         const isVertical = node.style?.direction === 'vertical';
+        const normalizedStyle = normalizeStyle(node.style);
         const style = {
-            width: isVertical ? (node.style?.thickness || '2px') : '100%',
-            height: isVertical ? '100%' : (node.style?.thickness || '2px'),
-            backgroundColor: node.style?.backgroundColor || '#e5e7eb',
+            width: isVertical ? (normalizedStyle.thickness || '2px') : '100%',
+            height: isVertical ? '100%' : (normalizedStyle.thickness || '2px'),
+            backgroundColor: normalizedStyle.backgroundColor || '#e5e7eb',
         };
         const content = (
-            <div style={node.style} className={`flex items-center justify-center relative group/element ring-inset transition-all ${isVertical ? 'h-full w-auto min-w-[24px] px-2' : 'w-full h-auto min-h-[24px] py-2'}`}>
+            <div style={normalizedStyle} className={`flex items-center justify-center relative group/element ring-inset transition-all ${isVertical ? 'h-full w-auto min-w-[24px] px-2' : 'w-full h-auto min-h-[24px] py-2'}`}>
                 <div style={style} />
             </div>
         );
@@ -186,9 +207,10 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
 
     if (node.type === 'code') {
         const html = node.data?.html || '';
+        const normalizedStyle = normalizeStyle(node.style);
         return (
             <div 
-                style={node.style} 
+                style={normalizedStyle} 
                 className="w-full relative"
                 dangerouslySetInnerHTML={{ __html: html }}
             />

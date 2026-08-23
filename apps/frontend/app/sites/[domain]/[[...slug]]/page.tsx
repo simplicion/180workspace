@@ -156,7 +156,7 @@ export default async function PublicWebsitePage({
             {hasDynamicSections ? (
                 <div className="flex-1 w-full min-h-[50vh]">
                     {(currentPage?.sections || []).map((sec: any) => (
-                        <PublicRenderElement key={sec.id} node={sec} />
+                        <PublicRenderElement key={sec.id} node={sec} brand={brand} />
                     ))}
                 </div>
             ) : (
