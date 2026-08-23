@@ -22,9 +22,17 @@ export function ButtonElement({ node, setNodeRef, style, wrapperClass, handleCli
                 href={node.data?.link || '#'}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleClick(e); }}
                 style={{
+                    fontSize: node.style?.fontSize || '1rem',
+                    fontFamily: node.style?.fontFamily || 'inherit',
                     backgroundColor: node.style?.backgroundColor || '#4f46e5',
                     color: node.style?.color || '#ffffff',
-                    padding: node.style?.padding || '0.75rem 1.5rem',
+                    borderColor: node.style?.borderColor || 'transparent',
+                    borderWidth: node.style?.borderWidth || '0px',
+                    borderStyle: node.style?.borderStyle || 'solid',
+                    paddingTop: node.style?.paddingTop || '0.75rem',
+                    paddingBottom: node.style?.paddingBottom || '0.75rem',
+                    paddingLeft: node.style?.paddingLeft || '1.5rem',
+                    paddingRight: node.style?.paddingRight || '1.5rem',
                     borderRadius: node.style?.borderRadius || '0.5rem',
                     fontWeight: node.style?.fontWeight || 'bold',
                     textDecoration: 'none',

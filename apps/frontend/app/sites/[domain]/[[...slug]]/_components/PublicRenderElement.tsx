@@ -36,30 +36,43 @@ interface PublicRenderElementProps {
 export function PublicRenderElement({ node }: PublicRenderElementProps) {
     if (!node) return null;
 
+    const normalizeStyle = (rawStyle: any) => {
+        if (!rawStyle) return {};
+        const finalStyle = { ...rawStyle };
+        if (finalStyle.paddingY !== undefined) {
+            if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = `${finalStyle.paddingY}rem`;
+            if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = `${finalStyle.paddingY}rem`;
+            delete finalStyle.paddingY;
+        }
+        if (finalStyle.paddingX !== undefined) {
+            if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = `${finalStyle.paddingX}rem`;
+            if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = `${finalStyle.paddingX}rem`;
+            delete finalStyle.paddingX;
+        }
+        return finalStyle;
+    };
+
     if (node.type === 'section' || node.type === 'box' || node.type === 'row' || node.type === 'column') {
         let display = node.style?.display;
         let flexDirection = node.style?.flexDirection;
         let flexWrap = node.style?.flexWrap;
 
         if (node.type === 'row') {
-            display = 'flex';
-            flexDirection = 'row';
-            flexWrap = 'wrap';
-        } else if (node.type === 'column') {
-            display = 'flex';
-            flexDirection = 'column';
-        } else if (node.type === 'box') {
-            display = display || 'flex';
-        } else {
-            display = display || 'block';
+            if (!display) display = 'flex';
+            if (!flexDirection) flexDirection = 'row';
+            if (!flexWrap) flexWrap = 'wrap';
+        } else if (node.type === 'column' || node.type === 'box') {
+            if (!display) display = 'flex';
+            if (!flexDirection) flexDirection = 'column';
         }
 
+        const normalizedStyle = normalizeStyle(node.style);
         const style = {
-            ...node.style,
-            display,
-            flexDirection,
-            flexWrap,
-            width: node.style?.width || '100%',
+            ...normalizedStyle,
+            ...(display && { display }),
+            ...(flexDirection && { flexDirection }),
+            ...(flexWrap && { flexWrap }),
+            width: normalizedStyle.width || '100%',
         };
         const content = (
             <div style={style as any} className="relative">
@@ -124,12 +137,22 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
     }
 
     if (node.type === 'button') {
-        const style = {
-            backgroundColor: node.style?.backgroundColor || '#4f46e5',
-            color: node.style?.color || 'white',
-            padding: node.style?.padding || '0.75rem 1.5rem',
-            borderRadius: node.style?.borderRadius || '0.375rem',
-            fontWeight: node.style?.fontWeight || '600',
+        const normalizedStyle = normalizeStyle(node.style);
+        const btnStyle = {
+            ...normalizedStyle,
+            fontSize: normalizedStyle.fontSize || '1rem',
+            fontFamily: normalizedStyle.fontFamily || 'inherit',
+            backgroundColor: normalizedStyle.backgroundColor || '#4f46e5',
+            color: normalizedStyle.color || '#ffffff',
+            borderColor: normalizedStyle.borderColor || 'transparent',
+            borderWidth: normalizedStyle.borderWidth || '0px',
+            borderStyle: normalizedStyle.borderStyle || 'solid',
+            paddingTop: normalizedStyle.paddingTop || '0.75rem',
+            paddingBottom: normalizedStyle.paddingBottom || '0.75rem',
+            paddingLeft: normalizedStyle.paddingLeft || '1.5rem',
+            paddingRight: normalizedStyle.paddingRight || '1.5rem',
+            borderRadius: normalizedStyle.borderRadius || '0.5rem',
+            fontWeight: normalizedStyle.fontWeight || 'bold',
             textDecoration: 'none',
             display: 'inline-block',
             textAlign: 'center' as any,
@@ -137,9 +160,9 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
         };
         const link = node.data?.link || '#';
         const content = (
-            <div style={node.style} className="flex justify-center relative group/element ring-inset transition-all">
-                <a href={link} style={style as any}>
-                    {node.data?.content || node.data?.label || 'Button'}
+            <div style={normalizedStyle} className="flex justify-center relative group/element transition-all">
+                <a href={link} style={btnStyle} className="inline-block transition-transform hover:scale-105 active:scale-95 shadow-sm">
+                    {node.data?.content || node.data?.label || 'Click Me'}
                 </a>
             </div>
         );
