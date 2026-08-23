@@ -62,6 +62,17 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build Database & Packages
         run: pnpm turbo run build --filter=backend --filter=worker
+        
+      - name: Bundle compiled files
+        run: |
+          find packages apps/backend apps/worker -type d -name "dist" 2>/dev/null | tar -czf dists.tar.gz -T - || echo "No dist directories found"
+          
+      - name: Upload compiled files
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-backend
+          path: dists.tar.gz
+          retention-days: 1
 
   # ==========================================
   # Phase 3: Deploy Backend to AWS EC2
@@ -71,6 +82,20 @@ jobs:
     needs: build-backend
     runs-on: ubuntu-latest
     steps:
+      - name: Download compiled files
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-backend
+
+      - name: Copy compiled files to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "dists.tar.gz"
+          target: "/tmp"
+
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -92,7 +117,10 @@ jobs:
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
             
-            # Add swap space to prevent Out Of Memory (OOM) during build
+            # Extract compiled files from GitHub Actions
+            tar -xzf /tmp/dists.tar.gz -C /home/ubuntu/app || echo "No dists to extract"
+            
+            # Add swap space to prevent Out Of Memory (OOM) during install
             if [ ! -f /swapfile ]; then
               sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
               sudo chmod 600 /swapfile
@@ -100,13 +128,13 @@ jobs:
               sudo swapon /swapfile || true
             fi
 
-            # Stop all PM2 processes to free up memory/CPU for a faster build
+            # Stop all PM2 processes to free up memory/CPU
             pm2 stop all || true
             
+            # Install dependencies (runs prisma generate via postinstall)
             pnpm install --prod=false --frozen-lockfile
-            pnpm turbo run build --filter=backend --filter=worker
             
-            # Restart processes now that build is done
+            # Restart processes
             pm2 restart all --update-env || pm2 start ecosystem.config.js
             pm2 save
 
