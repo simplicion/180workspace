@@ -100,6 +100,8 @@ jobs:
               sudo swapon /swapfile || true
             fi
 
+            # Stop all PM2 processes to free up memory/CPU for a faster build
+            pm2 stop all || true
             
             pnpm install --prod=false --frozen-lockfile
             pnpm turbo run build --filter=backend --filter=worker
@@ -107,4 +109,5 @@ jobs:
             # Restart processes now that build is done
             pm2 restart all --update-env || pm2 start ecosystem.config.js
             pm2 save
+
 
