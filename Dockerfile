@@ -35,7 +35,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 COPY --from=builder /app/out/full/ .
 
 # Build the project (compile all workspace packages)
-RUN pnpm turbo run build --filter=backend --filter=worker
+RUN pnpm turbo run build --filter=backend
 
 # ---------------------------------------------
 # Stage 3: Runner
