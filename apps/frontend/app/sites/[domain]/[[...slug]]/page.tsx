@@ -1,5 +1,5 @@
 import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { PublicRenderElement } from './_components/PublicRenderElement';
+import { BuilderElement } from '../../../../dashboard/(advertising-app)/advertising/[id]/edit/BuilderElement';
 
 export default async function PublicWebsitePage({ 
     params 
@@ -125,7 +125,7 @@ export default async function PublicWebsitePage({
                 '--heading-font': config.typography?.heading || 'Inter'
             } as any}
         >
-            <div className="max-w-7xl mx-auto w-full min-h-screen flex flex-col bg-transparent relative shadow-sm">
+            <div className="w-full min-h-screen flex flex-col bg-transparent relative">
                 <style dangerouslySetInnerHTML={{
                     __html: `@import url('https://fonts.googleapis.com/css2?family=${(config.typography?.body || brand?.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');`
                 }} />
@@ -174,11 +174,11 @@ export default async function PublicWebsitePage({
 
                 {/* Dynamic Builder Content */}
                 {hasDynamicSections ? (
-                    <div className="flex-1 w-full min-h-[50vh] bg-white">
+                    <main className="flex-1 w-full min-h-[50vh] bg-white flex flex-col">
                         {(currentPage?.sections || []).map((sec: any) => (
-                            <PublicRenderElement key={sec.id} node={sec} brand={brand} />
+                            <BuilderElement key={sec.id} node={sec} brand={brand} isReadOnly={true} />
                         ))}
-                    </div>
+                    </main>
                 ) : (
                     <div className="min-h-[50vh] flex items-center justify-center bg-white">
                         <p className="text-gray-500">This page has no content yet.</p>

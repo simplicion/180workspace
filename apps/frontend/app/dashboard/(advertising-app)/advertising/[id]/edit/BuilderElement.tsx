@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+'use client';
+import React, { useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
@@ -12,9 +13,34 @@ import { MediaElement } from './_components/elements/MediaElement';
 import { ButtonElement } from './_components/elements/ButtonElement';
 import { LineElement } from './_components/elements/LineElement';
 import CodeElement from './_components/elements/CodeElement';
+import { motion } from 'framer-motion';
 
+const getAnimationProps = (animationType?: string) => {
+    switch (animationType) {
+        case 'fade-in':
+            return { initial: { opacity: 0 }, whileInView: { opacity: 1 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6 } };
+        case 'fade-up':
+            return { initial: { opacity: 0, y: 40 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6, ease: "easeOut" as const } };
+        case 'fade-left':
+            return { initial: { opacity: 0, x: -40 }, whileInView: { opacity: 1, x: 0 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6, ease: "easeOut" as const } };
+        case 'fade-right':
+            return { initial: { opacity: 0, x: 40 }, whileInView: { opacity: 1, x: 0 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.6, ease: "easeOut" as const } };
+        case 'scale-up':
+            return { initial: { opacity: 0, scale: 0.8 }, whileInView: { opacity: 1, scale: 1 }, viewport: { once: true, margin: "-50px" }, transition: { duration: 0.5, type: 'spring' as const, bounce: 0.3 } };
+        default:
+            return {};
+    }
+};
 
-function normalizeStyle(rawStyle: any = {}): React.CSSProperties {
+const AnimatedWrapper = ({ animation, children, style, className }: any) => {
+    if (!animation || animation === 'none') {
+        return <>{children}</>;
+    }
+    const props = getAnimationProps(animation);
+    return <motion.div {...(props as any)} style={style} className={className}>{children}</motion.div>;
+};
+
+export function normalizeStyle(rawStyle: any = {}): React.CSSProperties {
     if (!rawStyle) return {};
     const style: any = { ...rawStyle };
 
@@ -103,21 +129,35 @@ function normalizeStyle(rawStyle: any = {}): React.CSSProperties {
     return style;
 }
 
-interface BuilderElementProps {
+export interface BuilderElementProps {
     node: ElementNode;
     brand?: any;
-    selectedElementId: string | null;
-    setSelectedElementId: (id: string | null) => void;
-    updateElement: (id: string, path: string, value: any) => void;
-    removeElement: (id: string) => void;
+    selectedElementId?: string | null;
+    setSelectedElementId?: (id: string | null) => void;
+    updateElement?: (id: string, path: string, value: any) => void;
+    removeElement?: (id: string) => void;
     duplicateElement?: (id: string) => void;
     moveElementUp?: (id: string) => void;
     moveElementDown?: (id: string) => void;
-    insertElementRelative?: (targetId: string, type: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => void;
+    insertElementRelative?: (targetId: string, newType: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => void;
     depth?: number;
+    isReadOnly?: boolean;
 }
 
-export function BuilderElement({ node, brand, selectedElementId, setSelectedElementId, updateElement, removeElement, duplicateElement, moveElementUp, moveElementDown, insertElementRelative, depth = 0 }: BuilderElementProps) {
+export function BuilderElement({
+    node,
+    brand,
+    selectedElementId,
+    setSelectedElementId,
+    updateElement,
+    removeElement,
+    duplicateElement,
+    moveElementUp,
+    moveElementDown,
+    insertElementRelative,
+    depth = 0,
+    isReadOnly = false
+}: BuilderElementProps) {
     const {
         attributes,
         listeners,
@@ -125,7 +165,11 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: node.id, data: { type: node.type, node } });
+    } = useSortable({ 
+        id: node.id, 
+        data: { type: node.type, node },
+        disabled: isReadOnly 
+    });
 
     let display = node.style?.display;
     let flexDirection = node.style?.flexDirection;
@@ -152,9 +196,11 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
     const [localMargin, setLocalMargin] = useState<Record<string, string> | null>(null);
 
     const rawStyle = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
+        ...(isReadOnly ? {} : {
+            transform: CSS.Transform.toString(transform),
+            transition,
+            opacity: isDragging ? 0.5 : 1,
+        }),
         ...node.style,
         ...(display && { display }),
         ...(flexDirection && { flexDirection }),
@@ -163,12 +209,10 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
     };
 
     const style = normalizeStyle(rawStyle);
-
-    const isSelected = selectedElementId === node.id;
-
-    // Stop propagation so clicking a child doesn't select the parent
+    const isSelected = !isReadOnly && selectedElementId === node.id;
 
     const handleMarginDragStart = (e: React.MouseEvent, side: string) => {
+        if (isReadOnly || !updateElement) return;
         e.preventDefault();
         e.stopPropagation();
 
@@ -203,13 +247,9 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
             const deltaY = moveEvent.clientY - startPosRef.current.y;
 
             let deltaRem = 0;
-            // Pulling DOWN increases outer top spacing; pulling UP decreases
             if (side === 'top') deltaRem = deltaY / 16;
-            // Pulling UP increases outer bottom spacing; pulling DOWN decreases
             if (side === 'bottom') deltaRem = -deltaY / 16;
-            // Pulling RIGHT increases outer left spacing; pulling LEFT decreases
             if (side === 'left') deltaRem = deltaX / 16;
-            // Pulling LEFT increases outer right spacing; pulling RIGHT decreases
             if (side === 'right') deltaRem = -deltaX / 16;
 
             const newMargin = Math.max(0, parseFloat((startMarginRef.current + deltaRem).toFixed(2)));
@@ -226,7 +266,6 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
             document.body.style.cursor = '';
             setDraggingSide(null);
             
-            // Commit to global config
             if (latestMarginRef.current) {
                 if (side === 'top') updateElement(node.id, 'style.marginTop', latestMarginRef.current);
                 if (side === 'bottom') updateElement(node.id, 'style.marginBottom', latestMarginRef.current);
@@ -242,7 +281,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
     };
 
     const renderPaddingControls = () => {
-        if (!isSelected) return null;
+        if (isReadOnly || !isSelected) return null;
         
         const stripeBg = {
             backgroundImage: `repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.22), rgba(99, 102, 241, 0.22) 8px, rgba(99, 102, 241, 0.32) 8px, rgba(99, 102, 241, 0.32) 16px)`
@@ -261,7 +300,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
 
         return (
             <>
-                {/* --- TOP OUTER SPACING (MARGIN) STRIPE PATTERN (OUTSIDE ELEMENT) --- */}
+                {/* --- TOP OUTER SPACING (MARGIN) STRIPE PATTERN --- */}
                 {mtVal > 0 && (
                     <div
                         style={{ ...stripeBg, height: mtStr }}
@@ -272,7 +311,6 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                         </span>
                     </div>
                 )}
-                {/* Top Drag Handle */}
                 <div
                     onMouseDown={(e) => handleMarginDragStart(e, 'top')}
                     className="absolute -top-2.5 left-1/2 -translate-x-1/2 cursor-ns-resize z-30 p-1 group/thandle flex items-center justify-center"
@@ -290,7 +328,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                     )}
                 </div>
 
-                {/* --- BOTTOM OUTER SPACING (MARGIN) STRIPE PATTERN (OUTSIDE ELEMENT) --- */}
+                {/* --- BOTTOM OUTER SPACING (MARGIN) STRIPE PATTERN --- */}
                 {mbVal > 0 && (
                     <div
                         style={{ ...stripeBg, height: mbStr }}
@@ -301,7 +339,6 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                         </span>
                     </div>
                 )}
-                {/* Bottom Drag Handle */}
                 <div
                     onMouseDown={(e) => handleMarginDragStart(e, 'bottom')}
                     className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 cursor-ns-resize z-30 p-1 group/bhandle flex items-center justify-center"
@@ -319,7 +356,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                     )}
                 </div>
 
-                {/* --- LEFT OUTER SPACING (MARGIN) STRIPE PATTERN (OUTSIDE ELEMENT) --- */}
+                {/* --- LEFT OUTER SPACING (MARGIN) STRIPE PATTERN --- */}
                 {mlVal > 0 && (
                     <div
                         style={{ ...stripeBg, width: mlStr }}
@@ -330,7 +367,6 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                         </span>
                     </div>
                 )}
-                {/* Left Drag Handle */}
                 <div
                     onMouseDown={(e) => handleMarginDragStart(e, 'left')}
                     className="absolute -left-2.5 top-1/2 -translate-y-1/2 cursor-ew-resize z-30 p-1 group/lhandle flex items-center justify-center"
@@ -348,7 +384,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                     )}
                 </div>
 
-                {/* --- RIGHT OUTER SPACING (MARGIN) STRIPE PATTERN (OUTSIDE ELEMENT) --- */}
+                {/* --- RIGHT OUTER SPACING (MARGIN) STRIPE PATTERN --- */}
                 {mrVal > 0 && (
                     <div
                         style={{ ...stripeBg, width: mrStr }}
@@ -359,7 +395,6 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                         </span>
                     </div>
                 )}
-                {/* Right Drag Handle */}
                 <div
                     onMouseDown={(e) => handleMarginDragStart(e, 'right')}
                     className="absolute -right-2.5 top-1/2 -translate-y-1/2 cursor-ew-resize z-30 p-1 group/rhandle flex items-center justify-center"
@@ -381,13 +416,13 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
     };
 
     const handleClick = (e: React.MouseEvent) => {
+        if (isReadOnly || !setSelectedElementId) return;
         e.stopPropagation();
         setSelectedElementId(node.id);
     };
 
     const renderControls = () => {
-        if (!isSelected) return null;
-        
+        if (isReadOnly || !isSelected) return null;
         const bgColor = 'bg-indigo-500';
 
         return (
@@ -402,29 +437,51 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                         <span className="capitalize">{node.type}</span>
                     )}
                 </div>
-                <div className="absolute -top-10 right-0 z-50 flex gap-0.5 bg-gray-800 text-white shadow-lg rounded p-0.5 items-center">
-                    <button onClick={(e) => { e.stopPropagation(); if (moveElementUp) moveElementUp(node.id); }} className="p-1 hover:bg-gray-700 rounded" title="Move Up">
-                        <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); if (moveElementDown) moveElementDown(node.id); }} className="p-1 hover:bg-gray-700 rounded" title="Move Down">
-                        <ChevronDown className="w-4 h-4" />
-                    </button>
-                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-700 rounded" title="Drag to reorder">
-                        <GripVertical className="w-4 h-4" />
+
+                <div className="absolute -top-[26px] -right-[2px] z-50 flex items-center gap-0.5 bg-gray-900 text-white rounded-t-md px-1 py-0.5 shadow-md border border-gray-700">
+                    <div {...attributes} {...listeners} className="p-1 hover:bg-gray-700 rounded cursor-grab active:cursor-grabbing text-gray-300 hover:text-white" title="Drag to reorder">
+                        <GripVertical className="w-3.5 h-3.5" />
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); if (duplicateElement) duplicateElement(node.id); }} className="p-1 hover:bg-gray-700 rounded" title="Duplicate">
-                        <Copy className="w-4 h-4" />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded" title="Delete">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+
+                    {moveElementUp && (
+                        <button onClick={(e) => { e.stopPropagation(); moveElementUp(node.id); }} className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Move Up">
+                            <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    {moveElementDown && (
+                        <button onClick={(e) => { e.stopPropagation(); moveElementDown(node.id); }} className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Move Down">
+                            <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    {duplicateElement && (
+                        <button onClick={(e) => { e.stopPropagation(); duplicateElement(node.id); }} className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Duplicate">
+                            <Copy className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    {removeElement && (
+                        <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1 hover:bg-red-600 rounded text-gray-300 hover:text-white" title="Delete">
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    )}
                 </div>
             </>
         );
     };
 
     const renderChildren = () => {
-        if (!node.children) return null;
+        if (!node.children || node.children.length === 0) return null;
+
+        if (isReadOnly) {
+            return node.children.map(child => (
+                <BuilderElement
+                    key={child.id}
+                    node={child}
+                    brand={brand}
+                    depth={depth + 1}
+                    isReadOnly={true}
+                />
+            ));
+        }
 
         const strategy = node.style?.flexDirection === 'row' ? horizontalListSortingStrategy : verticalListSortingStrategy;
 
@@ -444,6 +501,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
                         insertElementRelative={insertElementRelative}
                         depth={depth + 1}
                         brand={brand}
+                        isReadOnly={false}
                     />
                 ))}
             </SortableContext>
@@ -454,7 +512,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
     const [dragPosition, setDragPosition] = useState<'none' | 'left' | 'right' | 'top' | 'bottom' | 'inside'>('none');
 
     const handleDragOver = (e: React.DragEvent) => {
-        if (!e.dataTransfer.types.includes('application/vnd.builder.element')) return;
+        if (isReadOnly || !e.dataTransfer.types.includes('application/vnd.builder.element')) return;
         e.preventDefault();
         e.stopPropagation();
 
@@ -462,7 +520,6 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
-        // Define edge thresholds based on element size, capped at 24px
         const xThreshold = Math.min(24, rect.width * 0.25);
         const yThreshold = Math.min(24, rect.height * 0.25);
 
@@ -475,19 +532,18 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         else if (y > rect.height - yThreshold) pos = 'bottom';
         
         if (pos === 'inside' && !isContainer) {
-            // Default to bottom for non-containers if not near an edge
             pos = 'bottom';
         }
 
         setDragPosition(pos);
     };
 
-    const handleDragLeave = (e: React.DragEvent) => {
+    const handleDragLeave = () => {
         setDragPosition('none');
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        if (!e.dataTransfer.types.includes('application/vnd.builder.element')) return;
+        if (isReadOnly || !e.dataTransfer.types.includes('application/vnd.builder.element')) return;
         if (dragPosition === 'none') return;
 
         e.preventDefault();
@@ -500,26 +556,29 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         setDragPosition('none');
     };
 
-    const dragHandlers = {
+    const dragHandlers = isReadOnly ? {} : {
         onDragOver: handleDragOver,
         onDragLeave: handleDragLeave,
         onDrop: handleDrop
     };
 
     let dragIndicatorClass = '';
-    if (dragPosition === 'left') dragIndicatorClass = 'border-l-4 border-l-indigo-500';
-    else if (dragPosition === 'right') dragIndicatorClass = 'border-r-4 border-r-indigo-500';
-    else if (dragPosition === 'top') dragIndicatorClass = 'border-t-4 border-t-indigo-500';
-    else if (dragPosition === 'bottom') dragIndicatorClass = 'border-b-4 border-b-indigo-500';
-    else if (dragPosition === 'inside') dragIndicatorClass = 'ring-2 ring-indigo-500 bg-indigo-50/10';
+    if (!isReadOnly) {
+        if (dragPosition === 'left') dragIndicatorClass = 'border-l-4 border-l-indigo-500';
+        else if (dragPosition === 'right') dragIndicatorClass = 'border-r-4 border-r-indigo-500';
+        else if (dragPosition === 'top') dragIndicatorClass = 'border-t-4 border-t-indigo-500';
+        else if (dragPosition === 'bottom') dragIndicatorClass = 'border-b-4 border-b-indigo-500';
+        else if (dragPosition === 'inside') dragIndicatorClass = 'ring-2 ring-indigo-500 bg-indigo-50/10';
+    }
 
-    const wrapperClass = `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-500/50'} ${dragIndicatorClass}`;
-
+    const wrapperClass = isReadOnly 
+        ? 'relative' 
+        : `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-500/50'} ${dragIndicatorClass}`;
 
     const props = {
         node,
         brand,
-        setNodeRef,
+        setNodeRef: isReadOnly ? undefined : setNodeRef,
         style,
         wrapperClass,
         handleClick,
@@ -527,7 +586,8 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         renderPaddingControls,
         renderChildren,
         updateElement,
-        dragHandlers
+        dragHandlers,
+        isReadOnly
     };
 
     if (node.type === 'section') {
@@ -543,35 +603,46 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
             delete finalStyle.paddingX;
         }
         
-        // Ensure section has a background if not specified or transparent, to avoid blending into dark canvas
         if (!finalStyle.backgroundColor || finalStyle.backgroundColor === 'transparent') {
             finalStyle.backgroundColor = '#ffffff';
         }
 
-        return (
-            <div ref={setNodeRef} style={finalStyle} onClick={handleClick} className={`w-full relative ${wrapperClass}`} {...dragHandlers}>
-                {renderControls()}
-                {renderPaddingControls()}
+        const sectionEl = (
+            <div ref={isReadOnly ? undefined : setNodeRef} style={finalStyle} onClick={isReadOnly ? undefined : handleClick} className={`w-full relative ${wrapperClass}`} {...dragHandlers}>
+                {!isReadOnly && renderControls()}
+                {!isReadOnly && renderPaddingControls()}
                 {renderChildren()}
             </div>
         );
+
+        return (isReadOnly && node.animation && node.animation !== 'none') ? (
+            <AnimatedWrapper animation={node.animation}>{sectionEl}</AnimatedWrapper>
+        ) : sectionEl;
     }
 
-    switch (node.type) {
-        case 'box': return <BoxElement {...props} />;
-        case 'row': return <RowElement {...props} />;
-        case 'column': return <ColumnElement {...props} />;
-        case 'text': return <TextElement {...props} />;
-        case 'media': return <MediaElement {...props} />;
-        case 'button': return <ButtonElement {...props} />;
-        case 'line': return <LineElement {...props} />;
-        case 'code':
-            return (
-                <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass} {...dragHandlers}>
-                    {renderControls()}
-                    <CodeElement element={node} />
-                </div>
-            );
-        default: return null;
+    const renderElementComponent = () => {
+        switch (node.type) {
+            case 'box': return <BoxElement {...props} />;
+            case 'row': return <RowElement {...props} />;
+            case 'column': return <ColumnElement {...props} />;
+            case 'text': return <TextElement {...props} />;
+            case 'media': return <MediaElement {...props} />;
+            case 'button': return <ButtonElement {...props} />;
+            case 'line': return <LineElement {...props} />;
+            case 'code':
+                return (
+                    <div ref={isReadOnly ? undefined : setNodeRef} style={style} onClick={isReadOnly ? undefined : handleClick} className={wrapperClass} {...dragHandlers}>
+                        {!isReadOnly && renderControls()}
+                        <CodeElement element={node} />
+                    </div>
+                );
+            default: return null;
+        }
+    };
+
+    const rendered = renderElementComponent();
+    if (isReadOnly && node.animation && node.animation !== 'none') {
+        return <AnimatedWrapper animation={node.animation}>{rendered}</AnimatedWrapper>;
     }
+    return rendered;
 }

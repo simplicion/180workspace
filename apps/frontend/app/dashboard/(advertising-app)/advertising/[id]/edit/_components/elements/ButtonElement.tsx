@@ -1,21 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import { ElementNode } from '../../types';
+import React from 'react';
+import { ElementProps } from './BoxElement';
 
-export interface ElementProps {
-    node: ElementNode;
-    brand?: any;
-    setNodeRef: (node: HTMLElement | null) => void;
-    style: React.CSSProperties;
-    wrapperClass: string;
-    handleClick: (e: React.MouseEvent) => void;
-    renderControls: () => React.ReactNode;
-    renderPaddingControls: () => React.ReactNode;
-    renderChildren?: () => React.ReactNode;
-    updateElement: (id: string, path: string, value: any) => void;
-}
-
-export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
-    // Only pass positioning/layout to wrapper, NOT visual styles like bg color or padding
+export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly }: ElementProps) {
     const wrapperStyle = {
         transform: style.transform,
         transition: style.transition,
@@ -30,12 +16,14 @@ export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, ha
     };
 
     return (
-        <div ref={setNodeRef} style={wrapperStyle} onClick={handleClick} className={`relative ${wrapperClass} text-center`}>
-            {renderControls()}
-            {renderPaddingControls()}
+        <div ref={setNodeRef} style={wrapperStyle} onClick={isReadOnly ? undefined : handleClick} className={`relative ${wrapperClass} text-center`}>
+            {!isReadOnly && renderControls?.()}
+            {!isReadOnly && renderPaddingControls?.()}
             <a 
                 href={node.data?.link || '#'}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleClick(e); }}
+                target={node.data?.openInNewTab ? '_blank' : '_self'}
+                rel={node.data?.openInNewTab ? 'noopener noreferrer' : undefined}
+                onClick={isReadOnly ? undefined : (e) => { e.preventDefault(); e.stopPropagation(); handleClick?.(e); }}
                 style={{
                     fontSize: node.style?.fontSize || '1rem',
                     fontFamily: node.style?.fontFamily || 'inherit',

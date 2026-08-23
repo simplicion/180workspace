@@ -1,21 +1,7 @@
 import React from 'react';
-import { ElementNode } from '../../types';
-import { ImageIcon } from 'lucide-react';
+import { ElementProps } from './BoxElement';
 
-export interface ElementProps {
-    node: ElementNode;
-    brand?: any;
-    setNodeRef: (node: HTMLElement | null) => void;
-    style: React.CSSProperties;
-    wrapperClass: string;
-    handleClick: (e: React.MouseEvent) => void;
-    renderControls: () => React.ReactNode;
-    renderPaddingControls: () => React.ReactNode;
-    renderChildren?: () => React.ReactNode;
-    updateElement: (id: string, path: string, value: any) => void;
-}
-
-export function TextElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
+export function TextElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement, isReadOnly }: ElementProps) {
     const Tag = (node.style?.tagName || 'div') as React.ElementType;
     
     // Process variables like {{brand.companyName}}
@@ -43,21 +29,37 @@ export function TextElement({ node, brand, setNodeRef, style, wrapperClass, hand
         outline: 'none'
     };
 
+    const isLink = !!node.data?.link;
+
+    const textElement = (
+        <Tag
+            style={textStyle}
+            contentEditable={!isReadOnly}
+            suppressContentEditableWarning={true}
+            onBlur={isReadOnly ? undefined : (e: React.FocusEvent<HTMLElement>) => {
+                updateElement?.(node.id, 'data.content', e.currentTarget.innerHTML);
+            }}
+            dangerouslySetInnerHTML={{ __html: displayContent }}
+            onClick={isReadOnly ? undefined : (e: React.MouseEvent) => { e.stopPropagation(); handleClick?.(e); }}
+        />
+    );
+
     return (
-        <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass}>
-            {renderControls()}
-            {renderPaddingControls()}
-            <Tag
-                style={textStyle}
-                contentEditable={true}
-                suppressContentEditableWarning={true}
-                onBlur={(e: React.FocusEvent<HTMLElement>) => {
-                    // Note: if a user edits a node with an interpolated variable, the variable will be replaced with the static text.
-                    updateElement(node.id, 'data.content', e.currentTarget.innerHTML);
-                }}
-                dangerouslySetInnerHTML={{ __html: displayContent }}
-                onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleClick(e); }}
-            />
+        <div ref={setNodeRef} style={style} onClick={isReadOnly ? undefined : handleClick} className={wrapperClass}>
+            {!isReadOnly && renderControls?.()}
+            {!isReadOnly && renderPaddingControls?.()}
+            {isLink && isReadOnly ? (
+                <a
+                    href={node.data.link}
+                    target={node.data.openInNewTab ? '_blank' : '_self'}
+                    rel={node.data.openInNewTab ? 'noopener noreferrer' : undefined}
+                    className="no-underline text-inherit block"
+                >
+                    {textElement}
+                </a>
+            ) : (
+                textElement
+            )}
         </div>
     );
 }
