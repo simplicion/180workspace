@@ -183,6 +183,7 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                         />
                     </div>
                 </div>
+            </div>
 
             <div className="pt-2">
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
