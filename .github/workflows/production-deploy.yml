@@ -73,12 +73,20 @@ jobs:
     steps:
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: GITHUB_TOKEN
           script: |
             cd /home/ubuntu/app
+            if [ ! -d ".git" ]; then
+              git init
+            fi
+            git remote rm origin || true
+            git remote add origin https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}.git
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
             pnpm install --frozen-lockfile
