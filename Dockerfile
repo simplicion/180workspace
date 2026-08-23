@@ -34,6 +34,8 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Now copy the source code of the pruned app
 COPY --from=builder /app/out/full/ .
 
+# Build the project (compile all workspace packages)
+RUN pnpm turbo run build --filter=backend --filter=worker
 
 # ---------------------------------------------
 # Stage 3: Runner
