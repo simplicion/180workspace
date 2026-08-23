@@ -81,6 +81,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: GITHUB_TOKEN
           script: |
+            set -e
             cd /home/ubuntu/app
             if [ ! -d ".git" ]; then
               git init
@@ -89,7 +90,7 @@ jobs:
             git remote add origin https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}.git
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
-            pnpm install --frozen-lockfile
+            NODE_ENV=development pnpm install --frozen-lockfile
             pnpm turbo run build --filter=backend --filter=worker
             pm2 restart all --update-env
             pm2 save
