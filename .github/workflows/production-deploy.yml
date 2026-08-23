@@ -65,7 +65,7 @@ jobs:
         
       - name: Bundle compiled files
         run: |
-          find packages apps/backend apps/worker -type d -name "dist" 2>/dev/null | tar -czf dists.tar.gz -T - || echo "No dist directories found"
+          find packages apps/backend apps/worker -type d -name "dist" -not -path "*/node_modules/*" 2>/dev/null | tar -czf dists.tar.gz -T - || echo "No dist directories found"
           
       - name: Upload compiled files
         uses: actions/upload-artifact@v4
