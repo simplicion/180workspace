@@ -162,7 +162,7 @@ export function PublicRenderElement({ node, brand }: PublicRenderElementProps) {
             ...normalizedStyle,
             fontSize: normalizedStyle.fontSize || '1rem',
             fontFamily: normalizedStyle.fontFamily || 'inherit',
-            backgroundColor: normalizedStyle.backgroundColor || '#4f46e5',
+            backgroundColor: normalizedStyle.backgroundColor || brand?.primaryColor || '#4f46e5',
             color: normalizedStyle.color || '#ffffff',
             borderColor: normalizedStyle.borderColor || 'transparent',
             borderWidth: normalizedStyle.borderWidth || '0px',
@@ -176,11 +176,25 @@ export function PublicRenderElement({ node, brand }: PublicRenderElementProps) {
             textDecoration: 'none',
             display: 'inline-block',
             textAlign: 'center' as any,
-            minWidth: '120px'
+            minWidth: '120px',
+            width: '100%',
+            boxSizing: 'border-box' as any
         };
         const link = node.data?.link || '#';
+
+        const wrapperStyle = {
+            display: normalizedStyle.display || 'inline-block',
+            margin: normalizedStyle.margin,
+            marginTop: normalizedStyle.marginTop,
+            marginBottom: normalizedStyle.marginBottom,
+            marginLeft: normalizedStyle.marginLeft,
+            marginRight: normalizedStyle.marginRight,
+            alignSelf: normalizedStyle.alignSelf,
+            width: normalizedStyle.width
+        };
+
         const content = (
-            <div style={normalizedStyle} className="flex justify-center relative group/element transition-all">
+            <div style={wrapperStyle} className="relative group/element transition-all text-center">
                 <a href={link} style={btnStyle} className="inline-block transition-transform hover:scale-105 active:scale-95 shadow-sm">
                     {node.data?.content || node.data?.label || 'Click Me'}
                 </a>

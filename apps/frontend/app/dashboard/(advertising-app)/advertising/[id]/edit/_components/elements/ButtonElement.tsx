@@ -3,6 +3,7 @@ import { ElementNode } from '../../types';
 
 export interface ElementProps {
     node: ElementNode;
+    brand?: any;
     setNodeRef: (node: HTMLElement | null) => void;
     style: React.CSSProperties;
     wrapperClass: string;
@@ -13,9 +14,24 @@ export interface ElementProps {
     updateElement: (id: string, path: string, value: any) => void;
 }
 
-export function ButtonElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
+export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement }: ElementProps) {
+    // Only pass positioning/layout to wrapper, NOT visual styles like bg color or padding
+    const wrapperStyle = {
+        transform: style.transform,
+        transition: style.transition,
+        opacity: style.opacity,
+        display: style.display || 'inline-block',
+        margin: style.margin,
+        marginTop: style.marginTop,
+        marginBottom: style.marginBottom,
+        marginLeft: style.marginLeft,
+        marginRight: style.marginRight,
+        alignSelf: style.alignSelf,
+        width: style.width
+    };
+
     return (
-        <div ref={setNodeRef} style={style} onClick={handleClick} className={`flex justify-center ${wrapperClass}`}>
+        <div ref={setNodeRef} style={wrapperStyle} onClick={handleClick} className={`relative ${wrapperClass} text-center`}>
             {renderControls()}
             {renderPaddingControls()}
             <a 
@@ -24,7 +40,7 @@ export function ButtonElement({ node, setNodeRef, style, wrapperClass, handleCli
                 style={{
                     fontSize: node.style?.fontSize || '1rem',
                     fontFamily: node.style?.fontFamily || 'inherit',
-                    backgroundColor: node.style?.backgroundColor || '#4f46e5',
+                    backgroundColor: node.style?.backgroundColor || brand?.primaryColor || '#4f46e5',
                     color: node.style?.color || '#ffffff',
                     borderColor: node.style?.borderColor || 'transparent',
                     borderWidth: node.style?.borderWidth || '0px',
@@ -38,7 +54,9 @@ export function ButtonElement({ node, setNodeRef, style, wrapperClass, handleCli
                     textDecoration: 'none',
                     display: 'inline-block',
                     textAlign: 'center',
-                    minWidth: '120px'
+                    minWidth: '120px',
+                    width: '100%',
+                    boxSizing: 'border-box'
                 }}
             >
                 {node.data?.content || 'Click Me'}

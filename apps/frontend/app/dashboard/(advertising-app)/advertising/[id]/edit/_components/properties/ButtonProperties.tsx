@@ -4,9 +4,10 @@ import CustomSelect from '@/components/ui/CustomSelect';
 interface Props {
     selectedElement: any;
     onUpdate: (key: string, value: any) => void;
+    brand?: any;
 }
 
-export default function ButtonProperties({ selectedElement, onUpdate }: Props) {
+export default function ButtonProperties({ selectedElement, onUpdate, brand }: Props) {
     if (selectedElement.type !== 'button') return null;
 
     return (
@@ -92,13 +93,13 @@ export default function ButtonProperties({ selectedElement, onUpdate }: Props) {
                     <div className="flex items-center gap-1">
                         <input 
                             type="color" 
-                            value={selectedElement.style?.backgroundColor || '#4f46e5'} 
+                            value={selectedElement.style?.backgroundColor || brand?.primaryColor || '#4f46e5'} 
                             onChange={(e) => onUpdate('style.backgroundColor', e.target.value)}
                             className="w-8 h-8 shrink-0 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
                         />
                         <input 
                             type="text" 
-                            value={selectedElement.style?.backgroundColor || '#4f46e5'} 
+                            value={selectedElement.style?.backgroundColor || brand?.primaryColor || '#4f46e5'} 
                             onChange={(e) => onUpdate('style.backgroundColor', e.target.value)}
                             className="w-full min-w-0 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-mono"
                         />
