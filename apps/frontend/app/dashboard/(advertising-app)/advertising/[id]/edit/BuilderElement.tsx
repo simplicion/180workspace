@@ -144,12 +144,12 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         display = display || 'block';
     }
 
-    // --- Padding Drag Logic ---
+    // --- Outer Spacing (Margin) Drag Logic ---
     const startPosRef = useRef({ x: 0, y: 0 });
-    const startPaddingRef = useRef(0);
-    const latestPaddingRef = useRef<string | null>(null);
+    const startMarginRef = useRef(0);
+    const latestMarginRef = useRef<string | null>(null);
     const [draggingSide, setDraggingSide] = useState<string | null>(null);
-    const [localPadding, setLocalPadding] = useState<Record<string, string> | null>(null);
+    const [localMargin, setLocalMargin] = useState<Record<string, string> | null>(null);
 
     const rawStyle = {
         transform: CSS.Transform.toString(transform),
@@ -159,7 +159,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         ...(display && { display }),
         ...(flexDirection && { flexDirection }),
         ...(flexWrap && { flexWrap }),
-        ...(localPadding || {})
+        ...(localMargin || {})
     };
 
     const style = normalizeStyle(rawStyle);
@@ -168,7 +168,7 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
 
     // Stop propagation so clicking a child doesn't select the parent
 
-    const handlePaddingDragStart = (e: React.MouseEvent, side: string) => {
+    const handleMarginDragStart = (e: React.MouseEvent, side: string) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -179,38 +179,37 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
             return isNaN(parsed) ? undefined : parsed;
         };
 
-        let currentPad = 0;
-        if (side === 'top') currentPad = parsePad(node.style?.paddingTop) ?? parsePad(node.style?.paddingY) ?? parsePad(node.style?.padding) ?? 0;
-        if (side === 'bottom') currentPad = parsePad(node.style?.paddingBottom) ?? parsePad(node.style?.paddingY) ?? parsePad(node.style?.padding) ?? 0;
-        if (side === 'left') currentPad = parsePad(node.style?.paddingLeft) ?? parsePad(node.style?.paddingX) ?? parsePad(node.style?.padding) ?? 0;
-        if (side === 'right') currentPad = parsePad(node.style?.paddingRight) ?? parsePad(node.style?.paddingX) ?? parsePad(node.style?.padding) ?? 0;
+        let currentMargin = 0;
+        if (side === 'top') currentMargin = parsePad(node.style?.marginTop) ?? parsePad(node.style?.marginY) ?? parsePad(node.style?.margin) ?? 0;
+        if (side === 'bottom') currentMargin = parsePad(node.style?.marginBottom) ?? parsePad(node.style?.marginY) ?? parsePad(node.style?.margin) ?? 0;
+        if (side === 'left') currentMargin = parsePad(node.style?.marginLeft) ?? parsePad(node.style?.marginX) ?? parsePad(node.style?.margin) ?? 0;
+        if (side === 'right') currentMargin = parsePad(node.style?.marginRight) ?? parsePad(node.style?.marginX) ?? parsePad(node.style?.margin) ?? 0;
         
-        let currentPadStr = `${currentPad}rem`;
-
-        const paddingKey = `padding${side.charAt(0).toUpperCase() + side.slice(1)}`;
+        let currentMarginStr = `${currentMargin}rem`;
+        const marginKey = `margin${side.charAt(0).toUpperCase() + side.slice(1)}`;
 
         startPosRef.current = { x: e.clientX, y: e.clientY };
-        startPaddingRef.current = currentPad;
-        latestPaddingRef.current = currentPadStr;
+        startMarginRef.current = currentMargin;
+        latestMarginRef.current = currentMarginStr;
         
         setDraggingSide(side);
-        setLocalPadding({ [paddingKey]: currentPadStr });
+        setLocalMargin({ [marginKey]: currentMarginStr });
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = moveEvent.clientX - startPosRef.current.x;
             const deltaY = moveEvent.clientY - startPosRef.current.y;
 
             let deltaRem = 0;
-            if (side === 'top') deltaRem = deltaY / 16;
-            if (side === 'bottom') deltaRem = -deltaY / 16;
-            if (side === 'left') deltaRem = deltaX / 16;
-            if (side === 'right') deltaRem = -deltaX / 16;
+            if (side === 'top') deltaRem = -deltaY / 16;
+            if (side === 'bottom') deltaRem = deltaY / 16;
+            if (side === 'left') deltaRem = -deltaX / 16;
+            if (side === 'right') deltaRem = deltaX / 16;
 
-            const newPadding = Math.max(0, startPaddingRef.current + deltaRem);
-            const newPaddingStr = `${newPadding}rem`;
+            const newMargin = Math.max(0, parseFloat((startMarginRef.current + deltaRem).toFixed(2)));
+            const newMarginStr = `${newMargin}rem`;
             
-            latestPaddingRef.current = newPaddingStr;
-            setLocalPadding({ [paddingKey]: newPaddingStr });
+            latestMarginRef.current = newMarginStr;
+            setLocalMargin({ [marginKey]: newMarginStr });
         };
 
         const handleMouseUp = () => {
@@ -219,14 +218,14 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
             setDraggingSide(null);
             
             // Commit to global config
-            if (latestPaddingRef.current) {
-                if (side === 'top') updateElement(node.id, 'style.paddingTop', latestPaddingRef.current);
-                if (side === 'bottom') updateElement(node.id, 'style.paddingBottom', latestPaddingRef.current);
-                if (side === 'left') updateElement(node.id, 'style.paddingLeft', latestPaddingRef.current);
-                if (side === 'right') updateElement(node.id, 'style.paddingRight', latestPaddingRef.current);
+            if (latestMarginRef.current) {
+                if (side === 'top') updateElement(node.id, 'style.marginTop', latestMarginRef.current);
+                if (side === 'bottom') updateElement(node.id, 'style.marginBottom', latestMarginRef.current);
+                if (side === 'left') updateElement(node.id, 'style.marginLeft', latestMarginRef.current);
+                if (side === 'right') updateElement(node.id, 'style.marginRight', latestMarginRef.current);
             }
             
-            setLocalPadding(null);
+            setLocalMargin(null);
         };
 
         document.addEventListener('mousemove', handleMouseMove);
@@ -235,53 +234,79 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
 
     const renderPaddingControls = () => {
         if (!isSelected) return null;
-        
-        const stripeBg = {
-            backgroundImage: `repeating-linear-gradient(45deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.2) 8px, rgba(99, 102, 241, 0.3) 8px, rgba(99, 102, 241, 0.3) 16px)`
-        };
-        
-        const dragHandle = (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-1.5 rounded-full bg-white border border-indigo-500 shadow-sm" />
-        );
-        const dragHandleVertical = (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-4 rounded-full bg-white border border-indigo-500 shadow-sm" />
-        );
-
-        const getPadStr = (val: any) => val !== undefined ? (typeof val === 'number' ? `${val}rem` : val) : undefined;
-        const ptStr = localPadding?.paddingTop || getPadStr(node.style?.paddingTop) || getPadStr(node.style?.paddingY) || getPadStr(node.style?.padding) || '0';
-        const pbStr = localPadding?.paddingBottom || getPadStr(node.style?.paddingBottom) || getPadStr(node.style?.paddingY) || getPadStr(node.style?.padding) || '0';
-        const plStr = localPadding?.paddingLeft || getPadStr(node.style?.paddingLeft) || getPadStr(node.style?.paddingX) || getPadStr(node.style?.padding) || '0';
-        const prStr = localPadding?.paddingRight || getPadStr(node.style?.paddingRight) || getPadStr(node.style?.paddingX) || getPadStr(node.style?.padding) || '0';
 
         return (
             <>
+                {/* Top Outer Spacing Handle */}
                 <div
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'top')}
-                    style={{ ...stripeBg, height: ptStr }}
-                    className="absolute top-0 left-0 right-0 min-h-[4px] cursor-ns-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-b border-indigo-500/30"
+                    onMouseDown={(e) => handleMarginDragStart(e, 'top')}
+                    className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 cursor-ns-resize group/top-handle flex flex-col items-center"
+                    title="Drag to adjust Outer Top Spacing (Margin)"
                 >
-                    {dragHandle}
+                    <div className={`w-8 h-2.5 rounded-full border border-indigo-500 shadow-md transition-transform flex items-center justify-center ${
+                        draggingSide === 'top' ? 'bg-indigo-600 scale-125' : 'bg-white hover:bg-indigo-50 hover:scale-110'
+                    }`}>
+                        <div className="w-3 h-0.5 bg-indigo-500 rounded-full" />
+                    </div>
+                    {draggingSide === 'top' && (
+                        <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                            Outer Top: {localMargin?.marginTop || '0rem'}
+                        </div>
+                    )}
                 </div>
+
+                {/* Bottom Outer Spacing Handle */}
                 <div
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'bottom')}
-                    style={{ ...stripeBg, height: pbStr }}
-                    className="absolute bottom-0 left-0 right-0 min-h-[4px] cursor-ns-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-t border-indigo-500/30"
+                    onMouseDown={(e) => handleMarginDragStart(e, 'bottom')}
+                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-30 cursor-ns-resize group/bottom-handle flex flex-col items-center"
+                    title="Drag to adjust Outer Bottom Spacing (Margin)"
                 >
-                    {dragHandle}
+                    <div className={`w-8 h-2.5 rounded-full border border-indigo-500 shadow-md transition-transform flex items-center justify-center ${
+                        draggingSide === 'bottom' ? 'bg-indigo-600 scale-125' : 'bg-white hover:bg-indigo-50 hover:scale-110'
+                    }`}>
+                        <div className="w-3 h-0.5 bg-indigo-500 rounded-full" />
+                    </div>
+                    {draggingSide === 'bottom' && (
+                        <div className="absolute top-full mt-1 bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                            Outer Bottom: {localMargin?.marginBottom || '0rem'}
+                        </div>
+                    )}
                 </div>
+
+                {/* Left Outer Spacing Handle */}
                 <div
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'left')}
-                    style={{ ...stripeBg, width: plStr }}
-                    className="absolute top-0 bottom-0 left-0 min-w-[4px] cursor-ew-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-r border-indigo-500/30"
+                    onMouseDown={(e) => handleMarginDragStart(e, 'left')}
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 z-30 cursor-ew-resize group/left-handle flex items-center"
+                    title="Drag to adjust Outer Left Spacing (Margin)"
                 >
-                    {dragHandleVertical}
+                    <div className={`h-8 w-2.5 rounded-full border border-indigo-500 shadow-md transition-transform flex items-center justify-center ${
+                        draggingSide === 'left' ? 'bg-indigo-600 scale-125' : 'bg-white hover:bg-indigo-50 hover:scale-110'
+                    }`}>
+                        <div className="h-3 w-0.5 bg-indigo-500 rounded-full" />
+                    </div>
+                    {draggingSide === 'left' && (
+                        <div className="absolute right-full mr-1 bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                            Outer Left: {localMargin?.marginLeft || '0rem'}
+                        </div>
+                    )}
                 </div>
+
+                {/* Right Outer Spacing Handle */}
                 <div
-                    onMouseDown={(e) => handlePaddingDragStart(e, 'right')}
-                    style={{ ...stripeBg, width: prStr }}
-                    className="absolute top-0 bottom-0 right-0 min-w-[4px] cursor-ew-resize z-20 transition-opacity opacity-0 group-hover/element:opacity-100 flex items-center justify-center border-l border-indigo-500/30"
+                    onMouseDown={(e) => handleMarginDragStart(e, 'right')}
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 cursor-ew-resize group/right-handle flex items-center"
+                    title="Drag to adjust Outer Right Spacing (Margin)"
                 >
-                    {dragHandleVertical}
+                    <div className={`h-8 w-2.5 rounded-full border border-indigo-500 shadow-md transition-transform flex items-center justify-center ${
+                        draggingSide === 'right' ? 'bg-indigo-600 scale-125' : 'bg-white hover:bg-indigo-50 hover:scale-110'
+                    }`}>
+                        <div className="h-3 w-0.5 bg-indigo-500 rounded-full" />
+                    </div>
+                    {draggingSide === 'right' && (
+                        <div className="absolute left-full ml-1 bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                            Outer Right: {localMargin?.marginRight || '0rem'}
+                        </div>
+                    )}
                 </div>
             </>
         );
