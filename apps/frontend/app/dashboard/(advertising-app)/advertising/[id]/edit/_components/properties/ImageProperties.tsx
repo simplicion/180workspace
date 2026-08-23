@@ -113,6 +113,77 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                 />
             </div>
 
+            <div className="pt-4 border-t border-gray-100 space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2">Border</h4>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
+                        <span>Border Width</span>
+                        <span className="text-indigo-600">{selectedElement.style?.borderWidth || '0px'}</span>
+                    </label>
+                    <input 
+                        type="range" 
+                        min="0" max="20" step="1" 
+                        value={selectedElement.style?.borderWidth ? parseInt(selectedElement.style.borderWidth) : 0} 
+                        onChange={(e) => {
+                            onUpdate('style.borderWidth', `${e.target.value}px`);
+                            if (parseInt(e.target.value) > 0 && !selectedElement.style?.borderStyle) {
+                                onUpdate('style.borderStyle', 'solid');
+                            }
+                        }}
+                        className="w-full accent-indigo-600"
+                    />
+                </div>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Style</label>
+                    <select 
+                        value={selectedElement.style?.borderStyle || 'solid'} 
+                        onChange={(e: any) => {
+                            onUpdate('style.borderStyle', e.target.value);
+                            if (!selectedElement.style?.borderWidth || parseInt(selectedElement.style.borderWidth) === 0) {
+                                onUpdate('style.borderWidth', '1px');
+                            }
+                        }}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="solid">Solid</option>
+                        <option value="dashed">Dashed</option>
+                        <option value="dotted">Dotted</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Color</label>
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="color" 
+                            value={selectedElement.style?.borderColor || '#000000'} 
+                            onChange={(e) => {
+                                onUpdate('style.borderColor', e.target.value);
+                                if (!selectedElement.style?.borderWidth || parseInt(selectedElement.style.borderWidth) === 0) {
+                                    onUpdate('style.borderWidth', '1px');
+                                }
+                                if (!selectedElement.style?.borderStyle) {
+                                    onUpdate('style.borderStyle', 'solid');
+                                }
+                            }}
+                            className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
+                        />
+                        <input 
+                            type="text" 
+                            value={selectedElement.style?.borderColor || '#000000'} 
+                            onChange={(e) => {
+                                onUpdate('style.borderColor', e.target.value);
+                                if (!selectedElement.style?.borderWidth || parseInt(selectedElement.style.borderWidth) === 0) {
+                                    onUpdate('style.borderWidth', '1px');
+                                }
+                                if (!selectedElement.style?.borderStyle) {
+                                    onUpdate('style.borderStyle', 'solid');
+                                }
+                            }}
+                            className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none font-mono uppercase"
+                        />
+                    </div>
+                </div>
+
             <div className="pt-2">
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
                     <span>Corner Radius</span>

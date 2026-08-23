@@ -67,7 +67,26 @@ export default async function PublicWebsitePage({
     const colors = config.colors || { primary: '#4f46e5', secondary: '#ffffff', accent: '#10b981' };
     const primaryColor = colors.primary;
     
-    const brand = config.brand || {};
+    let brand = config.brand;
+    if (!brand) {
+        brand = config.colors ? { 
+            primaryColor: config.colors.primary, 
+            secondaryColor: config.colors.secondary, 
+            textColor: '#111827', 
+            headingFont: 'Inter', 
+            bodyFont: 'Inter', 
+            bgType: 'color', 
+            bgValue: '#ffffff' 
+        } : { 
+            primaryColor: '#4f46e5', 
+            secondaryColor: '#ffffff', 
+            textColor: '#111827', 
+            headingFont: 'Inter', 
+            bodyFont: 'Inter', 
+            bgType: 'color', 
+            bgValue: '#ffffff' 
+        };
+    }
     const getHeaderFooterStyles = (b: any) => {
         const theme = b.headerFooterTheme || 'light';
         const customTextColor = b.headerFooterTextColor;
@@ -117,13 +136,13 @@ export default async function PublicWebsitePage({
                 <header
                     className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all`}
                     style={{
-                        backgroundColor: hfStyles.backgroundColor,
-                        color: hfStyles.color,
+                        backgroundColor: config.header?.style?.backgroundColor || hfStyles.backgroundColor,
+                        color: config.header?.style?.color || hfStyles.color,
                         backdropFilter: 'blur(12px)',
-                        paddingTop: config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem',
-                        paddingBottom: config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem',
-                        paddingLeft: config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem',
-                        paddingRight: config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem',
+                        paddingTop: config.header?.style?.paddingTop || (config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem'),
+                        paddingBottom: config.header?.style?.paddingBottom || (config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem'),
+                        paddingLeft: config.header?.style?.paddingLeft || (config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem'),
+                        paddingRight: config.header?.style?.paddingRight || (config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem'),
                     }}
                 >
                     <a href="/" className="flex items-center gap-3">
@@ -170,14 +189,13 @@ export default async function PublicWebsitePage({
                 <footer 
                     className="border-t border-black/10 transition-all"
                     style={{
-                        backgroundColor: hfStyles.backgroundColor,
-                        color: hfStyles.color,
+                        backgroundColor: config.footer?.style?.backgroundColor || hfStyles.backgroundColor,
+                        color: config.footer?.style?.color || hfStyles.color,
                         backdropFilter: 'blur(12px)',
-                        paddingTop: config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem',
-                        paddingBottom: config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem',
-                        paddingLeft: config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem',
-                        paddingRight: config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem',
-                        ...hfStyles
+                        paddingTop: config.footer?.style?.paddingTop || (config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem'),
+                        paddingBottom: config.footer?.style?.paddingBottom || (config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem'),
+                        paddingLeft: config.footer?.style?.paddingLeft || (config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem'),
+                        paddingRight: config.footer?.style?.paddingRight || (config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem'),
                     }}
                 >
                     {(() => {

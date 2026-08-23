@@ -131,18 +131,50 @@ export default function ButtonProperties({ selectedElement, onUpdate, brand }: P
                         <input 
                             type="color" 
                             value={selectedElement.style?.borderColor || '#000000'} 
-                            onChange={(e) => onUpdate('style.borderColor', e.target.value)}
+                            onChange={(e) => {
+                                onUpdate('style.borderColor', e.target.value);
+                                if (!selectedElement.style?.borderWidth || parseInt(selectedElement.style.borderWidth) === 0) {
+                                    onUpdate('style.borderWidth', '1px');
+                                }
+                                if (!selectedElement.style?.borderStyle) {
+                                    onUpdate('style.borderStyle', 'solid');
+                                }
+                            }}
                             className="w-8 h-8 shrink-0 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
                         />
                         <input 
                             type="text" 
                             value={selectedElement.style?.borderColor || '#000000'} 
-                            onChange={(e) => onUpdate('style.borderColor', e.target.value)}
+                            onChange={(e) => {
+                                onUpdate('style.borderColor', e.target.value);
+                                if (!selectedElement.style?.borderWidth || parseInt(selectedElement.style.borderWidth) === 0) {
+                                    onUpdate('style.borderWidth', '1px');
+                                }
+                                if (!selectedElement.style?.borderStyle) {
+                                    onUpdate('style.borderStyle', 'solid');
+                                }
+                            }}
                             className="w-full min-w-0 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-mono"
                         />
                     </div>
                 </div>
-                <div></div>
+                <div className="w-full overflow-hidden">
+                    <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Border Style</label>
+                    <CustomSelect 
+                        value={selectedElement.style?.borderStyle || 'solid'} 
+                        onChange={(e: any) => {
+                            onUpdate('style.borderStyle', e.target.value);
+                            if (!selectedElement.style?.borderWidth || parseInt(selectedElement.style.borderWidth) === 0) {
+                                onUpdate('style.borderWidth', '1px');
+                            }
+                        }}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="solid">Solid</option>
+                        <option value="dashed">Dashed</option>
+                        <option value="dotted">Dotted</option>
+                    </CustomSelect>
+                </div>
             </div>
 
             <div>

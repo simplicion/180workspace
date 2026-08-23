@@ -125,14 +125,13 @@ export function PublicRenderElement({ node, brand }: PublicRenderElementProps) {
     }
 
     if (node.type === 'media' || node.type === 'image') {
-        const url = node.data?.imageUrl || node.data?.url || '';
-        const isVideo = url.match(/\.(mp4|webm|ogg)$/i) || url.includes('youtube.com') || url.includes('vimeo.com');
+        const url = node.data?.imageUrl || node.data?.videoUrl || node.data?.url || '';
+        const isVideo = url.match(/\.(mp4|webm|ogg|m3u8)$/i) || url.includes('youtube.com') || url.includes('vimeo.com');
         
         const normalizedStyle = normalizeStyle(node.style);
         const style = {
             width: '100%',
-            height: 'auto',
-            aspectRatio: normalizedStyle.aspectRatio,
+            height: '100%',
             objectFit: normalizedStyle.objectFit || 'cover',
             borderRadius: normalizedStyle.borderRadius || '0.5rem',
         };

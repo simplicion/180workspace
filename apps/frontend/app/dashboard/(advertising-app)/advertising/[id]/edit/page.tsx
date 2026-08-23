@@ -635,6 +635,64 @@ export default function WebsiteEditorPage() {
             return false;
         };
 
+        if (id === 'header') {
+            const keys = path.split('.');
+            let current = newConfig.header || {};
+            newConfig.header = current; // Ensure it exists
+            
+            if (path === 'style' || path.startsWith('style.')) {
+                if (!current.style) current.style = {};
+                let styleCurrent = current.style;
+                const styleKeys = path === 'style' ? [] : path.split('.').slice(1);
+                if (styleKeys.length === 0) {
+                    current.style = value;
+                } else {
+                    for (let j = 0; j < styleKeys.length - 1; j++) {
+                        if (!styleCurrent[styleKeys[j]]) styleCurrent[styleKeys[j]] = {};
+                        styleCurrent = styleCurrent[styleKeys[j]];
+                    }
+                    styleCurrent[styleKeys[styleKeys.length - 1]] = value;
+                }
+            } else {
+                for (let j = 0; j < keys.length - 1; j++) {
+                    if (!current[keys[j]]) current[keys[j]] = {};
+                    current = current[keys[j]];
+                }
+                current[keys[keys.length - 1]] = value;
+            }
+            commitConfig(newConfig);
+            return;
+        }
+
+        if (id === 'footer') {
+            const keys = path.split('.');
+            let current = newConfig.footer || {};
+            newConfig.footer = current; // Ensure it exists
+            
+            if (path === 'style' || path.startsWith('style.')) {
+                if (!current.style) current.style = {};
+                let styleCurrent = current.style;
+                const styleKeys = path === 'style' ? [] : path.split('.').slice(1);
+                if (styleKeys.length === 0) {
+                    current.style = value;
+                } else {
+                    for (let j = 0; j < styleKeys.length - 1; j++) {
+                        if (!styleCurrent[styleKeys[j]]) styleCurrent[styleKeys[j]] = {};
+                        styleCurrent = styleCurrent[styleKeys[j]];
+                    }
+                    styleCurrent[styleKeys[styleKeys.length - 1]] = value;
+                }
+            } else {
+                for (let j = 0; j < keys.length - 1; j++) {
+                    if (!current[keys[j]]) current[keys[j]] = {};
+                    current = current[keys[j]];
+                }
+                current[keys[keys.length - 1]] = value;
+            }
+            commitConfig(newConfig);
+            return;
+        }
+
         if (newConfig.header && updateRecursive([newConfig.header])) {
             commitConfig(newConfig);
             return;
@@ -1167,13 +1225,13 @@ export default function WebsiteEditorPage() {
                             onClick={(e) => { e.stopPropagation(); setSelectedElementId('header'); }}
                             className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-500/50 hover:ring-inset`}
                             style={{
-                                backgroundColor: hfStyles.backgroundColor,
-                                color: hfStyles.color,
+                                backgroundColor: config.header?.style?.backgroundColor || hfStyles.backgroundColor,
+                                color: config.header?.style?.color || hfStyles.color,
                                 backdropFilter: 'blur(12px)',
-                                paddingTop: config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem',
-                                paddingBottom: config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem',
-                                paddingLeft: config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem',
-                                paddingRight: config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem',
+                                paddingTop: config.header?.style?.paddingTop || (config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem'),
+                                paddingBottom: config.header?.style?.paddingBottom || (config.header?.style?.paddingY !== undefined ? `${config.header.style.paddingY}rem` : '1.5rem'),
+                                paddingLeft: config.header?.style?.paddingLeft || (config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem'),
+                                paddingRight: config.header?.style?.paddingRight || (config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem'),
                             }}
                         >
                             <div className="flex items-center gap-3">
@@ -1329,13 +1387,13 @@ export default function WebsiteEditorPage() {
                             onClick={(e) => { e.stopPropagation(); setSelectedElementId('footer'); }}
                             className="border-t border-black/10 transition-all cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-500/50 hover:ring-inset"
                             style={{
-                                backgroundColor: hfStyles.backgroundColor,
-                                color: hfStyles.color,
+                                backgroundColor: config.footer?.style?.backgroundColor || hfStyles.backgroundColor,
+                                color: config.footer?.style?.color || hfStyles.color,
                                 backdropFilter: 'blur(12px)',
-                                paddingTop: config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem',
-                                paddingBottom: config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem',
-                                paddingLeft: config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem',
-                                paddingRight: config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem',
+                                paddingTop: config.footer?.style?.paddingTop || (config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem'),
+                                paddingBottom: config.footer?.style?.paddingBottom || (config.footer?.style?.paddingY !== undefined ? `${config.footer.style.paddingY}rem` : '3rem'),
+                                paddingLeft: config.footer?.style?.paddingLeft || (config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem'),
+                                paddingRight: config.footer?.style?.paddingRight || (config.footer?.style?.paddingX !== undefined ? `${config.footer.style.paddingX}rem` : '1.5rem'),
                             }}
                         >
                             {(() => {

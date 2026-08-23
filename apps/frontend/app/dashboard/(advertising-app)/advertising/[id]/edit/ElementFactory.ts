@@ -210,7 +210,7 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
                 createText('Description of the offering...', { opacity: 0.7 }),
                 createText(`${currencySymbol}99.00`, { fontWeight: 'bold' }),
                 createButton('Buy Now')
-            ], { backgroundColor: '#ffffff', borderRadius: '1rem', padding: '1.5rem', gap: '0.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e5e7eb' });
+            ], { flex: '1 1 250px', backgroundColor: '#ffffff', borderRadius: '1rem', padding: '1.5rem', gap: '0.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e5e7eb' });
 
         case 'portfolio-element':
             return createBox([

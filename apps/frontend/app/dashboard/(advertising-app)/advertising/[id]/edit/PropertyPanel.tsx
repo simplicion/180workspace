@@ -139,6 +139,24 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                                 className="w-full accent-indigo-600"
                             />
                         </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Text Color</label>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="color" 
+                                    value={selectedElement.style?.color || '#000000'} 
+                                    onChange={(e) => onUpdate('style.color', e.target.value)}
+                                    className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
+                                />
+                                <input 
+                                    type="text" 
+                                    value={selectedElement.style?.color || ''} 
+                                    onChange={(e) => onUpdate('style.color', e.target.value)}
+                                    placeholder="Default"
+                                    className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none uppercase font-mono"
+                                />
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -168,6 +186,25 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 placeholder="e.g. © 2024 Acme Corp. All rights reserved."
                             />
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Text Color</label>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="color" 
+                                    value={selectedElement.style?.color || '#000000'} 
+                                    onChange={(e) => onUpdate('style.color', e.target.value)}
+                                    className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0 shadow-sm"
+                                />
+                                <input 
+                                    type="text" 
+                                    value={selectedElement.style?.color || ''} 
+                                    onChange={(e) => onUpdate('style.color', e.target.value)}
+                                    placeholder="Default"
+                                    className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none uppercase font-mono"
+                                />
+                            </div>
                         </div>
                     </div>
                 )}
