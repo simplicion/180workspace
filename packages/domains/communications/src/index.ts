@@ -1,5 +1,5 @@
 // @ts-nocheck
-export * from './emails/email.service';
+export * from './emails/email-management.service';
 export { EmailManagementService } from './emails/email-management.service';
 export * from './chat/chat.service';
 export * from './meetings/meeting.service';
