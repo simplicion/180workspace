@@ -91,8 +91,14 @@ jobs:
             git remote add origin https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}.git
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
+            
+            # Stop processes to free up memory for faster installation/build
+            pm2 stop all || true
+            
             pnpm install --prod=false --frozen-lockfile
             pnpm turbo run build --filter=backend --filter=worker
-            pm2 restart all --update-env
+            
+            # Restart processes now that build is done
+            pm2 restart all --update-env || pm2 start ecosystem.config.js
             pm2 save
 
