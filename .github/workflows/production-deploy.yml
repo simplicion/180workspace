@@ -92,8 +92,14 @@ jobs:
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
             
-            # Stop processes to free up memory for faster installation/build
-            pm2 stop all || true
+            # Add swap space to prevent Out Of Memory (OOM) during build
+            if [ ! -f /swapfile ]; then
+              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile || true
+            fi
+
             
             pnpm install --prod=false --frozen-lockfile
             pnpm turbo run build --filter=backend --filter=worker
