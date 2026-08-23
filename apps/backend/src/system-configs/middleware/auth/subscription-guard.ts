@@ -28,12 +28,17 @@ export default async function subscriptionGuard(req: any, res: Response, next: N
         }
 
         if (countdown.isExpired) {
-            return res.status(403).json({
-                subscriptionExpired: true,
-                status: sub?.status || 'expired',
-                message: 'Your subscription has expired. Please upgrade to continue.',
-                upgradeUrl: '/dashboard/billing',
-            });
+            // Bypass if company status is explicitly 'active' but no subscription record exists (e.g. default free tier)
+            if (!sub && req.company && req.company.subscriptionStatus === 'active') {
+                // allow
+            } else {
+                return res.status(403).json({
+                    subscriptionExpired: true,
+                    status: sub?.status || 'expired',
+                    message: 'Your subscription has expired. Please upgrade to continue.',
+                    upgradeUrl: '/dashboard/billing',
+                });
+            }
         }
 
         req.subscription = countdown;

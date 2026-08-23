@@ -577,13 +577,15 @@ export class BillingService {
         }));
     }
 
-    // â”€â”€â”€ Trial Countdown
+    // ——— Trial Countdown
     static getTrialCountdown(subscription: any) {
-        if (!subscription) {
+        if (!subscription || !subscription.status) {
             return { daysLeft: 0, isExpired: true, isWarning: false, isTrialing: false, status: 'expired' };
         }
 
-        if (subscription.status === 'active') {
+        const status = subscription.status.toLowerCase();
+
+        if (status === 'active') {
             const endDate = subscription.subscriptionEndDate || subscription.renewalDate;
             if (!endDate) return { daysLeft: 999, isExpired: false, isWarning: false, isTrialing: false, status: 'active' };
             const msLeft = new Date(endDate).getTime() - new Date().getTime();
@@ -591,24 +593,24 @@ export class BillingService {
             return { daysLeft, isExpired: daysLeft === 0, isWarning: daysLeft <= 5, isTrialing: false, status: 'active' };
         }
 
-        if (subscription.status === 'trial') {
+        if (status === 'trial') {
             const msLeft = new Date(subscription.trialEndDate).getTime() - new Date().getTime();
             const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
             return { daysLeft, isExpired: daysLeft === 0, isWarning: daysLeft <= 3, isTrialing: true, status: 'trial' };
         }
 
-        if (subscription.status === 'paused') {
+        if (status === 'paused') {
             return { daysLeft: 0, isExpired: false, isWarning: true, isTrialing: false, status: 'paused' };
         }
 
-        if (subscription.status === 'mandate_pending') {
+        if (status === 'mandate_pending') {
             return { daysLeft: 0, isExpired: false, isWarning: false, isTrialing: false, status: 'mandate_pending' };
         }
 
-        return { daysLeft: 0, isExpired: true, isWarning: false, isTrialing: false, status: subscription.status };
+        return { daysLeft: 0, isExpired: true, isWarning: false, isTrialing: false, status };
     }
 
-    // â”€â”€â”€ Enforce User Limit
+    // ——— Enforce User Limit
     static async enforceUserLimit(companyId: string) {
         const sub = await this.getActiveSubscription(companyId);
         if (!sub || !sub.plan) return { allowed: true, current: 0, max: Infinity };

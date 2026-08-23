@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Skeleton } from "@workspace/ui";
 import { useSettings } from '@/lib/settings-context';
+import { useSubscription } from '@/lib/useSubscription';
 import Link from 'next/link';
 import EmployeeDashboard from '@/app/dashboard/(dashboard)/_components/EmployeeDashboard';
 import RecentProjects from '@/app/dashboard/(dashboard)/_components/RecentProjects';
@@ -84,6 +85,16 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     const [range, setRange] = useState('7');
     const [grouping, setGrouping] = useState('daily');
 
+    const { companyConfig } = useSubscription();
+    const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
+    
+    // Core apps 'tools' and 'system' are always accessible in the backend. 
+    // Here we check specifically for optional apps that might be disabled.
+    const hasHR = enabledApps.length === 0 || enabledApps.includes('hr'); // assume true if not loaded yet to prevent flashing? No, we skip if not enabled. Wait, if enabledApps is empty because loading, skip?
+    const hasFinance = enabledApps.length === 0 || enabledApps.includes('finance');
+    const hasCRM = enabledApps.length === 0 || enabledApps.includes('crm');
+    const hasProjects = enabledApps.length === 0 || enabledApps.includes('projects');
+
     const userRoles = Array.isArray(user?.roles) ? [...user.roles] : [user?.role];
     if (userRoles.includes('ceo') || user?.role === 'ceo' || userRoles.includes('superadmin') || user?.role === 'superadmin' || userRoles.includes('accounting') || user?.role === 'accounting') {
         userRoles.push('admin');
@@ -93,18 +104,18 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     // RTK Query hooks — cached across navigations, no loading flash
     const { data: recentProjectsData, isFetching: fetchingProjects } = useGetRecentProjectsQuery(
         undefined,
-        { skip: !isAdmin, pollingInterval: 30000 }
+        { skip: !isAdmin || (enabledApps.length > 0 && !enabledApps.includes('projects')), pollingInterval: 30000 }
     );
     const recentProjects = recentProjectsData?.projects || [];
 
     const { data: chartData, isFetching: fetchingTrends } = useGetWeeklyTrendsQuery(
         { range, grouping },
-        { skip: !isAdmin, pollingInterval: 30000 }
+        { skip: !isAdmin || (enabledApps.length > 0 && !enabledApps.includes('hr')), pollingInterval: 30000 }
     );
 
     const { data: stats, isLoading: loading, error: statsError } = useGetHrmsDashboardStatsQuery(
         undefined,
-        { skip: !isAdmin, pollingInterval: 30000 }
+        { skip: !isAdmin || (enabledApps.length > 0 && !enabledApps.includes('hr')), pollingInterval: 30000 }
     );
 
     if (!isAdmin) {
@@ -168,36 +179,44 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
             <CeoOverview />
 
             {/* 2. The Engine (Operations & Sales - Urgent & Actionable) */}
-            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                <OperationsOverview stats={stats} getStatValue={getStatValue} />
-                <SalesOverview />
-            </div>
+            {(hasHR || hasCRM) && (
+                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                    {hasHR && <OperationsOverview stats={stats} getStatValue={getStatValue} />}
+                    {hasCRM && <SalesOverview />}
+                </div>
+            )}
 
             {/* 3. Execution & Risk (Projects) */}
-            <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />
+            {hasProjects && <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />}
 
             {/* 4. Health & Money (Team Pulse & Financials) */}
-            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
-                <FinancialTrajectory />
-            </div>
+            {(hasHR || hasFinance) && (
+                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                    {hasHR && <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />}
+                    {hasFinance && <FinancialTrajectory />}
+                </div>
+            )}
 
             {/* 5. Live Awareness (Activity Feeds) */}
-            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                <SalesActivityFeed />
-                <LiveActivityFeed />
-            </div>
+            {(hasCRM || hasProjects) && (
+                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                    {hasCRM && <SalesActivityFeed />}
+                    {hasProjects && <LiveActivityFeed />}
+                </div>
+            )}
 
             {/* 6. Deep Analytics (Historical/Trends - Least Urgent) */}
-            <ActivityAnalytics
-                chartData={chartData}
-                loading={loading}
-                fetchingTrends={fetchingTrends}
-                range={range}
-                setRange={setRange}
-                grouping={grouping}
-                setGrouping={setGrouping}
-            />
+            {(hasHR || hasFinance || hasProjects || hasCRM) && (
+                <ActivityAnalytics
+                    chartData={chartData}
+                    loading={loading}
+                    fetchingTrends={fetchingTrends}
+                    range={range}
+                    setRange={setRange}
+                    grouping={grouping}
+                    setGrouping={setGrouping}
+                />
+            )}
         </div>
     );
 }

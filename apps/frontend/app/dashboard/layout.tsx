@@ -440,7 +440,11 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps || 3;
                     const companyEnabledApps = company?.enabledApps || [];
-                    const appsWithoutSystem = companyEnabledApps.filter((a: string) => a !== 'system' && a !== 'settings');
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'analytics', 'advertising', 'social-media'];
+                    
+                    const appsWithoutSystem = companyEnabledApps.filter((a: string) => 
+                        a !== 'system' && a !== 'settings' && validAppIds.includes(a)
+                    );
                     const allowedSubset = appsWithoutSystem.slice(0, maxApps);
                     
                     // Default apps are always available and don't count towards the limit, 

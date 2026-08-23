@@ -42,9 +42,6 @@ export class AuthService {
             throw AppError.conflict('User already exists');
         }
 
-        const now = new Date();
-        const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-
         const company = await globalPrisma.company.create({
             data: {
                 name: companyName,
@@ -52,9 +49,9 @@ export class AuthService {
                 databaseConfigured: true, 
                 isOnboardingComplete: false,
                 logoUrl: logoBase64 || null,
-                subscriptionStatus: 'trial',
-                trialStartDate: now,
-                trialEndDate: trialEnd,
+                subscriptionStatus: 'active',
+                trialStartDate: null,
+                trialEndDate: null,
             },
         });
 

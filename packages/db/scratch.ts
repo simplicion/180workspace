@@ -1,12 +1,40 @@
-import { PrismaClient } from '@workspace/db';
-const prisma = new PrismaClient();
+import { prisma } from './src/index.js';
+
 async function main() {
-    const subs = await prisma.subscription.findMany({ include: { company: true, plan: true } });
-    console.log(subs.map(s => ({
-        company: s.company?.name,
-        plan: s.plan?.planName,
-        status: s.status,
-        end: s.currentPeriodEnd
-    })));
+    console.log('Fixing company subscription statuses...');
+    
+    // Set all companies to 'active' if they are currently 'trial'
+    const companyRes = await prisma.company.updateMany({
+        where: { subscriptionStatus: 'trial' },
+        data: {
+            subscriptionStatus: 'active',
+            trialStartDate: null,
+            trialEndDate: null
+        }
+    });
+    
+    console.log(`Updated ${companyRes.count} companies from trial to active.`);
+    
+    // Also update any subscriptions that might be marked as trial
+    const subRes = await prisma.subscription.updateMany({
+        where: { status: 'trial' },
+        data: {
+            status: 'ACTIVE',
+            trialStartDate: null,
+            trialEndDate: null
+        }
+    });
+    
+    console.log(`Updated ${subRes.count} subscriptions from trial to ACTIVE.`);
+    
+    console.log('Done!');
 }
-main().finally(() => prisma.$disconnect());
+
+main()
+    .catch(e => {
+        console.error(e);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

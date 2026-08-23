@@ -24,6 +24,7 @@ export class BillingController {
             if (!plan) {
                 plan = await prisma.plan.findFirst({ where: { price: 0 } });
             }
+
             
             const companyConfig = await prisma.companyConfig.findUnique({ where: { companyId } });
             const teamMembersCount = await prisma.user.count({ where: { companyId } });
@@ -31,7 +32,8 @@ export class BillingController {
             let activeAppsCount = 0;
             if (company?.metadata && typeof company.metadata === 'object' && Array.isArray((company.metadata as any).enabledApps)) {
                 const enabledApps = (company.metadata as any).enabledApps;
-                activeAppsCount = enabledApps.filter((app: string) => app !== 'system' && app !== 'settings').length;
+                const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'analytics', 'advertising', 'social-media'];
+                activeAppsCount = enabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
             } else {
                 // fallback to projects if enabledApps isn't found
                 activeAppsCount = await prisma.project.count({ where: { companyId } });
@@ -52,16 +54,30 @@ export class BillingController {
 
             const isTrial = company?.subscriptionStatus === 'trial';
             let isExpired = false;
-            let currentStatus = currentSubscription?.status || (isTrial ? 'trial' : 'expired');
+            let currentStatus = currentSubscription?.status || company?.subscriptionStatus || 'expired';
 
             if (isTrial) {
                 if (company?.trialEndDate && new Date() > new Date(company.trialEndDate)) {
                     isExpired = true;
                     currentStatus = 'expired';
                 }
+            } else if (company?.subscriptionStatus === 'active') {
+                // Default active tier (e.g. Kickstarter) without an explicit record
+                if (!currentSubscription) {
+                    isExpired = false;
+                    currentStatus = 'active';
+                } else {
+                    isExpired = currentSubscription.status !== 'ACTIVE';
+                }
             } else {
                 isExpired = !currentSubscription || currentSubscription.status !== 'ACTIVE';
             }
+
+            const daysLeft = isTrial && company?.trialEndDate
+                    ? Math.max(0, Math.ceil((new Date(company.trialEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : currentSubscription?.currentPeriodEnd 
+                        ? Math.max(0, Math.ceil((new Date(currentSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                        : (company?.subscriptionStatus === 'active' ? 999 : 0);
 
             res.json({
                 currentSubscription: currentSubscription 
@@ -78,12 +94,10 @@ export class BillingController {
                 activeAppsCount,
                 activeWebsitesCount,
                 isExpired,
+                isWarning: isTrial ? daysLeft <= 3 : (currentSubscription ? daysLeft <= 5 : false),
+                isTrialing: isTrial,
                 status: currentStatus,
-                daysLeft: isTrial && company?.trialEndDate
-                    ? Math.max(0, Math.ceil((new Date(company.trialEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-                    : currentSubscription?.currentPeriodEnd 
-                        ? Math.max(0, Math.ceil((new Date(currentSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-                        : 0,
+                daysLeft,
                 paymentsEnabled: true
             });
         } catch (err) { next(err); }

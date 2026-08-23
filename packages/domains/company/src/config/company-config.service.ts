@@ -36,24 +36,20 @@ export class CompanyConfigService {
             ...metadata
         };
 
-        const missingApps = REQUIRED_APPS.filter(a => !config.enabledApps?.includes(a));
-        const missingModules = REQUIRED_MODULES.filter(m => !config.enabledModules?.includes(m));
-
-        if (missingApps.length > 0 || missingModules.length > 0) {
-            const updatedApps = Array.from(new Set([...(config.enabledApps || []), ...missingApps]));
-            const updatedModules = Array.from(new Set([...(config.enabledModules || []), ...missingModules]));
+        // Ensure 'system' is always enabled
+        if (!config.enabledApps.includes('system')) {
+            config.enabledApps.push('system');
+            
             await prisma.company.update({
                 where: { id: companyId },
                 data: {
                     metadata: {
                         ...metadata,
-                        enabledApps: updatedApps,
-                        enabledModules: updatedModules
+                        enabledApps: config.enabledApps,
+                        enabledModules: config.enabledModules
                     }
                 }
             });
-            config.enabledApps = updatedApps;
-            config.enabledModules = updatedModules;
         }
 
         return config;
