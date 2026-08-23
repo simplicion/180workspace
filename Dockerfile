@@ -25,6 +25,10 @@ WORKDIR /app
 # Copy the lockfile and package.jsons
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Copy the Prisma schema to avoid postinstall errors
+COPY --from=builder /app/out/full/packages/db/prisma ./packages/db/prisma
+
 RUN pnpm install --frozen-lockfile --prod=false
 
 # Now copy the source code of the pruned app
