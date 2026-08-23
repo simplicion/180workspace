@@ -1507,17 +1507,20 @@ export default function WebsiteEditorPage() {
                                         </button>
                                     )}
                                     <button onClick={() => {
-                                        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
-                                        const isLocal = rootDomain.includes('localhost');
-                                        const port = isLocal && window.location.port ? `:${window.location.port}` : '';
-                                        const domainWithPort = rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`;
-                                        if (website.customDomain) {
-                                            url = `https://${website.customDomain}`;
-                                        } else {
-                                            url = `http${isLocal ? '' : 's'}://${website.slug}.${domainWithPort}`;
-                                        }
-                                        window.open(url, '_blank');
-                                    }} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
+                                         let url = '';
+                                         const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
+                                         const isLocal = rootDomain.includes('localhost') || !rootDomain;
+                                         if (website?.customDomain) {
+                                             url = `https://${website.customDomain}`;
+                                         } else if (website?.slug) {
+                                             const port = isLocal && typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
+                                             const domainWithPort = rootDomain ? (rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`) : `localhost${port || ':3000'}`;
+                                             url = `http${isLocal ? '' : 's'}://${website.slug}.${domainWithPort}`;
+                                         }
+                                         if (url) {
+                                             window.open(url, '_blank');
+                                         }
+                                     }} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button onClick={handleDiscard} className="px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">Discard</button>
