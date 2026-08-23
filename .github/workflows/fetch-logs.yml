@@ -1,0 +1,20 @@
+name: Fetch PM2 Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch-logs:
+    name: Fetch PM2 Logs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Remote SSH Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/app
+            pm2 status
+            pm2 logs --nostream --lines 100
