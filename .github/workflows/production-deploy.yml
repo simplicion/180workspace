@@ -62,15 +62,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_LOWER: ${{ steps.repo-name.outputs.REPO_LOWER }}
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE
           command_timeout: 30m
           script: |
             set -e
             cd /home/ubuntu/app
+            
+            # Inject production environment variables
+            echo "$PRODUCTION_ENV_FILE" > .env
             
             # Update codebase to get latest docker-compose.yml
             if [ ! -d ".git" ]; then
