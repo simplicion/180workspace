@@ -1,5 +1,5 @@
 import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { BuilderElement } from '../../../../dashboard/(advertising-app)/advertising/[id]/edit/BuilderElement';
+import { BuilderElement } from '@/app/dashboard/(advertising-app)/advertising/[id]/edit/BuilderElement';
 
 export default async function PublicWebsitePage({ 
     params 
