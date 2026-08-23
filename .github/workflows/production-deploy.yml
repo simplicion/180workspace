@@ -88,10 +88,10 @@ jobs:
             export GITHUB_REPOSITORY_LOWER=$REPO_LOWER
             
             # Pull the latest image
-            docker-compose pull
+            docker compose pull || docker-compose pull
             
             # Start the new container (recreates automatically, zero downtime style if configured properly)
-            docker-compose up -d
+            docker compose up -d || docker-compose up -d
             
             # Stop pm2 if it's still running (Migration step)
             pm2 stop all || true
