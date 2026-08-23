@@ -11,6 +11,7 @@ import { TextElement } from './_components/elements/TextElement';
 import { MediaElement } from './_components/elements/MediaElement';
 import { ButtonElement } from './_components/elements/ButtonElement';
 import { LineElement } from './_components/elements/LineElement';
+import CodeElement from './_components/elements/CodeElement';
 
 
 interface BuilderElementProps {
@@ -368,7 +369,13 @@ export function BuilderElement({ node, brand, selectedElementId, setSelectedElem
         case 'media': return <MediaElement {...props} />;
         case 'button': return <ButtonElement {...props} />;
         case 'line': return <LineElement {...props} />;
+        case 'code':
+            return (
+                <div ref={setNodeRef} style={style} onClick={handleClick} className={wrapperClass} {...dragHandlers}>
+                    {renderControls()}
+                    <CodeElement element={node} />
+                </div>
+            );
         default: return null;
     }
-    return null;
 }

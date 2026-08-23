@@ -1,6 +1,6 @@
 import express from 'express';
 import { SetupController } from './setup.controller';
-import { upload } from '../../../../system-configs/middleware/system/upload';
+import { upload } from '../../../../system-configs/middleware/system/central-upload';
 
 const router = express.Router();
 

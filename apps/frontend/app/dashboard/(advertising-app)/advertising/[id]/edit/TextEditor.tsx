@@ -64,12 +64,25 @@ export default function TextEditor({ anchorRef, visible, onClose }: TextEditorPr
 
     useEffect(() => {
         if (visible) {
-            setContainer(document.getElementById('text-editor-container'));
+            setContainer(document.body);
         }
     }, [visible]);    // Update position based on selection or element
     const updatePosition = useCallback(() => {
         if (!anchorRef.current) return;
-        const rect = anchorRef.current.getBoundingClientRect();
+        
+        let rect = anchorRef.current.getBoundingClientRect();
+        
+        // Try to position above the actual text selection
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+            const range = selection.getRangeAt(0);
+            const rangeRect = range.getBoundingClientRect();
+            // Only use range rect if it has valid dimensions
+            if (rangeRect.width > 0 && rangeRect.height > 0) {
+                rect = rangeRect;
+            }
+        }
+
         const toolbarHeight = 44;
         const gap = 8;
 
@@ -299,7 +312,8 @@ export default function TextEditor({ anchorRef, visible, onClose }: TextEditorPr
     return createPortal(
         <div
             ref={toolbarRef}
-            className="animate-in fade-in zoom-in-95 duration-150 flex items-center"
+            className="fixed z-[10000] animate-in fade-in zoom-in-95 duration-150 flex items-center"
+            style={{ top: position.top, left: position.left, transform: 'translateX(-50%)' }}
             onMouseDown={(e) => e.preventDefault()}
         >
             <div className="bg-gray-900 text-white rounded-xl shadow-sm border border-gray-700/50 flex items-center divide-x divide-gray-700/50 overflow-visible h-9">

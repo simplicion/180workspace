@@ -1,5 +1,5 @@
 {
-    "watch": ["src", "server.js", "package.json"],
+    "watch": ["src", "server.js", "package.json", "../../packages/*/src"],
     "ext": "js,json,ts",
     "exec": "tsx server.js",
     "ignore": [

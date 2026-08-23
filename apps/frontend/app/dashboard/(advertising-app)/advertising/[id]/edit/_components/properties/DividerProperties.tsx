@@ -34,20 +34,29 @@ export default function DividerProperties({ selectedElement, onUpdate }: Props) 
             <div>
                 <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Direction</label>
                 <CustomSelect 
-                    value={selectedElement.style?.width === '1px' ? 'vertical' : 'horizontal'} 
+                    value={selectedElement.style?.direction || 'horizontal'} 
                     onChange={(e: any) => {
-                        if (e.target.value === 'horizontal') {
-                            onUpdate('style.width', '100%');
-                            onUpdate('style.height', selectedElement.style?.thickness || '2px');
-                        } else {
-                            onUpdate('style.width', selectedElement.style?.thickness || '2px');
-                            onUpdate('style.height', '100%');
-                        }
+                        onUpdate('style.direction', e.target.value);
                     }}
                     className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                     <option value="horizontal">Horizontal</option>
                     <option value="vertical">Vertical</option>
+                </CustomSelect>
+            </div>
+            
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Line Style</label>
+                <CustomSelect 
+                    value={selectedElement.style?.borderStyle || 'solid'} 
+                    onChange={(e: any) => {
+                        onUpdate('style.borderStyle', e.target.value);
+                    }}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                    <option value="solid">Solid</option>
+                    <option value="dashed">Dashed</option>
+                    <option value="dotted">Dotted</option>
                 </CustomSelect>
             </div>
 

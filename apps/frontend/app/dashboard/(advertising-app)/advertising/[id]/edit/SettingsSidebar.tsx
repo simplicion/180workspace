@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { ArrowLeft, Monitor, Smartphone, Tablet, Save, GripVertical, Settings2, Undo2, Redo2, Palette, Search, Plus, Trash2, Edit3, Image as ImageIcon, Link as LinkIcon, Type, MousePointer2, Settings, BoxSelect, Maximize, RotateCcw, ChevronDown, Check } from 'lucide-react';
+import { ArrowLeft, Monitor, Smartphone, Tablet, Save, GripVertical, Settings2, Undo2, Redo2, Palette, Search, Plus, Trash2, Edit3, Image as ImageIcon, Link as LinkIcon, Type, MousePointer2, Settings, BoxSelect, Maximize, RotateCcw, ChevronDown, Check, Code2, FileCode2 } from 'lucide-react';
 import { ElementType, ElementNode } from './types';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -40,6 +40,7 @@ export default function SettingsSidebar({
 }: SettingsSidebarProps) {
     const [sidebarTab, setSidebarTab] = useState<'styles' | 'sections' | 'pages'>('sections');
     const [uploadingBg, setUploadingBg] = useState(false);
+    const [showScriptsModal, setShowScriptsModal] = useState(false);
     const [availableFonts, setAvailableFonts] = useState<string[]>([
         'Inter', 'Roboto', 'Playfair Display', 'Montserrat', 'Open Sans', 'Outfit', 'Poppins', 'Lato', 'Arial'
     ]);
@@ -287,6 +288,18 @@ export default function SettingsSidebar({
                         </button>
                         <p className="text-xs text-gray-500 text-center mt-2">Warning: Resets all custom sections.</p>
                     </div>
+
+                    <div className="space-y-3 pt-6 border-t border-gray-200">
+                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><FileCode2 className="w-4 h-4" /> Global Scripts</label>
+                        <p className="text-xs text-gray-500">Add tracking codes (like Meta Pixel, Google Analytics) to the entire website.</p>
+                        <button 
+                            onClick={() => setShowScriptsModal(true)}
+                            className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-lg transition-colors flex justify-center items-center gap-2"
+                        >
+                            <Code2 className="w-4 h-4" />
+                            Edit Head & Body Scripts
+                        </button>
+                    </div>
                 </div>
             ) : sidebarTab === 'pages' ? (
                 <div className="p-4 space-y-3">
@@ -492,6 +505,16 @@ export default function SettingsSidebar({
                                     type: 'button', 
                                     label: 'Button', 
                                     icon: <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5" className="mb-2"><rect x="4" y="6" width="24" height="20" rx="6" /><text x="16" y="20.5" fontSize="10" fontWeight="bold" fill="currentColor" stroke="none" textAnchor="middle" fontFamily="sans-serif">BTN</text></svg> 
+                                },
+                                {
+                                    type: 'code',
+                                    label: 'Embed Code',
+                                    icon: <Code2 className="w-6 h-6 mb-2 text-current" />
+                                },
+                                {
+                                    type: 'line',
+                                    label: 'Line Divider',
+                                    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                 }
                             ].map(({type, label, icon}) => (
                                 <div 
@@ -582,6 +605,57 @@ export default function SettingsSidebar({
                                     );
                                 });
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showScriptsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                            <h3 className="font-black text-gray-800 flex items-center gap-2">
+                                <FileCode2 className="w-5 h-5 text-indigo-600" />
+                                Global Scripts
+                            </h3>
+                            <button onClick={() => setShowScriptsModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                    Head Script <code>&lt;head&gt;</code>
+                                </label>
+                                <p className="text-xs text-gray-500 mb-3">Code placed here will be injected inside the <code>&lt;head&gt;</code> tag of every page. Good for Meta Pixel, Analytics, or external CSS.</p>
+                                <textarea 
+                                    value={brand.headScript || ''}
+                                    onChange={(e) => updateBrand('headScript', e.target.value)}
+                                    className="w-full h-40 p-4 font-mono text-sm border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-gray-50"
+                                    placeholder="<!-- e.g. Facebook Pixel Code -->&#10;<script>&#10;  !function(f,b,e,v,n,t,s)&#10;...&#10;</script>"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                    Body Script <code>&lt;body&gt;</code>
+                                </label>
+                                <p className="text-xs text-gray-500 mb-3">Code placed here will be injected just before the closing <code>&lt;/body&gt;</code> tag. Good for chat widgets or slower scripts.</p>
+                                <textarea 
+                                    value={brand.bodyScript || ''}
+                                    onChange={(e) => updateBrand('bodyScript', e.target.value)}
+                                    className="w-full h-40 p-4 font-mono text-sm border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-gray-50"
+                                    placeholder="<!-- e.g. Chat Widget Code -->&#10;<script src='...'></script>"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end rounded-b-xl">
+                            <button 
+                                onClick={() => setShowScriptsModal(false)}
+                                className="px-6 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                            >
+                                Done
+                            </button>
                         </div>
                     </div>
                 </div>

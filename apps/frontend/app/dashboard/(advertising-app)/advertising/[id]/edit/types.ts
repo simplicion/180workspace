@@ -1,4 +1,4 @@
-export type ElementType = 'box' | 'text' | 'media' | 'button' | 'line' | 'section' | 'row' | 'column' | 'image';
+export type ElementType = 'box' | 'text' | 'media' | 'button' | 'line' | 'section' | 'row' | 'column' | 'image' | 'code';
 
 export interface ElementNode {
     id: string;

@@ -55,7 +55,9 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
             folder
         });
 
-        res.status(201).json(result);
+        res.status(201).json({
+            ...result
+        });
     } catch (err) { next(err); }
 };
 

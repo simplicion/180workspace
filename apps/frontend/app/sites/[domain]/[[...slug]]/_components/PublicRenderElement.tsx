@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { ElementNode } from '../../../../dashboard/(advertising-app)/advertising/[id]/edit/types';
 import { motion } from 'framer-motion';
@@ -141,6 +142,17 @@ export function PublicRenderElement({ node }: PublicRenderElementProps) {
             ...node.style
         };
         return <div style={style} />;
+    }
+
+    if (node.type === 'code') {
+        const html = node.data?.html || '';
+        return (
+            <div 
+                style={node.style} 
+                className="w-full relative"
+                dangerouslySetInnerHTML={{ __html: html }}
+            />
+        );
     }
 
     // Legacy Fallback for hardcoded types like 'hero', 'about', 'contact'

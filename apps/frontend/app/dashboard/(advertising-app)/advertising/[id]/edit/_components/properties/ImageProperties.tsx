@@ -64,7 +64,7 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                                     formData.append('replaceUrl', existingUrl);
                                 }
                                 
-                                const endpoint = isVideo ? '/api/v1/workspace-tools/storage/upload-video' : '/api/v1/workspace-tools/storage/upload';
+                                const endpoint = isVideo ? '/api/v1/workspace-tools/storage/upload?streaming=true' : '/api/v1/workspace-tools/storage/upload';
                                 const res = await api.post(endpoint, formData, {
                                     headers: { 'Content-Type': 'multipart/form-data' }
                                 });

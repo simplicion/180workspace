@@ -17,16 +17,19 @@ export function LineElement({ node, setNodeRef, style, wrapperClass, handleClick
     const isVertical = node.style?.direction === 'vertical';
     const thickness = node.style?.thickness || '2px';
     const color = node.style?.backgroundColor || '#e5e7eb';
+    const borderStyle = node.style?.borderStyle || 'solid';
     
     return (
-        <div ref={setNodeRef} style={style} onClick={handleClick} className={`flex items-center justify-center ${wrapperClass} ${isVertical ? 'h-full w-auto' : 'w-full h-auto'}`}>
+        <div ref={setNodeRef} style={style} onClick={handleClick} className={`flex items-center justify-center cursor-pointer ${wrapperClass} ${isVertical ? 'h-full w-auto min-w-[24px] px-2' : 'w-full h-auto min-h-[24px] py-2'}`}>
             {renderControls()}
             {renderPaddingControls()}
             <div style={{
-                backgroundColor: color,
-                width: isVertical ? thickness : '100%',
-                height: isVertical ? '100%' : thickness,
-                minHeight: isVertical ? '20px' : thickness,
+                width: isVertical ? '0px' : '100%',
+                height: isVertical ? '100%' : '0px',
+                borderTopWidth: isVertical ? '0px' : thickness,
+                borderLeftWidth: isVertical ? thickness : '0px',
+                borderColor: color,
+                borderStyle: borderStyle,
             }} />
         </div>
     );

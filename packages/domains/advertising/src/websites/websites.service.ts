@@ -265,6 +265,14 @@ export class WebsitesService {
       website = await prisma.website.findFirst({
         where: { companyId: company.id, slug: resolvedSlug, status: 'active' }
       });
+      
+      // Fallback: If a website matching the slug is not found, it's likely a page slug for the primary website
+      if (!website) {
+        console.log('Website with slug not found, falling back to primary website');
+        website = await prisma.website.findFirst({
+          where: { companyId: company.id, isPrimary: true, status: 'active' }
+        });
+      }
     } else {
       console.log('Looking for primary website');
       website = await prisma.website.findFirst({
@@ -324,6 +332,13 @@ export class WebsitesService {
       website = await prisma.website.findFirst({
         where: { companyId: company.id, slug, status: 'active' }
       });
+      
+      // Fallback: If a website matching the slug is not found, it's likely a page slug for the primary website
+      if (!website) {
+        website = await prisma.website.findFirst({
+          where: { companyId: company.id, isPrimary: true, status: 'active' }
+        });
+      }
     } else {
       website = await prisma.website.findFirst({
         where: { companyId: company.id, isPrimary: true, status: 'active' }

@@ -77,6 +77,13 @@ export const createLine = (style: any = {}): ElementNode => ({
     style: { direction: 'horizontal', thickness: '2px', backgroundColor: '#e5e7eb', ...style }
 });
 
+export const createCode = (html: string = '', style: any = {}): ElementNode => ({
+    id: generateId('code'),
+    type: 'code',
+    data: { html },
+    style
+});
+
 export function getDefaultElementForType(type: ElementType | string, currencySymbol: string): ElementNode {
     const id = generateId('sec');
 
@@ -192,6 +199,8 @@ export function getDefaultElementForType(type: ElementType | string, currencySym
             return createButton('Click Me');
         case 'line':
             return createLine();
+        case 'code':
+            return createCode();
 
         case 'product':
             return createBox([

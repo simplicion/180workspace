@@ -1,7 +1,7 @@
 import express from 'express';
 import { protect } from '../../../../system-configs/middleware/auth/auth';
 import { requireAdmin, requireAccess } from '../../../../system-configs/middleware/auth/rbac';
-import { upload, handleUpload } from '../../../../system-configs/middleware/system/upload';
+import { upload, handleUpload } from '../../../../system-configs/middleware/system/central-upload';
 import { UserController } from './user.controller';
 import { validateRequest } from '../../../../system-configs/middleware/system/validateRequest';
 import { UserValidation } from './user.validation';

@@ -1,6 +1,6 @@
 'use client';
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, ConfirmModal } from "@workspace/ui";
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
@@ -231,7 +231,7 @@ function VideoEditor({ sectionData, onChange, className = '' }: any) {
             setUploading(true);
             const formData = new FormData();
             formData.append('file', file);
-            const res = await api.post('/api/v1/workspace-tools/storage/upload-video', formData, {
+            const res = await api.post('/api/v1/workspace-tools/storage/upload?streaming=true', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -366,6 +366,10 @@ export default function WebsiteEditorPage() {
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
     const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
 
+    // Confirmation Modals
+    const [showDiscardModal, setShowDiscardModal] = useState(false);
+    const [showRevertModal, setShowRevertModal] = useState(false);
+
     // Hover and Padding Drag for Sections/Images
     const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
     const [paddingDrag, setPaddingDrag] = useState<any>(null);
@@ -437,6 +441,17 @@ export default function WebsiteEditorPage() {
     useEffect(() => {
         fetchWebsite();
     }, [id]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setViewMode('desktop'); // Force full width on mobile devices
+            }
+        };
+        handleResize(); // Check on mount
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleLogoUpload = async (e: any) => {
         const file = e.target.files?.[0];
@@ -532,14 +547,20 @@ export default function WebsiteEditorPage() {
     const handleSave = async () => {
         try {
             setSaving(true);
-            await api.patch(`/api/websites/${id}`, { config });
+            await api.patch(`/api/websites/${id}`, { name: website?.name, config });
             toast.success('Website saved successfully!');
+            setShowSettings(false);
+            setSelectedElementId(null);
         } catch (err) {
             console.error('Failed to save:', err);
             toast.error('Failed to save website');
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleDiscard = () => {
+        setShowDiscardModal(true);
     };
 
     const commitConfig = (newConfig: any) => {
@@ -570,7 +591,10 @@ export default function WebsiteEditorPage() {
     };
 
     const revertToDefault = () => {
-        if (!confirm("Are you sure you want to revert to the default template? All your content changes will be lost.")) return;
+        setShowRevertModal(true);
+    };
+
+    const executeRevertToDefault = () => {
         const defaultSections = [
             { id: 'sec-' + Date.now() + 1, type: 'hero', data: getDefaultElementForType('hero', currencySymbol) },
             { id: 'sec-' + Date.now() + 2, type: 'grid', data: getDefaultElementForType('grid', currencySymbol) },
@@ -581,6 +605,7 @@ export default function WebsiteEditorPage() {
             ...config,
             pages: config.pages.map((p: any) => p.id === activePageId ? { ...p, sections: defaultSections } : p)
         });
+        setShowRevertModal(false);
     };
 
     const updateBrand = (key: string, value: any) => {
@@ -617,7 +642,7 @@ export default function WebsiteEditorPage() {
                 if (!nodes[i]) continue;
                 if (nodes[i].id === id) {
                     const keys = path.split('.');
-                    let current = nodes[i].data;
+                    let current = nodes[i];
                     if (path === 'style' || path.startsWith('style.')) {
                         if (!nodes[i].style) nodes[i].style = {};
                         current = nodes[i].style;
@@ -1073,72 +1098,55 @@ export default function WebsiteEditorPage() {
 
     return (
         <div className="fixed inset-0 z-[9999] bg-gray-100 flex flex-col overflow-hidden">
-            {/* Editor Toolbar */}
-            <div className="flex-none sticky top-0 z-50 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => router.push(`/dashboard/advertising/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-sm font-bold text-gray-900">Editing: {website.name}</h1>
-                        <p className="text-xs text-gray-500">Click any text on the page to edit</p>
+            {/* Editor Toolbar - Hidden when sidebar is open */}
+            {!(showSettings || selectedElementId) && (
+                <div className="flex-none sticky top-0 z-50 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => router.push(`/dashboard/advertising/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
+                            <ArrowLeft className="w-5 h-5" />
+                        </button>
+                        <div>
+                            <div className="flex items-center gap-1">
+                                <span className="text-sm font-bold text-gray-900">Editing: </span>
+                                <EditableText 
+                                    tagName="h1" 
+                                    className="text-sm font-bold text-gray-900 inline" 
+                                    value={website?.name} 
+                                    onChange={(v: string) => {
+                                        if (website) setWebsite({ ...website, name: v });
+                                    }} 
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500">Click any text on the page to edit</p>
+                        </div>
+
+                        <div className="w-px h-8 bg-gray-200 mx-2 hidden md:block"></div>
+
+                        <div className="hidden md:flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                            <button onClick={() => setViewMode('desktop')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Monitor className="w-4 h-4" /></button>
+                            <button onClick={() => setViewMode('tablet')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'tablet' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Tablet className="w-4 h-4" /></button>
+                            <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Smartphone className="w-4 h-4" /></button>
+                        </div>
                     </div>
 
-                    <div className="w-px h-8 bg-gray-200 mx-2"></div>
+                    <div className="flex-1 flex justify-center items-center" id="text-editor-container">
+                    </div>
 
-                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setViewMode('desktop')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Monitor className="w-4 h-4" /></button>
-                        <button onClick={() => setViewMode('tablet')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'tablet' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Tablet className="w-4 h-4" /></button>
-                        <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}><Smartphone className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 border-r border-gray-200 pr-3 mr-1">
+                            <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"><Undo2 className="w-4 h-4" /></button>
+                            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"><Redo2 className="w-4 h-4" /></button>
+                        </div>
+                        <button
+                            onClick={() => setShowSettings(!showSettings)}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-colors border ${showSettings ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'text-gray-700 bg-white hover:bg-gray-50 border-gray-200'}`}
+                        >
+                            <Palette className="w-4 h-4" />
+                            Edit Design
+                        </button>
                     </div>
                 </div>
-
-                <div className="flex-1 flex justify-center items-center" id="text-editor-container">
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 border-r border-gray-200 pr-3 mr-1">
-                        <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"><Undo2 className="w-4 h-4" /></button>
-                        <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"><Redo2 className="w-4 h-4" /></button>
-                    </div>
-                    <button
-                        onClick={() => setShowSettings(!showSettings)}
-                        className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-100'}`}
-                    >
-                        <Palette className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => {
-                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
-                            const isLocal = rootDomain.includes('localhost');
-                            const port = isLocal && window.location.port ? `:${window.location.port}` : '';
-                            // If rootDomain already includes a port, don't append it again
-                            const domainWithPort = rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`;
-
-                            let url: string;
-                            if (website.company?.customDomain) {
-                                url = website.isPrimary
-                                    ? `https://${website.company.customDomain}`
-                                    : `https://${website.slug}.${website.company.customDomain}`;
-                            } else {
-                                url = `http${isLocal ? '' : 's'}://${website.company?.slug || 'company'}.${domainWithPort}${website.isPrimary ? '' : `/${website.slug}`}`;
-                            }
-                            window.open(url, '_blank');
-                        }}
-                        className="px-4 py-2 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
-                    >
-                        Preview
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all disabled:opacity-50"
-                    >
-                        {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        Publish Changes
-                    </button>
-                </div>
-            </div>
+            )}
 
             <div className="flex-1 flex overflow-hidden">
                 {/* Dynamically load Google Font */}
@@ -1148,25 +1156,42 @@ export default function WebsiteEditorPage() {
 
                 {/* Live Website Canvas */}
                 <div
-                    className={`flex-1 overflow-y-auto scrollbar-hide flex justify-center items-start transition-colors ${viewMode !== 'desktop' ? 'bg-gray-900 py-12 px-4' : 'bg-gray-100'} ${isCanvasDragOver ? 'bg-indigo-50/50' : ''}`}
+                    className={`flex-1 overflow-y-auto scrollbar-hide flex justify-center items-start transition-colors ${viewMode !== 'desktop' ? 'bg-[#2A303C] py-12 px-4' : 'bg-gray-100'} ${isCanvasDragOver ? 'bg-indigo-50/50' : ''}`}
                     onClick={() => setSelectedElementId(null)}
                     onDragOver={(e) => handleDragOver(e)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, sections.length - 1)}
                 >
-                    <div
-                        className={`bg-white overflow-hidden relative transition-all duration-300 ${viewMode === 'mobile' ? 'w-[375px] rounded-3xl min-h-[812px] shadow-2xl border border-gray-200' : viewMode === 'tablet' ? 'w-[768px] rounded-2xl min-h-[1024px] shadow-2xl border border-gray-200' : 'w-full min-h-full'} ${isCanvasDragOver ? 'ring-4 ring-indigo-500 scale-[0.99] shadow-2xl' : ''}`}
-                        style={{
-                            fontFamily: `"${brand.fontFamily || 'Inter'}", sans-serif`,
-                            color: brand.textColor || '#111827',
-                            backgroundColor: brand.bgType === 'color' ? (brand.bgValue || brand.secondaryColor) : 'transparent',
-                            backgroundImage: brand.bgType === 'image' && brand.bgValue ? `url(${brand.bgValue})` : 'none',
-                            backgroundSize: 'cover',
-                            backgroundAttachment: 'fixed',
-                            backgroundPosition: 'center',
-                            '--primary': primaryColor,
-                        } as any}
-                    >
+                    {/* Device Frame Wrapper */}
+                    <div className={`relative transition-all duration-300 flex-shrink-0 ${
+                        viewMode === 'mobile' 
+                            ? 'w-[375px] h-[812px] bg-white rounded-[3rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2' 
+                            : viewMode === 'tablet' 
+                            ? 'w-[768px] h-[1024px] bg-white rounded-[2rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2' 
+                            : 'w-full min-h-full'
+                    } ${isCanvasDragOver ? 'ring-4 ring-indigo-500 scale-[0.99] shadow-2xl' : ''}`}>
+                        
+                        {/* Mobile/Tablet Notch & Sensors */}
+                        {(viewMode === 'mobile' || viewMode === 'tablet') && (
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-white rounded-b-2xl flex items-center justify-center gap-2 z-[999]">
+                                <div className="w-2 h-2 rounded-full bg-gray-200"></div>
+                                <div className="w-12 h-2 rounded-full bg-gray-200"></div>
+                            </div>
+                        )}
+
+                        <div
+                            className={`bg-white relative overflow-y-auto overflow-x-hidden h-full scrollbar-hide ${viewMode !== 'desktop' ? 'rounded-[2.5rem]' : ''}`}
+                            style={{
+                                fontFamily: `"${brand.fontFamily || 'Inter'}", sans-serif`,
+                                color: brand.textColor || '#111827',
+                                backgroundColor: brand.bgType === 'color' ? (brand.bgValue || brand.secondaryColor) : 'transparent',
+                                backgroundImage: brand.bgType === 'image' && brand.bgValue ? `url(${brand.bgValue})` : 'none',
+                                backgroundSize: 'cover',
+                                backgroundAttachment: 'fixed',
+                                backgroundPosition: 'center',
+                                '--primary': primaryColor,
+                            } as any}
+                        >
                         {/* Header */}
                         {config.header?.enabled !== false && activePage.showHeader !== false && (
                         <header
@@ -1219,7 +1244,7 @@ export default function WebsiteEditorPage() {
                                     tagName="span"
                                     className="text-xl font-black tracking-tight text-current"
                                     style={{ color: 'inherit' }}
-                                    value={config.header?.title || brand?.companyName || website.name}
+                                    value={config.header?.title ?? (brand?.companyName || website?.name || 'Website Name')}
                                     onChange={(v: string) => commitConfig({ ...config, header: { ...config.header, title: v } })}
                                 />
                             </div>
@@ -1423,11 +1448,47 @@ export default function WebsiteEditorPage() {
                             </a>
                         )}
                     </div>
+                    {/* End of Device Frame Wrapper */}
+                    </div>
                 </div>
 
                 {/* Right Side Panel – one panel at a time */}
                 {(selectedElementId || showSettings) && (
                     <div className="w-80 bg-white border-l border-gray-200 flex flex-col overflow-y-auto scrollbar-hide shadow-[-10px_0_30px_rgba(0,0,0,0.05)] z-40 relative">
+                        {/* SIDEBAR HEADER ACTIONS */}
+                        <div className="flex flex-col gap-2 p-3 border-b border-gray-200 bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1 bg-white p-1 rounded-md shadow-sm border border-gray-200">
+                                    <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Undo2 className="w-4 h-4" /></button>
+                                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Redo2 className="w-4 h-4" /></button>
+                                    <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                                    <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded transition-colors ${viewMode === 'mobile' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`} title="Mobile View"><Smartphone className="w-4 h-4" /></button>
+                                    <button onClick={() => {
+                                        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
+                                        const isLocal = rootDomain.includes('localhost');
+                                        const port = isLocal && window.location.port ? `:${window.location.port}` : '';
+                                        const domainWithPort = rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`;
+                                        let url: string;
+                                        if (website.company?.customDomain) {
+                                            url = website.isPrimary
+                                                ? `https://${website.company.customDomain}`
+                                                : `https://${website.slug}.${website.company.customDomain}`;
+                                        } else {
+                                            url = `http${isLocal ? '' : 's'}://${website.company?.slug || 'company'}.${domainWithPort}${website.isPrimary ? '' : `/${website.slug}`}`;
+                                        }
+                                        window.open(url, '_blank');
+                                    }} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={handleDiscard} className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Discard</button>
+                                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50">
+                                        {saving ? <LogoLoader className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         {selectedElementId ? (
                             <PropertyPanel
                                 selectedElement={
@@ -1516,6 +1577,31 @@ export default function WebsiteEditorPage() {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal 
+                isOpen={showDiscardModal}
+                title="Discard Changes"
+                message="Are you sure you want to discard your changes? All unsaved work will be lost."
+                confirmText="Discard Changes"
+                cancelText="Cancel"
+                onConfirm={() => {
+                    window.location.reload();
+                }}
+                onCancel={() => setShowDiscardModal(false)}
+                variant="danger"
+            />
+
+            <ConfirmModal 
+                isOpen={showRevertModal}
+                title="Revert to Default"
+                message="Are you sure you want to revert to the default template? All your content changes will be lost."
+                confirmText="Revert"
+                cancelText="Cancel"
+                onConfirm={executeRevertToDefault}
+                onCancel={() => setShowRevertModal(false)}
+                variant="warning"
+            />
+
         </div>
     );
 }

@@ -10,6 +10,7 @@ import ImageProperties from './_components/properties/ImageProperties';
 import ContainerProperties from './_components/properties/ContainerProperties';
 import DividerProperties from './_components/properties/DividerProperties';
 import PaddingControl from './_components/properties/PaddingControl';
+import CodeProperties from './_components/properties/CodeProperties';
 
 interface PropertyPanelProps {
     selectedElement: any;
@@ -260,6 +261,7 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                 <TextProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <ImageProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <DividerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <CodeProperties selectedElement={selectedElement} onUpdate={onUpdate} />
             </div>
         </div>
     );
