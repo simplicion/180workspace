@@ -286,9 +286,29 @@ export default function AppsManagementPage() {
                                                     isEnabled ? "text-white" : "text-gray-500"
                                                 )} />
                                             </div>
-                                            <p className="text-[9px] text-gray-400 font-bold mt-1">
-                                                {app.modules.length} {app.modules.length === 1 ? 'Feature' : 'Features'}
-                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-[9px] text-gray-400 font-bold">
+                                                    {app.modules.length} {app.modules.length === 1 ? 'Feature' : 'Features'}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleToggleApp(e, app.id, isEnabled)}
+                                                    disabled={installingAppId === app.id}
+                                                    className={clsx(
+                                                        "relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                                        isEnabled ? colors.bg : "bg-gray-200",
+                                                        installingAppId === app.id ? "opacity-50 cursor-not-allowed" : "opacity-100"
+                                                    )}
+                                                >
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className={clsx(
+                                                            "pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                                            isEnabled ? "translate-x-3" : "translate-x-0"
+                                                        )}
+                                                    />
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {/* Title + Description */}

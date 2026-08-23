@@ -442,13 +442,13 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     const companyEnabledApps = company?.enabledApps || [];
                     const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'analytics', 'advertising', 'social-media'];
                     
-                    const appsWithoutSystem = companyEnabledApps.filter((a: string) => 
-                        a !== 'system' && a !== 'settings' && validAppIds.includes(a)
+                    // Filter out system, settings, and default apps to get only custom installed apps
+                    const customApps = companyEnabledApps.filter((a: string) => 
+                        a !== 'system' && a !== 'settings' && validAppIds.includes(a) && !defaultApps.includes(a)
                     );
-                    const allowedSubset = appsWithoutSystem.slice(0, maxApps);
+                    const allowedSubset = customApps.slice(0, maxApps);
                     
-                    // Default apps are always available and don't count towards the limit, 
-                    // OR they do count? Usually defaults are always allowed.
+                    // Default apps are always available and don't count towards the limit
                     if (isDefaultApp) {
                         isAppEnabled = companyEnabledApps.includes(item.appId);
                     } else {

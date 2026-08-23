@@ -49,8 +49,11 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                             <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Company/Website Name</label>
                             <input 
                                 type="text" 
-                                value={brand?.companyName || ''} 
-                                onChange={(e) => onUpdateBrand?.('companyName', e.target.value)}
+                                value={brand?.companyName || selectedElement.title || ''} 
+                                onChange={(e) => {
+                                    onUpdateBrand?.('companyName', e.target.value);
+                                    if (isHeader) onUpdate('title', e.target.value);
+                                }}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 placeholder="e.g. Acme Corp"
                             />
@@ -102,17 +105,6 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                 {isHeader && (
                     <div className="space-y-4">
                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Header Settings</h4>
-                        
-                        <div>
-                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Website Name (Header Title)</label>
-                            <input 
-                                type="text" 
-                                value={selectedElement.title || ''} 
-                                onChange={(e) => onUpdate('title', e.target.value)}
-                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                placeholder="e.g. Acme Corp"
-                            />
-                        </div>
 
                         <div className="flex items-center justify-between">
                             <label className="text-xs font-semibold text-gray-600 block">Sticky Header</label>

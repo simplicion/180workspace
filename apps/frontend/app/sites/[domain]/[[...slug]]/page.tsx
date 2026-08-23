@@ -151,7 +151,7 @@ export default async function PublicWebsitePage({
                                 <img src={config.header.logo} alt={config.header?.title || website.name} style={{ height: config.header?.style?.logoHeight ? `${config.header.style.logoHeight}px` : '40px' }} className="w-auto object-contain" />
                             )}
                             <span className="text-xl font-black tracking-tight text-current" style={{ color: 'inherit' }}>
-                                {config.header?.title ?? (brand?.companyName || website?.name || 'Website Name')}
+                                {brand?.companyName || config.header?.title || website?.name || 'Website Name'}
                             </span>
                         </a>
 
@@ -220,7 +220,7 @@ export default async function PublicWebsitePage({
                                         )}
                                         <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Company</h4>
                                         <div className="text-sm leading-relaxed whitespace-pre-wrap text-current" style={{ color: 'inherit' }}>
-                                            <div className="font-semibold">{brand?.companyName || website.name}</div>
+                                            <div className="font-semibold">{brand?.companyName || config.header?.title || website.name}</div>
                                             <div className="opacity-90">{brand?.address || '123 Business Avenue'}</div>
                                             <div className="opacity-90">{brand?.email || 'email@example.com'}</div>
                                             {brand?.phone && <div className="opacity-90">{brand.phone}</div>}
@@ -260,7 +260,7 @@ export default async function PublicWebsitePage({
                         <div className="text-center pt-8 border-t border-current/20 flex flex-col items-center justify-center w-full">
                             <div className="w-full max-w-lg mx-auto flex justify-center">
                                 <div className="text-sm opacity-60 font-medium text-current text-center" style={{ color: 'inherit' }}>
-                                    {config.footer?.copyright || `© ${new Date().getFullYear()} ${brand?.companyName || website.name}. All Rights Reserved.`}
+                                    {config.footer?.copyright || `© ${new Date().getFullYear()} ${brand?.companyName || config.header?.title || website.name}. All Rights Reserved.`}
                                 </div>
                             </div>
                         </div>

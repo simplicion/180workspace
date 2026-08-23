@@ -90,7 +90,6 @@ export const authOptions: NextAuthOptions = {
           if (!backendUser || !backendUser.id) return null;
           
           if (backendUser.isActive) {
-            const isLegacyOrAdmin = !!backendUser.companyId || (backendUser.role && backendUser.role !== 'employee' && backendUser.role !== 'USER');
             return { 
               id: backendUser.id, 
               name: backendUser.name,
@@ -99,7 +98,7 @@ export const authOptions: NextAuthOptions = {
               companyId: backendUser.companyId || backendCompany?.id,
               role: backendUser.role,
               isOnboardingComplete: backendCompany?.isOnboardingComplete || false,
-              isFirstLogin: isLegacyOrAdmin ? false : backendUser.isFirstLogin,
+              isFirstLogin: !backendUser.username,
               companySlug: backendCompany?.slug,
               companyCustomDomain: backendCompany?.customDomain
             } as any
@@ -139,7 +138,6 @@ export const authOptions: NextAuthOptions = {
            if (!backendUser || !backendUser.id) return null;
            
            if (backendUser.isActive) {
-             const isLegacyOrAdmin = !!backendUser.companyId || (backendUser.role && backendUser.role !== 'employee' && backendUser.role !== 'USER');
              return { 
                id: backendUser.id, 
                name: backendUser.name,
@@ -149,7 +147,7 @@ export const authOptions: NextAuthOptions = {
                role: backendUser.role,
                permissions: backendUser.permissions || [],
                isOnboardingComplete: data.company?.isOnboardingComplete || false,
-               isFirstLogin: isLegacyOrAdmin ? false : backendUser.isFirstLogin,
+               isFirstLogin: !backendUser.username,
                companySlug: data.company?.slug,
                companyCustomDomain: data.company?.customDomain
              } as any

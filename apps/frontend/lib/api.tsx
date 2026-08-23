@@ -72,6 +72,8 @@ api.interceptors.response.use(
 
                 if (window.location.pathname !== '/login' &&
                     window.location.pathname !== '/signup' &&
+                    window.location.pathname !== '/onboarding' &&
+                    window.location.pathname !== '/workspace-setup' &&
                     !window.location.pathname.startsWith('/superadmin')) {
                     window.location.href = '/login?clearSession=true';
                 }
@@ -118,7 +120,12 @@ api.interceptors.response.use(
                     if (!window.location.search.includes('clearSession=true')) {
                         window.location.href = '/login?clearSession=true';
                     }
-                } else if (window.location.pathname !== '/signup' && !window.location.pathname.startsWith('/superadmin')) {
+                } else if (
+                    window.location.pathname !== '/signup' && 
+                    window.location.pathname !== '/onboarding' && 
+                    window.location.pathname !== '/workspace-setup' && 
+                    !window.location.pathname.startsWith('/superadmin')
+                ) {
                     window.location.href = '/login?clearSession=true';
                 }
             }

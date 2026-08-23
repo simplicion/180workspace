@@ -371,11 +371,8 @@ export class AuthService {
                 where: { id: company.id },
                 data: { metadata: { ...(currentMetadata as any), onboardingToken } }
             });
-            throw new AppError('Your workspace requires setup. Redirecting to onboarding...', 403, {
-                onboardingRequired: true,
-                onboardingToken,
-                company
-            });
+            // Removed the 403 throw here to allow NextAuth to establish a session.
+            // The frontend middleware and backend companyContextMiddleware will enforce onboarding.
         }
 
         if (company.isSuspended) {

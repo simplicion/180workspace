@@ -572,7 +572,8 @@ export default function WebsiteEditorPage() {
     const updateBrand = (key: string, value: any) => {
         const newConfig = {
             ...config,
-            brand: { ...config.brand, [key]: value }
+            brand: { ...config.brand, [key]: value },
+            ...(key === 'companyName' ? { header: { ...config.header, title: value } } : {})
         };
         commitConfig(newConfig);
     };
@@ -1272,8 +1273,12 @@ export default function WebsiteEditorPage() {
                                     tagName="span"
                                     className="text-xl font-black tracking-tight text-current"
                                     style={{ color: 'inherit' }}
-                                    value={config.header?.title ?? (brand?.companyName || website?.name || 'Website Name')}
-                                    onChange={(v: string) => commitConfig({ ...config, header: { ...config.header, title: v } })}
+                                    value={brand?.companyName || config.header?.title || website?.name || 'Website Name'}
+                                    onChange={(v: string) => commitConfig({ 
+                                        ...config, 
+                                        brand: { ...config.brand, companyName: v },
+                                        header: { ...config.header, title: v } 
+                                    })}
                                 />
                             </div>
 
@@ -1414,7 +1419,7 @@ export default function WebsiteEditorPage() {
                                                 onClick={(e) => { e.stopPropagation(); setSelectedElementId('footer'); }}
                                                 title="Click to edit Company Information"
                                             >
-                                                <div className="font-semibold">{brand?.companyName || settingsCompany?.name || website.name}</div>
+                                                <div className="font-semibold">{brand?.companyName || config.header?.title || settingsCompany?.name || website.name}</div>
                                                 <div className="opacity-90">{brand?.address || settingsCompany?.headquarters || '123 Business Avenue'}</div>
                                                 <div className="opacity-90">{brand?.email || settingsCompany?.email || 'email@example.com'}</div>
                                                 {brand?.phone && <div className="opacity-90">{brand.phone}</div>}
@@ -1454,7 +1459,7 @@ export default function WebsiteEditorPage() {
                                         tagName="div"
                                         className="text-sm opacity-60 font-medium text-current text-center"
                                         style={{ color: 'inherit' }}
-                                        value={config.footer?.copyright || `© ${new Date().getFullYear()} ${brand?.companyName || website.name}. All Rights Reserved.`}
+                                        value={config.footer?.copyright || `© ${new Date().getFullYear()} ${brand?.companyName || config.header?.title || website.name}. All Rights Reserved.`}
                                         onChange={(v: string) => commitConfig({ ...config, footer: { ...config.footer, copyright: v } })}
                                     />
                                 </div>
@@ -1515,8 +1520,8 @@ export default function WebsiteEditorPage() {
                                     }} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={handleDiscard} className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Discard</button>
-                                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50">
+                                    <button onClick={handleDiscard} className="px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">Discard</button>
+                                    <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-md text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5">
                                         {saving ? <LogoLoader className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                                         Save
                                     </button>
@@ -1527,8 +1532,19 @@ export default function WebsiteEditorPage() {
                         {selectedElementId ? (
                             <PropertyPanel
                                 selectedElement={
-                                    selectedElementId === 'header' ? { id: 'header', type: 'header', style: config.header?.style || {}, logo: config.header?.logo, title: config.header?.title } :
-                                        selectedElementId === 'footer' ? { id: 'footer', type: 'footer', style: config.footer?.style || {}, copyright: config.footer?.copyright } :
+                                    selectedElementId === 'header' ? { 
+                                        id: 'header', 
+                                        type: 'header', 
+                                        style: config.header?.style || {}, 
+                                        logo: config.header?.logo, 
+                                        title: config.brand?.companyName || config.header?.title || website?.name || '' 
+                                    } :
+                                        selectedElementId === 'footer' ? { 
+                                            id: 'footer', 
+                                            type: 'footer', 
+                                            style: config.footer?.style || {}, 
+                                            copyright: config.footer?.copyright 
+                                        } :
                                             (
                                                 findElementById(sections, selectedElementId) ||
                                                 (config.header && findElementById([config.header], selectedElementId)) ||
@@ -1548,6 +1564,10 @@ export default function WebsiteEditorPage() {
                                             current = current[keys[i]];
                                         }
                                         current[keys[keys.length - 1]] = value;
+                                        if (key === 'title') {
+                                            if (!newConfig.brand) newConfig.brand = {};
+                                            newConfig.brand.companyName = value;
+                                        }
                                         commitConfig(newConfig);
                                     } else if (selectedElementId === 'footer') {
                                         const keys = key.split('.');

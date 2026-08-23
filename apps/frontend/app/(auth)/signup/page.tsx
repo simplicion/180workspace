@@ -217,7 +217,7 @@ export default function SignupFlow() {
                 toast.success('Onboarding complete!');
                 
                 // Update session to reflect new role before redirecting
-                await updateSession({ role: 'admin', isFirstLogin: false });
+                await updateSession({ role: 'admin', isFirstLogin: false, username: finalData.username });
 
                 window.location.href = '/workspace-setup';
             } else {
