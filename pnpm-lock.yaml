@@ -22,8 +22,8 @@ importers:
         specifier: latest
         version: 2.10.5
       typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
+        specifier: ^5.0.0
+        version: 5.9.3
 
   apps/admin-web:
     dependencies:
