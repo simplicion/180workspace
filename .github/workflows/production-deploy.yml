@@ -80,6 +80,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: GITHUB_TOKEN
+          command_timeout: 30m
           script: |
             set -e
             cd /home/ubuntu/app
