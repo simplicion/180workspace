@@ -79,7 +79,7 @@ export class ContentCalendarService {
         }
 
         const generatedPieces = aiResponse.data;
-        const meta = aiResponse.meta || {};
+        const meta: any = aiResponse.meta || {};
 
         // 2. Save Calendar Metadata
         const calendar = await prisma.contentCalendar.create({ data: {
