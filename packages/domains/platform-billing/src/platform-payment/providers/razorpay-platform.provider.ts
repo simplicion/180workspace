@@ -97,6 +97,34 @@ export class RazorpayPlatformProvider implements PlatformPaymentProviderInterfac
                     status: entity.token.entity.status
                 };
                 break;
+            case 'subscription.charged':
+                internalEvent = 'SUBSCRIPTION_CHARGED';
+                eventData = {
+                    subscriptionId: entity.subscription.entity.id,
+                    notes: entity.subscription.entity.notes || {}
+                };
+                break;
+            case 'subscription.authenticated':
+                internalEvent = 'SUBSCRIPTION_AUTHENTICATED';
+                eventData = {
+                    subscriptionId: entity.subscription.entity.id,
+                    notes: entity.subscription.entity.notes || {}
+                };
+                break;
+            case 'subscription.halted':
+                internalEvent = 'SUBSCRIPTION_HALTED';
+                eventData = {
+                    subscriptionId: entity.subscription.entity.id,
+                    notes: entity.subscription.entity.notes || {}
+                };
+                break;
+            case 'subscription.cancelled':
+                internalEvent = 'SUBSCRIPTION_CANCELLED';
+                eventData = {
+                    subscriptionId: entity.subscription.entity.id,
+                    notes: entity.subscription.entity.notes || {}
+                };
+                break;
             default:
                 internalEvent = `UNHANDLED_EVENT_${event}`;
         }

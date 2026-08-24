@@ -684,5 +684,118 @@ export class BillingService {
             companyId
         });
     }
+
+    // â”€â”€â”€ Universal Webhook Handler
+    static async handleWebhookEvent(event: string, data: any, eventId?: string) {
+        // Idempotency check
+        if (eventId) {
+            const existingEvent = await prisma.processedWebhook.findUnique({
+                where: { eventId }
+            });
+            if (existingEvent) {
+                console.log(`[BillingService] Event ${eventId} already processed. Ignoring duplicate.`);
+                return { status: 'ignored', reason: 'duplicate' };
+            }
+        }
+
+        if (event === 'SUBSCRIPTION_CHARGED' || event === 'SUBSCRIPTION_AUTHENTICATED') {
+            const providerSubscriptionId = data.subscriptionId;
+
+            let localSub = await prisma.subscription.findFirst({
+                where: { providerSubscriptionId, status: { in: ['ACTIVE', 'active'] } }
+            });
+
+            // Edge Case 2: User paid on Razorpay but closed the tab before redirecting to our `/verify` endpoint.
+            if (!localSub) {
+                const companyId = data.notes?.companyId;
+                const planId = data.notes?.planId;
+                const couponCode = data.notes?.couponCode;
+
+                if (companyId && planId) {
+                    await prisma.$transaction(async (tx) => {
+                        // Safely cancel their old subscription first
+                        const oldSub = await tx.subscription.findFirst({
+                            where: { companyId, status: { in: ['ACTIVE', 'active'] } }
+                        });
+                        if (oldSub) {
+                            await tx.subscription.update({
+                                where: { id: oldSub.id },
+                                data: { status: 'CANCELLED', cancelledAt: new Date() }
+                            });
+                        }
+                        
+                        const nextMonth = new Date();
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+                        // Recreate the subscription they bought
+                        localSub = await tx.subscription.create({
+                            data: {
+                                companyId,
+                                planId,
+                                amount: 0,
+                                status: 'ACTIVE',
+                                providerSubscriptionId,
+                                subscriptionStartDate: new Date(),
+                                subscriptionEndDate: nextMonth
+                            }
+                        });
+
+                        if (couponCode) {
+                            await tx.coupon.update({
+                                where: { couponCode: couponCode.toUpperCase() },
+                                data: { usedCount: { increment: 1 } }
+                            });
+                        }
+                    });
+                    console.log(`[Webhook Recovered] Created missing subscription ${(localSub as any)?.id} for company ${companyId}`);
+                }
+            } else if (event === 'SUBSCRIPTION_CHARGED') {
+                // Standard recurring renewal logic
+                const nextMonth = new Date(localSub.subscriptionEndDate || Date.now());
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+                await prisma.subscription.update({
+                    where: { id: localSub.id },
+                    data: {
+                        subscriptionEndDate: nextMonth
+                    }
+                });
+                console.log(`[Webhook Auto-Renew] Extended subscription ${localSub.id} for company ${localSub.companyId}`);
+            }
+        } else if (event === 'SUBSCRIPTION_HALTED' || event === 'SUBSCRIPTION_CANCELLED') {
+            const providerSubscriptionId = data.subscriptionId;
+
+            const localSub = await prisma.subscription.findFirst({
+                where: { providerSubscriptionId, status: { in: ['ACTIVE', 'active', 'past_due'] } }
+            });
+
+            if (localSub) {
+                const newStatus = event === 'SUBSCRIPTION_HALTED' ? 'past_due' : 'cancelled';
+                await prisma.subscription.update({
+                    where: { id: localSub.id },
+                    data: {
+                        status: newStatus,
+                        cancelledAt: event === 'SUBSCRIPTION_CANCELLED' ? new Date() : null,
+                        cancelReason: event === 'SUBSCRIPTION_HALTED' ? 'Payment halted by Razorpay (In Grace Period)' : 'Cancelled by user/Razorpay'
+                    }
+                });
+                
+                if (newStatus === 'past_due') {
+                    console.log(`[Webhook Dunning] Subscription ${localSub.id} for company ${localSub.companyId} marked as past_due. Grace period initiated.`);
+                } else {
+                    console.log(`[Webhook Cancelled] Cancelled subscription ${localSub.id} for company ${localSub.companyId}.`);
+                }
+            }
+        }
+
+        // Save the processed webhook to prevent double processing
+        if (eventId) {
+            await prisma.processedWebhook.create({
+                data: { eventId, provider: 'razorpay' }
+            });
+        }
+
+        return { status: 'ok' };
+    }
 }
 

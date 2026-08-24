@@ -12,7 +12,9 @@ import { AutomationService } from '@workspace/automations';
 export const handleUniversalWebhook = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const providerName = req.params.provider; // Ex: /api/webhooks/:provider (razorpay, stripe)
-        const rawBody = (req as any).rawBody; // Required from express raw middleware
+        
+        // Support both global express.json() verify setter AND express.raw() route-level
+        const rawBody = (req as any).rawBody || (Buffer.isBuffer(req.body) ? req.body : JSON.stringify(req.body)); 
         const headers = req.headers;
 
         // Verify and translate the provider-specific payload into universal event standard
@@ -45,6 +47,15 @@ export const handleUniversalWebhook = async (req: Request, res: Response, next: 
                         data.errorDescription
                     );
                 }
+                break;
+            case 'SUBSCRIPTION_CHARGED':
+            case 'SUBSCRIPTION_AUTHENTICATED':
+            case 'SUBSCRIPTION_HALTED':
+            case 'SUBSCRIPTION_CANCELLED':
+                // Route to the new unified billing webhook handler
+                // For razorpay, the event id is in the header. For stripe, it might be in the payload.
+                const eventId = headers['x-razorpay-event-id'] as string || raw?.id;
+                await BillingService.handleWebhookEvent(event, data, eventId);
                 break;
             default:
                 console.warn(`[Webhook] Unhandled mapped event ${event} from ${providerName}`);
