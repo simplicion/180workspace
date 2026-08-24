@@ -100,7 +100,11 @@ jobs:
             # Stop pm2 if it's still running (Migration step)
             pm2 stop all || true
             pm2 delete all || true
-            pm2 save || true
+            pm2 save --force || true
+            npx pm2 kill || true
+            
+            # Ensure port 4001 is completely free before starting Docker
+            fuser -k 4001/tcp || true
             
             # Clean up old docker images
             docker image prune -af

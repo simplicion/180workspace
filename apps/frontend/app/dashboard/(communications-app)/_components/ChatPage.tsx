@@ -1112,7 +1112,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                         <MessageSquare className="w-8 h-8 text-indigo-400" />
                     </div>
                     <h3 className="font-semibold text-gray-900 mb-1 text-lg">{platform?.platformName || 'System'} Chat</h3>
-                    <p className="text-sm text-gray-500 max-w-xs mb-6">Send and receive messages seamlessly within the internal management system.</p>
+                    <p className="text-sm text-gray-500 max-w-xs mb-6">Send and receive messages seamlessly within 180workspace.</p>
                     <button onClick={() => setShowNewChat(true)} className="btn-primary rounded-full px-6 shadow-md">
                         <Plus className="w-4 h-4 mr-1" /> Start New Conversation
                     </button>

@@ -4,7 +4,7 @@ import { CompanyConfigService } from '@workspace/company';
 // Mock redis implementation for the sake of completion. In a real app this comes from a common redis provider.
 // But we'll try to require it from system-configs just like the JS controller did, 
 // using a require to prevent TS compilation errors if it's not strongly typed.
-const clearCompanyCache = async (companyId: string, userId?: string, next: NextFunction) => {
+const clearCompanyCache = async (companyId: string, userId?: string, next?: NextFunction) => {
     try {
         const { redis } = require('../../../../system-configs/config/redis');
         if (redis) {
@@ -19,7 +19,7 @@ const clearCompanyCache = async (companyId: string, userId?: string, next: NextF
         }
     } catch (cacheErr: any) {
   console.warn('[Cache] Failed to clear company config cache:', cacheErr.message);
-  next(cacheErr);
+  if (next) next(cacheErr);
 }
 }
 

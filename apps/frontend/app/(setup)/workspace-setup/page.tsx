@@ -295,11 +295,16 @@ function WorkspaceSetup() {
                 await new Promise(resolve => setTimeout(resolve, 800)); // allow user to read the message and see smooth transition
                 
                 window.location.href = '/dashboard';
-            } else if (res.status === 401) {
-                toast.error(data.error || 'Session invalid. Logging out...');
-                setTimeout(() => signOut({ callbackUrl: '/login' }), 2000);
+                // Do not set saving to false here to prevent the loading UI from flashing before navigation
             } else {
-                toast.error(data.error || 'Failed to complete setup');
+                if (res.status === 401) {
+                    toast.error(data.error || 'Session invalid. Logging out...');
+                    setTimeout(() => signOut({ callbackUrl: '/login' }), 2000);
+                } else {
+                    toast.error(data.error || 'Failed to complete setup');
+                }
+                setSaving(false);
+                setLoadingMessage('');
             }
         } catch (error: any) {
             if (error.response?.data?.error) {
@@ -307,7 +312,6 @@ function WorkspaceSetup() {
             } else {
                 toast.error('Network error during workspace setup');
             }
-        } finally {
             setSaving(false);
             setLoadingMessage('');
         }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Users, FileText, Receipt, ChevronRight, FolderKanban } from 'lucide-react';
+import { FeatureLock } from '@workspace/ui';
 import api from '@/lib/api';
 import Link from 'next/link';
 
@@ -9,6 +10,7 @@ interface TeamPulseProps {
     stats: any;
     getStatValue: (key: string) => string | number;
     getSubText: (key: string) => string;
+    isLocked?: boolean;
 }
 
 interface LeaveRequest {
@@ -32,16 +34,21 @@ interface ExpenseRecord {
     employee?: { name?: string };
 }
 
-export default function TeamPulse({ stats, getStatValue, getSubText }: TeamPulseProps) {
+export default function TeamPulse({ stats, getStatValue, getSubText, isLocked: isLockedProp }: TeamPulseProps) {
     const [pendingLeaves, setPendingLeaves] = useState<LeaveRequest[]>([]);
     const [pendingExpenses, setPendingExpenses] = useState<ExpenseRecord[]>([]);
     const [todayOnLeave, setTodayOnLeave] = useState<LeaveRequest[]>([]);
+    const [isLocked, setIsLocked] = useState(isLockedProp || false);
 
     useEffect(() => {
+        if (isLockedProp) return;
         // Fetch pending leave requests
         api.get('/api/leaves?status=pending')
             .then(({ data }) => setPendingLeaves(data.leaves || []))
-            .catch(() => setPendingLeaves([]));
+            .catch((err) => {
+                if (err.response?.status === 403) setIsLocked(true);
+                setPendingLeaves([]);
+            });
 
         // Fetch approved leaves to find who's on leave today
         api.get('/api/leaves?status=approved')
@@ -54,12 +61,18 @@ export default function TeamPulse({ stats, getStatValue, getSubText }: TeamPulse
                 });
                 setTodayOnLeave(onLeave);
             })
-            .catch(() => setTodayOnLeave([]));
+            .catch((err) => {
+                if (err.response?.status === 403) setIsLocked(true);
+                setTodayOnLeave([]);
+            });
 
         // Fetch pending expenses
         api.get('/api/expenses?status=pending')
             .then(({ data }) => setPendingExpenses(data.expenses || []))
-            .catch(() => setPendingExpenses([]));
+            .catch((err) => {
+                if (err.response?.status === 403) setIsLocked(true);
+                setPendingExpenses([]);
+            });
     }, []);
 
     // Helper to get employee name from leave record

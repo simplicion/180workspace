@@ -27,6 +27,7 @@ function CheckoutContent() {
     const [couponResult, setCouponResult] = useState<any>(null);
     const [couponLoading, setCouponLoading] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
+    const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
 
     const effectivePlatformName = platform?.platformName || 'Platform';
     const currency = plan?.currency || platform?.currency || 'USD';
@@ -203,6 +204,7 @@ function CheckoutContent() {
 
             const { data: order } = await api.post('/api/v1/platform-billing/plan/checkout', {
                 planId: plan.id,
+                idempotencyKey,
                 ...(couponResult && { couponCode: couponResult.code || coupon })
             });
 
@@ -267,6 +269,8 @@ function CheckoutContent() {
 
             throw new Error(`Unsupported payment provider configured explicitly: ${order.providerName}`);
         } catch (err: any) {
+            // If payment initiation fails, generate a new idempotency key so the user can try again
+            setIdempotencyKey(crypto.randomUUID());
             toast.error(err?.response?.data?.error || err.message || 'Failed to initiate payment');
             setPaymentLoading(false);
         }

@@ -1,12 +1,16 @@
 'use client';
 
-
 import PlausibleAnalyticsTab from '@/app/dashboard/(settings-app)/_components/PlausibleAnalyticsTab';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
-import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
+import { FeatureLock, LogoLoader } from '@workspace/ui';
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function PlausibleAnalyticsPage() {
+    const { companyConfig, loading } = useSubscription();
+    const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
+    const hasApp = enabledApps.includes('analytics');
+
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-6">
             <Link 
@@ -23,11 +27,16 @@ export default function PlausibleAnalyticsPage() {
             </div>
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <PremiumFeatureLock>
+                {loading ? (
+                    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex items-center justify-center min-h-[400px]">
+                        <LogoLoader className="w-8 h-8 animate-spin" />
+                    </div>
+                ) : hasApp ? (
                     <PlausibleAnalyticsTab />
-                </PremiumFeatureLock>
+                ) : (
+                    <FeatureLock requiredApp="Analytics" />
+                )}
             </div>
         </div>
     );
 }
-

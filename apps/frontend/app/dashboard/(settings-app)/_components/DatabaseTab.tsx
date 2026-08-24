@@ -9,7 +9,7 @@ import clsx from 'clsx';
 
 import MigrationProgressBar from './MigrationProgressBar';
 import MongoSetupGuide from './MongoSetupGuide';
-import { ConfirmModal , LogoLoader } from "@workspace/ui";
+import { ConfirmModal , LogoLoader, FeatureLock } from "@workspace/ui";
 
 export default function DatabaseTab() {
     const { settings: globalSettings, refreshSettings: refreshGlobalSettings, platform } = useSettings();
@@ -289,17 +289,12 @@ export default function DatabaseTab() {
                     <LogoLoader className="w-8 h-8 animate-spin" />
                 </div>
             ) : (globalSettings as any).planLocked ? (
-                <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Lock className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-900">Premium Feature Locked</h3>
-                        <p className="text-sm text-gray-500 max-w-md mx-auto mt-2">
-                            Advanced configuration requires an active subscription. Upgrade your workspace to unlock this capability.
-                        </p>
-                    </div>
-                </div>
+                <FeatureLock 
+                    title="Premium Feature Locked"
+                    description="Advanced configuration requires an active subscription. Upgrade your workspace to unlock this capability."
+                    actionText="Upgrade Plan"
+                    actionHref="/dashboard/settings/platform-billing"
+                />
             ) : (
                 <>
             {/* Database Connection Card */}

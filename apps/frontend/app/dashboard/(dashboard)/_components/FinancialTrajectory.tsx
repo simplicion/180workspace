@@ -2,24 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart, Scatter } from 'recharts';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Wallet, Loader2 } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import api from '@/lib/api';
+import clsx from 'clsx';
 import CustomSelect from '@/components/ui/CustomSelect';
 
-export default function FinancialTrajectory() {
+export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLocked?: boolean }) {
     const [ceoInsights, setCeoInsights] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | '6M' | '1Y' | 'ALL'>('1W');
+    const [isLocked, setIsLocked] = useState(isLockedProp || false);
 
     const router = useRouter();
 
     useEffect(() => {
+        if (isLockedProp) return;
         api.get('/api/hrms/ceo-insights')
             .then(({ data }) => setCeoInsights(data))
-            .catch(() => {})
+            .catch((err) => {
+                if (err.response?.status === 403) setIsLocked(true);
+            })
             .finally(() => setLoading(false));
-    }, []);
+    }, [isLockedProp]);
 
     const formatCurrency = (val: number | undefined): string => {
         if (!val) return '₹0';
@@ -37,6 +42,10 @@ export default function FinancialTrajectory() {
                 </div>
             </div>
         );
+    }
+
+    if (isLocked && !isLockedProp) {
+        return null;
     }
 
     const kpis = [

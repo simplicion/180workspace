@@ -7,3 +7,8 @@ The following design system and UI architecture rules MUST be followed when gene
 - Read `.agents/rules/design-system.md` for rules on Tailwind styling, glassmorphism, and dark mode conventions.
 - Read `.agents/rules/pitchin-vision.md` for the core Work Graph architecture, privacy model, and app separation guidelines (MANDATORY FOR ALL ARCHITECTURAL DECISIONS).
 
+## App Subscription & Feature Locking
+
+Any new cross-app section or global dashboard widget MUST first verify the subscription model via `useSubscription()` hook.
+- If the app is missing from `enabledApps`, you MUST NOT fetch the data for it.
+- Render the generic `FeatureLock` from `@workspace/ui` to indicate the required app.

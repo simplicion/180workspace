@@ -1,12 +1,16 @@
 'use client';
 
-
 import { Mail, ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
 import EmailTab from '@/app/dashboard/(settings-app)/_components/EmailTab';
-import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
+import { FeatureLock, LogoLoader } from '@workspace/ui';
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function EmailSettingsPage() {
+    const { companyConfig, loading } = useSubscription();
+    const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
+    const hasApp = enabledApps.includes('communications');
+
     return (
         <div className="max-w-5xl space-y-6">
             <div className="flex items-center justify-between mb-6">
@@ -26,10 +30,17 @@ export default function EmailSettingsPage() {
             </div>
 
             {/* Email Tab Component */}
-            <PremiumFeatureLock>
-                <EmailTab />
-            </PremiumFeatureLock>
+            <div className="mt-8">
+                {loading ? (
+                    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex items-center justify-center min-h-[400px]">
+                        <LogoLoader className="w-8 h-8 animate-spin" />
+                    </div>
+                ) : hasApp ? (
+                    <EmailTab />
+                ) : (
+                    <FeatureLock requiredApp="Communications" />
+                )}
+            </div>
         </div>
     );
 }
-

@@ -1,6 +1,6 @@
 'use client';
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, FeatureLock } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
@@ -12,15 +12,34 @@ export default function CeoOverview() {
     const { user, isLoading: authLoading } = useAuth();
     const [insights, setInsights] = useState<string>('');
     const [insightsLoading, setInsightsLoading] = useState(true);
+    const [isLocked, setIsLocked] = useState(false);
 
     useEffect(() => {
         api.get('/api/ai/insights')
             .then(({ data }) => setInsights(data.insight))
-            .catch(() => setInsights('Failed to load AI Insights.'))
+            .catch((err) => {
+                if (err.response?.status === 403) {
+                    setIsLocked(true);
+                } else {
+                    setInsights('Failed to load AI Insights.');
+                }
+            })
             .finally(() => setInsightsLoading(false));
     }, []);
 
     if (authLoading) return null;
+
+    if (isLocked) {
+        return (
+            <FeatureLock 
+                title="AI Insights Locked"
+                description="AI-powered executive summaries require an active premium subscription. Upgrade your workspace to unlock this capability."
+                actionText="Upgrade Plan"
+                actionHref="/dashboard/settings/platform-billing"
+                className="min-h-[250px]"
+            />
+        );
+    }
 
     return (
         <motion.div 

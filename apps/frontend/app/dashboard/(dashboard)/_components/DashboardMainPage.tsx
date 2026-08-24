@@ -8,9 +8,8 @@ import {
     Settings as SettingsIcon,
     Sparkles, AlertCircle, Info, CalendarDays
 } from 'lucide-react';
-import { Skeleton } from "@workspace/ui";
+import { Skeleton, FeatureLock } from "@workspace/ui";
 import { useSettings } from '@/lib/settings-context';
-import { useSubscription } from '@/lib/useSubscription';
 import Link from 'next/link';
 import EmployeeDashboard from '@/app/dashboard/(dashboard)/_components/EmployeeDashboard';
 import RecentProjects from '@/app/dashboard/(dashboard)/_components/RecentProjects';
@@ -80,20 +79,19 @@ function getFormattedDate(): string {
 
 export default function DashboardPage({ isMobileView }: { isMobileView?: boolean }) {
     const { user, company } = useAuth();
-    const { settings } = useSettings();
+    const { settings, company: companyConfig } = useSettings();
     const [error, setError] = useState('');
     const [range, setRange] = useState('7');
     const [grouping, setGrouping] = useState('daily');
 
-    const { companyConfig } = useSubscription();
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
     
     // Core apps 'tools' and 'system' are always accessible in the backend. 
     // Here we check specifically for optional apps that might be disabled.
-    const hasHR = enabledApps.length === 0 || enabledApps.includes('hr'); // assume true if not loaded yet to prevent flashing? No, we skip if not enabled. Wait, if enabledApps is empty because loading, skip?
-    const hasFinance = enabledApps.length === 0 || enabledApps.includes('finance');
-    const hasCRM = enabledApps.length === 0 || enabledApps.includes('crm');
-    const hasProjects = enabledApps.length === 0 || enabledApps.includes('projects');
+    const hasHR = enabledApps.includes('hr');
+    const hasFinance = enabledApps.includes('finance');
+    const hasCRM = enabledApps.includes('crm');
+    const hasProjects = enabledApps.includes('projects');
 
     const userRoles = Array.isArray(user?.roles) ? [...user.roles] : [user?.role];
     if (userRoles.includes('ceo') || user?.role === 'ceo' || userRoles.includes('superadmin') || user?.role === 'superadmin' || userRoles.includes('accounting') || user?.role === 'accounting') {
@@ -104,19 +102,20 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     // RTK Query hooks — cached across navigations, no loading flash
     const { data: recentProjectsData, isFetching: fetchingProjects } = useGetRecentProjectsQuery(
         undefined,
-        { skip: !isAdmin || (enabledApps.length > 0 && !enabledApps.includes('projects')), pollingInterval: 30000 }
+        { skip: !isAdmin || !hasProjects, pollingInterval: 30000 }
     );
     const recentProjects = recentProjectsData?.projects || [];
 
     const { data: chartData, isFetching: fetchingTrends } = useGetWeeklyTrendsQuery(
         { range, grouping },
-        { skip: !isAdmin || (enabledApps.length > 0 && !enabledApps.includes('hr')), pollingInterval: 30000 }
+        { skip: !isAdmin || !hasHR, pollingInterval: 30000 }
     );
 
-    const { data: stats, isLoading: loading, error: statsError } = useGetHrmsDashboardStatsQuery(
+    const { data: stats, isLoading: loadingStats, error: statsError } = useGetHrmsDashboardStatsQuery(
         undefined,
-        { skip: !isAdmin || (enabledApps.length > 0 && !enabledApps.includes('hr')), pollingInterval: 30000 }
+        { skip: !isAdmin || !hasHR, pollingInterval: 30000 }
     );
+
 
     if (!isAdmin) {
         return <EmployeeDashboard userName={user?.name} isMobileView={isMobileView} />;
@@ -179,37 +178,75 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
             <CeoOverview />
 
             {/* 2. The Engine (Operations & Sales - Urgent & Actionable) */}
-            {(hasHR || hasCRM) && (
-                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    {hasHR && <OperationsOverview stats={stats} getStatValue={getStatValue} />}
-                    {hasCRM && <SalesOverview />}
-                </div>
-            )}
+            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                {hasHR ? (
+                    <OperationsOverview stats={stats} getStatValue={getStatValue} />
+                ) : (
+                    <FeatureLock title="Operations Locked" description="Install the HR app to unlock operations insights." className="min-h-[300px]">
+                        <OperationsOverview stats={stats} getStatValue={getStatValue} isLocked={true} />
+                    </FeatureLock>
+                )}
+                {hasCRM ? (
+                    <SalesOverview />
+                ) : (
+                    <FeatureLock title="Sales Locked" description="Install the CRM app to unlock sales analytics." className="min-h-[300px]">
+                        <SalesOverview isLocked={true} />
+                    </FeatureLock>
+                )}
+            </div>
 
             {/* 3. Execution & Risk (Projects) */}
-            {hasProjects && <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />}
+            <div className="mt-6">
+                {hasProjects ? (
+                    <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />
+                ) : (
+                    <FeatureLock title="Projects Locked" description="Install the Projects app to view active projects." className="min-h-[300px]">
+                        <RecentProjects projects={[]} loading={false} />
+                    </FeatureLock>
+                )}
+            </div>
 
             {/* 4. Health & Money (Team Pulse & Financials) */}
-            {(hasHR || hasFinance) && (
-                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    {hasHR && <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />}
-                    {hasFinance && <FinancialTrajectory />}
-                </div>
-            )}
+            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                {hasHR ? (
+                    <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
+                ) : (
+                    <FeatureLock title="Team Pulse Locked" description="Install the HR app to track team health metrics." className="min-h-[300px]">
+                        <TeamPulse stats={null} getStatValue={() => '—'} getSubText={() => ''} isLocked={true} />
+                    </FeatureLock>
+                )}
+                {hasFinance ? (
+                    <FinancialTrajectory />
+                ) : (
+                    <FeatureLock title="Financials Locked" description="Install the Finance app to view financial trajectory." className="min-h-[300px]">
+                        <FinancialTrajectory isLocked={true} />
+                    </FeatureLock>
+                )}
+            </div>
 
             {/* 5. Live Awareness (Activity Feeds) */}
-            {(hasCRM || hasProjects) && (
-                <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                    {hasCRM && <SalesActivityFeed />}
-                    {hasProjects && <LiveActivityFeed />}
-                </div>
-            )}
+            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+                {hasCRM ? (
+                    <SalesActivityFeed />
+                ) : (
+                    <FeatureLock title="Sales Activity Locked" description="Install the CRM app to view live sales activity." className="min-h-[300px]">
+                        <SalesActivityFeed isLocked={true} />
+                    </FeatureLock>
+                )}
+                {hasProjects ? (
+                    <LiveActivityFeed />
+                ) : (
+                    <FeatureLock title="Project Activity Locked" description="Install the Projects app to view live project activity." className="min-h-[300px]">
+                        <LiveActivityFeed isLocked={true} />
+                    </FeatureLock>
+                )}
+            </div>
 
             {/* 6. Deep Analytics (Historical/Trends - Least Urgent) */}
             {(hasHR || hasFinance || hasProjects || hasCRM) && (
                 <ActivityAnalytics
                     chartData={chartData}
-                    loading={loading}
+                    loading={loadingStats}
                     fetchingTrends={fetchingTrends}
                     range={range}
                     setRange={setRange}

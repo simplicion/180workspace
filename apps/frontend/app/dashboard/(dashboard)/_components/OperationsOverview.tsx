@@ -7,6 +7,7 @@ import api from '@/lib/api';
 interface OperationsOverviewProps {
     stats: any;
     getStatValue: (key: string) => string | number;
+    isLocked?: boolean;
 }
 
 interface CalendarEvent {
@@ -23,11 +24,12 @@ interface Goal {
     progress?: number;
 }
 
-export default function OperationsOverview({ stats, getStatValue }: OperationsOverviewProps) {
+export default function OperationsOverview({ stats, getStatValue, isLocked }: OperationsOverviewProps) {
     const [upcomingMeeting, setUpcomingMeeting] = useState<CalendarEvent | null>(null);
     const [currentGoal, setCurrentGoal] = useState<Goal | null>(null);
 
     useEffect(() => {
+        if (isLocked) return;
         const todayStr = new Date().toISOString().slice(0, 10);
         
         // Fetch upcoming meetings
@@ -49,7 +51,7 @@ export default function OperationsOverview({ stats, getStatValue }: OperationsOv
                 }
             })
             .catch(() => {});
-    }, []);
+    }, [isLocked]);
 
     const formatTime = (dateString: string) => {
         return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

@@ -1,9 +1,16 @@
+'use client';
+
 import GoogleIntegrationsTab from '@/app/dashboard/(settings-app)/_components/GoogleIntegrationsTab';
 import Link from 'next/link';
 import { ArrowLeft, Globe } from 'lucide-react';
-import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
+import { FeatureLock, LogoLoader } from '@workspace/ui';
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function GoogleIntegrationsPage() {
+    const { companyConfig, loading } = useSubscription();
+    const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
+    const hasApp = enabledApps.includes('workspace-tools');
+
     return (
         <div className="p-6 lg:p-8 w-full space-y-6 pb-16">
             <div className="flex flex-col gap-4">
@@ -23,9 +30,17 @@ export default function GoogleIntegrationsPage() {
                 </div>
             </div>
 
-            <PremiumFeatureLock>
-                <GoogleIntegrationsTab />
-            </PremiumFeatureLock>
+            <div className="mt-8">
+                {loading ? (
+                    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex items-center justify-center min-h-[400px]">
+                        <LogoLoader className="w-8 h-8 animate-spin" />
+                    </div>
+                ) : hasApp ? (
+                    <GoogleIntegrationsTab />
+                ) : (
+                    <FeatureLock requiredApp="Workspace Tools" />
+                )}
+            </div>
         </div>
     );
 }

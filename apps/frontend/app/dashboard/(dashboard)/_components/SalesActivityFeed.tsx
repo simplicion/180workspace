@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Users, CheckSquare, FileText, ArrowRightCircle, RefreshCcw, Loader2 } from 'lucide-react';
+import { Users, FileText, Phone, ArrowRight, Video, Target, TrendingUp, Filter, Search, Loader2, RefreshCcw, CheckSquare, ArrowRightCircle } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
@@ -15,17 +15,22 @@ interface SalesActivity {
     type: string;
 }
 
-const SalesActivityFeed: React.FC = () => {
+const SalesActivityFeed: React.FC<{ isLocked?: boolean }> = ({ isLocked: isLockedProp }) => {
     const [activities, setActivities] = useState<SalesActivity[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(!isLockedProp);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isLocked, setIsLocked] = useState(isLockedProp || false);
 
     const fetchActivities = async (refresh = false) => {
+        if (isLockedProp) return;
         try {
             if (refresh) setIsRefreshing(true);
             const response = await api.get('/api/v1/crm-and-sales/sales/activity');
             setActivities(response.data || []);
-        } catch (error) {
+        } catch (error: any) {
+            if (error.response?.status === 403) {
+                setIsLocked(true);
+            }
             console.error('Failed to fetch sales activity:', error);
         } finally {
             setIsLoading(false);
@@ -34,10 +39,11 @@ const SalesActivityFeed: React.FC = () => {
     };
 
     useEffect(() => {
+        if (isLockedProp) return;
         fetchActivities();
         const interval = setInterval(() => fetchActivities(), 30000); // 30s polling
         return () => clearInterval(interval);
-    }, []);
+    }, [isLockedProp]);
 
     const getIcon = (type: string) => {
         if (type === 'lead') return <Users className="w-4 h-4 text-blue-500" />;
@@ -50,6 +56,10 @@ const SalesActivityFeed: React.FC = () => {
         if (type === 'deal') return 'bg-emerald-50 text-emerald-600';
         return 'bg-indigo-50 text-indigo-600';
     };
+
+    if (isLocked && !isLockedProp) {
+        return null;
+    }
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100/80 shadow-sm flex flex-col h-[400px]">

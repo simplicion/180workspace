@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Globe, ArrowRight, ChevronDown, Check, Search, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import api from '@/lib/api';
-import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
+import { FeatureLock } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
@@ -273,7 +273,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
                     </div>
                 ) : isLimitReached ? (
                     <div className="flex-1 overflow-y-auto p-5">
-                        <PremiumFeatureLock 
+                        <FeatureLock 
                             title="Website Limit Reached"
                             description={`Your current plan allows up to ${billingInfo.currentSubscription?.plan?.maxWebsites} websites. Upgrade to create more.`}
                         />

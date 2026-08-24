@@ -100,10 +100,10 @@ export class BillingController {
                     isExpired = false;
                     currentStatus = 'active';
                 } else {
-                    isExpired = currentSubscription.status !== 'ACTIVE';
+                    isExpired = currentSubscription.status.toLowerCase() !== 'active';
                 }
             } else {
-                isExpired = !currentSubscription || currentSubscription.status !== 'ACTIVE';
+                isExpired = !currentSubscription || currentSubscription.status.toLowerCase() !== 'active';
             }
 
             const daysLeft = isTrial && company?.trialEndDate
@@ -167,8 +167,18 @@ export class BillingController {
     static async checkoutPlan(req: Request, res: Response, next: NextFunction) {
         try {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
-            const { planId, couponCode } = req.body;
+            const { planId, couponCode, idempotencyKey } = req.body;
             
+            if (idempotencyKey) {
+                try {
+                    await prisma.processedWebhook.create({
+                        data: { eventId: idempotencyKey, provider: 'checkout_idempotency', status: 'pending' }
+                    });
+                } catch (e) {
+                    return res.status(400).json({ error: 'Duplicate checkout request detected. Please wait or refresh the page.' });
+                }
+            }
+
             if (!planId) return res.status(400).json({ error: 'Plan ID required' });
 
             const targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
@@ -193,43 +203,60 @@ export class BillingController {
 
             const discountedTotal = Math.max(0, subTotal - discountAmount);
             const taxAmount = discountedTotal * 0.18; // 18% GST on the discounted total
-            let finalPrice = discountedTotal + taxAmount;
+            let finalPrice = Number((discountedTotal + taxAmount).toFixed(2));
 
             if (finalPrice <= 0) {
                 // If it's a 100% discount, skip Razorpay entirely and activate the subscription directly
+                let subscriptionId = '';
                 
-                // Cancel existing active subscription
-                const oldSub = await prisma.subscription.findFirst({
-                    where: { companyId, status: { in: ['ACTIVE', 'active'] } }
-                });
-                if (oldSub) {
-                    await prisma.subscription.update({
-                        where: { id: oldSub.id },
-                        data: { status: 'CANCELLED', cancelledAt: new Date() }
-                    });
-                }
-                
-                // Create new subscription
-                const subscription = await prisma.subscription.create({
-                    data: {
-                        companyId,
-                        planId,
-                        status: 'ACTIVE',
-                        providerSubscriptionId: `free_discount_${Date.now()}`,
-                        subscriptionStartDate: new Date(),
-                        subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-                    }
-                });
+                try {
+                    await prisma.$transaction(async (tx) => {
+                        // Validate and consume coupon atomically
+                        if (couponCode) {
+                            const activeCoupon = await tx.coupon.findUnique({ where: { couponCode: couponCode.toUpperCase() } });
+                            if (!activeCoupon || !activeCoupon.isActive) throw new Error("Coupon is invalid or inactive.");
+                            if (activeCoupon.expiresAt && new Date(activeCoupon.expiresAt) < new Date()) throw new Error("Coupon has expired.");
+                            if (activeCoupon.maxUses && activeCoupon.usedCount >= activeCoupon.maxUses) throw new Error("Coupon usage limit reached.");
+                            
+                            await tx.coupon.update({
+                                where: { couponCode: couponCode.toUpperCase() },
+                                data: { usedCount: { increment: 1 } }
+                            });
+                        }
 
-                // Update coupon usage
-                if (couponCode) {
-                    await prisma.coupon.update({
-                        where: { couponCode: couponCode.toUpperCase() },
-                        data: { usedCount: { increment: 1 } }
-                    });
-                }
+                        // Cancel existing active subscription
+                        const oldSub = await tx.subscription.findFirst({
+                            where: { companyId, status: { in: ['ACTIVE', 'active'] } }
+                        });
+                        if (oldSub) {
+                            await tx.subscription.update({
+                                where: { id: oldSub.id },
+                                data: { status: 'CANCELLED', cancelledAt: new Date() }
+                            });
+                        }
+                        
+                        const nextMonth = new Date();
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-                return res.json({ success: true, isFree: true, message: `Successfully switched to ${targetPlan.planName} via full discount.`, subscriptionId: subscription.id });
+                        // Create new subscription
+                        const subscription = await tx.subscription.create({
+                            data: {
+                                companyId,
+                                planId,
+                                status: 'ACTIVE',
+                                providerSubscriptionId: `free_discount_${Date.now()}`,
+                                subscriptionStartDate: new Date(),
+                                subscriptionEndDate: nextMonth
+                            }
+                        });
+                        
+                        subscriptionId = subscription.id;
+                    });
+
+                    return res.json({ success: true, isFree: true, message: `Successfully switched to ${targetPlan.planName} via full discount.`, subscriptionId });
+                } catch (txError: any) {
+                    return res.status(400).json({ error: txError.message || 'Checkout failed due to concurrent usage limit.' });
+                }
             }
 
             // Convert to minor units (e.g., paise/cents)
@@ -332,46 +359,52 @@ export class BillingController {
             const targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
             if (!targetPlan) return res.status(404).json({ error: 'Plan not found' });
 
-            // Check if the webhook already processed this subscription (Race condition prevention)
-            let existingSub = null;
-            if (razorpay_subscription_id) {
-                existingSub = await prisma.subscription.findFirst({
-                    where: { providerSubscriptionId: razorpay_subscription_id, status: { in: ['ACTIVE', 'active'] } }
-                });
-            }
-
-            if (!existingSub) {
-                // Get current active sub
-                const currentSub = await prisma.subscription.findFirst({
-                    where: { companyId, status: 'ACTIVE' }
-                });
-
-                if (currentSub) {
-                    await prisma.subscription.update({
-                        where: { id: currentSub.id },
-                        data: { status: 'CANCELLED', cancelledAt: new Date() }
+            // Wrap verification handling in a transaction to prevent race conditions & duplicate coupon usage
+            await prisma.$transaction(async (tx) => {
+                let existingSub = null;
+                if (razorpay_subscription_id) {
+                    existingSub = await tx.subscription.findFirst({
+                        where: { providerSubscriptionId: razorpay_subscription_id, status: { in: ['ACTIVE', 'active'] } }
                     });
                 }
 
-                // Create new sub
-                await prisma.subscription.create({
-                    data: {
-                        companyId,
-                        planId,
-                        status: 'ACTIVE',
-                        providerSubscriptionId: razorpay_subscription_id || null,
-                        subscriptionStartDate: new Date(),
-                        subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-                    }
-                });
-            }
+                if (!existingSub) {
+                    // Get current active sub
+                    const currentSub = await tx.subscription.findFirst({
+                        where: { companyId, status: { in: ['ACTIVE', 'active'] } }
+                    });
 
-            if (couponCode) {
-                await prisma.coupon.update({
-                    where: { couponCode: couponCode.toUpperCase() },
-                    data: { usedCount: { increment: 1 } }
-                });
-            }
+                    if (currentSub) {
+                        await tx.subscription.update({
+                            where: { id: currentSub.id },
+                            data: { status: 'CANCELLED', cancelledAt: new Date() }
+                        });
+                    }
+
+                    const nextMonth = new Date();
+                    nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+                    // Create new sub
+                    await tx.subscription.create({
+                        data: {
+                            companyId,
+                            planId,
+                            status: 'ACTIVE',
+                            providerSubscriptionId: razorpay_subscription_id || null,
+                            subscriptionStartDate: new Date(),
+                            subscriptionEndDate: nextMonth
+                        }
+                    });
+
+                    // Only increment coupon if the webhook hasn't processed this event yet
+                    if (couponCode) {
+                        await tx.coupon.update({
+                            where: { couponCode: couponCode.toUpperCase() },
+                            data: { usedCount: { increment: 1 } }
+                        });
+                    }
+                }
+            });
 
             res.json({ success: true, message: `Successfully switched to ${targetPlan.planName}.` });
         } catch (err) { next(err); }
@@ -426,43 +459,51 @@ export class BillingController {
                     const couponCode = sub.notes?.couponCode;
 
                     if (companyId && planId) {
-                        // Safely cancel their old subscription first
-                        const oldSub = await prisma.subscription.findFirst({
-                            where: { companyId, status: { in: ['ACTIVE', 'active'] } }
-                        });
-                        if (oldSub) {
-                            await prisma.subscription.update({
-                                where: { id: oldSub.id },
-                                data: { status: 'cancelled', cancelledAt: new Date() }
+                        await prisma.$transaction(async (tx) => {
+                            // Safely cancel their old subscription first
+                            const oldSub = await tx.subscription.findFirst({
+                                where: { companyId, status: { in: ['ACTIVE', 'active'] } }
                             });
-                        }
-                        
-                        // Recreate the subscription they bought
-                        localSub = await prisma.subscription.create({
-                            data: {
-                                companyId,
-                                planId,
-                                status: 'ACTIVE',
-                                providerSubscriptionId: razorpaySubscriptionId,
-                                subscriptionStartDate: new Date(),
-                                subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                            if (oldSub) {
+                                await tx.subscription.update({
+                                    where: { id: oldSub.id },
+                                    data: { status: 'CANCELLED', cancelledAt: new Date() }
+                                });
+                            }
+                            
+                            const nextMonth = new Date();
+                            nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+                            // Recreate the subscription they bought
+                            localSub = await tx.subscription.create({
+                                data: {
+                                    companyId,
+                                    planId,
+                                    status: 'ACTIVE',
+                                    providerSubscriptionId: razorpaySubscriptionId,
+                                    subscriptionStartDate: new Date(),
+                                    subscriptionEndDate: nextMonth
+                                }
+                            });
+
+                            if (couponCode) {
+                                await tx.coupon.update({
+                                    where: { couponCode: couponCode.toUpperCase() },
+                                    data: { usedCount: { increment: 1 } }
+                                });
                             }
                         });
-
-                        if (couponCode) {
-                            await prisma.coupon.update({
-                                where: { couponCode: couponCode.toUpperCase() },
-                                data: { usedCount: { increment: 1 } }
-                            });
-                        }
-                        console.log(`[Webhook Recovered] Created missing subscription ${localSub.id} for company ${companyId}`);
+                        console.log(`[Webhook Recovered] Created missing subscription ${(localSub as any)?.id} for company ${companyId}`);
                     }
                 } else if (event === 'subscription.charged') {
                     // Standard recurring renewal logic
+                    const nextMonth = new Date(localSub.subscriptionEndDate || Date.now());
+                    nextMonth.setMonth(nextMonth.getMonth() + 1);
+
                     await prisma.subscription.update({
                         where: { id: localSub.id },
                         data: {
-                            subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // extend by 30 days
+                            subscriptionEndDate: nextMonth
                         }
                     });
                     console.log(`[Webhook Auto-Renew] Extended subscription ${localSub.id} for company ${localSub.companyId}`);

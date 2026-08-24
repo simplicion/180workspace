@@ -1,12 +1,16 @@
 'use client';
 
-
 import AiTab from '@/app/dashboard/(settings-app)/_components/AiTab';
 import { ChevronLeft, Brain } from 'lucide-react';
 import Link from 'next/link';
-import PremiumFeatureLock from '@/components/shared/PremiumFeatureLock';
+import { FeatureLock, LogoLoader } from '@workspace/ui';
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function AiSettingsPage() {
+    const { companyConfig, loading } = useSubscription();
+    const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
+    const hasApp = enabledApps.includes('workspace-tools');
+
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex flex-col gap-4">
@@ -32,11 +36,16 @@ export default function AiSettingsPage() {
             </div>
 
             <div className="mt-8">
-                <PremiumFeatureLock>
+                {loading ? (
+                    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex items-center justify-center min-h-[400px]">
+                        <LogoLoader className="w-8 h-8 animate-spin" />
+                    </div>
+                ) : hasApp ? (
                     <AiTab />
-                </PremiumFeatureLock>
+                ) : (
+                    <FeatureLock requiredApp="Workspace Tools" />
+                )}
             </div>
         </div>
     );
 }
-

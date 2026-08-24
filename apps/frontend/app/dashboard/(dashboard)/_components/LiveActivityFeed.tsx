@@ -32,8 +32,9 @@ const FALLBACK_ACTIVITIES = [
     }
 ];
 
-export default function LiveActivityFeed() {
+export default function LiveActivityFeed({ isLocked }: { isLocked?: boolean }) {
     const { data: response, isLoading: loading } = useGetLiveActivityQuery(undefined, {
+        skip: isLocked,
         pollingInterval: 30000,
     });
     

@@ -7,8 +7,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from "@workspace/ui";
 import { useGetDashboardStatsQuery } from '@/redux/api/dashboardApi';
 
-export default function SalesOverview() {
+export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
     const { data: response, isLoading: loading, isFetching } = useGetDashboardStatsQuery(undefined, {
+        skip: isLocked,
         pollingInterval: 30000, // Poll every 30 seconds
     });
     const data = response?.data;
