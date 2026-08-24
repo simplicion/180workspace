@@ -287,9 +287,9 @@ function CheckoutContent() {
     const taxAmount = discountedTotal * 0.18; // 18% GST on the discounted total
     let finalPrice = discountedTotal + taxAmount;
     
-    // Enforce a minimum validation charge: 0.1% of the original subtotal, but never less than 1 base unit
+    // Enforce a minimum validation charge: 0.5% of the original subtotal, but never less than 1 base unit
     if (finalPrice <= 0) {
-        finalPrice = Math.max(1, subTotal * 0.001);
+        finalPrice = Math.max(1, subTotal * 0.005);
     }
 
     return (
