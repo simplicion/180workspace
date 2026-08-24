@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { BillingController } from './billing.controller';
 
 const router = Router();
@@ -11,5 +11,6 @@ router.get('/history', BillingController.getHistory);
 router.post('/plan/checkout', BillingController.checkoutPlan);
 router.post('/plan/verify', BillingController.verifyPlan);
 router.post('/coupon', BillingController.validateCoupon);
+router.post('/webhook', express.raw({ type: 'application/json' }), BillingController.webhookHandler);
 
 export default router;

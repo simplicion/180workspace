@@ -21,10 +21,10 @@ export class SetupController {
     // --- Multi-Company Setup Methods ---
     static async registerCompany(req: Request, res: Response) {
         try {
-            const { companyName, adminName, adminEmail, adminPassword } = req.body;
+            const { companyName, adminName, adminEmail, adminPassword, country, currency } = req.body;
 
-            if (!companyName || !adminName || !adminEmail || !adminPassword) {
-                return res.status(400).json({ success: false, error: 'All fields (companyName, adminName, adminEmail, adminPassword) are required.' });
+            if (!companyName || !adminName || !adminEmail || !adminPassword || !country) {
+                return res.status(400).json({ success: false, error: 'All fields (companyName, adminName, adminEmail, adminPassword, country) are required.' });
             }
 
             // Handle Optional logo upload
@@ -40,7 +40,9 @@ export class SetupController {
                 adminName,
                 adminEmail,
                 adminPasswordHash,
-                logoUrl
+                logoUrl,
+                country,
+                currency
             });
 
             res.status(201).json(result);
@@ -53,10 +55,10 @@ export class SetupController {
 
     static async registerCompanyGoogle(req: Request, res: Response) {
         try {
-            const { companyName, adminName, tokenId } = req.body;
+            const { companyName, adminName, tokenId, country, currency } = req.body;
 
-            if (!companyName || !adminName || !tokenId) {
-                return res.status(400).json({ success: false, error: 'Company Name, Admin Name, and Google Token are required.' });
+            if (!companyName || !adminName || !tokenId || !country) {
+                return res.status(400).json({ success: false, error: 'Company Name, Admin Name, Google Token, and Country are required.' });
             }
 
             // Verify Google token
@@ -93,7 +95,9 @@ export class SetupController {
                 adminName,
                 adminEmail,
                 adminPasswordHash,
-                logoUrl
+                logoUrl,
+                country,
+                currency
             });
 
             res.status(201).json(result);

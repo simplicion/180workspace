@@ -190,21 +190,11 @@ function WorkspaceSetup() {
             }
         }
         if (step === 2) {
-            // Advancing to app selection, preset core apps and recommended apps if they fit
+            // Advancing to app selection, preset core apps and default apps
             const defaultApps = ['projects', 'workspace-tools', 'communications'];
             const coreApps = ['system'];
             
-            // Get recommendations and remove duplicates
-            const recommended = getRecommendedApps(industry);
-            const allRecommended = [...new Set([...coreApps, ...defaultApps, ...recommended])];
-            
-            // We want to enable coreApps + defaultApps + up to 2 custom apps
-            const customLimit = 2;
-            const customApps = allRecommended
-                .filter(id => !defaultApps.includes(id) && !coreApps.includes(id))
-                .slice(0, customLimit);
-            
-            const appsToEnable = [...coreApps, ...defaultApps, ...customApps];
+            const appsToEnable = [...coreApps, ...defaultApps];
             
             setEnabledApps(appsToEnable);
             setEnabledModules(getRecommendedModules(appsToEnable, industry));
@@ -304,7 +294,7 @@ function WorkspaceSetup() {
                 setLoadingMessage('Setting up dashboard...');
                 await new Promise(resolve => setTimeout(resolve, 800)); // allow user to read the message and see smooth transition
                 
-                setStep(5); // Success screen is now step 5
+                window.location.href = '/dashboard';
             } else if (res.status === 401) {
                 toast.error(data.error || 'Session invalid. Logging out...');
                 setTimeout(() => signOut({ callbackUrl: '/login' }), 2000);
@@ -312,7 +302,11 @@ function WorkspaceSetup() {
                 toast.error(data.error || 'Failed to complete setup');
             }
         } catch (error: any) {
-            toast.error('Network error during workspace setup');
+            if (error.response?.data?.error) {
+                toast.error(error.response.data.error);
+            } else {
+                toast.error('Network error during workspace setup');
+            }
         } finally {
             setSaving(false);
             setLoadingMessage('');
@@ -399,7 +393,7 @@ function WorkspaceSetup() {
                                 <div className="space-y-4 mb-6 pr-2 flex-1 overflow-y-auto custom-scrollbar min-h-0">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Startup Name *</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Company Name *</label>
                                             <div className="relative">
                                                 <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                                 <input
@@ -480,7 +474,11 @@ function WorkspaceSetup() {
                                 </div>
 
                                 <div className="mt-auto pt-6 flex justify-end border-t border-gray-100 bg-white relative z-10 shrink-0">
-                                    <button onClick={handleNext} className="btn-primary space-x-2">
+                                    <button 
+                                        onClick={handleNext} 
+                                        disabled={!companyName.trim() || isCheckingSlug || slugAvailable === false}
+                                        className={clsx("btn-primary space-x-2 transition-all", (!companyName.trim() || isCheckingSlug || slugAvailable === false) && "opacity-50 cursor-not-allowed")}
+                                    >
                                         <span>Next Step</span>
                                         <ArrowRight className="w-4 h-4" />
                                     </button>

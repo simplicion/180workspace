@@ -3,6 +3,19 @@ import { prisma } from '@workspace/db';
 import { sanitizeUser } from '../../../../system-configs/utils/sanitize-user';
 import { getCache, setCache } from '../../../../system-configs/utils/redis';
 
+function getCurrencySymbol(currencyCode: string): string {
+    try {
+        return (0).toLocaleString('en-US', {
+            style: 'currency',
+            currency: currencyCode,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).replace(/\d/g, '').trim();
+    } catch (e) {
+        return currencyCode;
+    }
+}
+
 /**
  * GET /api/init
  * 
@@ -53,7 +66,7 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                     favicon: s.faviconUrl || '',
                     email: s.supportEmail || '',
                     phone: s.companyPhone || '',
-                    currency: s.currency || 'INR',
+                    currency: s.currency || 'USD',
                     themeColor: s.themeColor || '#4f46e5',
                     tagline: s.brandingTagline || '',
                     legalName: s.companyLegalName || '',
@@ -83,7 +96,7 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                         try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
                     }
                     
-                    const safeSettings = s ? { ...s } : { companyName: 'Internal Management System', logoUrl: '', themeColor: '#4f46e5' };
+                    const safeSettings = s ? { ...s } : { companyName: '180workspace', logoUrl: '', themeColor: '#4f46e5' };
                     
                     const METADATA_FIELDS = [
                         'aiProvider', 'openaiKey', 'geminiKey', 'claudeKey', 'googleSheetsId',
@@ -117,7 +130,7 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                     return safeSettings;
                 } catch (e) {
                     console.error('Init settings error:', e);
-                    return { companyName: 'Internal Management System', logoUrl: '', themeColor: '#4f46e5' };
+                    return { companyName: '180workspace', logoUrl: '', themeColor: '#4f46e5' };
                 }
             })(),
 
@@ -158,6 +171,9 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                         companyName: companyRec.name,
                         companyEmail: companyRec.adminEmail,
                         companyLogo: companyRec.logoUrl,
+                        country: companyRec.country || 'US',
+                        currency: companyRec.currency || 'USD',
+                        currencySymbol: getCurrencySymbol(companyRec.currency || 'USD'),
                         enabledApps: safeCompanyMetadata.enabledApps || [],
                         enabledModules: safeCompanyMetadata.enabledModules || [],
                         ...safeCompanyMetadata
@@ -176,7 +192,10 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                         orderBy: { createdAt: 'desc' },
                         include: { plan: true }
                     });
-                    if (!sub) return { daysLeft: 999, isExpired: false, isWarning: false, isTrialing: true, status: 'trial', paymentsEnabled: false, currency: 'INR' };
+                    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true, country: true } });
+                    const defaultCurrency = company?.currency || 'USD';
+
+                    if (!sub) return { daysLeft: 999, isExpired: false, isWarning: false, isTrialing: true, status: 'trial', paymentsEnabled: false, currency: defaultCurrency };
 
                     const plan = sub.plan;
                     const now = new Date();
@@ -197,7 +216,7 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                         isTrialing: sub.status === 'trial',
                         status: sub.status,
                         paymentsEnabled: !!(platformSettings as any)?.paymentsEnabled,
-                        currency: plan?.currency || 'INR',
+                        currency: defaultCurrency,
                         dataDeletionDate: null,
                         mandateStatus: sub.mandateStatus || 'pending',
                         autopayEnabled: !!sub.autopayEnabled,
@@ -206,7 +225,7 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                     };
                 } catch (err: any) {
                     console.error('[init.controller] Billing lookup failed:', err.message);
-                    return { daysLeft: 999, isExpired: false, isWarning: false, isTrialing: true, status: 'trial', paymentsEnabled: false, currency: 'INR' };
+                    return { daysLeft: 999, isExpired: false, isWarning: false, isTrialing: true, status: 'trial', paymentsEnabled: false, currency: 'USD' };
                 }
             })(),
 

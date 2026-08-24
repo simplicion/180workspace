@@ -126,7 +126,7 @@ interface SettingsContextType {
 }
 
 const defaultSettings: Settings = {
-    companyName: 'Internal Management System',
+    companyName: '180workspace',
     logoUrl: '',
     themeColor: '#4f46e5',
 };

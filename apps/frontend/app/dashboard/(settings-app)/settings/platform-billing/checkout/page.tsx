@@ -1,6 +1,6 @@
 'use client';
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, Button, Input, Card, CardHeader, CardTitle, CardContent } from "@workspace/ui";
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CreditCard, Check, Shield, ArrowLeft, Tag, AlertCircle, Users, Zap, Building2, Calendar, Lock, CheckCircle2 } from 'lucide-react';
@@ -29,9 +29,18 @@ function CheckoutContent() {
     const [paymentLoading, setPaymentLoading] = useState(false);
 
     const effectivePlatformName = platform?.platformName || 'Platform';
-    const currencySym = plan?.currency === 'INR' ? '₹' : (plan?.currency === 'USD' ? '$' : (platform?.currency || '₹'));
-    const currency = plan?.currency || platform?.currency || 'INR';
-
+    const currency = plan?.currency || platform?.currency || 'USD';
+    let currencySym = '$';
+    try {
+        currencySym = (0).toLocaleString('en-US', {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).replace(/\d/g, '').trim();
+    } catch (e) {
+        currencySym = currency;
+    }
     useEffect(() => {
         if (!planId && !addonType) {
             router.push('/dashboard/settings/platform-billing');
@@ -41,41 +50,41 @@ function CheckoutContent() {
         const fetchPlan = async () => {
             try {
                 if (addonType) {
-                    // pseudo plan for addons
-                    const isUsd = currency === 'USD';
+                    // Get dynamic rate from the platform config
+                    const dynamicRate = platform?.rate || 1;
                     const qty = parseInt(searchParams?.get('quantity') || '1', 10);
                     
                     if (addonType === 'storage') {
                         setPlan({
                             planName: `${qty * 5}GB Storage Add-on`,
-                            price: (isUsd ? 0.60 : 50) * qty,
+                            price: Math.round(0.60 * dynamicRate) * qty, // $0.60 base price
                             billingCycle: 'One-time',
                             features: [`${qty * 5}GB Additional Workspace Storage`, 'Immediate Activation', 'Never Expires'],
                             isAddon: true,
                             addonType: 'storage',
-                            currency: isUsd ? 'USD' : 'INR',
+                            currency: currency,
                             quantity: qty
                         });
                     } else if (addonType === 'team') {
                         setPlan({
                             planName: `${qty} Team Member Add-on`,
-                            price: (isUsd ? 1 : 83) * qty,
+                            price: Math.round(1 * dynamicRate) * qty, // $1.00 base price
                             billingCycle: 'One-time',
                             features: [`${qty} Extra Team Member Seat${qty > 1 ? 's' : ''}`, 'Immediate Activation', 'Never Expires'],
                             isAddon: true,
                             addonType: 'team',
-                            currency: isUsd ? 'USD' : 'INR',
+                            currency: currency,
                             quantity: qty
                         });
                     } else if (addonType === 'app') {
                         setPlan({
                             planName: `${qty} App Add-on`,
-                            price: (isUsd ? 0.50 : 41) * qty,
+                            price: Math.round(0.50 * dynamicRate) * qty, // $0.50 base price
                             billingCycle: 'One-time',
                             features: [`${qty} Extra App${qty > 1 ? 's' : ''}`, 'Immediate Activation', 'Never Expires'],
                             isAddon: true,
                             addonType: 'app',
-                            currency: isUsd ? 'USD' : 'INR',
+                            currency: currency,
                             quantity: qty
                         });
                     } else {
@@ -216,17 +225,14 @@ function CheckoutContent() {
 
                 const options = {
                     key: order.keyId,
-                    amount: order.amount, // already in minor units
-                    currency: order.currency || platform?.currency || 'INR',
                     name: settings?.companyName || effectivePlatformName,
                     description: `Setup e-Mandate for ${plan.planName}`,
-                    order_id: order.orderId,
-                    recurring: 1, // Indicate this is a recurring mandate natively for RAZORPAY
+                    subscription_id: order.subscriptionId,
                     handler: async (response: any) => {
                         try {
                             await api.post('/api/v1/platform-billing/plan/verify', {
                                 razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_order_id: response.razorpay_order_id, // e-mandates sometimes have order id sometimes they don't based on implementation, added this just in case
+                                razorpay_subscription_id: response.razorpay_subscription_id, 
                                 razorpay_signature: response.razorpay_signature,
                                 planId: plan.id,
                                 ...(couponResult && { couponCode: couponResult.code || coupon })
@@ -281,89 +287,95 @@ function CheckoutContent() {
     const taxAmount = discountedTotal * 0.18; // 18% GST on the discounted total
     let finalPrice = discountedTotal + taxAmount;
     
-    // Enforce 1 unit minimum (e.g., ₹1 or $1) if they applied a 100% discount or for natively free plans for Razorpay validation
+    // Enforce a minimum validation charge: 0.1% of the original subtotal, but never less than 1 base unit
     if (finalPrice <= 0) {
-        finalPrice = 1;
+        finalPrice = Math.max(1, subTotal * 0.001);
     }
 
     return (
-        <div className="min-h-[80vh] relative overflow-hidden bg-slate-50/50 rounded-3xl">
+        <div className="min-h-[80vh] relative overflow-hidden bg-slate-50/50 dark:bg-black/20 rounded-2xl">
             {/* Background elements */}
-            <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-br from-indigo-600/10 via-purple-600/5 to-transparent -z-10" />
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-400/20 blur-[100px] rounded-full -z-10" />
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-400/20 blur-[100px] rounded-full -z-10" />
+            <div className="absolute top-0 left-0 right-0 h-[400px] bg-gradient-to-br from-primary/10 via-primary/5 to-transparent -z-10" />
+            <div className="absolute top-0 right-0 w-80 h-80 bg-primary/20 blur-[100px] rounded-full -z-10" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 blur-[100px] rounded-full -z-10" />
             
             <div className="max-w-5xl mx-auto py-12 px-6 relative z-10">
                 <Toaster position="top-center" />
 
-                <button
+                <Button
+                    variant="glass"
                     onClick={() => router.back()}
-                    className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors mb-8 font-medium group bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm w-fit"
+                    className="flex items-center gap-2 mb-8 group w-fit text-slate-600 dark:text-slate-300"
                 >
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                     Back to Plans
-                </button>
+                </Button>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     {/* Plan Details - Left Column */}
-                    <div className="lg:col-span-7 space-y-8">
-                        <div className="space-y-2">
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Checkout</h1>
-                            <p className="text-slate-500 text-lg">Review your plan details and complete the secure payment.</p>
+                    <div className="lg:col-span-7 space-y-6">
+                        <div className="space-y-1.5">
+                            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Checkout</h1>
+                            <p className="text-slate-500 text-sm">Review your plan details and complete the secure payment.</p>
                         </div>
 
-                        <div className="bg-white/70 backdrop-blur-md border border-white rounded-3xl p-8 shadow-xl shadow-slate-200/50">
-                        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-50">
-                            <div className="w-16 h-16 flex items-center justify-center">
-                                <LogoLoader className="w-12 h-12 text-indigo-600" />
+                        <Card className="bg-white/80 dark:bg-black/60 backdrop-blur-md border border-slate-200/60 dark:border-white/10 rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-[0_0_40px_rgba(255,255,255,0.05)]">
+                        <CardContent className="p-6">
+                        <div className="flex items-center gap-4 mb-5 pb-5 border-b border-slate-100 dark:border-white/10">
+                            <div className="w-12 h-12 flex items-center justify-center bg-primary/10 rounded-xl">
+                                <LogoLoader className="w-6 h-6 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+                                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
                                     {plan.planName.toLowerCase().includes('plan') ? plan.planName : `${plan.planName} Plan`}
                                 </h1>
-                                <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest">{plan.billingCycle || 'Monthly'} Subscription</p>
+                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">{plan.billingCycle || 'Monthly'} Subscription</p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Plan Highlights</h4>
-                                <ul className="space-y-3">
+                                <h4 className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Plan Highlights</h4>
+                                <ul className="space-y-2.5">
                                     {plan.features.filter((f: string) => !f.toLowerCase().includes('trial') && !f.toLowerCase().includes('days')).map((f: string, i: number) => (
-                                        <li key={i} className="flex items-center gap-3 text-slate-600">
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                        <li key={i} className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
                                             <span className="text-sm font-medium">{f}</span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
 
-                            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
-                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Secure Payment</h4>
-                                <div className="flex items-center gap-3 text-slate-600">
-                                    <Shield className="w-5 h-5 text-indigo-500" />
+                            <div className="bg-slate-50/80 dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-800 space-y-3">
+                                <h4 className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Secure Payment</h4>
+                                <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300">
+                                    <Shield className="w-4 h-4 text-primary" />
                                     <span className="text-sm font-medium">Industry-standard SSL encryption</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-slate-600">
-                                    <Lock className="w-5 h-5 text-indigo-500" />
+                                <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300">
+                                    <Lock className="w-4 h-4 text-primary" />
                                     <span className="text-sm font-medium">Powered by Razorpay Secure</span>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        </CardContent>
+                    </Card>
 
-                    <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800">
-                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                    <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-xl text-xs text-amber-800 dark:text-amber-500">
+                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                         <div>
-                            <strong>Automatic Access:</strong> Your plan will be activated immediately after verification. Any existing trial or plan limits will be updated according to the new plan.
+                            <strong>Automatic Access:</strong> Your plan will be activated immediately after verification. Any existing limits will be automatically updated.
                         </div>
                     </div>
                 </div>
 
                 {/* Pricing Summary - Right Column */}
                 <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
-                    <div className="bg-white rounded-3xl p-8 text-slate-900 shadow-2xl shadow-indigo-100/50 border border-slate-100">
-                        <h3 className="text-lg font-bold mb-6">Order Summary</h3>
+                    <Card className="rounded-3xl bg-white dark:bg-black/60 shadow-2xl shadow-indigo-100/50 dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] border border-slate-100 dark:border-white/10">
+                        <CardHeader className="p-8 pb-0">
+                            <CardTitle className="text-lg font-bold">Order Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-8 pt-6">
 
                         <div className="space-y-4 pb-6 border-b border-slate-100 text-sm">
                             <div className="flex justify-between items-center text-slate-500">
@@ -382,75 +394,82 @@ function CheckoutContent() {
                             </div>
                         </div>
 
-                        <div className="py-6 flex justify-between items-end">
+                        <div className="py-4 flex justify-between items-end">
                             <div>
-                                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Amount</p>
-                                <p className="text-4xl font-black italic tracking-tighter text-slate-900">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                                <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Total Amount</p>
+                                <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                             </div>
                         </div>
 
-                        {discountedTotal <= 0 ? (
-                            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-6 text-sm text-emerald-700">
-                                <strong>Free Plan / 100% Discount:</strong> To activate your plan and set up auto-renewal, a minimal validation transaction of {currencySym}1 is required today.
-                            </div>
-                        ) : (
-                            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6 text-sm text-indigo-700">
-                                <strong>Note:</strong> You will be charged {currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })} today.
-                            </div>
-                        )}
+                        <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-md p-3 mb-5 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                            {discountedTotal <= 0 ? (
+                                <span>
+                                    <strong className="text-slate-700 dark:text-slate-300 font-medium">Setup Validation:</strong> A nominal fee of {currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })} is required today for gateway validation. Your subscription will renew at {currencySym}{(subTotal + (subTotal * 0.18)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month starting next billing cycle.
+                                </span>
+                            ) : (
+                                <span>
+                                    <strong className="text-slate-700 dark:text-slate-300 font-medium">Subscription Terms:</strong> You will be charged {currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })} today. 
+                                    {discountAmount > 0 
+                                        ? ` Your subscription will renew at ${currencySym}${(subTotal + (subTotal * 0.18)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month starting next billing cycle.` 
+                                        : ' This is a recurring monthly subscription.'}
+                                </span>
+                            )}
+                        </div>
 
                         <div className="space-y-4">
                             {plan.price > 0 && !plan.isAddon && (
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Have a coupon?</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">Have a coupon?</label>
                                     <div className="flex gap-2">
-                                        <input
+                                        <Input
                                             value={coupon}
                                             onChange={e => { setCoupon(e.target.value.toUpperCase()); setCouponResult(null); }}
                                             placeholder="SALE10"
-                                            className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono text-slate-900"
+                                            className="flex-1 h-10 rounded-lg text-sm text-slate-900 dark:text-white"
                                         />
-                                        <button
+                                        <Button
+                                            variant="secondary"
                                             onClick={validateCoupon}
                                             disabled={!coupon || couponLoading || paymentLoading}
-                                            className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-50 rounded-xl text-sm font-bold transition-all border border-slate-200"
+                                            className="px-4 py-2 h-10 rounded-lg text-sm font-medium transition-all"
                                         >
                                             {couponLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : 'Apply'}
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             )}
 
-                            <button
+                            <Button
                                 onClick={handlePayment}
                                 disabled={paymentLoading}
-                                className={`w-full py-5 ${plan.price === 0 ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500'} disabled:bg-slate-300 disabled:text-slate-500 text-white font-black rounded-2xl transition-all shadow-xl ${plan.price === 0 ? 'shadow-emerald-600/20' : 'shadow-indigo-600/20'} flex items-center justify-center gap-3 text-lg group`}
+                                className={`w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-slate-300 disabled:text-slate-500 font-medium rounded-lg transition-all flex items-center justify-center gap-2 text-sm group shadow-sm`}
                             >
                                 {paymentLoading ? (
                                     <>
-                                        <LogoLoader className="w-5 h-5 animate-spin" />
+                                        <LogoLoader className="w-4 h-4 animate-spin" />
                                         Activating...
                                     </>
                                 ) : (
                                     <>
-                                        {plan.price === 0 ? <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" /> : <CreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" />}
+                                        {plan.price === 0 ? <Zap className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
                                         {plan.price === 0 ? 'Activate Plan' : 'Complete Purchase'}
                                     </>
                                 )}
-                            </button>
+                            </Button>
 
                             <p className="text-center text-[10px] text-slate-400 font-medium">
                                 By clicking &quot;Complete Purchase&quot;, you agree to our Terms of Service and Refund Policy.
                             </p>
                         </div>
-                    </div>
+                        </CardContent>
+                    </Card>
 
-                    <div className="bg-indigo-50/50 rounded-2xl p-5 border border-indigo-100/50 space-y-4">
+                    <div className="bg-primary/5 dark:bg-primary/10 rounded-xl p-4 border border-primary/10 space-y-3">
                         <div className="flex items-start gap-3">
-                            <Building2 className="w-5 h-5 text-indigo-500 shrink-0" />
+                            <Building2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-sm font-bold text-indigo-900">{user?.name}</p>
-                                <p className="text-xs text-indigo-600 opacity-70">Billing for {user?.role} account</p>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Billing for {user?.role} account</p>
                             </div>
                         </div>
                     </div>

@@ -15,7 +15,7 @@ export class SetupService {
         };
     }
 
-    static async registerCompany({ companyName, adminName, adminEmail, adminPasswordHash, logoUrl }: { companyName: string, adminName: string, adminEmail: string, adminPasswordHash: string, logoUrl: string | null }) {
+    static async registerCompany({ companyName, adminName, adminEmail, adminPasswordHash, logoUrl, country, currency }: { companyName: string, adminName: string, adminEmail: string, adminPasswordHash: string, logoUrl: string | null, country?: string, currency?: string }) {
         // Check company name uniqueness (case-insensitive)
         const existingCompanyWithName = await prisma.company.findFirst({
             where: { name: { equals: companyName.trim(), mode: 'insensitive' } }
@@ -52,6 +52,10 @@ export class SetupService {
         const setupToken = crypto.randomBytes(32).toString('hex');
         const onboardingToken = crypto.randomBytes(32).toString('hex');
 
+        // Determine currency from what the frontend passed (which fetched it from an open source API)
+        // Fallback to USD only if absolutely necessary
+        const finalCurrency = currency || 'USD';
+
         // Create the company
         const newCompany = await prisma.company.create({
             data: {
@@ -66,6 +70,8 @@ export class SetupService {
                 trialEndDate: null,
                 slug,
                 logoUrl,
+                country: country ? country.toUpperCase() : undefined,
+                currency: finalCurrency,
                 metadata: { setupToken, onboardingToken },
                 accountStatus: 'active'
             }

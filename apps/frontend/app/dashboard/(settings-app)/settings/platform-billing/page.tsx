@@ -35,15 +35,19 @@ export default function PlatformBillingPage() {
                 setPlans(plansRes.data.plans || []);
                 
                 const backendCurrency = plansRes.data.currency || 'USD';
-                if (backendCurrency === 'INR') {
-                    setCurrencyInfo({ symbol: '₹', rate: 1, code: 'INR' });
-                } else if (backendCurrency === 'EUR') {
-                    setCurrencyInfo({ symbol: '€', rate: 1, code: 'EUR' });
-                } else if (backendCurrency === 'GBP') {
-                    setCurrencyInfo({ symbol: '£', rate: 1, code: 'GBP' });
-                } else {
-                    setCurrencyInfo({ symbol: '$', rate: 1, code: 'USD' });
+                let currencySymbol = '$';
+                try {
+                    currencySymbol = (0).toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: backendCurrency,
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                    }).replace(/\d/g, '').trim();
+                } catch (e) {
+                    currencySymbol = backendCurrency;
                 }
+                
+                setCurrencyInfo({ symbol: currencySymbol, rate: 1, code: backendCurrency });
             } catch (err) {
                 console.error('Failed to fetch billing info', err);
             } finally {

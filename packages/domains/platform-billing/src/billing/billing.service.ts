@@ -504,7 +504,7 @@ export class BillingService {
         let sub = await prisma.subscription.findFirst({
             where: {
                 companyId,
-                status: { in: ['trial', 'active'] },
+                status: { in: ['trial', 'active', 'ACTIVE', 'past_due'] },
             },
             include: { plan: true },
             orderBy: { createdAt: 'desc' }
@@ -516,8 +516,14 @@ export class BillingService {
         if (sub) {
             if (sub.status === 'trial' && sub.trialEndDate && sub.trialEndDate < now) {
                 isExpired = true;
-            } else if (sub.status === 'active' && sub.subscriptionEndDate && sub.subscriptionEndDate < now) {
-                isExpired = true;
+            } else if (['active', 'ACTIVE', 'past_due'].includes(sub.status) && sub.subscriptionEndDate && sub.subscriptionEndDate < now) {
+                // If it's past_due, we could optionally give a few extra days, but for now we just rely on subscriptionEndDate + grace time
+                const gracePeriodEnd = new Date(sub.subscriptionEndDate.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days grace
+                if (sub.status === 'past_due' && gracePeriodEnd < now) {
+                    isExpired = true;
+                } else if (sub.status !== 'past_due') {
+                    isExpired = true;
+                }
             }
         }
 
