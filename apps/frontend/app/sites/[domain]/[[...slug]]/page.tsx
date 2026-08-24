@@ -112,7 +112,7 @@ export default async function PublicWebsitePage({
 
     return (
         <div 
-            className="min-h-screen bg-white font-sans text-gray-900 selection:bg-indigo-100" 
+            className="min-h-screen w-full max-w-full overflow-x-hidden bg-white font-sans text-gray-900 selection:bg-indigo-100" 
             style={{ 
                 fontFamily: `"${config.typography?.body || brand?.fontFamily || 'Inter'}", sans-serif`,
                 color: brand?.textColor || '#111827',
@@ -125,9 +125,63 @@ export default async function PublicWebsitePage({
                 '--heading-font': config.typography?.heading || 'Inter'
             } as any}
         >
-            <div className="w-full min-h-screen flex flex-col bg-transparent relative">
+            <div className="w-full max-w-full min-h-screen flex flex-col bg-transparent relative overflow-x-hidden">
                 <style dangerouslySetInnerHTML={{
-                    __html: `@import url('https://fonts.googleapis.com/css2?family=${(config.typography?.body || brand?.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');`
+                    __html: `
+                        @import url('https://fonts.googleapis.com/css2?family=${(config.typography?.body || brand?.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');
+                        
+                        @media (max-width: 767px) {
+                            /* Master Anti-Blowout Rule for all elements on mobile */
+                            [data-element-type="section"],
+                            [data-element-type="row"],
+                            [data-element-type="column"],
+                            [data-element-type="box"],
+                            [data-element-type="text"],
+                            [data-element-type="media"],
+                            [data-element-type="button"] {
+                                max-width: 100% !important;
+                                min-width: 0 !important;
+                                box-sizing: border-box !important;
+                            }
+
+                            [data-element-type="row"],
+                            [data-element-type="box"].is-row-container {
+                                display: flex !important;
+                                flex-direction: column !important;
+                                flex-wrap: wrap !important;
+                            }
+                            [data-element-type="column"] {
+                                width: 100% !important;
+                                flex: 1 1 100% !important;
+                                flex-shrink: 1 !important;
+                                padding-left: 1rem !important;
+                                padding-right: 1rem !important;
+                                margin-left: 0 !important;
+                                margin-right: 0 !important;
+                            }
+                            [data-element-type="box"] {
+                                flex-shrink: 1 !important;
+                            }
+                            [data-element-type="text"] {
+                                overflow-wrap: break-word !important;
+                                word-break: break-word !important;
+                            }
+                            [data-element-type="text"] h1,
+                            [data-element-type="text"] h2 {
+                                font-size: clamp(1.4rem, 5.5vw, 2.2rem) !important;
+                                line-height: 1.25 !important;
+                            }
+                            [data-element-type="text"] h3,
+                            [data-element-type="text"] h4 {
+                                font-size: clamp(1.2rem, 4vw, 1.6rem) !important;
+                                line-height: 1.3 !important;
+                            }
+                            [data-element-type="media"] img,
+                            [data-element-type="media"] video {
+                                height: auto !important;
+                            }
+                        }
+                    `
                 }} />
                 {/* Global Head Scripts */}
                 {brand.headScript && <div dangerouslySetInnerHTML={{ __html: brand.headScript }} />}
@@ -174,7 +228,7 @@ export default async function PublicWebsitePage({
 
                 {/* Dynamic Builder Content */}
                 {hasDynamicSections ? (
-                    <main className="flex-1 w-full min-h-[50vh] bg-white flex flex-col">
+                    <main className="flex-1 w-full max-w-full min-h-[50vh] bg-white flex flex-col overflow-x-hidden">
                         {(currentPage?.sections || []).map((sec: any) => (
                             <BuilderElement key={sec.id} node={sec} brand={brand} isReadOnly={true} />
                         ))}

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { ElementProps } from './BoxElement';
 import Hls from 'hls.js';
 
-export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly }: ElementProps) {
+export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, viewMode }: ElementProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const mediaUrl = node.data?.imageUrl || node.data?.videoUrl;
     const isVideo = mediaUrl && (mediaUrl.endsWith('.m3u8') || mediaUrl.endsWith('.mp4'));
@@ -23,7 +23,13 @@ export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClic
     }, [mediaUrl, isVideo]);
 
     return (
-        <div ref={setNodeRef} style={style} onClick={isReadOnly ? undefined : handleClick} className={wrapperClass}>
+        <div 
+            ref={setNodeRef} 
+            data-element-type="media"
+            style={style} 
+            onClick={isReadOnly ? undefined : handleClick} 
+            className={`w-full max-w-full overflow-hidden ${wrapperClass}`}
+        >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
             {mediaUrl ? (
@@ -35,10 +41,10 @@ export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClic
                         muted 
                         loop
                         playsInline
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: node.style?.borderRadius }} 
+                        style={{ width: '100%', height: '100%', maxWidth: '100%', objectFit: 'cover', borderRadius: node.style?.borderRadius }} 
                     />
                 ) : (
-                    <img src={mediaUrl} alt={node.data?.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: node.style?.borderRadius }} />
+                    <img src={mediaUrl} alt={node.data?.alt || ''} style={{ width: '100%', height: '100%', maxWidth: '100%', objectFit: 'cover', borderRadius: node.style?.borderRadius }} />
                 )
             ) : isReadOnly ? null : (
                 <div className="w-full h-full min-h-[150px] bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200">

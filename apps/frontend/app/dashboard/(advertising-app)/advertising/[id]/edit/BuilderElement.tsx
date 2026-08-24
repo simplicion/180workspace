@@ -40,9 +40,90 @@ const AnimatedWrapper = ({ animation, children, style, className }: any) => {
     return <motion.div {...(props as any)} style={style} className={className}>{children}</motion.div>;
 };
 
-export function normalizeStyle(rawStyle: any = {}): React.CSSProperties {
+function scaleMobileFontSize(val: any): string | undefined {
+    if (!val) return undefined;
+    const str = String(val).trim();
+    
+    if (str.endsWith('px')) {
+        const num = parseFloat(str);
+        if (isNaN(num)) return str;
+        if (num >= 48) return '24px';
+        if (num >= 40) return '21px';
+        if (num >= 36) return '19px';
+        if (num >= 32) return '18px';
+        if (num >= 28) return '17px';
+        if (num >= 24) return '16px';
+        return str;
+    }
+    
+    if (str.endsWith('rem')) {
+        const num = parseFloat(str);
+        if (isNaN(num)) return str;
+        if (num >= 3) return '1.5rem';
+        if (num >= 2.5) return '1.35rem';
+        if (num >= 2) return '1.25rem';
+        if (num >= 1.5) return '1.1rem';
+        return str;
+    }
+    
+    if (typeof val === 'number') {
+        if (val >= 48) return '24px';
+        if (val >= 40) return '21px';
+        if (val >= 36) return '19px';
+        if (val >= 32) return '18px';
+        if (val >= 24) return '16px';
+    }
+    
+    return str;
+}
+
+function toFluidFontSize(val: any): string | undefined {
+    if (!val) return undefined;
+    const str = String(val).trim();
+    
+    if (str.includes('clamp') || str.includes('calc') || str.includes('vw')) return str;
+    
+    if (str.endsWith('px')) {
+        const num = parseFloat(str);
+        if (isNaN(num) || num <= 24) return str;
+        const minRem = Math.max(1.25, parseFloat((num * 0.55 / 16).toFixed(2)));
+        const maxRem = parseFloat((num / 16).toFixed(2));
+        return `clamp(${minRem}rem, 4vw + 0.5rem, ${maxRem}rem)`;
+    }
+    
+    if (str.endsWith('rem')) {
+        const num = parseFloat(str);
+        if (isNaN(num) || num <= 1.5) return str;
+        const minRem = Math.max(1.25, parseFloat((num * 0.6).toFixed(2)));
+        return `clamp(${minRem}rem, 4vw + 0.5rem, ${num}rem)`;
+    }
+    
+    if (str.endsWith('em')) {
+        const num = parseFloat(str);
+        if (isNaN(num) || num <= 1.5) return str;
+        const minRem = Math.max(1.25, parseFloat((num * 0.6).toFixed(2)));
+        return `clamp(${minRem}em, 4vw + 0.5em, ${num}em)`;
+    }
+    
+    if (typeof val === 'number') {
+        if (val > 24) {
+            const minRem = Math.max(1.25, parseFloat((val * 0.55 / 16).toFixed(2)));
+            const maxRem = parseFloat((val / 16).toFixed(2));
+            return `clamp(${minRem}rem, 4vw + 0.5rem, ${maxRem}rem)`;
+        }
+    }
+    
+    return str;
+}
+
+export function normalizeStyle(rawStyle: any = {}, isMobileView: boolean = false): React.CSSProperties {
     if (!rawStyle) return {};
     const style: any = { ...rawStyle };
+
+    // Fluid typography scaling for headings and large text
+    if (style.fontSize) {
+        style.fontSize = isMobileView ? scaleMobileFontSize(style.fontSize) : toFluidFontSize(style.fontSize);
+    }
 
     // Always decompose shorthand 'padding' into individual longhands to prevent React conflicting property warnings
     if (style.padding !== undefined) {
@@ -126,6 +207,33 @@ export function normalizeStyle(rawStyle: any = {}): React.CSSProperties {
         delete style.marginX;
     }
 
+    // Mobile specific spacing caps
+    if (isMobileView) {
+        const capSpacing = (v: any, maxRem: number = 1.25) => {
+            if (!v) return v;
+            const str = String(v).trim();
+            if (str.endsWith('rem')) {
+                const n = parseFloat(str);
+                return !isNaN(n) && n > maxRem ? `${maxRem}rem` : v;
+            }
+            if (str.endsWith('px')) {
+                const n = parseFloat(str);
+                const maxPx = maxRem * 16;
+                return !isNaN(n) && n > maxPx ? `${maxPx}px` : v;
+            }
+            return v;
+        };
+
+        style.paddingLeft = capSpacing(style.paddingLeft, 1);
+        style.paddingRight = capSpacing(style.paddingRight, 1);
+        style.marginLeft = capSpacing(style.marginLeft, 0.5);
+        style.marginRight = capSpacing(style.marginRight, 0.5);
+    }
+
+    // Ensure layout containment defaults
+    style.maxWidth = '100%';
+    style.boxSizing = 'border-box';
+
     return style;
 }
 
@@ -142,6 +250,7 @@ export interface BuilderElementProps {
     insertElementRelative?: (targetId: string, newType: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => void;
     depth?: number;
     isReadOnly?: boolean;
+    viewMode?: 'desktop' | 'tablet' | 'mobile';
 }
 
 export function BuilderElement({
@@ -156,8 +265,11 @@ export function BuilderElement({
     moveElementDown,
     insertElementRelative,
     depth = 0,
-    isReadOnly = false
+    isReadOnly = false,
+    viewMode = 'desktop'
 }: BuilderElementProps) {
+    const isMobileView = viewMode === 'mobile';
+
     const {
         attributes,
         listeners,
@@ -177,13 +289,16 @@ export function BuilderElement({
 
     if (node.type === 'row') {
         display = 'flex';
-        flexDirection = 'row';
-        flexWrap = 'wrap';
+        flexDirection = isMobileView ? 'column' : (flexDirection || 'row');
+        flexWrap = flexWrap || 'wrap';
     } else if (node.type === 'column') {
         display = 'flex';
         flexDirection = 'column';
     } else if (node.type === 'box') {
         display = display || 'flex';
+        if (isMobileView && (flexDirection === 'row' || (!flexDirection && display === 'flex'))) {
+            flexDirection = 'column';
+        }
     } else if (node.type === 'section') {
         display = display || 'block';
     }
@@ -208,7 +323,12 @@ export function BuilderElement({
         ...(localMargin || {})
     };
 
-    const style = normalizeStyle(rawStyle);
+    if (isMobileView && (node.type === 'column' || node.type === 'row' || node.type === 'box')) {
+        rawStyle.width = '100%';
+        rawStyle.maxWidth = '100%';
+    }
+
+    const style = normalizeStyle(rawStyle, isMobileView);
     const isSelected = !isReadOnly && selectedElementId === node.id;
 
     const handleMarginDragStart = (e: React.MouseEvent, side: string) => {
@@ -479,11 +599,12 @@ export function BuilderElement({
                     brand={brand}
                     depth={depth + 1}
                     isReadOnly={true}
+                    viewMode={viewMode}
                 />
             ));
         }
 
-        const strategy = node.style?.flexDirection === 'row' ? horizontalListSortingStrategy : verticalListSortingStrategy;
+        const strategy = node.style?.flexDirection === 'row' && !isMobileView ? horizontalListSortingStrategy : verticalListSortingStrategy;
 
         return (
             <SortableContext items={node.children.map(c => c.id)} strategy={strategy}>
@@ -502,6 +623,7 @@ export function BuilderElement({
                         depth={depth + 1}
                         brand={brand}
                         isReadOnly={false}
+                        viewMode={viewMode}
                     />
                 ))}
             </SortableContext>
@@ -572,8 +694,8 @@ export function BuilderElement({
     }
 
     const wrapperClass = isReadOnly 
-        ? 'relative' 
-        : `relative group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-500/50'} ${dragIndicatorClass}`;
+        ? 'relative max-w-full' 
+        : `relative max-w-full group/element ring-inset transition-all ${isSelected ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-500/50'} ${dragIndicatorClass}`;
 
     const props = {
         node,
@@ -587,19 +709,22 @@ export function BuilderElement({
         renderChildren,
         updateElement,
         dragHandlers,
-        isReadOnly
+        isReadOnly,
+        viewMode
     };
 
     if (node.type === 'section') {
         const finalStyle = { ...style };
         if (finalStyle.paddingY !== undefined) {
-            if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = `${finalStyle.paddingY}rem`;
-            if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = `${finalStyle.paddingY}rem`;
+            const pyVal = isMobileView ? Math.min(2.5, Number(finalStyle.paddingY)) : finalStyle.paddingY;
+            if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = `${pyVal}rem`;
+            if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = `${pyVal}rem`;
             delete finalStyle.paddingY;
         }
         if (finalStyle.paddingX !== undefined) {
-            if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = `${finalStyle.paddingX}rem`;
-            if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = `${finalStyle.paddingX}rem`;
+            const pxVal = isMobileView ? Math.min(1, Number(finalStyle.paddingX)) : finalStyle.paddingX;
+            if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = `${pxVal}rem`;
+            if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = `${pxVal}rem`;
             delete finalStyle.paddingX;
         }
         
@@ -608,7 +733,14 @@ export function BuilderElement({
         }
 
         const sectionEl = (
-            <div ref={isReadOnly ? undefined : setNodeRef} style={finalStyle} onClick={isReadOnly ? undefined : handleClick} className={`w-full relative ${wrapperClass}`} {...dragHandlers}>
+            <div 
+                ref={isReadOnly ? undefined : setNodeRef} 
+                data-element-type="section"
+                style={finalStyle} 
+                onClick={isReadOnly ? undefined : handleClick} 
+                className={`w-full max-w-full relative ${wrapperClass}`} 
+                {...dragHandlers}
+            >
                 {!isReadOnly && renderControls()}
                 {!isReadOnly && renderPaddingControls()}
                 {renderChildren()}
@@ -631,7 +763,14 @@ export function BuilderElement({
             case 'line': return <LineElement {...props} />;
             case 'code':
                 return (
-                    <div ref={isReadOnly ? undefined : setNodeRef} style={style} onClick={isReadOnly ? undefined : handleClick} className={wrapperClass} {...dragHandlers}>
+                    <div 
+                        ref={isReadOnly ? undefined : setNodeRef} 
+                        data-element-type="code"
+                        style={style} 
+                        onClick={isReadOnly ? undefined : handleClick} 
+                        className={`w-full max-w-full ${wrapperClass}`} 
+                        {...dragHandlers}
+                    >
                         {!isReadOnly && renderControls()}
                         <CodeElement element={node} />
                     </div>

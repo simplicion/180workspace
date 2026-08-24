@@ -1367,6 +1367,7 @@ export default function WebsiteEditorPage() {
                                             moveElementUp={moveElementUp}
                                             moveElementDown={moveElementDown}
                                             insertElementRelative={insertElementRelative}
+                                            viewMode={viewMode}
                                         />
                                         {/* Dropzone after this section */}
                                         <div

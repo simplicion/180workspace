@@ -1,9 +1,19 @@
 import React from 'react';
 import { ElementProps } from './BoxElement';
 
-export function RowElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly }: ElementProps) {
+export function RowElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly, viewMode }: ElementProps) {
+    const isMobileView = viewMode === 'mobile';
+    const responsiveClass = `w-full max-w-full flex ${isMobileView ? 'flex-col' : 'flex-col md:flex-row'} flex-wrap items-stretch gap-4 md:gap-6 ${wrapperClass}`;
+
     return (
-        <div ref={setNodeRef} style={style} onClick={isReadOnly ? undefined : handleClick} className={wrapperClass} {...(isReadOnly ? {} : dragHandlers)}>
+        <div 
+            ref={setNodeRef} 
+            data-element-type="row"
+            style={style} 
+            onClick={isReadOnly ? undefined : handleClick} 
+            className={responsiveClass} 
+            {...(isReadOnly ? {} : dragHandlers)}
+        >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
             {node.children && node.children.length > 0 ? (

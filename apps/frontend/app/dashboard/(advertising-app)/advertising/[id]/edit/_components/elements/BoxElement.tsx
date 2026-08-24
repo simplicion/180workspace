@@ -14,11 +14,23 @@ export interface ElementProps {
     updateElement?: (id: string, path: string, value: any) => void;
     dragHandlers?: any;
     isReadOnly?: boolean;
+    viewMode?: 'desktop' | 'tablet' | 'mobile';
 }
 
-export function BoxElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly }: ElementProps) {
+export function BoxElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly, viewMode }: ElementProps) {
+    const isMobileView = viewMode === 'mobile';
+    const isRowBox = node.style?.flexDirection === 'row' || (node.style?.display === 'flex' && !node.style?.flexDirection);
+    const responsiveClass = `w-full max-w-full box-border ${isRowBox ? (isMobileView ? 'flex flex-col' : 'flex flex-col md:flex-row is-row-container') : ''} ${wrapperClass}`;
+
     return (
-        <div ref={setNodeRef} style={style} onClick={isReadOnly ? undefined : handleClick} className={wrapperClass} {...(isReadOnly ? {} : dragHandlers)}>
+        <div 
+            ref={setNodeRef} 
+            data-element-type="box"
+            style={style} 
+            onClick={isReadOnly ? undefined : handleClick} 
+            className={responsiveClass} 
+            {...(isReadOnly ? {} : dragHandlers)}
+        >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
             {node.children && node.children.length > 0 ? (

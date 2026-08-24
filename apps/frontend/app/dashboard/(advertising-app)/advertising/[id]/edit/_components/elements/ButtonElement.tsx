@@ -1,7 +1,7 @@
 import React from 'react';
 import { ElementProps } from './BoxElement';
 
-export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly }: ElementProps) {
+export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, viewMode }: ElementProps) {
     const wrapperStyle = {
         transform: style.transform,
         transition: style.transition,
@@ -12,11 +12,18 @@ export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, ha
         marginLeft: style.marginLeft,
         marginRight: style.marginRight,
         alignSelf: style.alignSelf,
-        width: style.width
+        width: style.width,
+        maxWidth: '100%'
     };
 
     return (
-        <div ref={setNodeRef} style={wrapperStyle} onClick={isReadOnly ? undefined : handleClick} className={`relative ${wrapperClass} text-center`}>
+        <div 
+            ref={setNodeRef} 
+            data-element-type="button"
+            style={wrapperStyle} 
+            onClick={isReadOnly ? undefined : handleClick} 
+            className={`relative max-w-full ${wrapperClass} text-center`}
+        >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
             <a 
@@ -25,7 +32,7 @@ export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, ha
                 rel={node.data?.openInNewTab ? 'noopener noreferrer' : undefined}
                 onClick={isReadOnly ? undefined : (e) => { e.preventDefault(); e.stopPropagation(); handleClick?.(e); }}
                 style={{
-                    fontSize: node.style?.fontSize || '1rem',
+                    fontSize: style.fontSize || node.style?.fontSize || '1rem',
                     fontFamily: node.style?.fontFamily || 'inherit',
                     backgroundColor: node.style?.backgroundColor || brand?.primaryColor || '#4f46e5',
                     color: node.style?.color || '#ffffff',
@@ -39,10 +46,13 @@ export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, ha
                     borderRadius: node.style?.borderRadius || '0.5rem',
                     fontWeight: node.style?.fontWeight || 'bold',
                     textDecoration: 'none',
-                    display: 'inline-block',
-                    textAlign: 'center',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '44px',
                     minWidth: '120px',
                     width: '100%',
+                    maxWidth: '100%',
                     boxSizing: 'border-box'
                 }}
             >
