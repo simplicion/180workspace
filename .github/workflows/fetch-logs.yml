@@ -18,3 +18,4 @@ jobs:
             cd /home/ubuntu/app
             pm2 status
             pm2 logs --nostream --lines 100
+
