@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { BillingService } from '@workspace/platform-billing';
 import { prisma } from '@workspace/db';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 let cachedRates: any = null;
 let lastRatesFetchTime = 0;
@@ -157,7 +157,7 @@ export class BillingController {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
             const subscriptions = await prisma.subscription.findMany({
                 where: { companyId },
-                include: { planId: true },
+                include: { plan: true },
                 orderBy: { createdAt: 'desc' }
             });
             res.json({ subscriptions });
@@ -243,6 +243,7 @@ export class BillingController {
                             data: {
                                 companyId,
                                 planId,
+                                amount: 0,
                                 status: 'ACTIVE',
                                 providerSubscriptionId: `free_discount_${Date.now()}`,
                                 subscriptionStartDate: new Date(),
@@ -269,32 +270,56 @@ export class BillingController {
             });
 
             // Razorpay Subscriptions ONLY support INR for this account.
-            // We must convert the finalPrice to INR for the gateway.
+            // We must convert the subTotal to INR for the gateway base price.
             const inrRate = cachedRates?.['INR'] || 83; // fallback to 83 if fetch failed
+            const inrSubTotal = (subTotal / rate) * inrRate; 
+            const rzpBaseAmount = Math.max(100, Math.round(inrSubTotal * 100)); // Standard plan amount
+            
+            // Convert finalPrice to INR for the upfront/discounted amount
             const inrFinalPrice = (finalPrice / rate) * inrRate;
-            const rzpAmount = Math.max(100, Math.round(inrFinalPrice * 100)); // Ensure min 1 INR
+            const rzpUpfrontAmount = Math.max(100, Math.round(inrFinalPrice * 100)); // Discounted amount for 1st month
 
-            // Create a dynamic plan to exactly match the calculated discounted price in INR
+            // Create a dynamic plan to exactly match the standard base price in INR
             const dynamicPlan = await rzp.plans.create({
                 period: "monthly",
                 interval: 1,
                 item: {
                     name: `${targetPlan.planName} Subscription`,
-                    amount: rzpAmount,
+                    amount: rzpBaseAmount,
                     currency: 'INR',
                     description: `Plan for ${company?.name || 'Company'}`
                 }
             });
 
-            const subscription = await rzp.subscriptions.create({
+            const subscriptionPayload: any = {
                 plan_id: dynamicPlan.id,
-                total_count: 120, // 10 years of monthly billing
+                total_count: 12, // 1 year of monthly billing (renews 12 times)
                 quantity: 1,
                 customer_notify: 1,
                 notes: { companyId, planId, couponCode: couponCode || '', action: 'plan_upgrade_downgrade' }
-            });
+            };
 
-            res.json({ keyId: process.env.RAZORPAY_KEY_ID, subscriptionId: subscription.id, amount: rzpAmount, currency: 'INR', providerName: 'razorpay' });
+            // If a discount was applied (and finalPrice > 0 since we handled 0 earlier), 
+            // delay the regular billing cycle by 1 month and charge the discounted rate upfront.
+            if (discountAmount > 0) {
+                const nextMonth = new Date();
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                subscriptionPayload.start_at = Math.floor(nextMonth.getTime() / 1000);
+                
+                subscriptionPayload.addons = [
+                    {
+                        item: {
+                            name: "First Month Rate (Discount Applied)",
+                            amount: rzpUpfrontAmount,
+                            currency: "INR"
+                        }
+                    }
+                ];
+            }
+
+            const subscription = await rzp.subscriptions.create(subscriptionPayload);
+
+            res.json({ keyId: process.env.RAZORPAY_KEY_ID, subscriptionId: subscription.id, amount: discountAmount > 0 ? rzpUpfrontAmount : rzpBaseAmount, currency: 'INR', providerName: 'razorpay' });
         } catch (err) { next(err); }
     }
 
@@ -389,6 +414,7 @@ export class BillingController {
                         data: {
                             companyId,
                             planId,
+                            amount: targetPlan.price,
                             status: 'ACTIVE',
                             providerSubscriptionId: razorpay_subscription_id || null,
                             subscriptionStartDate: new Date(),
@@ -479,6 +505,7 @@ export class BillingController {
                                 data: {
                                     companyId,
                                     planId,
+                                    amount: 0,
                                     status: 'ACTIVE',
                                     providerSubscriptionId: razorpaySubscriptionId,
                                     subscriptionStartDate: new Date(),
