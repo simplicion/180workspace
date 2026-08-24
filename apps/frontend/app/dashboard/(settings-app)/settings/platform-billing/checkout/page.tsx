@@ -205,6 +205,14 @@ function CheckoutContent() {
                 planId: plan.id,
                 ...(couponResult && { couponCode: couponResult.code || coupon })
             });
+
+            if (order.isFree) {
+                toast.success(order.message || 'Subscription activated successfully!');
+                refresh();
+                router.push('/dashboard/settings/platform-billing/success');
+                return;
+            }
+
             // ... (rest of the Razorypay/Stripe logic stays same)
 
             if (order.providerName === 'stripe') {
@@ -285,12 +293,7 @@ function CheckoutContent() {
     }
     const discountedTotal = Math.max(0, subTotal - discountAmount);
     const taxAmount = discountedTotal * 0.18; // 18% GST on the discounted total
-    let finalPrice = discountedTotal + taxAmount;
-    
-    // Enforce a minimum validation charge: 0.5% of the original subtotal, but never less than 1 base unit
-    if (finalPrice <= 0) {
-        finalPrice = Math.max(1, subTotal * 0.005);
-    }
+    const finalPrice = discountedTotal + taxAmount;
 
     return (
         <div className="min-h-[80vh] relative overflow-hidden bg-slate-50/50 dark:bg-black/20 rounded-2xl">
@@ -402,9 +405,9 @@ function CheckoutContent() {
                         </div>
 
                         <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-md p-3 mb-5 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
-                            {discountedTotal <= 0 ? (
+                            {finalPrice <= 0 ? (
                                 <span>
-                                    <strong className="text-slate-700 dark:text-slate-300 font-medium">Setup Validation:</strong> A nominal fee of {currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })} is required today for gateway validation. Your subscription will renew at {currencySym}{(subTotal + (subTotal * 0.18)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month starting next billing cycle.
+                                    <strong className="text-slate-700 dark:text-slate-300 font-medium">Full Discount Applied:</strong> Your subscription is fully covered for this billing cycle. It will renew at {currencySym}{(subTotal + (subTotal * 0.18)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month starting next billing cycle.
                                 </span>
                             ) : (
                                 <span>

@@ -195,9 +195,41 @@ export class BillingController {
             const taxAmount = discountedTotal * 0.18; // 18% GST on the discounted total
             let finalPrice = discountedTotal + taxAmount;
 
-            // Enforce a minimum validation charge: 0.5% of the original subtotal, but never less than 1 base unit
             if (finalPrice <= 0) {
-                finalPrice = Math.max(1, subTotal * 0.005);
+                // If it's a 100% discount, skip Razorpay entirely and activate the subscription directly
+                
+                // Cancel existing active subscription
+                const oldSub = await prisma.subscription.findFirst({
+                    where: { companyId, status: { in: ['ACTIVE', 'active'] } }
+                });
+                if (oldSub) {
+                    await prisma.subscription.update({
+                        where: { id: oldSub.id },
+                        data: { status: 'CANCELLED', cancelledAt: new Date() }
+                    });
+                }
+                
+                // Create new subscription
+                const subscription = await prisma.subscription.create({
+                    data: {
+                        companyId,
+                        planId,
+                        status: 'ACTIVE',
+                        providerSubscriptionId: `free_discount_${Date.now()}`,
+                        subscriptionStartDate: new Date(),
+                        subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+                    }
+                });
+
+                // Update coupon usage
+                if (couponCode) {
+                    await prisma.coupon.update({
+                        where: { couponCode: couponCode.toUpperCase() },
+                        data: { usedCount: { increment: 1 } }
+                    });
+                }
+
+                return res.json({ success: true, isFree: true, message: `Successfully switched to ${targetPlan.planName} via full discount.`, subscriptionId: subscription.id });
             }
 
             // Convert to minor units (e.g., paise/cents)
