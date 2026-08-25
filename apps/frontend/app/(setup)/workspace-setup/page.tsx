@@ -132,27 +132,40 @@ function WorkspaceSetup() {
         const generatedSlug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
         setSlug(generatedSlug);
         
-        if (!generatedSlug) {
+        // Wait until there's a reasonable slug length before checking
+        if (!generatedSlug || generatedSlug.length < 3) {
             setSlugAvailable(null);
+            setIsCheckingSlug(false);
             return;
         }
 
         setIsCheckingSlug(true);
         setSlugAvailable(null);
 
+        const controller = new AbortController();
+
         const timeoutId = setTimeout(async () => {
             try {
-                const res = await fetch(`/api/check-company?slug=${generatedSlug}`);
+                const res = await fetch(`/api/check-company?slug=${generatedSlug}`, {
+                    signal: controller.signal
+                });
                 const data = await res.json();
                 setSlugAvailable(data.available);
-            } catch (err) {
-                setSlugAvailable(null);
+            } catch (err: any) {
+                if (err.name !== 'AbortError') {
+                    setSlugAvailable(null);
+                }
             } finally {
-                setIsCheckingSlug(false);
+                if (!controller.signal.aborted) {
+                    setIsCheckingSlug(false);
+                }
             }
-        }, 500);
+        }, 1500); // 1.5 second debounce
 
-        return () => clearTimeout(timeoutId);
+        return () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
     }, [companyName]);
 
     // Step 2: Industry & Stage
