@@ -57,4 +57,9 @@ router.post('/quotes/:id/email', ctrl.sendQuoteEmail);
 
 router.get('/revenue', ctrl.getRevenueStats);
 
+router.get('/deals', ctrl.getDeals);
+router.put('/deals/:id', ctrl.updateDeal);
+router.delete('/deals/:id', ctrl.deleteDeal);
+router.post('/deals/import', ctrl.importDeals);
+
 export default router;
