@@ -85,10 +85,10 @@ export default function AppsManagementPage() {
             setEnabledApps(newApps);
             setEnabledModules(newModules);
             
-            await api.put('/api/company-config', {
-                enabledApps: newApps,
-                enabledModules: newModules
-            });
+            await Promise.all([
+                api.patch('/api/company-config/apps', { apps: newApps }),
+                api.patch('/api/company-config/modules', { modules: newModules })
+            ]);
             await refreshSettings(true);
             toast.success(isEnabled ? 'App uninstalled successfully' : 'App installed successfully');
         } catch (error) {
@@ -265,7 +265,7 @@ export default function AppsManagementPage() {
                                         key={app.id}
                                         variants={cardVariants}
                                         layout
-                                        onClick={() => router.push('/settings/apps/${app.id}/config')}
+                                        onClick={() => router.push(`/settings/apps/${app.id}/config`)}
                                         className={clsx(
                                             "group relative flex flex-col p-2.5 rounded-2xl border transition-all duration-300 cursor-pointer",
                                             isEnabled 

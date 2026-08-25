@@ -14,16 +14,26 @@ interface Props {
     account?: any; // If provided, we are in edit mode
 }
 
-const INDUSTRIES = [
-    { label: 'Technology', value: 'Technology', baseClv: 15000 },
-    { label: 'Healthcare', value: 'Healthcare', baseClv: 25000 },
-    { label: 'Finance', value: 'Finance', baseClv: 35000 },
-    { label: 'Manufacturing', value: 'Manufacturing', baseClv: 20000 },
-    { label: 'Retail', value: 'Retail', baseClv: 8000 },
-    { label: 'Education', value: 'Education', baseClv: 12000 },
-    { label: 'Real Estate', value: 'Real Estate', baseClv: 30000 },
-    { label: 'Other', value: 'Other', baseClv: 10000 }
-];
+import { industriesList } from '@workspace/common';
+
+const BASE_CLV_MAP: Record<string, number> = {
+    'Computer Software': 15000,
+    'Information Technology & Services': 15000,
+    'Hospital & Health Care': 25000,
+    'Medical Practice': 25000,
+    'Financial Services': 35000,
+    'Banking': 35000,
+    'Manufacturing': 20000,
+    'Retail': 8000,
+    'Education Management': 12000,
+    'Real Estate': 30000,
+};
+
+const INDUSTRIES = industriesList.map(industry => ({
+    label: industry,
+    value: industry,
+    baseClv: BASE_CLV_MAP[industry] || 10000
+}));
 
 const SIZES = [
     { label: '1-10 (Startup)', value: '1-10', multiplier: 0.5 },

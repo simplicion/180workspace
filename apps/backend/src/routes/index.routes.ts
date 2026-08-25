@@ -145,8 +145,6 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/transactions', '/v1/finance/transactions');
     } else if (path.startsWith('/vendors/') || path === '/vendors') {
         req.url = req.url.replace('/vendors', '/v1/finance/vendors');
-    } else if (path.startsWith('/company-config/') || path === '/company-config') {
-        req.url = req.url.replace('/company-config', '/v1/company/config');
     } else if (path.startsWith('/company/') || path === '/company') {
         req.url = req.url.replace('/company', '/v1/company/profile');
     } else if (path.startsWith('/branding/') || path === '/branding') {

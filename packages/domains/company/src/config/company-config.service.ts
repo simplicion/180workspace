@@ -74,6 +74,10 @@ export class CompanyConfigService {
             try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
         }
 
+        const safeUpdateData = { ...updateData };
+        delete safeUpdateData.enabledApps;
+        delete safeUpdateData.enabledModules;
+
         const updatedCompany = await prisma.company.update({
             where: { id: companyId },
             data: {
@@ -83,7 +87,7 @@ export class CompanyConfigService {
                 currencySymbol: updateData.currencySymbol !== undefined ? updateData.currencySymbol : company.currencySymbol,
                 metadata: {
                     ...metadata,
-                    ...updateData
+                    ...safeUpdateData
                 }
             }
         });
@@ -113,7 +117,7 @@ export class CompanyConfigService {
 
         const subService = new SubscriptionService();
         const limits = await subService.getSubscriptionLimits(companyId);
-        if (limits && apps.length > limits.maxApps) {
+        if (limits && limits.maxApps !== -1 && apps.length > limits.maxApps) {
             throw new Error(`Your current plan limits you to a maximum of ${limits.maxApps} apps. Please upgrade your plan to activate more apps.`);
         }
 

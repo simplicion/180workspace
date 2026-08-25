@@ -219,7 +219,7 @@ export const ALL_APPS = [
     { id: 'assets', name: 'Assets', description: 'Track company assets.', icon: Package },
     { id: 'collaboration', name: 'Collaboration', description: 'Real-time chat and team communication.', icon: MessageSquare },
     { id: 'documents', name: 'Documents', description: 'Cloud storage and document management.', icon: FilePlus2 },
-    { id: 'analytics', name: 'Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
+    { id: 'insights', name: 'Insights & Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
 ];
 

@@ -11,7 +11,6 @@ import { Skeleton , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from "@workspace/ui";
-import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 import LeadPipelineDrawer from '@/app/(platform)/(crm-and-sales-app)/components/LeadPipelineDrawer';
 import {
     DndContext,
@@ -133,10 +132,10 @@ export default function LeadPipelinesKanbanPage() {
         setDeleting(true);
         try {
             await api.delete(`/api/sales/opportunities/${showDeleteConfirm.id}`);
-            toast.success('leadPipeline deleted');
+            toast.success('Lead deleted');
             setleadPipelines(prev => prev.filter(o => o.id !== showDeleteConfirm.id));
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to delete leadPipeline');
+            toast.error(error.response?.data?.error || 'Failed to delete lead');
         } finally {
             setDeleting(false);
             setShowDeleteConfirm(null);
@@ -259,15 +258,6 @@ export default function LeadPipelinesKanbanPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                    <button className="btn btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5" onClick={() => toast.success("Select mode active")}>
-                        <CheckSquare className="w-3.5 h-3.5" /> Select
-                    </button>
-                    <button className="btn btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-gray-500 hover:text-red-600" onClick={() => toast('Trash opened')}>
-                        <Trash2 className="w-3.5 h-3.5" /> Trash
-                    </button>
-                    <button className="btn btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5" onClick={() => toast('Stages configuration opened')}>
-                        <Settings className="w-3.5 h-3.5" /> Stages
-                    </button>
                     <button 
                         onClick={() => {
                             setEditingleadPipeline(null);
@@ -362,12 +352,19 @@ export default function LeadPipelinesKanbanPage() {
             <LeadPipelineDrawer
                 open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                onSuccess={fetchleadPipelines}
+                onSuccess={(deletedId?: string) => {
+                    if (deletedId) {
+                        // Live removal without refetch
+                        setleadPipelines(prev => prev.filter(o => o.id !== deletedId));
+                    } else {
+                        fetchleadPipelines();
+                    }
+                }}
                 editingLeadPipeline={editingLeadPipeline}
             />
             <ConfirmModal
                 isOpen={!!showDeleteConfirm}
-                title="Delete leadPipeline"
+                title="Delete Lead"
                 message={`Are you sure you want to delete "${showDeleteConfirm?.title}"? This action cannot be undone.`}
                 confirmText="Delete"
                 onConfirm={handleDeleteleadPipeline}

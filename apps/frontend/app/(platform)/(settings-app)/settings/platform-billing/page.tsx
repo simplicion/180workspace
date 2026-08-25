@@ -98,6 +98,16 @@ export default function PlatformBillingPage() {
     const maxApps = currentSubscription?.plan?.maxApps || 0;
     const appsCount = billingInfo?.activeAppsCount || 0; // Fallback if API doesn't return it yet
 
+    const formatLimit = (limit?: number) => {
+        if (limit === undefined || limit === null) return undefined;
+        return limit < 0 || limit >= 999 ? 'Unlimited' : limit.toString();
+    };
+
+    const planPrice = currentSubscription?.plan?.price || 0;
+    const planCurrency = currentSubscription?.plan?.currency || 'USD';
+    const formattedPrice = planPrice > 0 
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: planCurrency, maximumFractionDigits: 2 }).format(planPrice) 
+        : 'Free';
 
     return (
         <div className="mx-auto max-w-6xl space-y-8 pb-12">
@@ -144,7 +154,7 @@ export default function PlatformBillingPage() {
                                 current={storageUsed}
                                 max={totalStorage}
                                 formattedCurrent={formatBytes(storageUsed)}
-                                formattedMax={formatBytes(totalStorage)}
+                                formattedMax={formatLimit(totalStorage) === 'Unlimited' ? 'Unlimited' : formatBytes(totalStorage)}
                             />
                         </div>
                         <div>
@@ -152,7 +162,7 @@ export default function PlatformBillingPage() {
                                 label="Team Members"
                                 current={teamMembersCount}
                                 max={totalMaxUsers}
-                                formattedMax={totalMaxUsers > 1000 ? 'Unlimited' : undefined}
+                                formattedMax={formatLimit(totalMaxUsers)}
                             />
                         </div>
                         <div>
@@ -160,7 +170,7 @@ export default function PlatformBillingPage() {
                                 label="Apps Count"
                                 current={appsCount}
                                 max={maxApps}
-                                formattedMax={maxApps > 1000 ? 'Unlimited' : undefined}
+                                formattedMax={formatLimit(maxApps)}
                             />
                         </div>
                         <div>
@@ -168,7 +178,7 @@ export default function PlatformBillingPage() {
                                 label="Websites Count"
                                 current={billingInfo?.activeWebsitesCount || 0}
                                 max={currentSubscription?.plan?.maxWebsites || 0}
-                                formattedMax={(currentSubscription?.plan?.maxWebsites || 0) > 1000 ? 'Unlimited' : undefined}
+                                formattedMax={formatLimit(currentSubscription?.plan?.maxWebsites)}
                             />
                         </div>
                     </div>
@@ -195,7 +205,7 @@ export default function PlatformBillingPage() {
                             <span className="text-gray-500 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Billing Cycle</span>
                             <span className="font-medium text-gray-900">
                                 {currentSubscription?.billingCycle || 'Monthly'}
-                                {currentSubscription?.plan?.price > 0 && ` / ${currencyInfo.symbol}${currentSubscription?.plan?.price}`}
+                                {planPrice > 0 && ` / ${formattedPrice}`}
                             </span>
                         </div>
                         <div className="flex justify-between border-b border-gray-100 pb-4">
@@ -231,7 +241,7 @@ export default function PlatformBillingPage() {
                             isSelected={currentSubscription?.planId === plan.id}
                             onSelect={async () => {
                                 if (currentSubscription?.planId === plan.id) return;
-                                router.push('/settings/platform-billing/checkout?planId=${plan.id}');
+                                router.push(`/settings/platform-billing/checkout?planId=${plan.id}`);
                             }}
                             buttonText={currentSubscription?.planId === plan.id ? 'Current Active Plan' : 'Upgrade'}
                         />

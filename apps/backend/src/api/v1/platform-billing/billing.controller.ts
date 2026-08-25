@@ -254,6 +254,20 @@ export class BillingController {
                         subscriptionId = subscription.id;
                     });
 
+                    // Send email to user regarding successful activation
+                    const currentUser = (req as any).user;
+                    if (currentUser && currentUser.email) {
+                        const EmailManagementService = require('@workspace/communications').EmailManagementService;
+                        if (EmailManagementService) {
+                            await EmailManagementService.sendCustomEmail(
+                                currentUser.id, 
+                                currentUser.email, 
+                                `180workspace - ${targetPlan.planName} Activated`, 
+                                `<h2>Subscription Activated</h2><p>Hi ${currentUser.name},</p><p>Your subscription to <strong>${targetPlan.planName}</strong> has been successfully activated via full discount.</p><p>Thank you for choosing 180workspace!</p>`
+                            ).catch((err: any) => console.error('Failed to send subscription email:', err));
+                        }
+                    }
+
                     return res.json({ success: true, isFree: true, message: `Successfully switched to ${targetPlan.planName} via full discount.`, subscriptionId });
                 } catch (txError: any) {
                     return res.status(400).json({ error: txError.message || 'Checkout failed due to concurrent usage limit.' });
@@ -279,15 +293,13 @@ export class BillingController {
             const inrFinalPrice = (finalPrice / rate) * inrRate;
             const rzpUpfrontAmount = Math.max(100, Math.round(inrFinalPrice * 100)); // Discounted amount for 1st month
 
-            // Create a dynamic plan to exactly match the standard base price in INR
             const dynamicPlan = await rzp.plans.create({
                 period: "monthly",
                 interval: 1,
                 item: {
-                    name: `${targetPlan.planName} Subscription`,
+                    name: `Sub`,
                     amount: rzpBaseAmount,
-                    currency: 'INR',
-                    description: `Plan for ${company?.name || 'Company'}`
+                    currency: 'INR'
                 }
             });
 
@@ -295,8 +307,7 @@ export class BillingController {
                 plan_id: dynamicPlan.id,
                 total_count: 12, // 1 year of monthly billing (renews 12 times)
                 quantity: 1,
-                customer_notify: 1,
-                notes: { companyId, planId, couponCode: couponCode || '', action: 'plan_upgrade_downgrade' }
+                customer_notify: 1
             };
 
             // If a discount was applied (and finalPrice > 0 since we handled 0 earlier), 
@@ -431,6 +442,20 @@ export class BillingController {
                     }
                 }
             });
+
+            // Send email to user regarding successful activation
+            const currentUser = (req as any).user;
+            if (currentUser && currentUser.email) {
+                const EmailManagementService = require('@workspace/communications').EmailManagementService;
+                if (EmailManagementService) {
+                    await EmailManagementService.sendCustomEmail(
+                        currentUser.id, 
+                        currentUser.email, 
+                        `180workspace - ${targetPlan.planName} Activated`, 
+                        `<h2>Subscription Activated</h2><p>Hi ${currentUser.name},</p><p>Your subscription to <strong>${targetPlan.planName}</strong> has been successfully activated.</p><p>Thank you for choosing 180workspace!</p>`
+                    ).catch((err: any) => console.error('Failed to send subscription email:', err));
+                }
+            }
 
             res.json({ success: true, message: `Successfully switched to ${targetPlan.planName}.` });
         } catch (err) { next(err); }

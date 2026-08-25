@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { Sparkles, ChevronRight, ChevronLeft, Calendar as CalendarIcon, Target, Users, Megaphone, Hash, BarChart3, Settings2, Building2, User } from 'lucide-react';
 import clsx from 'clsx';
 import CustomSelect from '@/components/ui/CustomSelect';
-
+import { industriesList } from '@workspace/common';
 const STEPS = [
     { id: 1, title: 'Basic Info', icon: Settings2 },
     { id: 2, title: 'Audience', icon: Users },
@@ -295,13 +295,16 @@ export default function CreateCalendarPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 {config.calendarType === 'company' ? 'Industry / Niche' : 'Area of Expertise'} <span className="text-red-500">*</span>
                             </label>
-                            <input 
-                                type="text" 
+                            <CustomSelect 
                                 className="input" 
                                 value={config.industry} 
-                                onChange={(e) => handleChange('industry', e.target.value)}
-                                placeholder={config.calendarType === 'company' ? 'e.g. B2B SaaS' : 'e.g. Content Strategy, Fitness Coaching'} 
-                            />
+                                onChange={(e: any) => handleChange('industry', e.target.value)}
+                            >
+                                <option value="">Select Industry</option>
+                                {industriesList.map(industry => (
+                                    <option key={industry} value={industry}>{industry}</option>
+                                ))}
+                            </CustomSelect>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">

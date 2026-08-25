@@ -65,8 +65,8 @@ function getRecommendedApps(type: string) {
     const core = ['system', 'collaboration', 'documents']; // Always needed
     switch (type) {
         case 'agency': return [...core, 'projects', 'crm', 'finance'];
-        case 'saas': return [...core, 'projects', 'analytics', 'hr'];
-        case 'ecommerce': return [...core, 'crm', 'finance', 'analytics'];
+        case 'saas': return [...core, 'projects', 'insights', 'hr'];
+        case 'ecommerce': return [...core, 'crm', 'finance', 'insights'];
         case 'consulting': return [...core, 'projects', 'finance', 'crm'];
         default: return [...core, 'projects', 'hr', 'finance'];
     }
