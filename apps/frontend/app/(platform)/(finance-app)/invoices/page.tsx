@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
-import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
+import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 
 import { CreateInvoiceDrawer } from './_components/CreateInvoiceDrawer';
 import { InvoiceViewDrawer } from './_components/InvoiceViewDrawer';

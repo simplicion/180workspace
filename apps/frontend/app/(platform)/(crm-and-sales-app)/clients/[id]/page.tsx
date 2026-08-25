@@ -65,7 +65,7 @@ export default function ClientProfilePage() {
     useEffect(() => { loadData(); }, [loadData]);
 
     function handleCreateInvoice() {
-        router.push('/invoices/new?clientId=${id}&clientName=${encodeURIComponent(client?.name || '')}`);
+        router.push(`/invoices/new?clientId=${id}&clientName=${encodeURIComponent(client?.name || '')}`);
     }
 
     if (loading) return (

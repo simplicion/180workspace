@@ -13,11 +13,11 @@ import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
-import TemplatesListDrawer from '@/app/dashboard/(workspace-tools-app)/_components/TemplatesListDrawer';
-import DocumentAIChatDrawer from '@/app/dashboard/(workspace-tools-app)/_components/DocumentAIChatDrawer';
+import TemplatesListDrawer from '@/app/(platform)/(workspace-tools-app)/_components/TemplatesListDrawer';
+import DocumentAIChatDrawer from '@/app/(platform)/(workspace-tools-app)/_components/DocumentAIChatDrawer';
 import FileUploadModal from '@/components/shared/FileUploadModal';
-import QuoteModal from '@/app/dashboard/(workspace-tools-app)/_components/QuoteModal';
-import EmailQuoteModal from '@/app/dashboard/(workspace-tools-app)/_components/EmailQuoteModal';
+import QuoteModal from '@/app/(platform)/(workspace-tools-app)/_components/QuoteModal';
+import EmailQuoteModal from '@/app/(platform)/(workspace-tools-app)/_components/EmailQuoteModal';
 
 interface Document { id?: string;
     _id?: string;

@@ -11,17 +11,17 @@ import {
 import { Skeleton, FeatureLock } from "@workspace/ui";
 import { useSettings } from '@/lib/settings-context';
 import Link from 'next/link';
-import EmployeeDashboard from '@/app/dashboard/(dashboard)/_components/EmployeeDashboard';
-import RecentProjects from '@/app/dashboard/(dashboard)/_components/RecentProjects';
-import FinancialTrajectory from '@/app/dashboard/(dashboard)/_components/FinancialTrajectory';
-import CeoOverview from '@/app/dashboard/(dashboard)/_components/CeoOverview';
-import FinancialSnapshot from '@/app/dashboard/(dashboard)/_components/FinancialSnapshot';
-import OperationsOverview from '@/app/dashboard/(dashboard)/_components/OperationsOverview';
-import TeamPulse from '@/app/dashboard/(dashboard)/_components/TeamPulse';
-import ActivityAnalytics from '@/app/dashboard/(dashboard)/_components/ActivityAnalytics';
-import LiveActivityFeed from '@/app/dashboard/(dashboard)/_components/LiveActivityFeed';
-import SalesActivityFeed from '@/app/dashboard/(dashboard)/_components/SalesActivityFeed';
-import SalesOverview from '@/app/dashboard/(dashboard)/_components/SalesOverview';
+import EmployeeDashboard from '@/app/(platform)/(dashboard)/_components/EmployeeDashboard';
+import RecentProjects from '@/app/(platform)/(dashboard)/_components/RecentProjects';
+import FinancialTrajectory from '@/app/(platform)/(dashboard)/_components/FinancialTrajectory';
+import CeoOverview from '@/app/(platform)/(dashboard)/_components/CeoOverview';
+import FinancialSnapshot from '@/app/(platform)/(dashboard)/_components/FinancialSnapshot';
+import OperationsOverview from '@/app/(platform)/(dashboard)/_components/OperationsOverview';
+import TeamPulse from '@/app/(platform)/(dashboard)/_components/TeamPulse';
+import ActivityAnalytics from '@/app/(platform)/(dashboard)/_components/ActivityAnalytics';
+import LiveActivityFeed from '@/app/(platform)/(dashboard)/_components/LiveActivityFeed';
+import SalesActivityFeed from '@/app/(platform)/(dashboard)/_components/SalesActivityFeed';
+import SalesOverview from '@/app/(platform)/(dashboard)/_components/SalesOverview';
 import { useGetWeeklyTrendsQuery, useGetHrmsDashboardStatsQuery, useGetRecentProjectsQuery } from '@/redux/api/dashboardApi';
 
 interface DashboardStats {

@@ -1,6 +1,6 @@
 'use client';
 
-import FinanceTab from '@/app/dashboard/(settings-app)/_components/FinanceTab';
+import FinanceTab from '@/app/(platform)/(settings-app)/_components/FinanceTab';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { FeatureLock, LogoLoader } from '@workspace/ui';

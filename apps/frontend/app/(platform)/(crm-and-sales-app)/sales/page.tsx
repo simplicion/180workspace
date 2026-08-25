@@ -20,14 +20,14 @@ import nextDynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 
-const SalesTrendAreaChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/SalesTrendAreaChart'), { ssr: false, loading: () => <SkeletonChart /> });
-const SalesPipelinePieChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/SalesPipelinePieChart'), { ssr: false, loading: () => <SkeletonChart /> });
-const SalesRevenueBarChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/SalesRevenueBarChart'), { ssr: false, loading: () => <SkeletonChart /> });
+const SalesTrendAreaChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesTrendAreaChart'), { ssr: false, loading: () => <SkeletonChart /> });
+const SalesPipelinePieChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesPipelinePieChart'), { ssr: false, loading: () => <SkeletonChart /> });
+const SalesRevenueBarChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesRevenueBarChart'), { ssr: false, loading: () => <SkeletonChart /> });
 
-const RevenueTrendAreaChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueTrendAreaChart'), { ssr: false, loading: () => <SkeletonChart /> });
-const RevenueDealsLineChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueDealsLineChart'), { ssr: false, loading: () => <SkeletonChart /> });
-const DailyActivityLineChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/DailyActivityLineChart'), { ssr: false, loading: () => <SkeletonChart /> });
-const RevenueWinLossPieChart = nextDynamic(() => import('@/app/dashboard/(crm-and-sales-app)/components/RevenueWinLossPieChart'), { ssr: false, loading: () => <SkeletonChart /> });
+const RevenueTrendAreaChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/RevenueTrendAreaChart'), { ssr: false, loading: () => <SkeletonChart /> });
+const RevenueDealsLineChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/RevenueDealsLineChart'), { ssr: false, loading: () => <SkeletonChart /> });
+const DailyActivityLineChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/DailyActivityLineChart'), { ssr: false, loading: () => <SkeletonChart /> });
+const RevenueWinLossPieChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/RevenueWinLossPieChart'), { ssr: false, loading: () => <SkeletonChart /> });
 
 export default function SalesDashboardPage() {
     const { user } = useAuth();

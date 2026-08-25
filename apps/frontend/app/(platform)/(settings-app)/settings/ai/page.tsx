@@ -1,6 +1,6 @@
 'use client';
 
-import AiTab from '@/app/dashboard/(settings-app)/_components/AiTab';
+import AiTab from '@/app/(platform)/(settings-app)/_components/AiTab';
 import { ChevronLeft, Brain } from 'lucide-react';
 import Link from 'next/link';
 import { FeatureLock, LogoLoader } from '@workspace/ui';

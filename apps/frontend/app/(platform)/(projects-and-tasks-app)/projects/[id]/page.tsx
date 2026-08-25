@@ -10,15 +10,15 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import FileUploadModal from '@/components/shared/FileUploadModal';
 import UserSelectionModal from '@/components/shared/UserSelectionModal';
-import CreateTaskModal from '@/app/dashboard/(projects-and-tasks-app)/_components/CreateTaskModal';
-import EditProjectModal from '@/app/dashboard/(projects-and-tasks-app)/_components/EditProjectModal';
-import TaskDetailModal from '@/app/dashboard/(projects-and-tasks-app)/_components/TaskDetailModal';
+import CreateTaskModal from '@/app/(platform)/(projects-and-tasks-app)/_components/CreateTaskModal';
+import EditProjectModal from '@/app/(platform)/(projects-and-tasks-app)/_components/EditProjectModal';
+import TaskDetailModal from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskDetailModal';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { useAuth } from '@/lib/auth-context';
 import toast from 'react-hot-toast';
 import { FavoriteButton } from "@workspace/ui";
-import CreateModuleModal from '@/app/dashboard/(projects-and-tasks-app)/_components/CreateModuleModal';
-import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
+import CreateModuleModal from '@/app/(platform)/(projects-and-tasks-app)/_components/CreateModuleModal';
+import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/LogWorkModal';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 const STATUS_COLORS: Record<string, string> = {

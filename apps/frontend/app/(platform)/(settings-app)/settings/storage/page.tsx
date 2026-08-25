@@ -1,6 +1,6 @@
 'use client';
 
-import StorageTab from '@/app/dashboard/(settings-app)/_components/StorageTab';
+import StorageTab from '@/app/(platform)/(settings-app)/_components/StorageTab';
 import { ChevronLeft, Cloud } from 'lucide-react';
 import Link from 'next/link';
 import { FeatureLock, LogoLoader } from '@workspace/ui';

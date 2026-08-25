@@ -13,16 +13,16 @@ import { useSettings } from '@/lib/settings-context';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 // Lazy load heavy components
-const PayslipDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/PayslipDrawer'), {
+const PayslipDrawer = dynamic_import(() => import('@/app/(platform)/(hr-management-app)/_components/PayslipDrawer'), {
     loading: () => <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm"><LogoLoader className="w-8 h-8 animate-spin text-white" /></div>,
     ssr: false
 });
 
-const ReviewSalaryDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/ReviewSalaryDrawer'), {
+const ReviewSalaryDrawer = dynamic_import(() => import('@/app/(platform)/(hr-management-app)/_components/ReviewSalaryDrawer'), {
     ssr: false
 });
 
-const GeneratePayrollDrawer = dynamic_import(() => import('@/app/dashboard/(hr-management-app)/_components/GeneratePayrollDrawer'), {
+const GeneratePayrollDrawer = dynamic_import(() => import('@/app/(platform)/(hr-management-app)/_components/GeneratePayrollDrawer'), {
     ssr: false
 });
 

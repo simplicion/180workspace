@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useSettings } from '@/lib/settings-context';
-import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
+import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/LogWorkModal';
 
 const ACTION_COLORS: Record<string, string> = {
     'CREATE': 'text-emerald-600 bg-emerald-50',

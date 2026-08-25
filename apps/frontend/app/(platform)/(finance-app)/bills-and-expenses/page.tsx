@@ -9,7 +9,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { LogoLoader, ConfirmModal } from "@workspace/ui";
-import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
+import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 
 import { CreateTransactionDrawer } from './_components/CreateTransactionDrawer';
 

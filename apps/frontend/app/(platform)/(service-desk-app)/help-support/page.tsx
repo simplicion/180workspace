@@ -1,4 +1,4 @@
-import SupportCenterPage from '@/app/dashboard/(dashboard)/_components/SupportCenterPage';
+import SupportCenterPage from '@/app/(platform)/(dashboard)/_components/SupportCenterPage';
 
 export default function Page() {
     return <SupportCenterPage />;

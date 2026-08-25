@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
-import { ElementNode } from '@/app/dashboard/(advertising-app)/advertising/[id]/edit/types';
-import { BuilderElement } from '@/app/dashboard/(advertising-app)/advertising/[id]/edit/BuilderElement';
+import { ElementNode } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/types';
+import { BuilderElement } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/BuilderElement';
 
 interface PublicRenderElementProps {
     node: ElementNode;

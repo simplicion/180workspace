@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Database, Shield } from 'lucide-react';
 import Link from 'next/link';
-import DatabaseTab from '@/app/dashboard/(settings-app)/_components/DatabaseTab';
+import DatabaseTab from '@/app/(platform)/(settings-app)/_components/DatabaseTab';
 import { FeatureLock, LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 

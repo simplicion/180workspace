@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO } from 'date-fns';
 import { useSettings } from '@/lib/settings-context';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
-import { MeetingSummaryDrawer } from '@/app/dashboard/(communications-app)/_components/MeetingSummaryDrawer';
+import { MeetingSummaryDrawer } from '@/app/(platform)/(communications-app)/_components/MeetingSummaryDrawer';
 import { Drawer } from '@/components/ui/Drawer';
 import CustomSelect from '@/components/ui/CustomSelect';
 
