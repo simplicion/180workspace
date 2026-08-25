@@ -474,3 +474,34 @@ export const getSalesActivity = async (req: Request, res: Response, next: NextFu
         next(error);
     }
 };
+
+// -------------------------------------------------------------
+// DEALS
+// -------------------------------------------------------------
+export const getDeals = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await SalesService.getDeals();
+        res.json(result);
+    } catch (err) { next(err); }
+};
+
+export const updateDeal = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await SalesService.updateDeal(req.params.id, req.body);
+        res.json(result);
+    } catch (err) { next(err); }
+};
+
+export const deleteDeal = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        await SalesService.deleteDeal(req.params.id);
+        res.json({ message: 'Deal deleted successfully' });
+    } catch (err) { next(err); }
+};
+
+export const importDeals = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const count = await SalesService.importDeals(req.body.leads, (req as any).user.id);
+        res.status(201).json({ message: `Successfully imported ${count} deals`, count });
+    } catch (err) { next(err); }
+};

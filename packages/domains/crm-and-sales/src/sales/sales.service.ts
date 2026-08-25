@@ -1591,6 +1591,52 @@ export class SalesService {
         return { opportunity: opp, message };
     }
 
+    // ------------------------------------------------------------------------
+    // DEALS (ACTIVE CLIENT PIPELINE)
+    // ------------------------------------------------------------------------
+
+    static async getDeals() {
+        const deals = await prisma.deal.findMany({
+            include: { assignedSalesRep: { select: { name: true, email: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+        return { leads: deals };
+    }
+
+    static async updateDeal(id, data) {
+        return prisma.deal.update({
+            where: { id },
+            data
+        });
+    }
+
+    static async deleteDeal(id) {
+        return prisma.deal.delete({
+            where: { id }
+        });
+    }
+
+    static async importDeals(dealsData, userId) {
+        let count = 0;
+        for (const deal of dealsData) {
+            await prisma.deal.create({
+                data: {
+                    name: deal.name || 'Unknown',
+                    email: deal.email || null,
+                    phone: deal.phone || null,
+                    company: deal.company || null,
+                    industry: deal.industry || null,
+                    status: deal.status || 'kickoff',
+                    value: deal.value ? parseFloat(deal.value) : 0,
+                    source: deal.source || 'outbound',
+                    assignedSalesRepId: userId
+                }
+            });
+            count++;
+        }
+        return count;
+    }
+
     static async createProjectFromOpportunity(id, userId) {
         const Opportunity = prisma.lead;
         const Project = prisma.project;
