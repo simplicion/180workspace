@@ -24,7 +24,7 @@ export class FormsService {
             mapping: field.mapping || null
           }))
         }
-      },
+      } as any,
       include: {
         fields: true
       }
