@@ -26,7 +26,7 @@ const clearCompanyCache = async (companyId: string, userId?: string, next?: Next
 export const getCompanyConfig = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const companyId = (req as any).user?.companyId;
-        const config = await CompanyConfigService.getCompanyConfig(companyId);
+        const config = await CompanyConfigService.getCompanyConfig();
         res.json({ config });
     } catch (err: any) {
         if (err.message === 'Company not found') {
@@ -40,7 +40,7 @@ export const updateCompanyConfig = async (req: Request, res: Response, next: Nex
     try {
         const companyId = (req as any).user?.companyId;
         const userId = (req as any).user?.id;
-        const { config, updatedCompany } = await CompanyConfigService.updateCompanyConfig(companyId, req.body);
+        const { config, updatedCompany } = await CompanyConfigService.updateCompanyConfig(req.body);
 
         await clearCompanyCache(companyId, userId);
 
@@ -59,7 +59,7 @@ export const updateEnabledApps = async (req: Request, res: Response, next: NextF
         const companyId = (req as any).user?.companyId;
         const userId = (req as any).user?.id;
 
-        const { config, updatedCompany } = await CompanyConfigService.updateEnabledApps(companyId, apps);
+        const { config, updatedCompany } = await CompanyConfigService.updateEnabledApps(apps);
 
         await clearCompanyCache(companyId, userId);
 
@@ -81,7 +81,7 @@ export const updateEnabledModules = async (req: Request, res: Response, next: Ne
         const companyId = (req as any).user?.companyId;
         const userId = (req as any).user?.id;
 
-        const { config, updatedCompany } = await CompanyConfigService.updateEnabledModules(companyId, modules);
+        const { config, updatedCompany } = await CompanyConfigService.updateEnabledModules(modules);
 
         await clearCompanyCache(companyId, userId);
 

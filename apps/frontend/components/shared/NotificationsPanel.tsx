@@ -105,7 +105,7 @@ export default function NotificationsPanel() {
 
     return (
         <Link
-            href="/dashboard/activity"
+            href='/activity'
             className="relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
             title="Notifications & Activity"
         >

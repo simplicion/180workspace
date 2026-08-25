@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { PrismaClient } from '@workspace/db';
 import { EmailService } from '@workspace/backend-infra';
 
@@ -7,7 +7,8 @@ export class ReminderService {
     /**
      * Process reminders for a specific company using Prisma
      */
-    async processReminders(companyId: string) {
+    async processReminders() {
+        const companyId = requestContext.getStore()?.companyId as string;
         try {
             const config = await prisma.companyConfig.findFirst({
                 where: { companyId }

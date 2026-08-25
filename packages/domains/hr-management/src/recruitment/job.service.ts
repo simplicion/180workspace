@@ -1,10 +1,9 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { EmailService } from '@workspace/backend-infra';
 
 export class JobService {
-    static async getJobs(companyId: string) {
+    static async getJobs() {
         return await prisma.job.findMany({
-            where: { companyId },
             orderBy: { createdAt: 'desc' }
         });
     }
@@ -20,16 +19,16 @@ export class JobService {
         return job;
     }
 
-    static async createJob(companyId: string, data: any) {
+    static async createJob(data: any) {
         return await prisma.job.create({ 
-            data: { 
-                ...data, 
-                companyId 
-            }
+            data
         });
     }
 
     static async updateJob(id: string, data: any) {
+        const existing = await prisma.job.findFirst({ where: { id } });
+        if (!existing) throw new Error('Job not found');
+
         return await prisma.job.update({
             where: { id },
             data
@@ -37,6 +36,9 @@ export class JobService {
     }
 
     static async deleteJob(id: string) {
+        const existing = await prisma.job.findFirst({ where: { id } });
+        if (!existing) throw new Error('Job not found');
+
         return await prisma.job.update({
             where: { id },
             data: { status: 'deleted' } as any
@@ -45,6 +47,9 @@ export class JobService {
 
     // Applications
     static async getApplications(jobId: string) {
+        const job = await prisma.job.findFirst({ where: { id: jobId } });
+        if (!job) throw new Error('Job not found');
+
         return await prisma.application.findMany({
             where: { jobId },
             include: {
@@ -63,7 +68,18 @@ export class JobService {
         });
     }
 
-    static async updateApplication(appId: string, companyId: string, data: any) {
+    static async updateApplication(appId: string, data: any) {
+        const existing = await prisma.application.findUnique({
+            where: { id: appId }
+        });
+        if (!existing) {
+            throw new Error('Application not found');
+        }
+        const job = await prisma.job.findFirst({ where: { id: existing.jobId } });
+        if (!job) {
+            throw new Error('Application not found');
+        }
+
         const app = await prisma.application.update({
             where: { id: appId },
             data
@@ -75,6 +91,7 @@ export class JobService {
             });
             
             if (!user) {
+                const companyId = requestContext.getStore()?.companyId as string;
                 const generatedPassword = app.applicantName.split(' ')[0].toLowerCase() + Math.random().toString(36).slice(-4) + '!';
                 user = await prisma.user.create({
                     data: {

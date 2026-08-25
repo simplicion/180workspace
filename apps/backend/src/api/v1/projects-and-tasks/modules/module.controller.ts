@@ -3,7 +3,7 @@ import { ModuleService } from '@workspace/projects-and-tasks-domain';
 
 export const getModulesByProject = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await ModuleService.getModulesByProject(req.params.projectId);
+        const result = await ModuleService.getModulesByProject(req.params.projectId, (req as any).user);
         res.json(result);
     } catch (err) { next(err); }
 };

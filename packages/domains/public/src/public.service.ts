@@ -75,8 +75,8 @@ export class PublicService {
         return { success: true, company };
     }
 
-    static async getPublicJobs(companyId: string | undefined, protocol: string, host: string) {
-        const db = companyId ? getCompanyPrisma(companyId) : prisma;
+    static async getPublicJobs(protocol: string, host: string) {
+        const db = prisma;
         const jobs = await db.job.findMany({
             where: { status: 'open' },
             select: {
@@ -102,16 +102,8 @@ export class PublicService {
         return { jobs: jobsWithLinks };
     }
 
-    static async getPublicJobDetails(jobId: string, companyContextId: string | undefined, queryCompanyId: string | undefined) {
-        let db = companyContextId ? getCompanyPrisma(companyContextId) : prisma;
-
-        if (!db && queryCompanyId) {
-            db = getCompanyPrisma(queryCompanyId);
-        }
-
-        if (!db) {
-            db = companyContextId ? getCompanyPrisma(companyContextId) : prisma;
-        }
+    static async getPublicJobDetails(jobId: string) {
+        let db = prisma;
 
         const job = await db.job.findUnique({
             where: { id: jobId },
@@ -193,20 +185,22 @@ export class PublicService {
         };
     }
 
-    static async getApiKey(companyId: string) {
-        if (!companyId) throw new Error('Company context required');
-        const settings = await prisma.settings.findFirst({ where: { companyId } });
+    static async getApiKey() {
+        const settings = await prisma.settings.findFirst();
         return { apiKey: settings?.recruitmentApiKey || '' };
     }
 
-    static async generateApiKey(companyId: string) {
-        if (!companyId) throw new Error('Company context required');
+    static async generateApiKey() {
         const newKey = crypto.randomBytes(32).toString('hex');
-        await prisma.settings.upsert({
-            where: { companyId },
-            update: { recruitmentApiKey: newKey },
-            create: { companyId, recruitmentApiKey: newKey }
-        });
+        
+        const settings = await prisma.settings.findFirst();
+        if (settings) {
+            await prisma.settings.update({
+                where: { id: settings.id },
+                data: { recruitmentApiKey: newKey }
+            });
+        }
+
         return { apiKey: newKey };
     }
 
@@ -249,8 +243,11 @@ export class PublicService {
             });
 
             if (company) {
-                const companyPrisma = getCompanyPrisma(company.id);
-                const config = await companyPrisma.settings.findFirst();
+                // with ALS, prisma will resolve to company context if we set it, or we could just use findFirst,
+                // but branding is currently relying on slug. We will just search the settings based on companyId
+                const config = await prisma.settings.findFirst({
+                    where: { companyId: company.id }
+                });
 
                 if (config) {
                     branding = {
@@ -271,8 +268,8 @@ export class PublicService {
         return branding;
     }
 
-    static async getExploreJobs(companyId: string | undefined) {
-        const db = companyId ? getCompanyPrisma(companyId) : prisma;
+    static async getExploreJobs() {
+        const db = prisma;
         const jobs = await db.job.findMany({
             where: { status: 'open' },
             include: {
@@ -312,11 +309,8 @@ export class PublicService {
         return { success: true, applications };
     }
 
-    static async getPublicEvents(companyId: string | undefined) {
-        let db = companyId ? getCompanyPrisma(companyId) : prisma;
-        if (!db) {
-            db = prisma;
-        }
+    static async getPublicEvents() {
+        let db = prisma;
 
         const events = await db.event.findMany({
             where: { status: 'upcoming' },
@@ -335,11 +329,8 @@ export class PublicService {
         return { success: true, data: events };
     }
 
-    static async getPublicEventDetails(eventId: string, companyId: string | undefined) {
-        let db = companyId ? getCompanyPrisma(companyId) : prisma;
-        if (!db) {
-            db = prisma;
-        }
+    static async getPublicEventDetails(eventId: string) {
+        let db = prisma;
 
         const event = await db.event.findUnique({
             where: { id: eventId },
@@ -360,11 +351,8 @@ export class PublicService {
         return { success: true, data: event };
     }
 
-    static async checkRegistration(eventId: string, email: string, companyId: string | undefined) {
-        let db = companyId ? getCompanyPrisma(companyId) : prisma;
-        if (!db) {
-            db = prisma;
-        }
+    static async checkRegistration(eventId: string, email: string) {
+        let db = prisma;
 
         if (!email) return { isRegistered: false };
 
@@ -375,11 +363,8 @@ export class PublicService {
         return { isRegistered: !!registration };
     }
 
-    static async submitEventRegistration(eventId: string, registrationData: any, companyId: string | undefined) {
-        let db = companyId ? getCompanyPrisma(companyId) : prisma;
-        if (!db) {
-            db = prisma;
-        }
+    static async submitEventRegistration(eventId: string, registrationData: any) {
+        let db = prisma;
 
         const event = await db.event.findUnique({ where: { id: eventId } });
         if (!event) throw new Error('Event not found');
@@ -403,5 +388,58 @@ export class PublicService {
         });
 
         return { success: true, data: registration };
+    }
+
+    static async resolveDomain(domain: string) {
+        // Find in DomainRegistry
+        const registry = await prisma.domainRegistry.findUnique({
+            where: { domain: domain.toLowerCase() }
+        });
+
+        if (!registry) {
+            throw new Error('Domain not found');
+        }
+
+        // Based on type, fetch the actual payload
+        let payload = null;
+
+        if (registry.type === 'COMPANY_PROFILE') {
+            // Import CompanyProfileService dynamically or use Prisma directly to avoid circular deps
+            // Since this is public service, we can fetch public company data directly
+            payload = await prisma.company.findUnique({
+                where: { id: registry.targetId },
+                include: {
+                    CompanyConfig: true,
+                    CompanyCoreValue: true,
+                    CompanyService: true,
+                    CompanyProduct: true,
+                    CompanyMedia: true,
+                    CompanyInvestor: true
+                }
+            });
+            
+            if (payload) {
+                // Strip sensitive config
+                if (payload.CompanyConfig) {
+                    delete payload.CompanyConfig.companyPaymentConfig;
+                    delete payload.CompanyConfig.stripeAccountId;
+                    delete payload.CompanyConfig.paypalEmail;
+                }
+            }
+        } else if (registry.type === 'ADVERTISING_WEBSITE') {
+            payload = await prisma.website.findUnique({
+                where: { id: registry.targetId }
+            });
+        }
+        // else if (registry.type === 'FORM') { ... }
+
+        if (!payload) {
+            throw new Error('Target resource not found for this domain');
+        }
+
+        return {
+            type: registry.type,
+            payload
+        };
     }
 }

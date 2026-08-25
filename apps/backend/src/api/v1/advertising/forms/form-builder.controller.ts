@@ -3,8 +3,7 @@ import { FormsService } from '@workspace/advertising';
 
 export const createForm = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const companyId = (req as any).user.companyId;
-    const form = await FormsService.createForm(companyId, req.body);
+    const form = await FormsService.createForm(req.body);
 
     res.status(201).json({
       status: 'success',
@@ -15,8 +14,7 @@ export const createForm = async (req: Request, res: Response, next: NextFunction
 
 export const getForms = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const companyId = (req as any).user.companyId;
-    const forms = await FormsService.getForms(companyId);
+    const forms = await FormsService.getForms();
 
     res.status(200).json({
       status: 'success',
@@ -28,8 +26,7 @@ export const getForms = async (req: Request, res: Response, next: NextFunction) 
 
 export const getForm = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const companyId = (req as any).user.companyId;
-    const form = await FormsService.getFormById(companyId, req.params.id);
+    const form = await FormsService.getFormById(req.params.id);
 
     res.status(200).json({
       status: 'success',
@@ -45,8 +42,7 @@ export const getForm = async (req: Request, res: Response, next: NextFunction) =
 
 export const updateForm = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const companyId = (req as any).user.companyId;
-    const form = await FormsService.updateForm(companyId, req.params.id, req.body);
+    const form = await FormsService.updateForm(req.params.id, req.body);
 
     res.status(200).json({
       status: 'success',
@@ -62,8 +58,7 @@ export const updateForm = async (req: Request, res: Response, next: NextFunction
 
 export const deleteForm = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const companyId = (req as any).user.companyId;
-    await FormsService.deleteForm(companyId, req.params.id);
+    await FormsService.deleteForm(req.params.id);
 
     res.status(204).json({
       status: 'success',
@@ -79,8 +74,7 @@ export const deleteForm = async (req: Request, res: Response, next: NextFunction
 
 export const getFormSubmissions = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const companyId = (req as any).user.companyId;
-    const submissions = await FormsService.getFormSubmissions(companyId, req.params.id);
+    const submissions = await FormsService.getFormSubmissions(req.params.id);
 
     res.status(200).json({
       status: 'success',

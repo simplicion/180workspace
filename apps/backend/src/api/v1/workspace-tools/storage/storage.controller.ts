@@ -4,7 +4,6 @@ import { R2Service } from '@workspace/integrations';
 export const uploadFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user.id;
-        const companyId = (req as any).user.companyId;
 
         let taggedUsers: any[] = [];
         try {
@@ -32,7 +31,7 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
                 const { PrismaClient } = require('@workspace/db');
                 const prisma = new PrismaClient();
                 await prisma.document.updateMany({
-                    where: { fileUrl: replaceUrl, companyId },
+                    where: { fileUrl: replaceUrl },
                     data: { deletedAt: new Date() }
                 });
             } catch (e) {
@@ -42,7 +41,6 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
 
         const result = await StorageService.uploadFile({
             userId,
-            companyId,
             file: req.file,
             storageResult: (req as any).storageResult,
             taggedUsers,
@@ -64,13 +62,11 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
 export const addFileLink = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user.id;
-        const companyId = (req as any).user.companyId;
         const { name, fileUrl, folder, relatedId, relatedModel, description, tags, isConfidential, category } = req.body;
         if (!fileUrl) return res.status(400).json({ error: 'File URL is required' });
 
         const doc = await StorageService.addFileLink({
             userId,
-            companyId,
             name,
             fileUrl,
             folder,
@@ -87,11 +83,9 @@ export const addFileLink = async (req: Request, res: Response, next: NextFunctio
 
 export const getFiles = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
         const { folder, relatedId, relatedModel, tags, search } = req.query;
 
         const files = await StorageService.getFiles({
-            companyId,
             folder,
             relatedId,
             relatedModel,
@@ -106,8 +100,7 @@ export const getFiles = async (req: Request, res: Response, next: NextFunction) 
 export const deleteFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await StorageService.deleteFile({
-            id: req.params.id,
-            companyId: (req as any).user.companyId
+            id: req.params.id
         });
         res.json(result);
     } catch (err) { next(err); }
@@ -133,7 +126,6 @@ export const attachExistingFile = async (req: Request, res: Response, next: Next
 
         const newDoc = await StorageService.attachExistingFile({
             userId: (req as any).user.id,
-            companyId: (req as any).user.companyId,
             documentId,
             relatedId,
             relatedModel

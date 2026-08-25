@@ -4,9 +4,9 @@ import { prisma } from '@workspace/db';
 
 
 export class ClientService {
-    static async getClients(queryParams: any) {
-        const { search, page = 1, limit = 50 } = queryParams;
-        const query: any = {};
+  static async getClients(queryParams: any) {
+    const { search, page = 1, limit = 50 } = queryParams;
+    const query: any = {};
 
         if (search) {
             query.OR = [
@@ -36,11 +36,11 @@ export class ClientService {
         return { clients: mappedClients, total };
     }
 
-    static async createClient(data: any, userId: string, companyId?: string) {
-        const createData = { ...data };
-        
-        if (createData.email && createData.email.trim() !== '') {
-            const existingClient = await prisma.client.findFirst({ where: { email: createData.email } });
+  static async createClient(data: any, userId: string) {
+    const createData = { ...data };
+    
+    if (createData.email && createData.email.trim() !== '') {
+      const existingClient = await prisma.client.findFirst({ where: { email: createData.email } });
             if (existingClient) {
                 throw new Error('A client with this email already exists.');
             }
@@ -51,13 +51,10 @@ export class ClientService {
             createData.clientId = `CLT-${String(count + 1).padStart(4, '0')}`;
         }
         
-        if (createData.company !== undefined) {
-            createData.companyName = createData.company;
-            delete createData.company;
-        }
-        if (companyId) {
-            createData.companyId = companyId;
-        }
+    if (createData.company !== undefined) {
+      createData.companyName = createData.company;
+      delete createData.company;
+    }
 
         const givePortalAccess = createData.givePortalAccess === true || createData.givePortalAccess === 'true';
         const password = createData.password;
@@ -72,10 +69,10 @@ export class ClientService {
         return { client, givePortalAccess, password };
     }
 
-    static async getClientById(id: string) {
-        const client = await prisma.client.findUnique({
-            where: { id }
-        });
+  static async getClientById(id: string) {
+    const client = await prisma.client.findFirst({
+      where: { id }
+    });
         if (!client) throw new Error('Client not found');
 
         const mappedClient = {
@@ -87,7 +84,10 @@ export class ClientService {
         return mappedClient;
     }
 
-    static async updateClient(id: string, data: any) {
+  static async updateClient(id: string, data: any) {
+    const existing = await prisma.client.findFirst({ where: { id } });
+        if (!existing) throw new Error('Client not found');
+
         const updateData = { ...data };
         delete updateData.id;
         delete updateData._id;
@@ -98,12 +98,12 @@ export class ClientService {
         }
 
         if (updateData.email && updateData.email.trim() !== '') {
-            const existingClient = await prisma.client.findFirst({ 
-                where: { 
-                    email: updateData.email,
-                    id: { not: id }
-                } 
-            });
+      const existingClient = await prisma.client.findFirst({ 
+        where: { 
+          email: updateData.email,
+          id: { not: id }
+        } 
+      });
             if (existingClient) {
                 throw new Error('A client with this email already exists.');
             }
@@ -117,13 +117,19 @@ export class ClientService {
         return client;
     }
 
-    static async deleteClient(id: string) {
+  static async deleteClient(id: string) {
+    const existing = await prisma.client.findFirst({ where: { id } });
+        if (!existing) throw new Error('Client not found');
+
         await prisma.client.delete({
             where: { id }
         });
     }
 
-    static async getCommunications(clientId: string) {
+  static async getCommunications(clientId: string) {
+    const client = await prisma.client.findFirst({ where: { id: clientId } });
+        if (!client) throw new Error('Client not found');
+
         const communications = await prisma.clientCommunication.findMany({
             where: { clientId },
             include: {
@@ -141,7 +147,10 @@ export class ClientService {
         }));
     }
 
-    static async createCommunication(clientId: string, data: any, user: any) {
+  static async createCommunication(clientId: string, data: any, user: any) {
+    const client = await prisma.client.findFirst({ where: { id: clientId } });
+        if (!client) throw new Error('Client not found');
+
         const { type, subject, summary, date } = data;
 
         if (!subject) throw new Error('Subject is required');
@@ -161,13 +170,22 @@ export class ClientService {
         return comm;
     }
 
-    static async deleteCommunication(commId: string) {
+  static async deleteCommunication(commId: string) {
+    const comm = await prisma.clientCommunication.findUnique({
+      where: { id: commId },
+      include: { client: true }
+    });
+    if (!comm) throw new Error('Communication not found');
+
         await prisma.clientCommunication.delete({
             where: { id: commId }
         });
     }
 
-    static async getActivity(clientId: string) {
+  static async getActivity(clientId: string) {
+    const client = await prisma.client.findFirst({ where: { id: clientId } });
+        if (!client) throw new Error('Client not found');
+
         const logs = await prisma.auditLog.findMany({
             where: { resourceId: clientId },
             include: {

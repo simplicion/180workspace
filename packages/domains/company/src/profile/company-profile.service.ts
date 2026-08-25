@@ -1,5 +1,5 @@
 import { promises as dns } from 'dns';
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { PrismaClient } from '@workspace/db';
 import { CompanyRepository } from '../repositories/company.repository';
 import { CompanyMapper } from '../mappers/company.mapper';
@@ -8,7 +8,8 @@ export class CompanyProfileService {
     /**
      * Get private profile for a company
      */
-    static async getPrivateProfile(companyId: string) {
+    static async getPrivateProfile() {
+        const companyId = requestContext.getStore()?.companyId as string;
         const company = await CompanyRepository.findById(companyId, true);
 
         if (!company) {
@@ -34,7 +35,8 @@ export class CompanyProfileService {
     /**
      * Update private profile for a company
      */
-    static async updatePrivateProfile(companyId: string, updateData: any) {
+    static async updatePrivateProfile(updateData: any) {
+        const companyId = requestContext.getStore()?.companyId as string;
         // Prevent changing core IDs and protected fields
         delete updateData.id;
         delete updateData.createdAt;
@@ -50,7 +52,7 @@ export class CompanyProfileService {
     /**
      * Get public profile by slug or id
      */
-    static async getPublicProfile(idOrSlug: string, includeJobs: boolean = false, getCompanyPrisma: any = null) {
+    static async getPublicProfile(idOrSlug: string, includeJobs: boolean = false) {
         const company = await CompanyRepository.findByIdOrSlug(idOrSlug, true);
 
         if (!company) {
@@ -72,10 +74,11 @@ export class CompanyProfileService {
         publicCompany.teamGrowth = teamGrowth;
         publicCompany.evaluatedStartupStage = startupStage;
 
-        if (includeJobs && getCompanyPrisma) {
+        if (includeJobs) {
             try {
-                const companyPrisma = getCompanyPrisma(company.id);
-                const jobs = await companyPrisma.job.findMany({ where: { status: 'open' } });
+                const jobs = await requestContext.run({ companyId: company.id }, async () => {
+                    return await prisma.job.findMany({ where: { status: 'open' } });
+                });
                 publicCompany.jobs = jobs;
             } catch (e) {
                 console.error('Failed to fetch jobs for public profile:', e);
@@ -173,7 +176,8 @@ export class CompanyProfileService {
     /**
      * Update finance tab
      */
-    static async updateFinanceTab(companyId: string, companyHighlights: any, pitchDeckUrl: string) {
+    static async updateFinanceTab(companyHighlights: any, pitchDeckUrl: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const company = await CompanyRepository.findById(companyId);
 
         if (!company) {
@@ -231,11 +235,24 @@ export class CompanyProfileService {
     /**
      * Verify custom domain DNS settings
      */
-    static async verifyDomain(companyId: string, domain: string, rootDomain: string) {
+    static async verifyDomain(domain: string, rootDomain: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         if (!domain) {
             throw new Error('Domain is required');
         }
 
+        // Check if domain is already registered globally
+        const existingDomain = await prisma.domainRegistry.findUnique({
+            where: { domain }
+        });
+
+        if (existingDomain && existingDomain.targetId !== companyId) {
+            return {
+                success: false,
+                error: 'Domain Unavailable',
+                message: 'This domain is already registered by another entity.'
+            };
+        }
 
         try {
             const records = await dns.resolveCname(domain);
@@ -255,6 +272,20 @@ export class CompanyProfileService {
                 message: 'Could not verify DNS records. Ensure you added the CNAME record and try again.'
             };
         }
+
+        // Add to DomainRegistry (upsert to handle if it was already registered by this company)
+        await prisma.domainRegistry.upsert({
+            where: { domain },
+            update: {
+                type: 'COMPANY_PROFILE',
+                targetId: companyId
+            },
+            create: {
+                domain,
+                type: 'COMPANY_PROFILE',
+                targetId: companyId
+            }
+        });
 
         await CompanyRepository.update(companyId, { customDomain: domain });
 

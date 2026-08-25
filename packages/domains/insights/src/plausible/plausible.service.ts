@@ -4,10 +4,8 @@ import { prisma } from '@workspace/db';
 const PLAUSIBLE_API_BASE = 'https://plausible.io/api/v1';
 
 export class PlausibleService {
-  static async getStats(companyId: string, period: string = '30d', metrics: string = 'visitors,pageviews,bounce_rate,visit_duration', date?: string) {
-    const config = await prisma.companyConfig.findFirst({
-        where: { companyId }
-    }) as any;
+  static async getStats(period: string = '30d', metrics: string = 'visitors,pageviews,bounce_rate,visit_duration', date?: string) {
+    const config = await prisma.companyConfig.findFirst() as any;
     if (!config || !config.plausibleApiKey || !config.plausibleSiteId) {
         throw new Error('Plausible Analytics is not configured. Please add your API Key and Site ID in Company Settings.');
     }

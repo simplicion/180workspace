@@ -1,9 +1,10 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 
 const MONTHLY_LIMIT = 9;
 
 export class SupportService {
-    static async getMonthlyCount(companyId: string) {
+    static async getMonthlyCount() {
+        const companyId = requestContext.getStore()?.companyId as string;
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
@@ -16,8 +17,10 @@ export class SupportService {
         });
     }
 
-    static async createTicket(companyId: string, user: any, data: any) {
-        const count = await this.getMonthlyCount(companyId);
+    static async createTicket(user: any, data: any) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (!companyId) throw new Error('Company ID is required');
+        const count = await this.getMonthlyCount();
         if (count >= MONTHLY_LIMIT) {
             throw new Error(`Monthly support ticket limit reached (${MONTHLY_LIMIT}/month). Please wait until next month.`);
         }
@@ -47,13 +50,14 @@ export class SupportService {
         };
     }
 
-    static async listOwnTickets(companyId: string) {
+    static async listOwnTickets() {
+        const companyId = requestContext.getStore()?.companyId as string;
         const tickets = await prisma.supportTicket.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' }
         });
         
-        const monthCount = await this.getMonthlyCount(companyId);
+        const monthCount = await this.getMonthlyCount();
         return { tickets, monthlyUsed: monthCount, monthlyLimit: MONTHLY_LIMIT };
     }
 
@@ -83,7 +87,8 @@ export class SupportService {
         });
     }
 
-    static async editTicket(ticketId: string, companyId: string, data: any) {
+    static async editTicket(ticketId: string, data: any) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
         if (!ticket) throw new Error('Ticket not found');
         
@@ -103,7 +108,8 @@ export class SupportService {
         });
     }
 
-    static async deleteTicket(ticketId: string, companyId: string) {
+    static async deleteTicket(ticketId: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
         if (!ticket) throw new Error('Ticket not found');
         

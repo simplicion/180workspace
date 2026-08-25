@@ -137,6 +137,18 @@ export const navigation = [
     },
 
     {
+        group: 'Marketing CMS',
+        appId: 'marketing',
+        icon: Megaphone,
+        roles: ['admin', 'manager'],
+        items: [
+            { id: 'marketing-blogs', name: 'Blog Posts', href: '/dashboard/marketing/blogs', icon: FileText, roles: ['admin', 'manager'] },
+            { id: 'marketing-pages', name: 'Landing Pages', href: '/dashboard/marketing/pages', icon: LayoutGrid, roles: ['admin', 'manager'] },
+            { id: 'marketing-faqs', name: 'FAQs', href: '/dashboard/marketing/faqs', icon: HelpCircle, roles: ['admin', 'manager'] },
+        ]
+    },
+
+    {
         group: 'Job Hunter AI',
         appId: 'jobhunter',
         icon: Search,

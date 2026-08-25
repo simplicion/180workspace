@@ -1,8 +1,8 @@
 import { prisma } from '@workspace/db';
 
 export class HolidayService {
-    static async getHolidays(companyId: string, year?: string) {
-        const filter: any = { companyId };
+    static async getHolidays(year?: string) {
+        const filter: any = {};
         if (year) {
             filter.date = {
                 gte: new Date(`${year}-01-01T00:00:00.000Z`),
@@ -15,21 +15,20 @@ export class HolidayService {
         });
     }
 
-    static async createHoliday(companyId: string, data: { name: string; date: string; type?: string; description?: string }) {
+    static async createHoliday(data: { name: string; date: string; type?: string; description?: string }) {
         return await prisma.holiday.create({
             data: {
                 name: data.name,
                 date: new Date(data.date),
                 type: data.type,
-                description: data.description,
-                companyId
+                description: data.description
             }
         });
     }
 
-    static async updateHoliday(id: string, companyId: string, data: { name?: string; date?: string; type?: string; description?: string }) {
+    static async updateHoliday(id: string, data: { name?: string; date?: string; type?: string; description?: string }) {
         const existingHoliday = await prisma.holiday.findUnique({ where: { id } });
-        if (!existingHoliday || existingHoliday.companyId !== companyId) {
+        if (!existingHoliday) {
             throw new Error('Holiday not found');
         }
 
@@ -42,9 +41,9 @@ export class HolidayService {
         });
     }
 
-    static async deleteHoliday(id: string, companyId: string) {
+    static async deleteHoliday(id: string) {
         const existingHoliday = await prisma.holiday.findUnique({ where: { id } });
-        if (!existingHoliday || existingHoliday.companyId !== companyId) {
+        if (!existingHoliday) {
             throw new Error('Holiday not found');
         }
 

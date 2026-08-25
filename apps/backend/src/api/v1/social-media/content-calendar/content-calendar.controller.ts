@@ -24,7 +24,7 @@ export const getCalendar = async (req: Request, res: Response, next: NextFunctio
 
 export const createCalendar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await ContentCalendarService.createCalendar((req as any).user.companyId, req.body, (req as any).user);
+        const result = await ContentCalendarService.createCalendar(req.body, (req as any).user);
         res.status(201).json(result);
     } catch (err: any) { 
         if (err.message) {

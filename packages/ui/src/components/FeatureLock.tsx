@@ -17,7 +17,7 @@ export function FeatureLock({
     title,
     description,
     actionText = 'Upgrade Plan',
-    actionHref = '/dashboard/settings/platform-billing',
+    actionHref = '/settings/platform-billing',
     className = '',
     requiredApp,
     children

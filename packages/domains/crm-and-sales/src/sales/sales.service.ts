@@ -591,7 +591,7 @@ export class SalesService {
     // MOVED FROM CONTROLLER
     // ------------------------------------------------------------------------
 
-    static async getDashboardMetrics(userId, companyId, timeframe = 'month') {
+    static async getDashboardMetrics(userId, timeframe = 'month') {
         const Settings = prisma.settings;
         const Lead = prisma.deal;
         const Opportunity = prisma.lead;
@@ -1343,7 +1343,7 @@ export class SalesService {
         return opp;
     }
 
-    static async updateOpportunity(id, data, companyId) {
+    static async updateOpportunity(id, data) {
         const Opportunity = prisma.lead;
         const Deal = prisma.deal;
         const oldOpp = await Opportunity.findUnique({ where: { id }, include: { client: true } });
@@ -1494,7 +1494,7 @@ export class SalesService {
 
         const opp = await Opportunity.update({ where: { id }, data });
         
-        if (justWon && companyId) {
+        if (justWon) {
             const clientRecord = oldOpp.client || await prisma.client.findUnique({ where: { id: opp.clientId } });
             if (clientRecord && clientRecord.email) {
                 const User = prisma.user;
@@ -1863,7 +1863,7 @@ export class SalesService {
         return { quotes, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
-    static async createQuote(data, userId, companyId) {
+    static async createQuote(data, userId) {
         const Quote = prisma.quote;
         const quoteNumber = `QT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
 
@@ -1879,7 +1879,6 @@ export class SalesService {
         const quote = await Quote.create({ data: {
             ...payload,
             quoteNumber,
-            companyId,
             createdById: userId
         } });
 

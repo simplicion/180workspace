@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { logAction, triggerAutomation, emitSocket } from '@workspace/backend-infra';
 
 export interface UserContext {
@@ -113,8 +113,9 @@ export class TaskService {
             await this.updateProjectAndModuleProgress(task.projectId, task.moduleId);
         }
 
-        if (user.companyId) {
-            emitSocket(user.companyId, 'task:created', { task });
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (companyId) {
+            emitSocket(companyId, 'task:created', { task });
         }
 
         return { task, notificationResult };
@@ -286,8 +287,9 @@ export class TaskService {
             }
         }
 
-        if (user.companyId) {
-            emitSocket(user.companyId, 'task:updated', { task });
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (companyId) {
+            emitSocket(companyId, 'task:updated', { task });
         }
 
         return { task, notificationResult };
@@ -305,8 +307,9 @@ export class TaskService {
             await logAction(user.id, 'DELETE_TASK', 'task', taskId, { title: task.title });
         }
 
-        if (user.companyId) {
-            emitSocket(user.companyId, 'task:deleted', { taskId });
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (companyId) {
+            emitSocket(companyId, 'task:deleted', { taskId });
         }
 
         return { message: 'Task deleted' };

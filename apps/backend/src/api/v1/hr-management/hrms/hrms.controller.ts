@@ -5,7 +5,7 @@ import { prisma } from '@workspace/db';
 export const getDashboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const service = new HrManagementService();
-        const data = await service.getDashboard((req as any).user?.companyId);
+        const data = await service.getDashboard();
         res.json(data);
     } catch (err) { next(err); }
 };
@@ -13,7 +13,7 @@ export const getDashboard = async (req: Request, res: Response, next: NextFuncti
 export const getAttendanceReport = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const service = new HrManagementService();
-        const data = await service.getAttendanceReport((req as any).user?.companyId, req.query.month as string);
+        const data = await service.getAttendanceReport(req.query.month as string);
         res.json(data);
     } catch (err: any) {
         if (err.message === 'month param required (YYYY-MM)') return res.status(400).json({ error: err.message });
@@ -24,7 +24,7 @@ export const getAttendanceReport = async (req: Request, res: Response, next: Nex
 export const getSalaryReport = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const service = new HrManagementService();
-        const data = await service.getSalaryReport((req as any).user?.companyId, req.query.month as string);
+        const data = await service.getSalaryReport(req.query.month as string);
         res.json(data);
     } catch (err: any) {
         if (err.message === 'month param required (YYYY-MM)') return res.status(400).json({ error: err.message });
@@ -35,7 +35,7 @@ export const getSalaryReport = async (req: Request, res: Response, next: NextFun
 export const getWeeklyTrends = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const service = new HrManagementService();
-        const data = await service.getWeeklyTrends((req as any).user?.companyId, req.query.range as string, req.query.grouping as string);
+        const data = await service.getWeeklyTrends(req.query.range as string, req.query.grouping as string);
         res.json(data);
     } catch (err) { next(err); }
 };
@@ -43,7 +43,7 @@ export const getWeeklyTrends = async (req: Request, res: Response, next: NextFun
 export const getCEOInsights = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const service = new HrManagementService();
-        const data = await service.getCEOInsights((req as any).user?.companyId);
+        const data = await service.getCEOInsights();
         res.json(data);
     } catch (err) { next(err); }
 };
@@ -51,7 +51,7 @@ export const getCEOInsights = async (req: Request, res: Response, next: NextFunc
 export const getAttendanceTrend = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const service = new HrManagementService();
-        const data = await service.getAttendanceTrend((req as any).user?.companyId, req.query.range as string, req.query.grouping as string);
+        const data = await service.getAttendanceTrend(req.query.range as string, req.query.grouping as string);
         res.json(data);
     } catch (err) { next(err); }
 };

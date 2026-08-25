@@ -1,10 +1,10 @@
 import { prisma } from '@workspace/db';
 
 export class SalaryService {
-  static async reviewSalary(companyId: string, id: string, data: any) {
+  static async reviewSalary(id: string, data: any) {
     const { deductions, bonuses, notes } = data;
     const salary = await prisma.salary.findFirst({
-      where: { id, companyId },
+      where: { id },
       include: { employee: true }
     });
     
@@ -31,18 +31,17 @@ export class SalaryService {
     return updatedSalary;
   }
 
-  static async getMySalaries(companyId: string, userId: string) {
+  static async getMySalaries(userId: string) {
     const salaries = await prisma.salary.findMany({
       where: {
-        employeeId: userId,
-        companyId
+        employeeId: userId
       },
       orderBy: { month: 'desc' }
     });
     return salaries;
   }
 
-  static async generateSalary(companyId: string, userId: string, data: any) {
+  static async generateSalary(userId: string, data: any) {
     const { 
       employeeId, month, baseSalary, deductions = 0, bonuses = 0, notes, 
       totalDays, presentDays, halfDays, absentDays, paidLeaves, unpaidLeaves, perDaySalary 
@@ -52,7 +51,7 @@ export class SalaryService {
       throw new Error('employeeId, month, and baseSalary are required');
     }
 
-    const existing = await prisma.salary.findFirst({ where: { employeeId, month, companyId } });
+    const existing = await prisma.salary.findFirst({ where: { employeeId, month } });
     if (existing && ['paid', 'approved'].includes(existing.status)) {
       throw new Error(`Salary for this month is already ${existing.status} and cannot be regenerated.`);
     }
@@ -88,8 +87,7 @@ export class SalaryService {
         data: { 
           ...salaryData, 
           employeeId, 
-          month, 
-          companyId 
+          month
         }, 
         include: { employee: { select: { name: true, email: true } } } 
       });
@@ -98,8 +96,8 @@ export class SalaryService {
     return salary;
   }
 
-  static async approveSalary(companyId: string, id: string) {
-    const existing = await prisma.salary.findFirst({ where: { id, companyId } });
+  static async approveSalary(id: string) {
+    const existing = await prisma.salary.findFirst({ where: { id } });
     if (!existing) throw new Error('Salary record not found');
     
     const salary = await prisma.salary.update({
@@ -109,8 +107,8 @@ export class SalaryService {
     return salary;
   }
 
-  static async markPaid(companyId: string, id: string) {
-    const existing = await prisma.salary.findFirst({ where: { id, companyId } });
+  static async markPaid(id: string) {
+    const existing = await prisma.salary.findFirst({ where: { id } });
     if (!existing) throw new Error('Salary record not found');
 
     const salary = await prisma.salary.update({

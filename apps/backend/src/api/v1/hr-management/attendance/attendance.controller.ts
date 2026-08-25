@@ -70,7 +70,7 @@ export const autoCheckIn = async (req: Request, res: Response, next: NextFunctio
         const checkInTime = req.body.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         
         const attendanceService = new AttendanceService();
-        const result = await attendanceService.autoCheckIn((req as any).user.id, (req as any).user.companyId, date, checkInTime);
+        const result = await attendanceService.autoCheckIn((req as any).user.id, date as string, checkInTime as string);
 
         res.json(result);
     } catch (err) { next(err); }
@@ -83,7 +83,7 @@ export const autoCheckOut = async (req: Request, res: Response, next: NextFuncti
         const checkOutTime = req.body.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         
         const attendanceService = new AttendanceService();
-        const result = await attendanceService.autoCheckOut((req as any).user.id, (req as any).user.companyId, date, checkOutTime);
+        const result = await attendanceService.autoCheckOut((req as any).user.id, date as string, checkOutTime as string);
 
         res.json(result);
     } catch (err) { next(err); }

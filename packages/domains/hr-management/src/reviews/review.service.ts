@@ -2,9 +2,9 @@ import { prisma } from '@workspace/db';
 import { PerformanceService } from '../performance/performance.service';
 
 export class ReviewService {
-    static async getReviews(companyId: string, user: any, queryParams: { employeeId?: string; managerId?: string; status?: string }) {
+    static async getReviews(user: any, queryParams: { employeeId?: string; managerId?: string; status?: string }) {
         const { employeeId, managerId, status } = queryParams;
-        let query: any = { companyId };
+        let query: any = {};
 
         if (user.role === 'employee' && (!user.permissions || !user.permissions.includes('can_manage_team'))) {
             query.employeeId = user.id;
@@ -27,8 +27,8 @@ export class ReviewService {
         });
     }
 
-    static async getReviewById(reviewId: string, companyId: string, user: any) {
-        const review = await prisma.review.findUnique({ 
+    static async getReviewById(reviewId: string, user: any) {
+        const review = await prisma.review.findFirst({ 
             where: { id: reviewId },
             include: {
                 employee: { select: { id: true, name: true, department: true } },
@@ -36,7 +36,7 @@ export class ReviewService {
             }
         });
 
-        if (!review || review.companyId !== companyId) throw new Error('Review not found');
+        if (!review) throw new Error('Review not found');
 
         if (user.role === 'employee' && (review as any).employee.id !== user.id) {
             throw new Error('Not authorized to view this review');
@@ -44,8 +44,8 @@ export class ReviewService {
         return review;
     }
 
-    static async createReview(companyId: string, data: { employeeId: string; period: string; dueDate?: string; managerId?: string }, userId: string) {
-        const exists = await prisma.review.findFirst({ where: { employeeId: data.employeeId, period: data.period, companyId } });
+    static async createReview(data: { employeeId: string; period: string; dueDate?: string; managerId?: string }, userId: string) {
+        const exists = await prisma.review.findFirst({ where: { employeeId: data.employeeId, period: data.period } });
         if (exists) throw new Error(`Review for period ${data.period} already exists for this employee`);
 
         const performanceService = new PerformanceService();
@@ -56,15 +56,14 @@ export class ReviewService {
             period: data.period,
             dueDate: data.dueDate ? new Date(data.dueDate) : null,
             managerId: data.managerId || userId,
-            companyId,
             performanceSnapshot: performanceSnapshot as any
         } });
     }
 
-    static async submitSelfEvaluation(reviewId: string, companyId: string, userId: string, data: { selfRatings?: any; selfSummary?: string }) {
-        const review = await prisma.review.findUnique({ where: { id: reviewId } });
+    static async submitSelfEvaluation(reviewId: string, userId: string, data: { selfRatings?: any; selfSummary?: string }) {
+        const review = await prisma.review.findFirst({ where: { id: reviewId } });
         
-        if (!review || review.companyId !== companyId) throw new Error('Review not found');
+        if (!review) throw new Error('Review not found');
         if (review.employeeId !== userId) {
             throw new Error('Not authorized');
         }
@@ -80,10 +79,10 @@ export class ReviewService {
         });
     }
 
-    static async submitManagerEvaluation(reviewId: string, companyId: string, user: any, data: { managerRatings?: any; managerSummary?: string; overallRating?: number; nextPeriodGoals?: any }) {
-        const review = await prisma.review.findUnique({ where: { id: reviewId } });
+    static async submitManagerEvaluation(reviewId: string, user: any, data: { managerRatings?: any; managerSummary?: string; overallRating?: number; nextPeriodGoals?: any }) {
+        const review = await prisma.review.findFirst({ where: { id: reviewId } });
         
-        if (!review || review.companyId !== companyId) throw new Error('Review not found');
+        if (!review) throw new Error('Review not found');
 
         if (review.managerId !== user.id && !['admin', 'hr'].includes(user.role)) {
             throw new Error('Not authorized');
@@ -102,9 +101,9 @@ export class ReviewService {
         });
     }
 
-    static async deleteReview(reviewId: string, companyId: string) {
-        const review = await prisma.review.findUnique({ where: { id: reviewId } });
-        if (!review || review.companyId !== companyId) throw new Error('Review not found');
+    static async deleteReview(reviewId: string) {
+        const review = await prisma.review.findFirst({ where: { id: reviewId } });
+        if (!review) throw new Error('Review not found');
         
         await prisma.review.delete({ where: { id: reviewId } });
         return { success: true };

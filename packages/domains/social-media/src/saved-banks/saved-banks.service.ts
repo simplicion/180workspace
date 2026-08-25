@@ -1,7 +1,8 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 
 export class SavedBanksService {
-    static async getBanks(companyId: string) {
+    static async getBanks() {
+        const companyId = requestContext.getStore()?.companyId as string;
         try {
             const banks = await prisma.savedBank.findMany({
                 where: { companyId },
@@ -14,7 +15,8 @@ export class SavedBanksService {
         }
     }
 
-    static async createBank(companyId: string, data: { type: string, name: string, content: string, tags?: string[] }) {
+    static async createBank(data: { type: string, name: string, content: string, tags?: string[] }) {
+        const companyId = requestContext.getStore()?.companyId as string;
         try {
             if (!data.type || !data.name || !data.content) {
                 throw new Error('Type, name, and content are required');
@@ -36,7 +38,8 @@ export class SavedBanksService {
         }
     }
 
-    static async deleteBank(companyId: string, id: string) {
+    static async deleteBank(id: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         try {
             const bank = await prisma.savedBank.findUnique({ where: { id } });
             if (!bank || bank.companyId !== companyId) {

@@ -1,8 +1,9 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { PrismaClient } from '@workspace/db';
 
 export class CompanyMediaService {
-    static async addMedia(companyId: string, imageUrl: string) {
+    static async addMedia(imageUrl: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         if (!imageUrl) {
             throw new Error('Image URL is required.');
         }
@@ -17,7 +18,8 @@ export class CompanyMediaService {
         return media;
     }
 
-    static async deleteMedia(companyId: string, mediaId: string) {
+    static async deleteMedia(mediaId: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const existing = await prisma.companyMedia.findFirst({
             where: { id: mediaId, companyId }
         });

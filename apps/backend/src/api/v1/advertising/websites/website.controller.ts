@@ -5,8 +5,7 @@ import { BillingService } from '@workspace/platform-billing';
 
 export const getWebsites = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const result = await WebsitesService.getWebsites(companyId);
+        const result = await WebsitesService.getWebsites();
         res.json(result);
     } catch (err) {
         next(err);
@@ -15,11 +14,9 @@ export const getWebsites = async (req: Request, res: Response, next: NextFunctio
 
 export const checkAvailability = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
         const { slug, companySlug } = req.query;
         
         const result = await WebsitesService.checkAvailability(
-            companyId,
             typeof slug === 'string' ? slug : undefined,
             typeof companySlug === 'string' ? companySlug : undefined
         );
@@ -42,7 +39,7 @@ export const createWebsite = async (req: Request, res: Response, next: NextFunct
             });
         }
 
-        const website = await WebsitesService.createWebsite(userId, companyId, req.body);
+        const website = await WebsitesService.createWebsite(userId, req.body);
 
         res.status(201).json({ website });
     } catch (err: any) {
@@ -55,8 +52,7 @@ export const createWebsite = async (req: Request, res: Response, next: NextFunct
 
 export const getWebsite = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const website = await WebsitesService.getWebsite(companyId, req.params.id);
+        const website = await WebsitesService.getWebsite(req.params.id);
 
         res.json({ website });
     } catch (err: any) {
@@ -69,8 +65,7 @@ export const getWebsite = async (req: Request, res: Response, next: NextFunction
 
 export const updateWebsite = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const website = await WebsitesService.updateWebsite(companyId, req.params.id, req.body);
+        const website = await WebsitesService.updateWebsite(req.params.id, req.body);
 
         res.json({ website });
     } catch (err: any) {
@@ -83,10 +78,9 @@ export const updateWebsite = async (req: Request, res: Response, next: NextFunct
 
 export const deleteWebsite = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const website = await WebsitesService.getWebsite(companyId, req.params.id);
+        const website = await WebsitesService.getWebsite(req.params.id);
         
-        await WebsitesService.deleteWebsite(companyId, req.params.id);
+        await WebsitesService.deleteWebsite(req.params.id);
 
         res.json({ message: 'Website deleted' });
     } catch (err: any) {
@@ -99,8 +93,7 @@ export const deleteWebsite = async (req: Request, res: Response, next: NextFunct
 
 export const getWebsiteLeads = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const leads = await WebsitesService.getWebsiteLeads(companyId, req.params.id);
+        const leads = await WebsitesService.getWebsiteLeads(req.params.id);
         res.json({ leads });
     } catch (err: any) {
         if (err.message === 'Website not found') {
@@ -112,8 +105,7 @@ export const getWebsiteLeads = async (req: Request, res: Response, next: NextFun
 
 export const getWebsitePixels = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const pixels = await WebsitesService.getWebsitePixels(companyId, req.params.id);
+        const pixels = await WebsitesService.getWebsitePixels(req.params.id);
         res.json({ pixels });
     } catch (err: any) {
         if (err.message === 'Website not found') {
@@ -125,8 +117,7 @@ export const getWebsitePixels = async (req: Request, res: Response, next: NextFu
 
 export const createWebsitePixel = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const pixel = await WebsitesService.createWebsitePixel(companyId, req.params.id, req.body);
+        const pixel = await WebsitesService.createWebsitePixel(req.params.id, req.body);
         res.status(201).json({ pixel });
     } catch (err: any) {
         if (err.message === 'Website not found') {
@@ -138,8 +129,7 @@ export const createWebsitePixel = async (req: Request, res: Response, next: Next
 
 export const getWebsiteStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user.companyId;
-        const stats = await WebsitesService.getWebsiteStats(companyId, req.params.id);
+        const stats = await WebsitesService.getWebsiteStats(req.params.id);
         res.json(stats);
     } catch (err: any) {
         if (err.message === 'Website not found') {

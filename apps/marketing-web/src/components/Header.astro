@@ -1,0 +1,52 @@
+---
+// Define the SaaS base URL. In local dev, it usually points to 3000.
+// In production, you would configure an environment variable like process.env.PUBLIC_SAAS_URL
+// For now, we fallback to a hardcoded domain or local.
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'http://localhost:3002';
+---
+
+<header class="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+  <div class="container mx-auto px-4 max-w-6xl flex h-16 items-center justify-between">
+    <div class="flex items-center gap-8">
+      {/* Brand */}
+      <a href="/" class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+          <span class="text-primary-foreground text-sm font-bold">180</span>
+        </div>
+        <span class="text-xl font-bold tracking-tight">180workspace</span>
+      </a>
+
+      {/* Desktop Navigation */}
+      <nav class="hidden md:flex items-center gap-6">
+        <a href="/features" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          Features
+        </a>
+        <a href="/use-cases/for-digital-agencies" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          Agencies
+        </a>
+        <a href="/pricing" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          Pricing
+        </a>
+        <a href="/blog" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          Blog
+        </a>
+      </nav>
+    </div>
+
+    {/* Auth Actions (Linking to SaaS App) */}
+    <div class="flex items-center gap-4">
+      <a 
+        href={`${saasUrl}/login`} 
+        class="hidden sm:inline-flex text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Log in
+      </a>
+      <a 
+        href={`${saasUrl}/signup`} 
+        class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        Get Started
+      </a>
+    </div>
+  </div>
+</header>

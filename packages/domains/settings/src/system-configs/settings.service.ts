@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 
 const METADATA_FIELDS = [
     'aiProvider', 'openaiKey', 'geminiKey', 'claudeKey', 'googleSheetsId',
@@ -15,7 +15,8 @@ const METADATA_FIELDS = [
 ];
 
 export class SettingsService {
-    static async getCompanyMetadata(companyId: string) {
+    static async getCompanyMetadata() {
+        const companyId = requestContext.getStore()?.companyId as string;
         if (!companyId) return {};
         const company = await prisma.company.findUnique({
             where: { id: companyId }
@@ -30,9 +31,10 @@ export class SettingsService {
         return currentMeta as any;
     }
 
-    static async updateCompanyMetadata(companyId: string, updateData: any, clearCompanyCache?: (id: string) => Promise<void>) {
+    static async updateCompanyMetadata(updateData: any, clearCompanyCache?: (id: string) => Promise<void>) {
+        const companyId = requestContext.getStore()?.companyId as string;
         if (!companyId) return;
-        const currentMeta = await this.getCompanyMetadata(companyId);
+        const currentMeta = await this.getCompanyMetadata();
         
         await prisma.company.update({
             where: { id: companyId },
@@ -50,7 +52,7 @@ export class SettingsService {
     }
 
     static async getSettings(user: any, company: any) {
-        const companyId = user?.companyId || company?.id;
+        const companyId = requestContext.getStore()?.companyId as string;
         let settings = companyId ? await prisma.settings.findFirst({
             where: { companyId }
         }) : null;
@@ -65,7 +67,7 @@ export class SettingsService {
             });
         }
 
-        const metadata = companyId ? await this.getCompanyMetadata(companyId) : {};
+        const metadata = companyId ? await this.getCompanyMetadata() : {};
         const mergedSettings = { ...settings } as any;
         METADATA_FIELDS.forEach(field => {
             mergedSettings[field] = metadata[field] !== undefined ? metadata[field] : (field.endsWith('Status') ? 'none' : '');
@@ -84,8 +86,9 @@ export class SettingsService {
         const forbiddenFields = ['id', 'companyId', 'createdAt', 'updatedAt'];
         forbiddenFields.forEach(f => delete bodyData[f]);
 
-        const subscription = company?.id ? await prisma.subscription.findFirst({
-            where: { companyId: company.id, status: { in: ['ACTIVE', 'active', 'trial', 'TRIAL'] } },
+        const companyId = requestContext.getStore()?.companyId as string;
+        const subscription = companyId ? await prisma.subscription.findFirst({
+            where: { companyId: companyId, status: { in: ['ACTIVE', 'active', 'trial', 'TRIAL'] } },
             include: { plan: true },
             orderBy: { createdAt: 'desc' }
         }) : null;
@@ -119,12 +122,12 @@ export class SettingsService {
         });
 
         if (tryingToUpdateAI && !hasAIAssistant) {
-            console.log(`[ACCESS DENIED] Company ${company?.id} attempted to configure AI Assistant without the required plan.`);
+            console.log(`[ACCESS DENIED] Company ${companyId} attempted to configure AI Assistant without the required plan.`);
             throw new Error(`The AI Assistant feature is not available on the ${plan.planName} plan. Please upgrade your plan to access this feature.`);
         }
 
         if (tryingToUpdateSMTP && !hasEmailServices) {
-            console.log(`[ACCESS DENIED] Company ${company?.id} attempted to configure Custom SMTP without the required plan.`);
+            console.log(`[ACCESS DENIED] Company ${companyId} attempted to configure Custom SMTP without the required plan.`);
             throw new Error(`The Custom Email SMTP feature is not available on the ${plan.planName} plan. Please upgrade your plan to access this feature.`);
         }
 
@@ -149,7 +152,7 @@ export class SettingsService {
             }
         });
 
-        const companyId = user.companyId || company?.id;
+        // (companyId is already extracted above as const companyId = requestContext.getStore()?.companyId as string;)
         let settings = companyId ? await prisma.settings.findFirst({
             where: { companyId }
         }) : null;
@@ -159,7 +162,7 @@ export class SettingsService {
             updatedSettings = await (prisma.settings.create as any)({
                 data: {
                     ...settingsUpdate,
-                    companyId: user.companyId || undefined
+                    companyId: companyId || undefined
                 }
             });
         } else {
@@ -174,7 +177,7 @@ export class SettingsService {
         }
 
         if (Object.keys(metadataUpdate).length > 0 && companyId) {
-            await this.updateCompanyMetadata(companyId, metadataUpdate, dependencies.clearCompanyCache);
+            await this.updateCompanyMetadata(metadataUpdate, dependencies.clearCompanyCache);
         }
 
         if (dependencies.redis) {
@@ -192,7 +195,7 @@ export class SettingsService {
             }
         }
 
-        const metadata = companyId ? await this.getCompanyMetadata(companyId) : {};
+        const metadata = companyId ? await this.getCompanyMetadata() : {};
         const mergedSettings = { ...updatedSettings } as any;
         METADATA_FIELDS.forEach(field => {
             mergedSettings[field] = metadata[field] !== undefined ? metadata[field] : (field.endsWith('Status') ? 'none' : '');
@@ -206,8 +209,8 @@ export class SettingsService {
             throw new Error('Forbidden');
         }
 
-        const companyId = user.companyId;
-        const metadata = await this.getCompanyMetadata(companyId);
+        const companyId = requestContext.getStore()?.companyId as string;
+        const metadata = await this.getCompanyMetadata();
         if (!metadata || !metadata.aiProvider || metadata.aiProvider === 'none') {
             throw new Error('AI provider is not selected');
         }
@@ -241,13 +244,13 @@ export class SettingsService {
         }) : null;
 
         if (testSuccess) {
-            await this.updateCompanyMetadata(companyId, {
+            await this.updateCompanyMetadata({
                 lastAiTestStatus: 'success',
                 lastAiTestDate: new Date(),
                 lastAiTestError: null
             }, dependencies.clearCompanyCache);
 
-            const freshMeta = await this.getCompanyMetadata(companyId);
+            const freshMeta = await this.getCompanyMetadata();
             const merged = { ...updatedSettings } as any;
             METADATA_FIELDS.forEach(field => {
                 merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -260,11 +263,11 @@ export class SettingsService {
     }
 
     static async logAiTestFailure(user: any, errorMessage: string, body: any, dependencies: any) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         let merged = { ...body };
         try {
             if (companyId) {
-                await this.updateCompanyMetadata(companyId, {
+                await this.updateCompanyMetadata({
                     lastAiTestStatus: 'failure',
                     lastAiTestDate: new Date(),
                     lastAiTestError: errorMessage
@@ -273,7 +276,7 @@ export class SettingsService {
                 const updatedSettings = await prisma.settings.findFirst({
                     where: { companyId }
                 });
-                const freshMeta = await this.getCompanyMetadata(companyId);
+                const freshMeta = await this.getCompanyMetadata();
                 merged = { ...updatedSettings };
                 METADATA_FIELDS.forEach(field => {
                     merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -290,11 +293,11 @@ export class SettingsService {
             throw new Error('Forbidden');
         }
 
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const settings = companyId ? await prisma.settings.findFirst({
             where: { companyId }
         }) : null;
-        const metadata = companyId ? await this.getCompanyMetadata(companyId) : {};
+        const metadata = companyId ? await this.getCompanyMetadata() : {};
         
         const smtpHost = data.smtpHost || metadata.smtpHost || (settings as any)?.smtpHost;
         const smtpPort = data.smtpPort || metadata.smtpPort || (settings as any)?.smtpPort;
@@ -312,13 +315,13 @@ export class SettingsService {
             smtpHost, smtpPort, smtpUser, smtpPass, smtpSecure, emailFrom, companyName: settings?.companyName
         });
 
-        await this.updateCompanyMetadata(companyId, {
+        await this.updateCompanyMetadata({
             lastEmailTestStatus: 'success',
             lastEmailTestDate: new Date(),
             lastEmailTestError: null
         }, dependencies.clearCompanyCache);
 
-        const freshMeta = await this.getCompanyMetadata(companyId);
+        const freshMeta = await this.getCompanyMetadata();
         const merged = { ...settings } as any;
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -328,11 +331,11 @@ export class SettingsService {
     }
 
     static async logEmailTestFailure(user: any, errorMessage: string, body: any, dependencies: any) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         let merged = { ...body };
         try {
             if (companyId) {
-                await this.updateCompanyMetadata(companyId, {
+                await this.updateCompanyMetadata({
                     lastEmailTestStatus: 'failure',
                     lastEmailTestDate: new Date(),
                     lastEmailTestError: errorMessage
@@ -341,7 +344,7 @@ export class SettingsService {
                 const settings = await prisma.settings.findFirst({
                     where: { companyId }
                 });
-                const freshMeta = await this.getCompanyMetadata(companyId);
+                const freshMeta = await this.getCompanyMetadata();
                 merged = { ...settings };
                 METADATA_FIELDS.forEach(field => {
                     merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -358,7 +361,7 @@ export class SettingsService {
             throw new Error('Forbidden');
         }
 
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const settings = companyId ? await prisma.settings.findFirst({
             where: { companyId }
         }) : null;
@@ -368,18 +371,18 @@ export class SettingsService {
         }
 
         if (settings.storageMode === 'google_drive') {
-            const metadata = await this.getCompanyMetadata(companyId);
+            const metadata = await this.getCompanyMetadata();
             (settings as any).googleDriveServiceAccount = metadata.googleDriveServiceAccount || (settings as any).googleDriveServiceAccount;
             (settings as any).googleDriveFolderId = metadata.googleDriveFolderId || (settings as any).googleDriveFolderId;
             await dependencies.testGoogleDrive(settings);
 
-            await this.updateCompanyMetadata(companyId, {
+            await this.updateCompanyMetadata({
                 lastStorageTestStatus: 'success',
                 lastStorageTestDate: new Date(),
                 lastStorageTestError: null
             }, dependencies.clearCompanyCache);
 
-            const freshMeta = await this.getCompanyMetadata(companyId);
+            const freshMeta = await this.getCompanyMetadata();
             const merged = { ...settings } as any;
             METADATA_FIELDS.forEach(field => {
                 merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -389,7 +392,7 @@ export class SettingsService {
         }
 
         if (settings.storageMode === 'cloudinary') {
-            const metadata = await this.getCompanyMetadata(companyId);
+            const metadata = await this.getCompanyMetadata();
             const cloudinaryCloudName = metadata.cloudinaryCloudName || (settings as any).cloudinaryCloudName;
             const cloudinaryApiKey = metadata.cloudinaryApiKey || (settings as any).cloudinaryApiKey;
             const cloudinaryApiSecret = metadata.cloudinaryApiSecret || (settings as any).cloudinaryApiSecret;
@@ -404,13 +407,13 @@ export class SettingsService {
                 apiSecret: cloudinaryApiSecret
             });
 
-            await this.updateCompanyMetadata(companyId, {
+            await this.updateCompanyMetadata({
                 lastStorageTestStatus: 'success',
                 lastStorageTestDate: new Date(),
                 lastStorageTestError: null
             }, dependencies.clearCompanyCache);
 
-            const freshMeta = await this.getCompanyMetadata(companyId);
+            const freshMeta = await this.getCompanyMetadata();
             const merged = { ...settings } as any;
             METADATA_FIELDS.forEach(field => {
                 merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -423,8 +426,8 @@ export class SettingsService {
     }
 
     static async logStorageTestFailure(user: any, errorMessage: string, dependencies: any) {
-        const companyId = user.companyId;
-        await this.updateCompanyMetadata(companyId, {
+        const companyId = requestContext.getStore()?.companyId as string;
+        await this.updateCompanyMetadata({
             lastStorageTestStatus: 'failure',
             lastStorageTestDate: new Date(),
             lastStorageTestError: errorMessage
@@ -433,7 +436,7 @@ export class SettingsService {
         const settings = companyId ? await prisma.settings.findFirst({
             where: { companyId }
         }) : null;
-        const freshMeta = await this.getCompanyMetadata(companyId);
+        const freshMeta = await this.getCompanyMetadata();
         const merged = { ...settings } as any;
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -448,18 +451,18 @@ export class SettingsService {
 
         await prisma.$queryRaw`SELECT 1`;
 
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const settings = companyId ? await prisma.settings.findFirst({
             where: { companyId }
         }) : null;
 
-        await this.updateCompanyMetadata(companyId, {
+        await this.updateCompanyMetadata({
             lastDbTestStatus: 'success',
             lastDbTestDate: new Date(),
             lastDbTestError: null
         }, dependencies.clearCompanyCache);
 
-        const freshMeta = await this.getCompanyMetadata(companyId);
+        const freshMeta = await this.getCompanyMetadata();
         const merged = { ...settings } as any;
         METADATA_FIELDS.forEach(field => {
             merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';
@@ -469,7 +472,7 @@ export class SettingsService {
     }
 
     static async logDatabaseTestFailure(user: any, errorMessage: string, body: any, dependencies: any) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         let merged = { ...body };
         try {
             if (companyId) {
@@ -477,13 +480,13 @@ export class SettingsService {
                     where: { companyId }
                 });
 
-                await this.updateCompanyMetadata(companyId, {
+                await this.updateCompanyMetadata({
                     lastDbTestStatus: 'failure',
                     lastDbTestDate: new Date(),
                     lastDbTestError: errorMessage
                 }, dependencies.clearCompanyCache);
 
-                const freshMeta = await this.getCompanyMetadata(companyId);
+                const freshMeta = await this.getCompanyMetadata();
                 merged = { ...settings };
                 METADATA_FIELDS.forEach(field => {
                     merged[field] = freshMeta[field] !== undefined ? freshMeta[field] : '';

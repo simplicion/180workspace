@@ -9,7 +9,7 @@ export const createService = async (req: Request, res: Response, next: NextFunct
         }
 
         const { name, description, startingPrice, imageUrl, detailedDescription } = req.body;
-        const newService = await CompanyServicesService.createService(companyId, name, description, startingPrice, imageUrl, detailedDescription);
+        const newService = await CompanyServicesService.createService(name, description, startingPrice, imageUrl, detailedDescription);
         res.status(201).json({ success: true, data: newService });
     } catch (error: any) {
   next(error);
@@ -26,7 +26,7 @@ export const updateService = async (req: Request, res: Response, next: NextFunct
         }
 
         const { name, description, startingPrice, imageUrl, detailedDescription } = req.body;
-        const updatedService = await CompanyServicesService.updateService(companyId, id, name, description, startingPrice, imageUrl, detailedDescription);
+        const updatedService = await CompanyServicesService.updateService(id, name, description, startingPrice, imageUrl, detailedDescription);
         res.json({ success: true, data: updatedService });
     } catch (error: any) {
   next(error);
@@ -42,7 +42,7 @@ export const deleteService = async (req: Request, res: Response, next: NextFunct
             return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
         }
 
-        await CompanyServicesService.deleteService(companyId, id);
+        await CompanyServicesService.deleteService(id);
         res.json({ success: true, message: 'Service deleted successfully' });
     } catch (error: any) {
   next(error);
@@ -78,7 +78,7 @@ export const getServiceRequests = async (req: Request, res: Response, next: Next
             return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
         }
 
-        const requests = await CompanyServicesService.getServiceRequests(companyId);
+        const requests = await CompanyServicesService.getServiceRequests();
         res.json({ success: true, data: requests });
     } catch (error: any) {
   next(error);

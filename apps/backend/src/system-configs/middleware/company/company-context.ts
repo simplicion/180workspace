@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { prisma, getCompanyPrisma } from '@workspace/db';
+import { prisma, getCompanyPrisma, requestContext } from '@workspace/db';
 import { redisClient as redis } from '../../utils/redis';
 import { Request, Response, NextFunction } from 'express';
 
@@ -201,7 +201,7 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
         }
 
         // 3. Security & Onboarding Check
-        const pitchInRoutes = [
+        const workspaceRoutes = [
             '/api/community',
             '/api/chat',
             '/api/search',
@@ -210,9 +210,9 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
             '/api/user',
             '/api/files'
         ];
-        const isPitchInRoute = pitchInRoutes.some(route => req.path.startsWith(route));
+        const is180workspaceRoute = workspaceRoutes.some(route => req.path.startsWith(route));
 
-        if (!company.isOnboardingComplete && !isOnboardingRoute && !isPublic && !isPitchInRoute) {
+        if (!company.isOnboardingComplete && !isOnboardingRoute && !isPublic && !is180workspaceRoute) {
             return res.status(403).json({
                 error: 'Your workspace requires setup. Redirecting to onboarding...',
                 onboardingRequired: true
@@ -332,8 +332,10 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
         };
 
         if (req.performanceData?.mark) req.performanceData.mark('companyResolutionDuration');
-        next();
-    } catch (err) {
+        requestContext.run({ companyId: company.id }, () => {
+            next();
+        });
+    } catch (err: any) {
         console.error('[Company Context Middleware Error]', err);
         return res.status(500).json({ error: 'Failed to resolve company workspace context.' });
     }

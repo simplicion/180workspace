@@ -1,18 +1,22 @@
-import { CompanyServicesRepository } from '../repositories/company-services.repository';export class CompanyServicesService {
-    static async createService(companyId: string, name: string, description: string, startingPrice: number, imageUrl: string, detailedDescription: string) {
+import { CompanyServicesRepository } from '../repositories/company-services.repository';
+import { requestContext } from '@workspace/db';
+
+export class CompanyServicesService {
+    static async createService(name: string, description: string, startingPrice: number, imageUrl: string, detailedDescription: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const newService = await CompanyServicesRepository.create(
-            companyId,
             name,
             description,
-            String(startingPrice),
+            startingPrice.toString(),
             imageUrl,
             detailedDescription
         );
         return newService;
     }
 
-    static async updateService(companyId: string, serviceId: string, name: string, description: string, startingPrice: number, imageUrl: string, detailedDescription: string) {
-        const existingService = await CompanyServicesRepository.findByIdAndCompany(serviceId, companyId);
+    static async updateService(serviceId: string, name: string, description: string, startingPrice: number, imageUrl: string, detailedDescription: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        const existingService = await CompanyServicesRepository.findByIdAndCompany(serviceId);
 
         if (!existingService) {
             throw new Error('Service not found or unauthorized.');
@@ -29,8 +33,9 @@ import { CompanyServicesRepository } from '../repositories/company-services.repo
         return updatedService;
     }
 
-    static async deleteService(companyId: string, serviceId: string) {
-        const existingService = await CompanyServicesRepository.findByIdAndCompany(serviceId, companyId);
+    static async deleteService(serviceId: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        const existingService = await CompanyServicesRepository.findByIdAndCompany(serviceId);
 
         if (!existingService) {
             throw new Error('Service not found or unauthorized.');
@@ -71,8 +76,8 @@ import { CompanyServicesRepository } from '../repositories/company-services.repo
         return newRequest;
     }
 
-    static async getServiceRequests(companyId: string) {
-        const requests = await CompanyServicesRepository.getRequests(companyId);
+    static async getServiceRequests() {
+        const requests = await CompanyServicesRepository.getRequests();
         return requests;
     }
 }

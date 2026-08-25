@@ -22,11 +22,11 @@ The platform consists of four primary deployment nodes:
 - **Location:** `apps/worker`
 - **Key Feature:** Shares the exact same codebase as the HTTP Backend but runs with `RUN_MODE=worker` to ensure complete decoupling of heavy workloads (AI analysis, email blasts) from the user-facing API.
 
-### 3. User Web (Super App / PitchIn 180)
+### 3. User Web (Super App / 180workspace)
 - **Role:** The primary interface for end-users, founders, and investors.
 - **Stack:** Next.js, React, Tailwind CSS, Capacitor (for native Android/iOS deployment).
 - **Location:** `apps/user-web`
-- **Key Feature:** Operates as a Progressive Web App (PWA) and a native mobile wrapper. Houses both the core 180workspace features and the dedicated PitchIn 180 network module.
+- **Key Feature:** Operates as a Progressive Web App (PWA) and a native mobile wrapper. Houses both the core 180workspace features and the dedicated 180workspace network module.
 
 ### 4. Admin Web (Super Admin Portal)
 - **Role:** The back-office control panel for platform administrators.

@@ -14,7 +14,7 @@ export class PayrollService {
         // 1. Fetch Employee details
         const employee = await User.findUnique({
             where: { id: employeeId },
-            select: { id: true, name: true, salary: true, joinDate: true }
+            select: { id: true, name: true, salary: true, joinDate: true, companyId: true }
         });
         if (!employee) {
             throw new Error('Employee not found');
@@ -67,7 +67,11 @@ export class PayrollService {
             }),
             Holiday.findMany({ 
                 where: { 
-                    date: { gte: startOfMonthDate, lte: endOfMonthDate } 
+                    date: { gte: startOfMonthDate, lte: endOfMonthDate },
+                    OR: [
+                        { companyId: employee.companyId },
+                        { companyId: null }
+                    ]
                 } 
             })
         ]);

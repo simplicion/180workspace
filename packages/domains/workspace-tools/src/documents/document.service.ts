@@ -1,9 +1,9 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 export class DocumentService {
-    static async getAllDocuments(companyId: string) {
+    static async getAllDocuments() {
         // Fetch all documents and contracts from knowledgeArticle table
         const articles = await prisma.knowledgeArticle.findMany({
-            where: { companyId },
+            where: {},
             include: {
                 createdBy: { select: { id: true, name: true, photoUrl: true } }
             },
@@ -48,8 +48,8 @@ export class DocumentService {
         return combined;
     }
 
-    static async getDocumentsList(companyId: string, search?: string, category?: string) {
-        const where: any = { companyId };
+    static async getDocumentsList(search?: string, category?: string) {
+        const where: any = {};
 
         if (category && category !== 'All') {
             where.category = category;
@@ -75,9 +75,9 @@ export class DocumentService {
         return articles;
     }
 
-    static async getDocumentById(id: string, companyId: string) {
+    static async getDocumentById(id: string) {
         const article = await prisma.knowledgeArticle.findFirst({
-            where: { id, companyId },
+            where: { id },
             include: {
                 createdBy: { select: { id: true, name: true, photoUrl: true } },
                 updatedBy: { select: { id: true, name: true, photoUrl: true } },
@@ -94,16 +94,17 @@ export class DocumentService {
         return article;
     }
 
-    static async createDocument(companyId: string, userId: string, data: any) {
+    static async createDocument(userId: string, data: any) {
         const { title, content, category, tags } = data;
 
+        const companyId = requestContext.getStore()?.companyId as string;
         const article = await prisma.knowledgeArticle.create({
             data: {
+                companyId,
                 title: title || 'Untitled Document',
                 content: content || '',
                 category: category || 'General',
                 tags: tags || [],
-                companyId,
                 createdById: userId,
                 updatedById: userId
             }
@@ -112,10 +113,10 @@ export class DocumentService {
         return article;
     }
 
-    static async updateDocument(companyId: string, userId: string, id: string, data: any) {
+    static async updateDocument(userId: string, id: string, data: any) {
         const { title, content, category, tags, saveVersion } = data;
 
-        const existing = await prisma.knowledgeArticle.findFirst({ where: { id, companyId } });
+        const existing = await prisma.knowledgeArticle.findFirst({ where: { id } });
         if (!existing) throw new Error("Article not found");
 
         if (saveVersion && existing.content !== content) {
@@ -154,8 +155,8 @@ export class DocumentService {
         return article;
     }
 
-    static async lockDocument(companyId: string, userId: string, id: string) {
-        const article = await prisma.knowledgeArticle.findFirst({ where: { id, companyId } });
+    static async lockDocument(userId: string, id: string) {
+        const article = await prisma.knowledgeArticle.findFirst({ where: { id } });
         if (!article) throw new Error("Article not found");
 
         const now = new Date();
@@ -175,8 +176,8 @@ export class DocumentService {
         return { message: "Lock acquired" };
     }
 
-    static async unlockDocument(companyId: string, userId: string, id: string) {
-        const article = await prisma.knowledgeArticle.findFirst({ where: { id, companyId } });
+    static async unlockDocument(userId: string, id: string) {
+        const article = await prisma.knowledgeArticle.findFirst({ where: { id } });
         if (!article) throw new Error("Article not found");
 
         if (article.lockedById === userId) {
@@ -191,16 +192,16 @@ export class DocumentService {
         return { message: "Lock released" };
     }
 
-    static async deleteDocument(companyId: string, id: string) {
-        const existing = await prisma.knowledgeArticle.findFirst({ where: { id, companyId } });
+    static async deleteDocument(id: string) {
+        const existing = await prisma.knowledgeArticle.findFirst({ where: { id } });
         if (!existing) throw new Error("Article not found");
 
         await prisma.knowledgeArticle.delete({ where: { id } });
         return { message: "Article deleted" };
     }
 
-    static async createLink(companyId: string, id: string, relatedModel: string, relatedId: string) {
-        const existing = await prisma.knowledgeArticle.findFirst({ where: { id, companyId } });
+    static async createLink(id: string, relatedModel: string, relatedId: string) {
+        const existing = await prisma.knowledgeArticle.findFirst({ where: { id } });
         if (!existing) throw new Error("Article not found");
 
         try {
@@ -220,12 +221,11 @@ export class DocumentService {
         }
     }
 
-    static async getLinksForEntity(companyId: string, relatedModel: string, relatedId: string) {
+    static async getLinksForEntity(relatedModel: string, relatedId: string) {
         const links = await prisma.knowledgeArticleLink.findMany({
             where: {
                 relatedModel,
-                relatedId,
-                article: { companyId }
+                relatedId
             },
             include: {
                 article: {

@@ -113,6 +113,7 @@ model Company {
   knowledgeArticles        KnowledgeArticle[]
   savedBanks               SavedBank[]
   teamActivityLogs         TeamActivityLog[]
+  calendarEvents           CalendarEvent[]    @relation("CompanyCalendarEvents")
 }
 
 model SavedBank {
@@ -601,6 +602,7 @@ model CalendarEvent {
   color                        String       @default("#4f46e5")
   isCompanyWide                Boolean      @default(false)
   createdById                  String?
+  companyId                    String?
   relatedType                  String?
   relatedId                    String?
   startTime                    String?
@@ -617,8 +619,11 @@ model CalendarEvent {
   createdAt                    DateTime     @default(now())
   updatedAt                    DateTime     @updatedAt
   createdBy                    User?        @relation("EventCreator", fields: [createdById], references: [id])
+  company                      Company?     @relation("CompanyCalendarEvents", fields: [companyId], references: [id])
   meetingLogs_EventMeetingLogs MeetingLog[] @relation("EventMeetingLogs")
   attendees                    User[]       @relation("MeetingAttendees")
+
+  @@index([companyId])
 }
 
 model AuditLog {
@@ -2362,4 +2367,77 @@ model ProcessedWebhook {
   createdAt DateTime @default(now())
   
   @@index([eventId])
+}
+
+model DomainRegistry {
+  id        String   @id @default(uuid())
+  domain    String   @unique
+  type      String
+  targetId  String
+  companyId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([domain])
+}
+
+// ------------------------------------------------------
+// MARKETING & CMS MODELS (AEO/SEO Optimized)
+// ------------------------------------------------------
+
+model MarketingPage {
+  id              String   @id @default(uuid())
+  slug            String   @unique // e.g., 'features/hr-management'
+  type            String   @default("FEATURE") // FEATURE, USE_CASE, LEGAL
+  
+  // SEO Data
+  seoTitle        String
+  seoDescription  String
+  keywords        String[]
+  jsonLdSchema    Json?    // Injected directly into <head>
+  
+  // Page Content (JSON structure for Astro to render modular blocks)
+  heroHeadline    String
+  heroSubtext     String
+  heroImageUrl    String?
+  contentBlocks   Json     // Array of feature blocks, testimonials, FAQs
+  
+  published       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model MarketingBlog {
+  id              String   @id @default(uuid())
+  slug            String   @unique
+  category        String   // e.g., 'agency-growth', 'freelance-tips'
+  
+  // SEO Data
+  seoTitle        String
+  seoDescription  String
+  keywords        String[]
+  
+  // Content
+  title           String
+  excerpt         String
+  contentHtml     String   // Raw HTML or Markdown
+  coverImageUrl   String?
+  
+  // Author
+  authorName      String
+  authorRole      String
+  authorAvatarUrl String?
+  
+  published       Boolean  @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model MarketingFaq {
+  id              String   @id @default(uuid())
+  question        String
+  answer          String
+  targetPageSlug  String   // Links the FAQ to a specific MarketingPage or Blog for JSON-LD generation
+  order           Int      @default(0)
 }

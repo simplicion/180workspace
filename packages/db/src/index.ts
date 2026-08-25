@@ -23,6 +23,8 @@ function getPrismaLogLevels(): Prisma.LogLevel[] {
   return levels;
 }
 
+export const requestContext = new AsyncLocalStorage<{ companyId?: string, userId?: string, [key: string]: any }>();
+
 export const basePrisma =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -31,7 +33,19 @@ export const basePrisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma;
 
-export const prisma = basePrisma;
+export const prisma = new Proxy(basePrisma, {
+  get(target, prop) {
+    const context = requestContext.getStore();
+    const companyId = context?.companyId;
+    if (companyId) {
+      const companyPrisma = getCompanyPrisma(companyId);
+      const value = (companyPrisma as any)[prop];
+      return typeof value === 'function' ? value.bind(companyPrisma) : value;
+    }
+    const value = (target as any)[prop];
+    return typeof value === 'function' ? value.bind(target) : value;
+  }
+});
 
 // Precompute models that have companyId to avoid O(N) traversal on every query
 const modelsWithCompanyId = new Set<string>();

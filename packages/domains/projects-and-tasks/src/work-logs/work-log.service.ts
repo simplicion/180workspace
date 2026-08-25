@@ -1,6 +1,6 @@
 import type { UserContext } from '../tasks/task.service.js';
 
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { triggerAutomation } from '@workspace/backend-infra';
 
 const mapLogs = (logs: any[]) => logs.map(log => {
@@ -139,7 +139,7 @@ export class WorkLogService {
 
     static async getDashboardStats(query: any, user: UserContext) {
         const where = getQueryFilters(query);
-        const companyId = (user as any).companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         
         const logs = await prisma.workLog.findMany({
             where,

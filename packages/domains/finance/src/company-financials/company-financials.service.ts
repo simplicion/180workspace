@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 /**
  * Service for calculating real company financials based on workspace data.
  */
@@ -11,7 +11,8 @@ export class CompanyFinancialsService {
      * @param companyId - The ID of the company
      * @returns Financial metrics
      */
-    static async calculateFinancials(companyId: string) {
+    static async calculateFinancials() {
+        const companyId = requestContext.getStore()?.companyId as string;
         // Fetch all invoices (Income) and expenses for the company
         const [invoices, expenses] = await Promise.all([
             prisma.invoice.findMany({
@@ -67,7 +68,8 @@ export class CompanyFinancialsService {
      * @param companyId - The ID of the company
      * @returns Formatted percentage (e.g. "+100%")
      */
-    static async calculateTeamGrowth(companyId: string) {
+    static async calculateTeamGrowth() {
+        const companyId = requestContext.getStore()?.companyId as string;
         const currentYear = new Date().getFullYear();
         
         // Users created before or during previous year

@@ -1,7 +1,9 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 
 export class CompanyServicesRepository {
-    static async create(companyId: string, name: string, description: string, startingPrice: string, imageUrl: string, detailedDescription: string) {
+    static async create(name: string, description: string, startingPrice: string, imageUrl: string, detailedDescription: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (!companyId) throw new Error('Company ID is required in context');
         return prisma.companyService.create({
             data: {
                 companyId,
@@ -14,7 +16,8 @@ export class CompanyServicesRepository {
         });
     }
 
-    static async findByIdAndCompany(id: string, companyId: string) {
+    static async findByIdAndCompany(id: string, explicitCompanyId?: string) {
+        const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
         return prisma.companyService.findFirst({
             where: { id, companyId }
         });
@@ -51,7 +54,8 @@ export class CompanyServicesRepository {
         });
     }
 
-    static async getRequests(companyId: string) {
+    static async getRequests(explicitCompanyId?: string) {
+        const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
         return prisma.serviceRequest.findMany({
             where: { companyId },
             include: {

@@ -90,31 +90,130 @@ class LocationService {
     }
 
     /**
-     * Automatically detect user's country based on IP
+     * Detect country from browser timezone using the country-state-city library.
+     * Country.getAllCountries() provides timezone data for every country — no hardcoding needed.
      */
-    async getCurrentLocation(): Promise<FormattedLocation | null> {
+    private detectFromTimezone(): FormattedLocation | null {
         try {
-            const res = await fetch('https://ipapi.co/json/');
-            if (!res.ok) return null;
-            const data = await res.json();
-            
-            if (data.country_code) {
-                const currencyCode = data.currency || 'USD';
-                return {
-                    address: `${data.city ? data.city + ', ' : ''}${data.region ? data.region + ', ' : ''}${data.country_name || ''}`,
-                    city: data.city || '',
-                    state: data.region || '',
-                    country: data.country_name || '',
-                    countryCode: data.country_code,
-                    currencyCode,
-                    currencySymbol: this.getCurrencySymbol(currencyCode)
-                };
+            const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (!browserTimezone) return null;
+
+            const allCountries = Country.getAllCountries();
+
+            // Search all countries for a matching timezone
+            for (const country of allCountries) {
+                const timezones = (country as any).timezones as Array<{ zoneName: string }> | undefined;
+                if (!timezones?.length) continue;
+
+                const match = timezones.some(
+                    (tz) => tz.zoneName === browserTimezone
+                );
+
+                if (match) {
+                    const currencyCode = country.currency || 'USD';
+                    return {
+                        address: country.name,
+                        city: '',
+                        state: '',
+                        country: country.name,
+                        countryCode: country.isoCode,
+                        currencyCode,
+                        currencySymbol: this.getCurrencySymbol(currencyCode),
+                    };
+                }
             }
+
             return null;
-        } catch (e) {
-            console.error("IP Geolocation failed:", e);
+        } catch {
             return null;
         }
+    }
+
+    /**
+     * Automatically detect user's country.
+     * Strategy 1: Browser timezone matched against country-state-city DB (instant, free, no API).
+     * Strategy 2: Nominatim reverse geocode via browser geolocation (free, no rate limits).
+     * Strategy 3: Sensible default.
+     */
+    async getCurrentLocation(): Promise<FormattedLocation | null> {
+        // Strategy 1: Timezone-based detection (instant, zero API calls)
+        const timezoneResult = this.detectFromTimezone();
+        if (timezoneResult) return timezoneResult;
+
+        // Strategy 2: Browser Geolocation + OpenStreetMap Nominatim reverse geocode
+        try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                if (!navigator?.geolocation) return reject(new Error('No geolocation'));
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    timeout: 5000,
+                    maximumAge: 300000, // cache for 5 minutes
+                });
+            });
+
+            const { latitude, longitude } = position.coords;
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+                {
+                    headers: {
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'User-Agent': '180workspace/1.0',
+                    },
+                }
+            );
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data?.address?.country_code) {
+                    return this.parseLocationResult(data);
+                }
+            }
+        } catch (e) {
+            // Geolocation denied or Nominatim failed — fall through silently
+            console.warn('Geolocation/Nominatim fallback failed:', e);
+        }
+
+        // Strategy 3: Default based on browser language
+        return this.getDefaultLocation();
+    }
+
+    /**
+     * Returns a sensible default location derived from the browser's language setting.
+     * Uses country-state-city to resolve currency dynamically.
+     */
+    private getDefaultLocation(): FormattedLocation {
+        try {
+            // Try to infer country from browser language (e.g., "en-IN" → "IN")
+            const locale = navigator?.language || 'en-US';
+            const regionCode = locale.split('-')[1]?.toUpperCase();
+
+            if (regionCode) {
+                const countryData = Country.getCountryByCode(regionCode);
+                if (countryData) {
+                    const currencyCode = countryData.currency || 'USD';
+                    return {
+                        address: countryData.name,
+                        city: '',
+                        state: '',
+                        country: countryData.name,
+                        countryCode: countryData.isoCode,
+                        currencyCode,
+                        currencySymbol: this.getCurrencySymbol(currencyCode),
+                    };
+                }
+            }
+        } catch {
+            // Fall through to hardcoded default
+        }
+
+        return {
+            address: 'India',
+            city: '',
+            state: '',
+            country: 'India',
+            countryCode: 'IN',
+            currencyCode: 'INR',
+            currencySymbol: '₹',
+        };
     }
 }
 

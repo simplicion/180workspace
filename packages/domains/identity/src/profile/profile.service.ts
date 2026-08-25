@@ -1,15 +1,15 @@
 // @ts-nocheck
 import { prisma } from '@workspace/db';
 import { v4 as uuidv4 } from 'uuid';
-import { getCompanyPrisma } from '@workspace/db';
+
 import { clearCache, getCachedData, setCachedData, logAction, getPresignedUploadUrl, deleteFromR2 } from '@workspace/backend-infra';
 
 export class ProfileService {
 
-    static async getProfile(companyPrisma: any, userId: string, currentUserId: string) {
+    static async getProfile(userId: string, currentUserId: string) {
         const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
         
-        const user = await companyPrisma.user.findFirst({
+        const user = await prisma.user.findFirst({
             where: isValidUUID ? { id: userId } : { username: userId },
             include: {
                 experiences: { orderBy: { startDate: 'desc' } },
@@ -51,10 +51,10 @@ export class ProfileService {
         return safeProfile;
     }
 
-    static async updateProfile(companyPrisma: any, userId: string, body: any) {
+    static async updateProfile(userId: string, body: any) {
         const { name, headline, title, companyName, phone, bio, city, country, socialLinks, highlights, photoUrl, bannerImage } = body;
 
-        const updatedUser = await companyPrisma.user.update({
+        const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
                 name,
@@ -87,80 +87,80 @@ export class ProfileService {
         return { uploadUrl: url, key, publicUrl };
     }
 
-    static async addExperience(companyPrisma: any, userId: string, data: any) {
-        return await companyPrisma.userExperience.create({ data: { ...data, userId } });
+    static async addExperience(userId: string, data: any) {
+        return await prisma.userExperience.create({ data: { ...data, userId } });
     }
 
-    static async updateExperience(companyPrisma: any, id: string, userId: string, data: any) {
-        return await companyPrisma.userExperience.update({
+    static async updateExperience(id: string, userId: string, data: any) {
+        return await prisma.userExperience.update({
             where: { id, userId },
             data
         });
     }
 
-    static async deleteExperience(companyPrisma: any, id: string, userId: string) {
-        await companyPrisma.userExperience.delete({
+    static async deleteExperience(id: string, userId: string) {
+        await prisma.userExperience.delete({
             where: { id, userId }
         });
         return { success: true };
     }
 
-    static async addEducation(companyPrisma: any, userId: string, data: any) {
-        return await companyPrisma.userEducation.create({ data: { ...data, userId } });
+    static async addEducation(userId: string, data: any) {
+        return await prisma.userEducation.create({ data: { ...data, userId } });
     }
 
-    static async updateEducation(companyPrisma: any, id: string, userId: string, data: any) {
-        return await companyPrisma.userEducation.update({
+    static async updateEducation(id: string, userId: string, data: any) {
+        return await prisma.userEducation.update({
             where: { id, userId },
             data
         });
     }
 
-    static async deleteEducation(companyPrisma: any, id: string, userId: string) {
-        await companyPrisma.userEducation.delete({
+    static async deleteEducation(id: string, userId: string) {
+        await prisma.userEducation.delete({
             where: { id, userId }
         });
         return { success: true };
     }
 
-    static async searchSkills(companyPrisma: any, q: string) {
+    static async searchSkills(q: string) {
         if (!q) return [];
-        return await companyPrisma.skill.findMany({
+        return await prisma.skill.findMany({
             where: { name: { contains: q, mode: 'insensitive' } },
             take: 10
         });
     }
 
-    static async addSkill(companyPrisma: any, userId: string, skillName: string, isCustom: boolean) {
-        const existing = await companyPrisma.userSkill.findFirst({
+    static async addSkill(userId: string, skillName: string, isCustom: boolean) {
+        const existing = await prisma.userSkill.findFirst({
             where: { userId, skillName: { equals: skillName, mode: 'insensitive' } }
         });
 
         if (existing) throw new Error('Skill already added');
 
-        return await companyPrisma.userSkill.create({
+        return await prisma.userSkill.create({
             data: { userId, skillName, isCustom: !!isCustom }
         });
     }
 
-    static async deleteSkill(companyPrisma: any, id: string, userId: string) {
-        await companyPrisma.userSkill.delete({
+    static async deleteSkill(id: string, userId: string) {
+        await prisma.userSkill.delete({
             where: { id, userId }
         });
         return { success: true };
     }
 
-    static async addResume(companyPrisma: any, userId: string, fileUrl: string, fileName: string) {
-        const count = await companyPrisma.userResume.count({ where: { userId } });
+    static async addResume(userId: string, fileUrl: string, fileName: string) {
+        const count = await prisma.userResume.count({ where: { userId } });
         if (count >= 3) throw new Error('Maximum of 3 resumes allowed.');
 
-        return await companyPrisma.userResume.create({
+        return await prisma.userResume.create({
             data: { userId, fileUrl, fileName }
         });
     }
 
-    static async deleteResume(companyPrisma: any, id: string, userId: string, cdnBaseUrl: string) {
-        const resume = await companyPrisma.userResume.findUnique({
+    static async deleteResume(id: string, userId: string, cdnBaseUrl: string) {
+        const resume = await prisma.userResume.findUnique({
             where: { id, userId }
         });
         if (resume && resume.fileUrl) {
@@ -171,15 +171,15 @@ export class ProfileService {
             }
         }
 
-        await companyPrisma.userResume.delete({
+        await prisma.userResume.delete({
             where: { id, userId }
         });
         return { success: true };
     }
 
-    static async followProfile(companyPrisma: any, userId: string, currentUserId: string) {
+    static async followProfile(userId: string, currentUserId: string) {
         const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-        const targetUser = await companyPrisma.user.findFirst({
+        const targetUser = await prisma.user.findFirst({
             where: isValidUUID ? { id: userId } : { username: userId }
         });
         if (!targetUser) throw new Error("User not found");
@@ -187,7 +187,7 @@ export class ProfileService {
 
         if (resolvedUserId === currentUserId) throw new Error("Cannot follow yourself");
 
-        const user = await companyPrisma.user.findUnique({
+        const user = await prisma.user.findUnique({
             where: { id: currentUserId },
             include: { following: { where: { id: resolvedUserId }, select: { id: true } } }
         });
@@ -195,13 +195,13 @@ export class ProfileService {
         const isFollowing = user.following.length > 0;
 
         if (isFollowing) {
-            await companyPrisma.user.update({
+            await prisma.user.update({
                 where: { id: currentUserId },
                 data: { following: { disconnect: { id: resolvedUserId } } }
             });
             return { following: false };
         } else {
-            await companyPrisma.user.update({
+            await prisma.user.update({
                 where: { id: currentUserId },
                 data: { following: { connect: { id: resolvedUserId } } }
             });
@@ -209,9 +209,9 @@ export class ProfileService {
         }
     }
 
-    static async getNetwork(companyPrisma: any, userId: string, currentUserId: string) {
+    static async getNetwork(userId: string, currentUserId: string) {
         const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-        const user = await companyPrisma.user.findFirst({
+        const user = await prisma.user.findFirst({
             where: isValidUUID ? { id: userId } : { username: userId },
             include: {
                 followers: { select: { id: true, username: true, name: true, photoUrl: true, headline: true } },
@@ -229,7 +229,7 @@ export class ProfileService {
         if (currentUserId === resolvedUserId) {
             common = followers.filter((f: any) => following.some((fw: any) => fw.id === f.id));
         } else {
-            const currentUser = await companyPrisma.user.findUnique({
+            const currentUser = await prisma.user.findUnique({
                 where: { id: currentUserId },
                 include: { following: { select: { id: true } } }
             });
@@ -240,26 +240,26 @@ export class ProfileService {
         return { followers, following, common };
     }
 
-    static async addProject(companyPrisma: any, userId: string, data: any) {
-        return await companyPrisma.userProject.create({ data: { ...data, userId } });
+    static async addProject(userId: string, data: any) {
+        return await prisma.userProject.create({ data: { ...data, userId } });
     }
 
-    static async updateProject(companyPrisma: any, id: string, userId: string, data: any) {
-        return await companyPrisma.userProject.update({
+    static async updateProject(id: string, userId: string, data: any) {
+        return await prisma.userProject.update({
             where: { id, userId },
             data
         });
     }
 
-    static async deleteProject(companyPrisma: any, id: string, userId: string) {
-        await companyPrisma.userProject.delete({
+    static async deleteProject(id: string, userId: string) {
+        await prisma.userProject.delete({
             where: { id, userId }
         });
         return { success: true };
     }
 
-    static async getAllNetworkProfiles(companyPrisma: any, currentUserId: string) {
-        const users = await companyPrisma.user.findMany({
+    static async getAllNetworkProfiles(currentUserId: string) {
+        const users = await prisma.user.findMany({
             where: { isActive: true },
             select: {
                 id: true,
@@ -282,7 +282,7 @@ export class ProfileService {
             name: user.name,
             headline: user.headline || '',
             location: [user.city, user.country].filter(Boolean).join(', '),
-            company: user.companyName || 'PitchIn',
+            company: user.companyName || '180workspace',
             role: user.role || 'Member',
             type: user.role === 'Founder' || user.role === 'Investor' || user.role === 'Mentor' ? user.role : 'Member',
             profilePicture: user.photoUrl || 'https://i.pravatar.cc/150',
@@ -292,7 +292,7 @@ export class ProfileService {
             mutualConnections: []
         }));
 
-        const companies = await companyPrisma.company.findMany({
+        const companies = await prisma.company.findMany({
             select: {
                 id: true,
                 name: true,

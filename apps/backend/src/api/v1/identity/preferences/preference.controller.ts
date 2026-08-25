@@ -18,7 +18,7 @@ export class PreferenceController {
             const item = req.body.item || req.body;
             const action = req.body.action;
             const reqUser = (req as any).user;
-            const result = await UserPreferenceService.updateFavorites(reqUser.id, reqUser.companyId, item, action);
+            const result = await UserPreferenceService.updateFavorites(reqUser.id, item, action);
             res.json(result);
         } catch (err) { next(err); }
     }
@@ -27,7 +27,7 @@ export class PreferenceController {
         try {
             const item = req.body.item || req.body;
             const reqUser = (req as any).user;
-            const result = await UserPreferenceService.addRecentItem(reqUser.id, reqUser.companyId, item);
+            const result = await UserPreferenceService.addRecentItem(reqUser.id, item);
             res.json(result);
         } catch (err) { next(err); }
     }

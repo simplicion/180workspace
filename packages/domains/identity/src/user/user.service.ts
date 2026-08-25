@@ -1,13 +1,12 @@
 // @ts-nocheck
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { clearCache, setCachedData } from '@workspace/backend-infra';
 import { logAction } from '@workspace/backend-infra';
-import { deleteFromCloudinary } from '@workspace/backend-infra'; // Adjust if cloudinary is in common
-import { getCompanyPrisma, prisma as globalPrisma } from '@workspace/db';
+import { deleteFromCloudinary } from '@workspace/backend-infra';
 
 export class UserService {
-    static async getUsers(companyPrisma: any, queryParams: any) {
-        const User = companyPrisma.user;
+    static async getUsers(queryParams: any) {
+        const User = prisma.user;
         const { search, role, page = 1, limit = 50 } = queryParams;
         const query: any = {};
         
@@ -37,8 +36,8 @@ export class UserService {
         return { users, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) };
     }
 
-    static async getUserById(companyPrisma: any, id: string, currentUserRole: string) {
-        const User = companyPrisma.user;
+    static async getUserById(id: string, currentUserRole: string) {
+        const User = prisma.user;
         const user = await User.findUnique({ where: { id } });
         
         if (!user) throw new Error('User not found');
@@ -53,8 +52,8 @@ export class UserService {
         return { user };
     }
 
-    static async updateUser(companyPrisma: any, id: string, body: any, currentUser: any, company: any, reqObj: any) {
-        const User = companyPrisma.user;
+    static async updateUser(id: string, body: any, currentUser: any, reqObj: any) {
+        const User = prisma.user;
         const forbidden = ['password', 'email', 'refreshTokens', 'mfaSecret'];
         
         if (!['admin', 'ceo'].includes(currentUser.role)) {
@@ -82,19 +81,25 @@ export class UserService {
             body.joinDate = new Date(body.joinDate);
         }
 
+        if (body.photo !== undefined) {
+            body.photoUrl = body.photo;
+            delete body.photo;
+        }
+
         if (body.designationId) {
             const designationId = body.designationId;
-            const Designation = companyPrisma.designation;
+            const Designation = prisma.designation;
             if (Designation) {
+                const companyId = requestContext.getStore()?.companyId as string;
                 let existing = await Designation.findFirst({ 
                     where: { 
                         name: { equals: designationId, mode: 'insensitive' },
-                        OR: [{ companyId: company?.id }, { companyId: null }]
+                        OR: [{ companyId }, { companyId: null }]
                     } 
                 });
                 if (!existing) {
                     existing = await Designation.create({ 
-                        data: { name: designationId, isCustom: true, companyId: company?.id } 
+                        data: { name: designationId, isCustom: true, companyId } 
                     });
                 }
                 body.designationId = existing.id;
@@ -110,8 +115,8 @@ export class UserService {
         return { user };
     }
 
-    static async deleteUser(companyPrisma: any, id: string, currentUser: any, reqObj: any) {
-        const User = companyPrisma.user;
+    static async deleteUser(id: string, currentUser: any, reqObj: any) {
+        const User = prisma.user;
         const reqUserId = currentUser.id;
 
         if (id === String(reqUserId)) {
@@ -151,8 +156,8 @@ export class UserService {
         return { message: 'User account and personal data deleted successfully. Company data has been retained.' };
     }
 
-    static async updatePhoto(companyPrisma: any, id: string, storageResult: any) {
-        const User = companyPrisma.user;
+    static async updatePhoto(id: string, storageResult: any) {
+        const User = prisma.user;
         if (!storageResult) throw new Error('Photo upload failed');
         
         const user = await User.update({ 
@@ -163,13 +168,13 @@ export class UserService {
         return { user, photoUrl: storageResult.fileUrl };
     }
 
-    static async getProfileStats(companyPrisma: any, id: string) {
+    static async getProfileStats(id: string) {
         if (!/^[0-9a-fA-F]{24}$/.test(id) && !id) {
             throw new Error('Invalid User ID format');
         }
 
-        const Task = companyPrisma.task;
-        const Project = companyPrisma.project;
+        const Task = prisma.task;
+        const Project = prisma.project;
 
         const [allTasks, projects] = await Promise.all([
             Task.findMany({
@@ -211,12 +216,12 @@ export class UserService {
         return { taskStats, projects: projectsWithRole };
     }
 
-    static async toggleFollow(companyPrisma: any, targetId: string, currentUserId: string, io: any) {
+    static async toggleFollow(targetId: string, currentUserId: string, io: any) {
         if (targetId === String(currentUserId)) {
             throw new Error('Cannot follow yourself');
         }
 
-        const User = companyPrisma.user;
+        const User = prisma.user;
         const targetUser = await User.findUnique({
             where: { id: targetId },
             include: { followers: true }
@@ -243,8 +248,8 @@ export class UserService {
         }
     }
 
-    static async getFollowers(companyPrisma: any, id: string) {
-        const User = companyPrisma.user;
+    static async getFollowers(id: string) {
+        const User = prisma.user;
         const user = await User.findUnique({
             where: { id },
             include: { followers: { select: { id: true, name: true, photoUrl: true, headline: true } } }
@@ -253,8 +258,8 @@ export class UserService {
         return { followers: user.followers };
     }
 
-    static async getFollowing(companyPrisma: any, id: string) {
-        const User = companyPrisma.user;
+    static async getFollowing(id: string) {
+        const User = prisma.user;
         const user = await User.findUnique({
             where: { id },
             include: { following: { select: { id: true, name: true, photoUrl: true, headline: true } } }
@@ -263,9 +268,9 @@ export class UserService {
         return { following: user.following };
     }
 
-    static async searchMentions(companyPrisma: any, q: string) {
+    static async searchMentions(q: string) {
         if (!q) return { users: [] };
-        const User = companyPrisma.user;
+        const User = prisma.user;
         const users = await User.findMany({
             where: {
                 OR: [

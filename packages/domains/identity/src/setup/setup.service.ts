@@ -77,6 +77,17 @@ export class SetupService {
             }
         });
 
+        // Register the slug in DomainRegistry if it exists
+        if (slug) {
+            await prisma.domainRegistry.create({
+                data: {
+                    domain: slug,
+                    type: 'COMPANY_PROFILE',
+                    targetId: newCompany.id
+                }
+            }).catch(err => console.warn('[Register] DomainRegistry seed error:', err.message));
+        }
+
         // Seed default settings for company
         await prisma.settings.create({
             data: {

@@ -7,7 +7,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
             return res.status(403).json({ success: false, message: 'Unauthorized access.' });
         }
 
-        const transactions = await TransactionService.getTransactions((req as any).user.companyId);
+        const transactions = await TransactionService.getTransactions();
 
         res.status(200).json({ success: true, count: transactions.length, data: transactions });
     } catch (error) {
@@ -21,7 +21,7 @@ export const getLedgerKPIs = async (req: Request, res: Response, next: NextFunct
             return res.status(403).json({ success: false, message: 'Unauthorized access.' });
         }
 
-        const kpis = await TransactionService.getLedgerKPIs((req as any).user.companyId);
+        const kpis = await TransactionService.getLedgerKPIs();
 
         res.status(200).json({ success: true, data: kpis });
     } catch (error) {
@@ -35,7 +35,7 @@ export const addTransaction = async (req: Request, res: Response, next: NextFunc
             return res.status(403).json({ success: false, message: 'Unauthorized access.' });
         }
 
-        const transaction = await TransactionService.addTransaction((req as any).user.companyId, req.body);
+        const transaction = await TransactionService.addTransaction(req.body);
 
         res.status(201).json({ success: true, data: transaction });
     } catch (error) {

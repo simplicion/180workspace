@@ -3,7 +3,7 @@ import { JobService } from '@workspace/hr-management';
 
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const jobs = await JobService.getJobs((req as any).user.companyId);
+        const jobs = await JobService.getJobs();
         res.json({ jobs });
     } catch (err) { next(err); }
 };
@@ -20,7 +20,7 @@ export const getPublicJob = async (req: Request, res: Response, next: NextFuncti
 
 export const createJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const job = await JobService.createJob((req as any).user.companyId, req.body);
+        const job = await JobService.createJob(req.body);
         res.status(201).json({ job });
     } catch (err) { next(err); }
 };
@@ -28,6 +28,7 @@ export const createJob = async (req: Request, res: Response, next: NextFunction)
 export const updateJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const job = await JobService.updateJob(req.params.id, req.body).catch(() => null);
+        if (!job) return res.status(404).json({ error: 'Job not found' });
         res.json({ job });
     } catch (err) { next(err); }
 };
@@ -55,7 +56,7 @@ export const createApplication = async (req: Request, res: Response, next: NextF
 
 export const updateApplication = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const app = await JobService.updateApplication(req.params.appId, (req as any).user.companyId, req.body).catch(() => null);
+        const app = await JobService.updateApplication(req.params.appId, req.body).catch(() => null);
         if (!app) return res.status(404).json({ error: 'Application not found' });
         res.json({ application: app });
     } catch (err) { next(err); }

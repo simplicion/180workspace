@@ -8,7 +8,7 @@ export const getPrivateProfile = async (req: Request, res: Response, next: NextF
             return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
         }
 
-        const data = await CompanyProfileService.getPrivateProfile(companyId);
+        const data = await CompanyProfileService.getPrivateProfile();
         res.json({ success: true, data });
     } catch (error: any) {
   next(error);
@@ -22,7 +22,7 @@ export const updatePrivateProfile = async (req: Request, res: Response, next: Ne
             return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
         }
 
-        const updatedCompany = await CompanyProfileService.updatePrivateProfile(companyId, req.body);
+        const updatedCompany = await CompanyProfileService.updatePrivateProfile(req.body);
         res.json({ success: true, data: updatedCompany, message: 'Profile updated successfully.' });
     } catch (error: any) {
   next(error);
@@ -37,7 +37,7 @@ export const getPublicProfile = async (req: Request, res: Response, next: NextFu
         // getCompanyPrisma was passed in the old JS code but since we refactored it
         // to use repository, we might need to remove that parameter or let it be undefined.
         // The service now handles everything via repository.
-        const data = await CompanyProfileService.getPublicProfile(id, includeJobs, undefined as any);
+        const data = await CompanyProfileService.getPublicProfile(id, includeJobs);
         res.json({ success: true, data });
     } catch (error: any) {
   next(error);
@@ -99,7 +99,7 @@ export const updateFinanceTab = async (req: Request, res: Response, next: NextFu
         }
 
         const { companyHighlights, pitchDeckUrl } = req.body;
-        const updatedCompany = await CompanyProfileService.updateFinanceTab(companyId, companyHighlights, pitchDeckUrl);
+        const updatedCompany = await CompanyProfileService.updateFinanceTab(companyHighlights, pitchDeckUrl);
         res.json({ success: true, data: updatedCompany, message: 'Finance tab updated successfully.' });
     } catch (error: any) {
   next(error);
@@ -146,7 +146,7 @@ export const verifyDomain = async (req: Request, res: Response, next: NextFuncti
         const companyId = (req as any).user?.companyId;
 
         const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
-        const result = await CompanyProfileService.verifyDomain(companyId, domain, rootDomain);
+        const result = await CompanyProfileService.verifyDomain(domain, rootDomain);
         
         if (!result.success) {
             return res.status(400).json(result);

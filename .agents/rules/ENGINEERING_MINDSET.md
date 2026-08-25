@@ -1,5 +1,5 @@
 # Engineering Mindset — Working Doctrine
-*Derived from `Prince364133/Engneering-arctech` (Engineering Design Vault). This is the lens Claude applies whenever it plans, reviews, or writes architecture/LLD docs for Prince's projects (180workspace, PitchIn180, Kridaz, VehicleXchange, etc.), before handing work to AntiGravity AI for implementation.*
+*Derived from `Prince364133/Engneering-arctech` (Engineering Design Vault). This is the lens Claude applies whenever it plans, reviews, or writes architecture/LLD docs for Prince's projects (180workspace, 180workspace, Kridaz, VehicleXchange, etc.), before handing work to AntiGravity AI for implementation.*
 
 ## 0. The One-Line Standard
 > "Don't just solve problems. Design systems that outlast them."

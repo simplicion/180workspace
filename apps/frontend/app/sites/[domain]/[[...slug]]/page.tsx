@@ -1,5 +1,6 @@
 import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { BuilderElement } from '@/app/dashboard/(advertising-app)/advertising/[id]/edit/BuilderElement';
+import { CompanyProfileUI } from '@/app/(platform)/(company-hub-app)/_components/CompanyProfileUI';
 
 export default async function PublicWebsitePage({ 
     params 
@@ -8,6 +9,7 @@ export default async function PublicWebsitePage({
 }) {
     const { domain, slug } = await params;
     
+    let registryData: any = null;
     let website: any = null;
     let pixels: any[] = [];
     let error = '';
@@ -21,20 +23,28 @@ export default async function PublicWebsitePage({
             const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
             searchParams.append('slug', slugStr);
         }
-        const targetUrl = `${apiBase}/api/public/websites/resolve?${searchParams.toString()}`;
+        const targetUrl = `${apiBase}/api/public/domains/resolve?${searchParams.toString()}`;
 
         const res = await fetch(targetUrl, { next: { revalidate: 0 } });
         
         if (!res.ok) {
-            throw new Error('Website not found');
+            throw new Error('Domain not found');
         }
 
         const data = await res.json();
-        website = data.website;
-        pixels = data.pixels || [];
+        registryData = data;
+        
+        if (data.type === 'ADVERTISING_WEBSITE') {
+            website = data.payload;
+            pixels = data.pixels || [];
+        }
     } catch (err) {
-        console.error('Failed to load website:', err);
-        error = 'Website not found or inactive.';
+        console.error('Failed to resolve domain:', err);
+        error = 'Page not found or inactive.';
+    }
+
+    if (registryData?.type === 'COMPANY_PROFILE') {
+        return <CompanyProfileUI companyData={registryData.payload} isLoading={false} isPublicView={true} />;
     }
 
     const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';

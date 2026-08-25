@@ -84,7 +84,7 @@ export class AuthService {
     }
 
     static async register(body: any, company: any, currentUser: any) {
-        const companyPrisma = getCompanyPrisma(company.id);
+        const companyPrisma = globalPrisma;
         const { name, email, password, role, roles, department, designationId, position, permissions, employmentType, workLocation, managerId, phone, emergencyContact, salary, leaveBalance, joinDate, address } = body;
 
         if (!name || !email || !password) {
@@ -477,7 +477,7 @@ export class AuthService {
             throw AppError.unauthorized('Associated company not found');
         }
 
-        const companyPrisma = getCompanyPrisma(company.id);
+        const companyPrisma = globalPrisma;
         const user = await companyPrisma.user.findUnique({ where: { id: decoded.id } });
 
         if (!user) {
@@ -497,7 +497,7 @@ export class AuthService {
     }
 
     static async changePassword(body: any, currentUser: any, companyObj: any) {
-        const companyPrisma = getCompanyPrisma(companyObj.id);
+        const companyPrisma = globalPrisma;
         const { currentPassword, newPassword } = body;
         if (!currentPassword || !newPassword) {
             throw AppError.badRequest('Both current and new password are required');
@@ -540,7 +540,7 @@ export class AuthService {
     }
 
     static async setupMFA(currentUser: any, companyObj: any) {
-        const companyPrisma = getCompanyPrisma(companyObj.id);
+        const companyPrisma = globalPrisma;
         const settings = await companyPrisma.settings.findFirst();
         const companyName = settings?.companyName || companyObj?.companyName || 'Your Company';
         const secret = authenticator.generateSecret();
@@ -550,7 +550,7 @@ export class AuthService {
     }
 
     static async enableMFA(body: any, currentUser: any) {
-        const companyPrisma = getCompanyPrisma(currentUser.companyId);
+        const companyPrisma = globalPrisma;
         const { secret, token } = body;
         if (!authenticator.check(token, secret)) {
             throw AppError.badRequest('Invalid MFA token');
@@ -569,19 +569,28 @@ export class AuthService {
         } = body;
         let user = currentUser;
         let companyId = reqCompany?.id;
-        const companyPrisma = getCompanyPrisma(companyId);
 
         if (!user && onboardingTokenHeader) {
             if (!reqCompany || (reqCompany.metadata as any)?.onboardingToken !== onboardingTokenHeader) {
                 throw AppError.forbidden('Invalid or expired onboarding token');
             }
-            user = await companyPrisma.user.findFirst({ where: { role: 'admin' } });
             companyId = reqCompany.id;
         }
 
-        if (!user) {
-            throw AppError.unauthorized('Authentication required to complete setup');
+        if (!companyId) {
+            throw AppError.badRequest('Company context is missing');
         }
+
+        return requestContext.run({ companyId }, async () => {
+            const companyPrisma = globalPrisma;
+
+            if (!user && onboardingTokenHeader) {
+                user = await companyPrisma.user.findFirst({ where: { role: 'admin' } });
+            }
+
+            if (!user) {
+                throw AppError.unauthorized('Authentication required to complete setup');
+            }
 
         let config = await companyPrisma.companyConfig.findFirst();
         if (!config) {
@@ -687,6 +696,7 @@ export class AuthService {
         } catch (emailErr) { /* Email failure should not block setup completion */ }
 
         return { token: accessToken, refreshToken, user: updatedUser, config, companyId, companyType: resolvedCompanyType, teamSize, enabledApps };
+        });
     }
 
     static async forgotPassword(body: any, reqCompany: any) {

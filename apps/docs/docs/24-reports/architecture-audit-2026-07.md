@@ -1,7 +1,7 @@
-# Pitchin180 Architecture Audit
+# 180workspace180 Architecture Audit
 
 ## 1. Architecture Summary
-Pitchin180 is a multi-company monorepo architecture using Node.js/Express for the backend (`apps/http-backend`), Next.js for the frontend (`apps/user-web`), and an independent WebSocket backend (`apps/ws-backend`). It uses a single PostgreSQL database with logical company isolation via `companyId` injection using Prisma Extensions.
+180workspace180 is a multi-company monorepo architecture using Node.js/Express for the backend (`apps/http-backend`), Next.js for the frontend (`apps/user-web`), and an independent WebSocket backend (`apps/ws-backend`). It uses a single PostgreSQL database with logical company isolation via `companyId` injection using Prisma Extensions.
 
 **Core Stack:**
 - **Frontend:** Next.js (App Router + Pages), Redux Toolkit Query, Axios.

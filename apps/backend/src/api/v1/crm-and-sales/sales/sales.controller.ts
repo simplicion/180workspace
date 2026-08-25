@@ -36,7 +36,7 @@ export const getDashboardMetrics = async (req: Request, res: Response, next: Nex
         const cached = await cacheGet(cacheKey);
         if (cached) return res.json(cached);
 
-        const result = await SalesService.getDashboardMetrics(user.id, company.id, timeframe as string);
+        const result = await SalesService.getDashboardMetrics(user.id, timeframe as string);
         
         await cacheSet(cacheKey, result, 300);
         res.json(result);
@@ -199,7 +199,7 @@ export const createOpportunity = async (req: Request, res: Response, next: NextF
 
 export const updateOpportunity = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await SalesService.updateOpportunity(req.params.id, req.body, (req as any).company?.id);
+        const result = await SalesService.updateOpportunity(req.params.id, req.body);
         if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
         res.json(result);
     } catch (err) { next(err); }
@@ -375,7 +375,7 @@ export const getQuotes = async (req: Request, res: Response, next: NextFunction)
 
 export const createQuote = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const quote = await SalesService.createQuote(req.body, (req as any).user.id, (req as any).company.id);
+        const quote = await SalesService.createQuote(req.body, (req as any).user.id);
         await logAction((req as any).user.id, 'CREATE_QUOTE', 'quote', quote.id, { quoteNumber: quote.quoteNumber }, req).catch(() => {});
         if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
         res.status(201).json({ quote });

@@ -294,7 +294,7 @@ function WorkspaceSetup() {
                 setLoadingMessage('Setting up dashboard...');
                 await new Promise(resolve => setTimeout(resolve, 800)); // allow user to read the message and see smooth transition
                 
-                window.location.href = '/dashboard';
+                window.location.href = '/';
                 // Do not set saving to false here to prevent the loading UI from flashing before navigation
             } else {
                 if (res.status === 401) {
@@ -318,7 +318,7 @@ function WorkspaceSetup() {
     };
 
     const navigateToDashboard = async () => {
-        window.location.href = '/dashboard';
+        window.location.href = '/';
     };
 
     if (isSessionLoading) {

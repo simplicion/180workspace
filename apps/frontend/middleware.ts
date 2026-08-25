@@ -24,14 +24,12 @@ export default withAuth(
       const path = req.nextUrl.pathname;
       const search = req.nextUrl.search;
 
-      // Force all authentication, setup, and platform flows to the root domain for security
-      if (
-        path.startsWith('/login') ||
-        path.startsWith('/signup') ||
-        path.startsWith('/workspace-setup') ||
-        path.startsWith('/onboarding') ||
-        path.startsWith('/dashboard')
-      ) {
+      const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f'];
+      const is180workspacePath = WORKSPACE_ROUTES.some(r => path.startsWith(r));
+      const isSystemPath = path.startsWith('/_next') || path.startsWith('/api') || path.startsWith('/.well-known');
+      
+      // Force all authentication, setup, and platform (IMS) flows to the root domain for security
+      if (!is180workspacePath && !isSystemPath) {
         const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
         const port = hostname.split(':')[1];
         const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
@@ -67,29 +65,31 @@ export default withAuth(
 
     const isSetupPage = req.nextUrl.pathname.startsWith("/workspace-setup")
 
-    // 180workspace Dashboard routes (Requires Workspace Setup)
-    const isIMSRoute = req.nextUrl.pathname.startsWith("/dashboard");
+    const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f'];
+    const is180workspaceRoute = WORKSPACE_ROUTES.some(r => req.nextUrl.pathname.startsWith(r));
 
-    // PitchIn routes (Accessible by ANYONE with a token, regardless of workspace setup)
-    // Anything that is NOT Dashboard, NOT Auth, and NOT Setup is considered a PitchIn route
-    const isPitchInRoute = !isIMSRoute && !isAuthPage && !isSetupPage;
+    // 180workspace Platform routes (Requires Workspace Setup)
+    // Anything that is NOT 180workspace, NOT Auth, and NOT Setup is considered an IMS route
+    const isIMSRoute = !is180workspaceRoute && !isAuthPage && !isSetupPage;
 
     const isWorkspaceSetupComplete = !!(token?.companyId && token?.isOnboardingComplete);
-    const isPitchInUser = token?.role === 'USER';
+    const is180workspaceUser = token?.role === 'USER';
     const isOnboardingDone = token?.isFirstLogin === false;  // isFirstLogin: true = NOT done
 
-    // 0. Redirect authenticated users hitting the landing page to their dashboard
+    // 0. Redirect authenticated users hitting the landing page to their dashboard (now root)
     if (isAuth && req.nextUrl.pathname === "/") {
       if (!isOnboardingDone) {
         return NextResponse.redirect(new URL("/signup", req.url));
       } else {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        // Without /dashboard prefix, we might want them to go to a default app like /projects or let them stay on /
+        // Let's let them stay on / which will render the default platform layout
+        return null;
       }
     }
 
     // 1. Unauthenticated users
     if (!isAuth) {
-      if (isPitchInRoute) {
+      if (is180workspaceRoute) {
         return null; // allow public access
       }
       if (!isAuthPage) {
@@ -138,7 +138,7 @@ export default withAuth(
         return NextResponse.redirect(new URL("/signup", req.url));
       }
       // Onboarding is done — redirect away from auth pages to their dashboard
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return NextResponse.redirect(new URL("/", req.url));
     }
 
     // 3. User is trying to access 180workspace routes (Dashboard, CRM, etc.)
@@ -159,13 +159,13 @@ export default withAuth(
     if (isSetupPage) {
       // If they already completed it, redirect them to 180workspace Dashboard
       if (isWorkspaceSetupComplete) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        return NextResponse.redirect(new URL("/", req.url));
       }
       return null; // Allow access to workspace setup
     }
 
-    // 5. User is trying to access PitchIn routes
-    if (isPitchInRoute) {
+    // 5. User is trying to access 180workspace routes
+    if (is180workspaceRoute) {
       // If personal onboarding is not complete, redirect back to signup
       if (!isOnboardingDone) {
         return NextResponse.redirect(new URL("/signup", req.url));

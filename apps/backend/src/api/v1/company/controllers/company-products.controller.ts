@@ -9,7 +9,7 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
         }
 
         const { name, description, link, logoUrl } = req.body;
-        const product = await CompanyProductsService.createProduct(companyId, name, description, link, logoUrl);
+        const product = await CompanyProductsService.createProduct(name, description, link, logoUrl);
         res.status(201).json({ success: true, data: product });
     } catch (error: any) {
   next(error);
@@ -26,7 +26,7 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
         }
 
         const { name, description, link, logoUrl } = req.body;
-        const product = await CompanyProductsService.updateProduct(companyId, productId, name, description, link, logoUrl);
+        const product = await CompanyProductsService.updateProduct(productId, name, description, link, logoUrl);
         res.json({ success: true, data: product });
     } catch (error: any) {
   next(error);
@@ -42,7 +42,7 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
             return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
         }
 
-        await CompanyProductsService.deleteProduct(companyId, productId);
+        await CompanyProductsService.deleteProduct(productId);
         res.json({ success: true, message: 'Product deleted successfully.' });
     } catch (error: any) {
   next(error);

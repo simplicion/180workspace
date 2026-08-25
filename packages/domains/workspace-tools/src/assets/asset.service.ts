@@ -1,11 +1,7 @@
 import { prisma } from '@workspace/db';
 export class AssetService {
-    static async getAssets(companyId: string, filter: any = {}) {
+    static async getAssets(filter: any = {}) {
         let query: any = { ...filter };
-
-        if (companyId) {
-            query.companyId = companyId;
-        }
 
         const assets = await prisma.asset.findMany({
             where: query,
@@ -20,10 +16,10 @@ export class AssetService {
         return assets;
     }
 
-    static async getAssetStats(companyId: string) {
+    static async getAssetStats() {
         const groupStats = await prisma.asset.groupBy({
             by: ['type'],
-            where: companyId ? { companyId } : {},
+            where: {},
             _count: { _all: true },
             _sum: { cost: true }
         });
@@ -37,19 +33,17 @@ export class AssetService {
         const activeIntegrationsCount = await prisma.asset.count({
             where: {
                 type: { in: ['api', 'service'] },
-                status: 'active',
-                ...(companyId ? { companyId } : {})
+                status: 'active'
             }
         });
 
         return { stats, activeIntegrationsCount };
     }
 
-    static async getAssetById(id: string, companyId: string) {
+    static async getAssetById(id: string) {
         return prisma.asset.findFirst({
             where: { 
-                id,
-                ...(companyId ? { companyId } : {})
+                id
             },
             include: { owner: { select: { name: true } } }
         });
@@ -80,7 +74,7 @@ export class AssetService {
         });
     }
 
-    static async updateAsset(id: string, companyId: string, data: any) {
+    static async updateAsset(id: string, data: any) {
         let parsedRenewalDate = undefined;
         if (data.renewalDate) {
             parsedRenewalDate = new Date(data.renewalDate).toISOString();
@@ -95,8 +89,7 @@ export class AssetService {
 
         const assetInfo = await prisma.asset.updateMany({
             where: { 
-                id,
-                ...(companyId ? { companyId } : {})
+                id
             },
             data: updateData
         });
@@ -106,11 +99,10 @@ export class AssetService {
         return prisma.asset.findFirst({ where: { id } });
     }
 
-    static async deleteAsset(id: string, companyId: string) {
+    static async deleteAsset(id: string) {
         const asset = await prisma.asset.deleteMany({
             where: { 
-                id,
-                ...(companyId ? { companyId } : {})
+                id
             }
         });
         if (asset.count === 0) throw new Error('Asset not found');

@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -9,7 +9,8 @@ export class AiContentService {
      * @param companyPrisma - The company's database connection
      * @returns - The AI settings or null if not configured
      */
-    async getAiSettings(companyId: string) {
+    async getAiSettings() {
+        const companyId = requestContext.getStore()?.companyId;
         if (!companyId) return null;
         
         const company = await prisma.company.findUnique({
@@ -146,13 +147,13 @@ Ensure the structure exactly matches this format:
      * @param userId - The ID of the user requesting the calendar
      * @returns - Result object containing { success, data, error }
      */
-     async generateContentCalendar(companyId: string, config: any, userId: string) {
+     async generateContentCalendar(config: any, userId: string) {
         const startTime = Date.now();
         let providerUsed = 'unknown';
         let promptContent = this.buildMasterPrompt(config);
 
         try {
-            const settings = await this.getAiSettings(companyId);
+            const settings = await this.getAiSettings();
             
             if (!settings) {
                 return { 
@@ -236,7 +237,7 @@ Ensure the structure exactly matches this format:
                 console.error("Raw Response:", rawAiResponse);
                 
                 // Log failure
-                await this.logAiRequest(companyId, {
+                await this.logAiRequest({
                     provider: providerUsed,
                     endpoint: 'generateContentCalendar',
                     durationMs: Date.now() - startTime,
@@ -295,8 +296,9 @@ Ensure the structure exactly matches this format:
      * Log an AI request to the company's database
      * @param data - The log data
      */
-    async logAiRequest(companyId: string, data: any) {
+    async logAiRequest(data: any) {
         try {
+            const companyId = requestContext.getStore()?.companyId;
             if (!companyId) return;
             await prisma.aiRequestLog.create({
                 data: {

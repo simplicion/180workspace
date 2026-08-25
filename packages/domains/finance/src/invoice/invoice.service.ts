@@ -7,10 +7,9 @@ export class InvoiceService {
   /**
    * Create a new invoice with built-in fraud detection
    */
-  static async createInvoice(companyId: string, invoiceData: any, user: any) {
+  static async createInvoice(invoiceData: any, user: any) {
     const data = {
       ...invoiceData,
-      companyId,
       createdById: user.id || user._id,
     };
 
@@ -46,19 +45,16 @@ export class InvoiceService {
   /**
    * Generate an invoice from a milestone
    */
-  static async generateFromMilestone(companyId: string, milestone: any, project: any, user: any) {
+  static async generateFromMilestone(milestone: any, project: any, user: any) {
     if (!milestone.autoInvoice || !milestone.invoiceAmount) return null;
 
-    const config = await prisma.companyConfig.findFirst({
-      where: { companyId }
-    });
+    const config = await prisma.companyConfig.findFirst();
     if (!config) throw new Error('Company settings not found. Cannot generate invoice.');
 
     const invoiceNumber = `INV-${Date.now()}`;
 
     const invoiceData = {
       invoiceNumber,
-      companyId,
       clientId: project.clientIds?.[0],
       projectId: project.id,
       issueDate: new Date(),
@@ -76,7 +72,7 @@ export class InvoiceService {
     };
 
     try {
-      const invoice = await this.createInvoice(companyId, invoiceData, user);
+      const invoice = await this.createInvoice(invoiceData, user);
 
       // Link invoice back to milestone
       await prisma.milestone.update({
@@ -91,9 +87,9 @@ export class InvoiceService {
     }
   }
 
-  static async getInvoiceById(companyId: string, id: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id, companyId },
+  static async getInvoiceById(id: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id },
       include: {
         lineItems: true,
         taxItems: true,
@@ -125,11 +121,11 @@ export class InvoiceService {
     return { invoices, totalRevenue };
   }
 
-  static async updateInvoice(id: string, companyId: string, updateData: any) {
+  static async updateInvoice(id: string, updateData: any) {
     const { lineItems = [], taxPercent = 0, discount = 0, ...rest } = updateData;
 
     const existing = await prisma.invoice.findFirst({
-      where: { id, companyId }
+      where: { id }
     });
     if (!existing) {
       throw new Error('Not found');
@@ -153,9 +149,9 @@ export class InvoiceService {
     return invoice;
   }
 
-  static async deleteInvoice(id: string, companyId: string) {
+  static async deleteInvoice(id: string) {
     await prisma.invoice.delete({
-      where: { id, companyId } as any
+      where: { id }
     });
     return { message: 'Deleted' };
   }

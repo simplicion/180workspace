@@ -12,7 +12,7 @@ function getMonthName(monthIndex: number): string {
 }
 
 export class HrManagementService {
-    async getDashboard(companyId: string) {
+    async getDashboard() {
         const User = prisma.user;
         const Project = prisma.project;
         const Task = prisma.task;
@@ -34,8 +34,6 @@ export class HrManagementService {
         lastMonthEnd.setDate(0);
         lastMonthEnd.setHours(23, 59, 59, 999);
 
-        const companyWhere = companyId ? { companyId } : {};
-
         const [
             totalEmployees, activeEmployees,
             totalProjects, activeProjects,
@@ -43,17 +41,17 @@ export class HrManagementService {
             todayAttendance, totalClients,
             prevMonthActive, pendingExpenses,
         ] = await Promise.all([
-            User.count({ where: { ...companyWhere, role: 'employee' } }),
-            User.count({ where: { ...companyWhere, role: 'employee', isActive: true } }),
-            Project.count({ where: companyWhere }),
-            Project.count({ where: { ...companyWhere, status: 'in_progress' } }),
-            Task.count({ where: companyWhere }),
-            Task.count({ where: { ...companyWhere, status: { in: ['todo', 'in_progress'] } } }),
-            Attendance.count({ where: { ...companyWhere, date: today, 
+            User.count({ where: { role: 'employee' } }),
+            User.count({ where: { role: 'employee', isActive: true } }),
+            Project.count(),
+            Project.count({ where: { status: 'in_progress' } }),
+            Task.count(),
+            Task.count({ where: { status: { in: ['todo', 'in_progress'] } } }),
+            Attendance.count({ where: { date: today, 
                 status: { in: ['present', 'late', 'work_from_home', 'half_day'] } } }),
-            Client.count({ where: companyWhere }),
-            Project.count({ where: { ...companyWhere, status: 'in_progress', updatedAt: { gte: lastMonthStart, lte: lastMonthEnd } } }),
-            Expense.count({ where: { ...companyWhere, status: 'pending' } })
+            Client.count(),
+            Project.count({ where: { status: 'in_progress', updatedAt: { gte: lastMonthStart, lte: lastMonthEnd } } }),
+            Expense.count({ where: { status: 'pending' } })
         ]);
 
         const pendingSalaries = 0; // Salary tracking for monthly payouts is not fully migrated
@@ -74,29 +72,25 @@ export class HrManagementService {
         };
     }
 
-    async getAttendanceReport(companyId: string, month: string) {
+    async getAttendanceReport(month: string) {
         const Attendance = prisma.attendance;
         if (!month) throw new Error('month param required (YYYY-MM)');
 
-        const companyWhere = companyId ? { companyId } : {};
-
         const stats = await Attendance.groupBy({
             by: ['status'],
-            where: { ...companyWhere, date: { startsWith: month } },
+            where: { date: { startsWith: month } },
             _count: { status: true }
         });
         const summary = stats.reduce((acc: any, s: any) => { acc[s.status] = s._count.status; return acc; }, {});
         return { month, summary };
     }
 
-    async getSalaryReport(companyId: string, month: string) {
+    async getSalaryReport(month: string) {
         const Salary = prisma.salary;
         if (!month) throw new Error('month param required (YYYY-MM)');
 
-        const companyWhere = companyId ? { companyId } : {};
-
         const salaries = await Salary.findMany({
-            where: companyWhere,
+            where: {},
             include: {
                 employee: {
                     select: { name: true, id: true }
@@ -132,7 +126,7 @@ export class HrManagementService {
         return d.toISOString();
     }
 
-    async getWeeklyTrends(companyId: string, range: string = '7', grouping: string = 'weekly') {
+    async getWeeklyTrends(range: string = '7', grouping: string = 'weekly') {
         let limitDays = range === 'all' ? 3650 : (parseInt(range) || 7);
         grouping = grouping.toLowerCase();
         
@@ -146,15 +140,13 @@ export class HrManagementService {
         const Project = prisma.project;
         const Task = prisma.task;
 
-        const companyWhere = companyId ? { companyId } : {};
-
         const [projects, tasks] = await Promise.all([
             Project.findMany({
-                where: { ...companyWhere, createdAt: { gte: startDate } },
+                where: { createdAt: { gte: startDate } },
                 select: { createdAt: true }
             }),
             Task.findMany({
-                where: { ...companyWhere, createdAt: { gte: startDate } },
+                where: { createdAt: { gte: startDate } },
                 select: { createdAt: true }
             })
         ]);
@@ -230,7 +222,7 @@ export class HrManagementService {
         return chartData;
     }
 
-    async getCEOInsights(companyId: string) {
+    async getCEOInsights() {
         const Invoice = prisma.invoice;
         const Expense = prisma.expenseTransaction;
         const Salary = prisma.salary;
@@ -246,23 +238,21 @@ export class HrManagementService {
         startOfTrajectory.setDate(1);
         startOfTrajectory.setHours(0, 0, 0, 0);
 
-        const companyWhere = companyId ? { companyId } : {};
-
         const [invoices, expenses, salaries, assets] = await Promise.all([
             Invoice.findMany({
-                where: { ...companyWhere, issueDate: { gte: startOfTrajectory }, status: 'paid' },
+                where: { issueDate: { gte: startOfTrajectory }, status: 'paid' },
                 select: { id: true, issueDate: true, totalAmount: true, invoiceNumber: true, clientName: true, client: { select: { name: true } } }
             }),
             Expense.findMany({
-                where: { ...companyWhere, date: { gte: startOfTrajectory }, status: 'approved' },
+                where: { date: { gte: startOfTrajectory }, status: 'approved' },
                 select: { id: true, date: true, amount: true, title: true, employee: { select: { name: true } }, project: { select: { name: true } } }
             }),
             Salary.findMany({
-                where: { ...companyWhere, effectiveDate: { gte: startOfTrajectory }, status: 'active' },
+                where: { effectiveDate: { gte: startOfTrajectory }, status: 'active' },
                 select: { id: true, effectiveDate: true, amount: true, employee: { select: { name: true } } }
             }),
             Asset.findMany({
-                where: { ...companyWhere, createdAt: { gte: startOfTrajectory }, cost: { gt: 0 } },
+                where: { createdAt: { gte: startOfTrajectory }, cost: { gt: 0 } },
                 select: { id: true, createdAt: true, cost: true, name: true, provider: true, owner: { select: { name: true } } }
             })
         ]);
@@ -352,10 +342,10 @@ export class HrManagementService {
         }
 
         const [todo, inProgress, inReview, done] = await Promise.all([
-            Task.count({ where: { ...companyWhere, status: 'todo' } }),
-            Task.count({ where: { ...companyWhere, status: 'in_progress' } }),
-            Task.count({ where: { ...companyWhere, status: 'in_review' } }),
-            Task.count({ where: { ...companyWhere, status: 'done' } })
+            Task.count({ where: { status: 'todo' } }),
+            Task.count({ where: { status: 'in_progress' } }),
+            Task.count({ where: { status: 'in_review' } }),
+            Task.count({ where: { status: 'done' } })
         ]);
 
         const taskVelocity = [
@@ -366,10 +356,10 @@ export class HrManagementService {
         ];
 
         const [totalUser, inactiveUser, reviews] = await Promise.all([
-            User.count({ where: { ...companyWhere, role: 'employee' } }),
-            User.count({ where: { ...companyWhere, role: 'employee', isActive: false } }),
+            User.count({ where: { role: 'employee' } }),
+            User.count({ where: { role: 'employee', isActive: false } }),
             Review.aggregate({
-                where: { ...companyWhere, overallRating: { not: null } },
+                where: { overallRating: { not: null } },
                 _avg: { overallRating: true }
             }).then((res: any) => [{ avg: res._avg.overallRating }])
         ]);
@@ -399,7 +389,7 @@ export class HrManagementService {
         };
     }
 
-    async getAttendanceTrend(companyId: string, range: string = '7', grouping: string = 'weekly') {
+    async getAttendanceTrend(range: string = '7', grouping: string = 'weekly') {
         const Attendance = prisma.attendance;
         const User = prisma.user;
         let limitDays = range === 'all' ? 3650 : (parseInt(range) || 7);
@@ -413,11 +403,10 @@ export class HrManagementService {
         startDate.setHours(0, 0, 0, 0);
         
         const startDateStr = startDate.toISOString().split('T')[0];
-        const companyWhere = companyId ? { companyId } : {};
-        const activeEmployees = await User.count({ where: { ...companyWhere, role: 'employee', isActive: true } });
+        const activeEmployees = await User.count({ where: { role: 'employee', isActive: true } });
 
         const attendances = await Attendance.findMany({
-            where: { ...companyWhere, date: { gte: startDateStr } },
+            where: { date: { gte: startDateStr } },
             select: { date: true, status: true },
             orderBy: { date: 'asc' }
         });

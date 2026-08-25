@@ -7,14 +7,14 @@ export const getPLReport = async (req: Request, res: Response, next: NextFunctio
         const { startDate, endDate } = req.query;
         if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' });
 
-        const report = await FinanceOverviewService.getPLReport((req as any).user.companyId, startDate as string, endDate as string);
+        const report = await FinanceOverviewService.getPLReport(startDate as string, endDate as string);
         res.json({ success: true, report });
     } catch (err) { next(err); }
 };
 
 export const getCashFlowForecast = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const forecast = await FinanceOverviewService.getCashFlowForecast((req as any).user.companyId);
+        const forecast = await FinanceOverviewService.getCashFlowForecast();
         res.json({ success: true, forecast });
     } catch (err) { next(err); }
 };
@@ -22,14 +22,14 @@ export const getCashFlowForecast = async (req: Request, res: Response, next: Nex
 export const getProjectProfitability = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.params.projectId) return res.status(400).json({ error: 'Project ID required' });
-        const profitability = await FinanceOverviewService.getProjectProfitability((req as any).user.companyId, req.params.projectId);
+        const profitability = await FinanceOverviewService.getProjectProfitability(req.params.projectId);
         res.json({ success: true, profitability });
     } catch (err) { next(err); }
 };
 
 export const getConfig = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const publicConfig = await FinanceOverviewService.getConfig((req as any).user.companyId);
+        const publicConfig = await FinanceOverviewService.getConfig();
         res.json({ success: true, paymentConfig: publicConfig });
     } catch (err) { next(err); }
 };
@@ -38,7 +38,7 @@ export const updateConfig = async (req: Request, res: Response, next: NextFuncti
     try {
         if (!req.body.companyPaymentConfig) return res.json({ success: true, message: 'No config provided' });
         
-        const { activeProvider } = await FinanceOverviewService.updateConfig((req as any).user.companyId, req.body.companyPaymentConfig);
+        const { activeProvider } = await FinanceOverviewService.updateConfig(req.body.companyPaymentConfig);
 
         // Optional: Trigger notifications instead of using deprecated AutomationService
 
@@ -48,7 +48,7 @@ export const updateConfig = async (req: Request, res: Response, next: NextFuncti
 
 export const getDashboardStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const stats = await FinanceOverviewService.getDashboardStats((req as any).user.companyId);
+        const stats = await FinanceOverviewService.getDashboardStats();
         res.json({ success: true, stats });
     } catch (err) { next(err); }
 };

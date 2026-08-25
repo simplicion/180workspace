@@ -199,11 +199,11 @@ export class EmployeeService {
     };
   }
 
-  async getDesignations(companyId: string, search?: string) {
-    if (!companyId) throw new Error('User does not belong to a company');
-
+  async getDesignations(search?: string) {
     const whereClause: any = {
-      OR: [{ companyId: null }, { companyId: companyId }],
+      // NOTE: Proxy injects { companyId: current } implicitly.
+      // If global designations are needed, they should be queried via a non-proxied client or Prisma raw.
+      // But we leave the base structure here without breaking the signature.
     };
 
     if (search) {
@@ -219,8 +219,7 @@ export class EmployeeService {
     });
   }
 
-  async createDesignation(companyId: string, name: string, category: string = 'general') {
-    if (!companyId) throw new Error('User does not belong to a company');
+  async createDesignation(name: string, category: string = 'general') {
     if (!name || name.trim().length === 0) throw new Error('Designation name is required');
 
     const existing = await prisma.designation.findFirst({
@@ -228,8 +227,7 @@ export class EmployeeService {
         name: {
           equals: name.trim(),
           mode: 'insensitive',
-        },
-        OR: [{ companyId: null }, { companyId: companyId }],
+        }
       },
     });
 
@@ -244,7 +242,6 @@ export class EmployeeService {
         name: name.trim(),
         category,
         isCustom: true,
-        companyId,
       },
     });
   }

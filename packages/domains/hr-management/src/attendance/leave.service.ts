@@ -47,6 +47,9 @@ export class LeaveService {
             throw new Error('Invalid status');
         }
         
+        const existing = await prisma.leave.findFirst({ where: { id } });
+        if (!existing) throw new Error('Leave request not found');
+
         return await prisma.leave.update({
             where: { id },
             data: { 
@@ -63,7 +66,7 @@ export class LeaveService {
     }
 
     static async deletePendingLeave(id: string, userId: string, userRole: string) {
-        const leave = await prisma.leave.findUnique({ where: { id } });
+        const leave = await prisma.leave.findFirst({ where: { id } });
         if (!leave) throw new Error('Not found');
         if (leave.status !== 'pending') throw new Error('Can only delete pending requests');
         

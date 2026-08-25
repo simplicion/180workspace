@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { PrismaClient } from '@workspace/db';
 import { SubscriptionService } from '@workspace/platform-billing';
 
@@ -6,7 +6,8 @@ const REQUIRED_MODULES = ['work-logs', 'projects', 'tasks'];
 const REQUIRED_APPS = ['tools', 'projects', 'crm', 'hr', 'finance'];
 
 export class CompanyConfigService {
-    static async getCompanyConfig(companyId: string) {
+    static async getCompanyConfig() {
+        const companyId = requestContext.getStore()?.companyId as string;
         const company = await prisma.company.findUnique({
             where: { id: companyId }
         });
@@ -55,7 +56,8 @@ export class CompanyConfigService {
         return config;
     }
 
-    static async updateCompanyConfig(companyId: string, updateData: any) {
+    static async updateCompanyConfig(updateData: any) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const company = await prisma.company.findUnique({
             where: { id: companyId }
         });
@@ -103,7 +105,8 @@ export class CompanyConfigService {
         return { config, updatedCompany };
     }
 
-    static async updateEnabledApps(companyId: string, apps: string[]) {
+    static async updateEnabledApps(apps: string[]) {
+        const companyId = requestContext.getStore()?.companyId as string;
         if (!Array.isArray(apps)) {
             throw new Error('Apps must be an array');
         }
@@ -153,7 +156,8 @@ export class CompanyConfigService {
         return { config, updatedCompany };
     }
 
-    static async updateEnabledModules(companyId: string, modules: string[]) {
+    static async updateEnabledModules(modules: string[]) {
+        const companyId = requestContext.getStore()?.companyId as string;
         if (!Array.isArray(modules)) {
             throw new Error('Modules must be an array');
         }

@@ -89,7 +89,7 @@ api.interceptors.response.use(
                         <button 
                             onClick={() => {
                                 toast.dismiss(t.id);
-                                window.location.href = '/dashboard/settings/system-configs'; // This is where storage is
+                                window.location.href = '/settings/system-configs'; // This is where storage is
                             }}
                             className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold w-fit hover:bg-indigo-700 transition-colors"
                         >

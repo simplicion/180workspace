@@ -17,7 +17,7 @@ export const createTask = async (req: Request, res: Response, next: NextFunction
 
 export const getTaskById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await TaskService.getTaskById(req.params.id);
+        const result = await TaskService.getTaskById(req.params.id, (req as any).user);
         res.json(result);
     } catch (err: any) {
         if (err.message === 'Task not found') return res.status(404).json({ error: err.message });

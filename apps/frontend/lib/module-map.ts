@@ -12,57 +12,57 @@ export interface ModuleInfo {
 
 export const MODULE_MAP: Record<string, ModuleInfo> = {
   // CRM & Sales
-  '/dashboard/sales': { appId: 'crm', moduleId: 'sales' },
-  '/dashboard/leads': { appId: 'crm', moduleId: 'leads' },
-  '/dashboard/advertising': { appId: 'advertising', moduleId: 'ad-websites' },
-  '/dashboard/pipeline': { appId: 'crm', moduleId: 'pipeline' },
-  '/dashboard/accounts': { appId: 'crm', moduleId: 'accounts' },
-  '/dashboard/contacts': { appId: 'crm', moduleId: 'contacts' },
-  '/dashboard/opportunities': { appId: 'crm', moduleId: 'opportunities' },
-  '/dashboard/clients': { appId: 'crm', moduleId: 'clients', isShared: true }, // Needed by Projects
-  '/dashboard/invoices': { appId: 'crm', moduleId: 'invoices', isShared: true }, // Needed by Finance
+  '/sales': { appId: 'crm', moduleId: 'sales' },
+  '/leads': { appId: 'crm', moduleId: 'leads' },
+  '/advertising': { appId: 'advertising', moduleId: 'ad-websites' },
+  '/pipeline': { appId: 'crm', moduleId: 'pipeline' },
+  '/accounts': { appId: 'crm', moduleId: 'accounts' },
+  '/contacts': { appId: 'crm', moduleId: 'contacts' },
+  '/opportunities': { appId: 'crm', moduleId: 'opportunities' },
+  '/clients': { appId: 'crm', moduleId: 'clients', isShared: true }, // Needed by Projects
+  '/invoices': { appId: 'crm', moduleId: 'invoices', isShared: true }, // Needed by Finance
   
   // Projects & Workflow
-  '/dashboard/projects': { appId: 'projects', moduleId: 'projects' },
-  '/dashboard/tasks': { appId: 'projects', moduleId: 'tasks' },
-  '/dashboard/milestones': { appId: 'projects', moduleId: 'milestones' },
-  '/dashboard/timetracking': { appId: 'projects', moduleId: 'timetracking' },
-  '/dashboard/work-logs': { appId: 'projects', moduleId: 'work-logs' },
+  '/projects': { appId: 'projects', moduleId: 'projects' },
+  '/tasks': { appId: 'projects', moduleId: 'tasks' },
+  '/milestones': { appId: 'projects', moduleId: 'milestones' },
+  '/timetracking': { appId: 'projects', moduleId: 'timetracking' },
+  '/work-logs': { appId: 'projects', moduleId: 'work-logs' },
   
   // HR Management
-  '/dashboard/employees': { appId: 'hr', moduleId: 'employees' },
-  '/dashboard/attendance': { appId: 'hr', moduleId: 'attendance' },
-  '/dashboard/hrms': { appId: 'hr', moduleId: 'hrms' },
-  '/dashboard/leaves': { appId: 'hr', moduleId: 'leaves' },
-  '/dashboard/holidays': { appId: 'hr', moduleId: 'holidays' },
-  '/dashboard/recruitment': { appId: 'hr', moduleId: 'recruitment' },
-  '/dashboard/onboarding': { appId: 'hr', moduleId: 'onboarding' },
-  '/dashboard/reviews': { appId: 'hr', moduleId: 'reviews' },
-  '/dashboard/salary': { appId: 'hr', moduleId: 'salary', isShared: true }, // Needed by Finance
+  '/employees': { appId: 'hr', moduleId: 'employees' },
+  '/attendance': { appId: 'hr', moduleId: 'attendance' },
+  '/hrms': { appId: 'hr', moduleId: 'hrms' },
+  '/leaves': { appId: 'hr', moduleId: 'leaves' },
+  '/holidays': { appId: 'hr', moduleId: 'holidays' },
+  '/recruitment': { appId: 'hr', moduleId: 'recruitment' },
+  '/onboarding': { appId: 'hr', moduleId: 'onboarding' },
+  '/reviews': { appId: 'hr', moduleId: 'reviews' },
+  '/salary': { appId: 'hr', moduleId: 'salary', isShared: true }, // Needed by Finance
   
   // Finance & Accounting
-  '/dashboard/finance': { appId: 'finance', moduleId: 'finance-overview' },
-  '/dashboard/transactions': { appId: 'finance', moduleId: 'transactions' },
-  '/dashboard/expenses': { appId: 'finance', moduleId: 'expenses' },
+  '/finance': { appId: 'finance', moduleId: 'finance-overview' },
+  '/transactions': { appId: 'finance', moduleId: 'transactions' },
+  '/expenses': { appId: 'finance', moduleId: 'expenses' },
   
   // Communications App
-  '/dashboard/chat': { appId: 'communications', moduleId: 'chat' },
-  '/dashboard/meeting': { appId: 'communications', moduleId: 'meeting' },
-  '/dashboard/emails': { appId: 'communications', moduleId: 'emails' },
+  '/chat': { appId: 'communications', moduleId: 'chat' },
+  '/meeting': { appId: 'communications', moduleId: 'meeting' },
+  '/emails': { appId: 'communications', moduleId: 'emails' },
   
   // Workspace Tools App
-  '/dashboard/calendar': { appId: 'workspace-tools', moduleId: 'calendar' },
-  '/dashboard/documents': { appId: 'workspace-tools', moduleId: 'documents' },
-  '/dashboard/assets': { appId: 'workspace-tools', moduleId: 'assets' },
+  '/calendar': { appId: 'workspace-tools', moduleId: 'calendar' },
+  '/documents': { appId: 'workspace-tools', moduleId: 'documents' },
+  '/assets': { appId: 'workspace-tools', moduleId: 'assets' },
   '/user-preference': { appId: 'workspace-tools', moduleId: 'ai-assistant' }, // AI Assistant lives in prefs for now
-  '/dashboard/ai': { appId: 'workspace-tools', moduleId: 'ai-assistant', isShared: true },
+  '/ai': { appId: 'workspace-tools', moduleId: 'ai-assistant', isShared: true },
   
   // System / Settings
-  '/dashboard/help-support': { appId: 'system', moduleId: 'help-support' },
+  '/help-support': { appId: 'system', moduleId: 'help-support' },
   
   // Social Media Management
-  '/dashboard/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
-  '/dashboard/social-media-assets': { appId: 'social-media', moduleId: 'social-media-assets' },
+  '/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
+  '/social-media-assets': { appId: 'social-media', moduleId: 'social-media-assets' },
 };
 
 export interface ModuleConfig {

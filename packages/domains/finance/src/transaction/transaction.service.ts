@@ -1,9 +1,8 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 
 export class TransactionService {
-  static async getTransactions(companyId: string) {
+  static async getTransactions() {
     const transactions = await prisma.companyTransaction.findMany({
-      where: { companyId },
       include: {
         client: { select: { name: true, company: true } },
         user: { select: { name: true, email: true } }
@@ -13,13 +12,13 @@ export class TransactionService {
     return transactions;
   }
 
-  static async getLedgerKPIs(companyId: string) {
+  static async getLedgerKPIs() {
     const now = new Date();
     const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const firstDayPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
     const allTransactions = await prisma.companyTransaction.findMany({
-      where: { companyId }
+      where: { }
     });
 
     let currentMonthIn = 0, currentMonthOut = 0;
@@ -74,12 +73,12 @@ export class TransactionService {
     };
   }
 
-  static async addTransaction(companyId: string, data: any) {
+  static async addTransaction(data: any) {
     const { type, amount, currency, metadata, provider, referenceModel, referenceId } = data;
+    const companyId = requestContext.getStore()?.companyId as string;
 
     const transaction = await prisma.companyTransaction.create({
       data: {
-        companyId,
         type: type || 'credit',
         amount: parseFloat(amount),
         currency: currency || 'USD',
@@ -87,7 +86,8 @@ export class TransactionService {
         provider: provider || 'manual',
         referenceModel: referenceModel || 'manual',
         referenceId: referenceId || 'manual',
-        metadata: metadata || {}
+        metadata: metadata || {},
+        companyId
       }
     });
 

@@ -48,7 +48,7 @@ export class FraudDetectionService {
     });
 
     const existing = type === 'invoice' 
-      ? await prisma.invoice.findFirst({ where: { fingerprint, NOT: { id: doc.id } } })
+      ? await prisma.invoice.findFirst({ where: { companyId: doc.companyId, fingerprint, NOT: { id: doc.id } } })
       : null; // VendorBill isn't in the schema dump, skipping for 'bill' unless added later
 
     if (existing) {
@@ -80,7 +80,7 @@ export class FraudDetectionService {
 
     // 3. New Vendor/Client Risk
     if (type === 'invoice' && partyId) {
-      const party = await prisma.client.findUnique({ where: { id: partyId } });
+      const party = await prisma.client.findFirst({ where: { id: partyId, companyId: doc.companyId } });
       if (party && !(party as any).createdAt) {
          // Field missing in schema, skipped check for now.
       }

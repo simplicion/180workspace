@@ -55,7 +55,7 @@ export class CalendarService {
     }
 
     static async getEventById(id: string) {
-        return prisma.calendarEvent.findUnique({
+        return prisma.calendarEvent.findFirst({
             where: { id },
             include: {
                 attendees: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }

@@ -1,0 +1,92 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { prisma } from '@workspace/db';
+
+export async function getStaticPaths() {
+  const features = await prisma.marketingPage.findMany({
+    where: {
+      pageType: 'APP_FEATURE',
+      published: true,
+    },
+    select: {
+      slug: true,
+      title: true,
+      content: true,
+      metaTitle: true,
+      metaDescription: true,
+      structuredData: true
+    }
+  });
+
+  return features.map(feature => ({
+    params: { slug: feature.slug },
+    props: { feature },
+  }));
+}
+
+const { feature } = Astro.props;
+
+// Default structured data for Product schema
+const defaultStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": feature.title,
+  "operatingSystem": "All",
+  "applicationCategory": "BusinessApplication",
+  "description": feature.metaDescription || feature.title,
+  "offers": {
+    "@type": "Offer",
+    "price": "0.00",
+    "priceCurrency": "USD"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "180workspace"
+  }
+};
+
+const jsonLd = feature.structuredData ? feature.structuredData : JSON.stringify(defaultStructuredData);
+---
+
+<Layout 
+  title={`${feature.metaTitle || feature.title} | 180workspace`}
+  description={feature.metaDescription || `Explore the ${feature.title} app on 180workspace.`}
+>
+  <main class="container mx-auto px-4 py-16 max-w-5xl">
+    
+    <div class="mb-12">
+      <div class="mb-6">
+        <a href="/features" class="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+          ← Back to Features
+        </a>
+      </div>
+      
+      <div class="max-w-3xl">
+        <h1 class="text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
+          {feature.title}
+        </h1>
+        <p class="text-xl text-muted-foreground leading-relaxed">
+          {feature.metaDescription}
+        </p>
+      </div>
+      
+      <div class="mt-8 flex gap-4">
+        <a href="/register" class="btn-primary inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90">
+          Start Free Trial
+        </a>
+        <a href="/contact" class="btn-secondary inline-flex h-12 items-center justify-center rounded-full border border-input bg-background px-8 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+          Talk to Sales
+        </a>
+      </div>
+    </div>
+
+    <div class="my-16 border-t border-border pt-16">
+      <article class="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80">
+        <div set:html={feature.content} />
+      </article>
+    </div>
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json" set:html={jsonLd} />
+  </main>
+</Layout>

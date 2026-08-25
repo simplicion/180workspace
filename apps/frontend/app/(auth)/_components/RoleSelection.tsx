@@ -33,7 +33,7 @@ export default function RoleSelection({
             )}
             <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-2">
-                    How do you want to use <img src="/black text logo.svg" alt="PitchIn" className="h-6" />?
+                    How do you want to use <img src="/black text logo.svg" alt="180workspace" className="h-6" />?
                 </h3>
                 <p className="text-gray-500 text-sm">Select your primary goal to personalize your experience.</p>
             </div>

@@ -1,0 +1,262 @@
+[
+  {
+    "file": "apps\\backend\\src\\api\\v1\\hr-management\\hrms\\hrms.controller.ts",
+    "model": "Goal",
+    "query": "prisma.goal.findMany({\r             where: { ownerId }..."
+  },
+  {
+    "file": "apps\\backend\\src\\system-configs\\seed\\seed-docs.ts",
+    "model": "User",
+    "query": "prisma.user.findFirst({\r             where: {\r                 OR: [\r           ..."
+  },
+  {
+    "file": "packages\\domains\\advertising\\src\\forms\\forms.service.ts",
+    "model": "FormSubmission",
+    "query": "prisma.formSubmission.findMany({\r       where: { formId: form.id }..."
+  },
+  {
+    "file": "packages\\domains\\advertising\\src\\websites\\websites.service.ts",
+    "model": "Website",
+    "query": "prisma.website.findFirst({ where: { customDomain: baseDomain, status: 'active' }..."
+  },
+  {
+    "file": "packages\\domains\\communications\\src\\emails\\email-management.service.ts",
+    "model": "User",
+    "query": "prisma.user.findMany({ where: query, select: { email: true, name: true }..."
+  },
+  {
+    "file": "packages\\domains\\communications\\src\\emails\\email-management.service.ts",
+    "model": "EmailLog",
+    "query": "prisma.emailLog.count({ where: query }..."
+  },
+  {
+    "file": "packages\\domains\\crm-and-sales\\src\\clients\\client.service.ts",
+    "model": "Client",
+    "query": "prisma.client.count({ where: query }..."
+  },
+  {
+    "file": "packages\\domains\\crm-and-sales\\src\\clients\\client.service.ts",
+    "model": "AuditLog",
+    "query": "prisma.auditLog.findMany({\r             where: { resourceId: clientId }..."
+  },
+  {
+    "file": "packages\\domains\\crm-and-sales\\src\\contracts\\contract.service.ts",
+    "model": "KnowledgeArticle",
+    "query": "prisma.knowledgeArticle.findMany({\r             where: {\r                 OR: [\r..."
+  },
+  {
+    "file": "packages\\domains\\crm-and-sales\\src\\sales\\sales.service.ts",
+    "model": "Settings",
+    "query": "prisma.settings.findFirst({ where: {}..."
+  },
+  {
+    "file": "packages\\domains\\finance\\src\\bank-verification\\bank-verification.service.ts",
+    "model": "User",
+    "query": "prisma.user.findMany({\r             where: {\r                 bankDetails: {\r   ..."
+  },
+  {
+    "file": "packages\\domains\\finance\\src\\expense\\expense.service.ts",
+    "model": "ExpenseTransaction",
+    "query": "prisma.expenseTransaction.findMany({\r       where: query,\r       include: {\r    ..."
+  },
+  {
+    "file": "packages\\domains\\finance\\src\\finance-overview\\finance-overview.service.ts",
+    "model": "Project",
+    "query": "prisma.project.findMany({ \r       where: { status: { not: 'cancelled' }..."
+  },
+  {
+    "file": "packages\\domains\\finance\\src\\invoice\\invoice.service.ts",
+    "model": "Invoice",
+    "query": "prisma.invoice.findMany({\r       where: filter,\r       include: {\r         clien..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\attendance\\attendance.service.ts",
+    "model": "User",
+    "query": "prisma.user.findMany({\r       where: { isActive: true, role: { not: 'client' }..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\attendance\\attendance.service.ts",
+    "model": "Attendance",
+    "query": "prisma.attendance.findFirst({\r       where: { employeeId: userId, date }..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\attendance\\holiday.service.ts",
+    "model": "Holiday",
+    "query": "prisma.holiday.findMany({\r             where: filter,\r             orderBy: { da..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\attendance\\leave.service.ts",
+    "model": "Leave",
+    "query": "prisma.leave.findMany({\r             where: filter,\r             include: {\r    ..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\employee\\employee.service.ts",
+    "model": "Designation",
+    "query": "prisma.designation.findFirst({\r       where: {\r         name: {\r           equal..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\employee\\employee.service.ts",
+    "model": "Project",
+    "query": "prisma.project.findMany({\r         where: {\r           OR: [\r             { owne..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\employee\\employee.service.ts",
+    "model": "Attendance",
+    "query": "prisma.attendance.findMany({\r         where: {\r           employeeId: userId,\r  ..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\employee\\employee.service.ts",
+    "model": "Leave",
+    "query": "prisma.leave.findMany({\r         where: {\r           employeeId: userId,\r       ..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\employee\\employee.service.ts",
+    "model": "Holiday",
+    "query": "prisma.holiday.findMany({\r         where: { date: { gte: new Date(todayStr) }..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\recruitment\\job.service.ts",
+    "model": "User",
+    "query": "prisma.user.findFirst({ \r                 where: { email: app.applicantEmail }..."
+  },
+  {
+    "file": "packages\\domains\\hr-management\\src\\reviews\\review.service.ts",
+    "model": "Review",
+    "query": "prisma.review.findMany({\r             where: query,\r             include: {\r    ..."
+  },
+  {
+    "file": "packages\\domains\\identity\\src\\setup\\setup.service.ts",
+    "model": "User",
+    "query": "prisma.user.findFirst({\r             where: { role: 'admin' }..."
+  },
+  {
+    "file": "packages\\domains\\platform-admin\\src\\repositories\\platform-company.repository.ts",
+    "model": "User",
+    "query": "prisma.user.updateMany({\r             where: { email: adminEmail }..."
+  },
+  {
+    "file": "packages\\domains\\platform-admin\\src\\repositories\\platform-overview.repository.ts",
+    "model": "Subscription",
+    "query": "prisma.subscription.findMany({\r             where: { status: 'active' }..."
+  },
+  {
+    "file": "packages\\domains\\platform-admin\\src\\repositories\\platform-subscription.repository.ts",
+    "model": "Subscription",
+    "query": "prisma.subscription.count({ where }..."
+  },
+  {
+    "file": "packages\\domains\\platform-admin\\src\\repositories\\platform-user.repository.ts",
+    "model": "User",
+    "query": "prisma.user.count({ where }..."
+  },
+  {
+    "file": "packages\\domains\\platform-billing\\src\\billing\\billing.service.ts",
+    "model": "Subscription",
+    "query": "prisma.subscription.findFirst({\r                 where: { providerSubscriptionId..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\activities\\activity.service.ts",
+    "model": "AutomationLog",
+    "query": "prisma.automationLog.count({ where: activityQuery }..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\modules\\module.service.ts",
+    "model": "Task",
+    "query": "prisma.task.findMany({\r                 where: { projectId, deletedAt: null }..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\projects\\project.service.ts",
+    "model": "User",
+    "query": "prisma.user.findMany({\r                 where: { id: { in: project.memberIds }..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\projects\\project.service.ts",
+    "model": "Project",
+    "query": "prisma.project.findMany({\r             where: filter,\r             orderBy: { cr..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\projects\\project.service.ts",
+    "model": "Task",
+    "query": "prisma.task.findMany({\r             where: { projectId, deletedAt: null }..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\projects\\project.service.ts",
+    "model": "AuditLog",
+    "query": "prisma.auditLog.findMany({\r             where: { OR: resourceFilters }..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\tasks\\task.service.ts",
+    "model": "Task",
+    "query": "prisma.task.findMany({\r                     where: { moduleId, deletedAt: null }..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\tasks\\task.service.ts",
+    "model": "Document",
+    "query": "prisma.document.findMany({\r             where: { relatedId: task.id, relatedMode..."
+  },
+  {
+    "file": "packages\\domains\\projects-and-tasks\\src\\work-logs\\work-log.service.ts",
+    "model": "WorkLog",
+    "query": "prisma.workLog.findMany({\r             where,\r             include: {\r          ..."
+  },
+  {
+    "file": "packages\\domains\\public\\src\\public.service.ts",
+    "model": "Settings",
+    "query": "prisma.settings.findFirst({\r             where: { recruitmentApiKey: apiKey }..."
+  },
+  {
+    "file": "packages\\domains\\settings\\src\\help-support\\support.service.ts",
+    "model": "SupportTicket",
+    "query": "prisma.supportTicket.count({ where }..."
+  },
+  {
+    "file": "packages\\domains\\settings\\src\\roles\\roles.service.ts",
+    "model": "User",
+    "query": "prisma.user.findMany({\r             where: { deletedAt: null }..."
+  },
+  {
+    "file": "packages\\domains\\social-media\\src\\content-calendar\\content-calendar.service.ts",
+    "model": "ContentCalendar",
+    "query": "prisma.contentCalendar.findMany({\r             orderBy: { createdAt: 'desc' }..."
+  },
+  {
+    "file": "packages\\domains\\social-media\\src\\content-calendar.service.ts",
+    "model": "ContentCalendar",
+    "query": "prisma.contentCalendar.findMany({             orderBy: { createdAt: 'desc' }..."
+  },
+  {
+    "file": "packages\\domains\\workspace-tools\\src\\ai-assistant\\ai-assistant.service.ts",
+    "model": "User",
+    "query": "prisma.user.findMany({\r                 where: { name: { contains: query, mode: ..."
+  },
+  {
+    "file": "packages\\domains\\workspace-tools\\src\\ai-assistant\\ai-assistant.service.ts",
+    "model": "Project",
+    "query": "prisma.project.findMany({\r                 where: whereClause,\r                 ..."
+  },
+  {
+    "file": "packages\\domains\\workspace-tools\\src\\ai-assistant\\ai-jobs.service.ts",
+    "model": "Task",
+    "query": "prisma.task.findMany({\r                 where: {\r                     dueDate: {..."
+  },
+  {
+    "file": "packages\\domains\\workspace-tools\\src\\assets\\asset.service.ts",
+    "model": "Asset",
+    "query": "prisma.asset.findFirst({ where: { id }..."
+  },
+  {
+    "file": "packages\\domains\\workspace-tools\\src\\calendar\\calendar.service.ts",
+    "model": "CalendarEvent",
+    "query": "prisma.calendarEvent.findMany({\r             where: filter,\r             include..."
+  },
+  {
+    "file": "packages\\domains\\workspace-tools\\src\\documents\\document.service.ts",
+    "model": "KnowledgeArticle",
+    "query": "prisma.knowledgeArticle.findMany({\r             where,\r             include: {\r ..."
+  },
+  {
+    "file": "packages\\domains\\workspace-tools\\src\\storage\\storage.service.ts",
+    "model": "Document",
+    "query": "prisma.document.findMany({\r             where: query,\r             include: {\r  ..."
+  }
+]

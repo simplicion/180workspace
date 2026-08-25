@@ -16,7 +16,7 @@ export default function HelpIcon({ slug, className, helpText = "Help & Docs" }: 
     return (
         <div className="relative inline-flex items-center">
             <a
-                href="/dashboard/help-support"
+                href='/help-support'
                 onMouseEnter={() => setShowTooltip(true)}
                 onMouseLeave={() => setShowTooltip(false)}
                 className={clsx(

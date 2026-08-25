@@ -1,0 +1,27 @@
+{
+  "name": "apps-marketing-web",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --port 3004",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^4.2.0",
+    "@astrojs/tailwind": "^6.0.0",
+    "astro": "^7.2.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^3.4.0",
+    "@workspace/db": "workspace:*",
+    "@workspace/ui": "workspace:*"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}

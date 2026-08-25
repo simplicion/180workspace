@@ -4,10 +4,9 @@ export class FinanceOverviewService {
   /**
    * Generates a Profit & Loss (P&L) Report for a specific period.
    */
-  static async getPLReport(companyId: string, startDate: string, endDate: string) {
+  static async getPLReport(startDate: string, endDate: string) {
     const revenueData = await prisma.invoice.aggregate({
       where: {
-        companyId,
         createdAt: { gte: new Date(startDate), lte: new Date(endDate) },
         status: 'paid'
       },
@@ -18,7 +17,6 @@ export class FinanceOverviewService {
     const expenseDataRaw = await prisma.expenseTransaction.groupBy({
       by: ['category'],
       where: {
-        companyId,
         date: { gte: new Date(startDate), lte: new Date(endDate) },
         status: 'approved'
       },
@@ -29,7 +27,6 @@ export class FinanceOverviewService {
 
     const salaryData = await prisma.salary.aggregate({
       where: {
-        companyId,
         paidAt: { gte: new Date(startDate), lte: new Date(endDate) },
         status: 'paid'
       },
@@ -53,15 +50,15 @@ export class FinanceOverviewService {
     };
   }
 
-  static async getCashFlowForecast(companyId: string) {
+  static async getCashFlowForecast() {
     const inflowData = await prisma.invoice.aggregate({
-      where: { companyId, status: { in: ['sent', 'overdue'] } },
+      where: { status: { in: ['sent', 'overdue'] } },
       _sum: { totalAmount: true }
     });
     const projectedInflow = inflowData._sum.totalAmount || 0;
 
     const outflowData = await prisma.salary.aggregate({
-      where: { companyId, status: { in: ['pending', 'approved', 'hr_approved'] } },
+      where: { status: { in: ['pending', 'approved', 'hr_approved'] } },
       _sum: { netSalary: true }
     });
     const projectedOutflow = outflowData._sum.netSalary || 0;
@@ -73,21 +70,21 @@ export class FinanceOverviewService {
     };
   }
 
-  static async getProjectProfitability(companyId: string, projectId: string) {
+  static async getProjectProfitability(projectId: string) {
     const project = await prisma.project.findUnique({
-      where: { id: projectId, companyId }
+      where: { id: projectId }
     });
     
     if (!project) throw new Error('Project not found');
 
     const projectRevenue = await prisma.invoice.aggregate({
-      where: { companyId, projectId: project.id, status: 'paid' },
+      where: { projectId: project.id, status: 'paid' },
       _sum: { totalAmount: true }
     });
     const totalRevenue = projectRevenue._sum.totalAmount || 0;
 
     const projectExpenses = await prisma.expenseTransaction.aggregate({
-      where: { companyId, projectId: project.id, status: 'approved' },
+      where: { projectId: project.id, status: 'approved' },
       _sum: { amount: true }
     });
     const totalExpenses = projectExpenses._sum.amount || 0;
@@ -105,21 +102,21 @@ export class FinanceOverviewService {
     };
   }
 
-  static async getAllProjectsProfitability(companyId: string) {
+  static async getAllProjectsProfitability() {
     const projects = await prisma.project.findMany({ 
-      where: { status: { not: 'cancelled' }, companyId },
+      where: { status: { not: 'cancelled' } },
       select: { id: true, name: true, budget: true }
     });
 
     const reports = await Promise.all(projects.map(async (p: any) => {
-      return await this.getProjectProfitability(companyId, p.id);
+      return await this.getProjectProfitability(p.id);
     }));
     return reports.sort((a, b) => b.netProfit - a.netProfit);
   }
 
-  static async getConfig(companyId: string) {
+  static async getConfig() {
     const config = await prisma.companyConfig.findFirst({
-        where: { companyId }
+        where: { }
     });
 
     let publicConfig = {
@@ -148,9 +145,9 @@ export class FinanceOverviewService {
     return publicConfig;
   }
 
-  static async updateConfig(companyId: string, newConfig: any) {
+  static async updateConfig(newConfig: any) {
     const config = await prisma.companyConfig.findFirst({
-        where: { companyId }
+        where: { }
     });
     if (!config) throw new Error('Company config not found');
     
@@ -186,15 +183,14 @@ export class FinanceOverviewService {
     };
   }
 
-  static async getDashboardStats(companyId: string) {
+  static async getDashboardStats() {
     const [revenueRes, salaryRes, expenseRes, pendingInvoices, unverifiedBanks] = await Promise.all([
-        prisma.invoice.aggregate({ where: { companyId, status: 'paid' }, _sum: { totalAmount: true } }),
-        prisma.salary.aggregate({ where: { companyId, status: 'paid' }, _sum: { netSalary: true } }),
-        prisma.expenseTransaction.aggregate({ where: { companyId, status: 'approved' }, _sum: { amount: true } }),
-        prisma.invoice.count({ where: { companyId, status: { in: ['sent', 'overdue'] } } }),
+        prisma.invoice.aggregate({ where: { status: 'paid' }, _sum: { totalAmount: true } }),
+        prisma.salary.aggregate({ where: { status: 'paid' }, _sum: { netSalary: true } }),
+        prisma.expenseTransaction.aggregate({ where: { status: 'approved' }, _sum: { amount: true } }),
+        prisma.invoice.count({ where: { status: { in: ['sent', 'overdue'] } } }),
         prisma.user.count({
             where: {
-                companyId,
                 bankAccount: null,
                 role: { not: 'client' }
             }

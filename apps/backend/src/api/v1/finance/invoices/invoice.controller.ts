@@ -4,7 +4,7 @@ import { InvoiceService } from '@workspace/finance';
 export const getInvoices = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { status, clientId, projectId } = req.query;
-        const filter: any = { companyId: (req as any).user.companyId };
+        const filter: any = {};
 
         if ((req as any).user.role === 'client') {
             filter.clientId = (req as any).user.id;
@@ -22,7 +22,7 @@ export const getInvoices = async (req: Request, res: Response, next: NextFunctio
 
 export const getInvoiceById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const invoice = await InvoiceService.getInvoiceById((req as any).user.companyId, req.params.id);
+        const invoice = await InvoiceService.getInvoiceById(req.params.id);
 
         if ((req as any).user.role === 'client' && invoice.clientId !== (req as any).user.id) {
             return res.status(403).json({ error: 'Permission denied' });
@@ -34,14 +34,14 @@ export const getInvoiceById = async (req: Request, res: Response, next: NextFunc
 
 export const createInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const invoice = await InvoiceService.createInvoice((req as any).user.companyId, req.body, (req as any).user);
+        const invoice = await InvoiceService.createInvoice(req.body, (req as any).user);
         res.status(201).json({ invoice });
     } catch (err) { next(err); }
 };
 
 export const updateInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const invoice = await InvoiceService.updateInvoice(req.params.id, (req as any).user.companyId, req.body);
+        const invoice = await InvoiceService.updateInvoice(req.params.id, req.body);
         res.json({ invoice });
     } catch (err: any) { 
         if (err.message === 'Not found') {
@@ -53,7 +53,7 @@ export const updateInvoice = async (req: Request, res: Response, next: NextFunct
 
 export const deleteInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await InvoiceService.deleteInvoice(req.params.id, (req as any).user.companyId);
+        const result = await InvoiceService.deleteInvoice(req.params.id);
         res.json(result);
     } catch (err) { next(err); }
 };

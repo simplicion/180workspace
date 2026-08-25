@@ -28,7 +28,7 @@ export const getClients = async (req: Request, res: Response, next: NextFunction
 export const createClient = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const companyId = (req as any).company?.id || (req as any).user?.companyId;
-        const { client, givePortalAccess, password } = await ClientService.createClient(req.body, (req as any).user.id, companyId);
+        const { client, givePortalAccess, password } = await ClientService.createClient(req.body, (req as any).user.id);
 
         await logAction((req as any).user.id, 'CREATE_CLIENT', 'client', client.id, { name: client.name }, req);
 

@@ -109,7 +109,7 @@ export const submitServiceRequest = async (req: Request, res: Response, next: Ne
 
         if (company && company.adminEmail) {
             try {
-                await sendEmail(company.adminEmail, 'New Service Request - PitchIn', `
+                await sendEmail(company.adminEmail, 'New Service Request - 180workspace', `
                     <h3>New Service Request Received!</h3>
                     <p>You have a new request for the service: <strong>${service ? service.name : 'Unknown'}</strong>.</p>
                     <p><strong>From:</strong> ${requesterName} (${requesterEmail})</p>

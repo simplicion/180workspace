@@ -63,7 +63,7 @@ export default function FloatingMeetingPiP() {
     // Auto-minimize when navigating away from the meeting page (e.g. Back button)
     useEffect(() => {
         if (meeting.isActive && !meeting.isMinimized) {
-            if (!pathname.startsWith(`/dashboard/meeting/${meeting.roomId}`)) {
+            if (!pathname.startsWith('/meeting/${meeting.roomId}')) {
                 minimizeMeeting();
             }
         }
@@ -72,7 +72,7 @@ export default function FloatingMeetingPiP() {
     const handleMaximize = () => {
         maximizeMeeting();
         if (meeting.roomId) {
-            router.push(`/dashboard/meeting/${meeting.roomId}`);
+            router.push('/meeting/${meeting.roomId}');
         }
     };
 

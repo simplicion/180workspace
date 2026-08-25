@@ -38,7 +38,7 @@ export class ContractService {
         };
     }
 
-    static async createContract(user: any, companyId: string, data: any, ip: string) {
+  static async createContract(user: any, data: any, ip: string) {
         const { title, clientName, clientEmail, dealId, template } = data;
         const userId = user?.id;
         
@@ -47,8 +47,8 @@ export class ContractService {
 
         if (dealId) {
             try {
-                const deal = await prisma.deal.findUnique({
-                    where: { id: dealId },
+          const deal = await prisma.deal.findFirst({
+            where: { id: dealId },
                     include: { contact: true, company: true }
                 });
                 if (deal) {
@@ -149,20 +149,18 @@ export class ContractService {
                 title: title || 'New Contract',
                 content: JSON.stringify(contentData),
                 category: 'Contract',
-                tags: ['contract', template || 'custom'],
-                companyId: companyId,
-                createdById: userId
+        tags: ['contract', template || 'custom'],
+        createdById: userId
             }
         });
 
         return this.formatContract(article);
     }
 
-    static async getContracts(companyId: string) {
-        const articles = await prisma.knowledgeArticle.findMany({
-            where: {
-                companyId: companyId,
-                OR: [
+  static async getContracts() {
+    const articles = await prisma.knowledgeArticle.findMany({
+      where: {
+        OR: [
                     { category: 'Contract' },
                     { tags: { has: 'contract' } }
                 ]
@@ -172,19 +170,19 @@ export class ContractService {
         return articles.map(this.formatContract);
     }
 
-    static async getContract(companyId: string, id: string) {
-        const article = await prisma.knowledgeArticle.findFirst({
-            where: { id, companyId }
+  static async getContract(id: string) {
+    const article = await prisma.knowledgeArticle.findFirst({
+      where: { id }
         });
         if (!article) throw new Error('Not found');
         return this.formatContract(article);
     }
 
-    static async updateContract(user: any, companyId: string, id: string, data: any, ip: string) {
-        const { title, clientName, clientEmail, validUntil, showTotalAmount, requireNameToSign, currency, blocks } = data;
-        
-        const article = await prisma.knowledgeArticle.findFirst({
-            where: { id, companyId }
+  static async updateContract(user: any, id: string, data: any, ip: string) {
+    const { title, clientName, clientEmail, validUntil, showTotalAmount, requireNameToSign, currency, blocks } = data;
+    
+    const article = await prisma.knowledgeArticle.findFirst({
+      where: { id }
         });
         if (!article) throw new Error('Not found');
         
@@ -220,15 +218,15 @@ export class ContractService {
         return this.formatContract(updated);
     }
 
-    static async deleteContract(companyId: string, id: string) {
-        await prisma.knowledgeArticle.deleteMany({
-            where: { id, companyId }
+  static async deleteContract(id: string) {
+    await prisma.knowledgeArticle.deleteMany({
+      where: { id }
         });
     }
 
-    static async generateShareLink(user: any, companyId: string, id: string, ip: string) {
-        const article = await prisma.knowledgeArticle.findFirst({
-            where: { id, companyId }
+  static async generateShareLink(user: any, id: string, ip: string) {
+    const article = await prisma.knowledgeArticle.findFirst({
+      where: { id }
         });
         if (!article) throw new Error('Not found');
 

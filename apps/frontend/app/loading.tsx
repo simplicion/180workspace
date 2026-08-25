@@ -11,7 +11,7 @@ export default function RootLoading() {
                     <LogoLoader className="w-6 h-6 text-indigo-600 animate-pulse" />
                 </div>
                 <div className="space-y-2 text-center">
-                    <h3 className="text-sm font-semibold text-gray-900">Loading PitchIn 180...</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">Loading 180workspace...</h3>
                     <p className="text-xs text-gray-500">Fetching your workspace data</p>
                 </div>
             </div>

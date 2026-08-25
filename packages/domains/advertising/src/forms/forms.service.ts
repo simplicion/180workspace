@@ -1,7 +1,7 @@
 import { prisma } from '@workspace/db';
 
 export class FormsService {
-  static async createForm(companyId: string, data: { title: string; description: string; fields: any[] }) {
+  static async createForm(data: { title: string; description: string; fields: any[] }) {
     const { title, description, fields } = data;
 
     // Generate a unique slug based on title + short random string
@@ -14,7 +14,6 @@ export class FormsService {
         title,
         description,
         slug,
-        companyId,
         fields: {
           create: (fields || []).map((field, index) => ({
             label: field.label,
@@ -34,9 +33,8 @@ export class FormsService {
     return form;
   }
 
-  static async getForms(companyId: string) {
+  static async getForms() {
     const forms = await prisma.form.findMany({
-      where: { companyId },
       include: {
         _count: {
           select: { submissions: true }
@@ -48,11 +46,10 @@ export class FormsService {
     return forms;
   }
 
-  static async getFormById(companyId: string, id: string) {
+  static async getFormById(id: string) {
     const form = await prisma.form.findFirst({
       where: { 
-        id,
-        companyId
+        id
       },
       include: {
         fields: {
@@ -68,11 +65,11 @@ export class FormsService {
     return form;
   }
 
-  static async updateForm(companyId: string, id: string, data: { title?: string; description?: string; isActive?: boolean; fields?: any[] }) {
+  static async updateForm(id: string, data: { title?: string; description?: string; isActive?: boolean; fields?: any[] }) {
     const { title, description, isActive, fields } = data;
 
     const existingForm = await prisma.form.findFirst({
-      where: { id, companyId }
+      where: { id }
     });
 
     if (!existingForm) {
@@ -117,9 +114,9 @@ export class FormsService {
     return updatedForm;
   }
 
-  static async deleteForm(companyId: string, id: string) {
+  static async deleteForm(id: string) {
     const form = await prisma.form.findFirst({
-      where: { id, companyId }
+      where: { id }
     });
 
     if (!form) {
@@ -133,9 +130,9 @@ export class FormsService {
     return true;
   }
 
-  static async getFormSubmissions(companyId: string, id: string) {
+  static async getFormSubmissions(id: string) {
     const form = await prisma.form.findFirst({
-      where: { id, companyId }
+      where: { id }
     });
 
     if (!form) {

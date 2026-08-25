@@ -3,8 +3,7 @@ import { ContractService } from '@workspace/crm-and-sales';
 
 export const createContract = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id || (req as any).user?.company;
-        const contract = await ContractService.createContract((req as any).user, companyId, req.body, req.ip);
+        const contract = await ContractService.createContract((req as any).user, req.body, req.ip);
         res.status(201).json({ success: true, contract });
     } catch (error) {
   next(error);
@@ -13,8 +12,7 @@ export const createContract = async (req: Request, res: Response, next: NextFunc
 
 export const getContracts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id || (req as any).user?.company;
-        const contracts = await ContractService.getContracts(companyId);
+        const contracts = await ContractService.getContracts();
         res.json({ success: true, contracts });
     } catch (error) {
   next(error);
@@ -23,8 +21,7 @@ export const getContracts = async (req: Request, res: Response, next: NextFuncti
 
 export const getContract = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id || (req as any).user?.company;
-        const contract = await ContractService.getContract(companyId, req.params.id);
+        const contract = await ContractService.getContract(req.params.id);
         res.json({ success: true, contract });
     } catch (error: any) {
   next(error);
@@ -33,8 +30,7 @@ export const getContract = async (req: Request, res: Response, next: NextFunctio
 
 export const updateContract = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id || (req as any).user?.company;
-        const contract = await ContractService.updateContract((req as any).user, companyId, req.params.id, req.body, req.ip);
+        const contract = await ContractService.updateContract((req as any).user, req.params.id, req.body, req.ip);
         res.json({ success: true, contract });
     } catch (error: any) {
   next(error);
@@ -43,8 +39,7 @@ export const updateContract = async (req: Request, res: Response, next: NextFunc
 
 export const deleteContract = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id || (req as any).user?.company;
-        await ContractService.deleteContract(companyId, req.params.id);
+        await ContractService.deleteContract(req.params.id);
         res.json({ success: true });
     } catch (error) {
   next(error);
@@ -53,8 +48,7 @@ export const deleteContract = async (req: Request, res: Response, next: NextFunc
 
 export const generateShareLink = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id || (req as any).user?.company;
-        const shareToken = await ContractService.generateShareLink((req as any).user, companyId, req.params.id, req.ip);
+        const shareToken = await ContractService.generateShareLink((req as any).user, req.params.id, req.ip);
         res.json({ success: true, shareToken });
     } catch (error: any) {
   next(error);

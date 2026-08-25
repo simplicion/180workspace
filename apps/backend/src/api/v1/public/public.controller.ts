@@ -8,11 +8,10 @@ import { Request, Response, NextFunction } from 'express';
  */
 export const getPublicJobs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = req.company ? (req as any).company.id : undefined;
         const protocol = req.protocol;
         const host = req.get('host');
 
-        const result = await PublicService.getPublicJobs(companyId, protocol, host);
+        const result = await PublicService.getPublicJobs(protocol, host);
         res.json(result);
     } catch (err) {
         next(err);
@@ -25,10 +24,8 @@ export const getPublicJobs = async (req: Request, res: Response, next: NextFunct
 export const getPublicJobDetails = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
-        const queryCompanyId = req.query.companyId;
-        const companyContextId = req.company ? (req as any).company.id : undefined;
 
-        const result = await PublicService.getPublicJobDetails(id, companyContextId, queryCompanyId);
+        const result = await PublicService.getPublicJobDetails(id);
         res.json(result);
     } catch (err) {
         if (err.message === 'Job not found or already closed') {
@@ -62,8 +59,7 @@ export const submitApplication = async (req: Request, res: Response, next: NextF
  */
 export const getApiKey = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id;
-        const result = await PublicService.getApiKey(companyId);
+        const result = await PublicService.getApiKey();
         res.json(result);
     } catch (err) {
         if (err.message === 'Company context required') return res.status(401).json({ error: err.message });
@@ -73,8 +69,7 @@ export const getApiKey = async (req: Request, res: Response, next: NextFunction)
 
 export const generateApiKey = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).company?.id;
-        const result = await PublicService.generateApiKey(companyId);
+        const result = await PublicService.generateApiKey();
         res.json(result);
     } catch (err) {
         if (err.message === 'Company context required') return res.status(401).json({ error: err.message });
@@ -96,12 +91,11 @@ export const getBranding = async (req: Request, res: Response, next: NextFunctio
 };
 
 /**
- * Fetch all open jobs across all companies for Pitchin Explore tab
+ * Fetch all open jobs across all companies for 180workspace Explore tab
  */
 export const getExploreJobs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = req.company ? (req as any).company.id : undefined;
-        const result = await PublicService.getExploreJobs(companyId);
+        const result = await PublicService.getExploreJobs();
         res.status(200).json(result);
     } catch (err) {
         next(err);
@@ -127,8 +121,7 @@ export const getMyApplications = async (req: Request, res: Response, next: NextF
  */
 export const getPublicEvents = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const companyId = req.company ? (req as any).company.id : undefined;
-        const result = await PublicService.getPublicEvents(companyId);
+        const result = await PublicService.getPublicEvents();
         res.json(result);
     } catch (err) {
         next(err);
@@ -141,8 +134,7 @@ export const getPublicEvents = async (req: Request, res: Response, next: NextFun
 export const getPublicEventDetails = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
-        const companyId = req.company ? (req as any).company.id : undefined;
-        const result = await PublicService.getPublicEventDetails(id, companyId);
+        const result = await PublicService.getPublicEventDetails(id);
         res.json(result);
     } catch (err) {
         if (err.message === 'Event not found') return res.status(404).json({ success: false, message: err.message });
@@ -157,9 +149,8 @@ export const checkRegistration = async (req: Request, res: Response, next: NextF
     try {
         const { eventId } = req.params;
         const { email } = req.query;
-        const companyId = req.company ? (req as any).company.id : undefined;
         
-        const result = await PublicService.checkRegistration(eventId, email, companyId);
+        const result = await PublicService.checkRegistration(eventId, email as string);
         res.json(result);
     } catch (err) {
         next(err);
@@ -173,13 +164,31 @@ export const submitEventRegistration = async (req: Request, res: Response, next:
     try {
         const { eventId } = req.params;
         const registrationData = req.body;
-        const companyId = req.company ? (req as any).company.id : undefined;
         
-        const result = await PublicService.submitEventRegistration(eventId, registrationData, companyId);
+        const result = await PublicService.submitEventRegistration(eventId, registrationData);
         res.status(201).json(result);
     } catch (err) {
         if (err.message === 'Event not found') return res.status(404).json({ success: false, message: err.message });
         if (err.message === 'You have already registered for this event.') return res.status(400).json({ success: false, message: err.message });
+        next(err);
+    }
+};
+
+
+/**
+ * Resolve a custom domain or subdomain
+ */
+export const resolveDomain = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const domain = req.query.domain as string;
+        if (!domain) {
+            return res.status(400).json({ error: 'Domain query parameter is required' });
+        }
+        
+        const result = await PublicService.resolveDomain(domain);
+        res.json(result);
+    } catch (err) {
+        if (err.message === 'Domain not found') return res.status(404).json({ error: err.message });
         next(err);
     }
 };

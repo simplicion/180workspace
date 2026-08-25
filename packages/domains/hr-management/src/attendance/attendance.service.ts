@@ -173,17 +173,19 @@ export class AttendanceService {
   }
 
   async updateAttendance(id: string, data: any) {
-    if (data.checkIn || data.checkOut) {
-      const existing = await prisma.attendance.findUnique({
-        where: { id },
-      });
-      if (existing) {
-        const cIn = data.checkIn !== undefined ? data.checkIn : existing.checkIn;
-        const cOut =
-          data.checkOut !== undefined ? data.checkOut : existing.checkOut;
-        data.workHours = this.calculateWorkHours(cIn, cOut);
-      }
+    const existing = await prisma.attendance.findFirst({
+      where: { id },
+    });
+    if (!existing) {
+      throw new Error('Attendance record not found');
     }
+
+    if (data.checkIn || data.checkOut) {
+      const cIn = data.checkIn !== undefined ? data.checkIn : existing.checkIn;
+      const cOut = data.checkOut !== undefined ? data.checkOut : existing.checkOut;
+      data.workHours = this.calculateWorkHours(cIn, cOut);
+    }
+
     return prisma.attendance.update({
       where: { id },
       data,
@@ -192,14 +194,11 @@ export class AttendanceService {
 
   async autoCheckIn(
     userId: string,
-    companyId: string,
     date: string,
     checkInTime: string
   ) {
     const config =
-      (await prisma.companyConfig.findFirst({
-        where: { companyId },
-      })) || ({} as any);
+      (await prisma.companyConfig.findFirst()) || ({} as any);
 
     let record = await prisma.attendance.findFirst({
       where: { employeeId: userId, date },
@@ -239,7 +238,6 @@ export class AttendanceService {
 
   async autoCheckOut(
     userId: string,
-    companyId: string,
     date: string,
     checkOutTime: string
   ) {
@@ -254,9 +252,7 @@ export class AttendanceService {
     }
 
     const config =
-      (await prisma.companyConfig.findFirst({
-        where: { companyId },
-      })) || ({} as any);
+      (await prisma.companyConfig.findFirst()) || ({} as any);
     const standardEnd = config.standardEndTime || '18:00';
 
     const workHours = this.calculateWorkHours(record.checkIn, checkOutTime);

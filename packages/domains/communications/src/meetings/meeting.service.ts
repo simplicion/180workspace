@@ -1,16 +1,17 @@
-import { prisma as db } from '@workspace/db';
+import { prisma as db, requestContext } from '@workspace/db';
 import { randomUUID } from 'crypto';
 
 export class MeetingService {
     static async createMeeting(user: any, data: any) {
         const { title } = data;
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const userId = user.id;
 
         const roomId = `room-${companyId}-${randomUUID().slice(0, 8)}`;
 
         const log = await db.meetingLog.create({
             data: {
+
                 roomId,
                 companyId,
                 createdById: userId,
@@ -24,10 +25,9 @@ export class MeetingService {
     }
 
     static async listRecentMeetings(user: any) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         const meetings = await db.meetingLog.findMany({
-            where: { companyId },
             orderBy: { createdAt: 'desc' },
             take: 20,
             include: { createdBy: { select: { name: true } } }
@@ -38,7 +38,7 @@ export class MeetingService {
 
     static async validateRoomAccess(user: any, roomId: string) {
         const userId = user.id;
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         let roomCompanyId = null;
         if (roomId.startsWith('room-')) {
@@ -75,7 +75,7 @@ export class MeetingService {
         const company = await db.company.findFirst({ where: { id: companyId } });
         
         let log = await db.meetingLog.findFirst({
-            where: { roomId: roomId, companyId },
+            where: { roomId: roomId },
             include: { createdBy: { select: { id: true, name: true } } }
         });
 
@@ -97,10 +97,10 @@ export class MeetingService {
     static async logJoin(user: any, data: any) {
         const { roomId, meetingId } = data;
         const userId = user.id;
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         let log = await db.meetingLog.findFirst({
-            where: { roomId, status: 'active', companyId }
+            where: { roomId, status: 'active' }
         });
 
         if (!log) {
@@ -138,7 +138,7 @@ export class MeetingService {
         const userId = user.id;
 
         const log = await db.meetingLog.findFirst({
-            where: { roomId, status: 'active', companyId: user.companyId }
+            where: { roomId, status: 'active' }
         });
         
         if (!log) throw new Error('Active meeting log not found');
@@ -169,10 +169,10 @@ export class MeetingService {
     }
 
     static async getLog(user: any, meetingLogId: string) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         const log = await db.meetingLog.findFirst({
-            where: { id: meetingLogId, companyId },
+            where: { id: meetingLogId },
             include: { createdBy: { select: { name: true } } }
         });
 
@@ -181,10 +181,10 @@ export class MeetingService {
     }
 
     static async getRoomDetails(user: any, roomId: string) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         const log = await db.meetingLog.findFirst({
-            where: { roomId, companyId },
+            where: { roomId },
             orderBy: { createdAt: 'desc' },
             include: { createdBy: { select: { name: true, email: true } } }
         });
@@ -194,10 +194,10 @@ export class MeetingService {
     }
 
     static async deleteMeeting(user: any, roomId: string) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         const log = await db.meetingLog.findFirst({
-            where: { roomId, companyId }
+            where: { roomId }
         });
 
         if (!log) throw new Error('Meeting not found');
@@ -211,13 +211,13 @@ export class MeetingService {
 
     static async processTranscript(user: any, AIService: any, googleSheetsService: any, data: any) {
         const { roomId, transcript, title, participants } = data;
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         if (!transcript || transcript.length < 10) {
             throw new Error('Transcript is too short to process.');
         }
 
-        const settings = await db.settings.findFirst({ where: { companyId } });
+        const settings = await db.settings.findFirst();
         if (!settings) throw new Error('Company settings not found');
 
         const ps = await db.platformSettings.findFirst();
@@ -282,12 +282,11 @@ export class MeetingService {
     static async createMeetingTasks(user: any, actionItems: any[], meetingTitle: string) {
         try {
             let project = await db.project.findFirst({ 
-                where: { name: 'Meeting Notes', companyId: user.companyId } 
+                where: { name: 'Meeting Notes' } 
             });
 
             if (!project) {
                 project = await db.project.findFirst({ 
-                    where: { companyId: user.companyId },
                     orderBy: { createdAt: 'desc' } 
                 });
             }
@@ -304,7 +303,6 @@ export class MeetingService {
                     priority: item.priority || 'medium',
                     projectId: project.id,
                     creatorId: user.id,
-                    companyId: user.companyId,
                     status: 'todo'
                 } });
             });
@@ -316,13 +314,13 @@ export class MeetingService {
     }
 
     static async getSummary(user: any, googleSheetsService: any, roomId: string) {
-        const settings = await db.settings.findFirst({ where: { companyId: user.companyId } });
+        const settings = await db.settings.findFirst();
         if (!settings) throw new Error('Settings not found');
 
         const result = await googleSheetsService.getMeetingSummaryByRoomId(settings, roomId);
         if (!result) throw new Error('Meeting summary not found');
 
-        const companyId = user.companyId.toString();
+        const companyId = requestContext.getStore()?.companyId as string;
         if (result.roomId.includes('-') && !result.roomId.includes(companyId)) {
             throw new Error('Access denied: Meeting record belongs to another company');
         }
@@ -334,7 +332,7 @@ export class MeetingService {
         const { meetingLogId, text } = data;
 
         const log = await db.meetingLog.findFirst({
-            where: { id: meetingLogId, companyId: user.companyId }
+            where: { id: meetingLogId }
         });
 
         if (!log) throw new Error('Meeting not found');
@@ -354,7 +352,7 @@ export class MeetingService {
 
     static async getTranscripts(user: any, meetingLogId: string) {
         const log = await db.meetingLog.findFirst({
-            where: { id: meetingLogId, companyId: user.companyId }
+            where: { id: meetingLogId }
         });
 
         if (!log) throw new Error('Meeting not found');
@@ -370,7 +368,7 @@ export class MeetingService {
     static async chatWithMeetingAI(user: any, AIService: any, data: any) {
         const { meetingLogId, message } = data;
 
-        const settings = await db.settings.findFirst({ where: { companyId: user.companyId } });
+        const settings = await db.settings.findFirst();
         if (!settings) throw new Error('Settings not found');
 
         const transcripts = await db.meetingTranscript.findMany({

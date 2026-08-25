@@ -32,10 +32,9 @@ export class SmartNotificationService {
 
         if (shouldSendEmail) {
             const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true, companyId: true } });
-            if (user && user.email && user.companyId) {
+            if (user && user.email) {
                 const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
                 await EmailManagementService.sendCustomEmail(
-                    user.companyId,
                     'system',
                     user.email,
                     title,
@@ -60,11 +59,10 @@ export class SmartNotificationService {
         if (unread.length === 0) return;
 
         const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true, companyId: true } });
-        if (user && user.email && user.companyId) {
+        if (user && user.email) {
             const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
             const summary = unread.map((n: any) => `• ${n.title}: ${n.message}`).join('\n');
             await EmailManagementService.sendCustomEmail(
-                user.companyId,
                 'system',
                 user.email,
                 'Your Daily Activity Summary',

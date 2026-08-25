@@ -190,7 +190,7 @@ function SignupForm() {
                         {platform?.platformName ? (
                             <span className="font-bold tracking-widest text-lg uppercase text-white">{platform.platformName}</span>
                         ) : (
-                            <img src="/white text logo.svg" alt="PitchIn 180" className="h-8" />
+                            <img src="/white text logo.svg" alt="180workspace" className="h-8" />
                         )}
                     </motion.div>
 
@@ -256,7 +256,7 @@ function SignupForm() {
                         {platform?.platformName ? (
                             <span className="font-bold text-xl text-gray-900">{platform.platformName}</span>
                         ) : (
-                            <img src="/black text logo.svg" alt="PitchIn 180" className="h-6" />
+                            <img src="/black text logo.svg" alt="180workspace" className="h-6" />
                         )}
                     </div>
 

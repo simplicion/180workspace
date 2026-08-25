@@ -1,8 +1,9 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { PrismaClient } from '@workspace/db';
 
 export class CompanyProductsService {
-    static async createProduct(companyId: string, name: string, description: string, link: string, logoUrl: string) {
+    static async createProduct(name: string, description: string, link: string, logoUrl: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         if (!name) {
             throw new Error('Product name is required.');
         }
@@ -20,7 +21,8 @@ export class CompanyProductsService {
         return product;
     }
 
-    static async updateProduct(companyId: string, productId: string, name?: string, description?: string, link?: string, logoUrl?: string) {
+    static async updateProduct(productId: string, name?: string, description?: string, link?: string, logoUrl?: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const existing = await prisma.companyProduct.findFirst({
             where: { id: productId, companyId }
         });
@@ -42,7 +44,8 @@ export class CompanyProductsService {
         return product;
     }
 
-    static async deleteProduct(companyId: string, productId: string) {
+    static async deleteProduct(productId: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const existing = await prisma.companyProduct.findFirst({
             where: { id: productId, companyId }
         });

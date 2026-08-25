@@ -9,10 +9,9 @@ interface UserContext {
 
 export class ProjectService {
     static async getProjects({ query, user }: { query?: any, user: UserContext }) {
-        const { companyId } = user as any;
         const isAdmin = ['admin', 'manager', 'BMSP_SUPER_ADMIN'].includes(user.role || '');
         
-        const filter: any = { companyId };
+        const filter: any = {};
         if (!isAdmin) {
             filter.OR = [
                 { ownerId: user.id },
@@ -53,12 +52,9 @@ export class ProjectService {
 
     static async createProject({ data, user }: { data: any, user: UserContext }) {
         if (!data.name) throw new Error('Project name is required');
-        const { companyId } = user as any;
-
         const project = await prisma.project.create({
             data: {
                 ...data,
-                companyId,
                 ownerId: user.id,
                 status: data.status || 'planning'
             }

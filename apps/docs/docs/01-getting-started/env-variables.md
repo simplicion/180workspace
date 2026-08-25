@@ -48,14 +48,14 @@ SMTP_PASS="..."
 
 ## 2. User Web / Super App (`apps/user-web/.env.local`)
 
-Configuration for the Founder / User facing Next.js application (including PitchIn 180).
+Configuration for the Founder / User facing Next.js application (including 180workspace).
 
 ```bash
 # API Connection
 NEXT_PUBLIC_API_URL="http://localhost:5000/api"
 
 # Feature Flags
-NEXT_PUBLIC_ENABLE_PITCHIN=true
+NEXT_PUBLIC_ENABLE_180workspace=true
 ```
 
 ## 3. Admin Web (`apps/admin-web/.env.local`)

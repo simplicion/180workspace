@@ -10,7 +10,7 @@ export const submitWorkLog = async (req: Request, res: Response, next: NextFunct
 
 export const getLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await WorkLogService.getLogs(req.query);
+        const result = await WorkLogService.getLogs(req.query, (req as any).user);
         res.json(result);
     } catch (err: any) {
         if (err.message === 'projectId is required') return res.status(400).json({ success: false, message: err.message });
@@ -27,14 +27,14 @@ export const getMyLogs = async (req: Request, res: Response, next: NextFunction)
 
 export const getAllLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await WorkLogService.getAllLogs(req.query);
+        const result = await WorkLogService.getAllLogs(req.query, (req as any).user);
         res.json(result);
     } catch (err) { next(err); }
 };
 
 export const getPendingReviews = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await WorkLogService.getPendingReviews(req.query);
+        const result = await WorkLogService.getPendingReviews(req.query, (req as any).user);
         res.json(result);
     } catch (err) { next(err); }
 };

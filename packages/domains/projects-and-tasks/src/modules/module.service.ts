@@ -1,6 +1,6 @@
 import type { UserContext } from '../tasks/task.service.js';
 
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { logAction, triggerAutomation } from '@workspace/backend-infra';
 
 export class ModuleService {
@@ -76,7 +76,7 @@ export class ModuleService {
                 eventType: 'module_assigned',
                 triggeredBy: user.id,
                 targetUser: newModule.ownerId,
-                targetClient: user.companyId,
+                targetClient: requestContext.getStore()?.companyId as string,
                 relatedItem: { itemModel: 'module', itemId: newModule.id },
                 description: `You have been assigned as the owner of the module: ${newModule.title}`,
                 metadata: {
@@ -137,7 +137,7 @@ export class ModuleService {
                 eventType: 'module_assigned',
                 triggeredBy: user.id,
                 targetUser: updatedModule.ownerId,
-                targetClient: user.companyId,
+                targetClient: requestContext.getStore()?.companyId as string,
                 relatedItem: { itemModel: 'module', itemId: updatedModule.id },
                 description: `You have been assigned as the owner of the module: ${updatedModule.title}`,
                 metadata: {

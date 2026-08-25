@@ -4,7 +4,7 @@ import BottomSheet from './BottomSheet';
 import { Send, UserCircle2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { pitchInSocialApi } from "@/redux/api/pitchInSocialApi";
+import { workspaceSocialApi } from "@/redux/api/workspaceSocialApi";
 
 interface Reply {
   id: string;
@@ -25,10 +25,10 @@ export default function CommentsBottomSheet({ isOpen, onClose, postId }: Comment
   const { data: session } = useSession();
   const router = useRouter();
   
-  const { data, isLoading: loading } = pitchInSocialApi.useGetPostRepliesQuery(postId, { skip: !isOpen });
+  const { data, isLoading: loading } = workspaceSocialApi.useGetPostRepliesQuery(postId, { skip: !isOpen });
   const replies = data?.replies || [];
   
-  const [addPostCommentMutation] = pitchInSocialApi.useAddPostCommentMutation();
+  const [addPostCommentMutation] = workspaceSocialApi.useAddPostCommentMutation();
   
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);

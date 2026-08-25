@@ -1,12 +1,13 @@
 // @ts-nocheck
-import { PrismaClient } from '@workspace/db';
+import { PrismaClient, prisma, requestContext } from '@workspace/db';
 import { CompanyPaymentService } from '../company-payment/company-payment.service';
 
 export class BankVerificationService {
     /**
      * Initiates bank account verification for a user.
      */
-    static async verifyEmployeeAccount(userId: string, companyId: string) {
+    static async verifyEmployeeAccount(userId: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
         const user = await prisma.user.findUnique({
             where: { id: userId }
         });

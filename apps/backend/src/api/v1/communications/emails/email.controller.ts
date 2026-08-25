@@ -4,7 +4,7 @@ import { EmailService, EmailManagementService } from '@workspace/communications'
 export const getEmailLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { page = 1, limit = 50, to, status } = req.query;
-        const result = await EmailManagementService.getEmailLogs((req as any).user.companyId, Number(page), Number(limit), to as string, status as string);
+        const result = await EmailManagementService.getEmailLogs(Number(page), Number(limit), to as string, status as string);
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -22,7 +22,7 @@ export const previewTemplate = async (req: Request, res: Response, next: NextFun
         if (!templateId) {
             return res.status(400).json({ error: 'Template ID is required' });
         }
-        const preview = await EmailService.getTemplatePreview(templateId, templateData || {}, (req as any).user.companyId);
+        const preview = await EmailService.getTemplatePreview(templateId, templateData || {});
         res.json({
             subject: preview.subject,
             html: preview.html
@@ -40,7 +40,6 @@ export const sendManualEmail = async (req: Request, res: Response, next: NextFun
         }
 
         const result = await EmailManagementService.sendManualEmail(
-            (req as any).user.companyId,
             (req as any).user.id,
             to,
             templateId,
@@ -65,7 +64,6 @@ export const sendCustomEmail = async (req: Request, res: Response, next: NextFun
         }
 
         const result = await EmailManagementService.sendCustomEmail(
-            (req as any).user.companyId,
             (req as any).user.id,
             to,
             subject,
@@ -109,7 +107,7 @@ export const sendDocumentEmail = async (req: Request, res: Response, next: NextF
             name: name || 'Valued Recipient',
             documentName: documentName || 'Document',
             message: message || 'Attached document for your review.',
-        }, (req as any).user.companyId, { attachments: [finalAttachment], category: 'WORK' });
+        }, { attachments: [finalAttachment], category: 'WORK' });
 
         if (!result.success) {
             return res.status(500).json({ error: result.error || 'Failed to send document email' });
@@ -127,7 +125,6 @@ export const sendBulkEmail = async (req: Request, res: Response, next: NextFunct
         }
 
         const result = await EmailManagementService.sendBulkEmail(
-            (req as any).user.companyId,
             role,
             subject,
             message,
@@ -150,7 +147,7 @@ export const sendBulkEmail = async (req: Request, res: Response, next: NextFunct
 
 export const retryEmail = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        await EmailManagementService.retryEmail((req as any).user.companyId, req.params.id, (req as any).user.id);
+        await EmailManagementService.retryEmail(req.params.id, (req as any).user.id);
         res.json({ message: 'Email retry successful' });
     } catch (err: any) {
   next(err);
@@ -159,7 +156,7 @@ export const retryEmail = async (req: Request, res: Response, next: NextFunction
 
 export const getEmailStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const stats = await EmailManagementService.getEmailStats((req as any).user.companyId);
+        const stats = await EmailManagementService.getEmailStats();
         res.json(stats);
     } catch (err) { next(err); }
 };

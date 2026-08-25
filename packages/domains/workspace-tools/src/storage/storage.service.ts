@@ -8,7 +8,7 @@ import { aiAutomationService as AIAutomationService } from '../ai-assistant/ai-a
 
 export class StorageService {
     static async uploadFile(params: any) {
-        const { userId, companyId, file, storageResult, taggedUsers, name, relatedId, relatedModel, description, tags, isConfidential, folder: bodyFolder } = params;
+        const { userId, file, storageResult, taggedUsers, name, relatedId, relatedModel, description, tags, isConfidential, folder: bodyFolder } = params;
 
         if (!storageResult) {
             throw new Error('File upload failed — Storage not configured');
@@ -32,7 +32,6 @@ export class StorageService {
             fileSize: file?.size,
             folder: hierarchicalFolder,
             uploadedById: userId,
-            companyId: companyId,
             relatedId: relatedId || null,
             relatedModel: relatedModel || '',
             description: description || '',
@@ -52,7 +51,7 @@ export class StorageService {
         // Background AI classification
         (async () => {
             try {
-                const settings = await prisma.settings.findFirst({ where: { companyId } });
+                const settings = await prisma.settings.findFirst();
                 const aiResult = await AIAutomationService.classifyDocument(doc.description || doc.name, settings as any);
                 if (aiResult.category && aiResult.category !== 'General') {
                     await prisma.document.update({ where: { id: doc.id }, data: { category: aiResult.category } });
@@ -87,7 +86,7 @@ export class StorageService {
     }
 
     static async addFileLink(params: any) {
-        const { userId, companyId, name, fileUrl, folder = 'general', relatedId, relatedModel, description, tags, isConfidential, category = 'General' } = params;
+        const { userId, name, fileUrl, folder = 'general', relatedId, relatedModel, description, tags, isConfidential, category = 'General' } = params;
 
         const doc = await prisma.document.create({ data: {
             name,
@@ -99,7 +98,6 @@ export class StorageService {
             folder,
             category,
             uploadedById: userId,
-            companyId,
             relatedId: relatedId || null,
             relatedModel: relatedModel || '',
             description: description || '',
@@ -111,8 +109,8 @@ export class StorageService {
     }
 
     static async getFiles(params: any) {
-        const { companyId, folder, relatedId, relatedModel, tags, search, authUser } = params;
-        const query: any = { deletedAt: null, companyId };
+        const { folder, relatedId, relatedModel, tags, search, authUser } = params;
+        const query: any = { deletedAt: null };
 
         if (folder) query.folder = folder;
         if (relatedId) query.relatedId = relatedId;
@@ -147,8 +145,8 @@ export class StorageService {
     }
 
     static async deleteFile(params: any) {
-        const { id, companyId } = params;
-        const doc = await prisma.document.findUnique({ where: { id } });
+        const { id } = params;
+        const doc = await prisma.document.findFirst({ where: { id } });
         if (!doc) throw new Error('File not found');
 
         // External integrations are mocked/skipped for now, ideally handled via an event bus or IntegrationService
@@ -158,7 +156,7 @@ export class StorageService {
 
     static async signFile(params: any) {
         const { id, userId, userName } = params;
-        const doc = await prisma.document.findUnique({ where: { id } });
+        const doc = await prisma.document.findFirst({ where: { id } });
         if (!doc) throw new Error('Document not found');
 
         await AutomationService.trigger({
@@ -173,9 +171,9 @@ export class StorageService {
     }
 
     static async attachExistingFile(params: any) {
-        const { userId, companyId, documentId, relatedId, relatedModel } = params;
+        const { userId, documentId, relatedId, relatedModel } = params;
 
-        const sourceDoc = await prisma.document.findUnique({ where: { id: documentId } });
+        const sourceDoc = await prisma.document.findFirst({ where: { id: documentId } });
         if (!sourceDoc) throw new Error('Source document not found');
 
         const newDoc = await prisma.document.create({ data: {
@@ -188,7 +186,6 @@ export class StorageService {
             folder: sourceDoc.folder,
             category: sourceDoc.category,
             uploadedById: userId,
-            companyId,
             relatedId,
             relatedModel,
             description: sourceDoc.description,

@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { aiService } from './ai.service';
 import { vectorStore } from './vector.store';
 import axios from 'axios';
@@ -9,7 +9,7 @@ const mammoth: any = mammothOriginal;
 
 export class AiAssistantService {
     async getSettingsWithMetadata(user: any) {
-        const companyId = user?.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const settings = companyId ? (await prisma.settings.findFirst({ where: { companyId } as any }) || {}) : {};
         let metadata = {};
         if (companyId) {
@@ -28,7 +28,7 @@ export class AiAssistantService {
     }
 
     async getDashboardInsights(user: any, redisClient?: any) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const cacheKey = `ai:dashboard:v3:${companyId}`;
 
         if (redisClient) {
@@ -59,7 +59,7 @@ Provide a brief, professional organizational health summary. You MUST limit your
     }
 
     async getProjectInsights(user: any, projectId: string, redisClient?: any) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const cacheKey = `ai:project:${companyId}:${projectId}`;
 
         if (redisClient) {
@@ -119,7 +119,7 @@ Provide a brief, professional organizational health summary. You MUST limit your
 
     async chatWithAI(user: any, { message, history, sessionId, isLegalMode, fileContext, stream }: any, onChunk?: (chunk: string) => void) {
         const startTime = Date.now();
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
 
         // Ensure session exists or create one
         let activeSessionId = sessionId;
@@ -185,12 +185,12 @@ Provide a brief, professional organizational health summary. You MUST limit your
                 myTasks, myProjects, myLeaves, myAttendance,
                 recentTasks, recentProjects
             ] = await Promise.all([
-                prisma.task.count({ where: {assigneeId: user.id, status: { not: 'done' }} }),
-                prisma.project.count({ where: {memberIds: { has: user.id }, status: { not: 'completed' }} }),
-                prisma.leave ? prisma.leave.count({ where: {employeeId: user.id, status: 'pending'} }) : 0,
-                prisma.attendance ? prisma.attendance.findFirst({ where: { employeeId: user.id, date: todayStr } }) : null,
-                prisma.task.findMany({ where: {assigneeId: user.id, status: { not: 'done' }}, take: 10, select: { title: true, status: true } }),
-                prisma.project.findMany({ where: {memberIds: { has: user.id }, status: { not: 'completed' }}, take: 10, select: { name: true, status: true } })
+                prisma.task.count({ where: {companyId, assigneeId: user.id, status: { not: 'done' }} }),
+                prisma.project.count({ where: {companyId, memberIds: { has: user.id }, status: { not: 'completed' }} }),
+                prisma.leave ? prisma.leave.count({ where: {companyId, employeeId: user.id, status: 'pending'} }) : 0,
+                prisma.attendance ? prisma.attendance.findFirst({ where: { companyId, employeeId: user.id, date: todayStr } }) : null,
+                prisma.task.findMany({ where: {companyId, assigneeId: user.id, status: { not: 'done' }}, take: 10, select: { title: true, status: true } }),
+                prisma.project.findMany({ where: {companyId, memberIds: { has: user.id }, status: { not: 'completed' }}, take: 10, select: { name: true, status: true } })
             ]);
             const attStatus = myAttendance ? myAttendance.status : 'Not marked yet';
             contextText += `Your Current Status:\n- Your Pending Tasks: ${myTasks}\n- Your Active Projects: ${myProjects}\n- Your Pending Leave Requests: ${myLeaves}\n- Your Attendance Today: ${attStatus}\n\n`;
@@ -436,7 +436,7 @@ Available actions:
     }
 
     async analyzeDocumentText(user: any, documentId: string, message: string, summarizeOnly: boolean, history: any[], serverPort: string | number = 4000) {
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const [doc, settings] = await Promise.all([
             prisma.document.findUnique({ where: { id: documentId } }),
             this.getSettingsWithMetadata(user)
@@ -528,7 +528,7 @@ Draft the email with a clear subject line and a professional body. Use [Placehol
         
         if (!transcriptText) throw new Error('No transcript provided.');
         
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         const employees = await prisma.user.findMany({ 
             where: { companyId, isActive: true }, 
             select: { id: true, name: true, role: true } 
@@ -624,7 +624,7 @@ ${transcriptText}`;
         content = content.slice(0, 30000);
 
         const docId = `doc_${Date.now()}`;
-        await vectorStore.addDocument(docId, content, { companyId: user.companyId, filename: originalName });
+        await vectorStore.addDocument(docId, content, { companyId: requestContext.getStore()?.companyId as string, filename: originalName });
 
         return {
             filename: originalName,
@@ -637,7 +637,7 @@ ${transcriptText}`;
     async searchEntities(user: any, type: string, query: string) {
         if (!query || query.length < 1) return [];
 
-        const companyId = user.companyId;
+        const companyId = requestContext.getStore()?.companyId as string;
         let results = [];
 
         if (type === 'C' && (prisma as any).client) {

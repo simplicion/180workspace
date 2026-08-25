@@ -4,7 +4,7 @@ import { EmployeeService } from '@workspace/hr-management';
 export const getDesignations = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const employeeService = new EmployeeService();
-        const designations = await employeeService.getDesignations((req as any).user.companyId, req.query.search);
+        const designations = await employeeService.getDesignations(req.query.search);
         res.json({
             success: true,
             data: designations
@@ -17,7 +17,7 @@ export const getDesignations = async (req: Request, res: Response, next: NextFun
 export const createDesignation = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const employeeService = new EmployeeService();
-        const designation = await employeeService.createDesignation((req as any).user.companyId, req.body.name, req.body.category);
+        const designation = await employeeService.createDesignation(req.body.name, req.body.category);
         res.status(201).json({
             success: true,
             data: designation

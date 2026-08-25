@@ -3,8 +3,8 @@ import * as nodemailer from 'nodemailer';
 import { EmailService } from '@workspace/backend-infra';
 
 export class EmailManagementService {
-    static async getEmailLogs(companyId: string, page = 1, limit = 50, to?: string, status?: string) {
-        const query: any = { companyId };
+    static async getEmailLogs(page = 1, limit = 50, to?: string, status?: string) {
+        const query: any = {};
         if (to) query.to = { contains: to, mode: 'insensitive' };
         if (status) query.status = status;
 
@@ -52,15 +52,12 @@ export class EmailManagementService {
         ];
     }
 
-    static async sendRawWithLogging(options: any, companyId: string, sentById: string | null) {
-        const settingsRecord = await prisma.settings.findFirst({ where: { companyId } });
-        const company = await prisma.company.findUnique({ where: { id: companyId }, select: { metadata: true } });
-        const metadata: any = company?.metadata || {};
+    static async sendRawWithLogging(options: any, sentById: string | null) {
+        const settingsRecord = await prisma.settings.findFirst();
         
+        // Settings stores smtp credentials for the company
         const settings: any = { ...settingsRecord };
-        ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom'].forEach(field => {
-            if (metadata[field] !== undefined) settings[field] = metadata[field];
-        });
+        // We can ignore metadata fallback if settings exist directly
         
         const log = await prisma.emailLog.create({ data: {
             to: options.to,
@@ -68,8 +65,7 @@ export class EmailManagementService {
             templateName: options.templateName || 'custom',
             templateData: options.templateData || {},
             sentById: sentById,
-            status: 'failed',
-            companyId: companyId
+            status: 'failed'
         } });
         const logId = log.id;
 
@@ -104,14 +100,14 @@ export class EmailManagementService {
         }
     }
 
-    static async sendManualEmail(companyId: string, sentById: string, to: string, templateId: string, templateData: any, editedSubject?: string, editedHtml?: string) {
+    static async sendManualEmail(sentById: string, to: string, templateId: string, templateData: any, editedSubject?: string, editedHtml?: string) {
         let subject, html;
 
         if (editedSubject && editedHtml) {
             subject = editedSubject;
             html = editedHtml;
         } else {
-            const preview = await EmailService.getTemplatePreview(templateId, templateData || {}, companyId);
+            const preview = await EmailService.getTemplatePreview(templateId, templateData || {}, undefined);
             subject = preview.subject;
             html = preview.html;
         }
@@ -122,20 +118,20 @@ export class EmailManagementService {
             html,
             templateName: templateId,
             templateData: templateData || {},
-        }, companyId, sentById);
+        }, sentById);
     }
 
-    static async sendCustomEmail(companyId: string, sentById: string, to: string, subject: string, body: string) {
+    static async sendCustomEmail(sentById: string, to: string, subject: string, body: string) {
         return this.sendRawWithLogging({
             to,
             subject,
             html: body,
             templateName: 'custom'
-        }, companyId, sentById);
+        }, sentById);
     }
 
-    static async sendBulkEmail(companyId: string, role: string, subject: string, message: string, sentById: string) {
-        const query: any = { isActive: true, companyId };
+    static async sendBulkEmail(role: string, subject: string, message: string, sentById: string) {
+        const query: any = { isActive: true };
         if (role && role !== 'all') {
             query.role = role;
         }
@@ -155,8 +151,7 @@ export class EmailManagementService {
                     to: user.email,
                     subject,
                     html: message,
-                    templateName: 'bulk',
-                }, companyId, sentById);
+                }, sentById);
                 if (result.success) sent++; else failed++;
             } catch (e) {
                 failed++;
@@ -166,7 +161,7 @@ export class EmailManagementService {
         return { sent, failed, total: users.length };
     }
 
-    static async retryEmail(companyId: string, logId: string, sentById: string) {
+    static async retryEmail(logId: string, sentById: string) {
         const emailLog: any = await prisma.emailLog.findUnique({
             where: { id: logId },
         });
@@ -183,7 +178,7 @@ export class EmailManagementService {
             html: emailLog.html || `Retry trigger: ${emailLog.subject}`,
             templateName: emailLog.templateName,
             templateData: emailLog.templateData,
-        }, companyId, sentById);
+        }, sentById);
 
         if (result.success) {
             await prisma.emailLog.update({
@@ -200,17 +195,15 @@ export class EmailManagementService {
         throw new Error(result.error || 'Retry failed');
     }
 
-    static async getEmailStats(companyId: string) {
+    static async getEmailStats() {
         const statusGroups = await prisma.emailLog.groupBy({
             by: ['status'],
-            where: { companyId },
             _count: { _all: true }
         });
         const statusStats = statusGroups.map(g => ({ id: g.status, _id: g.status, count: g._count._all }));
 
         const templateGroups = await prisma.emailLog.groupBy({
             by: ['templateName', 'status'],
-            where: { companyId },
             _count: { _all: true }
         });
         
@@ -225,7 +218,7 @@ export class EmailManagementService {
 
         const dateLimit = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const recentLogs = await prisma.emailLog.findMany({
-            where: { companyId, createdAt: { gte: dateLimit } },
+            where: { createdAt: { gte: dateLimit } },
             select: { createdAt: true }
         });
         const dateMap: any = {};

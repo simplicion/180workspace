@@ -5,7 +5,7 @@ export class SupportController {
     static async createTicket(req: Request, res: Response, next: NextFunction) {
         try {
             const reqUser = (req as any).user;
-            const result = await SupportService.createTicket(reqUser.companyId, reqUser, req.body);
+            const result = await SupportService.createTicket(reqUser, req.body);
             res.status(201).json(result);
         } catch (err: any) {
             if (err.message.includes('Monthly support ticket limit reached')) {
@@ -24,7 +24,7 @@ export class SupportController {
 
     static async listTickets(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await SupportService.listOwnTickets((req as any).user.companyId);
+            const result = await SupportService.listOwnTickets();
             res.json(result);
         } catch {
             res.status(500).json({ error: 'Failed to fetch tickets' });
@@ -54,7 +54,7 @@ export class SupportController {
 
     static async editTicket(req: Request, res: Response, next: NextFunction) {
         try {
-            const ticket = await SupportService.editTicket(req.params.id, (req as any).user.companyId, req.body);
+            const ticket = await SupportService.editTicket(req.params.id, req.body);
             res.json({ ticket });
         } catch (err: any) {
             if (err.message === 'Ticket not found') return res.status(404).json({ error: err.message });
@@ -65,7 +65,7 @@ export class SupportController {
 
     static async deleteTicket(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await SupportService.deleteTicket(req.params.id, (req as any).user.companyId);
+            const result = await SupportService.deleteTicket(req.params.id);
             res.json(result);
         } catch (err: any) {
             if (err.message === 'Ticket not found') return res.status(404).json({ error: err.message });

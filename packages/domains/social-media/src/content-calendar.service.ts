@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import { aiContentService } from '@workspace/workspace-tools';
 export class ContentCalendarService {
     static async listCalendars(limit: number = 10, offset: number = 0) {
@@ -68,11 +68,12 @@ export class ContentCalendarService {
         return { calendar: mappedCalendar, pieces: mappedPieces };
     }
 
-    static async createCalendar(companyId: string, body: any, user: any) {
+    static async createCalendar(body: any, user: any) {
         const startTime = Date.now();
+        const companyId = requestContext.getStore()?.companyId as string;
 
         // 1. Call AI Service to generate calendar data based on req.body
-        const aiResponse = await aiContentService.generateContentCalendar(companyId, body, user);
+        const aiResponse = await aiContentService.generateContentCalendar(body, user.id);
 
         if (!aiResponse.success) {
             throw new Error(aiResponse.error || 'AI generation failed');

@@ -1,4 +1,4 @@
-# Imara 180workspace & PitchIn 180: Comprehensive System Specification & Strategy
+# Imara 180workspace & 180workspace: Comprehensive System Specification & Strategy
 
 > [!IMPORTANT]
 > **Name Selection:** Based on your request for an African common name for the management tool, we have selected **Imara 180workspace**. "Imara" is Swahili for *strong, firm, and resilient*—the perfect foundation for a startup's operational lifecycle.
@@ -10,10 +10,10 @@
 The modern startup ecosystem is heavily fragmented. Founders use one platform for networking (LinkedIn), another for raising capital (AngelList), and a myriad of disjointed tools for managing their day-to-day operations (Jira, Workday, QuickBooks). 
 
 **The Vision:** We are merging the entire startup journey into a dual-platform ecosystem:
-1. **PitchIn 180:** The social, community, and networking layer for founders, freelancers, and business owners.
+1. **180workspace:** The social, community, and networking layer for founders, freelancers, and business owners.
 2. **Imara 180workspace:** The enterprise-grade Intelligent Management System where startups actually run their business, track their growth, and manage their lifecycle.
 
-By uniting these two platforms, a founder can join PitchIn 180 to find a co-founder, build their product using Imara 180workspace to manage their hired freelancers, track their financial projections, and seamlessly generate a VC-ready Pitch Deck directly from their live operational data to secure funding.
+By uniting these two platforms, a founder can join 180workspace to find a co-founder, build their product using Imara 180workspace to manage their hired freelancers, track their financial projections, and seamlessly generate a VC-ready Pitch Deck directly from their live operational data to secure funding.
 
 ---
 
@@ -22,7 +22,7 @@ By uniting these two platforms, a founder can join PitchIn 180 to find a co-foun
 ### 2.1 The Two-Pronged Marketing Approach
 Marketing this ecosystem requires a funnel that captures users at the *idea* stage and retains them through the *IPO* stage.
 
-#### Marketing PitchIn 180 (Top of Funnel - Community)
+#### Marketing 180workspace (Top of Funnel - Community)
 - **Target Audience:** Freelancers looking for high-quality gigs, early-stage founders looking for talent and networking.
 - **Value Proposition:** "Your Ultimate Work-Life Profile."
 - **Acquisition Channels:**
@@ -34,17 +34,17 @@ Marketing this ecosystem requires a funnel that captures users at the *idea* sta
 - **Target Audience:** Growing startups, scaling agencies, and established businesses.
 - **Value Proposition:** "The Operating System for Resilient Startups."
 - **Acquisition Channels:**
-  - **Internal Upsell:** When a startup on PitchIn 180 hits 5 team members, automatically prompt them to activate Imara 180workspace for payroll, HR, and project management.
+  - **Internal Upsell:** When a startup on 180workspace hits 5 team members, automatically prompt them to activate Imara 180workspace for payroll, HR, and project management.
   - **B2B Content Marketing:** Publish whitepapers on "Lifecycle Management for Startups" and "How to track projections vs actuals."
   - **VC Partnerships:** Partner with Venture Capital firms to offer Imara 180workspace to their portfolio companies to ensure standardized, transparent reporting.
 
 ### 2.2 Branding Guidelines
-- **PitchIn 180 Tone:** Dynamic, community-driven, inspiring, fast-paced.
+- **180workspace Tone:** Dynamic, community-driven, inspiring, fast-paced.
 - **Imara 180workspace Tone:** Professional, secure, data-driven, reliable.
 
 ---
 
-## 3. PitchIn 180 Platform Modules
+## 3. 180workspace Platform Modules
 
 ### 3.1 The Ultimate Work-Life Profile
 Every individual on the platform (founder or freelancer) has a universal profile.
@@ -76,7 +76,7 @@ Imara 180workspace is the backbone of the business. It is heavily modularized in
 
 ### 4.2 Project & Task Management (Operations)
 - **Agile Boards:** Kanban and Scrum frameworks built-in.
-- **Resource Allocation:** Track which freelancer from PitchIn 180 is assigned to which micro-task.
+- **Resource Allocation:** Track which freelancer from 180workspace is assigned to which micro-task.
 - **Time Tracking:** Built-in timers that sync directly with the payroll module.
 
 ### 4.3 Financial Projections & Accounting
@@ -93,13 +93,13 @@ Imara 180workspace is the backbone of the business. It is heavily modularized in
 ## 5. User Personas & Detailed Use Cases
 
 ### Use Case 1: The Solo Founder's Journey
-1. **Idea Stage:** Sarah creates a PitchIn 180 profile. She uses the networking hub to find a CTO.
+1. **Idea Stage:** Sarah creates a 180workspace profile. She uses the networking hub to find a CTO.
 2. **Launch Stage:** Sarah and her CTO register their company on the platform. They activate Imara 180workspace.
-3. **Growth Stage:** They hire 5 freelancers from the PitchIn community. Imara 180workspace tracks their tasks, hours, and payments.
+3. **Growth Stage:** They hire 5 freelancers from the 180workspace community. Imara 180workspace tracks their tasks, hours, and payments.
 4. **Funding Stage:** Sarah clicks "Generate Pitch Deck." The platform pulls their 6-month growth trajectory, team composition, and product milestones into a beautiful PDF. She secures funding.
 
 ### Use Case 2: The Freelancer's Journey
-1. **Onboarding:** John creates his Ultimate Work-Life Profile on PitchIn 180.
+1. **Onboarding:** John creates his Ultimate Work-Life Profile on 180workspace.
 2. **Gig Acquisition:** He applies for a UI/UX contract with Sarah's startup.
 3. **Execution:** John works inside Imara 180workspace. His tasks and hours are logged automatically.
 4. **Completion:** Upon project end, John's profile is automatically updated with a verified "Completed Project" badge and a review from Sarah. His work-life data grows organically.
@@ -110,7 +110,7 @@ Imara 180workspace is the backbone of the business. It is heavily modularized in
 
 ### 6.1 Monorepo Structure
 The system is built on a Turborepo/pnpm architecture for maximum code sharing and performance.
-- `apps/user-web`: The Next.js 15 frontend for the entire PitchIn 180 & Imara 180workspace ecosystem.
+- `apps/user-web`: The Next.js 15 frontend for the entire 180workspace & Imara 180workspace ecosystem.
 - `apps/http-backend`: Express.js backend handling RESTful operations.
 - `apps/ws-backend`: Socket.io backend for real-time chat, notifications, and live dashboard updates.
 - `packages/db`: Prisma ORM connecting to a robust PostgreSQL database.
@@ -120,7 +120,7 @@ The system is built on a Turborepo/pnpm architecture for maximum code sharing an
 A highly granular hierarchical permission system is required to separate community members from enterprise admins.
 - **Platform Roles:** `BMSP_SUPER_ADMIN`, `BMSP_FINANCE_ADMIN`
 - **Imara 180workspace Roles:** `COMPANY_CEO`, `HR_MANAGER`, `PROJECT_MANAGER`, `EMPLOYEE`, `FREELANCER`
-- **PitchIn 180 Roles:** `USER`, `VERIFIED_FOUNDER`, `INVESTOR`
+- **180workspace Roles:** `USER`, `VERIFIED_FOUNDER`, `INVESTOR`
 
 ### 6.3 Real-Time Infrastructure (WebSockets)
 - Implemented via `socket.io`.
@@ -136,7 +136,7 @@ A highly granular hierarchical permission system is required to separate communi
 - **GDPR & CCPA Compliance:** Users maintain full control over their Work-Life Profiles. They can export their data or invoke the "Right to be Forgotten."
 
 ### 7.2 Scalability (Handling 1M+ Users)
-- **Caching Strategy:** Redis is deployed globally. All frequently accessed PitchIn 180 profiles and Imara 180workspace dashboard statistics are cached. Cache invalidation occurs via event-driven triggers in the Express backend.
+- **Caching Strategy:** Redis is deployed globally. All frequently accessed 180workspace profiles and Imara 180workspace dashboard statistics are cached. Cache invalidation occurs via event-driven triggers in the Express backend.
 - **Edge Rendering:** The Next.js frontend utilizes Edge runtime for the public landing pages to ensure lightning-fast SEO load times across the globe.
 - **Database Sharding:** As the startup lifecycle data grows (specifically time-tracking and micro-task logs), the PostgreSQL database is structured to support time-scale partitioning.
 
@@ -144,6 +144,6 @@ A highly granular hierarchical permission system is required to separate communi
 
 ## 8. Summary of Implementation
 
-By deploying **PitchIn 180** as the community gateway and **Imara 180workspace** as the operational engine, we are creating a closed-loop ecosystem. Startups never have to leave our platform. From the moment they have an idea, to finding a team, to managing operations, to raising capital via automated pitch decks—the entire journey lives here. 
+By deploying **180workspace** as the community gateway and **Imara 180workspace** as the operational engine, we are creating a closed-loop ecosystem. Startups never have to leave our platform. From the moment they have an idea, to finding a team, to managing operations, to raising capital via automated pitch decks—the entire journey lives here. 
 
 This document serves as the foundational blueprint for all future engineering, design, and marketing efforts.

@@ -146,9 +146,7 @@ export class AutomationService {
     private static async handleEmailDispatch(eventType: string, user: any, params: any, companyPrisma: any) {
         try {
             const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-            const companyId = params.companyId || (companyPrisma && companyPrisma.companyId) || user.companyId || '';
             await EmailManagementService.sendCustomEmail(
-                companyId,
                 'system',
                 user.email,
                 `Notification: ${eventType}`,

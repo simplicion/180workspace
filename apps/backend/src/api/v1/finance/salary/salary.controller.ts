@@ -5,7 +5,7 @@ import { EmailService } from '@workspace/communications';
 
 export const reviewSalary = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const salary = await SalaryService.reviewSalary((req as any).user.companyId, req.params.id, req.body);
+        const salary = await SalaryService.reviewSalary(req.params.id, req.body);
         res.json({ success: true, salary });
     } catch (err) { next(err); }
 };
@@ -21,7 +21,7 @@ export const getSalaries = async (req: Request, res: Response, next: NextFunctio
 
 export const getMySalaries = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const salaries = await SalaryService.getMySalaries((req as any).user.companyId, (req as any).user.id);
+        const salaries = await SalaryService.getMySalaries((req as any).user.id);
         res.json({ success: true, salaries });
     } catch (err) { next(err); }
 };
@@ -44,7 +44,7 @@ export const getSalaryPreview = async (req: Request, res: Response, next: NextFu
 
 export const generateSalary = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const salary = await SalaryService.generateSalary((req as any).user.companyId, (req as any).user.id, req.body);
+        const salary = await SalaryService.generateSalary((req as any).user.id, req.body);
         
         // AutomationService removed
         res.status(201).json({ success: true, salary });
@@ -53,14 +53,14 @@ export const generateSalary = async (req: Request, res: Response, next: NextFunc
 
 export const approveSalary = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const salary = await SalaryService.approveSalary((req as any).user.companyId, req.params.id);
+        const salary = await SalaryService.approveSalary(req.params.id);
         res.json({ success: true, salary });
     } catch (err) { next(err); }
 };
 
 export const markPaid = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const salary = await SalaryService.markPaid((req as any).user.companyId, req.params.id);
+        const salary = await SalaryService.markPaid(req.params.id);
 
         try {
             await EmailService.notify(salary.employee, 'salary_generated', {

@@ -32,7 +32,7 @@ export default function TrialBanner() {
                 )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-                <Link href="/dashboard/settings/platform-billing"
+                <Link href='/settings/platform-billing'
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors
                         ${isCritical ? 'bg-white text-red-600 hover:bg-red-50' : 'bg-amber-900/20 text-amber-900 hover:bg-amber-900/30'}`}>
                     <Zap className="w-3.5 h-3.5" />

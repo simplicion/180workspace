@@ -1,19 +1,16 @@
 // @ts-nocheck
 import { prisma } from '@workspace/db';
 import { getCache, setCache, delCache, logAction } from '@workspace/backend-infra';
-import { getCompanyPrisma } from '@workspace/db';
+
 
 export class UserPreferenceService {
-    static async getPreferences(companyPrisma: any, userId: string) {
-        if (!companyPrisma) {
-            throw new Error('Database connection not available.');
-        }
+    static async getPreferences(userId: string) {
 
         const cacheKey = `user_preferences:${userId}`;
         const cached = await getCache(cacheKey);
         if (cached) return cached;
         
-        const UserPreference = companyPrisma.userPreference;
+        const UserPreference = prisma.userPreference;
 
         let prefs = await UserPreference.findFirst({ where: { userId } });
         if (!prefs) {
@@ -30,8 +27,8 @@ export class UserPreferenceService {
         return responseData;
     }
 
-    static async updateFavorites(companyPrisma: any, userId: string, companyId: string, item: any, action: string) {
-        const UserPreference = companyPrisma.userPreference;
+    static async updateFavorites(userId: string, item: any, action: string) {
+        const UserPreference = prisma.userPreference;
         let prefs = await UserPreference.findFirst({ where: { userId } });
         if (!prefs) prefs = await UserPreference.create({ data: { userId, favorites: [], recentItems: [] } });
 
@@ -50,17 +47,18 @@ export class UserPreferenceService {
         });
 
         await delCache(`user_preferences:${userId}`);
+        const companyId = require('@workspace/db').requestContext.getStore()?.companyId;
         await delCache(`init:user:${userId}:company:${companyId || 'none'}`);
 
         return { favorites: prefs.favorites };
     }
 
-    static async addRecentItem(companyPrisma: any, userId: string, companyId: string, item: any) {
+    static async addRecentItem(userId: string, item: any) {
         if (!item || !item.recordId) {
             return { recentItems: [] };
         }
 
-        const UserPreference = companyPrisma.userPreference;
+        const UserPreference = prisma.userPreference;
         let prefs = await UserPreference.findFirst({ where: { userId } });
         if (!prefs) prefs = await UserPreference.create({ data: { userId, favorites: [], recentItems: [] } });
 
@@ -83,13 +81,14 @@ export class UserPreferenceService {
         });
 
         await delCache(`user_preferences:${userId}`);
+        const companyId = require('@workspace/db').requestContext.getStore()?.companyId;
         await delCache(`init:user:${userId}:company:${companyId || 'none'}`);
 
         return { recentItems: prefs.recentItems };
     }
 
-    static async toggleSidebar(companyPrisma: any, userId: string, collapsed: boolean) {
-        const UserPreference = companyPrisma.userPreference;
+    static async toggleSidebar(userId: string, collapsed: boolean) {
+        const UserPreference = prisma.userPreference;
         let prefs = await UserPreference.findFirst({ where: { userId } });
         if (!prefs) prefs = await UserPreference.create({ data: { userId, favorites: [], recentItems: [] } });
         

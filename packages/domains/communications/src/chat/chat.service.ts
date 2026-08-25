@@ -55,11 +55,9 @@ export class ChatService {
         };
     }
 
-    static async canChatWith(senderRole: string, targetRole: string, companyId: string) {
+    static async canChatWith(senderRole: string, targetRole: string) {
         if (targetRole === 'client' || senderRole === 'client') {
-            const company = await db.company.findUnique({
-                where: { id: companyId }
-            });
+            const company = await db.company.findFirst();
             const metadata = (company?.metadata as any) || {};
             return metadata.employeeClientChatAllowed !== false;
         }
@@ -96,7 +94,7 @@ export class ChatService {
             const targetUser = await db.user.findUnique({ where: { id: memberId } });
             if (!targetUser) throw new Error('User not found');
 
-            const allowed = await this.canChatWith(user.role, targetUser.role, user.companyId);
+            const allowed = await this.canChatWith(user.role, targetUser.role);
             if (!allowed) throw new Error('Chat with clients is disabled by admin. Contact your administrator.');
 
             const chats = await db.chat.findMany({
@@ -422,9 +420,7 @@ export class ChatService {
     }
 
     static async getChatSettings(user: any) {
-        const company = await db.company.findUnique({
-            where: { id: user.companyId }
-        });
+        const company = await db.company.findFirst();
         const metadata = (company?.metadata as any) || {};
         return { employeeClientChatAllowed: metadata.employeeClientChatAllowed !== false };
     }
@@ -432,12 +428,11 @@ export class ChatService {
     static async updateChatSettings(user: any, employeeClientChatAllowed: boolean) {
         if (!['admin', 'manager'].includes(user.role)) throw new Error('Admin only');
 
-        const company = await db.company.findUnique({
-            where: { id: user.companyId }
-        });
+        const company = await db.company.findFirst();
+        if (!company) throw new Error('Company not found');
 
         await db.company.update({
-            where: { id: user.companyId },
+            where: { id: company.id },
             data: {
                 metadata: {
                     ...((company?.metadata as any) || {}),

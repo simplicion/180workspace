@@ -46,7 +46,7 @@ export default function InterestsSelection({
             <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">What are you interested in?</h3>
                 <p className="text-gray-500 text-sm flex items-center justify-center flex-wrap gap-1">
-                    Select at least 5 topics to personalize your <img src="/black text logo.svg" alt="PitchIn" className="h-4" /> experience.
+                    Select at least 5 topics to personalize your <img src="/black text logo.svg" alt="180workspace" className="h-4" /> experience.
                 </p>
                 <div className="mt-2 font-bold text-sm">
                     <span className={isValid ? "text-green-600" : "text-blue-600"}>

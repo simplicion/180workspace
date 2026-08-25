@@ -67,7 +67,7 @@ function LoginForm() {
                 }
 
                 const returnUrl = searchParams?.get('returnUrl');
-                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
+                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
             }
         }
     }, [isLoading, user, router, searchParams]);
@@ -79,7 +79,7 @@ function LoginForm() {
             signIn('platform-token', { token, redirect: false }).then((result) => {
                 if (result?.ok) {
                     const returnUrl = searchParams?.get('returnUrl');
-                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
+                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
                 }
             });
         }
@@ -126,7 +126,7 @@ function LoginForm() {
                 } else if (result?.ok) {
                     toast.success('Logged in successfully!');
                     const returnUrl = searchParams?.get('returnUrl');
-                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
+                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
                 }
             }
         } catch (err: any) {
@@ -173,7 +173,7 @@ function LoginForm() {
                 toast.success('Logged in successfully!');
                 const returnUrl = searchParams?.get('returnUrl');
                 // The Next.js middleware will automatically redirect if onboarding is not complete
-                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/dashboard';
+                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
             }
         } catch (err: any) {
             console.error('Login error:', err);
@@ -240,7 +240,7 @@ function LoginForm() {
             </div>
 
             {/* ── Back to Landing Page Button ─────────────────────────── */}
-            <Link href="/" className="absolute top-6 left-6 z-50">
+            <Link href={process.env.NEXT_PUBLIC_MARKETING_URL || 'http://localhost:3004'} className="absolute top-6 left-6 z-50">
                 <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

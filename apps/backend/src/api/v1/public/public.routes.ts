@@ -78,7 +78,7 @@ router.get('/branding', cacheResponse(300), publicController.getBranding);
 
 /**
  * @route   GET /api/public/explore-jobs
- * @desc    Fetch all open jobs across all companies for Pitchin users
+ * @desc    Fetch all open jobs across all companies for 180workspace users
  * @access  Public
  */
 router.get('/explore-jobs', publicController.getExploreJobs);
@@ -95,6 +95,8 @@ router.get('/events', publicController.getPublicEvents);
 router.get('/events/:id', publicController.getPublicEventDetails);
 router.get('/events/:eventId/check-registration', publicController.checkRegistration);
 router.post('/events/:eventId/register', publicController.submitEventRegistration);
+// --- Domain Registry Endpoints ---
+router.get('/domains/resolve', publicController.resolveDomain);
 
 export default router;
 

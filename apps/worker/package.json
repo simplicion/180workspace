@@ -4,8 +4,8 @@
   "description": "Background worker node for 180workspace",
   "main": "index.js",
   "scripts": {
-    "dev": "cross-env PORT=4004 RUN_MODE=worker node ../backend/server.js",
-    "start": "cross-env PORT=4003 RUN_MODE=worker node ../backend/server.js"
+    "dev": "cross-env PORT=4004 RUN_MODE=worker npx tsx ../backend/server.js",
+    "start": "cross-env PORT=4003 RUN_MODE=worker npx tsx ../backend/server.js"
   },
   "dependencies": {
     "@sentry/node": "^10.65.0",

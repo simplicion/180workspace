@@ -1,8 +1,8 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 
 export class ExpenseService {
-  static async getExpenses(companyId: string, user: any) {
-    const query: any = { companyId };
+  static async getExpenses(user: any) {
+    const query: any = { };
 
     // If not admin/finance, only show their own claims
     if (!['admin', 'manager', 'finance', 'super_admin'].includes(user.role)) {
@@ -22,9 +22,9 @@ export class ExpenseService {
     return expenses;
   }
 
-  static async getExpenseById(companyId: string, id: string) {
+  static async getExpenseById(id: string) {
     const expense = await prisma.expenseTransaction.findFirst({
-      where: { id, companyId },
+      where: { id },
       include: {
         vendor: true,
         employee: { select: { id: true, name: true } },
@@ -36,7 +36,7 @@ export class ExpenseService {
     return expense;
   }
 
-  static async createExpense(companyId: string, user: any, data: any) {
+  static async createExpense(user: any, data: any) {
     const { 
       type, title, amount, currency, category, date, dueDate, 
       attachmentUrl, receiptLinks, notes, vendorId, newVendorName, newVendorEmail, newVendorPhone,
@@ -47,6 +47,8 @@ export class ExpenseService {
     if (!['company_expense', 'employee_claim'].includes(type)) {
       throw new Error('Invalid expense type');
     }
+
+    const companyId = requestContext.getStore()?.companyId as string;
 
     let finalVendorId = vendorId;
 
@@ -76,7 +78,6 @@ export class ExpenseService {
 
     const expense = await prisma.expenseTransaction.create({
       data: {
-        companyId,
         type,
         title,
         amount: parseFloat(amount),
@@ -91,16 +92,17 @@ export class ExpenseService {
         vendorId: finalVendorId,
         projectId: projectId || null,
         clientId: clientId || null,
-        employeeId: type === 'employee_claim' ? user.id : null
+        employeeId: type === 'employee_claim' ? user.id : null,
+        companyId
       }
     });
 
     return expense;
   }
 
-  static async approveClaim(companyId: string, user: any, id: string, reviewNote?: string) {
+  static async approveClaim(user: any, id: string, reviewNote?: string) {
     const expense = await prisma.expenseTransaction.findFirst({
-      where: { id, companyId }
+      where: { id }
     });
 
     if (!expense) throw new Error('Expense not found');
@@ -119,9 +121,9 @@ export class ExpenseService {
     return updatedExpense;
   }
 
-  static async updateStatus(companyId: string, id: string, status: string, reviewNote?: string) {
-    const updatedExpense = await prisma.expenseTransaction.update({
-      where: { id, companyId },
+  static async updateStatus(id: string, status: string, reviewNote?: string) {
+    const updatedExpense = await prisma.expenseTransaction.updateMany({
+      where: { id },
       data: {
         status,
         reviewNote
