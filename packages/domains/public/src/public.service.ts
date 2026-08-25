@@ -410,11 +410,11 @@ export class PublicService {
                 where: { id: registry.targetId },
                 include: {
                     CompanyConfig: true,
-                    CompanyCoreValue: true,
-                    CompanyService: true,
-                    CompanyProduct: true,
-                    CompanyMedia: true,
-                    CompanyInvestor: true
+                    coreValueItems: true,
+                    services: true,
+                    products: true,
+                    media: true,
+                    investors: true
                 }
             });
             
