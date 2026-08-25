@@ -258,9 +258,9 @@ function TemplateEditor({
                 };
                 
                 if (documentId) {
-                    await api.put(`/api/180documents/files/${documentId}`, payload);
+                    await api.put(`/api/v1/workspace-tools/documents/files/${documentId}`, payload);
                 } else {
-                    const res = await api.post('/api/180documents/files', payload);
+                    const res = await api.post('/api/v1/workspace-tools/documents/files', payload);
                     if (res.data?.data?._id) {
                         setDocumentId(res.data.data._id);
                     } else if (res.data?.id) {
@@ -483,7 +483,7 @@ function TemplateEditor({
                 formData.append('taggedUsers', JSON.stringify(taggedUsers.map(u => u.id)));
             }
 
-            await api.post('/api/files/upload', formData, {
+            await api.post('/api/v1/workspace-tools/storage/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
 
@@ -508,7 +508,7 @@ function TemplateEditor({
                 tags: ['template', 'custom_template'],
             };
             
-            await api.post('/api/180documents/files', payload);
+            await api.post('/api/v1/workspace-tools/documents/files', payload);
             
             toast.success('Saved to My Templates!', { id: loadingId });
             setShowTemplateModal(false);
@@ -1238,7 +1238,7 @@ function DocumentEditorPageContent() {
             } else {
                 const fetchTemplate = async () => {
                     try {
-                        const res = await api.get('/api/180documents/files?category=Template');
+                        const res = await api.get('/api/v1/workspace-tools/documents/files?category=Template');
                         if (res.data?.success && res.data.articles) {
                             const found = res.data.articles.find((a: any) => a.id === templateId);
                             if (found) {

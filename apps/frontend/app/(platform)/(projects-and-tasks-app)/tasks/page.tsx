@@ -40,17 +40,52 @@ export default function TasksPage() {
     const [view, setView] = useState<'kanban' | 'list'>('kanban');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterPriority, setFilterPriority] = useState('');
+    const [filterProject, setFilterProject] = useState('');
+    const [filterModule, setFilterModule] = useState('');
+    const [filterClient, setFilterClient] = useState('');
+    const [filterDate, setFilterDate] = useState('');
+
+    const [projects, setProjects] = useState<any[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
+    const [modules, setModules] = useState<any[]>([]);
+
     const [selectedTask, setSelectedTask] = useState<string | null>(null);
     const [showCreate, setShowCreate] = useState(false);
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const { user } = useAuth();
 
+    useEffect(() => {
+        api.get('/api/projects', { params: { limit: 100 } }).then(({ data }) => setProjects(data.projects || []));
+        api.get('/api/clients', { params: { limit: 100 } }).then(({ data }) => setClients(data.clients || []));
+    }, []);
+
+    useEffect(() => {
+        if (!filterProject) {
+            setModules([]);
+            setFilterModule('');
+            return;
+        }
+        api.get(`/api/modules/project/${filterProject}`).then(({ data }) => {
+            setModules(data.modules || []);
+            setFilterModule('');
+        });
+    }, [filterProject]);
+
     const loadTasks = useCallback(() => {
         setLoading(true);
-        api.get('/api/tasks', { params: { status: filterStatus, priority: filterPriority } })
+        api.get('/api/tasks', { 
+            params: { 
+                status: filterStatus, 
+                priority: filterPriority,
+                projectId: filterProject,
+                moduleId: filterModule,
+                clientId: filterClient,
+                date: filterDate
+            } 
+        })
             .then(({ data }) => setTasks(data.tasks))
             .finally(() => setLoading(false));
-    }, [filterStatus, filterPriority]);
+    }, [filterStatus, filterPriority, filterProject, filterModule, filterClient, filterDate]);
 
     useEffect(() => { loadTasks(); }, [loadTasks]);
 
@@ -129,21 +164,39 @@ export default function TasksPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-3 mb-5 flex-wrap">
-                <CustomSelect value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="select w-40">
+            <div className="flex gap-3 mb-5 flex-nowrap overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <CustomSelect value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="select min-w-[140px] w-auto">
                     <option value="">All Statuses</option>
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
                     <option value="in_review">In Review</option>
                     <option value="done">Done</option>
                 </CustomSelect>
-                <CustomSelect value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="select w-40">
+                <CustomSelect value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="select min-w-[140px] w-auto">
                     <option value="">All Priorities</option>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                     <option value="critical">Critical</option>
                 </CustomSelect>
+                <CustomSelect value={filterProject} onChange={e => setFilterProject(e.target.value)} className="select min-w-[160px] w-auto">
+                    <option value="">All Projects</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </CustomSelect>
+                <CustomSelect value={filterModule} onChange={e => setFilterModule(e.target.value)} className="select min-w-[160px] w-auto" disabled={!filterProject || modules.length === 0}>
+                    <option value="">All Modules</option>
+                    {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </CustomSelect>
+                <CustomSelect value={filterClient} onChange={e => setFilterClient(e.target.value)} className="select min-w-[160px] w-auto">
+                    <option value="">All Clients</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </CustomSelect>
+                <input 
+                    type="date" 
+                    value={filterDate}
+                    onChange={e => setFilterDate(e.target.value)}
+                    className="input min-w-[150px] w-auto"
+                />
             </div>
 
             {loading ? (

@@ -90,6 +90,7 @@ export const baseApi = createApi({
     "Support",
     "Company",
     "CompanyPrivate",
+    "CompanyPublic",
     "CompanyServices",
     "CompanyEvents",
     "PublicEvents",

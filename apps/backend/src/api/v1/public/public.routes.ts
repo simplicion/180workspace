@@ -100,3 +100,5 @@ router.get('/domains/resolve', publicController.resolveDomain);
 
 export default router;
 
+
+

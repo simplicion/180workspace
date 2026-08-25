@@ -47,7 +47,7 @@ export class ContractService {
 
         if (dealId) {
             try {
-          const deal = await prisma.deal.findFirst({
+          const deal = await prisma.lead.findFirst({
             where: { id: dealId },
                     include: { contact: true, company: true }
                 });
@@ -349,7 +349,7 @@ export class ContractService {
 
         if (parsed.dealId) {
             try {
-                await prisma.deal.update({
+                await prisma.lead.update({
                     where: { id: parsed.dealId.toString() },
                     data: { stage: 'Closed Won' }
                 });

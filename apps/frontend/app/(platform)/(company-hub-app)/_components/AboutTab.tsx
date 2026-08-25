@@ -4,6 +4,7 @@ import { Target, Flag, Edit2, X, Plus, Trash2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { AboutEditModal } from './AboutEditModal';
 import { AddCoreValueModal } from './AddCoreValueModal';
+import { TeamTab } from './TeamTab';
 import { useDeleteCompanyCoreValueMutation } from '@/redux/api/companyApi';
 import api from '@/lib/api';
 
@@ -255,6 +256,11 @@ export function AboutTab({ company, isPublicView, onProfileUpdate }: TabProps) {
                     </div>
                 </div>
             )}
+            
+            {/* Team Section */}
+            <div className="mt-12">
+                <TeamTab company={company} />
+            </div>
         </div>
     );
 }

@@ -60,7 +60,7 @@ export default function TemplatesListDrawer({
             setLoadingTemplates(true);
             try {
                 // Fetch articles with category=Template from the Knowledge API
-                const res = await api.get('/api/180documents/files?category=Template');
+                const res = await api.get('/api/v1/workspace-tools/documents/files?category=Template');
                 if (res.data?.success && res.data.articles) {
                     const parsedTemplates = res.data.articles.map((a: any) => {
                         let content: any = null;

@@ -8,6 +8,7 @@ const router = Router();
 router.get('/', protect, ctrl.getTasks);
 router.post('/', protect, requireManager, ctrl.createTask);
 router.get('/:id', protect, ctrl.getTaskById);
+router.post('/:id/attachments', protect, ctrl.addAttachments);
 router.put('/:id', protect, ctrl.updateTask);
 router.delete('/:id', protect, requireManager, ctrl.deleteTask);
 

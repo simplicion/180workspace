@@ -158,33 +158,39 @@ export default function CompanyLegalsPage() {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Company & Legals</h1>
-                        <p className="text-gray-500 mt-1">Company identity, white-labeling, and legal details</p>
+                        <h1 className="text-2xl font-bold text-gray-900">System & Invoicing Settings</h1>
+                        <p className="text-gray-500 mt-1">System currency, white-labeling, and official billing address</p>
                     </div>
                 </div>
-                <button
-                    onClick={handleSave}
-                    disabled={loading}
-                    title="Save all configuration changes"
-                    className="btn-primary"
-                >
-                    {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {loading ? 'Saving...' : 'Save Changes'}
-                </button>
+                <div className="flex items-center gap-3">
+                    <a
+                        href="/company"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-secondary flex items-center gap-2"
+                        title="View Public Profile"
+                    >
+                        <Globe className="w-4 h-4" />
+                        View Public Profile
+                    </a>
+                    <button
+                        onClick={handleSave}
+                        disabled={loading}
+                        title="Save all configuration changes"
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {loading ? 'Saving...' : 'Save Changes'}
+                    </button>
+                </div>
             </div>
 
             {/* Form Card */}
             <div className="card space-y-0 p-8">
 
-                {/* ── Branding & Visuals ── */}
-                <SectionHeader icon={ImageIcon} title="Branding & Visuals" />
+                {/* ── System Branding ── */}
+                <SectionHeader icon={ImageIcon} title="System Branding" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Field label="Company Display Name">
-                        <input name="companyName" value={formData.companyName} onChange={handleChange} className={inputCls} placeholder="e.g. Acme Corp" />
-                    </Field>
-                    <Field label="Tagline / Motto">
-                        <input name="tagline" value={formData.tagline} onChange={handleChange} className={inputCls} placeholder="Precision in Management" />
-                    </Field>
                     <Field label="Brand Color">
                         <div className="flex gap-2">
                             <input 
@@ -199,74 +205,40 @@ export default function CompanyLegalsPage() {
                             <input name="brandColor" value={formData.brandColor} onChange={handleChange} className={inputCls + ' flex-1 font-mono'} placeholder="#6366f1" />
                         </div>
                     </Field>
-                    <Field label="Website URL">
-                        <div className="relative">
-                            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input name="websiteUrl" value={formData.websiteUrl} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="https://example.com" />
+
+                    <Field label="Country & Currency">
+                        <LocationSearch 
+                            value={locationInput}
+                            onChange={(loc) => {
+                                setLocationInput(loc.country || loc.address);
+                                setFormData(prev => ({
+                                    ...prev,
+                                    country: loc.country,
+                                    currency: loc.currencyCode,
+                                    currencySymbol: loc.currencySymbol
+                                }));
+                            }}
+                        />
+                        <div className="mt-2 text-sm flex items-center text-gray-500">
+                            <span>Primary Currency: </span>
+                            <span className="font-bold text-gray-900 ml-1 px-2 py-0.5 bg-gray-100 rounded-md">
+                                {formData.currency} ({formData.currencySymbol})
+                            </span>
                         </div>
                     </Field>
-                    <Field label="System Currency">
-                        <div className="relative">
-                            <input 
-                                type="text"
-                                name="currency" 
-                                value={`${formData.currency} (${formData.currencySymbol})`} 
-                                readOnly
-                                className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`}
-                                title="Currency is set automatically based on company location"
-                            />
-                        </div>
-                    </Field>
-                    <Field label="Icon">
-                        <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-gray-200 border-dashed rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors bg-white overflow-hidden group">
-                            {formData.companyLogo ? (
-                                <img src={formData.companyLogo} alt="Icon Preview" className="w-full h-full object-contain p-2" />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center text-gray-400 group-hover:text-indigo-500 transition-colors">
-                                    {uploading === 'companyLogo' ? <LogoLoader className="w-6 h-6 animate-spin mb-2" /> : <Upload className="w-6 h-6 mb-2" />}
-                                    <p className="text-xs font-semibold">Upload Icon</p>
-                                </div>
-                            )}
-                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'companyLogo')} disabled={!!uploading} />
-                        </label>
-                    </Field>
-                    <Field label="Logo">
-                        <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-gray-200 border-dashed rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors bg-white overflow-hidden group">
-                            {formData.emailLogo ? (
-                                <img src={formData.emailLogo} alt="Logo Preview" className="w-full h-full object-contain p-2" />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center text-gray-400 group-hover:text-indigo-500 transition-colors">
-                                    {uploading === 'emailLogo' ? <LogoLoader className="w-6 h-6 animate-spin mb-2" /> : <Upload className="w-6 h-6 mb-2" />}
-                                    <p className="text-xs font-semibold">Upload Logo</p>
-                                </div>
-                            )}
-                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'emailLogo')} disabled={!!uploading} />
-                        </label>
-                    </Field>
+
                 </div>
 
-                {/* ── Contact Information ── */}
-                <SectionHeader icon={Mail} title="Contact Information" />
+                {/* ── Support Contacts ── */}
+                <SectionHeader icon={Mail} title="Support Contacts" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Field label="Official Email">
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input name="companyEmail" value={formData.companyEmail} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="contact@example.com" title="Official company email address" />
-                        </div>
-                    </Field>
                     <Field label="Support Email">
                         <input name="supportEmail" value={formData.supportEmail} onChange={handleChange} className={inputCls} placeholder="support@example.com" title="Customer support email address" />
                     </Field>
                     <Field label="Phone Number">
                         <div className="relative">
                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="+1 234 567 890" />
-                        </div>
-                    </Field>
-                    <Field label="Secondary Phone Number">
-                        <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input name="secondaryPhoneNumber" value={formData.secondaryPhoneNumber} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="+1 098 765 432" />
+                            <input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className={inputCls + ' pl-10'} placeholder="+1 098 765 432" />
                         </div>
                     </Field>
                 </div>
@@ -274,30 +246,9 @@ export default function CompanyLegalsPage() {
                 {/* ── Registered Address ── */}
                 <SectionHeader icon={MapPin} title="Registered Address" />
                 <div className="space-y-5">
-                    <Field label="Street Address">
-                        <textarea name="address" value={formData.address} onChange={handleChange} className={inputCls + ' min-h-[80px] resize-none'} placeholder="123 Business St, Suite 400" title="Company street address" />
+                    <Field label="Full Address">
+                        <textarea name="address" value={formData.address} onChange={handleChange} className={inputCls + ' min-h-[80px] resize-none'} placeholder="123 Business St, Suite 400, City, State, Zip Code" title="Company full address" />
                     </Field>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="md:col-span-3">
-                            <Field label="City, State, Country">
-                                <LocationSearch 
-                                    value={locationInput}
-                                    onChange={(loc) => {
-                                        setLocationInput(loc.address);
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            city: loc.city,
-                                            state: loc.state,
-                                            country: loc.country,
-                                            currency: loc.currencyCode,
-                                            currencySymbol: loc.currencySymbol
-                                        }));
-                                    }}
-                                />
-                            </Field>
-                        </div>
-                        <Field label="Zip / Postal Code"><input name="postalCode" value={formData.postalCode} onChange={handleChange} className={inputCls} placeholder="Zip Code" title="Company zip code" /></Field>
-                    </div>
                 </div>
 
                 {/* ── Legal & Compliance ── */}
@@ -312,28 +263,7 @@ export default function CompanyLegalsPage() {
                 </div>
 
 
-                {/* ── HR & Document Signing ── */}
-                <SectionHeader icon={PenTool} title="HR & Document Signing" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Field label="Authorized Signatory Name">
-                        <input name="authorizedSignatory" value={formData.authorizedSignatory} onChange={handleChange} className={inputCls} placeholder="John Doe" />
-                    </Field>
-                    <Field label="Designation">
-                        <input name="designation" value={formData.designation} onChange={handleChange} className={inputCls} placeholder="Operations Manager" />
-                    </Field>
-                    <div className="col-span-full">
-                        <Field label="Digital Signature">
-                            <div className="mt-2 max-w-sm">
-                                <SignaturePad 
-                                    initialValue={formData.signatureImage} 
-                                    onSave={(dataUrl) => setFormData(prev => ({ ...prev, signatureImage: dataUrl }))} 
-                                    onClear={() => setFormData(prev => ({ ...prev, signatureImage: '' }))}
-                                />
-                            </div>
-                            <p className="text-[10px] text-gray-400 font-medium mt-2">Used for automated salary slips and invoice generation.</p>
-                        </Field>
-                    </div>
-                </div>
+
 
             </div>
 

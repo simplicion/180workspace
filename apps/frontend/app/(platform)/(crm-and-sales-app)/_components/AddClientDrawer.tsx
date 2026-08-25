@@ -8,6 +8,8 @@ import { X, Building2, Mail, Phone, Globe, AlignLeft, MapPin, Users, DollarSign,
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 
+import { Country } from 'country-state-city';
+
 const INDUSTRIES = [
     'Technology', 'Healthcare', 'Finance', 'Education', 'Retail', 
     'Manufacturing', 'Real Estate', 'Consulting', 'Other'
@@ -24,6 +26,14 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
     const isEdit = !!editClient;
     const [loading, setLoading] = useState(false);
     const [isCompany, setIsCompany] = useState(!!editClient?.company);
+    const countryOptions = React.useMemo(() => {
+        return Country.getAllCountries().map(c => ({
+            label: `${c.name} (${c.isoCode}) +${c.phonecode}`,
+            value: `+${c.phonecode}`,
+            displayLabel: `${c.isoCode} +${c.phonecode}`
+        }));
+    }, []);
+
     const [form, setForm] = useState({
         name: editClient?.name || '',
         company: editClient?.company || '',
@@ -115,6 +125,24 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         }
     }
 
+    const phoneParts = (form.phone || '').trim().split(' ');
+    let currentCode = '+1';
+    let currentNum = form.phone || '';
+
+    if (phoneParts.length > 0 && phoneParts[0].startsWith('+')) {
+        currentCode = phoneParts[0];
+        currentNum = phoneParts.slice(1).join(' ');
+    }
+    
+    const handlePhoneCodeChange = (e: any) => {
+        setForm({ ...form, phone: `${e.target.value} ${currentNum}`.trim() });
+    };
+    
+    const handlePhoneNumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const cleaned = e.target.value.replace(/[^\d\-\s()]/g, '');
+        setForm({ ...form, phone: `${currentCode} ${cleaned}`.trim() });
+    };
+
     return (
         <form onSubmit={handleSubmit}>
             <Drawer
@@ -181,9 +209,22 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 </div>
                 <div>
                     <label htmlFor="clientPhone" className="label">Phone Number</label>
-                    <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                        <input id="clientPhone" value={form.phone} onChange={set('phone')} placeholder="+91 9876543210" className="input pl-9" />
+                    <div className="flex gap-2">
+                        <div className="w-32 shrink-0">
+                            <CustomSelect 
+                                value={currentCode}
+                                onChange={handlePhoneCodeChange}
+                                options={countryOptions}
+                            />
+                        </div>
+                        <input 
+                            id="clientPhone" 
+                            type="tel" 
+                            placeholder="(555) 000-0000" 
+                            className="input flex-1" 
+                            value={currentNum} 
+                            onChange={handlePhoneNumChange} 
+                        />
                     </div>
                 </div>
             </div>

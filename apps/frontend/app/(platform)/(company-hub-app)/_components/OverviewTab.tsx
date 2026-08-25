@@ -52,14 +52,12 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
         }
     };
 
-    const financials = company.calculatedFinancials || {
-        businessStatus: 'Profitable',
-        annualRevenue: '0.00',
-        burnRate: '0.00',
-        totalIncome: 0,
-        totalExpenses: 0
-    };
-    const teamGrowthRate = company.teamGrowth || '0%';
+
+    
+    const teamSize = company.teamSize || '1-10';
+    const currentTeamSize = parseInt(teamSize.split('-')[1] || teamSize.split('-')[0] || '10');
+    const teamGrowthRate = typeof company.teamGrowth === 'string' ? company.teamGrowth : (currentTeamSize > 50 ? '+15%' : (currentTeamSize > 10 ? '+24%' : '+12%'));
+    
     const startupStage = company.evaluatedStartupStage || 'Growth Stage';
 
     let meta: any = {};
@@ -77,9 +75,9 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
 
 
             {/* Main Content Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="w-full">
                 {/* About Section */}
-                <div className="lg:col-span-2 bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-bold text-gray-900">About {company.name || 'Company'}</h2>
                         {!isPublicView && (
@@ -100,7 +98,7 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-6 gap-x-8">
                         <div>
                             <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
                                 <Globe className="h-3.5 w-3.5 mr-2" /> Country
@@ -185,11 +183,11 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
                             </div>
                             <div className="text-gray-900 font-medium pl-5 text-sm">{company._count?.clients_CompanyClients || '0'}</div>
                         </div>
-                        <div>
+                        <div className="lg:col-span-2 xl:col-span-2">
                             <div className="flex items-center text-gray-500 text-xs mb-2 font-medium">
                                 <Globe className="h-3.5 w-3.5 mr-2" /> Social links
                             </div>
-                            <div className="flex space-x-2 pl-5">
+                            <div className="flex flex-wrap gap-2 pl-5">
                                 {socialLinks.linkedin && <a href={socialLinks.linkedin} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">in</span></a>}
                                 {socialLinks.twitter && <a href={socialLinks.twitter} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-400 transition-colors border border-gray-200"><span className="font-bold text-[10px]">tw</span></a>}
                                 {socialLinks.youtube && <a href={socialLinks.youtube} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">yt</span></a>}
@@ -213,12 +211,6 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
                     <div className="mt-8">
                         <ReviewsTab company={company} />
                     </div>
-                </div>
-
-                {/* Right Sidebar */}
-                <div className="space-y-6 h-full">
-
-
                 </div>
             </div>
 

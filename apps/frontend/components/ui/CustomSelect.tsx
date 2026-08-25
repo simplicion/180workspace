@@ -7,6 +7,7 @@ import clsx from 'clsx';
 export interface SelectOption {
     label: string;
     value: string;
+    displayLabel?: string;
 }
 
 export interface CustomSelectProps {
@@ -78,11 +79,21 @@ export default function CustomSelect({
 
     const primitiveValue = value != null ? String(value) : value;
     const selectedOption = normalizedOptions.find(opt => opt.value === primitiveValue);
-    const displayValue = selectedOption ? selectedOption.label : (primitiveValue || '');
+    const displayValue = selectedOption ? (selectedOption.displayLabel || selectedOption.label) : (primitiveValue || '');
 
     const filteredOptions = normalizedOptions.filter(opt => 
         String(opt.label ?? '').toLowerCase().includes(search.toLowerCase())
-    );
+    ).sort((a, b) => {
+        if (!search) return 0;
+        const searchLower = search.toLowerCase();
+        const labelA = String(a.label ?? '').toLowerCase();
+        const labelB = String(b.label ?? '').toLowerCase();
+        const aStarts = labelA.startsWith(searchLower);
+        const bStarts = labelB.startsWith(searchLower);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return 0;
+    });
 
     const exactMatchExists = normalizedOptions.some(
         opt => String(opt.label ?? '').toLowerCase() === search.toLowerCase()

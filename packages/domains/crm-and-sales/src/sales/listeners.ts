@@ -32,7 +32,7 @@ export function initializeCRMListeners() {
             });
 
             // 3. Create Lead (Opportunity model mapped to Lead)
-            const opportunity = await prisma.lead.create({
+            const opportunity = await prisma.deal.create({
                 data: {
                     title: `Website Lead: ${lead.name || 'Unknown'}`,
                     source: `Website: ${website.name}`,

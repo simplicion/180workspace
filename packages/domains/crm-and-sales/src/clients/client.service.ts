@@ -62,6 +62,10 @@ export class ClientService {
         delete createData.givePortalAccess;
         delete createData.password;
 
+        if (typeof createData.annualRevenue === 'string') {
+            createData.annualRevenue = parseFloat(createData.annualRevenue.replace(/,/g, ''));
+        }
+
         const client = await prisma.client.create({
             data: createData
         });
@@ -107,6 +111,10 @@ export class ClientService {
             if (existingClient) {
                 throw new Error('A client with this email already exists.');
             }
+        }
+
+        if (typeof updateData.annualRevenue === 'string') {
+            updateData.annualRevenue = parseFloat(updateData.annualRevenue.replace(/,/g, ''));
         }
 
         const client = await prisma.client.update({

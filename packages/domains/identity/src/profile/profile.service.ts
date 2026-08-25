@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { prisma } from '@workspace/db';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 
 import { clearCache, getCachedData, setCachedData, logAction, getPresignedUploadUrl, deleteFromR2 } from '@workspace/backend-infra';
 
@@ -19,6 +20,7 @@ export class ProfileService {
                 resumes: { orderBy: { uploadedAt: 'desc' } },
                 _count: { select: { followers: true, following: true } },
                 followers: { where: { id: currentUserId }, select: { id: true } },
+                designation: true,
             }
         });
 
@@ -46,13 +48,23 @@ export class ProfileService {
             createdAt: user.createdAt,
             _count: user._count,
             isFollowing: user.followers && user.followers.length > 0,
+            designation: user.designation,
+            role: user.role,
         };
 
         return safeProfile;
     }
 
+    static async verifyPassword(userId: string, password: string) {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.password) {
+            return false;
+        }
+        return await bcrypt.compare(password, user.password);
+    }
+
     static async updateProfile(userId: string, body: any) {
-        const { name, headline, title, companyName, phone, bio, city, country, socialLinks, highlights, photoUrl, bannerImage } = body;
+        const { name, headline, title, companyName, phone, bio, city, country, socialLinks, highlights, photoUrl, bannerImage, signatureImage } = body;
 
         const updatedUser = await prisma.user.update({
             where: { id: userId },
@@ -68,7 +80,8 @@ export class ProfileService {
                 socialLinks,
                 highlights,
                 ...(photoUrl && { photoUrl }),
-                ...(bannerImage && { bannerImage })
+                ...(bannerImage && { bannerImage }),
+                ...(signatureImage && { signatureImage })
             }
         });
 

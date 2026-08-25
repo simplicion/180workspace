@@ -461,5 +461,53 @@ export class BillingController {
         } catch (err) { next(err); }
     }
 
+    static async cancelPlan(req: Request, res: Response, next: NextFunction) {
+        try {
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            if (!companyId) return res.status(400).json({ error: 'Company ID required' });
+
+            const currentSub = await prisma.subscription.findFirst({
+                where: { companyId, status: { in: ['ACTIVE', 'active'] } },
+                include: { plan: true }
+            });
+
+            if (!currentSub) {
+                return res.status(400).json({ error: 'No active subscription found to cancel' });
+            }
+
+            if (currentSub.plan.price === 0) {
+                return res.status(400).json({ error: 'Cannot cancel the free plan' });
+            }
+
+            // Cancel Razorpay Subscription if provider ID exists
+            if (currentSub.providerSubscriptionId) {
+                try {
+                    const Razorpay = require('razorpay');
+                    const rzp = new Razorpay({
+                        key_id: process.env.RAZORPAY_KEY_ID,
+                        key_secret: process.env.RAZORPAY_KEY_SECRET,
+                    });
+                    
+                    // cancel_at_cycle_end=0 means cancel immediately
+                    await rzp.subscriptions.cancel(currentSub.providerSubscriptionId, false);
+                } catch (rzpErr) {
+                    console.error('Failed to cancel Razorpay subscription:', rzpErr);
+                    // We continue even if razorpay fails, because they might have already cancelled it there
+                }
+            }
+
+            // Update Database: Mark subscription as cancelled
+            await prisma.subscription.update({
+                where: { id: currentSub.id },
+                data: { status: 'CANCELLED', cancelledAt: new Date() }
+            });
+
+            // Re-sync limits/config based on the free plan (Kickstart)
+            await BillingService.syncWorkspaceConfig(companyId);
+
+            res.json({ success: true, message: 'Subscription cancelled successfully. You are now on the free Kickstart plan.' });
+        } catch (err) { next(err); }
+    }
+
 }
 

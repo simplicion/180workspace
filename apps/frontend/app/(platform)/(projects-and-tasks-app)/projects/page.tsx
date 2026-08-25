@@ -140,7 +140,7 @@ export default function ProjectsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {projects.map((project) => (
                         <div key={project.id} className="card p-5 hover:shadow-md transition-all group relative overflow-hidden flex flex-col justify-between">
-                            <div onClick={() => router.push('/projects/${project.id}')} className="cursor-pointer flex-1">
+                            <div onClick={() => router.push(`/projects/${project.id}`)} className="cursor-pointer flex-1">
                                 <div className="flex items-start justify-between mb-3">
                                     <h3 className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors line-clamp-1">{project.name}</h3>
                                     <span className={clsx('badge', STATUS_COLORS[project.status] || 'badge-gray')}>
@@ -242,13 +242,13 @@ export default function ProjectsPage() {
                                         {
                                             label: 'Open',
                                             icon: Eye,
-                                            onClick: () => router.push('/projects/${project.id}'),
+                                            onClick: () => router.push(`/projects/${project.id}`),
                                             variant: 'primary'
                                         },
                                         canCreateProject && {
                                             label: 'Add Task',
                                             icon: PlusCircle,
-                                            onClick: () => router.push('/tasks?create=true&projectId=${project.id}&projectName=${encodeURIComponent(project.name)}')
+                                            onClick: () => router.push(`/tasks?create=true&projectId=${project.id}&projectName=${encodeURIComponent(project.name)}`)
                                         },
                                         canCreateProject && {
                                             label: 'Archive',

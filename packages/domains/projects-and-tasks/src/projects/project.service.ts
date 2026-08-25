@@ -47,7 +47,27 @@ export class ProjectService {
             owner: p.ownerId ? ownerMap[p.ownerId] : null
         }));
 
-        return { projects: projectsWithOwners };
+        // Fetch clients
+        const allClientIds = [...new Set(projects.flatMap((p: any) => p.clientIds || []))];
+        let clientMap: Record<string, any> = {};
+        
+        if (allClientIds.length > 0) {
+            const clients = await prisma.client.findMany({
+                where: { id: { in: allClientIds as string[] } },
+                select: { id: true, name: true, email: true }
+            });
+            clientMap = clients.reduce((acc: any, client: any) => {
+                acc[client.id] = client;
+                return acc;
+            }, {});
+        }
+
+        const projectsWithOwnersAndClients = projectsWithOwners.map((p: any) => ({
+            ...p,
+            clientIds: (p.clientIds || []).map((id: string) => clientMap[id] || { id, name: 'Unknown' })
+        }));
+
+        return { projects: projectsWithOwnersAndClients };
     }
 
     static async createProject({ data, user }: { data: any, user: UserContext }) {
@@ -96,6 +116,19 @@ export class ProjectService {
         const mappedProject: any = { ...project };
         mappedProject.members = (project.memberIds || []).map((id: string) => usersMap[id]).filter(Boolean);
         mappedProject.owner = usersMap[project.ownerId] || null;
+        
+        const allClientIds = Array.from(new Set(project.clientIds || []));
+        let clientMap: any = {};
+        if (allClientIds.length > 0) {
+            const clients = await prisma.client.findMany({
+                where: { id: { in: allClientIds as string[] } },
+                select: { id: true, name: true, email: true, companyId: true, phone: true }
+            });
+            clientMap = clients.reduce((acc: any, c: any) => { acc[c.id] = c; return acc; }, {});
+        }
+        
+        // Populate clientIds with actual objects for the frontend
+        mappedProject.clientIds = (project.clientIds || []).map((id: string) => clientMap[id] || { id, name: 'Unknown' });
         mappedProject.client = null;
 
         const [tasks, moduleCount] = await Promise.all([

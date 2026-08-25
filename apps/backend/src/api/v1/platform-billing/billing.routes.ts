@@ -12,6 +12,7 @@ import * as webhookCtrl from '../integrations/webhooks/webhook.controller';
 
 router.post('/plan/checkout', BillingController.checkoutPlan);
 router.post('/plan/verify', BillingController.verifyPlan);
+router.post('/plan/cancel', BillingController.cancelPlan);
 router.post('/coupon', BillingController.validateCoupon);
 
 // Redirect legacy /webhook endpoint to the unified universal webhook handler for razorpay

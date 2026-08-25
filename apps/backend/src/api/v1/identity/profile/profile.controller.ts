@@ -21,6 +21,22 @@ export class ProfileController {
         }
     }
 
+    static async verifyPassword(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { password } = req.body;
+            if (!password) {
+                return res.status(400).json({ success: false, message: 'Password is required' });
+            }
+            const isValid = await ProfileService.verifyPassword((req as any).user.id, password);
+            if (!isValid) {
+                return res.status(401).json({ success: false, message: 'Invalid password' });
+            }
+            res.json({ success: true, message: 'Password verified' });
+        } catch (err) {
+            next(err);
+        }
+    }
+
     static async getUploadUrl(req: Request, res: Response, next: NextFunction) {
         try {
             const { fileType, contentType, extension } = req.body; 

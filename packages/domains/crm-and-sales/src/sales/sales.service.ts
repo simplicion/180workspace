@@ -15,7 +15,7 @@ export class SalesService {
         let lead;
 
         if (typeof leadIdOrDoc === 'string') {
-            lead = await prisma.deal.findUnique({ where: { id: leadIdOrDoc } });
+            lead = await prisma.lead.findUnique({ where: { id: leadIdOrDoc } });
         } else {
             lead = leadIdOrDoc;
         }
@@ -38,7 +38,7 @@ export class SalesService {
         ) || 0;
 
         if (typeof leadIdOrDoc === 'string') {
-            await prisma.deal.update({
+            await prisma.lead.update({
                 where: { id: leadIdOrDoc },
                 data: { leadScore: calculatedScore }
             });
@@ -51,7 +51,7 @@ export class SalesService {
 
     // [2] Win Probability: StageWeight Ãƒâ€” EngagementScore
     static async calculateWinProbability(opportunityId, settings) {
-        const opp = await prisma.lead.findUnique({ where: { id: opportunityId } });
+        const opp = await prisma.deal.findUnique({ where: { id: opportunityId } });
         if (!opp) throw new Error('Opportunity not found');
 
         const stages = settings?.salesConfig?.opportunityStages || {
@@ -75,7 +75,7 @@ export class SalesService {
         if (opp.stage === 'ClosedWon') calcProb = 100;
         if (opp.stage === 'ClosedLost') calcProb = 0;
 
-        await prisma.lead.update({
+        await prisma.deal.update({
             where: { id: opportunityId },
             data: { probability: calcProb }
         });
@@ -84,7 +84,7 @@ export class SalesService {
 
     // [3] Weighted Forecast: ÃŽÂ£ (DealValue Ãƒâ€” WinProbability)
     static async calculateWeightedForecast(periodStr) {
-        const opps = await prisma.lead.findMany({
+        const opps = await prisma.deal.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
 
@@ -126,7 +126,7 @@ export class SalesService {
 
     // [4] Customer Lifetime Value (CLV)
     static async calculateCLV(accountId) {
-        const wonDeals = await prisma.lead.findMany({
+        const wonDeals = await prisma.deal.findMany({
             where: { accountId, stage: 'ClosedWon' }
         });
 
@@ -149,7 +149,7 @@ export class SalesService {
 
         const segments = [];
         for (let acc of accounts) {
-            const deals = await prisma.lead.findMany({
+            const deals = await prisma.deal.findMany({
                 where: { accountId: acc.id, stage: 'ClosedWon' },
                 orderBy: { expectedCloseDate: 'desc' }
             });
@@ -170,15 +170,15 @@ export class SalesService {
 
     // [6] Funnel Conversion Rate
     static async calculateFunnelConversion() {
-        const totalLeads = await prisma.deal.count() || 1;
-        const qualifiedLeads = await prisma.deal.count({
+        const totalLeads = await prisma.lead.count() || 1;
+        const qualifiedLeads = await prisma.lead.count({
             where: { status: { in: ['qualified', 'converted'] } }
         });
 
-        const totalProposals = await prisma.lead.count({
+        const totalProposals = await prisma.deal.count({
             where: { stage: { in: ['Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'] } }
         }) || 1;
-        const wonDeals = await prisma.lead.count({
+        const wonDeals = await prisma.deal.count({
             where: { stage: 'ClosedWon' }
         });
 
@@ -193,7 +193,7 @@ export class SalesService {
     static async calculateDashboardCharts(userId, timeframe = 'all') {
         try {
             // Pipeline by stage
-            const opps = await prisma.lead.findMany({
+            const opps = await prisma.deal.findMany({
                 where: { stage: { not: 'ClosedLost' } },
                 select: { stage: true, value: true }
             });
@@ -212,7 +212,7 @@ export class SalesService {
             }));
 
             // Revenue by rep
-            const wonOpps = await prisma.lead.findMany({
+            const wonOpps = await prisma.deal.findMany({
                 where: { stage: 'ClosedWon' },
                 include: { owner: true }
             });
@@ -252,7 +252,7 @@ export class SalesService {
             const globalStartDate = moment(intervals[0], formatStr).startOf(dateInterval === 'days' ? 'day' : 'month').toDate();
             const globalEndDate = moment(intervals[intervals.length - 1], formatStr).endOf(dateInterval === 'days' ? 'day' : 'month').toDate();
 
-            const allOppsInInterval = await prisma.lead.findMany({
+            const allOppsInInterval = await prisma.deal.findMany({
                 where: {
                     expectedCloseDate: { gte: globalStartDate, lte: globalEndDate }
                 },
@@ -294,7 +294,7 @@ export class SalesService {
 
     // [7] Sales Cycle Length
     static async calculateSalesCycleLength() {
-        const wonDeals = await prisma.lead.findMany({
+        const wonDeals = await prisma.deal.findMany({
             where: { stage: 'ClosedWon' }
         });
         if (!wonDeals.length) return 0;
@@ -314,7 +314,7 @@ export class SalesService {
 
     // [8] Lead Deduplication (Levenshtein)
     static async findDuplicateLeads(leadName, email) {
-        const leads = await prisma.deal.findMany({
+        const leads = await prisma.lead.findMany({
             where: { status: { not: 'converted' } }
         });
         let duplicates = [];
@@ -328,19 +328,19 @@ export class SalesService {
 
     // [9] Priority Ranking
     static async rankOpportunities() {
-        const opps = await prisma.lead.findMany({
+        const opps = await prisma.deal.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
 
         for (const opp of opps) {
             const priorityScore = ((opp.value || 0) * (opp.probability || 0) * (opp.engagementScore || 1)) / 10000;
-            await prisma.lead.update({
+            await prisma.deal.update({
                 where: { id: opp.id },
                 data: { priorityScore }
             });
         }
 
-        const updatedOpps = await prisma.lead.findMany({
+        const updatedOpps = await prisma.deal.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } },
             orderBy: { priorityScore: 'desc' }
         });
@@ -363,7 +363,7 @@ export class SalesService {
 
     // [11] Stagnation Detection for Deals
     static async detectStagnantOpportunities(thresholdDays = 14) {
-        const opps = await prisma.lead.findMany({
+        const opps = await prisma.deal.findMany({
             where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] } }
         });
         const stagnant = [];
@@ -384,11 +384,11 @@ export class SalesService {
             dealsClosedWeight: 0.5, revenueGeneratedWeight: 0.3, activitiesCompletedWeight: 0.2
         };
 
-        const dealsClosed = await prisma.lead.count({
+        const dealsClosed = await prisma.deal.count({
             where: { ownerId: userId, stage: 'ClosedWon' }
         });
 
-        const revenue = await prisma.lead.findMany({
+        const revenue = await prisma.deal.findMany({
             where: { ownerId: userId, stage: 'ClosedWon' },
             select: { value: true }
         });
@@ -408,7 +408,7 @@ export class SalesService {
 
     // [13] Workload Balancing
     static async suggestRepForLead() {
-        const leads = await prisma.deal.findMany({
+        const leads = await prisma.lead.findMany({
             where: { status: { in: ['new', 'contacted'] } }
         });
 
@@ -445,7 +445,7 @@ export class SalesService {
 
     // [15] Logistic Regression Approximation for Win Likelihood
     static async calculateWinLikelihoodLogistic(opportunityId) {
-        const opp = await prisma.lead.findUnique({ where: { id: opportunityId } });
+        const opp = await prisma.deal.findUnique({ where: { id: opportunityId } });
         if (!opp) return 0;
 
         const z = -2.0 + ((opp.engagementScore || 0) * 0.05) + ((opp.priorityScore || 0) * 0.1);
@@ -463,7 +463,7 @@ export class SalesService {
 
     // [17] Next Best Action Engine
     static async determineNextBestAction(opportunityId) {
-        const opp = await prisma.lead.findUnique({ where: { id: opportunityId } });
+        const opp = await prisma.deal.findUnique({ where: { id: opportunityId } });
         if (!opp) return 'No action';
 
         const daysSinceUpdate = moment().diff(moment(opp.updatedAt), 'days');
@@ -482,7 +482,7 @@ export class SalesService {
     // [19] Customer Risk Index
     static async calculateCustomerRiskIndex(accountId) {
         let riskScore = 0;
-        const lostDeals = await prisma.lead.count({
+        const lostDeals = await prisma.deal.count({
             where: { accountId, stage: 'ClosedLost' }
         });
         riskScore += lostDeals * 20;
@@ -516,7 +516,7 @@ export class SalesService {
     // [21] Market Basket Analysis
     static async performMarketBasketAnalysis() {
         // Concept/placeholder: assume Opportunity has a tags array representing products (stored in JSON or relation)
-        const wonDeals = await prisma.lead.findMany({
+        const wonDeals = await prisma.deal.findMany({
             where: { stage: 'ClosedWon' }
         });
         const baskets = wonDeals
@@ -593,8 +593,6 @@ export class SalesService {
 
     static async getDashboardMetrics(userId, timeframe = 'month') {
         const Settings = prisma.settings;
-        const Lead = prisma.deal;
-        const Opportunity = prisma.lead;
         const Account = prisma.client;
         const SalesActivity = prisma.salesActivity;
         const SalesTask = prisma.salesTask;
@@ -643,10 +641,10 @@ export class SalesService {
             this.calculateRepProductivity(userId, settings).catch(() => null),
             this.detectChurnStagnation().catch(() => null),
             this.detectStagnantOpportunities(14).catch(() => null),
-            Lead.count({ where: { deletedAt: null, status: { not: 'converted' }, ...dateFilter } }).catch(() => 0),
-            Opportunity.count({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) } }).catch(() => 0),
+            prisma.lead.count({ where: { deletedAt: null, status: { not: 'converted' }, ...dateFilter } }).catch(() => 0),
+            prisma.deal.count({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) } }).catch(() => 0),
             Account.count({ where: dateFilter }).catch(() => 0),
-            Opportunity.aggregate({ where: { stage: 'ClosedWon', ...(startDate ? { expectedCloseDate: { gte: startDate } } : {}) }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
+            prisma.deal.aggregate({ where: { stage: 'ClosedWon', ...(startDate ? { expectedCloseDate: { gte: startDate } } : {}) }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
             SalesActivity.findMany({ 
                 where: {
                     ...activityDateFilter,
@@ -664,12 +662,12 @@ export class SalesService {
                     relatedClient: { select: { id: true, name: true, company: true } }
                 }
             }).catch(() => []),
-            Lead.count({ where: { deletedAt: null, status: { in: ['new', 'pending'] }, ...dateFilter } }).catch(() => 0),
-            Lead.count({ where: { deletedAt: null, status: { notIn: ['new', 'pending', 'lost', 'rejected', 'archived', 'converted'] }, ...dateFilter } }).catch(() => 0),
-            Opportunity.count({ where: dateFilter }).catch(() => 0),
-            Opportunity.count({ where: { stage: 'ClosedWon', ...oppDateFilter } }).catch(() => 0),
-            Lead.aggregate({ where: { deletedAt: null, status: { notIn: ['lost', 'rejected', 'archived', 'converted'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
-            Opportunity.aggregate({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => [])
+            prisma.lead.count({ where: { deletedAt: null, status: { in: ['new', 'pending'] }, ...dateFilter } }).catch(() => 0),
+            prisma.lead.count({ where: { deletedAt: null, status: { notIn: ['new', 'pending', 'lost', 'rejected', 'archived', 'converted'] }, ...dateFilter } }).catch(() => 0),
+            prisma.deal.count({ where: dateFilter }).catch(() => 0),
+            prisma.deal.count({ where: { stage: 'ClosedWon', ...oppDateFilter } }).catch(() => 0),
+            prisma.lead.aggregate({ where: { deletedAt: null, status: { notIn: ['lost', 'rejected', 'archived', 'converted'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
+            prisma.deal.aggregate({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => [])
         ]);
 
         const wonRevenue = wonRevenueAggr.length ? wonRevenueAggr[0].total : 0;
@@ -740,8 +738,8 @@ export class SalesService {
         const leaderboard = [];
         for (const rep of allReps) {
             const [dealsClosed, revenue, activities] = await Promise.all([
-                prisma.lead.count({ where: { ownerId: rep.id, stage: 'ClosedWon' } }),
-                prisma.lead.aggregate({ where: { ownerId: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
+                prisma.deal.count({ where: { ownerId: rep.id, stage: 'ClosedWon' } }),
+                prisma.deal.aggregate({ where: { ownerId: rep.id, stage: 'ClosedWon' }, _sum: { value: true } }).then(res => [{ total: res._sum.value || 0 }]),
                 prisma.salesActivity.count({ where: { ownerId: rep.id } })
             ]);
 
@@ -789,22 +787,20 @@ export class SalesService {
 
     static async getLeads(page = 1, limit = 100) {
         const skip = (page - 1) * limit;
-        const Lead = prisma.deal;
         
-        const leads = await Lead.findMany({
+        const leads = await prisma.lead.findMany({
             include: { assignedSalesRep: { select: { name: true, email: true } } },
             orderBy: { leadScore: 'desc' },
             skip: skip,
             take: limit
         });
 
-        const total = await Lead.count();
+        const total = await prisma.lead.count();
         return { leads, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
     static async createLead(leadData, userId) {
-        const Lead = prisma.deal;
-        const lead = await Lead.create({ data: leadData });
+        const lead = await prisma.lead.create({ data: leadData });
 
         await prisma.salesActivity.create({ data: {
             type: 'note',
@@ -816,7 +812,7 @@ export class SalesService {
         const settings = await prisma.settings.findFirst();
         
         const newScore = CrmCalculationService.scoreLead(lead, settings?.salesConfig?.leadScoring);
-        await Lead.update({ where: { id: lead.id }, data: { leadScore: newScore } });
+        await prisma.lead.update({ where: { id: lead.id }, data: { leadScore: newScore } });
 
         
         await SalesRuleEngine.onLeadCreated(lead.id);
@@ -839,13 +835,12 @@ export class SalesService {
             throw new Error('No leads provided');
         }
 
-        const Lead = prisma.deal;
         const newLeads = leads.map(l => ({
             ...l,
             assignedSalesRep: l.assignedSalesRep || userId,
         }));
 
-        const inserted = await Lead.createMany({ data: newLeads });
+        const inserted = await prisma.lead.createMany({ data: newLeads });
         const settings = await prisma.settings.findFirst();
         
         
@@ -857,14 +852,13 @@ export class SalesService {
     }
 
     static async updateLead(id, updateData) {
-        const Lead = prisma.deal;
         
-        let lead = await Lead.findUnique({ where: { id } });
+        let lead = await prisma.lead.findUnique({ where: { id } });
         if (!lead) throw new Error('Lead not found');
 
         const oldLead = lead;
 
-        lead = await Lead.update({
+        lead = await prisma.lead.update({
             where: { id },
             data: updateData
         });
@@ -918,16 +912,14 @@ export class SalesService {
     static async deleteLead(id) {
         await prisma.salesActivity.deleteMany({ where: { dealId: id } });
         await prisma.salesTask.deleteMany({ where: { dealId: id } });
-        await prisma.deal.delete({ where: { id } });
+        await prisma.lead.delete({ where: { id } });
     }
 
     static async convertLead(id, userId) {
-        const Lead = prisma.deal;
         const Account = prisma.salesAccount;
         const Contact = prisma.contact;
-        const Opportunity = prisma.lead;
 
-        const lead = await Lead.findUnique({ where: { id } });
+        const lead = await prisma.lead.findUnique({ where: { id } });
         if (!lead) throw new Error('Lead not found');
         if (lead.status === 'converted') throw new Error('This lead has already been converted.');
 
@@ -961,7 +953,7 @@ export class SalesService {
                 } });
             }
 
-            const opp = await prisma.opportunity.create({ data: {
+            const opp = await prisma.deal.create({ data: {
                 title: `Deal with ${lead.company}`,
                 accountId: account.id,
                 contactId: contact.id,
@@ -972,7 +964,7 @@ export class SalesService {
                 priorityScore: (lead.leadScore || 0)
             } });
 
-            await prisma.lead.update({ where: { id: lead.id }, data: { status: 'converted' } });
+            await prisma.deal.update({ where: { id: lead.id }, data: { status: 'converted' } });
 
             await prisma.salesActivity.create({ data: {
                 type: 'task',
@@ -1077,11 +1069,10 @@ export class SalesService {
         let clientContext = '';
         let clientObj = null;
         if (clientId) {
-            const Lead = prisma.deal;
             const Account = prisma.salesAccount;
             const Contact = prisma.contact;
             
-            clientObj = await Lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
+            clientObj = await prisma.lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
             
             if (clientObj) {
                 clientContext = `
@@ -1144,10 +1135,9 @@ export class SalesService {
 
     static async getClientObjForContract(clientId) {
         if (!clientId) return null;
-        const Lead = prisma.deal;
         const Account = prisma.salesAccount;
         const Contact = prisma.contact;
-        return await Lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
+        return await prisma.lead.findUnique({ where: { id: clientId } }) || await Account.findUnique({ where: { id: clientId } }) || await Contact.findUnique({ where: { id: clientId } });
     }
 
     static async emailContract(company, userId, userName, contractTitle, contractText, clientId, email) {
@@ -1211,14 +1201,13 @@ export class SalesService {
 
     static async getOpportunities(page = 1, limit = 100, pipelineType) {
         const skip = (page - 1) * limit;
-        const Opportunity = prisma.lead;
         
         const whereClause = {};
         if (pipelineType) {
             whereClause.pipelineType = pipelineType;
         }
 
-        const opportunities = await Opportunity.findMany({ 
+        const opportunities = await prisma.deal.findMany({ 
             where: whereClause,
             include: { owner: { select: { name: true, email: true } }, client: true }, 
             orderBy: { priorityScore: 'desc' },
@@ -1226,12 +1215,11 @@ export class SalesService {
             take: limit
         });
 
-        const total = await Opportunity.count({ where: whereClause });
+        const total = await prisma.deal.count({ where: whereClause });
         return { opportunities, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
     static async createOpportunity(data, userId) {
-        const Opportunity = prisma.lead;
         
         const followUpDate = data.followUpDate;
         const followUpTime = data.followUpTime;
@@ -1240,6 +1228,10 @@ export class SalesService {
         delete data.followUpDate;
         delete data.followUpTime;
         delete data.notes;
+
+        if (typeof data.value === 'string') {
+            data.value = parseFloat(data.value.replace(/,/g, ''));
+        }
 
         if (data.owner) {
             data.ownerId = data.owner;
@@ -1299,8 +1291,9 @@ export class SalesService {
         delete data.annualRevenue;
         delete data.customIndustry;
         delete data.country;
+        delete data.currency;
         
-        const opp = await Opportunity.create({ data: { ...data } });
+        const opp = await prisma.deal.create({ data: { ...data } });
 
         if (notes) {
             await prisma.salesActivity.create({ data: {
@@ -1338,15 +1331,18 @@ export class SalesService {
         
         opp.probability = CrmCalculationService.calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
         
-        await Opportunity.update({ where: { id: opp.id }, data: { probability: opp.probability } });
+        await prisma.deal.update({ where: { id: opp.id }, data: { probability: opp.probability } });
 
         return opp;
     }
 
     static async updateOpportunity(id, data) {
-        const Opportunity = prisma.lead;
-        const Deal = prisma.deal;
-        const oldOpp = await Opportunity.findUnique({ where: { id }, include: { client: true } });
+        if (typeof data.value === 'string') {
+            data.value = parseFloat(data.value.replace(/,/g, ''));
+        }
+
+        const Deal = prisma.lead;
+        const oldOpp = await prisma.deal.findUnique({ where: { id }, include: { client: true } });
         if (!oldOpp) throw new Error('Opportunity not found');
 
         if (data.convertToDeal) {
@@ -1486,13 +1482,14 @@ export class SalesService {
         delete data.annualRevenue;
         delete data.customIndustry;
         delete data.country;
+        delete data.currency;
         
         let justWon = false;
         if (data.convertToDeal || (data.stage === 'ClosedWon' && oldOpp.stage !== 'ClosedWon')) {
             justWon = true;
         }
 
-        const opp = await Opportunity.update({ where: { id }, data });
+        const opp = await prisma.deal.update({ where: { id }, data });
         
         if (justWon) {
             const clientRecord = oldOpp.client || await prisma.client.findUnique({ where: { id: opp.clientId } });
@@ -1581,7 +1578,7 @@ export class SalesService {
         
         opp.probability = CrmCalculationService.calculateWinProbability(opp.stage, opp.engagementScore, settings?.salesConfig?.opportunityStages);
         
-        await Opportunity.update({ where: { id: opp.id }, data: { probability: opp.probability } });
+        await prisma.deal.update({ where: { id: opp.id }, data: { probability: opp.probability } });
 
         let message = 'Opportunity updated successfully';
         if (data.stage === 'ClosedWon' && oldOpp.stage !== 'ClosedWon' && !opp.projectId) {
@@ -1596,7 +1593,7 @@ export class SalesService {
     // ------------------------------------------------------------------------
 
     static async getDeals() {
-        const deals = await prisma.deal.findMany({
+        const deals = await prisma.lead.findMany({
             include: { assignedSalesRep: { select: { name: true, email: true } } },
             orderBy: { createdAt: 'desc' }
         });
@@ -1604,14 +1601,14 @@ export class SalesService {
     }
 
     static async updateDeal(id, data) {
-        return prisma.deal.update({
+        return prisma.lead.update({
             where: { id },
             data
         });
     }
 
     static async deleteDeal(id) {
-        return prisma.deal.delete({
+        return prisma.lead.delete({
             where: { id }
         });
     }
@@ -1619,7 +1616,7 @@ export class SalesService {
     static async importDeals(dealsData, userId) {
         let count = 0;
         for (const deal of dealsData) {
-            await prisma.deal.create({
+            await prisma.lead.create({
                 data: {
                     name: deal.name || 'Unknown',
                     email: deal.email || null,
@@ -1638,10 +1635,9 @@ export class SalesService {
     }
 
     static async createProjectFromOpportunity(id, userId) {
-        const Opportunity = prisma.lead;
         const Project = prisma.project;
 
-        const opp = await Opportunity.findUnique({ where: { id } });
+        const opp = await prisma.deal.findUnique({ where: { id } });
         if (!opp) throw new Error('Opportunity not found');
 
         if (opp.projectId) {
@@ -1660,16 +1656,15 @@ export class SalesService {
             clientIds: [] 
         } });
 
-        const updatedOpp = await Opportunity.update({ where: { id }, data: { projectId: project.id } });
+        const updatedOpp = await prisma.deal.update({ where: { id }, data: { projectId: project.id } });
 
         return { project, opportunity: updatedOpp };
     }
 
     static async deleteOpportunity(id) {
-        const Opportunity = prisma.lead;
         await prisma.salesActivity.deleteMany({ where: { leadId: id } });
         await prisma.salesTask.deleteMany({ where: { leadId: id } });
-        const opp = await Opportunity.delete({ where: { id } });
+        const opp = await prisma.deal.delete({ where: { id } });
         if (!opp) throw new Error('Opportunity not found');
         return opp;
     }
@@ -1687,14 +1682,13 @@ export class SalesService {
             take: limit
         });
 
-        const Opportunity = prisma.lead;
         const Contact = prisma.contact;
         const moment = require('moment');
         
 
         const accounts = await Promise.all(accountsRaw.map(async acc => {
             const [lostDeals, staleContacts] = await Promise.all([
-                Opportunity.count({ where: { accountId: acc.id, stage: 'ClosedLost' } }),
+                prisma.deal.count({ where: { accountId: acc.id, stage: 'ClosedLost' } }),
                 Contact.count({ where: {
                     accountId: acc.id,
                     lastContacted: { lt: moment().subtract(60, 'days').toDate() }
@@ -1758,8 +1752,7 @@ export class SalesService {
 
         if (!contact) throw new Error('Contact not found');
 
-        const Opportunity = prisma.lead;
-        const opportunities = await Opportunity.findMany({
+        const opportunities = await prisma.deal.findMany({
             where: { accountId: contact.accountId },
             select: { title: true, value: true, stage: true, probability: true, expectedCloseDate: true }
         });
@@ -1888,7 +1881,6 @@ export class SalesService {
 
         // Manually populate client and opportunity data
         const Client = prisma.client;
-        const Opportunity = prisma.lead;
         
         for (const q of quotes) {
             if (q.clientId) {
@@ -1898,7 +1890,7 @@ export class SalesService {
                 }
             }
             if (q.opportunityId) {
-                const opp = await Opportunity.findUnique({ where: { id: q.opportunityId } });
+                const opp = await prisma.deal.findUnique({ where: { id: q.opportunityId } });
                 if (opp) {
                     q.opportunityId = { id: opp.id, title: opp.title };
                 }
@@ -2052,7 +2044,6 @@ export class SalesService {
     // ------------------------------------------------------------------------
 
     static async getRevenueStats(timeframe = 'all') {
-        const Opportunity = prisma.lead;
         const moment = require('moment');
 
         let dateFilter = undefined;
@@ -2078,10 +2069,10 @@ export class SalesService {
         const closedWonWhere = { stage: 'ClosedWon' };
         if (dateFilter) closedWonWhere.expectedCloseDate = dateFilter;
 
-        const closedWonAgg = await Opportunity.aggregate({ where: closedWonWhere, _sum: { value: true } });
+        const closedWonAgg = await prisma.deal.aggregate({ where: closedWonWhere, _sum: { value: true } });
         const closedWonValue = closedWonAgg._sum.value || 0;
 
-        const rawOpps = await Opportunity.findMany({
+        const rawOpps = await prisma.deal.findMany({
             where: closedWonWhere,
             select: { expectedCloseDate: true, value: true }
         });
@@ -2099,11 +2090,11 @@ export class SalesService {
         const openOppsWhere = { stage: { notIn: ['ClosedWon', 'ClosedLost'] } };
         if (dateFilter) openOppsWhere.expectedCloseDate = dateFilter;
 
-        const pipelineAgg = await Opportunity.aggregate({ where: openOppsWhere, _sum: { value: true } });
+        const pipelineAgg = await prisma.deal.aggregate({ where: openOppsWhere, _sum: { value: true } });
         const pipelineValue = pipelineAgg._sum.value || 0;
 
         // Group Pipeline by Stage AND Time for graph-based view
-        const rawOpenOpps = await Opportunity.findMany({
+        const rawOpenOpps = await prisma.deal.findMany({
             where: openOppsWhere,
             select: { stage: true, value: true, expectedCloseDate: true }
         });
@@ -2128,7 +2119,7 @@ export class SalesService {
             });
 
         // Also get the old static pipeline by stage for the pie/bar chart if they still need it
-        const pbsRaw = await Opportunity.groupBy({
+        const pbsRaw = await prisma.deal.groupBy({
             by: ['stage'],
             where: openOppsWhere,
             _count: { _all: true },
@@ -2139,7 +2130,7 @@ export class SalesService {
         const winLossWhere = { stage: { in: ['ClosedWon', 'ClosedLost'] } };
         if (dateFilter) winLossWhere.expectedCloseDate = dateFilter;
 
-        const winLoss = await Opportunity.groupBy({
+        const winLoss = await prisma.deal.groupBy({
             by: ['stage'],
             where: winLossWhere,
             _count: { _all: true }
@@ -2151,7 +2142,7 @@ export class SalesService {
             if (st.stage === 'ClosedLost') lostCount = st._count._all;
         });
 
-        const topDeals = await Opportunity.findMany({ 
+        const topDeals = await prisma.deal.findMany({ 
             where: { stage: 'ClosedWon' }, 
             orderBy: { value: 'desc' }, 
             take: 5, 
@@ -2164,12 +2155,12 @@ export class SalesService {
         const daysInMonth = moment().daysInMonth();
         const dailyActivityTrend = [];
 
-        const leadsThisMonth = await prisma.deal.findMany({
+        const leadsThisMonth = await prisma.lead.findMany({
             where: { deletedAt: null, createdAt: { gte: startOfMonth, lte: endOfMonth } },
             select: { createdAt: true }
         });
 
-        const oppsThisMonth = await Opportunity.findMany({
+        const oppsThisMonth = await prisma.deal.findMany({
             where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
             select: { createdAt: true }
         });
@@ -2221,8 +2212,8 @@ export class SalesService {
 
     static async getSalesChatContext() {
         const [pipelines, leads] = await Promise.all([
-            prisma.opportunity.findMany({ where: { stage: { not: 'ClosedLost' } }, select: { title: true, value: true, stage: true, priorityScore: true } }),
-            prisma.lead.findMany({ where: { status: { not: 'Disqualified' } }, select: { name: true, client: { select: { companyName: true } }, leadScore: true } })
+            prisma.deal.findMany({ where: { stage: { not: 'ClosedLost' } }, select: { title: true, value: true, stage: true, priorityScore: true } }),
+            prisma.deal.findMany({ where: { status: { not: 'Disqualified' } }, select: { name: true, client: { select: { companyName: true } }, leadScore: true } })
         ]);
         return { pipelines, leads };
     }

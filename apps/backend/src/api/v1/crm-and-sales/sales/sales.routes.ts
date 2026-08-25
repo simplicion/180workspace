@@ -63,3 +63,4 @@ router.delete('/deals/:id', ctrl.deleteDeal);
 router.post('/deals/import', ctrl.importDeals);
 
 export default router;
+

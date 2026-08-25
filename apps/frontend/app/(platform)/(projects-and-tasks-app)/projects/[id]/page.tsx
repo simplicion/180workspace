@@ -454,6 +454,12 @@ export default function ProjectDetailPage() {
                                 <span className={clsx('badge', PRIORITY_COLORS[project.priority] || 'badge-gray')}>
                                     {project.priority}
                                 </span>
+                                <span className="badge badge-blue capitalize">
+                                    {project.projectType || 'internal'}
+                                </span>
+                                <span className="badge badge-purple capitalize">
+                                    {project.visibility || 'public'}
+                                </span>
                             </div>
                             <p className="text-gray-500 text-sm mt-1">{project.description}</p>
                         </div>
@@ -663,23 +669,6 @@ export default function ProjectDetailPage() {
 
                     {/* Sidebar: CRM Link + Members + Tags */}
                     <div className="space-y-4">
-                        <div className="card p-5">
-                            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                <Briefcase className="w-4 h-4 text-indigo-500" />
-                                Project Details
-                            </h3>
-                            <div className="space-y-3 text-sm">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-500">Project Type</span>
-                                    <span className="font-medium text-gray-900 capitalize">{project.projectType || 'Internal'}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-500">Visibility</span>
-                                    <span className="font-medium text-gray-900 capitalize">{project.visibility || 'Public'}</span>
-                                </div>
-                            </div>
-                        </div>
-
 
                         {project.tags?.length > 0 && (
                             <div className="card p-5">

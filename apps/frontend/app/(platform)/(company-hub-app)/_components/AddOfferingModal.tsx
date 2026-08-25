@@ -8,18 +8,19 @@ import dynamic from 'next/dynamic';
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false }) as any;
 import 'react-quill-new/dist/quill.snow.css';
 
-interface AddServiceModalProps {
+interface AddOfferingModalProps {
     isOpen: boolean;
     onClose: () => void;
     companyId: string;
 }
 
-export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalProps) {
+export function AddOfferingModal({ isOpen, onClose, companyId }: AddOfferingModalProps) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [startingPrice, setStartingPrice] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [detailedDescription, setDetailedDescription] = useState('');
+    const [link, setLink] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
     const [addCompanyService, { isLoading }] = useAddCompanyServiceMutation();
@@ -55,12 +56,13 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                 description,
                 detailedDescription,
                 startingPrice,
-                imageUrl
+                imageUrl,
+                link
             }).unwrap();
             onClose();
             // Optionally reset state here
         } catch (error) {
-            console.error('Failed to add service:', error);
+            console.error('Failed to add offering:', error);
         }
     };
 
@@ -68,7 +70,7 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                    <h2 className="text-lg font-bold text-gray-900">Add New Service</h2>
+                    <h2 className="text-lg font-bold text-gray-900">Add New Offering</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                         <X className="h-5 w-5" />
                     </button>
@@ -77,12 +79,12 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Image Upload */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Service Image / Logo</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Offering Image / Logo</label>
                             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:bg-gray-50 transition-colors">
                                 <div className="space-y-1 text-center">
                                     {imageUrl ? (
                                         <div className="relative">
-                                            <img src={imageUrl} alt="Service Preview" className="mx-auto h-32 object-contain" />
+                                            <img src={imageUrl} alt="Offering Preview" className="mx-auto h-32 object-contain" />
                                             <button 
                                                 type="button" 
                                                 onClick={() => setImageUrl('')}
@@ -99,9 +101,9 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                                                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                                             )}
                                             <div className="flex text-sm text-gray-600 justify-center">
-                                                <label htmlFor="service-image-upload" className="relative cursor-pointer rounded-md bg-white font-medium text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:text-blue-500">
+                                                <label htmlFor="offering-image-upload" className="relative cursor-pointer rounded-md bg-white font-medium text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:text-blue-500">
                                                     <span>Upload a file</span>
-                                                    <input id="service-image-upload" name="service-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
+                                                    <input id="offering-image-upload" name="offering-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
                                                 </label>
                                             </div>
                                             <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
@@ -112,7 +114,7 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Service Title</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Offering Title</label>
                             <input 
                                 type="text" 
                                 required
@@ -132,7 +134,7 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                                 onChange={(e) => setDescription(e.target.value)}
                                 maxLength={150}
                                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all resize-none" 
-                                placeholder="Brief overview of the service..."
+                                placeholder="Brief overview of the offering..."
                             />
                         </div>
 
@@ -144,6 +146,17 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                                 onChange={(e) => setStartingPrice(e.target.value)}
                                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
                                 placeholder="e.g. Starting at $99/hr or Free Trial Available" 
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Link</label>
+                            <input 
+                                type="url" 
+                                value={link}
+                                onChange={(e) => setLink(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
+                                placeholder="https://example.com/offering" 
                             />
                         </div>
 
@@ -173,7 +186,7 @@ export function AddServiceModal({ isOpen, onClose, companyId }: AddServiceModalP
                                 className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {isLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : null}
-                                Save Service
+                                Save Offering
                             </button>
                         </div>
                     </form>

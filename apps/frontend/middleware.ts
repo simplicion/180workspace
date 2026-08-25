@@ -25,7 +25,7 @@ export default withAuth(
       const search = req.nextUrl.search;
 
       const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f'];
-      const is180workspacePath = WORKSPACE_ROUTES.some(r => path.startsWith(r));
+      const is180workspacePath = path === '/' || WORKSPACE_ROUTES.some(r => path.startsWith(r));
       const isSystemPath = path.startsWith('/_next') || path.startsWith('/api') || path.startsWith('/.well-known');
       
       // Force all authentication, setup, and platform (IMS) flows to the root domain for security

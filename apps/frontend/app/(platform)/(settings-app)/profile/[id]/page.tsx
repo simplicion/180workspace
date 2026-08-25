@@ -740,7 +740,7 @@ export default function UnifiedProfilePage() {
                                     {projects.map((project: any) => (
                                         <div
                                             key={project.id}
-                                            onClick={() => router.push('/projects?id=${project.id}')}
+                                            onClick={() => router.push(`/projects?id=${project.id}`)}
                                             className="card p-6 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group"
                                         >
                                             <div className="flex justify-between items-start mb-4">

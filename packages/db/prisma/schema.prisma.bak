@@ -226,7 +226,7 @@ model Client {
   expenseTransactions                     ExpenseTransaction[]
   invoices                                Invoice[]
   CompanyTransaction                      CompanyTransaction[]  @relation("TransactionClient")
-  deals                                   Deal[]                @relation("ClientDeals")
+  leads                                   Lead[]                @relation("ClientLeads")
   salesActivities                         SalesActivity[]       @relation("ActivityClient")
   tasks                                   Task[]
 
@@ -377,8 +377,8 @@ model User {
   postMentions                       ForumPost[]          @relation("PostMentions")
   User_UserFollows_A                 User[]               @relation("UserFollows")
   User_UserFollows_B                 User[]               @relation("UserFollows")
-  assignedLeads                      Lead[]               @relation("DealAssignedRep")
-  ownedDeals                         Deal[]               @relation("LeadOwner")
+  assignedDeals                      Deal[]               @relation("DealAssignedRep")
+  ownedLeads                         Lead[]               @relation("LeadOwner")
   salesActivitiesOwned               SalesActivity[]      @relation("SalesActivityOwner")
   quotesCreated                      Quote[]              @relation("QuoteCreator")
 
@@ -1831,7 +1831,7 @@ model CompanyMedia {
 }
 
 model ServiceRequest {
-  id                   String          @id @default(uuid())
+  id                   String         @id @default(uuid())
   serviceId            String
   companyId            String
   requesterName        String?
@@ -1841,10 +1841,10 @@ model ServiceRequest {
   requirements         String
   budgetRange          String?
   timeline             String?
-  status               String          @default("pending")
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status               String         @default("pending")
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  company              Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   service              CompanyOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
@@ -2009,7 +2009,7 @@ model EventRegistration {
 // CRM & SALES MODELS
 // =============================================================================
 
-model Lead {
+model Deal {
   id                 String    @id @default(uuid())
   name               String
   email              String?
@@ -2029,23 +2029,23 @@ model Lead {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  deals           Deal[]          @relation("LeadDeal")
+  leads           Lead[]          @relation("LeadDeal")
   salesActivities SalesActivity[] @relation("ActivityDeal")
   salesTasks      SalesTask[]     @relation("TaskDeal")
-  // @@map("Lead")
 
   @@index([status])
   @@index([assignedSalesRepId])
+  @@map("Lead")
 }
 
-model Deal {
+model Lead {
   id                String    @id @default(uuid())
   title             String
   source            String?
   clientId          String?
-  client            Client?   @relation("ClientDeals", fields: [clientId], references: [id], onDelete: SetNull)
-  leadId            String?   @map("leadId")
-  lead              Lead?     @relation("LeadDeal", fields: [leadId], references: [id], onDelete: SetNull)
+  client            Client?   @relation("ClientLeads", fields: [clientId], references: [id], onDelete: SetNull)
+  dealId            String?   @map("leadId")
+  deal              Deal?     @relation("LeadDeal", fields: [dealId], references: [id], onDelete: SetNull)
   ownerId           String?
   owner             User?     @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   value             Float?    @default(0)
@@ -2076,10 +2076,10 @@ model SalesActivity {
   timestamp       DateTime @default(now())
   ownerId         String?
   owner           User?    @relation("SalesActivityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  leadId          String?  @map("relatedLeadId")
-  lead            Lead?    @relation("ActivityDeal", fields: [leadId], references: [id], onDelete: SetNull)
-  dealId          String?  @map("relatedDealId")
-  deal            Deal?    @relation("ActivityLead", fields: [dealId], references: [id], onDelete: SetNull)
+  dealId          String?  @map("relatedLeadId")
+  deal            Deal?    @relation("ActivityDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  leadId          String?  @map("relatedDealId")
+  lead            Lead?    @relation("ActivityLead", fields: [leadId], references: [id], onDelete: SetNull)
   relatedClientId String?
   relatedClient   Client?  @relation("ActivityClient", fields: [relatedClientId], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
@@ -2108,10 +2108,10 @@ model SalesTask {
   status      String    @default("pending")
   dueDate     DateTime?
   assignedTo  String?
-  leadId      String?   @map("relatedLeadId")
-  lead        Lead?     @relation("TaskDeal", fields: [leadId], references: [id], onDelete: SetNull)
-  dealId      String?   @map("relatedDealId")
-  deal        Deal?     @relation("TaskLead", fields: [dealId], references: [id], onDelete: SetNull)
+  dealId      String?   @map("relatedLeadId")
+  deal        Deal?     @relation("TaskDeal", fields: [dealId], references: [id], onDelete: SetNull)
+  leadId      String?   @map("relatedDealId")
+  lead        Lead?     @relation("TaskLead", fields: [leadId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -2214,19 +2214,19 @@ model FormSubmissionValue {
 // -----------------------------------------------------------------------------
 
 model Website {
-  id        String  @id @default(uuid())
+  id        String   @id @default(uuid())
   companyId String? // Optional for now to not break existing data, strict data isolation
 
   name         String
   slug         String   @unique
   customDomain String?  @unique
   template     String?
-  config       Json?    @default("{}") // Stores hero, colors, etc.
-  owner        String
-  status       String   @default("active")
-  stats        Json?    @default("{}") // { views: number, leads: number }
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  config    Json?    @default("{}") // Stores hero, colors, etc.
+  owner     String
+  status    String   @default("active")
+  stats     Json?    @default("{}") // { views: number, leads: number }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   pixels      Pixel[]
   submissions WebsiteFormSubmission[]
@@ -2343,7 +2343,7 @@ model ProcessedWebhook {
   provider  String   @default("razorpay")
   status    String   @default("processed")
   createdAt DateTime @default(now())
-
+  
   @@index([eventId])
 }
 
@@ -2355,7 +2355,7 @@ model DomainRegistry {
   companyId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   @@index([domain])
 }
 
@@ -2364,58 +2364,58 @@ model DomainRegistry {
 // ------------------------------------------------------
 
 model MarketingPage {
-  id   String @id @default(uuid())
-  slug String @unique // e.g., 'features/hr-management'
-  type String @default("FEATURE") // FEATURE, USE_CASE, LEGAL
-
+  id              String   @id @default(uuid())
+  slug            String   @unique // e.g., 'features/hr-management'
+  type            String   @default("FEATURE") // FEATURE, USE_CASE, LEGAL
+  
   // SEO Data
-  seoTitle       String
-  seoDescription String
-  keywords       String[]
-  jsonLdSchema   Json? // Injected directly into <head>
-
+  seoTitle        String
+  seoDescription  String
+  keywords        String[]
+  jsonLdSchema    Json?    // Injected directly into <head>
+  
   // Page Content (JSON structure for Astro to render modular blocks)
-  heroHeadline  String
-  heroSubtext   String
-  heroImageUrl  String?
-  contentBlocks Json // Array of feature blocks, testimonials, FAQs
-
-  published Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  heroHeadline    String
+  heroSubtext     String
+  heroImageUrl    String?
+  contentBlocks   Json     // Array of feature blocks, testimonials, FAQs
+  
+  published       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model MarketingBlog {
-  id       String @id @default(uuid())
-  slug     String @unique
-  category String // e.g., 'agency-growth', 'freelance-tips'
-
+  id              String   @id @default(uuid())
+  slug            String   @unique
+  category        String   // e.g., 'agency-growth', 'freelance-tips'
+  
   // SEO Data
-  seoTitle       String
-  seoDescription String
-  keywords       String[]
-
+  seoTitle        String
+  seoDescription  String
+  keywords        String[]
+  
   // Content
-  title         String
-  excerpt       String
-  contentHtml   String // Raw HTML or Markdown
-  coverImageUrl String?
-
+  title           String
+  excerpt         String
+  contentHtml     String   // Raw HTML or Markdown
+  coverImageUrl   String?
+  
   // Author
   authorName      String
   authorRole      String
   authorAvatarUrl String?
-
-  published   Boolean   @default(false)
-  publishedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  
+  published       Boolean  @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model MarketingFaq {
-  id             String @id @default(uuid())
-  question       String
-  answer         String
-  targetPageSlug String // Links the FAQ to a specific MarketingPage or Blog for JSON-LD generation
-  order          Int    @default(0)
+  id              String   @id @default(uuid())
+  question        String
+  answer          String
+  targetPageSlug  String   // Links the FAQ to a specific MarketingPage or Blog for JSON-LD generation
+  order           Int      @default(0)
 }

@@ -11,7 +11,7 @@ export interface UserContext {
 
 export class TaskService {
     static async getTasks(
-        { projectId, assigneeId, moduleId, status, page = 1, limit = 100 }: any,
+        { projectId, assigneeId, moduleId, status, priority, clientId, date, page = 1, limit = 100 }: any,
         user: UserContext
     ) {
         const query: any = { deletedAt: null };
@@ -19,6 +19,18 @@ export class TaskService {
         if (assigneeId) query.assigneeId = assigneeId;
         if (moduleId) query.moduleId = moduleId;
         if (status) query.status = status;
+        if (priority) query.priority = priority;
+        if (clientId) query.clientId = clientId;
+        if (date) {
+            const startOfDay = new Date(date);
+            startOfDay.setUTCHours(0, 0, 0, 0);
+            const endOfDay = new Date(date);
+            endOfDay.setUTCHours(23, 59, 59, 999);
+            query.dueDate = {
+                gte: startOfDay,
+                lte: endOfDay
+            };
+        }
 
         const userRoles = user.roles || [user.role || 'employee'];
         const isAdminOrCeo = userRoles.includes('admin') || userRoles.includes('ceo');
@@ -54,6 +66,10 @@ export class TaskService {
     static async createTask(data: any, user: UserContext) {
         const body = { ...data, creatorId: user.id };
 
+        if (body.projectId) {
+            delete body.clientId;
+        }
+
         if (body.dueDate && !body.estimatedHours) {
             const now = new Date();
             const due = new Date(body.dueDate);
@@ -66,11 +82,15 @@ export class TaskService {
         allowedFields.forEach(f => {
             if (body[f] !== undefined) {
                 if (f === 'dueDate') {
-                    cleanData[f] = new Date(body[f]);
+                    cleanData[f] = body[f] ? new Date(body[f]) : null;
                 } else if (f === 'estimatedHours') {
                     cleanData[f] = parseInt(body[f], 10) || 0;
                 } else {
-                    cleanData[f] = body[f];
+                    if (body[f] === '' || body[f] === 'undefined' || body[f] === 'null') {
+                        cleanData[f] = null;
+                    } else {
+                        cleanData[f] = body[f];
+                    }
                 }
             }
         });
@@ -156,6 +176,11 @@ export class TaskService {
     }
 
     static async updateTask(taskId: string, data: any, user: UserContext) {
+        const body = { ...data };
+        if (body.projectId) {
+            body.clientId = null;
+        }
+
         const oldTask = await prisma.task.findUnique({ where: { id: taskId } });
         if (!oldTask) throw new Error('Task not found');
 
@@ -180,15 +205,19 @@ export class TaskService {
         }
 
         const updateData: any = {};
-        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'voiceMessageUrl', 'attachments'];
+        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'voiceMessageUrl', 'attachments', 'clientId'];
         allowedFields.forEach(f => {
-            if (data[f] !== undefined) {
+            if (body[f] !== undefined) {
                 if (f === 'dueDate') {
-                    updateData[f] = new Date(data[f]);
+                    updateData[f] = body[f] ? new Date(body[f]) : null;
                 } else if (f === 'estimatedHours') {
-                    updateData[f] = parseInt(data[f], 10) || 0;
+                    updateData[f] = parseInt(body[f], 10) || 0;
                 } else {
-                    updateData[f] = data[f];
+                    if (body[f] === '' || body[f] === 'undefined' || body[f] === 'null') {
+                        updateData[f] = null;
+                    } else {
+                        updateData[f] = body[f];
+                    }
                 }
             }
         });
@@ -293,6 +322,34 @@ export class TaskService {
         }
 
         return { task, notificationResult };
+    }
+    static async addAttachments(taskId: string, urls: string[], user: UserContext) {
+        if (!urls || urls.length === 0) return { success: true };
+
+        const task = await prisma.task.findUnique({
+            where: { id: taskId }
+        });
+
+        if (!task) throw new Error('Task not found');
+
+        // Note: the schema defines attachments as String[] on Task,
+        // although Document records are sometimes fetched instead.
+        // We will append to the native attachments array.
+        const updatedTask = await prisma.task.update({
+            where: { id: taskId },
+            data: {
+                attachments: {
+                    push: urls
+                }
+            }
+        });
+
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (companyId) {
+            emitSocket(companyId, 'task:updated', { task: updatedTask });
+        }
+
+        return { task: updatedTask };
     }
 
     static async deleteTask(taskId: string, user: UserContext) {
