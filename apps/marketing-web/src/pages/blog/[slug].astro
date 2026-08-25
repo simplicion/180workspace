@@ -10,13 +10,13 @@ export async function getStaticPaths() {
     select: {
       slug: true,
       title: true,
-      content: true,
+      contentHtml: true,
       category: true,
       authorName: true,
       publishedAt: true,
-      metaTitle: true,
-      metaDescription: true,
-      structuredData: true
+      seoTitle: true,
+      seoDescription: true,
+      keywords: true,
     }
   });
 
@@ -32,8 +32,8 @@ const { blog } = Astro.props;
 const defaultStructuredData = {
   "@context": "https://schema.org",
   "@type": "Article",
-  "headline": blog.metaTitle || blog.title,
-  "description": blog.metaDescription,
+  "headline": blog.seoTitle || blog.title,
+  "description": blog.seoDescription,
   "author": {
     "@type": "Person",
     "name": blog.authorName || "180workspace Team"
@@ -49,12 +49,12 @@ const defaultStructuredData = {
   "datePublished": blog.publishedAt?.toISOString(),
 };
 
-const jsonLd = blog.structuredData ? blog.structuredData : JSON.stringify(defaultStructuredData);
+const jsonLd = JSON.stringify(defaultStructuredData);
 ---
 
 <Layout 
-  title={`${blog.metaTitle || blog.title} | 180workspace Blog`}
-  description={blog.metaDescription || `Read ${blog.title} on the 180workspace blog.`}
+  title={`${blog.seoTitle || blog.title} | 180workspace Blog`}
+  description={blog.seoDescription || `Read ${blog.title} on the 180workspace blog.`}
 >
   <main class="container mx-auto px-4 py-16 max-w-4xl">
     
@@ -91,7 +91,7 @@ const jsonLd = blog.structuredData ? blog.structuredData : JSON.stringify(defaul
     <article class="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80">
       {/* In a real app with markdown, you'd parse this. We use set:html if the content is pre-rendered HTML, or render it through a markdown component. */}
       {/* For this scaffold, if it's raw text, we'll just display it. */}
-      <div set:html={blog.content} />
+      <div set:html={blog.contentHtml} />
     </article>
 
     <!-- Structured Data (JSON-LD) -->

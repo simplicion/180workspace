@@ -9,7 +9,7 @@ try {
       isActive: true,
     },
     orderBy: {
-      priceMonthly: 'asc'
+      price: 'asc'
     }
   });
 } catch (error) {
@@ -36,24 +36,24 @@ try {
     ) : (
       <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
         {plans.map((plan) => (
-          <div class={`relative flex flex-col rounded-2xl border p-8 shadow-sm ${plan.name.toLowerCase().includes('pro') ? 'border-primary bg-primary/5 shadow-md' : 'border-border bg-card'}`}>
-            {plan.name.toLowerCase().includes('pro') && (
+          <div class={`relative flex flex-col rounded-2xl border p-8 shadow-sm ${plan.planName.toLowerCase().includes('pro') ? 'border-primary bg-primary/5 shadow-md' : 'border-border bg-card'}`}>
+            {plan.planName.toLowerCase().includes('pro') && (
               <div class="absolute -top-4 left-0 right-0 mx-auto w-fit rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
                 Most Popular
               </div>
             )}
             
             <div class="mb-6">
-              <h3 class="text-2xl font-bold text-foreground">{plan.name}</h3>
-              <p class="mt-2 text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
+              <h3 class="text-2xl font-bold text-foreground">{plan.planName}</h3>
+              <p class="mt-2 text-sm text-muted-foreground line-clamp-2">{plan.description || "Everything you need to get started."}</p>
             </div>
             
             <div class="mb-6 flex items-baseline gap-x-2">
-              <span class="text-5xl font-bold tracking-tight text-foreground">${plan.priceMonthly}</span>
-              <span class="text-sm font-semibold leading-6 text-muted-foreground">/month</span>
+              <span class="text-5xl font-bold tracking-tight text-foreground">${plan.price}</span>
+              <span class="text-sm font-semibold leading-6 text-muted-foreground">/{plan.billingCycle || 'month'}</span>
             </div>
             
-            <a href="/register" class={`mt-auto mb-8 block rounded-full px-3 py-3 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${plan.name.toLowerCase().includes('pro') ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
+            <a href="/register" class={`mt-auto mb-8 block rounded-full px-3 py-3 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${plan.planName.toLowerCase().includes('pro') ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
               Get started
             </a>
             

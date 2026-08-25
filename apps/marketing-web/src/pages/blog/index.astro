@@ -19,7 +19,7 @@ try {
       category: true,
       authorName: true,
       publishedAt: true,
-      metaDescription: true
+      seoDescription: true
     }
   });
 } catch (error) {
@@ -64,7 +64,7 @@ try {
                 </a>
               </h3>
               <p class="mt-4 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                {blog.metaDescription || "Read more about this topic..."}
+                {blog.seoDescription || "Read more about this topic..."}
               </p>
             </div>
             

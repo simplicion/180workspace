@@ -5,16 +5,16 @@ import { prisma } from '@workspace/db';
 export async function getStaticPaths() {
   const features = await prisma.marketingPage.findMany({
     where: {
-      pageType: 'APP_FEATURE',
+      type: 'FEATURE',
       published: true,
     },
     select: {
       slug: true,
-      title: true,
-      content: true,
-      metaTitle: true,
-      metaDescription: true,
-      structuredData: true
+      heroHeadline: true,
+      contentBlocks: true,
+      seoTitle: true,
+      seoDescription: true,
+      jsonLdSchema: true
     }
   });
 
@@ -30,10 +30,10 @@ const { feature } = Astro.props;
 const defaultStructuredData = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": feature.title,
+  "name": feature.heroHeadline,
   "operatingSystem": "All",
   "applicationCategory": "BusinessApplication",
-  "description": feature.metaDescription || feature.title,
+  "description": feature.seoDescription || feature.heroHeadline,
   "offers": {
     "@type": "Offer",
     "price": "0.00",
@@ -45,12 +45,12 @@ const defaultStructuredData = {
   }
 };
 
-const jsonLd = feature.structuredData ? feature.structuredData : JSON.stringify(defaultStructuredData);
+const jsonLd = feature.jsonLdSchema ? feature.jsonLdSchema : JSON.stringify(defaultStructuredData);
 ---
 
 <Layout 
-  title={`${feature.metaTitle || feature.title} | 180workspace`}
-  description={feature.metaDescription || `Explore the ${feature.title} app on 180workspace.`}
+  title={`${feature.seoTitle || feature.heroHeadline} | 180workspace`}
+  description={feature.seoDescription || `Explore the ${feature.heroHeadline} app on 180workspace.`}
 >
   <main class="container mx-auto px-4 py-16 max-w-5xl">
     
@@ -63,10 +63,10 @@ const jsonLd = feature.structuredData ? feature.structuredData : JSON.stringify(
       
       <div class="max-w-3xl">
         <h1 class="text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
-          {feature.title}
+          {feature.heroHeadline}
         </h1>
         <p class="text-xl text-muted-foreground leading-relaxed">
-          {feature.metaDescription}
+          {feature.seoDescription}
         </p>
       </div>
       
@@ -82,7 +82,7 @@ const jsonLd = feature.structuredData ? feature.structuredData : JSON.stringify(
 
     <div class="my-16 border-t border-border pt-16">
       <article class="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80">
-        <div set:html={feature.content} />
+        <div set:html={typeof feature.contentBlocks === "string" ? feature.contentBlocks : JSON.stringify(feature.contentBlocks)} />
       </article>
     </div>
 
