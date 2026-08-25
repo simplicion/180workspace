@@ -14,13 +14,7 @@ const nextConfig = {
         ignoreBuildErrors: true,
     },
     // outputFileTracingIncludes removed to prevent Vercel build trace issues with Next.js 15
-    experimental: {
-        optimizePackageImports: ['lucide-react', 'date-fns', 'lodash'],
-        staleTimes: {
-            dynamic: 30,
-            static: 180,
-        },
-    },
+    // experimental config removed to prevent Vercel build trace issues with Next.js 15
 
     webpack: (config, { webpack, isServer }) => {
         if (isServer) {
