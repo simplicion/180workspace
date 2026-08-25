@@ -16,7 +16,7 @@ Wrapped completely by a generic `<DashboardLayout>` which ensures strict authent
 *   `/dashboard/admin` (CEO/Board level Insights)
 *   `/dashboard/activity` (Global audit tracking across modules)
 *   `/dashboard/projects` & `/dashboard/tasks` (Standard project mapping)
-*   `/dashboard/sales/*` (Granular CRM tooling: Leads, Pipeline, Accounts, Opportunities, Quotes)
+*   `/dashboard/sales/*` (Granular CRM tooling: Leads, Pipeline, Accounts, Deals, Quotes)
 *   `/dashboard/finance/*` (Financial Ops: Invoices, Expenses, Bills, Salary LEDGER)
 *   `/dashboard/hr/*` (Internal management: Employees, Attendance, Reviews)
 *   `/dashboard/settings/*` (Workspace/Company config rules and custom apps)

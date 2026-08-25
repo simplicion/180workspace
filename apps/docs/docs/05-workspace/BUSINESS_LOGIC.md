@@ -6,7 +6,7 @@ The platform connects diverse operational endpoints into unified workflows. Majo
 ## Core Workflows
 
 ### 1. CRM to Operational Execution Setup
-- **Leads & Pipeline:** The Sales team inputs raw data points mapping to potential contracts (Opportunities). 
+- **Leads & Pipeline:** The Sales team inputs raw data points mapping to potential contracts (Deals). 
 - **Transition to Project:** Once a quotation transforms into an active Account/Contract, backend generation pipelines automate the structural setup of a `Project` collection ensuring no manual re-keying is required, establishing immediate ownership IDs binding back to the initiating Account.
 
 ### 2. Time-Tracking against Payroll Architecture

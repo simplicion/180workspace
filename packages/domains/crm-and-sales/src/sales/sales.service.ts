@@ -1826,10 +1826,9 @@ export class SalesService {
         const SalesActivity = prisma.salesActivity;
         const activities = await SalesActivity.findMany({
             include: { 
-                relatedLead: { select: { name: true, company: true } },
-                relatedDeal: { select: { title: true, value: true } },
-                relatedAccount: { select: { companyName: true } },
-                relatedContact: { select: { name: true, email: true } },
+                lead: { select: { name: true, company: true } },
+                deal: { select: { title: true, value: true } },
+                relatedClient: { select: { name: true, email: true } },
                 owner: { select: { name: true } }
             },
             orderBy: { timestamp: 'desc' },
@@ -1837,29 +1836,55 @@ export class SalesService {
             take: limit
         });
 
+        const mappedActivities = activities.map(act => ({
+            ...act,
+            relatedLead: act.lead,
+            relatedDeal: act.deal,
+            relatedAccount: act.relatedClient,
+        }));
+
         const total = await SalesActivity.count();
-        return { activities, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
+        return { activities: mappedActivities, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
     }
 
     static async createActivity(data, userId) {
         const SalesActivity = prisma.salesActivity;
+        
+        const createData = { ...data };
+        if (createData.relatedLead) {
+            createData.leadId = createData.relatedLead;
+            delete createData.relatedLead;
+        }
+        if (createData.relatedDeal) {
+            createData.dealId = createData.relatedDeal;
+            delete createData.relatedDeal;
+        }
+        if (createData.relatedAccount) {
+            createData.relatedClientId = createData.relatedAccount;
+            delete createData.relatedAccount;
+        }
+
         const activity = await SalesActivity.create({ data: {
-            ...data,
-            owner: userId
+            ...createData,
+            ownerId: userId
         } });
 
         const populatedActivity = await SalesActivity.findUnique({ 
             where: { id: activity.id },
             include: { 
-                relatedLead: { select: { name: true, company: true } },
-                relatedDeal: { select: { title: true, value: true } },
-                relatedAccount: { select: { companyName: true } },
-                relatedContact: { select: { name: true, email: true } },
+                lead: { select: { name: true, company: true } },
+                deal: { select: { title: true, value: true } },
+                relatedClient: { select: { name: true, email: true } },
                 owner: { select: { name: true } }
             }
         });
 
-        return populatedActivity;
+        return {
+            ...populatedActivity,
+            relatedLead: populatedActivity?.lead,
+            relatedDeal: populatedActivity?.deal,
+            relatedAccount: populatedActivity?.relatedClient,
+        };
     }
 
     // ------------------------------------------------------------------------

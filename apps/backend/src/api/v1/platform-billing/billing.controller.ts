@@ -59,26 +59,22 @@ export class BillingController {
             }
 
             
-            const companyConfig = await prisma.companyConfig.findUnique({ where: { companyId } });
-            const teamMembersCount = await prisma.user.count({ where: { companyId } });
-            
+            const [companyConfig, teamMembersCount, activeWebsitesCount, storageAgg] = await Promise.all([
+                prisma.companyConfig.findUnique({ where: { companyId } }),
+                prisma.user.count({ where: { companyId } }),
+                prisma.website.count({ where: { companyId } }),
+                prisma.document.aggregate({ where: { companyId }, _sum: { fileSize: true } })
+            ]);
+
             let activeAppsCount = 0;
             if (company?.metadata && typeof company.metadata === 'object' && Array.isArray((company.metadata as any).enabledApps)) {
                 const enabledApps = (company.metadata as any).enabledApps;
                 const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media'];
                 activeAppsCount = enabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
             } else {
-                // fallback to projects if enabledApps isn't found
                 activeAppsCount = await prisma.project.count({ where: { companyId } });
             }
 
-            const activeWebsitesCount = await prisma.website.count({ where: { companyId } });
-
-            // Real-time calculation of Storage Used
-            const storageAgg = await prisma.document.aggregate({
-                where: { companyId },
-                _sum: { fileSize: true }
-            });
             const storageUsedBytes = storageAgg._sum.fileSize || 0;
             
             if (companyConfig) {
