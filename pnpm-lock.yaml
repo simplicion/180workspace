@@ -928,9 +928,6 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43
-      '@types/pdfkit':
-        specifier: ^0.17.6
-        version: 0.17.6
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../typescript-config
@@ -6649,9 +6646,6 @@ packages:
 
   '@types/papaparse@5.5.2':
     resolution: {integrity: sha512-gFnFp/JMzLHCwRf7tQHrNnfhN4eYBVYYI897CGX4MY1tzY9l2aLkVyx2IlKZ/SAqDbB3I1AOZW5gTMGGsqWliA==}
-
-  '@types/pdfkit@0.17.6':
-    resolution: {integrity: sha512-tIwzxk2uWKp0Cq9JIluQXJid77lYhF52EsIOwhsMF4iWLA6YneoBR1xVKYYdAysHuepUB0OX4tdwMiUDdGKmig==}
 
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
@@ -21553,10 +21547,6 @@ snapshots:
   '@types/papaparse@5.5.2':
     dependencies:
       '@types/node': 25.9.5
-
-  '@types/pdfkit@0.17.6':
-    dependencies:
-      '@types/node': 26.3.0
 
   '@types/prismjs@1.26.6': {}
 
