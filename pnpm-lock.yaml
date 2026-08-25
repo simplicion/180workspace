@@ -703,9 +703,6 @@ importers:
       astro:
         specifier: ^7.2.6
         version: 7.2.6(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@26.2.0)(@vercel/functions@3.9.5(@aws-sdk/credential-provider-web-identity@3.972.64)(ws@8.21.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)))(aws4fetch@1.0.20)(ioredis@5.11.1)(jiti@1.21.7)(terser@5.49.0)(tsx@4.23.12)(yaml@2.9.0)
-      cookie:
-        specifier: 0.7.2
-        version: 0.7.2
       react:
         specifier: ^19.0.0
         version: 19.2.7
