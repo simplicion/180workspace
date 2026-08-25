@@ -23,7 +23,7 @@ All endpoints are namespaced underneath `/api` (as indicated by `app.use('/api',
 
 ### 2. CRM & Users (`/api/users`, `/api/clients`)
 - **GET `/api/users/directory`** - Lists cross-department employee graphs.
-- **POST `/api/clients/opportunities`** - Registers sales lifecycle elements.
+- **POST `/api/sales/deals`** - Registers sales lifecycle elements.
 
 ### 3. Financial Endpoints (`/api/finance`)
 - **POST `/api/invoices/generate`** - Connects to internal PDF templating to compile dynamic invoice documents.
