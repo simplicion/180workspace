@@ -2,6 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Search, Command, X, TrendingUp, FolderKanban, CheckSquare, Users, PieChart, Target, FileText, ChevronRight, Sparkles, Building2 } from 'lucide-react';
@@ -42,6 +43,11 @@ export default function GlobalSearch() {
     const { platform } = useSettings();
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
     const [results, setResults] = useState<GroupedResults | null>(null);
     const [loading, setLoading] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -163,19 +169,20 @@ export default function GlobalSearch() {
                 </div>
             </button>
 
-            <AnimatePresence>
-                {isOpen && (
-                    <div className="fixed inset-0 z-[100] flex sm:items-start justify-center sm:pt-[15vh] px-0 sm:px-4" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="absolute inset-0 bg-gray-900/20 backdrop-blur-md"
-                            onClick={() => setIsOpen(false)}
-                            aria-hidden="true"
-                        />
+            {mounted && typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {isOpen && (
+                        <div className="fixed inset-0 z-[100] flex sm:items-start justify-center sm:pt-[15vh] px-0 sm:px-4" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
+                            {/* Backdrop */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="absolute inset-0 bg-gray-900/10 backdrop-blur-sm"
+                                onClick={() => setIsOpen(false)}
+                                aria-hidden="true"
+                            />
 
                         {/* Modal Container */}
                         <motion.div 
@@ -366,7 +373,9 @@ export default function GlobalSearch() {
                         </motion.div>
                     </div>
                 )}
-            </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+            )}
         </>
     );
 }
