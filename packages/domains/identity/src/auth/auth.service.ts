@@ -7,7 +7,7 @@ import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 import { logAction, triggerAutomation, EmailService } from '@workspace/backend-infra';
 import { BillingService, SubscriptionService } from '@workspace/platform-billing';
-import { prisma as globalPrisma, getCompanyPrisma } from '@workspace/db';
+import { prisma as globalPrisma, getCompanyPrisma, requestContext } from '@workspace/db';
 import { AppError } from '../types/app-error';
 
 // --- JWT Helpers ---
@@ -522,18 +522,18 @@ export class AuthService {
 
             await globalPrisma.company.update({ where: { id: companyObj.id }, data: { adminPasswordHash: newPasswordHash } });
 
-            if (user.passwordHash || user.password) {
-                await companyPrisma.user.update({ where: { id: user.id }, data: { passwordHash: null, password: null } });
+            if (user.password) {
+                await companyPrisma.user.update({ where: { id: user.id }, data: { password: null } });
             }
         } else {
-            const ok = await bcrypt.compare(currentPassword, user.passwordHash || user.password || '');
+            const ok = await bcrypt.compare(currentPassword, user.password || '');
             if (!ok) {
                 throw AppError.unauthorized('Current password is incorrect');
             }
 
             const salt = await bcrypt.genSalt(12);
             const newPasswordHash = await bcrypt.hash(newPassword, salt);
-            await companyPrisma.user.update({ where: { id: user.id }, data: { passwordHash: newPasswordHash, password: null } });
+            await companyPrisma.user.update({ where: { id: user.id }, data: { password: newPasswordHash } });
         }
 
         return user;
@@ -595,7 +595,7 @@ export class AuthService {
         let config = await companyPrisma.companyConfig.findFirst();
         if (!config) {
             config = await companyPrisma.companyConfig.create({
-                data: {}
+                data: {} as any
             });
         }
 
@@ -611,7 +611,7 @@ export class AuthService {
         if (enabledApps) metadata.enabledApps = enabledApps;
         if (enabledModules) metadata.enabledModules = enabledModules;
 
-        const resolvedCompanyType = industry || config?.companyType || undefined;
+        const resolvedCompanyType = industry || undefined;
 
         await globalPrisma.company.update({
             where: { id: companyId }, data: {

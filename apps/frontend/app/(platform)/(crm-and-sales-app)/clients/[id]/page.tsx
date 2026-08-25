@@ -8,8 +8,8 @@ import { Skeleton,  SkeletonTable  , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import AddClientDrawer from '@/app/dashboard/(crm-and-sales-app)/_components/AddClientDrawer';
-import { LogInteractionDrawer } from '@/app/dashboard/(crm-and-sales-app)/_components/LogInteractionDrawer';
+import AddClientDrawer from '@/app/(platform)/(crm-and-sales-app)/_components/AddClientDrawer';
+import { LogInteractionDrawer } from '@/app/(platform)/(crm-and-sales-app)/_components/LogInteractionDrawer';
 import { formatDistanceToNow, format } from 'date-fns';
 
 const TABS = [

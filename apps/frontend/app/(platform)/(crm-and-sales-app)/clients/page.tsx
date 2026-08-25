@@ -8,9 +8,9 @@ import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink
 import { Skeleton, SkeletonTable , LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
-import AddClientDrawer from '@/app/dashboard/(crm-and-sales-app)/_components/AddClientDrawer';
+import AddClientDrawer from '@/app/(platform)/(crm-and-sales-app)/_components/AddClientDrawer';
 import { ConfirmModal } from "@workspace/ui";
-import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
+import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 
