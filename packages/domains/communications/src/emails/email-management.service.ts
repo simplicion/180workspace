@@ -107,7 +107,7 @@ export class EmailManagementService {
             subject = editedSubject;
             html = editedHtml;
         } else {
-            const preview = await EmailService.getTemplatePreview(templateId, templateData || {}, undefined);
+            const preview = await EmailService.getTemplatePreview(templateId, templateData || {});
             subject = preview.subject;
             html = preview.html;
         }

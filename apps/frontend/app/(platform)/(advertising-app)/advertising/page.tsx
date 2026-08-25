@@ -6,8 +6,8 @@ import { Plus, Globe, MousePointer2, Users, Search, Filter, Settings } from 'luc
 import Link from 'next/link';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import CreateWebsiteModal from '@/app/dashboard/(advertising-app)/_components/CreateWebsiteModal';
-import WebsiteCard from '@/app/dashboard/(advertising-app)/_components/WebsiteCard';
+import WebsiteCard from "@/app/(platform)/(advertising-app)/_components/WebsiteCard";
+import CreateWebsiteModal from "@/app/(platform)/(advertising-app)/_components/CreateWebsiteModal";
 
 export default function AdvertisingPage() {
     const [websites, setWebsites] = useState<any[]>([]);

@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { Mail, History, Send, Search, CheckCircle, XCircle, RefreshCw, Users, BarChart3, Zap, ChevronLeft, ChevronRight, Filter, Eye, AlertTriangle, TrendingUp, Mailbox, Clock, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import AIEmailDraftDrawer from '@/app/dashboard/(communications-app)/_components/AIEmailDraftDrawer';
+import AIEmailDraftDrawer from '@/app/(platform)/(communications-app)/_components/AIEmailDraftDrawer';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 type Tab = 'dashboard' | 'history' | 'compose' | 'bulk';
