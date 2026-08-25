@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '../generated/client/index.js';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { AsyncLocalStorage } from 'async_hooks';
 
 export { PrismaClient, Prisma };
@@ -27,9 +27,7 @@ export const requestContext = new AsyncLocalStorage<{ companyId?: string, userId
 
 export const basePrisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    log: getPrismaLogLevels(),
-  });
+  new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma;
 

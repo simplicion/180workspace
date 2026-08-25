@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const nextConfig = {
-    transpilePackages: ['@workspace/ui'],
+    transpilePackages: ['@workspace/ui', '@workspace/common'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
     reactStrictMode: true,
     poweredByHeader: false,

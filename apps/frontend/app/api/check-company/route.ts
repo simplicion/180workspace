@@ -10,11 +10,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
     }
 
-    const existingCompany = await prisma.company.findUnique({
-      where: { slug },
-    });
+    // Scalable check: Query both the DomainRegistry and Company tables in parallel
+    // DomainRegistry is the SSOT for global domain uniqueness, but we also check Company to be safe
+    const [existingCompany, existingDomainRegistry] = await Promise.all([
+      prisma.company.findUnique({
+        where: { slug },
+      }),
+      prisma.domainRegistry.findUnique({
+        where: { domain: slug },
+      })
+    ]);
 
-    if (existingCompany) {
+    if (existingCompany || existingDomainRegistry) {
       return NextResponse.json({ available: false });
     }
 
