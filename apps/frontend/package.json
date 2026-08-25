@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "next dev -p 3002",
         "prisma:generate": "prisma generate --schema=../../packages/db/prisma/schema.prisma",
-        "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+        "build": "cd ../../packages/db && pnpm build && cd ../../apps/frontend && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
         "build:cloudflare": "cross-env BUILD_STANDALONE=true NODE_OPTIONS=--max-old-space-size=4096 opennextjs-cloudflare build",
         "deploy:cloudflare": "pnpm build:cloudflare && wrangler deploy",
         "preview:cloudflare": "pnpm build:cloudflare && wrangler dev",
