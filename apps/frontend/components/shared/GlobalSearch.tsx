@@ -172,7 +172,7 @@ export default function GlobalSearch() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+                            className="absolute inset-0 bg-gray-900/20 backdrop-blur-md"
                             onClick={() => setIsOpen(false)}
                             aria-hidden="true"
                         />
