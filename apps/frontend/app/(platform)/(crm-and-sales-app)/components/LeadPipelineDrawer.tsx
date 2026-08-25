@@ -11,6 +11,7 @@ import CustomSelect from '@/components/ui/CustomSelect';
 import { ConfirmModal } from "@workspace/ui";
 import { useSettings } from '@/lib/settings-context';
 import { industriesList } from '@workspace/common';
+import { Country } from 'country-state-city';
 
 interface LeadPipelineDrawerProps {
     open: boolean;
@@ -29,8 +30,15 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     const [saving, setSaving] = useState(false);
     const [currencies, setCurrencies] = useState<any>({ rates: {}, base: 'USD' });
     const { company } = useSettings();
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    const countryOptions = React.useMemo(() => {
+        return Country.getAllCountries().map(c => ({
+            label: `${c.flag} +${c.phonecode} (${c.isoCode})`,
+            value: `+${c.phonecode}`
+        }));
+    }, []);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -213,6 +221,19 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         return converted;
     };
 
+    const phoneParts = (formData.contactPhone || '').split(' ');
+    const currentCode = (phoneParts.length > 1 && phoneParts[0].startsWith('+')) ? phoneParts[0] : '+1';
+    const currentNum = (phoneParts.length > 1 && phoneParts[0].startsWith('+')) ? phoneParts.slice(1).join(' ') : (formData.contactPhone || '');
+    
+    const handlePhoneCodeChange = (e: any) => {
+        setFormData({ ...formData, contactPhone: `${e.target.value} ${currentNum}`.trim() });
+    };
+    
+    const handlePhoneNumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const cleaned = e.target.value.replace(/[^\d\-\s()]/g, '');
+        setFormData({ ...formData, contactPhone: `${currentCode} ${cleaned}`.trim() });
+    };
+
     return (
         <Drawer
             open={open}
@@ -222,9 +243,6 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             icon={<Briefcase className="w-5 h-5" />}
             footer={
                 <>
-                    <div className="text-xs text-gray-400 italic">
-                        Deals are linked to your company ID.
-                    </div>
                     <div className="flex gap-3">
                         {editingLeadPipeline && (
                             <button onClick={() => setShowDeleteConfirm(true)} type="button" disabled={saving} className="btn-danger mr-auto">
@@ -274,27 +292,47 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 </div>
                 <div>
                     <label htmlFor="contactPhone" className="label">Phone Number</label>
-                    <input id="contactPhone" type="tel" pattern="^\+?[1-9]\d{1,14}$" title="Please enter a valid phone number (e.g. +1234567890)" placeholder="+1 (555) 000-0000" className="input" value={formData.contactPhone} onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} />
+                    <div className="flex gap-2">
+                        <div className="w-32 shrink-0">
+                            <CustomSelect 
+                                value={currentCode}
+                                onChange={handlePhoneCodeChange}
+                                options={countryOptions}
+                            />
+                        </div>
+                        <input 
+                            id="contactPhone" 
+                            type="tel" 
+                            placeholder="(555) 000-0000" 
+                            className="input flex-1" 
+                            value={currentNum} 
+                            onChange={handlePhoneNumChange} 
+                        />
+                    </div>
                 </div>
                 <div>
                     <label htmlFor="source" className="label">Source *</label>
-                    <CustomSelect id="source" className="select" required value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })}>
-                        <option value="">Select Source</option>
-                        <option value="Inbound">Inbound</option>
-                        <option value="Outbound">Outbound</option>
-                        <option value="Referral">Referral</option>
-                        <option value="Event">Event</option>
-                        <option value="Custom">Custom</option>
-                    </CustomSelect>
+                    <CustomSelect 
+                        id="source" 
+                        className="select" 
+                        required 
+                        value={formData.source} 
+                        onChange={(e: any) => setFormData({ ...formData, source: e.target.value })}
+                        options={['Inbound', 'Outbound', 'Referral', 'Event']}
+                        creatable={true}
+                    />
                 </div>
                 <div>
                     <label htmlFor="industry" className="label">Industry *</label>
-                    <CustomSelect id="industry" className="select" required value={formData.industry} onChange={e => setFormData({ ...formData, industry: e.target.value })}>
-                        <option value="">Select Industry</option>
-                        {(industriesList || []).map(industry => (
-                            <option key={industry} value={industry}>{industry}</option>
-                        ))}
-                    </CustomSelect>
+                    <CustomSelect 
+                        id="industry" 
+                        className="select" 
+                        required 
+                        value={formData.industry} 
+                        onChange={(e: any) => setFormData({ ...formData, industry: e.target.value })}
+                        options={industriesList || []}
+                        creatable={true}
+                    />
                 </div>
                 <div>
                     <label htmlFor="dealValue" className="label">Estimated Lead Amount</label>
@@ -332,12 +370,13 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 </div>
                 <div>
                     <label htmlFor="owner" className="label">Assign To</label>
-                    <CustomSelect id="owner" className="select" value={formData.owner} onChange={e => setFormData({ ...formData, owner: e.target.value })}>
-                        <option value="">Unassigned</option>
-                        {(users || []).map(u => (
-                            <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
-                        ))}
-                    </CustomSelect>
+                    <CustomSelect 
+                        id="owner" 
+                        className="select" 
+                        value={formData.owner} 
+                        onChange={(e: any) => setFormData({ ...formData, owner: e.target.value })}
+                        options={[{ label: 'Unassigned', value: '' }, ...(users || []).map((u: any) => ({ label: `${u.firstName} ${u.lastName}`, value: u.id }))]}
+                    />
                 </div>
             </div>
 
