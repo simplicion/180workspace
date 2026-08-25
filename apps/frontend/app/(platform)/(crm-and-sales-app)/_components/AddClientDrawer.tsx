@@ -4,7 +4,7 @@ import { LogoLoader } from "@workspace/ui";
 import { Drawer } from "@/components/ui/Drawer";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Building2, Mail, Phone, Globe, AlignLeft } from 'lucide-react';
+import { X, Building2, Mail, Phone, Globe, AlignLeft, MapPin, Users, DollarSign, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 
@@ -43,6 +43,11 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         linkedin: editClient?.socialMediaLinks?.linkedin || '',
         paymentTerms: editClient?.paymentTerms || '',
         currency: editClient?.currency || 'USD',
+        location: editClient?.location || '',
+        country: editClient?.country || '',
+        employeeCount: editClient?.employeeCount || '',
+        annualRevenue: editClient?.annualRevenue || '',
+        customIndustry: editClient?.customIndustry || '',
     });
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -69,6 +74,11 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 linkedin: editClient?.socialMediaLinks?.linkedin || '',
                 paymentTerms: editClient?.paymentTerms || '',
                 currency: editClient?.currency || 'USD',
+                location: editClient?.location || '',
+                country: editClient?.country || '',
+                employeeCount: editClient?.employeeCount || '',
+                annualRevenue: editClient?.annualRevenue || '',
+                customIndustry: editClient?.customIndustry || '',
             });
             setIsCompany(!!editClient?.company);
         }
@@ -274,6 +284,43 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                     </CustomSelect>
                 </div>
             </div>
+
+            {isCompany && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label htmlFor="clientLocation" className="label">Location</label>
+                        <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                            <input id="clientLocation" value={form.location} onChange={set('location')} placeholder="City, State" className="input pl-9" />
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="clientCountry" className="label">Country</label>
+                        <input id="clientCountry" value={form.country} onChange={set('country')} placeholder="Country" className="input" />
+                    </div>
+                    <div>
+                        <label htmlFor="clientEmployeeCount" className="label">Employee Count</label>
+                        <div className="relative">
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                            <input id="clientEmployeeCount" value={form.employeeCount} onChange={set('employeeCount')} placeholder="e.g. 50-200" className="input pl-9" />
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="clientAnnualRevenue" className="label">Annual Revenue</label>
+                        <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                            <input id="clientAnnualRevenue" type="number" min="0" value={form.annualRevenue} onChange={set('annualRevenue')} placeholder="0" className="input pl-9" />
+                        </div>
+                    </div>
+                    <div className="col-span-2">
+                        <label htmlFor="clientCustomIndustry" className="label">Custom Industry / Niche</label>
+                        <div className="relative">
+                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                            <input id="clientCustomIndustry" value={form.customIndustry} onChange={set('customIndustry')} placeholder="Specific niche or sub-industry" className="input pl-9" />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {!isEdit && (
                 <div className="border border-gray-100 rounded-lg p-4 mt-4 bg-gray-50/50">

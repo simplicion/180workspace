@@ -132,7 +132,10 @@ export default function AppConfigPage() {
         setEnabledModules(newModules);
 
         try {
-            await api.put('/api/company-config', { enabledApps: newApps, enabledModules: newModules });
+            await Promise.all([
+                api.patch('/api/company-config/apps', { apps: newApps }),
+                api.patch('/api/company-config/modules', { modules: newModules })
+            ]);
             toast.success(isEnabling ? `${app.name} installed successfully` : `${app.name} uninstalled`);
             refreshSettings(true);
         } catch (error: any) {

@@ -29,7 +29,7 @@ function CheckoutContent() {
     const [paymentLoading, setPaymentLoading] = useState(false);
     const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
 
-    const effectivePlatformName = platform?.platformName || 'Platform';
+
     const currency = plan?.currency || platform?.currency || 'USD';
     let currencySym = '$';
     try {
@@ -167,8 +167,7 @@ function CheckoutContent() {
                         key: order.keyId,
                         amount: order.amount,
                         currency: order.currency || platform?.currency || 'INR',
-                        name: settings?.companyName || effectivePlatformName,
-                        description: `Purchase ${plan.planName}`,
+                        name: '180workspace',
                         order_id: order.orderId,
                         handler: async (response: any) => {
                             try {
@@ -181,7 +180,7 @@ function CheckoutContent() {
                                     ...(plan.addonType === 'app' ? { apps: plan.quantity || 1 } : {}),
                                 });
                                 refresh();
-                                router.push('/settings/platform-billing/success');
+                                router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
                             } catch (err) {
                                 router.push('/settings/platform-billing/failed');
                             }
@@ -211,7 +210,7 @@ function CheckoutContent() {
             if (order.isFree) {
                 toast.success(order.message || 'Subscription activated successfully!');
                 refresh();
-                router.push('/settings/platform-billing/success');
+                router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
                 return;
             }
 
@@ -235,8 +234,7 @@ function CheckoutContent() {
 
                 const options = {
                     key: order.keyId,
-                    name: settings?.companyName || effectivePlatformName,
-                    description: `Setup e-Mandate for ${plan.planName}`,
+                    name: '180workspace',
                     subscription_id: order.subscriptionId,
                     handler: async (response: any) => {
                         try {
@@ -248,7 +246,7 @@ function CheckoutContent() {
                                 ...(couponResult && { couponCode: couponResult.code || coupon })
                             });
                             refresh();
-                            router.push('/settings/platform-billing/success');
+                            router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
                         } catch (err) {
                             router.push('/settings/platform-billing/failed');
                         }

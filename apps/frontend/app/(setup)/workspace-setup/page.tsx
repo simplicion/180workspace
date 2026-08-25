@@ -15,17 +15,12 @@ import CustomSelect from '@/components/ui/CustomSelect';
 import { locationService, FormattedLocation } from '@/lib/location-service';
 import api from '@/lib/api';
 import { SubscriptionPlan } from '@/components/shared/SubscriptionPlan';
-const INDUSTRIES = [
-    { label: 'Technology', value: 'Technology' },
-    { label: 'Healthcare', value: 'Healthcare' },
-    { label: 'Finance', value: 'Finance' },
-    { label: 'Education', value: 'Education' },
-    { label: 'Retail', value: 'Retail' },
-    { label: 'Manufacturing', value: 'Manufacturing' },
-    { label: 'Real Estate', value: 'Real Estate' },
-    { label: 'Consulting', value: 'Consulting' },
-    { label: 'Other', value: 'Other' },
-];
+import { industriesList } from '@workspace/common';
+
+const INDUSTRIES = industriesList.map(industry => ({
+    label: industry,
+    value: industry
+}));
 
 const STARTUP_STAGES = [
     { value: 'Idea', label: 'Idea Stage' },

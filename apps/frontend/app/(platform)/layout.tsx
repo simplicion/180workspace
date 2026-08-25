@@ -438,9 +438,9 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     isAppEnabled = true; // Settings, Dashboard, etc.
                 } else if (hasActivePlan) {
                     // Check against the plan's max apps
-                    const maxApps = plan?.maxApps || 3;
+                    const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 3);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'analytics', 'advertising', 'social-media'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 

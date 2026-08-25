@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Wallet, Loader2 } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, ComposedChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Scatter } from 'recharts';
 import api from '@/lib/api';
 import clsx from 'clsx';
 import CustomSelect from '@/components/ui/CustomSelect';
