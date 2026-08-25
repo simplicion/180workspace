@@ -128,7 +128,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
 
     const fetchUsers = async () => {
         try {
-            const { data } = await api.get('/api/v1/identity/users', { params: { limit: 100 } });
+            const { data } = await api.get('/api/users', { params: { limit: 100 } });
             setUsers(data.users || []);
         } catch (error) {
             console.error('Failed to fetch users');
@@ -256,15 +256,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         onChange={e => setFormData({ ...formData, title: e.target.value })}
                     />
                 </div>
-                <div>
-                    <label htmlFor="leadType" className="label">Type *</label>
-                    <CustomSelect id="leadType" className="select" required value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })}>
-                        <option value="">Select Type</option>
-                        <option value="Lead">Lead</option>
-                        <option value="lead pipeline">Opportunity</option>
-                        <option value="Prospect">Prospect</option>
-                    </CustomSelect>
-                </div>
+
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -299,7 +291,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     <label htmlFor="industry" className="label">Industry *</label>
                     <CustomSelect id="industry" className="select" required value={formData.industry} onChange={e => setFormData({ ...formData, industry: e.target.value })}>
                         <option value="">Select Industry</option>
-                        {industriesList.map(industry => (
+                        {(industriesList || []).map(industry => (
                             <option key={industry} value={industry}>{industry}</option>
                         ))}
                     </CustomSelect>
@@ -312,7 +304,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                                 value={formData.currency}
                                 onChange={(e: any) => setFormData({ ...formData, currency: e.target.value })}
                             >
-                                {Object.keys(currencies.rates || { USD: 1, INR: 83, EUR: 0.9, GBP: 0.7 }).map(cur => (
+                                {(Object.keys(currencies?.rates || { USD: 1, INR: 83, EUR: 0.9, GBP: 0.7 }) || []).map(cur => (
                                     <option key={cur} value={cur}>{cur}</option>
                                 ))}
                             </CustomSelect>
@@ -342,7 +334,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     <label htmlFor="owner" className="label">Assign To</label>
                     <CustomSelect id="owner" className="select" value={formData.owner} onChange={e => setFormData({ ...formData, owner: e.target.value })}>
                         <option value="">Unassigned</option>
-                        {users.map(u => (
+                        {(users || []).map(u => (
                             <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
                         ))}
                     </CustomSelect>
