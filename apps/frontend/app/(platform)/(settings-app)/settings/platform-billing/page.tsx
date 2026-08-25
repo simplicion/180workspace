@@ -75,7 +75,7 @@ export default function PlatformBillingPage() {
 
     const { currentSubscription, status } = billingInfo || {};
     const isTrial = currentSubscription?.plan?.planName === 'Free Trial';
-    const trialDaysLeft = currentSubscription?.endDate ? Math.ceil((new Date(currentSubscription.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+    const trialDaysLeft = billingInfo?.daysLeft || 0;
 
     const formatBytes = (bytes: number) => {
         if (bytes === 0) return '0 B';
@@ -214,7 +214,7 @@ export default function PlatformBillingPage() {
                         </div>
                         <div className="flex justify-between pb-2 pt-2">
                             <span className="text-gray-500 flex items-center gap-2"><Clock className="w-4 h-4" /> Ends</span>
-                            <span className="font-medium text-gray-900">{currentSubscription?.endDate ? new Date(currentSubscription.endDate).toLocaleDateString() : 'Never give up'}</span>
+                            <span className="font-medium text-gray-900">{currentSubscription?.subscriptionEndDate ? new Date(currentSubscription.subscriptionEndDate).toLocaleDateString() : (planPrice > 0 ? 'Active' : 'Never give up')}</span>
                         </div>
                     </div>
                 </motion.div>

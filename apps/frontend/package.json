@@ -13,7 +13,7 @@
         "lint": "next lint",
         "test": "jest",
         "test:coverage": "jest --coverage",
-        "vercel-build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build"
+        "vercel-build": "cd ../../packages/db && pnpm build && cd ../../apps/frontend && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build"
     },
     "engines": {
         "node": "24.x"

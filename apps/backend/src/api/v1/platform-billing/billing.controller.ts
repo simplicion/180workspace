@@ -65,7 +65,7 @@ export class BillingController {
             let activeAppsCount = 0;
             if (company?.metadata && typeof company.metadata === 'object' && Array.isArray((company.metadata as any).enabledApps)) {
                 const enabledApps = (company.metadata as any).enabledApps;
-                const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'analytics', 'advertising', 'social-media'];
+                const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media'];
                 activeAppsCount = enabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
             } else {
                 // fallback to projects if enabledApps isn't found
