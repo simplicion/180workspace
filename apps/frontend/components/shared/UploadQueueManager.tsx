@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppSelector, useAppDispatch } from '@/redux/hooks';
 import { updateJobProgress, updateJobStatus, removeJob } from '@/redux/slices/uploadQueueSlice';
-import { api } from '@/redux/api/baseApi';
+import api from '@/lib/api';
 import { Loader2, X, CheckCircle2, AlertCircle, UploadCloud } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
