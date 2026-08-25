@@ -2,7 +2,7 @@
 
 import { Mail, ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
-import EmailTab from '@/app/dashboard/(settings-app)/_components/EmailTab';
+import EmailTab from '@/app/(platform)/(settings-app)/_components/EmailTab';
 import { FeatureLock, LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 

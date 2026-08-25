@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Calendar, CheckCheck, X, Clock, Home, Plus, FileText, CheckCircle, XCircle, Palmtree, Pencil, Trash2, Eye, ExternalLink, Settings, Save, Landmark } from 'lucide-react';
 import clsx from 'clsx';
-import MarkAttendanceDrawer from '@/app/dashboard/(hr-management-app)/_components/MarkAttendanceDrawer';
+import MarkAttendanceDrawer from '@/app/(platform)/(hr-management-app)/_components/MarkAttendanceDrawer';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import toast from 'react-hot-toast';
@@ -28,8 +28,8 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> =
     on_leave: { label: 'Leave', cls: 'badge-purple', icon: Calendar },
 };
 
-import { LeaveRequestDrawer, ViewLeaveDrawer, LEAVE_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/LeaveDrawers';
-import HolidayDrawer, { HOLIDAY_TYPE_COLORS } from '@/app/dashboard/(hr-management-app)/_components/HolidayDrawer';
+import { LeaveRequestDrawer, ViewLeaveDrawer, LEAVE_TYPE_COLORS } from '@/app/(platform)/(hr-management-app)/_components/LeaveDrawers';
+import HolidayDrawer, { HOLIDAY_TYPE_COLORS } from '@/app/(platform)/(hr-management-app)/_components/HolidayDrawer';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 function thisMonthStr() { return new Date().toISOString().slice(0, 7); }

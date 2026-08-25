@@ -1,6 +1,6 @@
 'use client';
 
-import GoogleIntegrationsTab from '@/app/dashboard/(settings-app)/_components/GoogleIntegrationsTab';
+import GoogleIntegrationsTab from '@/app/(platform)/(settings-app)/_components/GoogleIntegrationsTab';
 import Link from 'next/link';
 import { ArrowLeft, Globe } from 'lucide-react';
 import { FeatureLock, LogoLoader } from '@workspace/ui';

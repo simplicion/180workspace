@@ -1,6 +1,6 @@
 'use client';
 
-import PlausibleAnalyticsTab from '@/app/dashboard/(settings-app)/_components/PlausibleAnalyticsTab';
+import PlausibleAnalyticsTab from '@/app/(platform)/(settings-app)/_components/PlausibleAnalyticsTab';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { FeatureLock, LogoLoader } from '@workspace/ui';

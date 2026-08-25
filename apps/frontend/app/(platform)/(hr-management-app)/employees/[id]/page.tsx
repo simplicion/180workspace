@@ -9,7 +9,7 @@ import clsx from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import AddEmployeeDrawer from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeDrawer';
+import AddEmployeeDrawer from '@/app/(platform)/(hr-management-app)/_components/AddEmployeeDrawer';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import toast from 'react-hot-toast';
 

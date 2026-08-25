@@ -7,7 +7,7 @@ import { CalendarDays, Plus, Search, Eye, Archive, Trash2, Calendar } from 'luci
 import { Skeleton, SkeletonCard } from "@workspace/ui";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import ContextActions from '@/app/dashboard/(dashboard)/_components/ContextActions';
+import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 import { ConfirmModal } from "@workspace/ui";
 import toast from 'react-hot-toast';
 import clsx from 'clsx';

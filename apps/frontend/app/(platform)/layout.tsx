@@ -9,8 +9,8 @@ import { useSettings } from '@/lib/settings-context';
 import { ChevronDown, ChevronLeft, ChevronRight, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye } from 'lucide-react';
 import { navigation } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import PinnedItem from '@/app/dashboard/(dashboard)/_components/PinnedItem';
-import RecentItem from '@/app/dashboard/(dashboard)/_components/RecentItem';
+import PinnedItem from '@/app/(platform)/(dashboard)/_components/PinnedItem';
+import RecentItem from '@/app/(platform)/(dashboard)/_components/RecentItem';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
@@ -38,7 +38,7 @@ const safeImport = (importFn: () => Promise<any>) => {
 };
 
 import GlobalSearch from '@/components/shared/GlobalSearch';
-import SystemSetupStatus from '@/app/dashboard/(dashboard)/_components/SystemSetupStatus';
+import SystemSetupStatus from '@/app/(platform)/(dashboard)/_components/SystemSetupStatus';
 import NotificationsPanel from '@/components/shared/NotificationsPanel';
 import TrialBanner from '@/components/shared/TrialBanner';
 import SubscriptionExpiredWall from '@/components/shared/SubscriptionExpiredWall';

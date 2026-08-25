@@ -3,7 +3,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
-import TaskDetailModal from '@/app/dashboard/(projects-and-tasks-app)/_components/TaskDetailModal';
+import TaskDetailModal from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskDetailModal';
 import api from '@/lib/api';
 import { Clock, Plus, Search, Filter, CheckCircle2, XCircle, Timer, Calendar, Briefcase, Layout, CheckSquare, ExternalLink, MessageSquare, ChevronRight, User, BarChart3, TrendingUp, ChevronDown, Download, Users, Briefcase as ProjectIcon, Layers, CalendarDays, History, Paperclip } from 'lucide-react';
 import { 
@@ -13,7 +13,7 @@ import {
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
-import LogWorkModal from '@/app/dashboard/(projects-and-tasks-app)/_components/LogWorkModal';
+import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/LogWorkModal';
 import { format } from 'date-fns';
 import CustomSelect from '@/components/ui/CustomSelect';
 

@@ -13,7 +13,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { format, differenceInDays } from 'date-fns';
 import { ConfirmModal } from "@workspace/ui";
-import AddAssetDrawer from '@/app/dashboard/(workspace-tools-app)/_components/AddAssetDrawer';
+import AddAssetDrawer from '@/app/(platform)/(workspace-tools-app)/_components/AddAssetDrawer';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 const ASSET_ICONS: Record<string, any> = {

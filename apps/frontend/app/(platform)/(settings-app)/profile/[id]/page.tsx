@@ -8,8 +8,8 @@ import { User, Mail, Phone, MapPin, Building2, Briefcase, Calendar, Lock, Shield
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import AddEmployeeDrawer from '@/app/dashboard/(hr-management-app)/_components/AddEmployeeDrawer';
-import EmployeeBankDetails from '@/app/dashboard/(settings-app)/_components/EmployeeBankDetails';
+import AddEmployeeDrawer from '@/app/(platform)/(hr-management-app)/_components/AddEmployeeDrawer';
+import EmployeeBankDetails from '@/app/(platform)/(settings-app)/_components/EmployeeBankDetails';
 import { FavoriteButton , LogoLoader } from "@workspace/ui";
 
 export default function UnifiedProfilePage() {
