@@ -48,7 +48,9 @@ export default function EditProjectModal({ project, onClose, onSuccess }: Props)
     const [name, setName] = useState(project.name || '');
     const [description, setDescription] = useState(project.description || '');
     const [projectType, setProjectType] = useState(project.projectType || 'internal');
-    const [clientIds, setClientIds] = useState<string[]>(project.clientIds || []);
+    const [clientIds, setClientIds] = useState<string[]>(
+        project.clientIds?.map((c: any) => typeof c === 'string' ? c : (c.id || c._id)) || []
+    );
     const [startDate, setStartDate] = useState(project.startDate ? project.startDate.split('T')[0] : '');
     const [deadline, setDeadline] = useState(project.deadline ? project.deadline.split('T')[0] : '');
 

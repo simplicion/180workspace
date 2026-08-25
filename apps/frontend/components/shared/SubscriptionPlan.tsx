@@ -19,6 +19,7 @@ export interface PlanProps {
   buttonText?: string;
   badgeText?: string;
   theme?: 'indigo' | 'violet';
+  buttonVariant?: 'primary' | 'danger' | 'disabled';
 }
 
 const THEME_CLASSES = {
@@ -55,7 +56,8 @@ export function SubscriptionPlan({
   isSelected,
   buttonText = "Select Plan",
   badgeText,
-  theme = 'indigo'
+  theme = 'indigo',
+  buttonVariant = 'primary'
 }: PlanProps) {
   const styles = THEME_CLASSES[theme] || THEME_CLASSES.indigo;
 
@@ -121,9 +123,14 @@ export function SubscriptionPlan({
 
       <div className="mt-auto pt-4">
         <button
+          disabled={buttonVariant === 'disabled'}
           className={clsx(
             "w-full py-3 rounded-xl font-semibold transition-all duration-300",
-            isSelected ? styles.btnSecondary : styles.btnPrimary
+            buttonVariant === 'disabled' 
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200" 
+              : buttonVariant === 'danger'
+                ? "bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 shadow-sm"
+                : isSelected ? styles.btnSecondary : styles.btnPrimary
           )}
         >
           {buttonText}

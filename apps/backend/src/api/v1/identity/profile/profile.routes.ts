@@ -6,6 +6,7 @@ import { ProfileValidation } from './profile.validation';
 const router = express.Router();
 
 router.put('/', validateRequest(ProfileValidation.updateProfile), ProfileController.updateProfile);
+router.post('/verify-password', ProfileController.verifyPassword);
 router.post('/upload-url', validateRequest(ProfileValidation.getUploadUrl), ProfileController.getUploadUrl);
 
 // Experience

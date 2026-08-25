@@ -9,7 +9,7 @@ const { generateQuotationPDF, generateContractPDF } = pdfUtils;
 // AIAssistantService is typically in @workspace/workspace-tools now
 const { AIAssistantService } = require('@workspace/workspace-tools');
 
-const clearCRMCache = async (companyId: string, res: Response) => {
+const clearCRMCache = async (companyId: string) => {
   try {
 
     if (!companyId) return;
@@ -21,7 +21,7 @@ const clearCRMCache = async (companyId: string, res: Response) => {
     await cacheDel(`company:${companyId}:productivity`);
 
   } catch (error) {
-    next(error);
+    console.error('Failed to clear CRM cache for company:', companyId, error);
   }
 };
 
@@ -441,11 +441,11 @@ export const getRevenueStats = async (req: Request, res: Response, next: NextFun
 export const getSalesActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { prisma } = require('@workspace/db');
-        const leads = await prisma.lead.findMany({
+        const leads = await prisma.deal.findMany({
             orderBy: { updatedAt: 'desc' },
             take: 5
         });
-        const deals = await prisma.deal.findMany({
+        const deals = await prisma.lead.findMany({
             orderBy: { updatedAt: 'desc' },
             take: 5
         });

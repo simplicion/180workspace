@@ -25,6 +25,7 @@ export interface SubscriptionStatus {
 
 let cachedSubscriptionData: any = null;
 let cacheTimestamp: number = 0;
+let fetchPromise: Promise<any> | null = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export function useSubscription(): SubscriptionStatus {
@@ -56,13 +57,17 @@ export function useSubscription(): SubscriptionStatus {
         }
 
         try {
-            const { data: res } = await api.get('/api/billing');
+            if (!fetchPromise || force) {
+                fetchPromise = api.get('/api/billing');
+            }
+            const { data: res } = await fetchPromise;
             setData(res);
             cachedSubscriptionData = res;
-            cacheTimestamp = now;
+            cacheTimestamp = Date.now();
         } catch {
             // Network error or subscription expired — fail gracefully
         } finally {
+            fetchPromise = null;
             setLoading(false);
         }
     }, []);

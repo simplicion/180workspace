@@ -1,13 +1,13 @@
-import { A as originPathnameSymbol, C as ASTRO_ERROR_HEADER, D as REROUTABLE_STATUS_CODES, E as REDIRECT_STATUS_CODES, F as __commonJSMin, M as decodeKey, N as decryptString, O as clientAddressSymbol, P as generateCspDigest, R as __toESM, S as isRoute500, T as DEFAULT_404_COMPONENT, _ as isAstroComponentFactory, a as chunkToString, c as renderSlotToString, g as pushDirective, h as normalizeCspResourceEntry, i as renderComponent, j as responseSentSymbol$1, k as fetchStateSymbol, l as isRenderTemplateResult, m as isRenderInstruction, n as renderPage, o as createSlotValueFromString, r as renderJSX, u as renderTemplate, w as ASTRO_GENERATOR, x as isRoute404, y as renderEndpoint } from "./chunks/server_Dip1cA9v.mjs";
 import { B as PrerenderClientAddressNotAvailable, D as MiddlewareNotAResponse, E as MiddlewareNoDataOrNextCalled, G as RewriteWithBodyUsed, K as StaticClientAddressNotAvailable, L as NoMatchingStaticPathFound, P as NoManifestAvailable, Q as isAstroError, T as LocalsReassigned, U as ReservedSlotName, V as PrerenderDynamicEndpointPathCollide, W as ResponseSentError, X as i18nNoLocaleFoundInPath, Z as AstroError, a as ClientAddressNotAvailable, b as InvalidGetStaticPathsEntry, g as GetStaticPathsRequired, h as GetStaticPathsInvalidRouteParam, i as CacheNotEnabled, m as GetStaticPathsExpectedParams, n as ActionsReturnedInvalidDataError, p as ForbiddenRewrite, r as AstroResponseHeadersReassigned, t as ActionNotFoundError, w as LocalsNotAnObject, x as InvalidGetStaticPathsReturn, z as PageNumberParamNotFound } from "./chunks/errors-data_BgCK6joi.mjs";
 import { a as fileExtension, d as removeLeadingForwardSlash, g as trimSlashes, h as stripRequestBase, i as collapseDuplicateTrailingSlashes, l as joinPaths, m as slash, n as collapseDuplicateLeadingSlashes, o as hasFileExtension, p as removeTrailingForwardSlash, r as collapseDuplicateSlashes, s as isInternalPath, t as appendForwardSlash, u as prependForwardSlash, x as matchPattern } from "./chunks/path_DT_25dST.mjs";
+import { A as originPathnameSymbol, C as ASTRO_ERROR_HEADER, D as REROUTABLE_STATUS_CODES, E as REDIRECT_STATUS_CODES, M as decodeKey, N as decryptString, O as clientAddressSymbol, P as generateCspDigest, S as isRoute500, T as DEFAULT_404_COMPONENT, _ as isAstroComponentFactory, a as chunkToString, c as renderSlotToString, g as pushDirective, h as normalizeCspResourceEntry, i as renderComponent, j as responseSentSymbol$1, k as fetchStateSymbol, l as isRenderTemplateResult, m as isRenderInstruction, n as renderPage, o as createSlotValueFromString, r as renderJSX, u as renderTemplate, w as ASTRO_GENERATOR, x as isRoute404, y as renderEndpoint } from "./chunks/server_5ZIlVhEg.mjs";
 import nodePath from "node:path";
 import "@vercel/routing-utils";
 import React, { createElement } from "react";
 import ReactDOM from "react-dom/server";
 import { parse, stringify } from "devalue";
 import colors from "piccolore";
-import "es-module-lexer";
+import { parseCookie, stringifySetCookie } from "cookie";
 import { escape } from "html-escaper";
 nodePath.posix.join;
 //#endregion
@@ -19,7 +19,7 @@ var ASTRO_LOCALS_HEADER = "x-astro-locals";
 var ASTRO_MIDDLEWARE_SECRET_HEADER = "x-astro-middleware-secret";
 //#endregion
 //#region \0virtual:astro-vercel:config
-var middlewareSecret = "d2bc4862-6d0b-412d-8bf6-0b71227a4857";
+var middlewareSecret = "929a66f1-e94d-49bf-b6e3-3af92e3d2425";
 //#endregion
 //#region ../../node_modules/astro/dist/core/middleware/noop-middleware.js
 var NOOP_MIDDLEWARE_FN = async (_ctx, next) => {
@@ -479,6 +479,31 @@ var renderers = [Object.assign({
 		"scripts": [],
 		"styles": [],
 		"routeData": {
+			"route": "/sitemap.xml",
+			"isIndex": false,
+			"type": "endpoint",
+			"pattern": "^\\/sitemap\\.xml$",
+			"segments": [[{
+				"content": "sitemap.xml",
+				"dynamic": false,
+				"spread": false
+			}]],
+			"params": [],
+			"component": "src/pages/sitemap.xml.ts",
+			"pathname": "/sitemap.xml",
+			"prerender": false,
+			"fallbackRoutes": [],
+			"distURL": [],
+			"origin": "project",
+			"_meta": { "trailingSlash": "ignore" }
+		}
+	},
+	{
+		"file": "",
+		"links": [],
+		"scripts": [],
+		"styles": [],
+		"routeData": {
 			"route": "/",
 			"isIndex": true,
 			"type": "page",
@@ -497,13 +522,14 @@ var renderers = [Object.assign({
 ].map(deserializeRouteInfo);
 //#endregion
 //#region \0virtual:astro:pages
-var _page0 = () => import("./chunks/generic_DXXnbmGR.mjs").then((n) => n.t);
-var _page1 = () => import("./chunks/_slug__BkK2Ez7K.mjs");
-var _page2 = () => import("./chunks/index_DXl3Vi4j.mjs");
-var _page3 = () => import("./chunks/_slug__BFFDmfhF.mjs");
-var _page4 = () => import("./chunks/index_BkcsnLG2.mjs");
-var _page5 = () => import("./chunks/pricing_Z5hwkgEX.mjs");
-var _page6 = () => import("./chunks/index_Bg_E3Kk2.mjs");
+var _page0 = () => import("./chunks/generic_B8wXhvmb.mjs").then((n) => n.t);
+var _page1 = () => import("./chunks/_slug__BrFsc70z.mjs");
+var _page2 = () => import("./chunks/index_Z5cP947O.mjs");
+var _page3 = () => import("./chunks/_slug__CMcMwi5r.mjs");
+var _page4 = () => import("./chunks/index_Cu1RNmqy.mjs");
+var _page5 = () => import("./chunks/pricing_C7mEyx0Z.mjs");
+var _page6 = () => import("./chunks/sitemap_oNOayncU.mjs");
+var _page7 = () => import("./chunks/index_B_1_NOG5.mjs");
 var pageMap = /* @__PURE__ */ new Map([
 	["../../node_modules/astro/dist/assets/endpoint/generic.js", _page0],
 	["src/pages/blog/[slug].astro", _page1],
@@ -511,11 +537,12 @@ var pageMap = /* @__PURE__ */ new Map([
 	["src/pages/features/[slug].astro", _page3],
 	["src/pages/features/index.astro", _page4],
 	["src/pages/pricing.astro", _page5],
-	["src/pages/index.astro", _page6]
+	["src/pages/sitemap.xml.ts", _page6],
+	["src/pages/index.astro", _page7]
 ]);
 //#endregion
 //#region \0virtual:astro:manifest
-var _manifest = deserializeManifest({"rootDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/","cacheDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/node_modules/.astro/","outDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/dist/","srcDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/","publicDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/public/","buildClientDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/dist/client/","buildServerDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/dist/server/","adapterName":"@astrojs/vercel","assetsDir":"_astro","routes":[{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"type":"page","component":"_server-islands.astro","params":["name"],"segments":[[{"content":"_server-islands","dynamic":false,"spread":false}],[{"content":"name","dynamic":true,"spread":false}]],"pattern":"^\\/_server-islands\\/([^/]+?)\\/?$","prerender":false,"isIndex":false,"fallbackRoutes":[],"route":"/_server-islands/[name]","origin":"internal","distURL":[],"_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/_image","component":"../../node_modules/astro/dist/assets/endpoint/generic.js","params":[],"pathname":"/_image","pattern":"^\\/_image\\/?$","segments":[[{"content":"_image","dynamic":false,"spread":false}]],"type":"endpoint","prerender":false,"fallbackRoutes":[],"distURL":[],"isIndex":false,"origin":"internal","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/blog/[slug]","isIndex":false,"type":"page","pattern":"^\\/blog\\/([^/]+?)\\/?$","segments":[[{"content":"blog","dynamic":false,"spread":false}],[{"content":"slug","dynamic":true,"spread":false}]],"params":["slug"],"component":"src/pages/blog/[slug].astro","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/blog","isIndex":true,"type":"page","pattern":"^\\/blog\\/?$","segments":[[{"content":"blog","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/blog/index.astro","pathname":"/blog","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/features/[slug]","isIndex":false,"type":"page","pattern":"^\\/features\\/([^/]+?)\\/?$","segments":[[{"content":"features","dynamic":false,"spread":false}],[{"content":"slug","dynamic":true,"spread":false}]],"params":["slug"],"component":"src/pages/features/[slug].astro","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/features","isIndex":true,"type":"page","pattern":"^\\/features\\/?$","segments":[[{"content":"features","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/features/index.astro","pathname":"/features","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/pricing","isIndex":false,"type":"page","pattern":"^\\/pricing\\/?$","segments":[[{"content":"pricing","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/pricing.astro","pathname":"/pricing","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/","isIndex":true,"type":"page","pattern":"^\\/$","segments":[],"params":[],"component":"src/pages/index.astro","pathname":"/","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}}],"serverLike":true,"middlewareMode":"classic","base":"/","trailingSlash":"ignore","compressHTML":"jsx","componentMetadata":[["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/blog/[slug].astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/blog/index.astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/features/[slug].astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/features/index.astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/index.astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/pricing.astro",{"propagation":"none","containsHead":true}]],"renderers":[],"clientDirectives":[["idle","(()=>{var l=(n,t)=>{let i=async()=>{await(await n())()},e=typeof t.value==\"object\"?t.value:void 0,s={timeout:e==null?void 0:e.timeout};\"requestIdleCallback\"in window?window.requestIdleCallback(i,s):setTimeout(i,s.timeout||200)};(self.Astro||(self.Astro={})).idle=l;window.dispatchEvent(new Event(\"astro:idle\"));})();"],["load","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event(\"astro:load\"));})();"],["media","(()=>{var n=(a,t)=>{let i=async()=>{await(await a())()};if(t.value){let e=matchMedia(t.value);e.matches?i():e.addEventListener(\"change\",i,{once:!0})}};(self.Astro||(self.Astro={})).media=n;window.dispatchEvent(new Event(\"astro:media\"));})();"],["only","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).only=e;window.dispatchEvent(new Event(\"astro:only\"));})();"],["visible","(()=>{var a=(s,i,o)=>{let r=async()=>{await(await s())()},t=typeof i.value==\"object\"?i.value:void 0,c={rootMargin:t==null?void 0:t.rootMargin},n=new IntersectionObserver(e=>{for(let l of e)if(l.isIntersecting){n.disconnect(),r();break}},c);for(let e of o.children)n.observe(e)};(self.Astro||(self.Astro={})).visible=a;window.dispatchEvent(new Event(\"astro:visible\"));})();"]],"entryModules":{"astro/entrypoints/prerender":"prerender-entry.Cu5DdyD7.mjs","\u0000noop-middleware":"virtual_astro_middleware.mjs","\u0000virtual:astro:server-island-manifest":"chunks/_virtual_astro_server-island-manifest_C1Q2srgE.mjs","\u0000virtual:astro:session-driver":"chunks/_virtual_astro_session-driver_C-PI1Pas.mjs","\u0000virtual:astro:actions/noop-entrypoint":"chunks/noop-entrypoint_Z3zFhrGC.mjs","C:/Users/saavi/OneDrive/Desktop/180workspace/node_modules/@astrojs/react/dist/vnode-children.js":"chunks/vnode-children_BNEqZ4Gh.mjs","@astrojs/vercel/entrypoint":"entry.mjs","\u0000virtual:astro:page:src/pages/features/[slug]@_@astro":"chunks/_slug__BFFDmfhF.mjs","\u0000virtual:astro:page:src/pages/blog/[slug]@_@astro":"chunks/_slug__BkK2Ez7K.mjs","\u0000virtual:astro:page:../../node_modules/astro/dist/assets/endpoint/generic@_@js":"chunks/generic_DXXnbmGR.mjs","\u0000virtual:astro:page:src/pages/index@_@astro":"chunks/index_Bg_E3Kk2.mjs","\u0000virtual:astro:page:src/pages/features/index@_@astro":"chunks/index_BkcsnLG2.mjs","\u0000virtual:astro:page:src/pages/blog/index@_@astro":"chunks/index_DXl3Vi4j.mjs","\u0000virtual:astro:page:src/pages/pricing@_@astro":"chunks/pricing_Z5hwkgEX.mjs","C:/Users/saavi/OneDrive/Desktop/180workspace/node_modules/astro/dist/assets/services/sharp.js":"chunks/sharp_D4f7Vl-5.mjs","@astrojs/react/client.js":"_astro/client.B8Mvenee.js","astro:scripts/before-hydration.js":""},"inlinedScripts":[],"assets":["/favicon.ico","/favicon.svg","/_astro/client.B8Mvenee.js","/_astro/Layout.B25N4vYr.css"],"buildFormat":"directory","checkOrigin":true,"actionBodySizeLimit":1048576,"serverIslandBodySizeLimit":1048576,"allowedDomains":[],"key":"iZkpVTuFTJHvy13vVhOfC0VtY9WdpAVQRFVvUrxcU3w=","image":{},"devToolbar":{"enabled":false,"debugInfoOutput":""},"logLevel":"info","shouldInjectCspMetaTags":false});
+var _manifest = deserializeManifest({"rootDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/","cacheDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/node_modules/.astro/","outDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/dist/","srcDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/","publicDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/public/","buildClientDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/dist/client/","buildServerDir":"file:///C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/dist/server/","adapterName":"@astrojs/vercel","assetsDir":"_astro","routes":[{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"type":"page","component":"_server-islands.astro","params":["name"],"segments":[[{"content":"_server-islands","dynamic":false,"spread":false}],[{"content":"name","dynamic":true,"spread":false}]],"pattern":"^\\/_server-islands\\/([^/]+?)\\/?$","prerender":false,"isIndex":false,"fallbackRoutes":[],"route":"/_server-islands/[name]","origin":"internal","distURL":[],"_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/_image","component":"../../node_modules/astro/dist/assets/endpoint/generic.js","params":[],"pathname":"/_image","pattern":"^\\/_image\\/?$","segments":[[{"content":"_image","dynamic":false,"spread":false}]],"type":"endpoint","prerender":false,"fallbackRoutes":[],"distURL":[],"isIndex":false,"origin":"internal","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/blog/[slug]","isIndex":false,"type":"page","pattern":"^\\/blog\\/([^/]+?)\\/?$","segments":[[{"content":"blog","dynamic":false,"spread":false}],[{"content":"slug","dynamic":true,"spread":false}]],"params":["slug"],"component":"src/pages/blog/[slug].astro","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/blog","isIndex":true,"type":"page","pattern":"^\\/blog\\/?$","segments":[[{"content":"blog","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/blog/index.astro","pathname":"/blog","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/features/[slug]","isIndex":false,"type":"page","pattern":"^\\/features\\/([^/]+?)\\/?$","segments":[[{"content":"features","dynamic":false,"spread":false}],[{"content":"slug","dynamic":true,"spread":false}]],"params":["slug"],"component":"src/pages/features/[slug].astro","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/features","isIndex":true,"type":"page","pattern":"^\\/features\\/?$","segments":[[{"content":"features","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/features/index.astro","pathname":"/features","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/pricing","isIndex":false,"type":"page","pattern":"^\\/pricing\\/?$","segments":[[{"content":"pricing","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/pricing.astro","pathname":"/pricing","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/sitemap.xml","isIndex":false,"type":"endpoint","pattern":"^\\/sitemap\\.xml$","segments":[[{"content":"sitemap.xml","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/sitemap.xml.ts","pathname":"/sitemap.xml","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/Layout.B25N4vYr.css"}],"routeData":{"route":"/","isIndex":true,"type":"page","pattern":"^\\/$","segments":[],"params":[],"component":"src/pages/index.astro","pathname":"/","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}}],"serverLike":true,"middlewareMode":"classic","base":"/","trailingSlash":"ignore","compressHTML":"jsx","componentMetadata":[["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/blog/[slug].astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/blog/index.astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/features/[slug].astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/features/index.astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/index.astro",{"propagation":"none","containsHead":true}],["C:/Users/saavi/OneDrive/Desktop/180workspace/apps/marketing-web/src/pages/pricing.astro",{"propagation":"none","containsHead":true}]],"renderers":[],"clientDirectives":[["idle","(()=>{var l=(n,t)=>{let i=async()=>{await(await n())()},e=typeof t.value==\"object\"?t.value:void 0,s={timeout:e==null?void 0:e.timeout};\"requestIdleCallback\"in window?window.requestIdleCallback(i,s):setTimeout(i,s.timeout||200)};(self.Astro||(self.Astro={})).idle=l;window.dispatchEvent(new Event(\"astro:idle\"));})();"],["load","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event(\"astro:load\"));})();"],["media","(()=>{var n=(a,t)=>{let i=async()=>{await(await a())()};if(t.value){let e=matchMedia(t.value);e.matches?i():e.addEventListener(\"change\",i,{once:!0})}};(self.Astro||(self.Astro={})).media=n;window.dispatchEvent(new Event(\"astro:media\"));})();"],["only","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).only=e;window.dispatchEvent(new Event(\"astro:only\"));})();"],["visible","(()=>{var a=(s,i,o)=>{let r=async()=>{await(await s())()},t=typeof i.value==\"object\"?i.value:void 0,c={rootMargin:t==null?void 0:t.rootMargin},n=new IntersectionObserver(e=>{for(let l of e)if(l.isIntersecting){n.disconnect(),r();break}},c);for(let e of o.children)n.observe(e)};(self.Astro||(self.Astro={})).visible=a;window.dispatchEvent(new Event(\"astro:visible\"));})();"]],"entryModules":{"astro/entrypoints/prerender":"prerender-entry.cI9LEUd8.mjs","\u0000noop-middleware":"virtual_astro_middleware.mjs","\u0000virtual:astro:server-island-manifest":"chunks/_virtual_astro_server-island-manifest_C1Q2srgE.mjs","\u0000virtual:astro:session-driver":"chunks/_virtual_astro_session-driver_C-PI1Pas.mjs","\u0000virtual:astro:actions/noop-entrypoint":"chunks/noop-entrypoint_Z3zFhrGC.mjs","C:/Users/saavi/OneDrive/Desktop/180workspace/node_modules/@astrojs/react/dist/vnode-children.js":"chunks/vnode-children_BNEqZ4Gh.mjs","@astrojs/vercel/entrypoint":"entry.mjs","\u0000virtual:astro:page:src/pages/blog/[slug]@_@astro":"chunks/_slug__BrFsc70z.mjs","\u0000virtual:astro:page:src/pages/features/[slug]@_@astro":"chunks/_slug__CMcMwi5r.mjs","\u0000virtual:astro:page:../../node_modules/astro/dist/assets/endpoint/generic@_@js":"chunks/generic_B8wXhvmb.mjs","\u0000virtual:astro:page:src/pages/index@_@astro":"chunks/index_B_1_NOG5.mjs","\u0000virtual:astro:page:src/pages/features/index@_@astro":"chunks/index_Cu1RNmqy.mjs","\u0000virtual:astro:page:src/pages/blog/index@_@astro":"chunks/index_Z5cP947O.mjs","\u0000virtual:astro:page:src/pages/pricing@_@astro":"chunks/pricing_C7mEyx0Z.mjs","C:/Users/saavi/OneDrive/Desktop/180workspace/node_modules/astro/dist/assets/services/sharp.js":"chunks/sharp_Zfpbisqe.mjs","\u0000virtual:astro:page:src/pages/sitemap.xml@_@ts":"chunks/sitemap_oNOayncU.mjs","@astrojs/react/client.js":"_astro/client.AzEC-ChI.js","astro:scripts/before-hydration.js":""},"inlinedScripts":[],"assets":["/favicon.ico","/favicon.svg","/_astro/client.AzEC-ChI.js","/_astro/Layout.B25N4vYr.css"],"buildFormat":"directory","checkOrigin":true,"actionBodySizeLimit":1048576,"serverIslandBodySizeLimit":1048576,"allowedDomains":[],"key":"Hu6QH8VsiNsbOwNXxJjR4KfmljiWVrO3sBW3imy8LI8=","image":{},"devToolbar":{"enabled":false,"debugInfoOutput":""},"logLevel":"info","shouldInjectCspMetaTags":false});
 var manifestRoutes = _manifest.routes;
 var manifest = Object.assign(_manifest, {
 	renderers,
@@ -729,7 +756,7 @@ function deserializeActionResult(res) {
 			"PUBLIC_SAAS_URL": "https://app.180workspace.com",
 			"SITE": void 0,
 			"SSR": true
-		}, { OS: "Windows_NT" })?.PROD) return {
+		}, {})?.PROD) return {
 			error: ActionError.fromJson(json),
 			data: void 0
 		};
@@ -782,250 +809,6 @@ function createCallAction(context) {
 		return baseAction.bind(context)(input);
 	};
 }
-/*!
-* cookie
-* Copyright(c) 2012-2014 Roman Shtylman
-* Copyright(c) 2015 Douglas Christopher Wilson
-* MIT Licensed
-*/
-//#endregion
-//#region cookie-mock.js
-var import_cookie = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin(((exports) => {
-	/**
-	* Module exports.
-	* @public
-	*/
-	exports.parse = parse;
-	exports.serialize = serialize;
-	/**
-	* Module variables.
-	* @private
-	*/
-	var __toString = Object.prototype.toString;
-	var __hasOwnProperty = Object.prototype.hasOwnProperty;
-	/**
-	* RegExp to match cookie-name in RFC 6265 sec 4.1.1
-	* This refers out to the obsoleted definition of token in RFC 2616 sec 2.2
-	* which has been replaced by the token definition in RFC 7230 appendix B.
-	*
-	* cookie-name       = token
-	* token             = 1*tchar
-	* tchar             = "!" / "#" / "$" / "%" / "&" / "'" /
-	*                     "*" / "+" / "-" / "." / "^" / "_" /
-	*                     "`" / "|" / "~" / DIGIT / ALPHA
-	*/
-	var cookieNameRegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
-	/**
-	* RegExp to match cookie-value in RFC 6265 sec 4.1.1
-	*
-	* cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
-	* cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
-	*                     ; US-ASCII characters excluding CTLs,
-	*                     ; whitespace DQUOTE, comma, semicolon,
-	*                     ; and backslash
-	*/
-	var cookieValueRegExp = /^("?)[\u0021\u0023-\u002B\u002D-\u003A\u003C-\u005B\u005D-\u007E]*\1$/;
-	/**
-	* RegExp to match domain-value in RFC 6265 sec 4.1.1
-	*
-	* domain-value      = <subdomain>
-	*                     ; defined in [RFC1034], Section 3.5, as
-	*                     ; enhanced by [RFC1123], Section 2.1
-	* <subdomain>       = <label> | <subdomain> "." <label>
-	* <label>           = <let-dig> [ [ <ldh-str> ] <let-dig> ]
-	*                     Labels must be 63 characters or less.
-	*                     'let-dig' not 'letter' in the first char, per RFC1123
-	* <ldh-str>         = <let-dig-hyp> | <let-dig-hyp> <ldh-str>
-	* <let-dig-hyp>     = <let-dig> | "-"
-	* <let-dig>         = <letter> | <digit>
-	* <letter>          = any one of the 52 alphabetic characters A through Z in
-	*                     upper case and a through z in lower case
-	* <digit>           = any one of the ten digits 0 through 9
-	*
-	* Keep support for leading dot: https://github.com/jshttp/cookie/issues/173
-	*
-	* > (Note that a leading %x2E ("."), if present, is ignored even though that
-	* character is not permitted, but a trailing %x2E ("."), if present, will
-	* cause the user agent to ignore the attribute.)
-	*/
-	var domainValueRegExp = /^([.]?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)([.][a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
-	/**
-	* RegExp to match path-value in RFC 6265 sec 4.1.1
-	*
-	* path-value        = <any CHAR except CTLs or ";">
-	* CHAR              = %x01-7F
-	*                     ; defined in RFC 5234 appendix B.1
-	*/
-	var pathValueRegExp = /^[\u0020-\u003A\u003D-\u007E]*$/;
-	/**
-	* Parse a cookie header.
-	*
-	* Parse the given cookie header string into an object
-	* The object has the various cookies as keys(names) => values
-	*
-	* @param {string} str
-	* @param {object} [opt]
-	* @return {object}
-	* @public
-	*/
-	function parse(str, opt) {
-		if (typeof str !== "string") throw new TypeError("argument str must be a string");
-		var obj = {};
-		var len = str.length;
-		if (len < 2) return obj;
-		var dec = opt && opt.decode || decode;
-		var index = 0;
-		var eqIdx = 0;
-		var endIdx = 0;
-		do {
-			eqIdx = str.indexOf("=", index);
-			if (eqIdx === -1) break;
-			endIdx = str.indexOf(";", index);
-			if (endIdx === -1) endIdx = len;
-			else if (eqIdx > endIdx) {
-				index = str.lastIndexOf(";", eqIdx - 1) + 1;
-				continue;
-			}
-			var keyStartIdx = startIndex(str, index, eqIdx);
-			var keyEndIdx = endIndex(str, eqIdx, keyStartIdx);
-			var key = str.slice(keyStartIdx, keyEndIdx);
-			if (!__hasOwnProperty.call(obj, key)) {
-				var valStartIdx = startIndex(str, eqIdx + 1, endIdx);
-				var valEndIdx = endIndex(str, endIdx, valStartIdx);
-				if (str.charCodeAt(valStartIdx) === 34 && str.charCodeAt(valEndIdx - 1) === 34) {
-					valStartIdx++;
-					valEndIdx--;
-				}
-				obj[key] = tryDecode(str.slice(valStartIdx, valEndIdx), dec);
-			}
-			index = endIdx + 1;
-		} while (index < len);
-		return obj;
-	}
-	function startIndex(str, index, max) {
-		do {
-			var code = str.charCodeAt(index);
-			if (code !== 32 && code !== 9) return index;
-		} while (++index < max);
-		return max;
-	}
-	function endIndex(str, index, min) {
-		while (index > min) {
-			var code = str.charCodeAt(--index);
-			if (code !== 32 && code !== 9) return index + 1;
-		}
-		return min;
-	}
-	/**
-	* Serialize data into a cookie header.
-	*
-	* Serialize a name value pair into a cookie string suitable for
-	* http headers. An optional options object specifies cookie parameters.
-	*
-	* serialize('foo', 'bar', { httpOnly: true })
-	*   => "foo=bar; httpOnly"
-	*
-	* @param {string} name
-	* @param {string} val
-	* @param {object} [opt]
-	* @return {string}
-	* @public
-	*/
-	function serialize(name, val, opt) {
-		var enc = opt && opt.encode || encodeURIComponent;
-		if (typeof enc !== "function") throw new TypeError("option encode is invalid");
-		if (!cookieNameRegExp.test(name)) throw new TypeError("argument name is invalid");
-		var value = enc(val);
-		if (!cookieValueRegExp.test(value)) throw new TypeError("argument val is invalid");
-		var str = name + "=" + value;
-		if (!opt) return str;
-		if (null != opt.maxAge) {
-			var maxAge = Math.floor(opt.maxAge);
-			if (!isFinite(maxAge)) throw new TypeError("option maxAge is invalid");
-			str += "; Max-Age=" + maxAge;
-		}
-		if (opt.domain) {
-			if (!domainValueRegExp.test(opt.domain)) throw new TypeError("option domain is invalid");
-			str += "; Domain=" + opt.domain;
-		}
-		if (opt.path) {
-			if (!pathValueRegExp.test(opt.path)) throw new TypeError("option path is invalid");
-			str += "; Path=" + opt.path;
-		}
-		if (opt.expires) {
-			var expires = opt.expires;
-			if (!isDate(expires) || isNaN(expires.valueOf())) throw new TypeError("option expires is invalid");
-			str += "; Expires=" + expires.toUTCString();
-		}
-		if (opt.httpOnly) str += "; HttpOnly";
-		if (opt.secure) str += "; Secure";
-		if (opt.partitioned) str += "; Partitioned";
-		if (opt.priority) switch (typeof opt.priority === "string" ? opt.priority.toLowerCase() : opt.priority) {
-			case "low":
-				str += "; Priority=Low";
-				break;
-			case "medium":
-				str += "; Priority=Medium";
-				break;
-			case "high":
-				str += "; Priority=High";
-				break;
-			default: throw new TypeError("option priority is invalid");
-		}
-		if (opt.sameSite) switch (typeof opt.sameSite === "string" ? opt.sameSite.toLowerCase() : opt.sameSite) {
-			case true:
-				str += "; SameSite=Strict";
-				break;
-			case "lax":
-				str += "; SameSite=Lax";
-				break;
-			case "strict":
-				str += "; SameSite=Strict";
-				break;
-			case "none":
-				str += "; SameSite=None";
-				break;
-			default: throw new TypeError("option sameSite is invalid");
-		}
-		return str;
-	}
-	/**
-	* URL-decode string value. Optimized to skip native call when no %.
-	*
-	* @param {string} str
-	* @returns {string}
-	*/
-	function decode(str) {
-		return str.indexOf("%") !== -1 ? decodeURIComponent(str) : str;
-	}
-	/**
-	* Determine if value is a Date.
-	*
-	* @param {*} val
-	* @private
-	*/
-	function isDate(val) {
-		return __toString.call(val) === "[object Date]";
-	}
-	/**
-	* Try decoding a string using a decoding function.
-	*
-	* @param {string} str
-	* @param {function} decode
-	* @private
-	*/
-	function tryDecode(str, decode) {
-		try {
-			return decode(str);
-		} catch (e) {
-			return str;
-		}
-	}
-})))(), 1);
-var parseCookie = import_cookie.parse || import_cookie.parseCookie || import_cookie.default && import_cookie.default.parse;
-var stringifySetCookie = import_cookie.serialize || import_cookie.stringifySetCookie || import_cookie.default && import_cookie.default.serialize;
-import_cookie.parse || import_cookie.default && import_cookie.default.parse;
-import_cookie.serialize || import_cookie.default && import_cookie.default.serialize;
 //#endregion
 //#region ../../node_modules/astro/dist/core/cookies/cookies.js
 var DELETED_EXPIRATION = /* @__PURE__ */ new Date(0);
@@ -4539,7 +4322,7 @@ function serializeActionResult(res) {
 			"PUBLIC_SAAS_URL": "https://app.180workspace.com",
 			"SITE": void 0,
 			"SSR": true
-		}, { OS: "Windows_NT" })?.DEV) actionResultErrorStack.set(res.error.stack);
+		}, {})?.DEV) actionResultErrorStack.set(res.error.stack);
 		let body2;
 		if (res.error instanceof ActionInputError) body2 = {
 			type: res.error.type,
@@ -5378,7 +5161,7 @@ var entrypoint_default = { async fetch(request) {
 	const hasValidMiddlewareSecret = request.headers.get(ASTRO_MIDDLEWARE_SECRET_HEADER) === middlewareSecret;
 	let realPath = void 0;
 	if (hasValidMiddlewareSecret) realPath = request.headers.get(ASTRO_PATH_HEADER);
-	else if (url.searchParams.get("x_astro_path_token") === "d2bc4862-6d0b-412d-8bf6-0b71227a4857") realPath = url.searchParams.get(ASTRO_PATH_PARAM);
+	else if (url.searchParams.get("x_astro_path_token") === "929a66f1-e94d-49bf-b6e3-3af92e3d2425") realPath = url.searchParams.get(ASTRO_PATH_PARAM);
 	if (typeof realPath === "string") {
 		const target = new URL(realPath, url);
 		const search = target.search || url.search;

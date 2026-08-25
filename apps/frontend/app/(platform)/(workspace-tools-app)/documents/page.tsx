@@ -18,6 +18,7 @@ import DocumentAIChatDrawer from '@/app/(platform)/(workspace-tools-app)/_compon
 import FileUploadModal from '@/components/shared/FileUploadModal';
 import QuoteModal from '@/app/(platform)/(workspace-tools-app)/_components/QuoteModal';
 import EmailQuoteModal from '@/app/(platform)/(workspace-tools-app)/_components/EmailQuoteModal';
+import DigitalSignatureModal from '@/app/(platform)/(workspace-tools-app)/_components/DigitalSignatureModal';
 
 interface Document { id?: string;
     _id?: string;
@@ -181,6 +182,7 @@ export default function DocumentsPage() {
     const [editingQuote, setEditingQuote] = useState<any | null>(null);
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [selectedEmailQuote, setSelectedEmailQuote] = useState<any | null>(null);
+    const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [storageStats, setStorageStats] = useState<{ used: number, total: number, usagePercent: number } | null>(null);
     const { user } = useAuth();
     const router = useRouter();
@@ -191,7 +193,7 @@ export default function DocumentsPage() {
     function loadDocs() {
         setLoading(true);
         Promise.all([
-            api.get('/api/files', { params: { search } }),
+            api.get('/api/v1/workspace-tools/documents', { params: { search } }),
             api.get('/api/sales/quotes', { params: { search } }).catch(() => ({ data: { quotes: [] } })),
             api.get('/api/invoices', { params: { search } }).catch(() => ({ data: { invoices: [] } }))
         ]).then(([filesRes, quotesRes, invoicesRes]) => {
@@ -241,7 +243,7 @@ export default function DocumentsPage() {
                 await api.delete(`/api/invoices/${doc.id || doc._id}`);
                 toast.success('Invoice deleted');
             } else {
-                await api.delete(`/api/files/${doc.id}`);
+                await api.delete(`/api/v1/workspace-tools/documents/${doc.id}`);
                 toast.success('Document deleted');
             }
             setDocs(prev => prev.filter(d => (d.id || d._id) !== (doc.id || doc._id)));
@@ -331,6 +333,10 @@ export default function DocumentsPage() {
                     quote={selectedEmailQuote}
                 />
             )}
+            <DigitalSignatureModal 
+                isOpen={showSignatureModal}
+                onClose={() => setShowSignatureModal(false)}
+            />
 
             {/* Page Header */}
             <div className="page-header">
@@ -349,6 +355,9 @@ export default function DocumentsPage() {
                         </button>
                         <button onClick={() => { setEditingQuote(null); setShowQuoteModal(true); }} className="btn-secondary">
                             <Plus className="w-4 h-4" /> New Quote
+                        </button>
+                        <button onClick={() => setShowSignatureModal(true)} className="btn-secondary">
+                            <Plus className="w-4 h-4" /> Add Digital Signature
                         </button>
                         <button onClick={() => setShowTemplates(true)} className="btn-primary shadow-md shadow-indigo-600/20">
                             <Plus className="w-4 h-4" /> New Document

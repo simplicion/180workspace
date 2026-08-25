@@ -7,20 +7,21 @@ export const addService = async (req: Request, res: Response, next: NextFunction
         const companyId = (req as any).user?.companyId;
         if (!companyId) return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
 
-        const { name, description, startingPrice, icon } = req.body;
-        if (!name) return res.status(400).json({ success: false, message: 'Service name is required.' });
+        const { name, description, startingPrice, icon, link } = req.body;
+        if (!name) return res.status(400).json({ success: false, message: 'Offering name is required.' });
 
-        const service = await (req as any).prisma.companyService.create({
+        const offering = await (req as any).prisma.companyOffering.create({
             data: {
                 companyId,
                 name,
                 description,
                 startingPrice,
-                icon
+                icon,
+                link
             }
         });
 
-        res.json({ success: true, data: service });
+        res.json({ success: true, data: offering });
     } catch (error: any) {
   next(error);
 }
@@ -29,16 +30,16 @@ export const addService = async (req: Request, res: Response, next: NextFunction
 export const updateService = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const companyId = (req as any).user?.companyId;
-        const serviceId = req.params.id;
+        const offeringId = req.params.id;
 
-        const { name, description, startingPrice, icon } = req.body;
+        const { name, description, startingPrice, icon, link } = req.body;
 
-        const service = await (req as any).prisma.companyService.update({
-            where: { id: serviceId, companyId },
-            data: { name, description, startingPrice, icon }
+        const offering = await (req as any).prisma.companyOffering.update({
+            where: { id: offeringId, companyId },
+            data: { name, description, startingPrice, icon, link }
         });
 
-        res.json({ success: true, data: service });
+        res.json({ success: true, data: offering });
     } catch (error) {
   next(error);
 }
@@ -47,13 +48,13 @@ export const updateService = async (req: Request, res: Response, next: NextFunct
 export const deleteService = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const companyId = (req as any).user?.companyId;
-        const serviceId = req.params.id;
+        const offeringId = req.params.id;
 
-        await (req as any).prisma.companyService.delete({
-            where: { id: serviceId, companyId }
+        await (req as any).prisma.companyOffering.delete({
+            where: { id: offeringId, companyId }
         });
 
-        res.json({ success: true, message: 'Service deleted.' });
+        res.json({ success: true, message: 'Offering deleted.' });
     } catch (error) {
   next(error);
 }
@@ -63,12 +64,12 @@ export const getServices = async (req: Request, res: Response, next: NextFunctio
     try {
         const companyId = req.params.companyId || (req as any).user?.companyId;
 
-        const services = await (req as any).prisma.companyService.findMany({
+        const offerings = await (req as any).prisma.companyOffering.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' }
         });
 
-        res.json({ success: true, data: services });
+        res.json({ success: true, data: offerings });
     } catch (error) {
   next(error);
 }
@@ -77,15 +78,15 @@ export const getServices = async (req: Request, res: Response, next: NextFunctio
 // LEAD GENERATION (REQUEST SERVICE)
 export const submitServiceRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { serviceId, companyId, requesterName, requesterEmail, requesterCompanyName, companySize, requirements, budgetRange, timeline } = req.body;
+        const { offeringId, companyId, requesterName, requesterEmail, requesterCompanyName, companySize, requirements, budgetRange, timeline } = req.body;
 
-        if (!serviceId || !companyId || !requesterName || !requesterEmail || !requirements) {
+        if (!offeringId || !companyId || !requesterName || !requesterEmail || !requirements) {
             return res.status(400).json({ success: false, message: 'Missing required fields.' });
         }
 
         const request = await (req as any).prisma.serviceRequest.create({
             data: {
-                serviceId,
+                offeringId,
                 companyId,
                 requesterName,
                 requesterEmail,
@@ -103,15 +104,15 @@ export const submitServiceRequest = async (req: Request, res: Response, next: Ne
             select: { adminEmail: true, name: true }
         });
 
-        const service = await (req as any).prisma.companyService.findUnique({
-            where: { id: serviceId }
+        const offering = await (req as any).prisma.companyOffering.findUnique({
+            where: { id: offeringId }
         });
 
         if (company && company.adminEmail) {
             try {
-                await sendEmail(company.adminEmail, 'New Service Request - 180workspace', `
-                    <h3>New Service Request Received!</h3>
-                    <p>You have a new request for the service: <strong>${service ? service.name : 'Unknown'}</strong>.</p>
+                await sendEmail(company.adminEmail, 'New Offering Request - 180workspace', `
+                    <h3>New Offering Request Received!</h3>
+                    <p>You have a new request for the offering: <strong>${offering ? offering.name : 'Unknown'}</strong>.</p>
                     <p><strong>From:</strong> ${requesterName} (${requesterEmail})</p>
                     <p><strong>Company:</strong> ${requesterCompanyName || 'N/A'}</p>
                     <p><strong>Requirements:</strong> ${requirements}</p>
@@ -138,7 +139,7 @@ export const getServiceRequests = async (req: Request, res: Response, next: Next
         const requests = await (req as any).prisma.serviceRequest.findMany({
             where: { companyId },
             include: {
-                service: true
+                offering: true
             },
             orderBy: { createdAt: 'desc' }
         });

@@ -3,6 +3,8 @@ import { useDispatch } from 'react-redux';
 import { updateBlock, Block } from '../../../../../../redux/slices/documentSlice';
 import { PenTool } from 'lucide-react';
 import { SignaturePad } from '../ui/SignaturePad';
+import { useAuth } from '@/lib/auth-context';
+import VerifyPasswordModal from '@/components/shared/VerifyPasswordModal';
 
 interface SignatureBlockProps {
   block: Block;
@@ -11,6 +13,8 @@ interface SignatureBlockProps {
 
 export function SignatureBlock({ block, isSelected }: SignatureBlockProps) {
   const dispatch = useDispatch();
+  const { user } = useAuth();
+  const [showVerifyModal, setShowVerifyModal] = React.useState(false);
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(updateBlock({
@@ -41,6 +45,18 @@ export function SignatureBlock({ block, isSelected }: SignatureBlockProps) {
 
   return (
     <div className="w-full flex flex-col gap-4 max-w-sm">
+      <VerifyPasswordModal 
+          isOpen={showVerifyModal} 
+          onClose={() => setShowVerifyModal(false)} 
+          onSuccess={() => {
+              if (user?.signatureImage) {
+                  handleSignatureSave(user.signatureImage);
+              }
+          }}
+          title="Verify Signature Application"
+          description="Please enter your password to authorize applying your saved digital signature."
+          buttonText="Apply Signature"
+      />
       {isSelected && (
         <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-2">
           <div className="mb-3">
@@ -64,7 +80,17 @@ export function SignatureBlock({ block, isSelected }: SignatureBlockProps) {
           </div>
           
           <div className="mt-4 pt-4 border-t border-gray-200">
-             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Pre-Sign Document (Optional)</label>
+             <div className="flex items-center justify-between mb-2">
+                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Pre-Sign Document (Optional)</label>
+                 {user?.signatureImage && (
+                     <button 
+                         onClick={() => setShowVerifyModal(true)}
+                         className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100 transition-colors font-medium"
+                     >
+                         Apply Saved Signature
+                     </button>
+                 )}
+             </div>
              <SignaturePad onSave={handleSignatureSave} onClear={() => handleSignatureSave('')} initialValue={block.content?.signatureImage} />
           </div>
         </div>

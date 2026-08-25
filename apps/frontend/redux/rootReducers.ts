@@ -7,12 +7,15 @@ import { baseApi } from "./api/baseApi";
 
 import mediaUploadReducer from "./slices/mediaUploadSlice";
 
+import uploadQueueReducer from "./slices/uploadQueueSlice";
+
 const rootReducer = combineReducers({
   theme: themeReducer,
   auth: authReducer,
   ui: uiReducer,
   document: documentReducer,
   mediaUpload: mediaUploadReducer,
+  uploadQueue: uploadQueueReducer,
   [baseApi.reducerPath]: baseApi.reducer,
 });
 

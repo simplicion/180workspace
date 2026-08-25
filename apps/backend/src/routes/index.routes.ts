@@ -60,7 +60,6 @@ router.use((req, res, next) => {
         '/insights': '/v1/workspace-tools/ai-assistant/insights',
         '/weekly-trends': '/v1/hr-management/hrms/weekly-trends',
         '/dashboard': '/v1/hr-management/hrms/dashboard',
-        '/projects': '/v1/projects-and-tasks/projects',
         '/calendar': '/v1/workspace-tools/calendar',
         '/leaves': '/v1/hr-management/leaves',
         '/goals': '/v1/hr-management/hrms/goals',
@@ -70,23 +69,29 @@ router.use((req, res, next) => {
         '/files/upload': '/v1/workspace-tools/storage/upload',
         '/files/upload-video': '/v1/workspace-tools/storage/upload-video',
         '/files/upload-voice': '/v1/workspace-tools/storage/upload-voice',
-        '/invoices': '/v1/finance/invoices',
-        '/work-logs': '/v1/projects-and-tasks/work-logs',
-        '/activity': '/v1/projects-and-tasks/activity'
+        '/invoices': '/v1/finance/invoices'
     };
 
     if (rewrites[path]) {
         req.url = req.url.replace(path, rewrites[path]);
-    } else if (path.startsWith('/projects/')) {
+    } else if (path.startsWith('/files/')) {
+        req.url = req.url.replace('/files', '/v1/workspace-tools/documents/files');
+    } else if (path.startsWith('/projects/') || path === '/projects') {
         req.url = req.url.replace('/projects', '/v1/projects-and-tasks/projects');
     } else if (path.startsWith('/expenses/')) {
         req.url = req.url.replace('/expenses', '/v1/finance/expenses');
-    } else if (path.startsWith('/milestones/')) {
+    } else if (path.startsWith('/milestones/') || path === '/milestones') {
         req.url = req.url.replace('/milestones', '/v1/projects-and-tasks/milestones');
-    } else if (path.startsWith('/modules/')) {
+    } else if (path.startsWith('/modules/') || path === '/modules') {
         req.url = req.url.replace('/modules', '/v1/projects-and-tasks/modules');
-    } else if (path.startsWith('/tasks/')) {
+    } else if (path.startsWith('/tasks/') || path === '/tasks') {
         req.url = req.url.replace('/tasks', '/v1/projects-and-tasks/tasks');
+    } else if (path.startsWith('/timelogs/') || path === '/timelogs') {
+        req.url = req.url.replace('/timelogs', '/v1/projects-and-tasks/timelogs');
+    } else if (path.startsWith('/work-logs/') || path === '/work-logs') {
+        req.url = req.url.replace('/work-logs', '/v1/projects-and-tasks/work-logs');
+    } else if (path.startsWith('/activity/') || path === '/activity') {
+        req.url = req.url.replace('/activity', '/v1/projects-and-tasks/activity');
     } else if (path.startsWith('/user-preferences/')) {
         req.url = req.url.replace('/user-preferences', '/v1/identity/preferences');
     } else if (path.startsWith('/users/') || path === '/users') {

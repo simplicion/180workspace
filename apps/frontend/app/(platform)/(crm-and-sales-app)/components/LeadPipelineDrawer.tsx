@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, DollarSign, Calendar, Briefcase, ChevronDown, CheckCircle, Info } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -35,8 +35,9 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
 
     const countryOptions = React.useMemo(() => {
         return Country.getAllCountries().map(c => ({
-            label: `${c.flag} +${c.phonecode} (${c.isoCode})`,
-            value: `+${c.phonecode}`
+            label: `${c.flag} ${c.name} (+${c.phonecode})`,
+            value: `+${c.phonecode}`,
+            displayLabel: `${c.flag} +${c.phonecode}`
         }));
     }, []);
 
@@ -221,9 +222,14 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         return converted;
     };
 
-    const phoneParts = (formData.contactPhone || '').split(' ');
-    const currentCode = (phoneParts.length > 1 && phoneParts[0].startsWith('+')) ? phoneParts[0] : '+1';
-    const currentNum = (phoneParts.length > 1 && phoneParts[0].startsWith('+')) ? phoneParts.slice(1).join(' ') : (formData.contactPhone || '');
+    const phoneParts = (formData.contactPhone || '').trim().split(' ');
+    let currentCode = '+1';
+    let currentNum = formData.contactPhone || '';
+
+    if (phoneParts.length > 0 && phoneParts[0].startsWith('+')) {
+        currentCode = phoneParts[0];
+        currentNum = phoneParts.slice(1).join(' ');
+    }
     
     const handlePhoneCodeChange = (e: any) => {
         setFormData({ ...formData, contactPhone: `${e.target.value} ${currentNum}`.trim() });
@@ -375,7 +381,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         className="select" 
                         value={formData.owner} 
                         onChange={(e: any) => setFormData({ ...formData, owner: e.target.value })}
-                        options={[{ label: 'Unassigned', value: '' }, ...(users || []).map((u: any) => ({ label: `${u.firstName} ${u.lastName}`, value: u.id }))]}
+                        options={[{ label: 'Unassigned', value: '' }, ...(users || []).map((u: any) => ({ label: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown User', value: u.id }))]}
                     />
                 </div>
             </div>

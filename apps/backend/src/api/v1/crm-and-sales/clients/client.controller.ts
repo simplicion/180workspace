@@ -5,7 +5,7 @@ import { triggerN8nWebhook } from '../../integrations/webhooks/webhook.routes';
 import { cacheDel } from '../../../../system-configs/middleware/system/cache';
 import { sendWelcomeEmail } from '@workspace/communications';
 
-const clearCRMCache = async (companyId: string, res: Response) => {
+const clearCRMCache = async (companyId: string) => {
   try {
 
     if (!companyId) return;
@@ -14,7 +14,7 @@ const clearCRMCache = async (companyId: string, res: Response) => {
     await cacheDel(`company:${companyId}:productivity`);
 
   } catch (error) {
-    next(error);
+    console.error('Failed to clear CRM cache for company:', companyId, error);
   }
 };
 

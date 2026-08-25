@@ -5,10 +5,11 @@ import { motion } from 'framer-motion';
 import { CreditCard, Zap, Shield, ArrowRight, Package, Clock, History, AlertCircle, Database, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, ConfirmModal } from "@workspace/ui";
 import { SubscriptionPlan } from '@/components/shared/SubscriptionPlan';
 import { UsageProgressBar } from '@/components/ui/UsageProgressBar';
 import toast from 'react-hot-toast';
+import { APPS_CONFIG } from '@/lib/module-map';
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -21,6 +22,8 @@ export default function PlatformBillingPage() {
     const [storageQty, setStorageQty] = useState(1);
     const [teamQty, setTeamQty] = useState(1);
     const [appQty, setAppQty] = useState(1);
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -65,6 +68,21 @@ export default function PlatformBillingPage() {
         }
     }, []);
 
+    const handleCancelSubscription = async () => {
+        try {
+            setCancelling(true);
+            await api.post('/api/v1/platform-billing/plan/cancel');
+            toast.success('Subscription cancelled successfully');
+            setIsCancelModalOpen(false);
+            // Refresh data
+            window.location.reload();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to cancel subscription');
+        } finally {
+            setCancelling(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex h-64 items-center justify-center">
@@ -104,7 +122,7 @@ export default function PlatformBillingPage() {
     };
 
     const planPrice = currentSubscription?.plan?.price || 0;
-    const planCurrency = currentSubscription?.plan?.currency || 'USD';
+    const planCurrency = currencyInfo.code || currentSubscription?.plan?.currency || 'USD';
     const formattedPrice = planPrice > 0 
         ? new Intl.NumberFormat('en-US', { style: 'currency', currency: planCurrency, maximumFractionDigits: 2 }).format(planPrice) 
         : 'Free';
@@ -170,7 +188,7 @@ export default function PlatformBillingPage() {
                                 label="Apps Count"
                                 current={appsCount}
                                 max={maxApps}
-                                formattedMax={formatLimit(maxApps)}
+                                formattedMax={formatLimit(maxApps) === 'Unlimited' ? APPS_CONFIG.length.toString() : formatLimit(maxApps)}
                             />
                         </div>
                         <div>
@@ -226,28 +244,68 @@ export default function PlatformBillingPage() {
             <div className="mt-12">
                 <h2 className="text-xl font-bold tracking-tight text-gray-900 mb-6">Available Plans</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {plans.map(plan => (
-                        <SubscriptionPlan
-                            key={plan.id}
-                            id={plan.id}
-                            name={plan.planName}
-                            description={`Best for ${plan.planName.toLowerCase()} teams`}
-                            price={plan.price}
-                            currencySymbol={currencyInfo.symbol}
-                            features={plan.features || []}
-                            isPopular={plan.price === 12 || plan.price === 15 || plan.planName.toLowerCase().includes('momentum')}
-                            badgeText={plan.price === 12 ? "Clever People Plan" : plan.price === 15 ? "Most Secret Plan" : undefined}
-                            theme={plan.price === 15 ? "violet" : "indigo"}
-                            isSelected={currentSubscription?.planId === plan.id}
-                            onSelect={async () => {
-                                if (currentSubscription?.planId === plan.id) return;
-                                router.push(`/settings/platform-billing/checkout?planId=${plan.id}`);
-                            }}
-                            buttonText={currentSubscription?.planId === plan.id ? 'Current Active Plan' : 'Upgrade'}
-                        />
-                    ))}
+                    {plans.map(plan => {
+                        const isActive = currentSubscription?.planId === plan.id;
+                        const isPaidPlan = plan.price > 0;
+                        const hasActivePaidPlan = currentSubscription?.plan?.price > 0;
+                        
+                        let buttonText = 'Upgrade';
+                        let buttonVariant: 'primary' | 'danger' | 'disabled' = 'primary';
+                        
+                        if (isActive) {
+                            if (isPaidPlan) {
+                                buttonText = 'Cancel Subscription';
+                                buttonVariant = 'danger';
+                            } else {
+                                buttonText = 'Current Active Plan';
+                                buttonVariant = 'disabled';
+                            }
+                        } else if (hasActivePaidPlan) {
+                            // If they have an active paid plan, don't allow upgrade/downgrade to other plans directly
+                            // They must cancel first to revert to the free plan.
+                            buttonVariant = 'disabled';
+                        }
+                        
+                        return (
+                            <SubscriptionPlan
+                                key={plan.id}
+                                id={plan.id}
+                                name={plan.planName}
+                                description={`Best for ${plan.planName.toLowerCase()} teams`}
+                                price={plan.price}
+                                currencySymbol={currencyInfo.symbol}
+                                features={plan.features || []}
+                                isPopular={plan.price === 12 || plan.price === 15 || plan.planName.toLowerCase().includes('momentum')}
+                                badgeText={plan.price === 12 ? "Clever People Plan" : plan.price === 15 ? "Most Secret Plan" : undefined}
+                                theme={plan.price === 15 ? "violet" : "indigo"}
+                                isSelected={isActive}
+                                buttonText={buttonText}
+                                buttonVariant={buttonVariant}
+                                onSelect={async () => {
+                                    if (buttonVariant === 'disabled') return;
+                                    if (buttonVariant === 'danger') {
+                                        setIsCancelModalOpen(true);
+                                        return;
+                                    }
+                                    router.push(`/settings/platform-billing/checkout?planId=${plan.id}`);
+                                }}
+                            />
+                        );
+                    })}
                 </div>
             </div>
+
+            <ConfirmModal 
+                isOpen={isCancelModalOpen}
+                title="Cancel Subscription?"
+                message="Are you sure you want to cancel your subscription?&#10;&#10;• Your previous payments will not be refunded.&#10;• Your auto-pay will be automatically disabled.&#10;• You will lose access to premium apps and revert to the free Kickstart plan."
+                confirmText="Cancel Subscription"
+                cancelText="Keep Subscription"
+                variant="danger"
+                loading={cancelling}
+                onConfirm={handleCancelSubscription}
+                onCancel={() => setIsCancelModalOpen(false)}
+            />
         </div>
     );
 }

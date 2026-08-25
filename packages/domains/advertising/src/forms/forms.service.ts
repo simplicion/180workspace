@@ -289,7 +289,7 @@ export class FormsService {
         }
 
         // Create a Lead for this submission
-        const lead = await prisma.lead.create({
+        const lead = await prisma.deal.create({
           data: {
             title: `New Inquiry from ${form.title}`,
             source: leadData.source,

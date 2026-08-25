@@ -2,7 +2,7 @@ import express from 'express';
 import { protect } from '../../../system-configs/middleware/auth/auth';
 import * as apikeyController from './apikey.controller';
 import * as googleOauthController from './google-oauth.controller';
-import * as servicesController from './services.controller';
+import * as offeringsController from './offerings.controller';
 import webhookRoutes from './webhooks/webhook.routes';
 
 const router = express.Router();
@@ -28,20 +28,20 @@ googleRouter.post('/disconnect', protect, googleOauthController.disconnect);
 
 router.use('/google', googleRouter);
 
-// ─── SERVICES ROUTES ─────────────────────────────────────────────────────────
-const servicesRouter = express.Router();
+// ─── OFFERINGS ROUTES ─────────────────────────────────────────────────────────
+const offeringsRouter = express.Router();
 // Public routes
-servicesRouter.post('/request', servicesController.submitServiceRequest);
-servicesRouter.get('/company/:companyId', servicesController.getServices);
+offeringsRouter.post('/request', offeringsController.submitServiceRequest);
+offeringsRouter.get('/company/:companyId', offeringsController.getServices);
 
 // Protected routes (Requires authentication)
-servicesRouter.post('/', protect, servicesController.addService);
-servicesRouter.put('/:id', protect, servicesController.updateService);
-servicesRouter.delete('/:id', protect, servicesController.deleteService);
-servicesRouter.get('/requests', protect, servicesController.getServiceRequests);
-servicesRouter.put('/requests/:id', protect, servicesController.updateServiceRequestStatus);
+offeringsRouter.post('/', protect, offeringsController.addService);
+offeringsRouter.put('/:id', protect, offeringsController.updateService);
+offeringsRouter.delete('/:id', protect, offeringsController.deleteService);
+offeringsRouter.get('/requests', protect, offeringsController.getServiceRequests);
+offeringsRouter.put('/requests/:id', protect, offeringsController.updateServiceRequestStatus);
 
-router.use('/services', servicesRouter);
+router.use('/services', offeringsRouter);
 
 // ─── WEBHOOK ROUTES ──────────────────────────────────────────────────────────
 router.use('/webhooks', webhookRoutes);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -45,6 +45,7 @@ import SubscriptionExpiredWall from '@/components/shared/SubscriptionExpiredWall
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { MODULE_MAP, APP_DEPENDENCIES } from '@/lib/module-map';
+import UploadQueueManager from '@/components/shared/UploadQueueManager';
 
 
 // navigation moved to ../../lib/navigation.ts
@@ -646,32 +647,43 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 
                     const Icon = item.icon;
                     const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+                    const is180View = item.name === '180 View';
+
                     return (
-                        <Link key={item.name} href={item.href || '#'} prefetch={true} onClick={handleLinkClick}
-                            className={clsx(
-                                'flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold transition-all group border border-transparent',
-                                isActive
-                                    ? 'bg-indigo-600/90 backdrop-blur-md text-white shadow-md shadow-indigo-200 border-indigo-500/50'
-                                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50 hover:backdrop-blur-sm hover:border-gray-200/50',
-                                !isExpanded && 'justify-center'
-                            )}
-                            title={!isExpanded ? item.name : undefined}
-                        >
-                            <div className={clsx(
-                                "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
-                                isActive ? "bg-white/20 text-white" : "bg-gray-50 text-gray-400 group-hover:bg-gray-100 group-hover:text-gray-600"
-                            )}>
-                                {item.name === '180 View' ? (
-                                    <div className="flex flex-col items-center justify-center -space-y-[1px]">
-                                        <Eye className="w-3.5 h-3.5" />
-                                        <span className="text-[8px] font-black tracking-tight leading-none">180</span>
-                                    </div>
-                                ) : (
-                                    Icon ? <Icon className="w-4 h-4" /> : <div className="w-4 h-4 bg-gray-200 rounded-full" />
+                        <React.Fragment key={item.name}>
+                            {/* Blue highlight divider for 180 View removed */}
+                            <Link href={item.href || '#'} prefetch={true} onClick={handleLinkClick}
+                                className={clsx(
+                                    'flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold transition-all group border',
+                                    isActive
+                                        ? 'bg-indigo-600/90 backdrop-blur-md text-white shadow-md shadow-indigo-200 border-indigo-500/50'
+                                        : is180View
+                                            ? 'text-blue-700 bg-blue-50/70 border-blue-200/60 hover:bg-blue-100/80 hover:border-blue-300/70 hover:shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50 hover:backdrop-blur-sm border-transparent hover:border-gray-200/50',
+                                    !isExpanded && 'justify-center'
                                 )}
-                            </div>
-                            {isExpanded && <span className="whitespace-nowrap">{item.name}</span>}
-                        </Link>
+                                title={!isExpanded ? item.name : undefined}
+                            >
+                                <div className={clsx(
+                                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
+                                    isActive
+                                        ? "bg-white/20 text-white"
+                                        : is180View
+                                            ? "bg-blue-100 text-blue-600 group-hover:bg-blue-200 group-hover:text-blue-700"
+                                            : "bg-gray-50 text-gray-400 group-hover:bg-gray-100 group-hover:text-gray-600"
+                                )}>
+                                    {is180View ? (
+                                        <div className="flex flex-col items-center justify-center -space-y-[1px]">
+                                            <Eye className="w-3.5 h-3.5" />
+                                            <span className="text-[8px] font-black tracking-tight leading-none">180</span>
+                                        </div>
+                                    ) : (
+                                        Icon ? <Icon className="w-4 h-4" /> : <div className="w-4 h-4 bg-gray-200 rounded-full" />
+                                    )}
+                                </div>
+                                {isExpanded && <span className="whitespace-nowrap">{item.name}</span>}
+                            </Link>
+                        </React.Fragment>
                     );
                 })}
             </nav>
@@ -958,6 +970,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><LogoLoader className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
                 <DashboardInner>{children}</DashboardInner>
             </Suspense>
+            <UploadQueueManager />
         </MeetingProvider>
     );
 }

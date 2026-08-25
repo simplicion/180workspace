@@ -3,7 +3,7 @@
 import { LogoLoader } from "@workspace/ui";
 // Force recompile to bust Next.js cache - updated
 import React, { useState, useEffect } from 'react';
-import { Building, MapPin, Globe, Calendar, Users, DollarSign, TrendingUp, Trophy, ArrowRight, CheckCircle2, ChevronDown, Clock, Eye, Mail, Phone, Target, Briefcase, FileText, Map, Activity, MonitorSmartphone, Code, Cpu, BarChart } from 'lucide-react';
+import { Building, MapPin, Globe, Calendar, Users, DollarSign, TrendingUp, Trophy, ArrowRight, CheckCircle2, ChevronDown, Clock, Eye, Mail, Phone, Target, Briefcase, FileText, Map, Activity, MonitorSmartphone, Code, Cpu, BarChart, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
@@ -13,11 +13,8 @@ import { useGetFollowStatusQuery, useFollowCompanyMutation, useUnfollowCompanyMu
 import { OverviewTab } from './OverviewTab';
 import { CompanyHeaderEditModal } from './CompanyHeaderEditModal';
 import { AboutTab } from './AboutTab';
-import { TeamTab } from './TeamTab';
-import { ServicesTab } from './ServicesTab';
-import { ProductsTab } from './ProductsTab';
+import { OfferingsTab } from './OfferingsTab';
 import { JobsTab } from './JobsTab';
-import { FinanceTab } from './FinanceTab';
 
 interface CompanyProfileUIProps {
     companyData: any;
@@ -53,9 +50,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
     const currentTeamSize = parseInt(teamSize.split('-')[1] || teamSize.split('-')[0] || '10');
     const teamGrowthRate = currentTeamSize > 50 ? '+15%' : (currentTeamSize > 10 ? '+24%' : '+12%');
     
-    const financials = company.calculatedFinancials || {
-        businessStatus: 'Not Profitable',
-    };
+
 
     const router = useRouter();
     const pathname = usePathname();
@@ -140,11 +135,8 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
     const mainTabs = [
         'Overview',
         'About',
-        'Team',
-        'Services',
-        'Products',
-        'Jobs',
-        'Finance and Funding'
+        'Offerings',
+        'Jobs'
     ];
 
     return (
@@ -188,6 +180,21 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                     <Eye className="h-4 w-4 mr-2 text-indigo-600" />
                                     {meta.profileViews || '0'} Profile Views
                                 </div>
+                                {!isPublicView && company.slug && (
+                                    <a 
+                                        href={(() => {
+                                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '180workspace.com';
+                                            const protocol = (typeof window !== 'undefined' && window.location.protocol === 'https:') || (rootDomain !== 'localhost' && !rootDomain.includes('127.0.0.1')) ? 'https://' : 'http://';
+                                            const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
+                                            return `${protocol}${company.slug}.${rootDomain}${port}`;
+                                        })()}
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs md:text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors shadow-sm"
+                                    >
+                                        <ExternalLink className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" /> View Public Profile
+                                    </a>
+                                )}
                                 {!isPublicView && (
                                     <button onClick={() => setIsHeaderEditModalOpen(true)} className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-white border border-gray-300 text-gray-700 text-xs md:text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
                                         Edit Profile
@@ -249,10 +256,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                         <span className="font-bold text-gray-900 mr-1.5">92/100</span>
                                         <span className="text-[10px] md:text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full font-medium">Top 5% Companies</span>
                                     </div>
-                                    <div className="flex items-center">
-                                        <Activity className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-orange-500" /> <span className="text-gray-600 font-medium mr-1">Business Status:</span> 
-                                        <span className={`font-bold ${financials.businessStatus === 'Profitable' ? 'text-indigo-700' : 'text-orange-600'}`}>{financials.businessStatus}</span>
-                                    </div>
+
                                 </div>
                             </div>
 
@@ -276,11 +280,8 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                 {/* Tab Content Rendering */}
                 {activeMainTab === 'Overview' && <OverviewTab company={company} isPublicView={isPublicView} onProfileUpdate={onProfileUpdate} />}
                 {activeMainTab === 'About' && <AboutTab company={company} isPublicView={isPublicView} onProfileUpdate={onProfileUpdate} />}
-                {activeMainTab === 'Team' && <TeamTab company={company} />}
-                {activeMainTab === 'Services' && <ServicesTab company={company} />}
-                {activeMainTab === 'Products' && <ProductsTab company={company} />}
+                {activeMainTab === 'Offerings' && <OfferingsTab company={company} />}
                 {activeMainTab === 'Jobs' && <JobsTab company={company} />}
-                {activeMainTab === 'Finance and Funding' && <FinanceTab company={company} isPublicView={isPublicView} onProfileUpdate={onProfileUpdate} />}
 
                 <CompanyHeaderEditModal 
                     company={company} 

@@ -9,9 +9,9 @@ export class SalesRuleEngineService {
      * Triggered when a new lead is created
      */
     static async onLeadCreated(leadId) {
-        if (!prisma.lead || !prisma.salesTask) return;
+        if (!prisma.deal || !prisma.salesTask) return;
 
-        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        const lead = await prisma.deal.findUnique({ where: { id: leadId } });
         if (!lead || !lead.assignedSalesRep) return;
 
         // Rule 0: Auto-create a call task for new assigned leads
@@ -31,9 +31,9 @@ export class SalesRuleEngineService {
      * Triggered when an opportunity stage changes.
      */
     static async onOpportunityStageChange(opportunityId, newStage, ownerId) {
-        if (!prisma.opportunity || !prisma.salesTask) return;
+        if (!prisma.deal || !prisma.salesTask) return;
 
-        const opp = await prisma.opportunity.findUnique({ where: { id: opportunityId } });
+        const opp = await prisma.deal.findUnique({ where: { id: opportunityId } });
         if (!opp) return;
 
         // Rule 1: If moved to Proposal, auto-schedule a follow-up task
@@ -78,13 +78,13 @@ export class SalesRuleEngineService {
      * Triggered on daily cron to catch stale pipelines
      */
     static async runDailyStagnationCheck() {
-        if (!prisma.opportunity) return;
+        if (!prisma.deal) return;
         
         // Find stagnant opportunities (> 7 days) to catch the risk early
         const stagnantOppIds = await SalesService.detectStagnantOpportunities(companyPrisma, 7);
 
         if (stagnantOppIds.length > 0) {
-            const opps = await prisma.opportunity.findMany({ where: { id: { in: stagnantOppIds } } });
+            const opps = await prisma.deal.findMany({ where: { id: { in: stagnantOppIds } } });
 
             for (let opp of opps) {
                 const lastActivityDate = opp.lastActivityDate || opp.updatedAt;
@@ -119,12 +119,12 @@ export class SalesRuleEngineService {
      * Triggered by email webhooks (SendGrid/Mailgun)
      */
     static async handleEmailEngagementEvent(emailLogId, eventType) {
-        if (!prisma.emailLog || !prisma.lead || !prisma.salesTask) return;
+        if (!prisma.emailLog || !prisma.deal || !prisma.salesTask) return;
 
         const log = await prisma.emailLog.findUnique({ where: { id: emailLogId } });
         if (!log || !log.leadId) return;
 
-        const lead = await prisma.lead.findUnique({ where: { id: log.leadId } });
+        const lead = await prisma.deal.findUnique({ where: { id: log.leadId } });
         if (!lead) return;
 
         // Update Engagement Score algorithmically
@@ -136,7 +136,7 @@ export class SalesRuleEngineService {
 
         const newScore = (lead.engagementScore || 0) + increment;
 
-        await prisma.lead.update({
+        await prisma.deal.update({
             where: { id: lead.id },
             data: { engagementScore: newScore }
         });

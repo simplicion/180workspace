@@ -111,7 +111,7 @@ export default function RecentProjects({ projects, loading }: RecentProjectsProp
                             <div 
                                 key={project.id} 
                                 className="p-5 hover:bg-indigo-50/20 transition-all cursor-pointer group border-l-2 border-l-transparent hover:border-l-indigo-500"
-                                onClick={() => window.location.href = '/projects/${project.id}'}
+                                onClick={() => window.location.href = `/projects/${project.id}`}
                             >
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="flex items-start gap-4 flex-1">

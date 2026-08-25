@@ -391,10 +391,25 @@ export class PublicService {
     }
 
     static async resolveDomain(domain: string) {
-        // Find in DomainRegistry
-        const registry = await prisma.domainRegistry.findUnique({
-            where: { domain: domain.toLowerCase() }
+        let lookupDomain = domain.toLowerCase();
+        
+        // Remove port if present
+        if (lookupDomain.includes(':')) {
+            lookupDomain = lookupDomain.split(':')[0];
+        }
+
+        // Find in DomainRegistry using exact match (e.g., custom domains)
+        let registry = await prisma.domainRegistry.findUnique({
+            where: { domain: lookupDomain }
         });
+
+        // If not found, try treating it as a subdomain and matching by slug
+        if (!registry && lookupDomain.includes('.')) {
+            const slug = lookupDomain.split('.')[0];
+            registry = await prisma.domainRegistry.findUnique({
+                where: { domain: slug }
+            });
+        }
 
         if (!registry) {
             throw new Error('Domain not found');
@@ -411,8 +426,7 @@ export class PublicService {
                 include: {
                     CompanyConfig: true,
                     coreValueItems: true,
-                    services: true,
-                    products: true,
+                    offerings: true,
                     media: true,
                     investors: true
                 }

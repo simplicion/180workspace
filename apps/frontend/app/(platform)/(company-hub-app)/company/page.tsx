@@ -2,19 +2,19 @@
 
 import { useState } from 'react';
 import { CompanyProfileUI } from '../_components/CompanyProfileUI';
+import { useGetPrivateCompanyProfileQuery } from '@/redux/api/companyApi';
 
 export default function CompanyHubPage() {
-    const [isLoading, setIsLoading] = useState(false);
+    const { data: companyDataResponse, isLoading, refetch } = useGetPrivateCompanyProfileQuery({});
     
-    // We can fetch data here later. For now, pass null or mock data.
-    // CompanyProfileUI handles fallback to default data when companyData is null/undefined
-    const companyData = null; 
+    const companyData = companyDataResponse?.data || null; 
 
     return (
         <div className="w-full">
             <CompanyProfileUI 
                 companyData={companyData}
                 isLoading={isLoading}
+                onProfileUpdate={refetch}
             />
         </div>
     );

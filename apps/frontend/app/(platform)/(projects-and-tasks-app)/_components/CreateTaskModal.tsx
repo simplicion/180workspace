@@ -10,6 +10,9 @@ import MultiVoiceRecorder from './MultiVoiceRecorder';
 
 import { useAuth } from '@/lib/auth-context';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { useDispatch } from 'react-redux';
+import { addUploadJob } from '@/redux/slices/uploadQueueSlice';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
     onClose: () => void;
@@ -23,6 +26,7 @@ const STATUSES = ['todo', 'in_progress', 'in_review', 'done', 'backlog', 'custom
 
 export default function CreateTaskModal({ onClose, onSuccess, projectId, initialModuleId }: Props) {
     const { user } = useAuth();
+    const dispatch = useDispatch();
     const [loading, setLoading] = useState(false);
     const [projects, setProjects] = useState<any[]>([]);
     const [employees, setEmployees] = useState<any[]>([]);
@@ -30,6 +34,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         title: '',
         description: '',
         projectId: projectId || '',
+        clientId: '',
         assigneeId: '',
         priority: 'medium',
         status: 'todo',
@@ -46,11 +51,13 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
     const [links, setLinks] = useState<string[]>([]);
 
     const [modules, setModules] = useState<any[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
     const [fetchingModules, setFetchingModules] = useState(false);
 
     useEffect(() => {
         api.get('/api/projects', { params: { limit: 100 } }).then(({ data }) => setProjects(data.projects || []));
         api.get('/api/users', { params: { limit: 100 } }).then(({ data }) => setEmployees(data.users || []));
+        api.get('/api/clients', { params: { limit: 100 } }).then(({ data }) => setClients(data.clients || []));
     }, []);
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -61,6 +68,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
             if (k === 'projectId') {
                 next.assigneeId = '';
                 next.moduleId = '';
+                next.clientId = '';
             }
             return next;
         });
@@ -118,69 +126,21 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         if (!form.title.trim()) return toast.error('Title is required');
         setLoading(true);
 
-        let finalVoiceUrl = form.voiceMessageUrl;
-
-        // Upload general files
-        const uploadedFileUrls: string[] = [];
-        if (selectedFiles.length > 0) {
-            try {
-                for (let i = 0; i < selectedFiles.length; i++) {
-                    const file = selectedFiles[i];
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    
-                    const { data: uploadData } = await api.post('/api/files/upload', formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
-                    uploadedFileUrls.push(uploadData.url);
-                }
-            } catch (err: any) {
-                console.error('Failed to upload files:', err);
-                toast.error('Failed to upload files. Task creation aborted.');
-                setLoading(false);
-                return;
-            }
-        }
-
-        // Upload multiple blobs if any
-        if (voiceBlobs.length > 0) {
-            try {
-                const uploadedUrls = [];
-                for (let i = 0; i < voiceBlobs.length; i++) {
-                    const blob = voiceBlobs[i];
-                    const formData = new FormData();
-                    formData.append('file', blob, `voice-note-${Date.now()}-${i}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`);
-                    
-                    const { data: uploadData } = await api.post('/api/files/upload-voice', formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
-                    uploadedUrls.push(uploadData.url);
-                }
-                
-                // Append to any existing voiceMessageUrl
-                finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${uploadedUrls.join(',')}` : uploadedUrls.join(',');
-            } catch (err: any) {
-                console.error('Failed to upload voice notes:', err);
-                toast.error('Failed to upload voice notes. Task creation aborted.');
-                setLoading(false);
-                return;
-            }
-        }
-
-        const { assigneeId, moduleId, dueDate, voiceMessageUrl, attachments, ...rest } = form;
+        const { assigneeId, moduleId, dueDate, voiceMessageUrl, attachments, clientId, ...rest } = form;
         const payload: Record<string, unknown> = { ...rest };
         if (assigneeId) payload.assigneeId = assigneeId;
         if (moduleId) payload.moduleId = moduleId;
+        if (clientId) payload.clientId = clientId;
         if (dueDate) payload.dueDate = dueDate;
-        if (finalVoiceUrl) payload.voiceMessageUrl = finalVoiceUrl;
         
-        const allAttachments = [...(attachments || []), ...uploadedFileUrls, ...links];
+        const allAttachments = [...(attachments || []), ...links];
         if (allAttachments.length > 0) payload.attachments = allAttachments;
+        if (voiceMessageUrl) payload.voiceMessageUrl = voiceMessageUrl; // any pre-existing URLs
 
         try {
+            // 1. Create the task first without waiting for uploads
             const { data } = await api.post('/api/tasks', payload);
-            toast.success('Task created!');
-
+            
             // Show email notification status if it was requested
             if (payload.sendEmailNotification && payload.assigneeId) {
                 if (data.notificationResult?.success) {
@@ -191,8 +151,24 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                     toast('Email skipped (user may be online)');
                 }
             }
+            
+            const task = data.task;
+            
+            // 2. Dispatch background upload job if files are selected
+            if (selectedFiles.length > 0 || voiceBlobs.length > 0) {
+                dispatch(addUploadJob({
+                    id: uuidv4(),
+                    entityId: task.id,
+                    entityType: 'task',
+                    files: selectedFiles,
+                    voiceBlobs: voiceBlobs
+                }));
+                toast.success('Task created! Uploads queued in background.');
+            } else {
+                toast.success('Task created!');
+            }
 
-            onSuccess(data.task);
+            onSuccess(task);
             setVoiceBlobs([]);
             setSelectedFiles([]);
             onClose();
@@ -242,9 +218,9 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label htmlFor="taskProject" className="label">Project *</label>
-                            <CustomSelect id="taskProject" value={form.projectId} onChange={set('projectId')} className="select" title="Select project" required>
-                                <option value="" disabled>Select a project</option>
+                            <label htmlFor="taskProject" className="label">Project</label>
+                            <CustomSelect id="taskProject" value={form.projectId} onChange={set('projectId')} className="select" title="Select project">
+                                <option value="">No Project (Standalone Task)</option>
                                 {projects.map(p => <option key={p.id || p.id} value={p.id || p.id}>{p.name}</option>)}
                             </CustomSelect>
                         </div>
@@ -280,6 +256,18 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                                         )}
                                     </CustomSelect>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!form.projectId && (
+                        <div className="grid grid-cols-1 gap-3">
+                            <div>
+                                <label htmlFor="taskClient" className="label">Client (Optional)</label>
+                                <CustomSelect id="taskClient" value={form.clientId} onChange={set('clientId')} className="select" title="Select client">
+                                    <option value="">Select a client</option>
+                                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </CustomSelect>
                             </div>
                         </div>
                     )}

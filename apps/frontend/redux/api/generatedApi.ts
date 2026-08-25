@@ -599,7 +599,7 @@ export const generatedApi = baseApi.injectEndpoints({
       providesTags: ['workspace-tools'],
     }),
     get180documentsFilesCategoryTemplate: builder.query({
-      query: () => '/api/180documents/filesCategoryTemplate',
+      query: () => '/api/v1/workspace-tools/documents/filesCategoryTemplate',
       providesTags: ['workspace-tools'],
     }),
     getAiSessions: builder.query({
@@ -624,7 +624,7 @@ export const generatedApi = baseApi.injectEndpoints({
     }),
     post180documentsFiles: builder.mutation({
       query: (body) => ({
-        url: '/api/180documents/files',
+        url: '/api/v1/workspace-tools/documents/files',
         method: 'POST',
         body,
       }),
