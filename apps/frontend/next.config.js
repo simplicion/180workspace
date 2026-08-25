@@ -14,12 +14,7 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
-    outputFileTracingRoot: path.join(__dirname, '../../'),
-    outputFileTracingIncludes: {
-        '/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
-        '/api/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
-        '/**/*': ['./packages/db/generated/client/**/*', '../../packages/db/generated/client/**/*'],
-    },
+    // outputFileTracingIncludes removed to prevent Vercel build trace issues with Next.js 15
     experimental: {
         optimizePackageImports: ['lucide-react', 'date-fns', 'lodash'],
         staleTimes: {
@@ -63,24 +58,8 @@ const nextConfig = {
     },
 };
 
-const withPWA = require("@ducanh2912/next-pwa").default({
-    dest: "public",
-    disable: process.env.NODE_ENV === "development",
-    register: true,
-    skipWaiting: true,
-    fallbacks: {
-        document: "/~offline",
-    },
-    buildExcludes: [
-        /middleware-manifest\.json$/,
-        /middleware-build-manifest\.js$/,
-        /middleware-react-loadable-manifest\.js$/,
-        /dynamic-css-manifest\.json$/
-    ],
-});
-
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
     enabled: process.env.ANALYZE === 'true',
 });
 
-module.exports = withBundleAnalyzer(withPWA(nextConfig));
+module.exports = withBundleAnalyzer(nextConfig);
