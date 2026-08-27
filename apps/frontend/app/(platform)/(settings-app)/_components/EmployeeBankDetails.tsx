@@ -9,7 +9,7 @@ import clsx from 'clsx';
 
 export default function EmployeeBankDetails({ profileUser, currentUser, onUpdate }: { profileUser: any, currentUser: any, onUpdate: () => void }) {
     const isOwnProfile = currentUser?.id === profileUser.id;
-    const isAdmin = ['admin', 'manager', 'hr'].includes(currentUser?.role || '');
+    const isAdmin = currentUser?.role === 'admin';
     const canEdit = isOwnProfile || isAdmin;
 
     const [bankName, setBankName] = useState(profileUser.bankDetails?.bankName || '');

@@ -17,6 +17,13 @@ import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/
 import { format } from 'date-fns';
 import CustomSelect from '@/components/ui/CustomSelect';
 
+const safeFormat = (dateInput: any, formatStr: string) => {
+    if (!dateInput) return 'N/A';
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return 'N/A';
+    return format(date, formatStr);
+};
+
 const STATUS_CONFIG: Record<string, { label: string, color: string, icon: any }> = {
     pending: { label: 'Pending', color: 'badge-orange', icon: Timer },
     approved: { label: 'Approved', color: 'badge-green', icon: CheckCircle2 },
@@ -69,11 +76,15 @@ export default function WorkLogsPage() {
             const { data } = await api.get(`${endpoint}?${params?.toString()}`);
             let mergedLogs = data?.logs || [];
             
-            if (activeTab === 'my_logs' || activeTab === 'all_logs') {
+            if (activeTab === 'my_logs' || activeTab === 'all_logs' || activeTab === 'pending_reviews') {
                 try {
-                    const salesEndpoint = activeTab === 'all_logs' ? '/api/sales/activities?all=true' : '/api/sales/activities';
+                    const salesEndpoint = activeTab === 'my_logs' ? '/api/sales/activities' : '/api/sales/activities?all=true';
                     const salesRes = await api.get(salesEndpoint);
-                    const salesLogs = salesRes.data?.activities || [];
+                    let salesLogs = salesRes.data?.activities || [];
+                    
+                    if (activeTab === 'pending_reviews') {
+                        salesLogs = salesLogs.filter((s: any) => s.status === 'pending');
+                    }
                     
                     const formattedSales = salesLogs.map((s: any) => ({
                         id: s.id,
@@ -81,7 +92,7 @@ export default function WorkLogsPage() {
                         workDate: s.timestamp || s.createdAt,
                         hoursSpent: 0,
                         description: s.notes || 'No description',
-                        status: 'approved',
+                        status: s.status || 'pending',
                         type: s.type,
                         projectId: { name: 'Sales Activity' },
                         taskId: { title: `Sales ${s.type.charAt(0).toUpperCase() + s.type.slice(1)}` },
@@ -150,7 +161,9 @@ export default function WorkLogsPage() {
     const handleReview = async (logId: string, status: 'approved' | 'rejected') => {
         setIsReviewLoading(true);
         try {
-            await api.patch(`/api/work-logs/${logId}/review`, { 
+            const isSales = logs.find(l => l.id === logId)?.isSalesActivity;
+            const endpoint = isSales ? `/api/sales/activities/${logId}/review` : `/api/work-logs/${logId}/review`;
+            await api.patch(endpoint, { 
                 status, 
                 reviewComment 
             });
@@ -386,8 +399,8 @@ export default function WorkLogsPage() {
                                                 </span>
                                                 <span className="block text-[10px] font-bold text-gray-400 mt-1 uppercase leading-none">
                                                     {log.isSalesActivity 
-                                                        ? format(new Date(log.workDate), 'MMM dd')
-                                                        : `${log.hoursSpent}h • ${format(new Date(log.workDate), 'MMM dd')}`
+                                                        ? safeFormat(log.workDate, 'MMM dd')
+                                                        : `${log.hoursSpent}h • ${safeFormat(log.workDate, 'MMM dd')}`
                                                     }
                                                 </span>
                                             </div>
@@ -431,7 +444,7 @@ export default function WorkLogsPage() {
                                                     <span className="text-sm text-gray-400">•</span>
                                                     <span className="text-sm font-medium text-gray-500 flex items-center gap-1.5">
                                                         <Calendar className="w-3.5 h-3.5" />
-                                                        {format(new Date(log.workDate), 'MMM dd, yyyy')}
+                                                        {safeFormat(log.workDate, 'MMM dd, yyyy')}
                                                     </span>
                                                     {log.isWorkCompleted && (
                                                         <span className="badge badge-indigo flex items-center gap-1.5">
@@ -530,7 +543,7 @@ export default function WorkLogsPage() {
                                                         </div>
                                                         <div className="text-xs">
                                                             <span className="block font-bold text-gray-700">{log.userId?.name}</span>
-                                                            <span className="block text-gray-400 text-[10px]">Submitted {format(new Date(log.createdAt), 'MMM dd')}</span>
+                                                            <span className="block text-gray-400 text-[10px]">Submitted {safeFormat(log.createdAt, 'MMM dd')}</span>
                                                         </div>
                                                     </div>
                                                 )}
@@ -736,7 +749,7 @@ export default function WorkLogsPage() {
                                     </div>
                                     <div>
                                         <span className="block font-bold text-indigo-900">{reviewingLog.userId?.name}</span>
-                                        <span className="block text-xs text-indigo-600">{reviewingLog.hoursSpent} Hours • {format(new Date(reviewingLog.workDate), 'MMM dd, yyyy')}</span>
+                                        <span className="block text-xs text-indigo-600">{reviewingLog.hoursSpent} Hours • {safeFormat(reviewingLog.workDate, 'MMM dd, yyyy')}</span>
                                     </div>
                                 </div>
                                 <p className="text-sm text-indigo-800 italic leading-relaxed break-words break-all whitespace-pre-wrap">

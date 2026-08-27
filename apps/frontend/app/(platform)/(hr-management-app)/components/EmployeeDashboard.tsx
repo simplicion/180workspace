@@ -190,16 +190,7 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                     <p className="text-xs text-gray-400 mt-1">{projects?.total ?? 0} total</p>
                 </div>
 
-                <div className="card p-5 group hover:shadow-md transition-shadow relative overflow-hidden">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                            <Calendar className="w-5 h-5 text-emerald-600" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Monthly Presence</span>
-                    </div>
-                    <p className="text-3xl font-black text-gray-900">{attendance?.stats?.present ?? 0}</p>
-                    <p className="text-xs text-gray-400 mt-1">{attendance?.stats?.late ?? 0} late • {attendance?.stats?.absent ?? 0} absent</p>
-                </div>
+
 
                 <div className="card p-5 group hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 mb-3">
@@ -214,73 +205,9 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
             </div>
 
             {/* ── Visual Analytics ─────────────────────────────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                {/* 1. Attendance Overview */}
-                {(() => {
-                    const statsArr: any[] = attendance?.monthly || [];
-                    const present = attendance?.stats?.present ?? 0;
-                    const late = attendance?.stats?.late ?? 0;
-                    const absent = attendance?.stats?.absent ?? 0;
-                    const total = present + late + absent || 1;
-                    const rate = Math.round((present / total) * 100);
-                    const aggData = [
-                        { label: 'Present', value: present, color: '#10B981' },
-                        { label: 'Late', value: late, color: '#F59E0B' },
-                        { label: 'Absent', value: absent, color: '#EF4444' },
-                    ];
-                    const chartData = statsArr.length > 0
-                        ? statsArr.slice(-14).map((d: any) => ({
-                            day: format(new Date(d.date || d.day), 'dd MMM'),
-                            Present: d.present ?? (d.status === 'present' ? 1 : 0),
-                            Late: d.late ?? (d.status === 'late' ? 1 : 0),
-                            Absent: d.absent ?? (d.status === 'absent' ? 1 : 0),
-                        }))
-                        : Array.from({ length: 7 }, (_, i) => ({
-                            day: format(subDays(new Date(), 6 - i), 'EEE'),
-                            Present: i < 5 ? 1 : 0,
-                            Late: i === 1 ? 1 : 0,
-                            Absent: i >= 5 ? 1 : 0,
-                        }));
-                    return (
-                        <div className="card p-5">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
-                                        <Calendar className="w-4 h-4 text-emerald-500" />
-                                        Attendance Overview
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-0.5">This month</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-2xl font-black text-emerald-600">{rate}%</p>
-                                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Rate</p>
-                                </div>
-                            </div>
-                            <div className="space-y-2 mb-3">
-                                {aggData.map(item => (
-                                    <div key={item.label} className="flex items-center gap-3">
-                                        <span className="text-xs font-semibold text-gray-500 w-14">{item.label}</span>
-                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(item.value / total) * 100}%`, backgroundColor: item.color }} />
-                                        </div>
-                                        <span className="text-xs font-black text-gray-700 w-5 text-right">{item.value}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <ResponsiveContainer width="100%" height={120}>
-                                <BarChart data={chartData} barSize={7} barGap={2}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                    <XAxis dataKey="day" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontSize: 11 }} cursor={{ fill: '#f8fafc' }} />
-                                    <Bar dataKey="Present" fill="#10B981" radius={[3, 3, 0, 0]} />
-                                    <Bar dataKey="Late" fill="#F59E0B" radius={[3, 3, 0, 0]} />
-                                    <Bar dataKey="Absent" fill="#EF4444" radius={[3, 3, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    );
-                })()}
+
 
                 {/* 2. Task Breakdown (Donut) */}
                 {(() => {
@@ -367,18 +294,23 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                     );
                 })()}
 
-                {/* 3. Performance Points */}
+                {/* 3. Performance & Achievement */}
                 {(() => {
-                    const score = performanceScore ?? 0;
+                    const score = performanceScore ?? 100;
                     const TIERS = [
-                        { min: 0, label: 'Rookie', color: '#94A3B8' },
-                        { min: 100, label: 'Contributor', color: '#10B981' },
-                        { min: 200, label: 'Rising Star', color: '#06B6D4' },
-                        { min: 300, label: 'High Achiever', color: '#F97316' },
-                        { min: 400, label: 'Elite', color: '#8B5CF6' },
-                        { min: 500, label: 'Legendary', color: '#FFD700' },
+                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
+                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
+                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
+                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
                     ];
-                    const currentTier = [...TIERS].reverse().find(t => score >= t.min) || TIERS[0];
+                    const tier = score >= 500 ? TIERS[5] : TIERS.find(t => score >= t.min && score < t.max) || TIERS[0];
+                    const nextTier = TIERS.find(t => t.min > (tier?.min || 0));
+                    const progressInTier = score >= 500 ? 100 : Math.round(((score - tier.min) / (tier.max - tier.min)) * 100);
+                    const circumference = 2 * Math.PI * 36;
+                    const dashOffset = circumference - (score / 500) * circumference;
+
                     const now = new Date();
                     const pointsData = Array.from({ length: 8 }, (_, i) => ({
                         period: format(subDays(now, (7 - i) * 7), 'dd MMM'),
@@ -386,51 +318,63 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                     }));
                     pointsData[7].Points = score;
                     return (
-                        <div className="card p-5">
+                        <div className={`card p-5 border ${tier.border} ${tier.bg}`}>
                             <div className="flex items-start justify-between mb-3">
                                 <div>
-                                    <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
-                                        <Award className="w-4 h-4 text-violet-500" />
-                                        Performance Points
+                                    <h3 className={`font-bold flex items-center gap-2 text-sm ${tier.text}`}>
+                                        <Award className="w-4 h-4" />
+                                        Performance & Achievement
                                     </h3>
-                                    <p className="text-xs text-gray-400 mt-0.5">Score progression</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">Score progression</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-2xl font-black" style={{ color: currentTier.color }}>{score}</p>
-                                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">/ 500 pts</p>
+                                    <p className={`text-2xl font-black ${tier.text}`}>{score}</p>
+                                    <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">/ 500 pts</p>
                                 </div>
                             </div>
                             <ResponsiveContainer width="100%" height={120}>
                                 <AreaChart data={pointsData} margin={{ top: 5, right: 5, left: -28, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="ptGrad" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={currentTier.color} stopOpacity={0.25} />
-                                            <stop offset="95%" stopColor={currentTier.color} stopOpacity={0} />
+                                            <stop offset="5%" stopColor={tier.color} stopOpacity={0.25} />
+                                            <stop offset="95%" stopColor={tier.color} stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                     <XAxis dataKey="period" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                                     <YAxis domain={[0, 500]} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', fontSize: 12 }} formatter={(val: any) => [`${val} pts`, 'Points']} />
-                                    <Area type="monotone" dataKey="Points" stroke={currentTier.color} strokeWidth={2.5} fill="url(#ptGrad)" dot={{ r: 3, fill: currentTier.color, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                                    <Area type="monotone" dataKey="Points" stroke={tier.color} strokeWidth={2.5} fill="url(#ptGrad)" dot={{ r: 3, fill: tier.color, strokeWidth: 0 }} activeDot={{ r: 5 }} />
                                 </AreaChart>
                             </ResponsiveContainer>
-                            <div className="mt-3 pt-3 border-t border-gray-50">
-                                <div className="flex items-center justify-between gap-1 mb-1.5">
-                                    {TIERS.map(tier => {
-                                        const reached = score >= tier.min;
-                                        return (
-                                            <div key={tier.label} title={tier.label} className="flex flex-col items-center gap-1 flex-1">
-                                                <div className={clsx('w-4 h-4 rounded-full border-2 flex items-center justify-center', reached ? 'scale-110' : 'opacity-25')} style={{ borderColor: tier.color, backgroundColor: reached ? tier.color : 'transparent' }}>
-                                                    {reached && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                            <div className="mt-3 pt-4 border-t border-gray-200/60">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative w-16 h-16 flex-shrink-0">
+                                        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 88 88">
+                                            <circle cx="44" cy="44" r="36" stroke="#e2e8f0" strokeWidth="7" fill="none" />
+                                            <circle cx="44" cy="44" r="36" stroke={tier.color} strokeWidth="7" fill="none" strokeLinecap="round"
+                                                strokeDasharray={circumference} strokeDashoffset={dashOffset}
+                                                className="transition-[stroke-dashoffset] duration-1000 ease-in-out" />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <span className="text-xl">{tier.emoji}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`font-black text-sm leading-tight ${tier.text}`}>{tier.tag}</p>
+                                        {nextTier && (
+                                            <div className="mt-2 space-y-1">
+                                                <div className="flex justify-between text-[10px] font-semibold text-gray-500">
+                                                    <span>Next: {nextTier.emoji} {nextTier.tag}</span>
+                                                    <span>{progressInTier}%</span>
                                                 </div>
-                                                <span className="text-[8px] font-bold" style={{ color: reached ? tier.color : '#94a3b8' }}>{tier.min}</span>
+                                                <div className="w-full h-1.5 bg-gray-200/50 rounded-full overflow-hidden">
+                                                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressInTier}%`, backgroundColor: tier.color }} />
+                                                </div>
+                                                <p className="text-[10px] text-gray-500">{nextTier.min - score} pts to next level</p>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min((score / 500) * 100, 100)}%`, backgroundColor: currentTier.color }} />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -586,68 +530,8 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                     )}
                 </div>
 
-                {/* Right: Performance + Attendance + Leaves */}
+                {/* Right: Attendance + Leaves */}
                 <div className="space-y-4">
-                    {/* Performance & Achievement */}
-                    {(() => {
-                        const score = performanceScore ?? 100;
-                        const TIERS = [
-                            { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
-                            { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-                            { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-                            { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-                            { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
-                            { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-                        ];
-                        const tier = score >= 500 ? TIERS[5] : TIERS.find(t => score >= t.min && score < t.max) || TIERS[0];
-                        const nextTier = TIERS.find(t => t.min > (tier?.min || 0));
-                        const progressInTier = score >= 500 ? 100 : Math.round(((score - tier.min) / (tier.max - tier.min)) * 100);
-                        const circumference = 2 * Math.PI * 36;
-                        const dashOffset = circumference - (score / 500) * circumference;
-
-                        return (
-                            <div className={`card p-5 border ${tier.border} ${tier.bg}`}>
-                                <h3 className={`font-bold mb-3 flex items-center gap-2 ${tier.text}`}>
-                                    <Award className="w-4 h-4" />
-                                    My Achievement
-                                </h3>
-                                <div className="flex items-center gap-4">
-                                    <div className="relative w-20 h-20 flex-shrink-0">
-                                        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 88 88">
-                                            <circle cx="44" cy="44" r="36" stroke="#e2e8f0" strokeWidth="7" fill="none" />
-                                            <circle cx="44" cy="44" r="36" stroke={tier.color} strokeWidth="7" fill="none" strokeLinecap="round"
-                                                strokeDasharray={circumference} strokeDashoffset={dashOffset}
-                                                className="transition-[stroke-dashoffset] duration-1000 ease-in-out" />
-                                        </svg>
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                            <span className="text-2xl">{tier.emoji}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className={`font-black text-base leading-tight ${tier.text}`}>{tier.tag}</p>
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                            <span className={`text-xl font-black ${tier.text}`}>{score}</span>
-                                            <span className="text-xs text-gray-400">/ 500 pts</span>
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 mt-1">+1 pt per on-time task</p>
-                                    </div>
-                                </div>
-                                {nextTier && (
-                                    <div className="mt-3 space-y-1">
-                                        <div className="flex justify-between text-[10px] font-semibold text-gray-400">
-                                            <span>Next: {nextTier.emoji} {nextTier.tag}</span>
-                                            <span>{progressInTier}%</span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-white/80 rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressInTier}%`, backgroundColor: tier.color }} />
-                                        </div>
-                                        <p className="text-[10px] text-gray-400">{nextTier.min - score} pts to next level</p>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
-
                     {/* Today's Attendance */}
                     <div className="card p-5">
                         <div className="flex items-center justify-between mb-4">

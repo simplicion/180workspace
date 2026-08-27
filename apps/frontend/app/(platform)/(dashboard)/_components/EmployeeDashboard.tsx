@@ -7,7 +7,7 @@ import { CheckSquare, FolderKanban, Clock, Calendar, Star, AlertCircle, Trending
 import clsx from 'clsx';
 import { format, isValid, subDays } from 'date-fns';
 import Link from 'next/link';
-import { TimeProgressBar , LogoLoader } from "@workspace/ui";
+import { TimeProgressBar , LogoLoader, ConfirmModal } from "@workspace/ui";
 import MarkAttendanceDrawer from '@/app/(platform)/(hr-management-app)/_components/MarkAttendanceDrawer';
 import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/LogWorkModal';
 import { ClipboardCheck } from 'lucide-react';
@@ -76,6 +76,8 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
     const [showAttendanceModal, setShowAttendanceModal] = useState(false);
     const [showLogWorkModal, setShowLogWorkModal] = useState(false);
     const [selectedTask, setSelectedTask] = useState<any>(null);
+    const [currentTime, setCurrentTime] = useState('');
+    const [showWorkOffConfirm, setShowWorkOffConfirm] = useState(false);
 
     const fetchData = () => {
         setLoading(true);
@@ -100,10 +102,11 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
         }
     };
 
-    const handleWorkOff = async () => {
-        const confirm = window.confirm("Are you sure you want to clock out? This will end your work session for today.");
-        if (!confirm) return;
+    const handleWorkOff = () => {
+        setShowWorkOffConfirm(true);
+    };
 
+    const confirmWorkOff = async () => {
         try {
             const now = new Date();
             const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -111,8 +114,10 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
             await api.post('/api/attendance/auto-checkout', { date, time });
             fetchData();
             toast.success('Work off recorded! Good work today.');
+            setShowWorkOffConfirm(false);
         } catch (err: any) {
             toast.error(err?.response?.data?.error || 'Failed to clock out');
+            setShowWorkOffConfirm(false);
         }
     };
 
@@ -128,6 +133,7 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
     };
 
     useEffect(() => {
+        setCurrentTime(format(new Date(), 'hh:mm a'));
         handleAutoCheckIn();
         fetchData();
     }, []);
@@ -156,9 +162,28 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
     return (
         <div className="space-y-6">
             {/* Greeting Header */}
-            <div className="page-header">
-                <h1 className="page-title">My Workspace</h1>
-                <p className="page-subtitle">Welcome back, {userName?.split(' ')[0] || 'there'}! Here&apos;s your personal overview.</p>
+            <div className="page-header flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="page-title">My Workspace</h1>
+                    <p className="page-subtitle">Welcome back, {userName?.split(' ')[0] || 'there'}! Here&apos;s your personal overview.</p>
+                </div>
+                
+                <div className="flex items-center gap-4 bg-white border border-gray-200/60 rounded-2xl p-2 shadow-sm">
+                    <div className="px-3 py-1 flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Session Active</span>
+                        <span className="text-sm font-black text-gray-900">
+                            {data?.attendance?.today?.checkIn || currentTime || '--:--'}
+                        </span>
+                    </div>
+                    <div className="w-px h-8 bg-gray-100"></div>
+                    <button 
+                        onClick={handleWorkOff}
+                        className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl flex items-center gap-2 transition-colors text-xs font-bold"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Work Off
+                    </button>
+                </div>
             </div>
 
             {/* Overdue Tasks Alert */}
@@ -176,291 +201,197 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
             )}
 
             {/* Stat Cards */}
-            <div className={clsx("grid gap-4", isMobileView ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4")}>
-                <div className="card p-5 group hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                            <CheckSquare className="w-5 h-5 text-amber-600" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Pending Tasks</span>
-                    </div>
-                    <p className="text-3xl font-black text-gray-900">{tasks?.pending ?? 0}</p>
-                    <p className="text-xs text-gray-400 mt-1">{tasks?.completed ?? 0} completed</p>
-                </div>
-
-                <div className="card p-5 group hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                            <FolderKanban className="w-5 h-5 text-indigo-600" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">My Projects</span>
-                    </div>
-                    <p className="text-3xl font-black text-gray-900">{projects?.active ?? 0}</p>
-                    <p className="text-xs text-gray-400 mt-1">{projects?.total ?? 0} total</p>
-                </div>
-
-                <div className="card p-5 group hover:shadow-md transition-shadow relative overflow-hidden">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                            <Calendar className="w-5 h-5 text-emerald-600" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Monthly Presence</span>
-                    </div>
-                    <p className="text-3xl font-black text-gray-900">{(attendance?.stats?.present ?? 0) + (attendance?.stats?.late ?? 0)}</p>
-                    <p className="text-xs text-gray-400 mt-1">{attendance?.stats?.late ?? 0} late • {attendance?.stats?.absent ?? 0} absent</p>
-                </div>
-
-                <div className="card p-5 group hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
-                            <Palmtree className="w-5 h-5 text-rose-600" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Leave Balance</span>
-                    </div>
-                    <p className="text-3xl font-black text-gray-900">{leaves?.balance ?? 0}</p>
-                    <p className="text-xs text-gray-400 mt-1">{leaves?.used ?? 0} days used this year</p>
-                </div>
-            </div>
-
-            {/* ── Visual Analytics ─────────────────────────────────────────────── */}
             <div className={clsx("grid gap-4", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3")}>
-
-                {/* 1. Attendance Overview */}
-                {(() => {
-                    const statsArr: any[] = attendance?.monthly || [];
-                    const present = attendance?.stats?.present ?? 0;
-                    const late = attendance?.stats?.late ?? 0;
-                    const absent = attendance?.stats?.absent ?? 0;
-                    const total = present + late + absent || 1;
-                    const rate = Math.round((present / total) * 100);
-                    const aggData = [
-                        { label: 'Present', value: present, color: '#10B981' },
-                        { label: 'Late', value: late, color: '#F59E0B' },
-                        { label: 'Absent', value: absent, color: '#EF4444' },
-                    ];
-                    const chartData = statsArr.length > 0
-                        ? statsArr.slice(-14).map((d: any) => {
-                            const dateVal = d.date || d.day;
-                            const validDate = dateVal && !isNaN(new Date(dateVal).getTime()) ? new Date(dateVal) : new Date();
-                            return {
-                                day: format(validDate, 'dd MMM'),
-                                Present: d.present ?? (d.status === 'present' ? 1 : 0),
-                                Late: d.late ?? (d.status === 'late' ? 1 : 0),
-                                Absent: d.absent ?? (d.status === 'absent' ? 1 : 0),
-                            };
-                        })
-                        : Array.from({ length: 7 }, (_, i) => ({
-                            day: format(subDays(new Date(), 6 - i), 'EEE'),
-                            Present: 0,
-                            Late: 0,
-                            Absent: 0,
-                        }));
-                    return (
-                        <div className="card p-5">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
-                                        <Calendar className="w-4 h-4 text-emerald-500" />
-                                        Attendance Overview
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-0.5">This month</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-2xl font-black text-emerald-600">{rate}%</p>
-                                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Rate</p>
-                                </div>
+                <div className="card p-5 group hover:shadow-md transition-all h-full flex flex-col border border-gray-200/60 bg-white">
+                    <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center">
+                                <FolderKanban className="w-4.5 h-4.5 text-slate-700" />
                             </div>
-                            <div className="space-y-2 mb-3">
-                                {aggData.map(item => (
-                                    <div key={item.label} className="flex items-center gap-3">
-                                        <span className="text-xs font-semibold text-gray-500 w-14">{item.label}</span>
-                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(item.value / total) * 100}%`, backgroundColor: item.color }} />
-                                        </div>
-                                        <span className="text-xs font-black text-gray-700 w-5 text-right">{item.value}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <ResponsiveContainer width="100%" height={120}>
-                                <BarChart data={chartData} barSize={7} barGap={2}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                    <XAxis dataKey="day" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', fontSize: 11 }} cursor={{ fill: '#f8fafc' }} />
-                                    <Bar dataKey="Present" fill="#10B981" radius={[3, 3, 0, 0]} />
-                                    <Bar dataKey="Late" fill="#F59E0B" radius={[3, 3, 0, 0]} />
-                                    <Bar dataKey="Absent" fill="#EF4444" radius={[3, 3, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            <h3 className="text-sm font-bold text-slate-800 tracking-tight">Workload Overview</h3>
                         </div>
-                    );
-                })()}
-
-                {/* 2. Task Breakdown (Donut) */}
-                {(() => {
-                    const allTasks: any[] = tasks?.list || [];
-                    const donuts = [
-                        { name: 'Done', value: allTasks.filter(t => t.status === 'done').length, color: '#10B981' },
-                        { name: 'In Progress', value: allTasks.filter(t => t.status === 'in_progress').length, color: '#6366F1' },
-                        { name: 'In Review', value: allTasks.filter(t => t.status === 'in_review').length, color: '#F59E0B' },
-                        { name: 'To Do', value: allTasks.filter(t => t.status === 'todo').length, color: '#94A3B8' },
-                    ].filter(d => d.value > 0);
-                    const totalTasks = allTasks.length || 1;
-                    const done = allTasks.filter(t => t.status === 'done').length;
-                    const completionRate = Math.round((done / totalTasks) * 100);
-                    const priorityCounts = [
-                        { label: 'Critical', count: allTasks.filter(t => t.priority === 'critical').length, color: '#EF4444' },
-                        { label: 'High', count: allTasks.filter(t => t.priority === 'high').length, color: '#F97316' },
-                        { label: 'Medium', count: allTasks.filter(t => t.priority === 'medium').length, color: '#6366F1' },
-                        { label: 'Low', count: allTasks.filter(t => t.priority === 'low').length, color: '#94A3B8' },
-                    ].filter(d => d.count > 0);
-                    const CustomTooltip = ({ active, payload }: any) => {
-                        if (active && payload?.length) {
-                            return (
-                                <div className="bg-white shadow-xl rounded-xl px-3 py-2 border border-gray-100">
-                                    <p className="text-xs font-bold text-gray-700">{payload[0].name}</p>
-                                    <p className="text-sm font-black" style={{ color: payload[0].payload.color }}>{payload[0].value} task{payload[0].value !== 1 ? 's' : ''}</p>
-                                </div>
-                            );
-                        }
-                        return null;
-                    };
-                    return (
-                        <div className="card p-5">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
-                                        <CheckSquare className="w-4 h-4 text-indigo-500" />
-                                        Task Breakdown
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-0.5">All assigned tasks</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-2xl font-black text-indigo-600">{completionRate}%</p>
-                                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Done</p>
-                                </div>
+                        <div className="flex items-center gap-2 bg-indigo-50/50 border border-indigo-100/50 px-2.5 py-1 rounded-full shadow-sm">
+                            <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest ml-1">Active Projects</span>
+                            <div className="bg-white px-2 py-0.5 rounded-full shadow-sm border border-indigo-100 flex items-center justify-center min-w-[20px]">
+                                <span className="text-xs font-black text-indigo-700">{projects?.active ?? 0}</span>
                             </div>
-                            {donuts.length > 0 ? (
-                                <div className="flex items-center gap-4">
-                                    <ResponsiveContainer width={130} height={130}>
-                                        <PieChart>
-                                            <Pie data={donuts} cx="50%" cy="50%" innerRadius={36} outerRadius={56} paddingAngle={3} dataKey="value">
-                                                {donuts.map((entry, i) => <Cell key={i} fill={entry.color} strokeWidth={0} />)}
-                                            </Pie>
-                                            <Tooltip content={<CustomTooltip />} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    <div className="flex-1 space-y-2">
-                                        {donuts.map(d => (
-                                            <div key={d.name} className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                                                <span className="text-[10px] font-semibold text-gray-500 flex-1">{d.name}</span>
-                                                <span className="text-[10px] font-black text-gray-700">{d.value}</span>
-                                            </div>
-                                        ))}
-                                        <div className="pt-1 border-t border-gray-50">
-                                            {priorityCounts.map(d => (
-                                                <div key={d.label} className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[9px] font-semibold text-gray-400 w-12">{d.label}</span>
-                                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                                        <div className="h-full rounded-full" style={{ width: `${(d.count / totalTasks) * 100}%`, backgroundColor: d.color }} />
-                                                    </div>
-                                                    <span className="text-[9px] font-black text-gray-500">{d.count}</span>
-                                                </div>
-                                            ))}
+                        </div>
+                    </div>
+                    
+                    {(() => {
+                        const allTasks: any[] = tasks?.list || [];
+                        const done = allTasks.filter(t => t.status === 'done').length;
+                        const inProgress = allTasks.filter(t => t.status === 'in_progress').length;
+                        const todo = allTasks.filter(t => t.status === 'todo').length;
+                        const review = allTasks.filter(t => t.status === 'in_review').length;
+                        const pending = todo + review;
+
+                        const donuts = [
+                            { name: 'Completed', value: done, color: '#10B981' },
+                            { name: 'In Progress', value: inProgress, color: '#3B82F6' },
+                            { name: 'Pending', value: pending, color: '#64748B' },
+                        ].filter(d => d.value > 0);
+
+                        const CustomTooltip = ({ active, payload }: any) => {
+                            if (active && payload?.length) {
+                                return (
+                                    <div className="bg-white shadow-xl rounded-xl px-3 py-2 border border-gray-100">
+                                        <p className="text-xs font-bold text-gray-700">{payload[0].name}</p>
+                                        <p className="text-sm font-black" style={{ color: payload[0].payload.color }}>{payload[0].value} task{payload[0].value !== 1 ? 's' : ''}</p>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        };
+
+                        return (
+                            <div className="flex items-center h-full gap-4">
+                                {/* Chart side */}
+                                <div className="flex-shrink-0 w-24 h-24">
+                                    {donuts.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie data={donuts} cx="50%" cy="50%" innerRadius={28} outerRadius={44} paddingAngle={2} dataKey="value">
+                                                    {donuts.map((entry, i) => <Cell key={i} fill={entry.color} strokeWidth={0} />)}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="w-full h-full rounded-full border-4 border-slate-100 flex items-center justify-center">
+                                            <span className="text-[10px] text-slate-400 font-medium">No Tasks</span>
                                         </div>
+                                    )}
+                                </div>
+
+                                {/* Stats side */}
+                                <div className="flex-1 flex flex-col justify-center space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-slate-500" />
+                                            <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Pending</span>
+                                        </div>
+                                        <span className="text-sm font-black text-slate-800">{pending}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                            <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">In Progress</span>
+                                        </div>
+                                        <span className="text-sm font-black text-blue-800">{inProgress}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Completed</span>
+                                        </div>
+                                        <span className="text-sm font-black text-emerald-800">{done}</span>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-32 gap-2">
-                                    <CheckCircle2 className="w-10 h-10 text-gray-100" />
-                                    <p className="text-xs text-gray-400 font-medium">No tasks yet</p>
+                            </div>
+                        );
+                    })()}
+                </div>
+
+                {/* 3. Performance & Achievement */}
+                {(() => {
+                    const score = performanceScore ?? 100;
+                    const TIERS = [
+                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
+                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
+                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
+                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+                    ];
+                    const tier = score >= 500 ? TIERS[5] : TIERS.find(t => score >= t.min && score < t.max) || TIERS[0];
+                    const nextTier = TIERS.find(t => t.min > (tier?.min || 0));
+                    const progressInTier = score >= 500 ? 100 : Math.round(((score - tier.min) / (tier.max - tier.min)) * 100);
+
+                    return (
+                        <div className={`card p-5 border ${tier.border} ${tier.bg}`}>
+                            <div className="flex items-start justify-between mb-3">
+                                <div>
+                                    <h3 className={`font-black flex items-center gap-2 text-lg ${tier.text}`}>
+                                        <span>{tier.emoji}</span>
+                                        {tier.tag}
+                                    </h3>
+                                    <p className="text-[10px] text-gray-500 mt-1 font-semibold uppercase">+1 pt per on-time task</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="flex items-center gap-1.5 mt-1 justify-end">
+                                        <span className={`text-2xl font-black ${tier.text}`}>{score}</span>
+                                        <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">/ 500</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-6 mt-6 mb-2">
+                                <div className="text-sm">
+                                    <span className="text-gray-500 font-medium">Yesterday: </span>
+                                    <span className={`font-bold ${tier.text}`}>+5 pts</span>
+                                </div>
+                                <div className="text-sm">
+                                    <span className="text-gray-500 font-medium">Today: </span>
+                                    <span className={`font-bold ${tier.text}`}>+2 pts</span>
+                                </div>
+                            </div>
+                            
+                            {nextTier && (
+                                <div className="mt-4 pt-4 border-t border-gray-200/60 space-y-2">
+                                    <div className="flex justify-between text-[10px] font-semibold text-gray-500">
+                                        <span>Next: {nextTier.emoji} {nextTier.tag}</span>
+                                        <span>{progressInTier}%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-white/80 rounded-full overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressInTier}%`, backgroundColor: tier.color }} />
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 text-right">{nextTier.min - score} pts to next level</p>
                                 </div>
                             )}
                         </div>
                     );
                 })()}
 
-                {/* 3. Performance Points */}
-                {(() => {
-                    const score = performanceScore ?? 0;
-                    const TIERS = [
-                        { min: 0, label: 'Rookie', color: '#94A3B8' },
-                        { min: 100, label: 'Contributor', color: '#10B981' },
-                        { min: 200, label: 'Rising Star', color: '#06B6D4' },
-                        { min: 300, label: 'High Achiever', color: '#F97316' },
-                        { min: 400, label: 'Elite', color: '#8B5CF6' },
-                        { min: 500, label: 'Legendary', color: '#FFD700' },
-                    ];
-                    const currentTier = [...TIERS].reverse().find(t => score >= t.min) || TIERS[0];
-                    const now = new Date();
-                    const pointsData = data?.pointsHistory?.length === 8 
-                        ? data.pointsHistory.map((p: any) => ({
-                            period: format(new Date(p.period), 'dd MMM'),
-                            Points: p.Points
-                        }))
-                        : Array.from({ length: 8 }, (_, i) => ({
-                            period: format(subDays(now, (7 - i) * 7), 'dd MMM'),
-                            Points: i < 7 ? Math.round(score * ((i + 1) / 7) * (0.75 + Math.random() * 0.25)) : score,
-                        }));
-                    if (!data?.pointsHistory) pointsData[7].Points = score;
-                    return (
-                        <div className="card p-5">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
-                                        <Award className="w-4 h-4 text-violet-500" />
-                                        Performance Points
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-0.5">Score progression</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-2xl font-black" style={{ color: currentTier.color }}>{score}</p>
-                                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">/ 500 pts</p>
-                                </div>
-                            </div>
-                            <ResponsiveContainer width="100%" height={120}>
-                                <AreaChart data={pointsData} margin={{ top: 5, right: 5, left: -28, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="ptGrad" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={currentTier.color} stopOpacity={0.25} />
-                                            <stop offset="95%" stopColor={currentTier.color} stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                    <XAxis dataKey="period" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                                    <YAxis domain={[0, 500]} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                                    <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', fontSize: 12 }} formatter={(val: any) => [`${val} pts`, 'Points']} />
-                                    <Area type="monotone" dataKey="Points" stroke={currentTier.color} strokeWidth={2.5} fill="url(#ptGrad)" dot={{ r: 3, fill: currentTier.color, strokeWidth: 0 }} activeDot={{ r: 5 }} />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                            <div className="mt-3 pt-3 border-t border-gray-50">
-                                <div className="flex items-center justify-between gap-1 mb-1.5">
-                                    {TIERS.map(tier => {
-                                        const reached = score >= tier.min;
-                                        return (
-                                            <div key={tier.label} title={tier.label} className="flex flex-col items-center gap-1 flex-1">
-                                                <div className={clsx('w-4 h-4 rounded-full border-2 flex items-center justify-center', reached ? 'scale-110' : 'opacity-25')} style={{ borderColor: tier.color, backgroundColor: reached ? tier.color : 'transparent' }}>
-                                                    {reached && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
-                                                </div>
-                                                <span className="text-[8px] font-bold" style={{ color: reached ? tier.color : '#94a3b8' }}>{tier.min}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min((score / 500) * 100, 100)}%`, backgroundColor: currentTier.color }} />
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })()}
 
+
+                <div className="card p-5 group hover:shadow-md transition-shadow relative">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                                <Palmtree className="w-5 h-5 text-rose-600" />
+                            </div>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Attendance & Leaves</span>
+                        </div>
+                        <Link href="/leaves" className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md hover:bg-rose-100 transition-colors">
+                            Request Leave
+                        </Link>
+                    </div>
+                    <p className="text-3xl font-black text-gray-900">{leaves?.balance ?? 0}</p>
+                    <p className="text-xs text-gray-400 mt-1 mb-3">{leaves?.used ?? 0} days used this year</p>
+                    
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                        <div className="flex flex-col">
+                            <span className="text-gray-400">Present</span>
+                            <span className="font-bold text-gray-700">{attendance?.stats?.present ?? 0}</span>
+                        </div>
+                        <div className="flex flex-col text-center">
+                            <span className="text-gray-400">Late</span>
+                            <span className="font-bold text-gray-700">{attendance?.stats?.late ?? 0}</span>
+                        </div>
+                        <div className="flex flex-col text-right">
+                            <span className="text-gray-400">Absent</span>
+                            <span className="font-bold text-gray-700">{attendance?.stats?.absent ?? 0}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* Main Grid */}
-            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3")}>
-                {/* Left: Task list */}
-                <div className="lg:col-span-2 space-y-4">
+
+
+            {/* Main Section */}
+            <div className="space-y-6 w-full">
+                <div className="space-y-4 w-full">
                     <div className="card overflow-hidden">
                         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                             <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -489,31 +420,38 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                                 <p className="text-gray-400 font-medium">All caught up! No pending tasks.</p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-gray-50">
+                            <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
                                 {pendingTasks.map((task: any) => {
                                     const Icon = STATUS_ICON[task.status] || Clock;
                                     const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
                                     const taskId = task.id || task.id;
                                     return (
-                                        <div key={taskId} className="p-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
-                                            <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50')}>
-                                                <Icon className="w-4 h-4" />
-                                            </div>
-                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-gray-900 truncate">{task.title}</p>
-                                                <div className="flex items-center gap-2 mt-0.5 mb-1.5">
-                                                    {task.priority && (
-                                                        <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', PRIORITY_DOT[task.priority] || 'bg-gray-300')} title={task.priority} />
-                                                    )}
-                                                    {task.projectId?.name && (
-                                                        <span className="text-[10px] text-gray-400 truncate">{task.projectId.name}</span>
-                                                    )}
-                                                    {task.workLogs_TaskWorkLogs?.length > 0 && (
-                                                        <span className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-200 font-semibold" title="Rejection Count">
-                                                            Rejected {task.workLogs_TaskWorkLogs.length}
-                                                        </span>
-                                                    )}
+                                        <div key={taskId} className="p-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-gray-50/50 transition-colors">
+                                            {/* Title & Metadata (Left Column) */}
+                                            <div className="flex items-center gap-4 flex-[2] min-w-0">
+                                                <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', STATUS_COLOR[task.status] || 'text-gray-400 bg-gray-50')}>
+                                                    <Icon className="w-4 h-4" />
                                                 </div>
+                                                 <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900 truncate" title={task.title}>{task.title}</p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        {task.priority && (
+                                                            <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', PRIORITY_DOT[task.priority] || 'bg-gray-300')} title={`Priority: ${task.priority}`} />
+                                                        )}
+                                                        {task.projectId?.name && (
+                                                            <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{task.projectId.name}</span>
+                                                        )}
+                                                        {task.workLogs_TaskWorkLogs?.length > 0 && (
+                                                            <span className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-200 font-semibold" title="Rejection Count">
+                                                                Rejected {task.workLogs_TaskWorkLogs.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Due Date & Progress (Middle Column) */}
+                                            <div className="flex-[1.5] min-w-[200px]">
                                                 {task.dueDate && (
                                                     <TimeProgressBar
                                                         createdAt={task.createdAt}
@@ -525,7 +463,9 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                                                     />
                                                 )}
                                             </div>
-                                                <div className="flex items-center gap-2">
+
+                                            {/* Actions (Right Column) */}
+                                            <div className="flex items-center gap-2 justify-end md:flex-shrink-0">
                                                     {task.status === 'in_progress' && (
                                                         <button
                                                             onClick={() => {
@@ -611,226 +551,6 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                         </div>
                     )}
                 </div>
-
-                {/* Right: Performance + Attendance + Leaves */}
-                <div className="space-y-4">
-                    {/* Performance & Achievement */}
-                    {(() => {
-                        const score = performanceScore ?? 100;
-                        const TIERS = [
-                            { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
-                            { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-                            { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-                            { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-                            { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
-                            { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-                        ];
-                        const tier = score >= 500 ? TIERS[5] : TIERS.find(t => score >= t.min && score < t.max) || TIERS[0];
-                        const nextTier = TIERS.find(t => t.min > (tier?.min || 0));
-                        const progressInTier = score >= 500 ? 100 : Math.round(((score - tier.min) / (tier.max - tier.min)) * 100);
-                        const circumference = 2 * Math.PI * 36;
-                        const dashOffset = circumference - (score / 500) * circumference;
-
-                        return (
-                            <div className={`card p-5 border ${tier.border} ${tier.bg}`}>
-                                <h3 className={`font-bold mb-3 flex items-center gap-2 ${tier.text}`}>
-                                    <Award className="w-4 h-4" />
-                                    My Achievement
-                                </h3>
-                                <div className="flex items-center gap-4">
-                                    <div className="relative w-20 h-20 flex-shrink-0">
-                                        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 88 88">
-                                            <circle cx="44" cy="44" r="36" stroke="#e2e8f0" strokeWidth="7" fill="none" />
-                                            <circle cx="44" cy="44" r="36" stroke={tier.color} strokeWidth="7" fill="none" strokeLinecap="round"
-                                                strokeDasharray={circumference} strokeDashoffset={dashOffset}
-                                                className="transition-[stroke-dashoffset] duration-1000 ease-in-out" />
-                                        </svg>
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                            <span className="text-2xl">{tier.emoji}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className={`font-black text-base leading-tight ${tier.text}`}>{tier.tag}</p>
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                            <span className={`text-xl font-black ${tier.text}`}>{score}</span>
-                                            <span className="text-xs text-gray-400">/ 500 pts</span>
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 mt-1">+1 pt per on-time task</p>
-                                    </div>
-                                </div>
-                                {nextTier && (
-                                    <div className="mt-3 space-y-1">
-                                        <div className="flex justify-between text-[10px] font-semibold text-gray-400">
-                                            <span>Next: {nextTier.emoji} {nextTier.tag}</span>
-                                            <span>{progressInTier}%</span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-white/80 rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressInTier}%`, backgroundColor: tier.color }} />
-                                        </div>
-                                        <p className="text-[10px] text-gray-400">{nextTier.min - score} pts to next level</p>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
-
-                    {/* Today's Attendance */}
-                    <div className="card p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                                <Clock className="w-4 h-4 text-emerald-500" />
-                                Today&apos;s Attendance
-                            </h3>
-                            {data.attendance?.today?.shiftStatus && (
-                                <span className={clsx(
-                                    "px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                                    data.attendance.today.shiftStatus === 'on_time' ? "bg-emerald-50 text-emerald-600" :
-                                    data.attendance.today.shiftStatus === 'late' ? "bg-amber-50 text-amber-600" :
-                                    "bg-gray-50 text-gray-400"
-                                )}>
-                                    {data.attendance.today.shiftStatus.replace('_', ' ')}
-                                </span>
-                            )}
-                        </div>
-                        {data.attendance?.today?.checkIn ? (
-                            <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-center">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5">Check In</p>
-                                        <p className="text-sm font-black text-gray-900">{data.attendance.today.checkIn}</p>
-                                    </div>
-                                    <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-center relative group/checkout">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5">Check Out</p>
-                                        <p className="text-sm font-black text-gray-900">{data.attendance.today.checkOut || '--:--'}</p>
-                                        {!data.attendance.today.checkOut && (
-                                            <button 
-                                                onClick={handleWorkOff}
-                                                className="absolute inset-0 bg-red-600 text-white rounded-xl flex items-center justify-center gap-2 opacity-0 group-hover/checkout:opacity-100 transition-opacity duration-300 font-bold text-xs"
-                                            >
-                                                <LogOut className="w-3 h-3" />
-                                                Work Off
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                {data.attendance.today.workHours > 0 && (
-                                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-100/50">
-                                        <span className="text-[10px] font-bold text-indigo-800 uppercase tracking-tight">Total Work Time</span>
-                                        <span className="text-xs font-black text-indigo-700">{data.attendance.today.workHours} Hours</span>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-2xl">
-                                <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
-                                    <Clock className="w-6 h-6 text-gray-300" />
-                                </div>
-                                <p className="text-xs text-gray-400 font-medium px-4">Detecting check-in...</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Upcoming Holidays */}
-                    <div className="card p-5">
-                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <Palmtree className="w-4 h-4 text-indigo-500" />
-                            Upcoming Holidays
-                        </h3>
-                        {data?.holidays?.length > 0 ? (
-                            <div className="space-y-3">
-                                {data.holidays.map((h: any) => (
-                                    <div key={h.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group">
-                                        <div className="w-10 h-10 rounded-lg bg-indigo-50 flex flex-col items-center justify-center flex-shrink-0 group-hover:bg-indigo-100 transition-colors">
-                                            <span className="text-[10px] font-black text-indigo-600 uppercase leading-none">{h.date && !isNaN(new Date(h.date).getTime()) ? format(new Date(h.date), 'MMM') : ''}</span>
-                                            <span className="text-sm font-black text-indigo-700 leading-none mt-0.5">{h.date && !isNaN(new Date(h.date).getTime()) ? format(new Date(h.date), 'dd') : ''}</span>
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-gray-900 truncate">{h.name}</p>
-                                            <p className="text-[10px] text-gray-400 font-medium capitalize">{h.type} Holiday</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-6">
-                                <Palmtree className="w-8 h-8 text-gray-100 mx-auto mb-2" />
-                                <p className="text-xs text-gray-400 font-medium">No upcoming holidays</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="card p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                                <Palmtree className="w-4 h-4 text-rose-400" />
-                                Upcoming Leaves
-                            </h3>
-                            <Link
-                                href='/attendance?tab=leaves&action=request'
-                                className="text-[10px] font-bold text-rose-600 hover:text-rose-700 uppercase tracking-wider bg-rose-50 px-2 py-1 rounded-lg"
-                            >
-                                Request Leave
-                            </Link>
-                        </div>
-                        {leaves?.upcoming?.length > 0 ? (
-                            <div className="space-y-3">
-                                {leaves.upcoming.map((leave: any) => (
-                                    <div key={leave.id} className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900 capitalize">{leave.type || 'Leave'}</p>
-                                            <p className="text-xs text-gray-400">
-                                                {leave.startDate && !isNaN(new Date(leave.startDate).getTime()) ? format(new Date(leave.startDate), 'MMM d') : ''}
-                                                {leave.endDate && leave.startDate !== leave.endDate && !isNaN(new Date(leave.endDate).getTime()) ? ` – ${format(new Date(leave.endDate), 'MMM d')}` : ''}
-                                            </p>
-                                        </div>
-                                        <span className={clsx('text-[10px] font-bold px-2 py-1 rounded-lg capitalize', leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>
-                                            {leave.status}
-                                        </span>
-                                    </div>
-                                ))}
-                                <Link href='/attendance?tab=leaves' className="block text-center text-xs text-indigo-600 hover:underline mt-2">View all leaves →</Link>
-                            </div>
-                        ) : (
-                            <div className="text-center py-4">
-                                <Palmtree className="w-8 h-8 text-gray-100 mx-auto mb-2" />
-                                <p className="text-sm text-gray-400">No upcoming leaves</p>
-                                <Link href='/attendance?tab=leaves' className="mt-1 inline-block text-xs text-indigo-600 hover:underline">Apply for leave →</Link>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Developer Access */}
-                    <div className="card p-5 bg-slate-900 border-slate-800 text-white overflow-hidden relative">
-                        <div className="absolute -right-4 -top-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-2xl" />
-                        <h3 className="font-bold mb-3 flex items-center gap-2 text-indigo-400">
-                            <Code2 className="w-4 h-4" />
-                            Personal API Access
-                        </h3>
-                        {data?.profile?.apiKeyEnabled ? (
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-emerald-400">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Active</span>
-                                </div>
-                                <p className="text-[10px] text-slate-400">Your profile data is available via API for external integrations.</p>
-                                <Link href='/profile/me?tab=developer' className="block w-full py-2 text-center text-xs font-bold bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700">
-                                    Manage API Key
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-slate-500">
-                                    <div className="w-2 h-2 rounded-full bg-slate-500" />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Inactive</span>
-                                </div>
-                                <p className="text-[10px] text-slate-400">Generate an API key to access your profile statistics programmatically.</p>
-                                <Link href='/profile/me?tab=developer' className="block w-full py-2 text-center text-xs font-bold bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors shadow-lg shadow-indigo-500/20">
-                                    Enable Developer Access
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
 
             {/* Attendance Modal */}
@@ -845,6 +565,17 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                     }}
                 />
             )}
+
+            {/* Modals */}
+            <ConfirmModal
+                isOpen={showWorkOffConfirm}
+                title="Clock Out?"
+                message="Are you sure you want to clock out? This will end your work session for today."
+                confirmText="Clock Out"
+                variant="danger"
+                onConfirm={confirmWorkOff}
+                onCancel={() => setShowWorkOffConfirm(false)}
+            />
 
             {/* Log Work Modal */}
             {showLogWorkModal && (

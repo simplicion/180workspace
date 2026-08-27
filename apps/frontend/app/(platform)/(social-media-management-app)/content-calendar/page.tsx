@@ -57,7 +57,7 @@ export default function ContentCalendarPage() {
 
     useEffect(() => { fetchCalendars(); }, [search, status]);
 
-    if (user && !['admin', 'manager', 'hr'].includes(user.role)) {
+    if (user && user.role !== 'admin') {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">

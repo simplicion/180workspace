@@ -65,7 +65,7 @@ export class AuthService {
                     name,
                     password: hashedPassword,
                     companyId: company.id,
-                    role: 'ceo',
+                    role: 'admin',
                 },
             });
         } else {
@@ -74,7 +74,7 @@ export class AuthService {
                     name,
                     email: email.toLowerCase(),
                     password: hashedPassword,
-                    role: 'ceo',
+                    role: 'admin',
                     companyId: company.id,
                 },
             });

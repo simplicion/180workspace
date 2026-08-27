@@ -96,7 +96,7 @@ export default function OnboardingPage() {
     }
 
     // HR / Admin View
-    if (['admin', 'hr'].includes(user?.role || '') && allObs.length > 0 && !ob) {
+    if (user?.role === 'admin' && allObs.length > 0 && !ob) {
         return (
             <div>
                 <div className="page-header">

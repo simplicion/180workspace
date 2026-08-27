@@ -333,7 +333,7 @@ export default function UnifiedProfilePage() {
                         <div className="h-28 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 relative">
                             <div className="absolute -bottom-12 left-6">
                                 <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white border-4 border-white shadow-md flex items-center justify-center relative z-10">
-                                    {(profileUser.photoUrl || (['admin', 'ceo'].includes(profileUser.role) || (profileUser.permissions && profileUser.permissions.includes('can_manage_team')) ? (company?.companyLogo || company?.logoUrl) : null)) ? (
+                                    {(profileUser.photoUrl || (profileUser.role === 'admin' || (profileUser.permissions && profileUser.permissions.includes('can_manage_team')) ? (company?.companyLogo || company?.logoUrl) : null)) ? (
                                         <img src={profileUser.photoUrl || company?.companyLogo || company?.logoUrl} alt={profileUser.name} className="w-full h-full object-cover" />
                                     ) : (
                                         <span className="text-3xl font-bold text-indigo-600">
@@ -367,7 +367,7 @@ export default function UnifiedProfilePage() {
                                     </span>
                                     <span className={clsx(
                                         "px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border",
-                                        ['admin', 'ceo'].includes(profileUser.role) || (profileUser.permissions && profileUser.permissions.includes('can_manage_team')) ? "bg-red-50 text-red-600 border-red-100" :
+                                        profileUser.role === 'admin' || (profileUser.permissions && profileUser.permissions.includes('can_manage_team')) ? "bg-red-50 text-red-600 border-red-100" :
                                             profileUser.role === 'client' ? "bg-amber-50 text-amber-600 border-amber-100" :
                                                 "bg-indigo-50 text-indigo-600 border-indigo-100"
                                     )}>

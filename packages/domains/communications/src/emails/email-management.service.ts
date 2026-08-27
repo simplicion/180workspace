@@ -59,12 +59,16 @@ export class EmailManagementService {
         const settings: any = { ...settingsRecord };
         // We can ignore metadata fallback if settings exist directly
         
+        // Ensure sentById is a valid UUID to prevent foreign key constraint violations
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validSentById = (sentById && uuidRegex.test(sentById)) ? sentById : null;
+        
         const log = await prisma.emailLog.create({ data: {
             to: options.to,
             subject: options.subject,
             templateName: options.templateName || 'custom',
             templateData: options.templateData || {},
-            sentById: sentById,
+            sentById: validSentById,
             status: 'failed'
         } });
         const logId = log.id;

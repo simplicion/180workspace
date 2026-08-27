@@ -40,6 +40,36 @@ static async getLeads(page = 1, limit = 100) {
         };
         const lead = await prisma.lead.create({ data: leadData });
 
+        let existingClient = null;
+        if (data.clientId) {
+            existingClient = await prisma.client.findUnique({ where: { id: data.clientId } });
+        } else if (leadData.phone || leadData.email) {
+            existingClient = await prisma.client.findFirst({
+                where: {
+                    OR: [
+                        ...(leadData.phone ? [{ phone: leadData.phone }] : []),
+                        ...(leadData.email ? [{ email: leadData.email }] : [])
+                    ]
+                }
+            });
+        }
+
+        if (!existingClient) {
+            await prisma.client.create({
+                data: {
+                    name: leadData.name,
+                    email: leadData.email,
+                    phone: leadData.phone,
+                    companyName: leadData.company,
+                    industry: leadData.industry,
+                    employeeCount: leadData.companySize ? leadData.companySize.toString() : null,
+                    assignedManager: leadData.assignedSalesRepId,
+                    status: 'Active',
+                    leadSource: leadData.source
+                }
+            });
+        }
+
         await prisma.salesActivity.create({ data: {
             type: 'note',
             leadId: lead.id,

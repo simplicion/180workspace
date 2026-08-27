@@ -307,25 +307,27 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                         </div>
                         <h2 className="text-lg font-semibold text-gray-900">Log Your Work</h2>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
-                        <X className="w-4 h-4 text-gray-500" />
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 border-r border-gray-200 pr-4">
+                            <span className="text-sm font-medium text-gray-700">Sales Activity</span>
+                            <button
+                                type="button"
+                                onClick={() => setIsSalesActivity(!isSalesActivity)}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 ${isSalesActivity ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                            >
+                                <span className="sr-only">Log as Sales Activity</span>
+                                <span aria-hidden="true" className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isSalesActivity ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                        <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+                            <X className="w-4 h-4 text-gray-500" />
+                        </button>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto hidden-scrollbar px-6 py-5 space-y-6">
                     
-                    <div className="flex items-center gap-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                        <input
-                            type="checkbox"
-                            id="sales-activity-toggle"
-                            checked={isSalesActivity}
-                            onChange={(e) => setIsSalesActivity(e.target.checked)}
-                            className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-600"
-                        />
-                        <label htmlFor="sales-activity-toggle" className="text-sm font-semibold text-indigo-900 cursor-pointer">
-                            Log as a Sales Activity (Call, Email, Meeting)
-                        </label>
-                    </div>
+
 
                     {isSalesActivity && (
                         <div className="space-y-6 p-5 bg-gray-50 border border-gray-100 rounded-xl">

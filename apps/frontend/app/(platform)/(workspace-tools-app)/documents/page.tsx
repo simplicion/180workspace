@@ -305,7 +305,7 @@ export default function DocumentsPage() {
         return folder === activeCategory;
     });
 
-    const isAdminHrFinance = user?.roles?.some((r: string) => ['admin', 'ceo'].includes(r)) || ['admin', 'ceo'].includes(user?.role || '') || (user?.permissions && (user.permissions.includes('can_manage_team') || user.permissions.includes('can_manage_hr')));
+    const isAdminHrFinance = user?.roles?.some((r: string) => r === 'admin') || user?.role === 'admin' || (user?.permissions && (user.permissions.includes('can_manage_team') || user.permissions.includes('can_manage_hr')));
 
     return (
         <div className="min-h-full">

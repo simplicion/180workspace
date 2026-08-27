@@ -55,7 +55,7 @@ export class AutomationService {
             if (targetUser) {
                 user = await User.findUnique({
                     where: { id: targetUser },
-                    select: { name: true, email: true, preferences: true }
+                    select: { name: true, email: true }
                 });
             }
 

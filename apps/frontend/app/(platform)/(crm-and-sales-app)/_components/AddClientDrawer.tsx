@@ -99,7 +99,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         if (!form.name.trim()) return toast.error('Client name is required');
         setLoading(true);
         try {
-            const payload = {
+            const payload: any = {
                 ...form,
                 company: isCompany ? form.company : '',
                 industry: isCompany ? form.industry : '',
@@ -107,7 +107,16 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 taxId: isCompany ? form.taxId : '',
                 socialMediaLinks: { linkedin: isCompany ? form.linkedin : '' }
             };
+            
+            // Clean up payload to prevent backend Prisma errors
+            delete payload.linkedin;
+            if (payload.annualRevenue === '') {
+                delete payload.annualRevenue;
+            }
+            
             if (isEdit) {
+                delete payload.givePortalAccess;
+                delete payload.password;
                 const { data } = await api.put(`/api/clients/${editClient.id}`, payload);
                 toast.success('Client updated!');
                 onSuccess(data.client);
@@ -176,9 +185,9 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 </label>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-5">
                 <div>
-                    <label htmlFor="clientName" className="label">Contact Name *</label>
+                    <label htmlFor="clientName" className="label">Client Name *</label>
                     <input id="clientName" value={form.name} onChange={set('name')} placeholder="Jane Smith" className="input" required />
                 </div>
                 {isCompany && (
@@ -192,12 +201,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 )}
             </div>
 
-            <div className="mt-3">
-                <label htmlFor="contactPersonName" className="label">Primary Contact Person</label>
-                <input id="contactPersonName" value={form.contactPersonName} onChange={set('contactPersonName')} placeholder="Full Name (if different from above)" className="input" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-5 mt-5">
                 <div>
                     <label htmlFor="clientEmail" className="label">
                         Email Address {form.givePortalAccess && <span className="text-red-500">*</span>}
@@ -229,7 +233,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 mt-2">
+            <div className="grid grid-cols-3 gap-5 border-t border-gray-100 pt-5 mt-5">
                 <div>
                     <label htmlFor="clientType" className="label">Client Type</label>
                     <CustomSelect id="clientType" value={form.clientType} onChange={(e: any) => set('clientType')(e)} className="input">
@@ -266,7 +270,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
 
             {isCompany && (
                 <>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="grid grid-cols-2 gap-5 mt-5">
                         <div>
                             <label htmlFor="clientWebsite" className="label">Website</label>
                             <div className="relative">
@@ -283,51 +287,20 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                         </div>
                     </div>
 
-                    <div className="mt-3">
+                    <div className="mt-5">
                         <label htmlFor="clientTaxId" className="label">Tax ID / VAT No.</label>
                         <input id="clientTaxId" value={form.taxId} onChange={set('taxId')} placeholder="Optional" className="input" />
                     </div>
                 </>
             )}
 
-            <div className="grid grid-cols-2 gap-3 mt-3">
-                <div>
-                    <label htmlFor="clientAddress" className="label">Billing Address</label>
-                    <input id="clientAddress" value={form.billingAddress} onChange={set('billingAddress')} placeholder="Full billing address..." className="input" />
-                </div>
-                <div>
-                    <label htmlFor="shippingAddress" className="label">Shipping Address</label>
-                    <input id="shippingAddress" value={form.shippingAddress} onChange={set('shippingAddress')} placeholder="Full shipping address..." className="input" />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-3">
-                <div>
-                    <label htmlFor="paymentTerms" className="label">Payment Terms</label>
-                    <CustomSelect id="paymentTerms" value={form.paymentTerms} onChange={(e: any) => set('paymentTerms')(e)} className="input">
-                        <option value="">Select Terms...</option>
-                        <option value="Due on Receipt">Due on Receipt</option>
-                        <option value="Net 15">Net 15</option>
-                        <option value="Net 30">Net 30</option>
-                        <option value="Net 45">Net 45</option>
-                        <option value="Net 60">Net 60</option>
-                    </CustomSelect>
-                </div>
-                <div>
-                    <label htmlFor="currency" className="label">Currency</label>
-                    <CustomSelect id="currency" value={form.currency} onChange={(e: any) => set('currency')(e)} className="input">
-                        <option value="USD">USD ($)</option>
-                        <option value="EUR">EUR (€)</option>
-                        <option value="GBP">GBP (£)</option>
-                        <option value="INR">INR (₹)</option>
-                        <option value="AUD">AUD (A$)</option>
-                        <option value="CAD">CAD (C$)</option>
-                    </CustomSelect>
-                </div>
+            <div className="mt-5">
+                <label htmlFor="clientAddress" className="label">Client Address</label>
+                <input id="clientAddress" value={form.billingAddress} onChange={set('billingAddress')} placeholder="Full address..." className="input" />
             </div>
 
             {isCompany && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-2 gap-5 mt-5">
                     <div>
                         <label htmlFor="clientLocation" className="label">Location</label>
                         <div className="relative">
@@ -364,8 +337,8 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
             )}
 
             {!isEdit && (
-                <div className="border border-gray-100 rounded-lg p-4 mt-4 bg-gray-50/50">
-                    <label className="flex items-center gap-2 cursor-pointer mb-3">
+                <div className="border border-gray-100 rounded-lg p-5 mt-5 bg-gray-50/50">
+                    <label className="flex items-center gap-2 cursor-pointer mb-4">
                         <input 
                             type="checkbox" 
                             className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
@@ -392,7 +365,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 </div>
             )}
 
-            <div className="border-t border-gray-100 pt-4 mt-2">
+            <div className="border-t border-gray-100 pt-5 mt-5">
                 <label htmlFor="clientNotes" className="label">Internal Notes</label>
                 <div className="relative">
                     <AlignLeft className="absolute left-3 top-3 w-4 h-4 text-gray-400" aria-hidden="true" />

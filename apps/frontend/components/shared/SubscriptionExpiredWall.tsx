@@ -14,7 +14,7 @@ export default function SubscriptionExpiredWall() {
     const { dataDeletionDate, status } = useSubscription();
     const { platform, settings } = useSettings();
 
-    const isAdmin = ['admin', 'manager'].includes(user?.role || '') || user?.roles?.includes('admin') || user?.roles?.includes('manager');
+    const isAdmin = user?.role === 'admin' || user?.roles?.includes('admin');
 
     const effectiveSupportEmail = settings?.supportEmail || platform?.supportEmail || '';
 

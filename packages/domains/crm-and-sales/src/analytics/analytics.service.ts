@@ -289,11 +289,11 @@ static async getDashboardMetrics(userId, timeframe = 'month') {
                     relatedClient: { select: { id: true, name: true, company: true } }
                 }
             }).catch(() => []),
-            prisma.lead.count({ where: { deletedAt: null, status: { in: ['new', 'pending'] }, ...dateFilter } }).catch(() => 0),
-            prisma.lead.count({ where: { deletedAt: null, status: { notIn: ['new', 'pending', 'lost', 'rejected', 'archived', 'converted'] }, ...dateFilter } }).catch(() => 0),
+            prisma.lead.count({ where: { deletedAt: null, status: { in: ['new', 'pending', 'Lead'] }, ...dateFilter } }).catch(() => 0),
+            prisma.lead.count({ where: { deletedAt: null, status: { in: ['Contacted', 'Qualified', 'Demo', 'Proposal', 'Negotiation'] }, ...dateFilter } }).catch(() => 0),
             prisma.deal.count({ where: dateFilter }).catch(() => 0),
             prisma.deal.count({ where: { stage: 'ClosedWon', ...oppDateFilter } }).catch(() => 0),
-            prisma.lead.aggregate({ where: { deletedAt: null, status: { notIn: ['lost', 'rejected', 'archived', 'converted'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
+            prisma.lead.aggregate({ where: { deletedAt: null, status: { notIn: ['ClosedLost', 'lost', 'rejected', 'archived', 'converted', 'ClosedWon'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
             prisma.deal.aggregate({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => [])
         ]);
 

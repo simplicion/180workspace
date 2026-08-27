@@ -324,7 +324,10 @@ export const getActivities = async (req: Request, res: Response, next: NextFunct
     try {
         const page = parseInt(req.query.page as string, 10) || 1;
         const limit = parseInt(req.query.limit as string, 10) || 100;
-        const result = await ActivitiesService.getActivities(page, limit);
+        const isAll = req.query.all === 'true';
+        const ownerId = isAll ? undefined : (req as any).user.id;
+        
+        const result = await ActivitiesService.getActivities(page, limit, ownerId);
         res.json(result);
     } catch (err) { next(err); }
 };
@@ -337,6 +340,13 @@ export const createActivity = async (req: Request, res: Response, next: NextFunc
     } catch (err) { next(err); }
 };
 
+export const reviewActivity = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { status, reviewComment } = req.body;
+        const result = await ActivitiesService.reviewActivity(req.params.id, status, reviewComment, (req as any).user.id);
+        res.json(result);
+    } catch (err) { next(err); }
+};
 // -------------------------------------------------------------
 // AI ENHANCEMENTS (Phase 5)
 // -------------------------------------------------------------

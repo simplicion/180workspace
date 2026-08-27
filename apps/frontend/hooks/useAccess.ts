@@ -10,7 +10,7 @@ export function useAccess(moduleName: ModuleName) {
     }
 
     // Admins and CEOs have full access to everything
-    if (['admin', 'ceo'].includes(user.role) || (user.roles && user.roles.some((r: string) => ['admin', 'ceo'].includes(r)))) {
+    if (user.role === 'admin' || (user.roles && user.roles.some((r: string) => r === 'admin'))) {
         return { canRead: true, canWrite: true };
     }
 
