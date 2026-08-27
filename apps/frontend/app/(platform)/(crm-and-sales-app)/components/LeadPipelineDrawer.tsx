@@ -18,7 +18,7 @@ interface LeadPipelineDrawerProps {
     onClose: () => void;
     onSuccess: (deletedId?: string) => void;
     editingLeadPipeline?: any;
-    pipelineType?: 'DEAL' | 'ACTIVE_CLIENT';
+    pipelineType?: 'DEAL' | 'LEAD' | 'ACTIVE_CLIENT';
 }
 
 const STAGES = ['Lead', 'Contacted', 'Qualified', 'Demo', 'Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'];
@@ -40,6 +40,8 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             displayLabel: `${c.flag} +${c.phonecode}`
         }));
     }, []);
+
+    const isDealContext = pipelineType === 'DEAL' || editingLeadPipeline?.pipelineType === 'DEAL';
 
     const [formData, setFormData] = useState({
         title: '',
@@ -77,24 +79,24 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
 
             if (editingLeadPipeline) {
                 setFormData({
-                    title: editingLeadPipeline.title || '',
+                    title: editingLeadPipeline.title || editingLeadPipeline.name || '',
                     accountId: editingLeadPipeline.clientId || editingLeadPipeline.accountId?.id || editingLeadPipeline.accountId || '',
                     value: editingLeadPipeline.value || '',
-                    stage: editingLeadPipeline.stage || 'Lead',
+                    stage: editingLeadPipeline.stage || editingLeadPipeline.status || 'Lead',
                     probability: editingLeadPipeline.probability || 10,
                     expectedCloseDate: editingLeadPipeline.expectedCloseDate ? format(parseISO(editingLeadPipeline.expectedCloseDate), 'yyyy-MM-dd') : format(addDays(new Date(), 30), 'yyyy-MM-dd'),
                     notes: editingLeadPipeline.notes || '',
                     priorityScore: editingLeadPipeline.priorityScore || 50,
                     engagementScore: editingLeadPipeline.engagementScore || 50,
-                    type: editingLeadPipeline.tags?.includes('Lead') ? 'Lead' : 'lead pipeline',
-                    contactName: editingLeadPipeline.client?.name || editingLeadPipeline.contactName || '',
-                    contactEmail: editingLeadPipeline.client?.email || editingLeadPipeline.contactEmail || '',
-                    contactPhone: editingLeadPipeline.client?.phone || editingLeadPipeline.contactPhone || '',
-                    companyName: editingLeadPipeline.client?.companyName || editingLeadPipeline.companyName || '',
+                    type: editingLeadPipeline.tags?.includes('Lead') || !isDealContext ? 'Lead' : 'lead pipeline',
+                    contactName: editingLeadPipeline.client?.name || editingLeadPipeline.contactName || editingLeadPipeline.name || '',
+                    contactEmail: editingLeadPipeline.client?.email || editingLeadPipeline.contactEmail || editingLeadPipeline.email || '',
+                    contactPhone: editingLeadPipeline.client?.phone || editingLeadPipeline.contactPhone || editingLeadPipeline.phone || '',
+                    companyName: editingLeadPipeline.client?.companyName || editingLeadPipeline.companyName || editingLeadPipeline.company || '',
                     industry: editingLeadPipeline.client?.industry || editingLeadPipeline.industry || '',
                     source: editingLeadPipeline.source || '',
                     currency: editingLeadPipeline.currency || company?.currency || 'USD',
-                    owner: editingLeadPipeline.ownerId || '',
+                    owner: editingLeadPipeline.ownerId || editingLeadPipeline.assignedSalesRepId || '',
                     followUpDate: editingLeadPipeline.followUpDate ? format(parseISO(editingLeadPipeline.followUpDate), "yyyy-MM-dd'T'HH:mm") : currentDatetime,
                 });
             } else {
@@ -171,19 +173,26 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         delete submissionData.accountId;
         delete submissionData.type;
         
+        const isDeal = submissionData.pipelineType === 'DEAL';
+        if (!isDeal) {
+            // Map title/contactName to 'name' for Prisma Lead model
+            submissionData.name = formData.title || formData.contactName;
+        }
+        
         setSaving(true);
         try {
+            const endpointBase = isDeal ? '/api/sales/deals' : '/api/sales/leads';
             if (editingLeadPipeline) {
-                await api.put(`/api/sales/opportunities/${editingLeadPipeline.id}`, submissionData);
-                toast.success('Lead Pipeline updated');
+                await api.put(`${endpointBase}/${editingLeadPipeline.id}`, submissionData);
+                toast.success(isDeal ? 'Deal updated' : 'Lead updated');
             } else {
-                await api.post('/api/sales/opportunities', submissionData);
-                toast.success('Lead Pipeline created');
+                await api.post(endpointBase, submissionData);
+                toast.success(isDeal ? 'Deal created' : 'Lead created');
             }
             onSuccess();
             onClose();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to save lead pipeline');
+            toast.error(error.response?.data?.error || `Failed to save ${isDeal ? 'deal' : 'lead'}`);
         } finally {
             setSaving(false);
         }
@@ -192,13 +201,15 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     const handleDelete = async () => {
         if (!editingLeadPipeline?.id) return;
         setDeleting(true);
+        const isDeal = editingLeadPipeline.pipelineType === 'DEAL' || !editingLeadPipeline.name;
         try {
-            await api.delete(`/api/sales/opportunities/${editingLeadPipeline.id}`);
-            toast.success('Lead deleted successfully');
+            const endpoint = isDeal ? `/api/sales/deals/${editingLeadPipeline.id}` : `/api/sales/leads/${editingLeadPipeline.id}`;
+            await api.delete(endpoint);
+            toast.success(`${isDeal ? 'Deal' : 'Lead'} deleted successfully`);
             onSuccess(editingLeadPipeline.id);
             onClose();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to delete lead');
+            toast.error(error.response?.data?.error || `Failed to delete ${isDeal ? 'deal' : 'lead'}`);
         } finally {
             setDeleting(false);
             setShowDeleteConfirm(false);
@@ -245,14 +256,14 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             open={open}
             onClose={onClose}
             size="max-w-2xl"
-            title={editingLeadPipeline ? 'Edit Lead Pipeline' : 'New Lead Pipeline'}
+            title={editingLeadPipeline ? (isDealContext ? 'Edit Deal' : 'Edit Lead') : (isDealContext ? 'New Deal' : 'New Lead')}
             icon={<Briefcase className="w-5 h-5" />}
             footer={
                 <>
                     <div className="flex gap-3">
                         {editingLeadPipeline && (
                             <button onClick={() => setShowDeleteConfirm(true)} type="button" disabled={saving} className="btn-danger mr-auto">
-                                Delete Lead
+                                {isDealContext ? 'Delete Deal' : 'Delete Lead'}
                             </button>
                         )}
                         <button onClick={onClose} type="button" className="btn-secondary">Cancel</button>
@@ -260,7 +271,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                             {saving ? (
                                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white" />
                             ) : (
-                                editingLeadPipeline ? 'Update Lead Pipeline' : 'Save & Launch Deal'
+                                editingLeadPipeline ? (isDealContext ? 'Update Deal' : 'Update Lead') : (isDealContext ? 'Save & Launch Deal' : 'Save Lead')
                             )}
                         </button>
                     </div>
@@ -268,7 +279,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             }
         >
             <div>
-                <label htmlFor="dealTitle" className="label">Deal Title *</label>
+                <label htmlFor="dealTitle" className="label">{isDealContext ? 'Deal Title *' : 'Lead Name *'}</label>
                 <div className="relative">
                     <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
                     <input

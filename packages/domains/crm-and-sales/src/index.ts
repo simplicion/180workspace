@@ -1,10 +1,12 @@
 export { ClientService } from './clients/client.service.js';
+export { ClientSalesService } from './clients/client-sales.service.js';
 export { ContractService } from './contracts/contract.service.js';
-export { SalesService } from './sales/sales.service.js';
+export { ContractSalesService } from './contracts/contract-sales.service.js';
+export { LeadsService } from './leads/leads.service.js';
+export { DealsService } from './deals/deals.service.js';
+export { QuotesService } from './quotes/quotes.service.js';
+export { ActivitiesService } from './activities/activities.service.js';
+export { AnalyticsService } from './analytics/analytics.service.js';
 export * as SalesRuleEngine from './sales/sales-rule-engine.service.js';
 export * as SalesListeners from './sales/listeners.js';
-
-
-
-
 export { CrmCalculationService } from './sales/crm-calculation.service.js';

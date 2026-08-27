@@ -107,20 +107,17 @@ export default function LeadPipelinesKanbanPage() {
         if (!STAGES.includes(newStage)) {
             // If dropped over a card instead of a column, find the column of that card
             const overOpp = leadPipelines.find(o => o.id === overId);
-            if (overOpp) newStage = overOpp.stage;
+            if (overOpp) newStage = overOpp.status;
         }
 
-        if (opp.stage === newStage) return;
+        if (opp.status === newStage) return;
 
         // Optimistic UI update
-        const updatedOpps = leadPipelines.map(o => 
-            o.id === activeId ? { ...o, stage: newStage } : o
-        );
-        setleadPipelines(updatedOpps);
+        setleadPipelines(prev => prev.map(o => o.id === activeId ? { ...o, status: newStage } : o));
 
         try {
-            await api.put(`/api/sales/opportunities/${activeId}`, { stage: newStage });
-            toast.success(`Moved to ${STAGE_LABELS[newStage]}`);
+            await api.put(`/api/sales/leads/${activeId}`, { status: newStage });
+            toast.success('Lead stage updated');
         } catch (error) {
             toast.error('Failed to move leadPipeline');
             fetchleadPipelines(); // Revert on failure
@@ -131,7 +128,7 @@ export default function LeadPipelinesKanbanPage() {
         if (!showDeleteConfirm) return;
         setDeleting(true);
         try {
-            await api.delete(`/api/sales/opportunities/${showDeleteConfirm.id}`);
+            await api.delete(`/api/sales/leads/${showDeleteConfirm.id}`);
             toast.success('Lead deleted');
             setleadPipelines(prev => prev.filter(o => o.id !== showDeleteConfirm.id));
         } catch (error: any) {
@@ -145,7 +142,7 @@ export default function LeadPipelinesKanbanPage() {
     const handleConvertToDeal = async (id: string) => {
         setConvertingId(id);
         try {
-            await api.put(`/api/sales/opportunities/${id}`, { convertToDeal: true });
+            await api.post(`/api/sales/leads/${id}/convert`, {});
             toast.success('Converted to Deal!');
             fetchleadPipelines();
         } catch (error: any) {
@@ -158,8 +155,8 @@ export default function LeadPipelinesKanbanPage() {
     const fetchleadPipelines = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/api/sales/opportunities?pipelineType=DEAL');
-            setleadPipelines(data.opportunities || data.leadPipelines || (Array.isArray(data) ? data : []));
+            const { data } = await api.get('/api/sales/leads');
+            setleadPipelines(data.leads || data.opportunities || data.leadPipelines || (Array.isArray(data) ? data : []));
         } catch (err) {
             setError('Failed to load leadPipelines');
         } finally {
@@ -171,12 +168,12 @@ export default function LeadPipelinesKanbanPage() {
         fetchleadPipelines();
     }, []);
 
-    const filteredOpps = leadPipelines.filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredOpps = leadPipelines.filter(o => (o.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
 
     // KPI Metrics
     const totalLeads = leadPipelines.length;
-    const wonLeads = leadPipelines.filter(l => l.stage === 'ClosedWon').length;
-    const lostLeads = leadPipelines.filter(l => l.stage === 'ClosedLost').length;
+    const wonLeads = leadPipelines.filter(l => l.status === 'ClosedWon').length;
+    const lostLeads = leadPipelines.filter(l => l.status === 'ClosedLost').length;
     const openLeads = totalLeads - wonLeads - lostLeads;
     const pipelineValue = leadPipelines
         .filter(l => l.stage !== 'ClosedWon' && l.stage !== 'ClosedLost')
@@ -192,14 +189,14 @@ export default function LeadPipelinesKanbanPage() {
         const csvContent = "data:text/csv;charset=utf-8," 
             + headers.join(",") + "\n"
             + leadPipelines.map(e => [
-                `"${(e.title || '').replace(/"/g, '""')}"`,
-                `"${(e.stage || '').replace(/"/g, '""')}"`,
-                e.value || 0,
-                `"${(e.companyName || e.accountId?.name || '').replace(/"/g, '""')}"`,
-                `"${(e.contactName || '').replace(/"/g, '""')}"`,
-                `"${(e.email || '').replace(/"/g, '""')}"`,
-                `"${(e.phone || '').replace(/"/g, '""')}"`,
-                e.priorityScore || 0
+                `"${((o as any).name || '').replace(/"/g, '""')}"`,
+                `"${((o as any).status || '').replace(/"/g, '""')}"`,
+                (o as any).value || 0,
+                `"${((o as any).companyName || '').replace(/"/g, '""')}"`,
+                `"${((o as any).name || '').replace(/"/g, '""')}"`,
+                `"${((o as any).email || '').replace(/"/g, '""')}"`,
+                `"${((o as any).phone || '').replace(/"/g, '""')}"`,
+                (o as any).leadScore || 0
             ].join(",")).join("\n");
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -213,9 +210,9 @@ export default function LeadPipelinesKanbanPage() {
 
     // Group by stage
     const grouped = STAGES.reduce((acc, stage) => {
-        acc[stage] = filteredOpps.filter(o => o.stage === stage)
-            // Sort by priorityScore (highest first), then by value
-            .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0) || (b.value || 0) - (a.value || 0));
+        acc[stage] = filteredOpps.filter(o => o.status === stage)
+            // Sort by leadScore (highest first), then by value
+            .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0) || (b.value || 0) - (a.value || 0));
         return acc;
     }, {} as Record<string, any[]>);
 
@@ -351,6 +348,7 @@ export default function LeadPipelinesKanbanPage() {
 
             <LeadPipelineDrawer
                 open={isModalOpen}
+                pipelineType="LEAD"
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={(deletedId?: string) => {
                     if (deletedId) {
@@ -365,7 +363,7 @@ export default function LeadPipelinesKanbanPage() {
             <ConfirmModal
                 isOpen={!!showDeleteConfirm}
                 title="Delete Lead"
-                message={`Are you sure you want to delete "${showDeleteConfirm?.title}"? This action cannot be undone.`}
+                message={`Are you sure you want to delete "${showDeleteConfirm?.name}"? This action cannot be undone.`}
                 confirmText="Delete"
                 onConfirm={handleDeleteleadPipeline}
                 onCancel={() => setShowDeleteConfirm(null)}
@@ -375,8 +373,6 @@ export default function LeadPipelinesKanbanPage() {
         </div>
     );
 }
-
-// â”€â”€ Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface ColumnProps {
     id: string;
@@ -418,7 +414,7 @@ function Column({ id, title, leadPipelines, onEdit, onDelete, onConvert }: Colum
 
                 {leadPipelines.length === 0 && (
                     <div className="flex-1 flex items-center justify-center text-gray-300 text-xs select-none">
-                        Drop deals here
+                        Drop leads here
                     </div>
                 )}
             </div>
@@ -469,7 +465,7 @@ function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConver
 
     if (!opp) return null;
 
-    const dotColor = opp.priorityScore >= 80 ? 'bg-orange-500' : opp.priorityScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
+    const dotColor = opp.leadScore >= 80 ? 'bg-orange-500' : opp.leadScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
 
     return (
         <div 
@@ -483,15 +479,15 @@ function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConver
             <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
                     <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor)} />
-                    <p className="text-sm font-bold text-gray-900 leading-snug">{opp.title}</p>
+                    <p className="text-sm font-bold text-gray-900 leading-snug">{opp.name}</p>
                 </div>
             </div>
             
             <div className="flex flex-col gap-1 mt-1">
-                {(opp.contactName || opp.companyName || opp.accountId?.name) && (
+                {(opp.companyName) && (
                     <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
-                        <User className="w-3.5 h-3.5 text-gray-400" />
-                        <span className="truncate">{opp.contactName || opp.companyName || opp.accountId?.name}</span>
+                        <Building className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="truncate">{opp.companyName}</span>
                     </div>
                 )}
                 {opp.phone && (

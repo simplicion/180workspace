@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { prisma } from '@workspace/db';
 
-import { SalesService } from './sales.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import axios from 'axios';
 
 export class SalesRuleEngineService {
@@ -81,7 +81,7 @@ export class SalesRuleEngineService {
         if (!prisma.deal) return;
         
         // Find stagnant opportunities (> 7 days) to catch the risk early
-        const stagnantOppIds = await SalesService.detectStagnantOpportunities(companyPrisma, 7);
+        const stagnantOppIds = await AnalyticsService.detectStagnantOpportunities(companyPrisma, 7);
 
         if (stagnantOppIds.length > 0) {
             const opps = await prisma.deal.findMany({ where: { id: { in: stagnantOppIds } } });

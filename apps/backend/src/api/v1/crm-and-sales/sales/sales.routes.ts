@@ -25,12 +25,6 @@ router.post('/contracts/ai-create', ctrl.createContractWithAI);
 router.post('/contracts/download-pdf', ctrl.downloadContractPDF);
 router.post('/contracts/email', ctrl.emailContract);
 
-router.get('/opportunities', ctrl.getOpportunities);
-router.post('/opportunities', ctrl.createOpportunity);
-router.put('/opportunities/:id', ctrl.updateOpportunity);
-router.delete('/opportunities/:id', ctrl.deleteOpportunity);
-router.post('/opportunities/:id/create-project', ctrl.createProjectFromOpportunity);
-
 router.get('/accounts', ctrl.getAccounts);
 router.post('/accounts', ctrl.createAccount);
 router.put('/accounts/:id', ctrl.updateAccount);
@@ -58,9 +52,10 @@ router.post('/quotes/:id/email', ctrl.sendQuoteEmail);
 router.get('/revenue', ctrl.getRevenueStats);
 
 router.get('/deals', ctrl.getDeals);
+router.post('/deals', ctrl.createDeal);
 router.put('/deals/:id', ctrl.updateDeal);
 router.delete('/deals/:id', ctrl.deleteDeal);
 router.post('/deals/import', ctrl.importDeals);
+router.post('/deals/:id/create-project', ctrl.createProjectFromDeal);
 
 export default router;
-

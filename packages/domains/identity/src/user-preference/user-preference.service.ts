@@ -68,7 +68,7 @@ export class UserPreferenceService {
         recentItems = recentItems.filter((f: any) => !(f.recordId === item.recordId && f.type === item.type));
 
         // Add to front
-        recentItems.unshift({ ...item, viewedAt: new Date() });
+        recentItems.unshift({ ...item, viewedAt: new Date().toISOString() });
 
         // Limit to 20
         if (recentItems.length > 20) {

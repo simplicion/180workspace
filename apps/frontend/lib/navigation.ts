@@ -42,7 +42,7 @@ export const navigation = [
         items: [
             { id: 'sales', name: 'Sales Overview', href: '/sales', exact: true, icon: TrendingUp, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'leads', name: 'Leads Pipeline', href: '/sales/leads-pipeline', icon: Magnet, roles: ['admin', 'manager', 'hr', 'sales'] },
-            { id: 'opportunities', name: 'Deals Pipeline', href: '/sales/deals', icon: PieChart, roles: ['admin', 'manager', 'hr', 'sales'] },
+            { id: 'deals', name: 'Deals Pipeline', href: '/sales/deals', icon: PieChart, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'ai-insights', name: 'AI Insights', href: '/sales/ai-insights', icon: Sparkles, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'productivity', name: 'Productivity', href: '/sales/productivity', icon: ClipboardList, roles: ['admin', 'manager', 'hr', 'sales'] },
             { id: 'clients', name: 'Clients', href: '/clients', icon: Building2, roles: ['admin', 'manager', 'hr'] },

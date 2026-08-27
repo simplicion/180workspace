@@ -18,7 +18,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/pipeline': { appId: 'crm', moduleId: 'pipeline' },
   '/accounts': { appId: 'crm', moduleId: 'accounts' },
   '/contacts': { appId: 'crm', moduleId: 'contacts' },
-  '/opportunities': { appId: 'crm', moduleId: 'opportunities' },
+  '/deals': { appId: 'crm', moduleId: 'deals' },
   '/clients': { appId: 'crm', moduleId: 'clients', isShared: true }, // Needed by Projects
   '/invoices': { appId: 'crm', moduleId: 'invoices', isShared: true }, // Needed by Finance
   
@@ -100,7 +100,7 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'pipeline', name: 'Sales Pipeline' },
             { id: 'accounts', name: 'Accounts & Contacts' },
             { id: 'contacts', name: 'Contacts Directory' },
-            { id: 'opportunities', name: 'Opportunity Tracking' },
+            { id: 'deals', name: 'Deals Tracking' },
             { id: 'quotes', name: 'Quotation System' },
             { id: 'activities', name: 'Engagement Activities' },
             { id: 'contracts', name: 'Contract Management' },
