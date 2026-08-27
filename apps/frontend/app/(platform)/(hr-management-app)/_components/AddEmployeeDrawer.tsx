@@ -70,7 +70,7 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
     let initialPermissions = editUser?.permissions || [];
     
     if (isEdit && (!editUser.permissions || editUser.permissions.length === 0)) {
-        if (editUser.role === 'admin' || editUser.role === 'ceo' || editUser.role === 'superadmin') initialRole = 'admin';
+        if (editUser.role === 'admin') initialRole = 'admin';
         else if (editUser.role === 'manager') { initialRole = 'employee'; initialPermissions = ['can_manage_team']; }
         else if (editUser.role === 'hr') { initialRole = 'employee'; initialPermissions = ['can_manage_hr', 'can_manage_team']; }
     }

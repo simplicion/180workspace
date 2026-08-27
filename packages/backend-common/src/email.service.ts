@@ -192,13 +192,20 @@ async function dispatchEmail(options, prisma) {
 
         // Logging only if prisma provided
         if (prisma) {
+            // Ensure sentById is a valid UUID to prevent foreign key constraint violations
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            let validSentById = options.sentById || null;
+            if (validSentById && !uuidRegex.test(validSentById)) {
+                validSentById = null;
+            }
+
             const log = await prisma.emailLog.create({
                 data: {
                     to: options.to,
                     subject: options.subject,
                     templateName: options.templateName || 'generic',
                     templateData: options.templateData || {},
-                    sentById: options.sentById || null,
+                    sentById: validSentById,
                     status: 'failed',
                 }
             });

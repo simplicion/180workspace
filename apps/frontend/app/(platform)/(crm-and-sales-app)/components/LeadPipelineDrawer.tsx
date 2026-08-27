@@ -57,7 +57,6 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         contactName: '',
         contactEmail: '',
         contactPhone: '',
-        contactPhone: '',
         companyName: '',
         industry: '',
         source: '',
@@ -65,6 +64,23 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         owner: '',
         followUpDate: '',
     });
+
+    const handleClientSelect = (value: string) => {
+        const existingClient = accounts.find(a => (a.name || a.companyName) === value);
+        if (existingClient) {
+            setFormData(prev => ({
+                ...prev,
+                contactName: value,
+                contactEmail: existingClient.email || prev.contactEmail,
+                contactPhone: existingClient.phone || prev.contactPhone,
+                companyName: existingClient.companyName || prev.companyName,
+                industry: existingClient.industry || prev.industry,
+                accountId: existingClient.id
+            }));
+        } else {
+            setFormData(prev => ({ ...prev, contactName: value, accountId: '' }));
+        }
+    };
 
     useEffect(() => {
         if (open) {
@@ -158,9 +174,17 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.title || !formData.value) {
-            return toast.error('Please fill in required fields');
+        
+        // Mandatory fields validation
+        if (!formData.title || !formData.contactName || !formData.source || !formData.industry || !formData.owner || !formData.followUpDate) {
+            return toast.error('Please fill in all required fields');
         }
+
+        // Contact info validation (either email or phone)
+        if (!formData.contactEmail && !formData.contactPhone) {
+            return toast.error('Either Email or Phone Number is required');
+        }
+
         if (formData.type === 'lead pipeline' && !formData.accountId) {
             return toast.error('Account is required for Opportunities');
         }
@@ -251,6 +275,13 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         setFormData({ ...formData, contactPhone: `${currentCode} ${cleaned}`.trim() });
     };
 
+    const phoneExistsInAccounts = accounts.some(a => 
+        a.phone && formData.contactPhone && 
+        a.phone.replace(/\D/g, '') === formData.contactPhone.replace(/\D/g, '') && 
+        a.phone.replace(/\D/g, '') !== '' &&
+        (a.name || a.companyName) !== formData.contactName
+    );
+
     return (
         <Drawer
             open={open}
@@ -297,18 +328,27 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             <div className="grid grid-cols-2 gap-3">
                 <div>
                     <label htmlFor="contactName" className="label">Client Name *</label>
-                    <input id="contactName" required type="text" placeholder="John Doe" className="input" value={formData.contactName} onChange={e => setFormData({ ...formData, contactName: e.target.value })} />
+                    <CustomSelect 
+                        id="contactName" 
+                        required 
+                        creatable={true}
+                        placeholder="John Doe"
+                        className="select"
+                        value={formData.contactName} 
+                        onChange={(e: any) => handleClientSelect(e.target.value)} 
+                        options={accounts.map(a => ({ label: a.name || a.companyName, value: a.name || a.companyName }))}
+                    />
                 </div>
                 <div>
                     <label htmlFor="companyName" className="label">Company Name</label>
                     <input id="companyName" type="text" placeholder="Acme Corp" className="input" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
                 </div>
                 <div>
-                    <label htmlFor="contactEmail" className="label">Email Address</label>
+                    <label htmlFor="contactEmail" className="label">Email Address {formData.contactPhone ? '' : '*'}</label>
                     <input id="contactEmail" type="email" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address" placeholder="john@example.com" className="input" value={formData.contactEmail} onChange={e => setFormData({ ...formData, contactEmail: e.target.value })} />
                 </div>
                 <div>
-                    <label htmlFor="contactPhone" className="label">Phone Number</label>
+                    <label htmlFor="contactPhone" className="label">Phone Number {formData.contactEmail ? '' : '*'}</label>
                     <div className="flex gap-2">
                         <div className="w-32 shrink-0">
                             <CustomSelect 
@@ -326,6 +366,12 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                             onChange={handlePhoneNumChange} 
                         />
                     </div>
+                    {phoneExistsInAccounts && (
+                        <div className="text-amber-600 text-[11px] mt-1 flex items-start gap-1 font-medium leading-tight">
+                            <Info className="w-3.5 h-3.5 shrink-0" />
+                            A client with this phone number already exists. Consider selecting them from the Client Name field above.
+                        </div>
+                    )}
                 </div>
                 <div>
                     <label htmlFor="source" className="label">Source *</label>
@@ -382,13 +428,14 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     )}
                 </div>
                 <div>
-                    <label htmlFor="followUpDate" className="label">Follow-up Date & Time</label>
-                    <input id="followUpDate" type="datetime-local" className="input" value={formData.followUpDate} onChange={e => setFormData({ ...formData, followUpDate: e.target.value })} />
+                    <label htmlFor="followUpDate" className="label">Follow-up Date & Time *</label>
+                    <input id="followUpDate" required type="datetime-local" className="input" value={formData.followUpDate} onChange={e => setFormData({ ...formData, followUpDate: e.target.value })} />
                 </div>
                 <div>
-                    <label htmlFor="owner" className="label">Assign To</label>
+                    <label htmlFor="owner" className="label">Assign To *</label>
                     <CustomSelect 
                         id="owner" 
+                        required
                         className="select" 
                         value={formData.owner} 
                         onChange={(e: any) => setFormData({ ...formData, owner: e.target.value })}

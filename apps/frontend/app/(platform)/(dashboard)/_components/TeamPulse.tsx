@@ -103,14 +103,13 @@ export default function TeamPulse({ stats, getStatValue, getSubText, isLocked: i
                 {/* Team Pulse */}
                 <div className="px-5 pb-4 flex flex-col gap-3">
                     <div className="grid grid-cols-2 gap-3">
-                        {/* Box 1: Attendance Today */}
-                        <div className="bg-emerald-50/60 border border-emerald-100/60 rounded-xl p-4 relative overflow-hidden group">
-                            <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-1">Attendance Today</p>
+                        {/* Box 1: Pending Salaries */}
+                        <div className="bg-amber-50/60 border border-amber-100/60 rounded-xl p-4 relative overflow-hidden group">
+                            <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mb-1">Pending Salaries</p>
                             <div className="flex items-baseline gap-1.5">
-                                <p className="text-2xl font-black text-gray-900">{getStatValue('attendance')}</p>
-                                <p className="text-xs font-semibold text-emerald-600/70">/ {getStatValue('employees')}</p>
+                                <p className="text-2xl font-black text-gray-900">{getStatValue('salary_pending')}</p>
                             </div>
-                            <Users className="w-8 h-8 text-emerald-100 absolute -bottom-1 -right-1 group-hover:text-emerald-200 transition-colors" />
+                            <FolderKanban className="w-8 h-8 text-amber-100 absolute -bottom-1 -right-1 group-hover:text-amber-200 transition-colors" />
                         </div>
                         
                         {/* Box 2: Pending Expenses */}

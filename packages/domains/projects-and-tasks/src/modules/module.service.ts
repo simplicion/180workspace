@@ -39,7 +39,7 @@ export class ModuleService {
         if (!project) throw new Error('Project not found');
 
         const userRoles = user.roles || [user.role || 'employee'];
-        const isAdminOrManager = userRoles.some(role => ['admin', 'manager', 'ceo', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(role)) || (data.permissions && data.permissions.includes('can_manage_team'));
+        const isAdminOrManager = userRoles.includes('admin') || (data.permissions && data.permissions.includes('can_manage_team'));
 
         if (!isAdminOrManager && project.ownerId?.toString() !== user.id.toString()) {
             throw new Error('Only project owners, managers, or admins can create modules');
@@ -98,7 +98,7 @@ export class ModuleService {
         const isOwner = mod.ownerId?.toString() === user.id.toString();
         const isProjectOwner = project?.ownerId?.toString() === user.id.toString();
         const userRoles = user.roles || [user.role || 'employee'];
-        const isAdminOrManager = userRoles.some(role => ['admin', 'manager', 'ceo', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(role)) || (data.permissions && data.permissions.includes('can_manage_team'));
+        const isAdminOrManager = userRoles.includes('admin') || (data.permissions && data.permissions.includes('can_manage_team'));
 
         if (!isAdminOrManager && !isOwner && !isProjectOwner) {
             throw new Error('Not authorized to update this module');
@@ -156,7 +156,7 @@ export class ModuleService {
 
         const project = await prisma.project.findUnique({ where: { id: mod.projectId } });
         const userRoles = user.roles || [user.role || 'employee'];
-        const isAdminOrManager = userRoles.some(role => ['admin', 'manager', 'ceo', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(role)) || (user as any).permissions?.includes('can_manage_team');
+        const isAdminOrManager = userRoles.includes('admin') || (user as any).permissions?.includes('can_manage_team');
 
         if (!isAdminOrManager && project?.ownerId?.toString() !== user.id.toString()) {
             throw new Error('Only project owners, managers, or admins can delete modules');

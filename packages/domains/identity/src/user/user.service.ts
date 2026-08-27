@@ -56,7 +56,7 @@ export class UserService {
         const User = prisma.user;
         const forbidden = ['password', 'email', 'refreshTokens', 'mfaSecret'];
         
-        if (!['admin', 'ceo'].includes(currentUser.role)) {
+        if (currentUser.role !== 'admin') {
             forbidden.push('roles', 'role', 'salary', 'employeeId', 'permissions');
         }
         forbidden.forEach((f) => delete body[f]);

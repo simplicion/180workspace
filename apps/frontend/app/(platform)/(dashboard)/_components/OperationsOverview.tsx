@@ -123,13 +123,14 @@ export default function OperationsOverview({ stats, getStatValue, isLocked }: Op
                     <CheckSquare className="w-7 h-7 text-indigo-100 absolute -bottom-1 -right-1 group-hover:text-indigo-200 transition-colors" />
                 </div>
 
-                {/* Pending Salaries */}
-                <div className="bg-amber-50/60 border border-amber-100/60 rounded-xl p-3 relative overflow-hidden group hover:shadow-sm transition-shadow">
-                    <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mb-1">Pending Salaries</p>
+                {/* Attendance Today */}
+                <div className="bg-emerald-50/60 border border-emerald-100/60 rounded-xl p-3 relative overflow-hidden group hover:shadow-sm transition-shadow">
+                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-1">Attendance Today</p>
                     <div className="flex items-baseline gap-1.5">
-                        <p className="text-xl font-black text-gray-900">{getStatValue('salary_pending')}</p>
+                        <p className="text-xl font-black text-gray-900">{getStatValue('attendance')}</p>
+                        <p className="text-xs font-semibold text-emerald-600/70">/ {getStatValue('employees')}</p>
                     </div>
-                    <FolderKanban className="w-7 h-7 text-amber-100 absolute -bottom-1 -right-1 group-hover:text-amber-200 transition-colors" />
+                    <Users className="w-7 h-7 text-emerald-100 absolute -bottom-1 -right-1 group-hover:text-emerald-200 transition-colors" />
                 </div>
             </div>
 

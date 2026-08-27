@@ -61,9 +61,10 @@ export class ClientService {
         
         delete createData.givePortalAccess;
         delete createData.password;
+        delete createData.linkedin;
 
         if (typeof createData.annualRevenue === 'string') {
-            createData.annualRevenue = parseFloat(createData.annualRevenue.replace(/,/g, ''));
+            createData.annualRevenue = createData.annualRevenue.trim() === '' ? null : parseFloat(createData.annualRevenue.replace(/,/g, ''));
         }
 
         const client = await prisma.client.create({
@@ -114,8 +115,12 @@ export class ClientService {
         }
 
         if (typeof updateData.annualRevenue === 'string') {
-            updateData.annualRevenue = parseFloat(updateData.annualRevenue.replace(/,/g, ''));
+            updateData.annualRevenue = updateData.annualRevenue.trim() === '' ? null : parseFloat(updateData.annualRevenue.replace(/,/g, ''));
         }
+
+        delete updateData.givePortalAccess;
+        delete updateData.password;
+        delete updateData.linkedin;
 
         const client = await prisma.client.update({
             where: { id },

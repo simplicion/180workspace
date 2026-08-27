@@ -61,7 +61,7 @@ export default function EmailManagementPage() {
     const [templatePreview, setTemplatePreview] = useState<{ show: boolean, loading: boolean, subject: string, html: string, mode: 'edit' | 'view' } | null>(null);
 
     const userRole = (user?.role || '').toLowerCase();
-    const isHR = Boolean(user && (['admin', 'manager', 'hr', 'owner', 'super_admin', 'superadmin', 'bmsp_super_admin'].includes(userRole) || (user as any).isSuperAdmin));
+    const isHR = Boolean(user && userRole === 'admin');
 
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true);

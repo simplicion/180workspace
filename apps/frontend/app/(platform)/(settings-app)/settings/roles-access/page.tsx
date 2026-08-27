@@ -13,7 +13,7 @@ import { ManageAccessDrawer, UserRoleData } from '../../_components/ManageAccess
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const ALL_ROLES = ['admin', 'manager', 'hr', 'employee', 'finance', 'sales', 'client'] as const;
+const ALL_ROLES = ['admin', 'employee', 'client'] as const;
 type RoleType = typeof ALL_ROLES[number];
 
 const ROLE_LABELS: Record<string, string> = {

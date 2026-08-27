@@ -2070,20 +2070,24 @@ model Deal {
 }
 
 model SalesActivity {
-  id              String   @id @default(uuid())
-  type            String   @default("note")
+  id              String    @id @default(uuid())
+  type            String    @default("note")
   notes           String?
-  timestamp       DateTime @default(now())
+  timestamp       DateTime  @default(now())
   ownerId         String?
-  owner           User?    @relation("SalesActivityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  leadId          String?  @map("relatedLeadId")
-  lead            Lead?    @relation("ActivityDeal", fields: [leadId], references: [id], onDelete: SetNull)
-  dealId          String?  @map("relatedDealId")
-  deal            Deal?    @relation("ActivityLead", fields: [dealId], references: [id], onDelete: SetNull)
+  owner           User?     @relation("SalesActivityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  leadId          String?   @map("relatedLeadId")
+  lead            Lead?     @relation("ActivityDeal", fields: [leadId], references: [id], onDelete: SetNull)
+  dealId          String?   @map("relatedDealId")
+  deal            Deal?     @relation("ActivityLead", fields: [dealId], references: [id], onDelete: SetNull)
   relatedClientId String?
-  relatedClient   Client?  @relation("ActivityClient", fields: [relatedClientId], references: [id], onDelete: SetNull)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  relatedClient   Client?   @relation("ActivityClient", fields: [relatedClientId], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  status          String    @default("pending")
+  reviewComment   String?
+  reviewedById    String?
+  reviewedAt      DateTime?
 
   @@index([ownerId])
   @@index([dealId])

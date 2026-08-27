@@ -94,10 +94,11 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     const hasProjects = enabledApps.includes('projects');
 
     const userRoles = Array.isArray(user?.roles) ? [...user.roles] : [user?.role];
-    if (userRoles.includes('ceo') || user?.role === 'ceo' || userRoles.includes('superadmin') || user?.role === 'superadmin' || userRoles.includes('accounting') || user?.role === 'accounting') {
-        userRoles.push('admin');
+    const normalizedRoles = userRoles.map(r => (r || '').toLowerCase());
+    if (normalizedRoles.includes('admin')) {
+        normalizedRoles.push('admin');
     }
-    const isAdmin = ['admin', 'ceo', 'accounting'].some(r => userRoles.includes(r)) || (user?.permissions && user.permissions.includes('can_manage_team')) || (user?.role !== 'employee' && user?.role !== 'USER');
+    const isAdmin = normalizedRoles.includes('admin') || (user?.permissions && user.permissions.includes('can_manage_team'));
 
     // RTK Query hooks — cached across navigations, no loading flash
     const { data: recentProjectsData, isFetching: fetchingProjects } = useGetRecentProjectsQuery(
@@ -195,19 +196,8 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 )}
             </div>
 
-            {/* 3. Execution & Risk (Projects) */}
-            <div className="mt-6">
-                {hasProjects ? (
-                    <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />
-                ) : (
-                    <FeatureLock title="Projects Locked" description="Install the Projects app to view active projects." className="min-h-[300px]">
-                        <RecentProjects projects={[]} loading={false} />
-                    </FeatureLock>
-                )}
-            </div>
-
-            {/* 4. Health & Money (Team Pulse & Financials) */}
-            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+            {/* 3. Health & Money (Team Pulse & Financials) */}
+            <div className={clsx("grid gap-6 mt-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
                 {hasHR ? (
                     <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
                 ) : (
@@ -224,8 +214,34 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 )}
             </div>
 
-            {/* 5. Live Awareness (Activity Feeds) */}
-            <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+            {/* 4. Deep Analytics (Historical/Trends) */}
+            {(hasHR || hasFinance || hasProjects || hasCRM) && (
+                <div className="mt-6">
+                    <ActivityAnalytics
+                        chartData={chartData}
+                        loading={loadingStats}
+                        fetchingTrends={fetchingTrends}
+                        range={range}
+                        setRange={setRange}
+                        grouping={grouping}
+                        setGrouping={setGrouping}
+                    />
+                </div>
+            )}
+
+            {/* 5. Execution & Risk (Projects) */}
+            <div className="mt-6">
+                {hasProjects ? (
+                    <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />
+                ) : (
+                    <FeatureLock title="Projects Locked" description="Install the Projects app to view active projects." className="min-h-[300px]">
+                        <RecentProjects projects={[]} loading={false} />
+                    </FeatureLock>
+                )}
+            </div>
+
+            {/* 6. Live Awareness (Activity Feeds) */}
+            <div className={clsx("grid gap-6 mt-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
                 {hasCRM ? (
                     <SalesActivityFeed />
                 ) : (
@@ -241,19 +257,6 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                     </FeatureLock>
                 )}
             </div>
-
-            {/* 6. Deep Analytics (Historical/Trends - Least Urgent) */}
-            {(hasHR || hasFinance || hasProjects || hasCRM) && (
-                <ActivityAnalytics
-                    chartData={chartData}
-                    loading={loadingStats}
-                    fetchingTrends={fetchingTrends}
-                    range={range}
-                    setRange={setRange}
-                    grouping={grouping}
-                    setGrouping={setGrouping}
-                />
-            )}
         </div>
     );
 }

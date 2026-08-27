@@ -33,7 +33,7 @@ export class TaskService {
         }
 
         const userRoles = user.roles || [user.role || 'employee'];
-        const isAdminOrCeo = userRoles.includes('admin') || userRoles.includes('ceo');
+        const isAdminOrCeo = userRoles.includes('admin');
 
         if (!isAdminOrCeo) {
             query.assigneeId = user.id;

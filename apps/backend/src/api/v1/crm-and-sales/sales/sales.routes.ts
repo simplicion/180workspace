@@ -38,6 +38,7 @@ router.delete('/contacts/:id', ctrl.deleteContact);
 
 router.get('/activities', ctrl.getActivities);
 router.post('/activities', ctrl.createActivity);
+router.patch('/activities/:id/review', ctrl.reviewActivity);
 
 router.post('/ai/email-draft', ctrl.generateEmailDraft);
 router.post('/ai/chat', ctrl.salesChatAssistant);

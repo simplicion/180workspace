@@ -12,7 +12,7 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
         skip: isLocked,
         pollingInterval: 30000, // Poll every 30 seconds
     });
-    const data = response?.data;
+    const data = response;
 
     const newLeads = data?.metrics?.pendingLeads || 0;
     const processingLeads = data?.metrics?.activeLeads || 0;

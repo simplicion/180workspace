@@ -92,6 +92,8 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/work-logs', '/v1/projects-and-tasks/work-logs');
     } else if (path.startsWith('/activity/') || path === '/activity') {
         req.url = req.url.replace('/activity', '/v1/projects-and-tasks/activity');
+    } else if (path.startsWith('/audit/') || path === '/audit') {
+        req.url = req.url.replace('/audit', '/system/audit');
     } else if (path.startsWith('/user-preferences/')) {
         req.url = req.url.replace('/user-preferences', '/v1/identity/preferences');
     } else if (path.startsWith('/users/') || path === '/users') {

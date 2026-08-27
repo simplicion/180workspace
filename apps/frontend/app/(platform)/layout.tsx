@@ -420,8 +420,8 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
     const userRoles = useMemo(() => {
         const roles = Array.isArray(user?.roles) ? [...user.roles] : [user?.role];
         const normalizedRole = user?.role?.toLowerCase();
-        if (roles.includes('admin') || normalizedRole === 'admin' || normalizedRole === 'ceo' || normalizedRole === 'superadmin' || normalizedRole === 'creator' || normalizedRole === 'owner' || normalizedRole === 'founder') {
-            roles.push('admin');
+        if (roles.includes('admin') || normalizedRole === 'admin') {
+            if (!roles.includes('admin')) roles.push('admin');
         }
         return roles.filter((r): r is string => Boolean(r)).map(r => r.toLowerCase());
     }, [user]);
@@ -738,8 +738,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     }, [isCollapsed]);
 
     const normalizedRole = user?.role?.toLowerCase() || '';
-    const isAdmin = ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder', 'accounting', 'finance_admin', 'hr_admin', 'manager'].includes(normalizedRole) ||
-        user?.roles?.some(r => ['admin', 'ceo', 'superadmin', 'creator', 'owner', 'founder', 'accounting', 'finance_admin', 'hr_admin', 'manager'].includes(r?.toLowerCase() || '')) ||
+    const isAdmin = normalizedRole === 'admin' ||
+        user?.roles?.some(r => (r?.toLowerCase() || '') === 'admin') ||
         (user?.permissions && user.permissions.includes('can_manage_team'));
     
     const isBillingPath = pathname?.startsWith('/settings/platform-billing') || pathname?.startsWith('/billing') || false;
