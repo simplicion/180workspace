@@ -770,6 +770,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../db
+      ioredis:
+        specifier: ^5.3.2
+        version: 5.11.1
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

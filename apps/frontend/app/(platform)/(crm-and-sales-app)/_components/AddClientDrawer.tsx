@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { Drawer } from "@/components/ui/Drawer";
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { X, Building2, Mail, Phone, Globe, AlignLeft, MapPin, Users, DollarSign, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';

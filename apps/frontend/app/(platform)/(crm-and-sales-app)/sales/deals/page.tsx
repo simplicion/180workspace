@@ -85,7 +85,7 @@ export default function LeadsPage() {
         setLoading(true);
         api.get('/api/sales/deals')
             .then(({ data }) => {
-                const leadsData = data.leads || data;
+                const leadsData = data.deals || data.leads || data;
                 setLeads(Array.isArray(leadsData) ? leadsData : []);
 
                 // Track Visit (Phase 6)
