@@ -75,4 +75,24 @@ static async createActivity(data, userId) {
         };
     }
 
+    static async reviewActivity(id: string, status: string, reviewComment: string, reviewerId: string) {
+        const SalesActivity = prisma.salesActivity;
+        const updatedActivity = await SalesActivity.update({
+            where: { id },
+            data: {
+                status,
+                reviewComment,
+                reviewedById: reviewerId,
+                reviewedAt: new Date()
+            },
+            include: {
+                owner: { select: { name: true, email: true } },
+                lead: { select: { name: true } },
+                deal: { select: { title: true } },
+                relatedClient: { select: { name: true } }
+            }
+        });
+        return updatedActivity;
+    }
+
 }

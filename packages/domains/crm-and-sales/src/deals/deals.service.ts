@@ -33,9 +33,15 @@ export class DealsService {
         const followUpTime = data.followUpTime;
         const notes = data.notes;
         
-        delete data.followUpDate;
+        if (data.followUpDate) {
+            let combinedDate = data.followUpDate;
+            if (followUpTime && !combinedDate.includes('T')) combinedDate += 'T' + followUpTime;
+            data.followUpDate = new Date(combinedDate).toISOString();
+        } else {
+            data.followUpDate = null; // Important for prisma if undefined/null is passed
+        }
         delete data.followUpTime;
-        delete data.notes;
+
 
         if (typeof data.value === 'string') {
             data.value = parseFloat(data.value.replace(/,/g, ''));
@@ -161,9 +167,15 @@ export class DealsService {
         const followUpTime = data.followUpTime;
         const notes = data.notes;
         
-        delete data.followUpDate;
+        if (data.followUpDate) {
+            let combinedDate = data.followUpDate;
+            if (followUpTime && !combinedDate.includes('T')) combinedDate += 'T' + followUpTime;
+            data.followUpDate = new Date(combinedDate).toISOString();
+        } else {
+            data.followUpDate = null;
+        }
         delete data.followUpTime;
-        delete data.notes;
+
 
         if (data.expectedCloseDate) {
             data.expectedCloseDate = new Date(data.expectedCloseDate).toISOString();

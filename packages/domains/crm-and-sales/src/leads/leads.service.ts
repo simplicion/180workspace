@@ -6,6 +6,7 @@ const emailService = EmailService;
 import { prisma } from '@workspace/db';
 import moment from 'moment';
 import * as salesMath from '../utils/salesMath';
+import { SalesRuleEngineService as SalesRuleEngine } from '../sales/sales-rule-engine.service';
 const bcrypt = require('bcryptjs');
 
 export class LeadsService {
@@ -36,7 +37,9 @@ static async getLeads(page = 1, limit = 100) {
             status: data.status || data.stage || 'new',
             value: data.value ? parseFloat(data.value) : 0,
             engagementScore: data.engagementScore || 50,
-            assignedSalesRepId: data.owner || data.ownerId || data.assignedSalesRepId || userId
+            assignedSalesRepId: data.owner || data.ownerId || data.assignedSalesRepId || userId,
+            notes: data.notes || null,
+            followUpDate: data.followUpDate ? new Date(data.followUpDate) : null
         };
         const lead = await prisma.lead.create({ data: leadData });
 
@@ -106,20 +109,22 @@ static async getLeads(page = 1, limit = 100) {
         const oldLead = lead;
         
         const sanitizedData: any = {};
-        if (updateData.name || updateData.contactName || updateData.title) sanitizedData.name = updateData.name || updateData.contactName || updateData.title;
-        if (updateData.email || updateData.contactEmail) sanitizedData.email = updateData.email || updateData.contactEmail;
-        if (updateData.phone || updateData.contactPhone) sanitizedData.phone = updateData.phone || updateData.contactPhone;
-        if (updateData.company || updateData.companyName) sanitizedData.company = updateData.company || updateData.companyName;
-        if (updateData.companyName || updateData.company) sanitizedData.companyName = updateData.companyName || updateData.company;
-        if (updateData.industry) sanitizedData.industry = updateData.industry;
-        if (updateData.companySize || updateData.employeeCount) sanitizedData.companySize = parseInt(updateData.companySize || updateData.employeeCount);
-        if (updateData.source) sanitizedData.source = updateData.source;
-        if (updateData.status || updateData.stage) sanitizedData.status = updateData.status || updateData.stage;
+        if (updateData.name !== undefined || updateData.contactName !== undefined || updateData.title !== undefined) sanitizedData.name = updateData.name || updateData.contactName || updateData.title;
+        if (updateData.email !== undefined || updateData.contactEmail !== undefined) sanitizedData.email = updateData.email || updateData.contactEmail;
+        if (updateData.phone !== undefined || updateData.contactPhone !== undefined) sanitizedData.phone = updateData.phone || updateData.contactPhone;
+        if (updateData.company !== undefined || updateData.companyName !== undefined) sanitizedData.company = updateData.company || updateData.companyName;
+        if (updateData.companyName !== undefined || updateData.company !== undefined) sanitizedData.companyName = updateData.companyName || updateData.company;
+        if (updateData.industry !== undefined) sanitizedData.industry = updateData.industry;
+        if (updateData.companySize !== undefined || updateData.employeeCount !== undefined) sanitizedData.companySize = parseInt(updateData.companySize || updateData.employeeCount);
+        if (updateData.source !== undefined) sanitizedData.source = updateData.source;
+        if (updateData.status !== undefined || updateData.stage !== undefined) sanitizedData.status = updateData.status || updateData.stage;
         if (updateData.value !== undefined) sanitizedData.value = parseFloat(updateData.value);
         if (updateData.engagementScore !== undefined) sanitizedData.engagementScore = updateData.engagementScore;
         if (updateData.owner || updateData.ownerId || updateData.assignedSalesRepId) sanitizedData.assignedSalesRepId = updateData.owner || updateData.ownerId || updateData.assignedSalesRepId;
+        if (updateData.notes !== undefined) sanitizedData.notes = updateData.notes;
+        if (updateData.followUpDate !== undefined) sanitizedData.followUpDate = updateData.followUpDate ? new Date(updateData.followUpDate) : null;
 
-        lead = await prisma.lead.update({
+        const updatedLead = await prisma.lead.update({
             where: { id },
             data: sanitizedData
         });
@@ -153,21 +158,21 @@ static async getLeads(page = 1, limit = 100) {
 
         try {
             const settings = await prisma.settings.findFirst();
-            await this.calculateLeadScore(lead, settings);
+            await this.calculateLeadScore(updatedLead, settings);
         } catch (scoringErr) {}
 
         try {
             
             triggerN8nWebhook('update-lead', {
-                leadId: lead.id,
-                name: lead.name,
-                company: lead.company,
-                status: lead.status,
-                assignedSalesRep: lead.assignedSalesRep
+                leadId: updatedLead.id,
+                name: updatedLead.name,
+                company: updatedLead.company,
+                status: updatedLead.status,
+                assignedSalesRep: updatedLead.assignedSalesRepId
             });
         } catch (err) {}
 
-        return lead;
+        return updatedLead;
     }
 
     static async deleteLead(id: string) {

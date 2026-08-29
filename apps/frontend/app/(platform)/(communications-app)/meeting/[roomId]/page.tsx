@@ -373,7 +373,7 @@ export default function MeetingRoom() {
             setTimeout(async () => {
                 try { await api.post('/api/meeting/log/leave', { roomId }); } catch (e) {}
                 endMeetingCtx();
-                router.push('/meeting/${roomId}/details');
+                router.push(`/meeting/${roomId}/details`);
             }, 1000);
         } catch (err: any) {
             console.error('Failed to process meeting:', err);
@@ -383,8 +383,8 @@ export default function MeetingRoom() {
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-                <LogoLoader className="w-12 h-12 animate-spin text-indigo-500 mb-4" />
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-gray-900">
+                <LogoLoader className="w-12 h-12 animate-spin text-indigo-600 mb-4" />
                 <p className="text-xl font-medium">Preparing your meeting room...</p>
             </div>
         );
@@ -393,22 +393,22 @@ export default function MeetingRoom() {
     if (!isValid) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-900 overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-gray-50 overflow-hidden">
             {/* Header */}
-            <div className="h-14 bg-slate-800/90 backdrop-blur-lg border-b border-slate-700/50 flex items-center justify-between px-4 z-30">
+            <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30 shadow-sm">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handleMinimize}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-700/60 text-slate-300 hover:bg-slate-600 hover:text-white transition-all text-sm font-medium"
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-all text-sm font-medium border border-gray-200/60"
                         title="Minimize meeting"
                     >
                         <ArrowLeft className="w-4 h-4" />
                             <span className="hidden sm:inline">Back</span>
                     </button>
-                    <div className="h-6 w-px bg-slate-600" />
+                    <div className="h-6 w-px bg-gray-200" />
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <h1 className="text-white font-semibold text-sm leading-tight truncate max-w-[200px]">{meetingInfo?.title || `${pName} Meeting`}</h1>
+                        <h1 className="text-gray-900 font-semibold text-sm leading-tight truncate max-w-[200px]">{meetingInfo?.title || `${pName} Meeting`}</h1>
                     </div>
                 </div>
 
@@ -416,8 +416,8 @@ export default function MeetingRoom() {
                     <button
                         onClick={() => setShowTranscript(prev => !prev)}
                         className={clsx(
-                            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all',
-                            showTranscript ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
+                            showTranscript ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                         )}
                     >
                         <Sparkles className="w-4 h-4" />
@@ -426,8 +426,8 @@ export default function MeetingRoom() {
                     <button
                         onClick={toggleLocalRecording}
                         className={clsx(
-                            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all',
-                            isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
+                            isRecording ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                         )}
                     >
                         <Radio className="w-4 h-4" />
@@ -435,7 +435,7 @@ export default function MeetingRoom() {
                     </button>
                     <button
                         onClick={handleMinimize}
-                        className="flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-300 hover:bg-slate-600 hover:text-white rounded-xl text-sm font-medium transition-all"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-sm font-medium transition-all"
                         title="Minimize to PiP"
                     >
                         <Minimize2 className="w-4 h-4" />
@@ -444,7 +444,7 @@ export default function MeetingRoom() {
                     {meetingInfo?.isCreator ? (
                         <button
                             onClick={handleFinishMeeting}
-                            className="flex items-center gap-2 px-3 py-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-sm font-medium transition-all"
+                            className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white rounded-xl text-sm font-medium transition-all"
                         >
                             <PhoneOff className="w-4 h-4" />
                             End Call
@@ -452,7 +452,7 @@ export default function MeetingRoom() {
                     ) : (
                         <button
                             onClick={handleLeave}
-                            className="flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-300 hover:bg-slate-600 hover:text-white rounded-xl text-sm font-medium transition-all"
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-sm font-medium transition-all"
                         >
                             <PhoneOff className="w-4 h-4" />
                             Leave Call
@@ -463,30 +463,30 @@ export default function MeetingRoom() {
 
             {/* Main Area */}
             <div className="flex-1 flex overflow-hidden">
-                <div className="flex-1 relative bg-black" ref={fullscreenContainerRef} />
+                <div className="flex-1 relative bg-gray-900" ref={fullscreenContainerRef} />
 
                 {/* AI Assistant Panel */}
                 <aside className={clsx(
-                    "bg-slate-800 border-slate-700 flex flex-col transition-all duration-300 relative z-20 shadow-2xl",
+                    "bg-white border-gray-200 flex flex-col transition-all duration-300 relative z-20 shadow-[-4px_0_24px_rgba(0,0,0,0.02)]",
                     showTranscript ? "w-80 lg:w-96 translate-x-0 border-l" : "w-0 translate-x-full overflow-hidden border-l-0"
                 )}>
-                    <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800/90 backdrop-blur-sm sticky top-0 z-10">
-                        <div className="flex items-center gap-2 text-white font-semibold">
-                            <div className="p-1.5 bg-indigo-500/20 rounded-lg">
-                                <Sparkles className="w-5 h-5 text-indigo-400" />
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white/90 backdrop-blur-sm sticky top-0 z-10">
+                        <div className="flex items-center gap-2 text-gray-900 font-semibold">
+                            <div className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
+                                <Sparkles className="w-5 h-5 text-indigo-600" />
                             </div>
                             <span>AI Assistant</span>
                         </div>
-                        <button onClick={() => setShowTranscript(false)} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <button onClick={() => setShowTranscript(false)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-800/50">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-gray-50/50">
                         {aiChatMessages.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4 opacity-70 mt-10">
-                                <div className="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mb-2">
-                                    <Sparkles className="w-8 h-8 text-indigo-400/50" />
+                            <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4 opacity-80 mt-10">
+                                <div className="w-16 h-16 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center mb-2">
+                                    <Sparkles className="w-8 h-8 text-indigo-300" />
                                 </div>
                                 <p className="text-sm text-center max-w-[200px] leading-relaxed">
                                     I am actively transcribing this meeting in the background. Ask me to summarize or pull out key points at any time!
@@ -499,10 +499,10 @@ export default function MeetingRoom() {
                                     msg.role === 'user' ? "items-end self-end ml-auto" : "items-start"
                                 )}>
                                     <div className={clsx(
-                                        "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
+                                        "px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm",
                                         msg.role === 'user' 
                                             ? "bg-indigo-600 text-white rounded-br-sm" 
-                                            : "bg-slate-700 text-slate-200 rounded-bl-sm border border-slate-600/50"
+                                            : "bg-white text-gray-800 rounded-bl-sm border border-gray-200"
                                     )}>
                                         {msg.content}
                                     </div>
@@ -511,30 +511,30 @@ export default function MeetingRoom() {
                         )}
                         {isAiLoading && (
                             <div className="flex space-y-1 max-w-[85%] items-start">
-                                <div className="px-4 py-3 rounded-2xl bg-slate-700 text-slate-200 rounded-bl-sm border border-slate-600/50 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" />
-                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce delay-100" />
-                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce delay-200" />
+                                <div className="px-4 py-3 rounded-2xl bg-white text-gray-800 rounded-bl-sm border border-gray-200 flex items-center gap-2 shadow-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce delay-100" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce delay-200" />
                                 </div>
                             </div>
                         )}
                         <div ref={chatEndRef} />
                     </div>
 
-                    <div className="p-4 bg-slate-800 border-t border-slate-700">
+                    <div className="p-4 bg-white border-t border-gray-200">
                         <form onSubmit={sendAiMessage} className="relative flex items-center">
                             <input
                                 type="text"
                                 value={aiInput}
                                 onChange={(e) => setAiInput(e.target.value)}
                                 placeholder="Ask AI about the meeting..."
-                                className="w-full bg-slate-900 border border-slate-600 text-white text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-500 shadow-inner"
+                                className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-gray-400 shadow-sm"
                                 disabled={isAiLoading || !meetingLogId}
                             />
                             <button
                                 type="submit"
                                 disabled={isAiLoading || !aiInput.trim()}
-                                className="absolute right-2 p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="absolute right-2 p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                             >
                                 <Send className="w-4 h-4" />
                             </button>

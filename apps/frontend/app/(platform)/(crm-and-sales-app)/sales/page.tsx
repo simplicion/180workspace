@@ -19,6 +19,7 @@ import clsx from 'clsx';
 import nextDynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
+import SalesActivityFeed from '@/app/(platform)/(dashboard)/_components/SalesActivityFeed';
 
 const SalesTrendAreaChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesTrendAreaChart'), { ssr: false, loading: () => <SkeletonChart /> });
 const SalesPipelinePieChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesPipelinePieChart'), { ssr: false, loading: () => <SkeletonChart /> });
@@ -294,7 +295,7 @@ export default function SalesDashboardPage() {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="card">
                         <div className="card-header flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900">Pipeline vs Revenue Trend</h3>
+                            <h3 className="font-semibold text-gray-900">Lead vs Pipeline vs Revenue Trend</h3>
                         </div>
                         <div className="card-body">
                             {loadingSales ? (
@@ -308,72 +309,9 @@ export default function SalesDashboardPage() {
 
                 </div>
 
-                {/* Right Column: Top Deals */}
+                {/* Right Column: Top Deals / Recent Activity */}
                 <div className="space-y-6">
-                    <div className="card">
-                        <div className="card-header">
-                            <h3 className="font-semibold text-gray-900">Recent Sales Activity</h3>
-                        </div>
-                        <div className="card-body">
-                            {loadingSales ? (
-                                <div className="space-y-4">
-                                    <Skeleton variant="text" height={40} />
-                                    <Skeleton variant="text" height={40} />
-                                    <Skeleton variant="text" height={40} />
-                                </div>
-                            ) : data?.recentActivities?.length ? (
-                                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
-                                    {data.recentActivities.map((activity: any, idx: number) => {
-                                        const clientName = activity.relatedClient?.company || activity.relatedClient?.name || activity.lead?.company || activity.lead?.name || activity.deal?.companyName || 'Unknown Client';
-                                        const source = activity.relatedClient?.source || activity.lead?.source || activity.deal?.source || 'Direct';
-                                        const addedBy = activity.owner?.name || 'System';
-
-                                        return (
-                                        <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                            <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-indigo-100 text-indigo-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                                                {activity.type === 'call' ? <FileText className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                                            </div>
-                                            <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
-                                                <div className="flex items-center justify-between space-x-2 mb-2">
-                                                    <div className="font-semibold text-sm text-gray-900 truncate">{activity.type.toUpperCase()}</div>
-                                                    <time className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                                                        {new Date(activity.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                    </time>
-                                                </div>
-                                                <div className="text-xs text-gray-700 mb-2 truncate">{activity.notes || 'Activity completed'}</div>
-                                                
-                                                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100 text-[11px]">
-                                                    <div>
-                                                        <span className="block text-gray-400 mb-0.5">Added By</span>
-                                                        <span className="font-medium text-gray-700 flex items-center gap-1">
-                                                            <People size="12" className="text-gray-400" />
-                                                            {addedBy}
-                                                        </span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="block text-gray-400 mb-0.5">Client / Lead</span>
-                                                        <span className="font-medium text-gray-700 truncate">{clientName}</span>
-                                                    </div>
-                                                    <div className="col-span-2">
-                                                        <span className="block text-gray-400 mb-0.5">Source</span>
-                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-indigo-700 bg-indigo-50 font-medium">
-                                                            {source}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )})}
-                                </div>
-                            ) : (
-                                <div className="text-center py-10 text-gray-400">
-                                    <FileText className="w-8 h-8 opacity-20 mx-auto mb-3" />
-                                    <p className="text-sm">No recent activities found.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
+                    <SalesActivityFeed />
                 </div>
             </div>
         </div>

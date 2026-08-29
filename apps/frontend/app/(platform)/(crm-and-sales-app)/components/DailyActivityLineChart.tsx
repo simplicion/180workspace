@@ -42,6 +42,7 @@ export default function DailyActivityLineChart({ data }: { data: any[] }) {
                     tickLine={false} 
                     tick={{ fill: '#94a3b8', fontSize: 12 }} 
                     dy={10} 
+                    minTickGap={30}
                 />
                 <YAxis 
                     axisLine={false} 

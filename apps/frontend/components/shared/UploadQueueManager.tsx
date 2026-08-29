@@ -47,6 +47,7 @@ export default function UploadQueueManager() {
                         formData.append('file', file);
 
                         const { data } = await api.post('/api/files/upload', formData, {
+                            timeout: 0,
                             headers: { 'Content-Type': 'multipart/form-data' },
                             onUploadProgress: (progressEvent) => {
                                 const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
@@ -68,6 +69,7 @@ export default function UploadQueueManager() {
                         formData.append('file', blob, `voice-note-${Date.now()}-${i}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`);
 
                         const { data } = await api.post('/api/files/upload-voice', formData, {
+                            timeout: 0,
                             headers: { 'Content-Type': 'multipart/form-data' },
                             onUploadProgress: (progressEvent) => {
                                 const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));

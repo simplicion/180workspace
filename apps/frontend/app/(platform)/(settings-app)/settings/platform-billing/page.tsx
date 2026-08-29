@@ -172,7 +172,7 @@ export default function PlatformBillingPage() {
                                 current={storageUsed}
                                 max={totalStorage}
                                 formattedCurrent={formatBytes(storageUsed)}
-                                formattedMax={formatLimit(totalStorage) === 'Unlimited' ? 'Unlimited' : formatBytes(totalStorage)}
+                                formattedMax={totalStorage < 0 ? 'Unlimited' : formatBytes(totalStorage)}
                             />
                         </div>
                         <div>

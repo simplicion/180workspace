@@ -3,44 +3,47 @@ import { ProfileController } from './profile.controller';
 import { validateRequest } from '../../../../system-configs/middleware/system/validateRequest';
 import { ProfileValidation } from './profile.validation';
 
+import { protect } from '../../../../system-configs/middleware/auth/auth';
+
 const router = express.Router();
 
-router.put('/', validateRequest(ProfileValidation.updateProfile), ProfileController.updateProfile);
-router.post('/verify-password', ProfileController.verifyPassword);
-router.post('/upload-url', validateRequest(ProfileValidation.getUploadUrl), ProfileController.getUploadUrl);
+
+router.put('/', protect, validateRequest(ProfileValidation.updateProfile), ProfileController.updateProfile);
+router.post('/verify-password', protect, ProfileController.verifyPassword);
+router.post('/upload-url', protect, validateRequest(ProfileValidation.getUploadUrl), ProfileController.getUploadUrl);
 
 // Experience
-router.post('/experiences', validateRequest(ProfileValidation.addExperience), ProfileController.addExperience);
-router.put('/experiences/:id', validateRequest(ProfileValidation.addExperience), ProfileController.updateExperience);
-router.delete('/experiences/:id', ProfileController.deleteExperience);
+router.post('/experiences', protect, validateRequest(ProfileValidation.addExperience), ProfileController.addExperience);
+router.put('/experiences/:id', protect, validateRequest(ProfileValidation.addExperience), ProfileController.updateExperience);
+router.delete('/experiences/:id', protect, ProfileController.deleteExperience);
 
 // Education
-router.post('/educations', validateRequest(ProfileValidation.addEducation), ProfileController.addEducation);
-router.put('/educations/:id', validateRequest(ProfileValidation.addEducation), ProfileController.updateEducation);
-router.delete('/educations/:id', ProfileController.deleteEducation);
+router.post('/educations', protect, validateRequest(ProfileValidation.addEducation), ProfileController.addEducation);
+router.put('/educations/:id', protect, validateRequest(ProfileValidation.addEducation), ProfileController.updateEducation);
+router.delete('/educations/:id', protect, ProfileController.deleteEducation);
 
 // Skills
-router.get('/skills/search', ProfileController.searchSkills);
-router.post('/skills', validateRequest(ProfileValidation.addSkill), ProfileController.addSkill);
-router.delete('/skills/:id', ProfileController.deleteSkill);
+router.get('/skills/search', protect, ProfileController.searchSkills);
+router.post('/skills', protect, validateRequest(ProfileValidation.addSkill), ProfileController.addSkill);
+router.delete('/skills/:id', protect, ProfileController.deleteSkill);
 
 // Projects
-router.post('/projects', validateRequest(ProfileValidation.addProject), ProfileController.addProject);
-router.put('/projects/:id', validateRequest(ProfileValidation.addProject), ProfileController.updateProject);
-router.delete('/projects/:id', ProfileController.deleteProject);
+router.post('/projects', protect, validateRequest(ProfileValidation.addProject), ProfileController.addProject);
+router.put('/projects/:id', protect, validateRequest(ProfileValidation.addProject), ProfileController.updateProject);
+router.delete('/projects/:id', protect, ProfileController.deleteProject);
 
 // Resumes
-router.post('/resumes', validateRequest(ProfileValidation.addResume), ProfileController.addResume);
-router.delete('/resumes/:id', ProfileController.deleteResume);
+router.post('/resumes', protect, validateRequest(ProfileValidation.addResume), ProfileController.addResume);
+router.delete('/resumes/:id', protect, ProfileController.deleteResume);
 
 // Network Feed (All Profiles)
-router.get('/network/all', ProfileController.getAllNetworkProfiles);
+router.get('/network/all', protect, ProfileController.getAllNetworkProfiles);
 
 // GET full profile - MUST be last
-router.get('/:userId', ProfileController.getProfile);
+router.get('/:userId', protect, ProfileController.getProfile);
 
 // Network
-router.post('/:userId/follow', ProfileController.followProfile);
-router.get('/:userId/network', ProfileController.getNetwork);
+router.post('/:userId/follow', protect, ProfileController.followProfile);
+router.get('/:userId/network', protect, ProfileController.getNetwork);
 
 export const profileRoutes = router;

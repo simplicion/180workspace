@@ -196,6 +196,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
         delete submissionData.accountId;
         delete submissionData.type;
+        submissionData.value = submissionData.value ? Number(submissionData.value.toString().replace(/[^0-9.-]+/g,"")) || 0 : 0;
         
         const isDeal = submissionData.pipelineType === 'DEAL';
         if (!isDeal) {

@@ -4,7 +4,7 @@ export const knowledgeApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         get180Documents: builder.query({
             query: (params) => ({
-                url: '/v1/workspace-tools/documents',
+                url: '/api/v1/workspace-tools/documents',
                 method: 'GET',
                 params
             }),
@@ -12,7 +12,7 @@ export const knowledgeApi = baseApi.injectEndpoints({
         }),
         getArticles: builder.query({
             query: (params) => ({
-                url: '/v1/workspace-tools/documents',
+                url: '/api/v1/workspace-tools/documents',
                 method: 'GET',
                 params
             }),
@@ -20,14 +20,14 @@ export const knowledgeApi = baseApi.injectEndpoints({
         }),
         getArticleById: builder.query({
             query: (id) => ({
-                url: `/v1/workspace-tools/documents/${id}`,
+                url: `/api/v1/workspace-tools/documents/${id}`,
                 method: 'GET',
             }),
             providesTags: (result, error, id) => [{ type: 'Knowledge', id }]
         }),
         createArticle: builder.mutation({
             query: (data) => ({
-                url: '/v1/workspace-tools/documents',
+                url: '/api/v1/workspace-tools/documents',
                 method: 'POST',
                 body: data
             }),
@@ -35,7 +35,7 @@ export const knowledgeApi = baseApi.injectEndpoints({
         }),
         updateArticle: builder.mutation({
             query: ({ id, ...data }) => ({
-                url: `/v1/workspace-tools/documents/${id}`,
+                url: `/api/v1/workspace-tools/documents/${id}`,
                 method: 'PUT',
                 body: data
             }),
@@ -43,28 +43,28 @@ export const knowledgeApi = baseApi.injectEndpoints({
         }),
         deleteArticle: builder.mutation({
             query: (id) => ({
-                url: `/v1/workspace-tools/documents/${id}`,
+                url: `/api/v1/workspace-tools/documents/${id}`,
                 method: 'DELETE'
             }),
             invalidatesTags: ['Knowledge']
         }),
         lockArticle: builder.mutation({
             query: (id) => ({
-                url: `/v1/workspace-tools/documents/${id}/lock`,
+                url: `/api/v1/workspace-tools/documents/${id}/lock`,
                 method: 'POST'
             }),
             invalidatesTags: (result, error, id) => [{ type: 'Knowledge', id }]
         }),
         unlockArticle: builder.mutation({
             query: (id) => ({
-                url: `/v1/workspace-tools/documents/${id}/unlock`,
+                url: `/api/v1/workspace-tools/documents/${id}/unlock`,
                 method: 'POST'
             }),
             invalidatesTags: (result, error, id) => [{ type: 'Knowledge', id }]
         }),
         getLinksForEntity: builder.query({
             query: ({ relatedModel, relatedId }) => ({
-                url: `/v1/workspace-tools/documents/links/entity`,
+                url: `/api/v1/workspace-tools/documents/links/entity`,
                 method: 'GET',
                 params: { relatedModel, relatedId }
             }),
@@ -72,7 +72,7 @@ export const knowledgeApi = baseApi.injectEndpoints({
         }),
         createLink: builder.mutation({
             query: ({ articleId, relatedModel, relatedId }) => ({
-                url: `/v1/workspace-tools/documents/${articleId}/links`,
+                url: `/api/v1/workspace-tools/documents/${articleId}/links`,
                 method: 'POST',
                 body: { relatedModel, relatedId }
             }),

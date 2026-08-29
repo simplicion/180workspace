@@ -219,6 +219,8 @@ model Client {
   paymentTerms      String?
   currency          String?
 
+  calendarEvents    CalendarEvent[] @relation("CalendarEventClients")
+
   automationLogs_AutomationTargetClient   AutomationLog[]       @relation("AutomationTargetClient")
   company                                 Company?              @relation("CompanyClients", fields: [companyId], references: [id])
   ClientCommunication                     ClientCommunication[]
@@ -615,6 +617,7 @@ model CalendarEvent {
   company                      Company?     @relation("CompanyCalendarEvents", fields: [companyId], references: [id])
   meetingLogs_EventMeetingLogs MeetingLog[] @relation("EventMeetingLogs")
   attendees                    User[]       @relation("MeetingAttendees")
+  clients                      Client[]     @relation("CalendarEventClients")
 
   @@index([companyId])
 }
@@ -2025,6 +2028,8 @@ model Lead {
   engagementScore    Int?      @default(0)
   assignedSalesRepId String?
   assignedSalesRep   User?     @relation("DealAssignedRep", fields: [assignedSalesRepId], references: [id])
+  notes              String?   @db.Text
+  followUpDate       DateTime?
   deletedAt          DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -2055,6 +2060,8 @@ model Deal {
   engagementScore   Int?      @default(0)
   priorityScore     Float?    @default(0)
   expectedCloseDate DateTime?
+  notes             String?   @db.Text
+  followUpDate      DateTime?
   tags              Json?     @default("[]")
   projectId         String?
   createdAt         DateTime  @default(now())

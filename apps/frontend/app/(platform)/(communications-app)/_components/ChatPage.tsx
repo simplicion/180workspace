@@ -564,7 +564,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
         socket?.on('call:response', ({ accepted, roomId, callerId }) => {
             if (accepted) {
-                router.push('/meeting/${roomId}');
+                router.push(`/meeting/${roomId}`);
             } else if (callerId === (user?._id || user?.id)) {
                 toast.error('Call rejected');
             }
@@ -735,7 +735,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             roomId: incomingCall.roomId
         });
         if (accepted) {
-            router.push('/meeting/${incomingCall.roomId}');
+            router.push(`/meeting/${incomingCall.roomId}`);
         }
         setIncomingCall(null);
     };
@@ -754,7 +754,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         });
 
         // Redirect caller directly to the room
-        router.push('/meeting/${roomId}');
+        router.push(`/meeting/${roomId}`);
     };
 
     const startAdHocMeeting = () => {
@@ -766,7 +766,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             content: `Started a meeting: [Join Meeting](${window.location.origin}/dashboard/meeting/${roomId})`,
             isSystem: true
         });
-        router.push('/meeting/${roomId}');
+        router.push(`/meeting/${roomId}`);
     };
 
     const mentionSuggestions = allUsers.filter(u =>

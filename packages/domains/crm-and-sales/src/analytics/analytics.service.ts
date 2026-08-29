@@ -185,6 +185,13 @@ static async calculateDashboardCharts(userId, timeframe = 'all') {
                 select: { stage: true, value: true, expectedCloseDate: true }
             });
 
+            const allLeadsInInterval = await prisma.lead.findMany({
+                where: {
+                    createdAt: { gte: globalStartDate, lte: globalEndDate }
+                },
+                select: { value: true, createdAt: true }
+            });
+
             const trendData = [];
             for (const m of intervals) {
                 const startDate = moment(m, formatStr).startOf(dateInterval === 'days' ? 'day' : 'month').toDate();
@@ -192,6 +199,7 @@ static async calculateDashboardCharts(userId, timeframe = 'all') {
 
                 let wonTotal = 0;
                 let pipeTotal = 0;
+                let leadTotal = 0;
 
                 for (const o of allOppsInInterval) {
                     if (o.expectedCloseDate >= startDate && o.expectedCloseDate <= endDate) {
@@ -200,10 +208,17 @@ static async calculateDashboardCharts(userId, timeframe = 'all') {
                     }
                 }
 
+                for (const l of allLeadsInInterval) {
+                    if (l.createdAt >= startDate && l.createdAt <= endDate) {
+                        leadTotal += (l.value || 0);
+                    }
+                }
+
                 trendData.push({
                     name: moment(m, formatStr).format(dateInterval === 'days' ? 'MMM DD' : 'MMM'),
                     revenue: wonTotal,
-                    pipeline: pipeTotal
+                    pipeline: pipeTotal,
+                    leads: leadTotal
                 });
             }
 

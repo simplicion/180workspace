@@ -51,7 +51,7 @@ export default function MeetingPage() {
             const roomId = data.meeting?.roomId || data.roomId;
             if (!roomId) throw new Error('No room ID returned');
             toast.success('Meeting room created!');
-            router.push('/meeting/${roomId}');
+            router.push(`/meeting/${roomId}`);
         } catch (err: any) {
             toast.error(err?.response?.data?.error || 'Failed to create meeting');
             setCreating(false);
@@ -142,7 +142,7 @@ export default function MeetingPage() {
                         onSubmit={(e) => {
                             e.preventDefault();
                             const roomId = (e.currentTarget.elements.namedItem('roomId') as HTMLInputElement).value.trim();
-                            if (roomId) router.push('/meeting/${roomId}');
+                            if (roomId) router.push(`/meeting/${roomId}`);
                         }}
                         className="flex gap-2"
                     >
@@ -219,13 +219,13 @@ export default function MeetingPage() {
                                             <td className="text-right">
                                                 <div className="flex items-center justify-end gap-3">
                                                     <Link
-                                                        href={'/meeting/${m.roomId}'}
+                                                        href={`/meeting/${m.roomId}`}
                                                         className="text-xs text-indigo-600 hover:underline font-medium flex items-center gap-1"
                                                     >
                                                         <ExternalLink className="w-3.5 h-3.5" /> Join
                                                     </Link>
                                                     <Link
-                                                        href={'/meeting/${m.roomId}/details'}
+                                                        href={`/meeting/${m.roomId}/details`}
                                                         className="text-xs text-slate-600 hover:text-indigo-600 hover:underline font-medium flex items-center gap-1"
                                                     >
                                                         <FileText className="w-3.5 h-3.5" /> Details

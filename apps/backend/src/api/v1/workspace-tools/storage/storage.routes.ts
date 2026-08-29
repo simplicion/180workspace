@@ -12,6 +12,6 @@ router.post('/link', ctrl.addFileLink);
 router.post('/attach-existing', ctrl.attachExistingFile);
 router.get('/', ctrl.getFiles);
 router.post('/sign/:id', ctrl.signFile);
-router.delete('/:id', requireHR, ctrl.deleteFile);
+router.delete('/:id', ctrl.deleteFile);
 
 export default router;

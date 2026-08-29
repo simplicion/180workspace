@@ -9,19 +9,18 @@ export class SalesRuleEngineService {
      * Triggered when a new lead is created
      */
     static async onLeadCreated(leadId) {
-        if (!prisma.deal || !prisma.salesTask) return;
+        if (!prisma.lead || !prisma.salesTask) return;
 
-        const lead = await prisma.deal.findUnique({ where: { id: leadId } });
-        if (!lead || !lead.assignedSalesRep) return;
+        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        if (!lead || !lead.assignedSalesRepId) return;
 
         // Rule 0: Auto-create a call task for new assigned leads
         await prisma.salesTask.create({
             data: {
-                title: `Initial Call with Lead: ${lead.name}`,
-                description: `Automated rule: Reach out to new lead ${lead.name} from ${lead.company}.`,
+                description: `Initial Call with Lead: ${lead.name} - Automated rule: Reach out to new lead ${lead.name} from ${lead.company}.`,
                 dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Due in 1 day
-                relatedLeadId: lead.id,
-                assignedToId: lead.assignedSalesRep,
+                leadId: lead.id,
+                assignedTo: lead.assignedSalesRepId,
                 status: 'pending'
             }
         });
@@ -40,11 +39,10 @@ export class SalesRuleEngineService {
         if (newStage === 'Proposal') {
             await prisma.salesTask.create({
                 data: {
-                    title: `Follow up on Proposal for ${opp.title}`,
-                    description: 'Automatically created task. Please check if the client has reviewed the proposal.',
+                    description: `Follow up on Proposal for ${opp.title} - Automatically created task. Please check if the client has reviewed the proposal.`,
                     dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-                    relatedDealId: opp.id,
-                    assignedToId: ownerId,
+                    dealId: opp.id,
+                    assignedTo: ownerId,
                     status: 'pending'
                 }
             });

@@ -1,4 +1,4 @@
-const fs = require('fs');
+sconst fs = require('fs');
 const path = require('path');
 const file = path.join(__dirname, 'apps/frontend/lib/navigation.ts');
 let content = fs.readFileSync(file, 'utf8');

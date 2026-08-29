@@ -211,6 +211,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
                 }
 
                 const { data } = await api.post('/api/files/upload', form, {
+                    timeout: 0, // Disable timeout for large file uploads
                     onUploadProgress: (e) => {
                         const pct = Math.round((e.loaded / (e.total || 1)) * 100);
                         setItems(prev => prev.map((it, i) => i === idx ? { ...it, progress: pct } : it));
@@ -348,15 +349,7 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
 
                         {activeTab === 'upload' ? (
                             <>
-                                {/* Optional: Subtle warning if not configured instead of a blocking screen */}
-                                {!driveConfigured && !settingsLoading && (
-                                    <div className="flex items-center gap-2 p-2.5 bg-amber-50 border border-amber-100 rounded-xl mb-4">
-                                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                                        <p className="text-[10px] text-amber-700 leading-tight">
-                                            Cloud storage is not configured. Uploads may fail. Use <b>Add via Link</b> for external documents.
-                                        </p>
-                                    </div>
-                                )}
+
 
                                 {/* Drop zone */}
                                 <div

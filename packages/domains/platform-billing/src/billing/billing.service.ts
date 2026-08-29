@@ -685,7 +685,7 @@ export class BillingService {
         });
     }
 
-    // â”€â”€â”€ Universal Webhook Handler
+    // Universal Webhook Handler
     static async handleWebhookEvent(event: string, data: any, eventId?: string) {
         // Idempotency check
         if (eventId) {

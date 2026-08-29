@@ -647,15 +647,66 @@ async function buildTemplate(templateId, data) {
             `;
             break;
         case 'meeting_scheduled':
-            subject = `${company.companyName} â€” Meeting: ${data.meetingTitle}`;
+            subject = `Meeting Invitation: ${data.meetingTitle}`;
+            
+            const timeDisplay = data.startTime 
+                ? `${data.startDate} at ${data.startTime}${data.endTime ? ` - ${data.endTime}` : ''}`
+                : data.startDate;
+
+            const platformDisplay = data.platform ? data.platform.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '';
+
             content = `
-                <h2>Meeting Invitation</h2>
-                <p>Hi ${data.name},</p>
-                <p>You have a meeting scheduled for <strong>${new Date(data.startTime).toLocaleString()}</strong>.</p>
-                <div class="box">
-                    <p>Meeting Title<strong>${data.meetingTitle}</strong></p>
+                <div style="text-align: center; margin-bottom: 32px;">
+                    <div style="display: inline-block; padding: 12px; background: #e0f2fe; border-radius: 16px; margin-bottom: 16px;">
+                        <span style="font-size: 32px;">ðŸ—“ï¸ </span>
+                    </div>
+                    <h2 style="margin: 0; color: #0f172a;">Meeting Invitation</h2>
+                    <p style="color: #64748b; margin-top: 4px;">You have been invited to a meeting by ${data.creatorName}.</p>
                 </div>
-                <a href="${data.ctaUrl}" class="button">Join/View Meeting</a>
+                
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
+                    <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 0.05em;">Meeting Subject</p>
+                    <p style="margin: 4px 0 20px 0; font-size: 18px; font-weight: 700; color: #0f172a;">${data.meetingTitle}</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
+                        <div>
+                             <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Date & Time</p>
+                             <p style="margin: 4px 0 0 0; font-weight: 600; color: #3b82f6;">${timeDisplay}</p>
+                        </div>
+                        
+                        ${platformDisplay ? `
+                        <div>
+                             <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Platform</p>
+                             <p style="margin: 4px 0 0 0; font-weight: 600; color: #334155;">${platformDisplay}</p>
+                        </div>
+                        ` : ''}
+                        
+                        ${data.location ? `
+                        <div>
+                             <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Location</p>
+                             <p style="margin: 4px 0 0 0; font-weight: 600; color: #334155;">${data.location}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${data.agenda ? `
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
+                         <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Agenda</p>
+                         <p style="margin: 4px 0 0 0; font-size: 14px; color: #475569; line-height: 1.5; white-space: pre-wrap;">${data.agenda}</p>
+                    </div>
+                    ` : ''}
+                    
+                    ${data.notes ? `
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
+                         <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Additional Notes</p>
+                         <p style="margin: 4px 0 0 0; font-size: 14px; color: #475569; line-height: 1.5; white-space: pre-wrap;">${data.notes}</p>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div style="text-align: center; margin-top: 32px;">
+                    <a href="${data.ctaUrl}" class="button" style="padding: 14px 28px;">${data.ctaUrl.includes('/dashboard') ? 'View in Dashboard' : 'Join Meeting Now'}</a>
+                </div>
             `;
             break;
         case 'leave_approved':

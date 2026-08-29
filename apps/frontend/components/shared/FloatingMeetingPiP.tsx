@@ -36,7 +36,7 @@ export default function FloatingMeetingPiP() {
             const dx = e.clientX - dragStart.current.x;
             const dy = e.clientY - dragStart.current.y;
             setPosition({
-                x: Math.max(0, Math.min(window.innerWidth - 340, dragStart.current.startX + dx)),
+                x: Math.max(0, Math.min(window.innerWidth - 340, dragStart.current.startX - dx)),
                 y: Math.max(0, Math.min(window.innerHeight - 220, dragStart.current.startY - dy))
             });
         };
@@ -63,7 +63,7 @@ export default function FloatingMeetingPiP() {
     // Auto-minimize when navigating away from the meeting page (e.g. Back button)
     useEffect(() => {
         if (meeting.isActive && !meeting.isMinimized) {
-            if (!pathname.startsWith('/meeting/${meeting.roomId}')) {
+            if (!pathname.startsWith(`/meeting/${meeting.roomId}`)) {
                 minimizeMeeting();
             }
         }
@@ -72,7 +72,7 @@ export default function FloatingMeetingPiP() {
     const handleMaximize = () => {
         maximizeMeeting();
         if (meeting.roomId) {
-            router.push('/meeting/${meeting.roomId}');
+            router.push(`/meeting/${meeting.roomId}`);
         }
     };
 

@@ -65,17 +65,20 @@ router.use((req, res, next) => {
         '/goals': '/v1/hr-management/hrms/goals',
         '/expenses': '/v1/finance/expenses',
         '/ceo-insights': '/v1/hr-management/hrms/ceo-insights',
-        '/files': '/v1/workspace-tools/documents/files',
+        '/files': '/v1/workspace-tools/storage',
         '/files/upload': '/v1/workspace-tools/storage/upload',
         '/files/upload-video': '/v1/workspace-tools/storage/upload-video',
         '/files/upload-voice': '/v1/workspace-tools/storage/upload-voice',
-        '/invoices': '/v1/finance/invoices'
+        '/invoices': '/v1/finance/invoices',
+        '/settings': '/v1/settings/configs'
     };
 
     if (rewrites[path]) {
         req.url = req.url.replace(path, rewrites[path]);
+    } else if (path.startsWith('/calendar/')) {
+        req.url = req.url.replace('/calendar', '/v1/workspace-tools/calendar');
     } else if (path.startsWith('/files/')) {
-        req.url = req.url.replace('/files', '/v1/workspace-tools/documents/files');
+        req.url = req.url.replace('/files', '/v1/workspace-tools/storage');
     } else if (path.startsWith('/projects/') || path === '/projects') {
         req.url = req.url.replace('/projects', '/v1/projects-and-tasks/projects');
     } else if (path.startsWith('/expenses/')) {
@@ -122,6 +125,8 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/chat', '/v1/communications/chat');
     } else if (path.startsWith('/meetings/') || path === '/meetings') {
         req.url = req.url.replace('/meetings', '/v1/communications/meetings');
+    } else if (path.startsWith('/meeting/') || path === '/meeting') {
+        req.url = req.url.replace('/meeting', '/v1/communications/meetings');
     } else if (path.startsWith('/notifications/') || path === '/notifications') {
         req.url = req.url.replace('/notifications', '/v1/communications/notifications');
     } else if (path.startsWith('/analytics/') || path === '/analytics') {
@@ -158,6 +163,10 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/branding', '/v1/company/config');
     } else if (path.startsWith('/assets/') || path === '/assets') {
         req.url = req.url.replace('/assets', '/v1/workspace-tools/assets');
+    } else if (path.startsWith('/settings/company')) {
+        req.url = req.url.replace('/settings/company', '/company-profile/private');
+    } else if (path.startsWith('/settings/')) {
+        req.url = req.url.replace('/settings', '/v1/settings');
     }
     
     next();

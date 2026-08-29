@@ -3,7 +3,8 @@ import { DocumentService } from '@workspace/workspace-tools';
 
 export const getAllDocuments = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const documents = await DocumentService.getAllDocuments();
+        const { search, category } = req.query;
+        const documents = await DocumentService.getAllDocuments(search as string, category as string);
         res.json({ success: true, documents });
     } catch (error) {
   next(error);
