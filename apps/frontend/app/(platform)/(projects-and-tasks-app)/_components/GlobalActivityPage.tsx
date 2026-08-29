@@ -5,7 +5,7 @@ import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
-import { Activity, Clock, Filter, Search, Calendar, User, ArrowUpRight, Bell, CheckCircle2, AlertCircle, DollarSign, Briefcase, Users, FileText, Settings, RefreshCw, ChevronLeft, ChevronRight, Download, CalendarRange, ClipboardList, Info } from 'lucide-react';
+import { Activity, Clock, Filter, Search, Calendar, User, ArrowUpRight, Bell, CheckCircle2, AlertCircle, DollarSign, Briefcase, Users, FileText, Settings, RefreshCw, ChevronLeft, ChevronRight, Download, CalendarRange, ClipboardList, Info, Monitor, MapPin, X, Globe, Smartphone, Laptop } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -68,6 +68,7 @@ export default function GlobalActivityPage() {
     const [auditPage, setAuditPage] = useState(1);
     const [auditTotalPages, setAuditTotalPages] = useState(1);
     const [auditSearch, setAuditSearch] = useState('');
+    const [selectedAuditLog, setSelectedAuditLog] = useState<any | null>(null);
 
     const fetchLogs = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -564,9 +565,19 @@ export default function GlobalActivityPage() {
                         page={auditPage}
                         totalPages={auditTotalPages}
                         onPageChange={fetchAuditLogs}
+                        onRowClick={(log: any) => setSelectedAuditLog(log)}
                     />
                 </div>
             )}
+            
+            {/* Audit Log Detailed Modal */}
+            {selectedAuditLog && (
+                <AuditLogDetailsModal 
+                    log={selectedAuditLog} 
+                    onClose={() => setSelectedAuditLog(null)} 
+                />
+            )}
+            
             {/* Log Work Modal */}
             {showLogModal && (
                 <LogWorkModal 
@@ -596,7 +607,7 @@ function TrendingUpIcon(props: any) {
     return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></svg>;
 }
 
-function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
+function AuditLogsList({ logs, loading, page, totalPages, onPageChange, onRowClick }: any) {
     if (loading && logs.length === 0) return (
         <div className="flex flex-col items-center justify-center py-32 gap-4">
             <LogoLoader className="w-10 h-10 animate-spin text-indigo-500" />
@@ -636,16 +647,20 @@ function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
                             </tr>
                         ) : (
                             logs.map((log: any) => {
-                                const actionKey = Object.keys(ACTION_COLORS).find(k => log.action.includes(k)) || 'LOGOUT';
+                                const actionKey = Object.keys(ACTION_COLORS).find(k => log.eventType?.includes(k)) || 'LOGOUT';
                                 return (
-                                    <tr key={log.id} className="hover:bg-gray-50/80 transition-colors group">
+                                    <tr 
+                                        key={log.id} 
+                                        className="hover:bg-gray-50/80 transition-colors group cursor-pointer"
+                                        onClick={() => onRowClick && onRowClick(log)}
+                                    >
                                         <td className="py-4 px-6">
                                             <div className="flex flex-col gap-0.5">
                                                 <span className="text-sm font-medium text-gray-900">
-                                                    {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                                                    {log.timestamp ? formatDistanceToNow(new Date(log.timestamp), { addSuffix: true }) : 'Unknown time'}
                                                 </span>
                                                 <span className="text-xs text-gray-500">
-                                                    {format(new Date(log.createdAt), 'MMM d, yyyy • HH:mm:ss')}
+                                                    {log.timestamp ? format(new Date(log.timestamp), 'MMM d, yyyy • HH:mm:ss') : ''}
                                                 </span>
                                             </div>
                                         </td>
@@ -665,7 +680,7 @@ function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
                                                 "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider",
                                                 ACTION_COLORS[actionKey]
                                             )}>
-                                                {log.action.replace(/_/g, ' ')}
+                                                {log.eventType?.replace(/_/g, ' ') || 'UNKNOWN'}
                                             </span>
                                         </td>
                                         <td className="py-4 px-6">
@@ -728,6 +743,169 @@ function AuditLogsList({ logs, loading, page, totalPages, onPageChange }: any) {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// Helper to parse basic device info from user agent
+function parseUserAgent(ua: string) {
+    if (!ua) return { os: 'Unknown OS', browser: 'Unknown Browser', device: 'Unknown Device', type: 'desktop' };
+    
+    let os = 'Unknown OS';
+    let browser = 'Unknown Browser';
+    let type = 'desktop';
+
+    if (ua.includes('Win')) os = 'Windows';
+    else if (ua.includes('Mac')) os = 'MacOS';
+    else if (ua.includes('Linux')) os = 'Linux';
+    else if (ua.includes('Android')) { os = 'Android'; type = 'mobile'; }
+    else if (ua.includes('like Mac OS X')) { os = 'iOS'; type = 'mobile'; }
+
+    if (ua.includes('Firefox')) browser = 'Firefox';
+    else if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+    else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+    else if (ua.includes('Edg')) browser = 'Edge';
+
+    return {
+        os,
+        browser,
+        device: type === 'mobile' ? 'Mobile Device' : 'Desktop',
+        type
+    };
+}
+
+function AuditLogDetailsModal({ log, onClose }: { log: any, onClose: () => void }) {
+    if (!log) return null;
+    
+    const parsedUA = parseUserAgent(log.userAgent);
+    const actionKey = Object.keys(ACTION_COLORS).find(k => log.eventType.includes(k)) || 'LOGOUT';
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Audit Log Details</h2>
+                        <p className="text-sm text-gray-500 mt-1">
+                            {format(new Date(log.timestamp), 'MMMM d, yyyy • HH:mm:ss')}
+                        </p>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto hidden-scrollbar flex flex-col gap-6">
+                    
+                    {/* Action & Resource Info */}
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className={clsx("inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider", ACTION_COLORS[actionKey])}>
+                                {log.eventType.replace(/_/g, ' ')}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Resource Type</p>
+                                <p className="text-sm font-medium text-gray-900">{log.resourceType || 'System'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Resource ID</p>
+                                <p className="text-sm font-mono text-gray-600 truncate">{log.resourceId || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* User & Location Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {/* Who */}
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <User className="w-4 h-4 text-indigo-500" />
+                                Triggered By
+                            </h3>
+                            {log.triggeredBy ? (
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                                        {log.triggeredBy.name?.[0]?.toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">{log.triggeredBy.name}</p>
+                                        <p className="text-xs text-gray-500">{log.triggeredBy.email}</p>
+                                        <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider mt-0.5">
+                                            {log.triggeredBy.role?.replace(/_/g, ' ')}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500 italic">System or Anonymous User</p>
+                            )}
+                        </div>
+
+                        {/* Where */}
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-emerald-500" />
+                                Location & Device
+                            </h3>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-2 text-sm">
+                                    <Globe className="w-4 h-4 text-gray-400" />
+                                    <span className="text-gray-600 font-mono text-xs">{log.ipAddress || 'Unknown IP'}</span>
+                                </div>
+                                {log.location && (
+                                    <div className="flex items-center gap-2 text-sm pl-[26px]">
+                                        <span className="text-gray-900 font-medium">{log.location}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2 text-sm mt-1">
+                                    {parsedUA.type === 'mobile' ? (
+                                        <Smartphone className="w-4 h-4 text-gray-400" />
+                                    ) : (
+                                        <Laptop className="w-4 h-4 text-gray-400" />
+                                    )}
+                                    <span className="text-gray-600">
+                                        {parsedUA.os} • {parsedUA.browser}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Metadata Details */}
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-amber-500" />
+                            Action Details
+                        </h3>
+                        <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto hidden-scrollbar">
+                            <pre className="text-[13px] text-gray-300 font-mono">
+                                {Object.keys(log.details || {}).length > 0 
+                                    ? JSON.stringify(log.details, null, 2)
+                                    : '// No additional metadata provided'}
+                            </pre>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+                    >
+                        Close Details
+                    </button>
+                </div>
+            </motion.div>
         </div>
     );
 }

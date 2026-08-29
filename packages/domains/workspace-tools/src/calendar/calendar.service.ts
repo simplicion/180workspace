@@ -5,13 +5,19 @@ export class CalendarService {
     static async sendMeetingInvites(EmailService: any, event: any, creator: any, appUrl: string) {
         if (event.type !== 'meeting') return;
 
-        const { startTime, endTime, platform, meetingLink, location, agenda, attendees, externalAttendees, notes } = event;
+        const { startTime, endTime, platform, meetingLink, location, agenda, attendees, externalAttendees, clients, notes } = event;
 
         const emailTargets: any[] = [];
 
         if (attendees && attendees.length) {
             attendees.forEach((u: any) => {
                 if (u && u.email) emailTargets.push({ email: u.email, name: u.name });
+            });
+        }
+
+        if (clients && clients.length) {
+            clients.forEach((c: any) => {
+                if (c && c.email) emailTargets.push({ email: c.email, name: c.name });
             });
         }
 
@@ -27,7 +33,14 @@ export class CalendarService {
             try {
                 await EmailService.notify(target, 'meeting_scheduled', {
                     meetingTitle: event.title,
-                    startTime: startTime ? `${dateStr} ${startTime}` : dateStr,
+                    startDate: dateStr,
+                    startTime: startTime,
+                    endTime: endTime,
+                    platform: platform,
+                    location: location,
+                    agenda: agenda,
+                    notes: notes,
+                    creatorName: creator?.name || 'Workspace Team',
                     ctaUrl: meetingLink || `${appUrl}/dashboard/calendar`
                 });
             } catch (e: any) {
@@ -41,7 +54,8 @@ export class CalendarService {
             where: filter,
             include: {
                 createdBy: { select: { name: true } },
-                attendees: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                attendees: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                clients: true
             },
             orderBy: { startDate: 'asc' }
         });
@@ -50,7 +64,7 @@ export class CalendarService {
     static async createEvent(data: any) {
         return prisma.calendarEvent.create({
             data,
-            include: { attendees: true }
+            include: { attendees: true, clients: true }
         });
     }
 
@@ -58,7 +72,8 @@ export class CalendarService {
         return prisma.calendarEvent.findFirst({
             where: { id },
             include: {
-                attendees: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                attendees: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                clients: true
             }
         });
     }
@@ -68,7 +83,8 @@ export class CalendarService {
             where: { id },
             data,
             include: {
-                attendees: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                attendees: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                clients: true
             }
         });
     }

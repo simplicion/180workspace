@@ -36,27 +36,27 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const STAGES = ['kickoff', 'onboarding', 'in-progress', 'review', 'completed', 'churned'];
+const STAGES = ['Qualified', 'Demo', 'Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'];
 const STAGE_LABELS: Record<string, string> = {
-    'kickoff': 'Getting Started',
-    'onboarding': 'Setting Up',
-    'in-progress': 'Working On It',
-    'review': 'Under Review',
-    'completed': 'Finished',
-    'churned': 'Cancelled'
+    'Qualified': 'Qualified',
+    'Demo': 'Demo/Meeting',
+    'Proposal': 'Proposal',
+    'Negotiation': 'Negotiation',
+    'ClosedWon': 'Won',
+    'ClosedLost': 'Lost'
 };
 
 const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }> = {
-    'kickoff': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
-    'onboarding': { color: 'border-amber-400', bg: 'bg-amber-50', badge: 'badge-amber' },
-    'in-progress': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
-    'review': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
-    'completed': { color: 'border-emerald-400', bg: 'bg-emerald-50', badge: 'badge-emerald' },
-    'churned': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' }
+    'Qualified': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
+    'Demo': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
+    'Proposal': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
+    'Negotiation': { color: 'border-orange-400', bg: 'bg-orange-50', badge: 'badge-orange' },
+    'ClosedWon': { color: 'border-emerald-400', bg: 'bg-emerald-50', badge: 'badge-emerald' },
+    'ClosedLost': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' }
 };
 
 
-export default function LeadsPage() {
+export default function DealsPage() {
     const { user } = useAuth();
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -183,16 +183,16 @@ export default function LeadsPage() {
             if (overDeal) newStatus = overDeal.status || 'kickoff';
         }
 
-        if (deal.status === newStatus) return;
+        if (deal.stage === newStatus) return;
 
         // Optimistic UI update
         const updatedDeals = leads.map(o => 
-            o.id === draggedId ? { ...o, status: newStatus } : o
+            o.id === draggedId ? { ...o, stage: newStatus } : o
         );
         setLeads(updatedDeals);
 
         try {
-            await api.put(`/api/sales/deals/${draggedId}`, { status: newStatus });
+            await api.put(`/api/sales/deals/${draggedId}`, { stage: newStatus });
             toast.success(`Moved to ${STAGE_LABELS[newStatus]}`);
         } catch (error) {
             toast.error('Failed to move deal');
@@ -200,25 +200,19 @@ export default function LeadsPage() {
         }
     };
 
-    const filteredLeads = leads.filter(lead => 
-        (lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-         lead.company?.toLowerCase().includes(searchTerm.toLowerCase()))
+    const filteredLeads = leads.filter(deal => 
+        (deal.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         deal.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
-    // Group by status
+    // Group by stage
     const grouped = STAGES.reduce((acc, stage) => {
         acc[stage] = filteredLeads.filter(o => {
-            let s = (o.status || 'kickoff').toLowerCase();
-            // Map legacy stages to new stages
-            if (s === 'new') s = 'kickoff';
-            if (s === 'contacted') s = 'onboarding';
-            if (s === 'qualified') s = 'in-progress';
-            if (s === 'converted') s = 'review';
-            if (s === 'lost' || s === 'disqualified') s = 'churned';
+            let s = o.stage || 'Qualified';
             return s === stage;
         })
-            // Sort by leadScore (highest first), then by value
-            .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0) || (b.value || 0) - (a.value || 0));
+            // Sort by priorityScore (highest first), then by value
+            .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0) || (b.value || 0) - (a.value || 0));
         return acc;
     }, {} as Record<string, any[]>);
 
@@ -228,9 +222,9 @@ export default function LeadsPage() {
                 <div>
                     <h1 className="page-title text-indigo-900 flex items-center gap-2">
                         <CheckCircle2 className="w-6 h-6 text-indigo-600" />
-                        Active Client Pipeline
+                        Deals Pipeline
                     </h1>
-                    <p className="page-subtitle mt-1">Manage onboarding and fulfillment for won deals and active clients.</p>
+                    <p className="page-subtitle mt-1">Manage deals across stages.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative w-64">
@@ -286,7 +280,7 @@ export default function LeadsPage() {
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
-                    <div className="flex gap-4 overflow-x-auto pb-6 h-full hidden-scrollbar items-start">
+                    <div className="flex gap-4 overflow-x-auto pb-6 h-full hidden-scrollbar items-stretch">
                         {STAGES.map(stage => (
                             <Column
                                 key={stage}
@@ -402,7 +396,7 @@ function DealCard({ deal, dragHandleProps, isDragging, onDelete }: any) {
 
     if (!deal) return null;
 
-    const dotColor = deal.leadScore >= 80 ? 'bg-orange-500' : deal.leadScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
+    const dotColor = deal.priorityScore >= 80 ? 'bg-orange-500' : deal.priorityScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
 
     return (
         <div 
@@ -415,7 +409,7 @@ function DealCard({ deal, dragHandleProps, isDragging, onDelete }: any) {
             <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-start gap-2">
                     <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor)} />
-                    <p className="text-sm font-medium text-gray-900 leading-snug">{deal.name}</p>
+                    <p className="text-sm font-medium text-gray-900 leading-snug">{deal.title}</p>
                 </div>
                 {onDelete && (
                     <button 
@@ -428,7 +422,7 @@ function DealCard({ deal, dragHandleProps, isDragging, onDelete }: any) {
             </div>
             
             <p className="text-xs text-gray-500 mb-3 truncate">
-                {deal.company || 'Unknown Company'}
+                {deal.client?.name || deal.client?.companyName || 'Unknown Company'}
             </p>
 
             <div className="flex items-center justify-between mt-auto">

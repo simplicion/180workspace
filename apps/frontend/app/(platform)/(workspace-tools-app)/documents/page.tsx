@@ -193,7 +193,7 @@ export default function DocumentsPage() {
     function loadDocs() {
         setLoading(true);
         Promise.all([
-            api.get('/api/v1/workspace-tools/documents', { params: { search } }),
+            api.get('/api/files', { params: { search } }),
             api.get('/api/sales/quotes', { params: { search } }).catch(() => ({ data: { quotes: [] } })),
             api.get('/api/invoices', { params: { search } }).catch(() => ({ data: { invoices: [] } }))
         ]).then(([filesRes, quotesRes, invoicesRes]) => {
@@ -243,7 +243,7 @@ export default function DocumentsPage() {
                 await api.delete(`/api/invoices/${doc.id || doc._id}`);
                 toast.success('Invoice deleted');
             } else {
-                await api.delete(`/api/v1/workspace-tools/documents/${doc.id}`);
+                await api.delete(`/api/files/${doc.id || doc._id}`);
                 toast.success('Document deleted');
             }
             setDocs(prev => prev.filter(d => (d.id || d._id) !== (doc.id || doc._id)));

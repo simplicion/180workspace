@@ -3,16 +3,16 @@ import { baseApi } from './baseApi';
 export const contractApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         getContracts: builder.query({
-            query: () => '/contracts',
+            query: () => '/api/contracts',
             providesTags: ['Contracts']
         }),
         getContractById: builder.query({
-            query: (id) => `/contracts/${id}`,
+            query: (id) => `/api/contracts/${id}`,
             providesTags: (result, error, id) => [{ type: 'Contracts', id }]
         }),
         createContract: builder.mutation({
             query: (data) => ({
-                url: '/contracts',
+                url: '/api/contracts',
                 method: 'POST',
                 body: data
             }),
@@ -20,7 +20,7 @@ export const contractApi = baseApi.injectEndpoints({
         }),
         updateContract: builder.mutation({
             query: ({ id, ...data }) => ({
-                url: `/contracts/${id}`,
+                url: `/api/contracts/${id}`,
                 method: 'PUT',
                 body: data
             }),
@@ -28,14 +28,14 @@ export const contractApi = baseApi.injectEndpoints({
         }),
         deleteContract: builder.mutation({
             query: (id) => ({
-                url: `/contracts/${id}`,
+                url: `/api/contracts/${id}`,
                 method: 'DELETE'
             }),
             invalidatesTags: ['Contracts']
         }),
         generateShareLink: builder.mutation({
             query: (id) => ({
-                url: `/contracts/${id}/share`,
+                url: `/api/contracts/${id}/share`,
                 method: 'POST'
             }),
             invalidatesTags: (result, error, id) => [{ type: 'Contracts', id }]
@@ -43,11 +43,11 @@ export const contractApi = baseApi.injectEndpoints({
         
         // Public API calls for Client Portal
         getContractByToken: builder.query({
-            query: (token) => `/p/contract/${token}`,
+            query: (token) => `/api/p/contract/${token}`,
         }),
         signContract: builder.mutation({
             query: ({ token, data }) => ({
-                url: `/p/contract/${token}/sign`,
+                url: `/api/p/contract/${token}/sign`,
                 method: 'POST',
                 body: data
             })

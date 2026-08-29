@@ -1,11 +1,26 @@
 import { prisma, requestContext } from '@workspace/db';
 export class DocumentService {
-    static async getAllDocuments() {
+    static async getAllDocuments(search?: string, category?: string) {
+        const where: any = {};
+
+        if (category && category !== 'All') {
+            where.category = category;
+        }
+
+        if (search) {
+            where.OR = [
+                { title: { contains: search, mode: 'insensitive' } },
+                { content: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+
         // Fetch all documents and contracts from knowledgeArticle table
         const articles = await prisma.knowledgeArticle.findMany({
-            where: {},
+            where,
             include: {
-                createdBy: { select: { id: true, name: true, photoUrl: true } }
+                createdBy: { select: { id: true, name: true, photoUrl: true } },
+                updatedBy: { select: { id: true, name: true, photoUrl: true } },
+                lockedBy: { select: { id: true, name: true, photoUrl: true } }
             },
             orderBy: { updatedAt: 'desc' }
         });

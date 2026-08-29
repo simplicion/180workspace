@@ -288,41 +288,47 @@ class CronService {
 
     async meetingReminders(companyPrisma) {
         const now = new Date();
-        const in30Mins = new Date(now.getTime() + 30 * 60 * 1000);
+        const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
         const upcoming = await companyPrisma.calendarEvent.findMany({
             where: {
-                startDate: { gte: now, lte: in30Mins },
-                emailSent: false
+                startDate: { gte: now, lte: next24Hours },
+                emailSent: false,
+                type: 'meeting'
             }
         });
 
         for (const event of upcoming) {
-            // Find participants associated with this event
-            // In Prisma schema, event has attendees relations.
-            // Let's query attendees for the event.
-            const attendees = await companyPrisma.user.findMany({
-                where: {
-                    meetingAttended: {
-                        some: { id: event.id }
+            const reminderMs = (event.reminderMinutes || 15) * 60 * 1000;
+            const timeUntilEvent = event.startDate.getTime() - now.getTime();
+            
+            if (timeUntilEvent <= reminderMs) {
+                // Find participants associated with this event
+                // In Prisma schema, event has attendees relations.
+                // Let's query attendees for the event.
+                const attendees = await companyPrisma.user.findMany({
+                    where: {
+                        meetingAttended: {
+                            some: { id: event.id }
+                        }
                     }
+                });
+
+                for (const participant of attendees) {
+                    await AutomationService.trigger({
+                        eventType: 'meeting_reminder',
+                        targetUser: participant.id,
+                        relatedItem: { itemId: event.id, itemModel: 'CalendarEvent' },
+                        description: `Reminder: Meeting "${event.title}" starts at ${new Date(event.startDate).toLocaleTimeString()}`,
+                        metadata: { title: event.title, startTime: event.startDate, roomId: event.roomId }
+                    }, companyPrisma);
                 }
-            });
 
-            for (const participant of attendees) {
-                await AutomationService.trigger({
-                    eventType: 'meeting_reminder',
-                    targetUser: participant.id,
-                    relatedItem: { itemId: event.id, itemModel: 'CalendarEvent' },
-                    description: `Reminder: Meeting "${event.title}" starts at ${new Date(event.startTime).toLocaleTimeString()}`,
-                    metadata: { title: event.title, startTime: event.startTime, roomId: event.roomId }
-                }, companyPrisma);
+                await companyPrisma.calendarEvent.update({
+                    where: { id: event.id },
+                    data: { emailSent: true }
+                });
             }
-
-            await companyPrisma.calendarEvent.update({
-                where: { id: event.id },
-                data: { emailSent: true }
-            });
         }
     }
 

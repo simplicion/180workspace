@@ -13,6 +13,7 @@ import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import { MeetingSummaryDrawer } from '@/app/(platform)/(communications-app)/_components/MeetingSummaryDrawer';
 import { Drawer } from '@/components/ui/Drawer';
 import CustomSelect from '@/components/ui/CustomSelect';
+import UserSelectionModal from '@/components/shared/UserSelectionModal';
 
 const EVENT_TYPES = [
     { key: 'holiday', label: 'Holiday', color: '#ef4444' },
@@ -35,33 +36,49 @@ function PlatformBadge({ platform, PLATFORMS }: { platform: string; PLATFORMS: a
 }
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────
-function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Date; onClose: () => void; onSuccess: () => void; user: any; PLATFORMS: any[] }) {
+function getDuration(start: string, end: string) {
+    if (!start || !end) return '';
+    const [h1, m1] = start.split(':').map(Number);
+    const [h2, m2] = end.split(':').map(Number);
+    let diff = (h2 * 60 + (m2 || 0)) - (h1 * 60 + (m1 || 0));
+    if (diff < 0) diff += 24 * 60;
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    if (h > 0 && m > 0) return `(${h}h ${m}m)`;
+    if (h > 0) return `(${h}h)`;
+    return `(${m}m)`;
+}
+
+function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS, eventToEdit }: { date?: Date; onClose: () => void; onSuccess: () => void; user: any; PLATFORMS: any[]; eventToEdit?: any }) {
+    const isEdit = !!eventToEdit;
     const [form, setForm] = useState({
-        title: '',
-        description: '',
-        type: 'event',
-        startDate: format(date, 'yyyy-MM-dd'),
-        endDate: format(date, 'yyyy-MM-dd'),
-        allDay: true,
-        color: '#4f46e5',
-        isCompanyWide: true,
+        title: eventToEdit?.title || '',
+        description: eventToEdit?.description || '',
+        type: eventToEdit?.type || 'event',
+        startDateTime: eventToEdit?.startDate ? format(new Date(eventToEdit.startDate + (eventToEdit.meeting?.startTime ? `T${eventToEdit.meeting.startTime}` : 'T10:00:00')), "yyyy-MM-dd'T'HH:mm") : (date ? format(date, "yyyy-MM-dd'T'10:00") : ''),
+        endDateTime: eventToEdit?.endDate ? format(new Date(eventToEdit.endDate + (eventToEdit.meeting?.endTime ? `T${eventToEdit.meeting.endTime}` : 'T11:00:00')), "yyyy-MM-dd'T'HH:mm") : (date ? format(date, "yyyy-MM-dd'T'11:00") : ''),
+        allDay: eventToEdit?.allDay ?? true,
+        color: eventToEdit?.color || '#4f46e5',
+        isCompanyWide: eventToEdit?.isCompanyWide ?? true,
     });
 
     // Meeting-specific
     const [meeting, setMeeting] = useState({
-        startTime: '10:00',
-        endTime: '11:00',
-        platform: 'google_meet',
-        meetingLink: '',
-        location: '',
-        agenda: '',
-        attendeeIds: [] as string[],
-        externalAttendees: '',
-        reminderMinutes: 15,
-        notes: '',
+        platform: eventToEdit?.meeting?.platform || 'google_meet',
+        meetingLink: eventToEdit?.meeting?.meetingLink || '',
+        location: eventToEdit?.meeting?.location || '',
+        agenda: eventToEdit?.meeting?.agenda || '',
+        attendeeIds: eventToEdit?.meeting?.attendees?.map((a: any) => a.id) || [] as string[],
+        clientIds: eventToEdit?.clients?.map((c: any) => c.id) || [] as string[],
+        externalAttendees: eventToEdit?.meeting?.externalAttendees?.join(', ') || '',
+        reminderMinutes: eventToEdit?.reminderMinutes || 15,
+        notes: eventToEdit?.meeting?.notes || '',
     });
 
     const [users, setUsers] = useState<any[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
+    const [showTeamModal, setShowTeamModal] = useState(false);
+    const [showClientModal, setShowClientModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [sendingEmail, setSendingEmail] = useState(false);
 
@@ -75,20 +92,15 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
         api.get('/api/users', { params: { limit: 200 } })
             .then(r => setUsers(r.data.users || []))
             .catch(() => { });
+            
+        api.get('/api/clients', { params: { limit: 200 } })
+            .then(r => setClients(r.data.clients || []))
+            .catch(() => { });
     }, []);
 
     function changeType(type: string) {
         const col = getEventColor(type);
         setForm(p => ({ ...p, type, color: col }));
-    }
-
-    function toggleAttendee(id: string) {
-        setMeeting(m => ({
-            ...m,
-            attendeeIds: m.attendeeIds.includes(id)
-                ? m.attendeeIds.filter(x => x !== id)
-                : [...m.attendeeIds, id]
-        }));
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -99,19 +111,24 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
         setSendingEmail(isMeeting);
 
         try {
-            const payload: any = { ...form };
+            const startDate = form.startDateTime.split('T')[0];
+            const endDate = form.endDateTime.split('T')[0];
+            const payload: any = { ...form, startDate, endDate };
 
             if (isMeeting) {
+                const startTime = form.startDateTime.split('T')[1] || "10:00";
+                const endTime = form.endDateTime.split('T')[1] || "11:00";
                 const roomId = isNative ? `ims-${user?.companyId}-meeting-${Date.now()}` : '';
                 payload.meeting = {
-                    startTime: meeting.startTime,
-                    endTime: meeting.endTime,
+                    startTime,
+                    endTime,
                     platform: meeting.platform,
                     roomId: roomId || null,
                     meetingLink: isNative ? `${window.location.origin}/dashboard/meeting/${roomId}` : (meeting.meetingLink || null),
                     location: meeting.location || null,
                     agenda: meeting.agenda || null,
                     attendees: meeting.attendeeIds,
+                    clientIds: meeting.clientIds,
                     externalAttendees: meeting.externalAttendees
                         .split(/[\n,;]+/)
                         .map(s => s.trim())
@@ -122,8 +139,19 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                 payload.allDay = false;
             }
 
-            await api.post('/api/calendar', payload);
-            toast.success(isMeeting ? 'Meeting created! Invite emails sent to all attendees.' : 'Event created!');
+            let response;
+            if (isEdit) {
+                response = await api.put(`/api/calendar/${eventToEdit.id}`, payload);
+            } else {
+                response = await api.post('/api/calendar', payload);
+            }
+            
+            if (response.data.warning) {
+                toast.success(isEdit ? 'Event updated!' : (isMeeting ? 'Meeting created!' : 'Event created!'));
+                toast.error(response.data.warning, { duration: 6000, icon: '⚠️' });
+            } else {
+                toast.success(isEdit ? 'Event updated!' : (isMeeting ? 'Meeting created! Invite emails sent.' : 'Event created!'));
+            }
             onSuccess();
             onClose();
         } catch (err: any) {
@@ -135,69 +163,64 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
     }
 
     return (
-        <Drawer
-            isOpen={true}
-            onClose={onClose}
-            maxWidth="max-w-md"
-            title={
-                <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Add Event — {format(date, 'MMM d, yyyy')}</h2>
-                    {isMeeting && (
-                        <p className="text-xs text-sky-500 mt-0.5 flex items-center gap-1">
-                            <Mail className="w-3 h-3" /> Invite emails will be sent automatically
-                        </p>
-                    )}
-                </div>
-            }
-            footer={
-                <div className="flex justify-end gap-3 w-full">
-                    <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                    <button
-                        type="submit"
-                        form="event-form"
-                        disabled={loading}
-                        className="btn-primary min-w-[140px]"
-                    >
-                        {loading ? (
-                            <><LogoLoader className="w-4 h-4 animate-spin" /> {sendingEmail ? 'Sending Invites...' : 'Creating...'}</>
-                        ) : isMeeting ? (
-                            <><Video className="w-4 h-4" /> Create Meeting</>
-                        ) : (
-                            <><Plus className="w-4 h-4" /> Create Event</>
+        <>
+            <Drawer
+                isOpen={true}
+                onClose={onClose}
+                maxWidth="max-w-xl"
+                title={
+                    <div>
+                        <h2 className="text-lg font-semibold text-gray-900">{isEdit ? 'Edit Event' : 'Add Event'} — {date ? format(date, 'MMM d, yyyy') : ''}</h2>
+                        {isMeeting && !isEdit && (
+                            <p className="text-xs text-sky-500 mt-0.5 flex items-center gap-1">
+                                <Mail className="w-3 h-3" /> Invite emails will be sent automatically
+                            </p>
                         )}
-                    </button>
-                </div>
-            }
-        >
-            <div className="px-1 py-2">
-                <form id="event-form" onSubmit={handleSubmit} className="space-y-5">
-                    {/* Base Fields */}
+                    </div>
+                }
+                footer={
+                    <div className="flex justify-end gap-3 w-full">
+                        <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                        <button
+                            type="submit"
+                            form="event-form"
+                            disabled={loading}
+                            className="btn-primary min-w-[140px]"
+                        >
+                            {loading ? (
+                                <><LogoLoader className="w-4 h-4 animate-spin" /> {sendingEmail ? 'Sending Invites...' : 'Creating...'}</>
+                            ) : isMeeting ? (
+                                <><Video className="w-4 h-4" /> Create Meeting</>
+                            ) : (
+                                <><Plus className="w-4 h-4" /> Create Event</>
+                            )}
+                        </button>
+                    </div>
+                }
+            >
+                <div className="px-1 py-2">
+                    <form id="event-form" onSubmit={handleSubmit} className="space-y-6">
+                        {/* Base Fields */}
                         <div>
                             <label className="label">Event Title *</label>
                             <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="input" placeholder={isMeeting ? 'e.g. Q1 Strategy Meeting' : 'e.g. Company All Hands'} required />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className="label">Type</label>
-                                <CustomSelect value={form.type} onChange={e => changeType(e.target.value)} className="select">
-                                    {EVENT_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                                </CustomSelect>
-                            </div>
-                            <div>
-                                <label className="label">Color</label>
-                                <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} className="input h-[42px] cursor-pointer" />
-                            </div>
+                        <div>
+                            <label className="label">Type</label>
+                            <CustomSelect value={form.type} onChange={e => changeType(e.target.value)} className="select">
+                                {EVENT_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                            </CustomSelect>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                             <div>
-                                <label className="label">Start Date</label>
-                                <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="input" />
+                                <label className="label">Start Date & Time</label>
+                                <input type="datetime-local" value={form.startDateTime} onChange={e => setForm(p => ({ ...p, startDateTime: e.target.value }))} className="input" />
                             </div>
                             <div>
-                                <label className="label">End Date</label>
-                                <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} className="input" />
+                                <label className="label">End Date & Time</label>
+                                <input type="datetime-local" value={form.endDateTime} onChange={e => setForm(p => ({ ...p, endDateTime: e.target.value }))} className="input" />
                             </div>
                         </div>
 
@@ -208,7 +231,7 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
 
                         {/* ──────────────── MEETING FIELDS ──────────────── */}
                         {isMeeting && (
-                            <div className="space-y-5 pt-1">
+                            <div className="space-y-6 pt-2">
                                 <div className="flex items-center gap-2">
                                     <div className="flex-1 h-px bg-sky-100" />
                                     <span className="text-xs font-bold text-sky-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -217,37 +240,21 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                                     <div className="flex-1 h-px bg-sky-100" />
                                 </div>
 
-                                {/* Time */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    {/* Platform */}
                                     <div>
-                                        <label className="label flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Start Time *</label>
-                                        <input type="time" required value={meeting.startTime} onChange={e => setMeeting(m => ({ ...m, startTime: e.target.value }))} className="input" />
+                                        <label className="label flex items-center gap-1"><Video className="w-3.5 h-3.5" /> Platform</label>
+                                        <CustomSelect value={meeting.platform} onChange={e => setMeeting(m => ({ ...m, platform: e.target.value, meetingLink: '' }))} className="select">
+                                            {PLATFORMS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                                        </CustomSelect>
                                     </div>
-                                    <div>
-                                        <label className="label flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> End Time</label>
-                                        <input type="time" value={meeting.endTime} onChange={e => setMeeting(m => ({ ...m, endTime: e.target.value }))} className="input" />
-                                    </div>
-                                </div>
 
-                                {/* Platform */}
-                                <div>
-                                    <label className="label flex items-center gap-1"><Video className="w-3.5 h-3.5" /> Platform</label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        {PLATFORMS.map(p => (
-                                            <button
-                                                key={p.key}
-                                                type="button"
-                                                onClick={() => setMeeting(m => ({ ...m, platform: p.key, meetingLink: '' }))}
-                                                className={clsx(
-                                                    'px-3 py-2 rounded-xl border text-sm font-medium transition-all flex items-center gap-1.5',
-                                                    meeting.platform === p.key
-                                                        ? 'border-sky-400 bg-sky-50 text-sky-700 shadow-sm'
-                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                                                )}
-                                            >
-                                                <span>{p.icon}</span> {p.label}
-                                            </button>
-                                        ))}
+                                    {/* Reminder */}
+                                    <div>
+                                        <label className="label flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Reminder (minutes before)</label>
+                                        <CustomSelect value={meeting.reminderMinutes} onChange={e => setMeeting(m => ({ ...m, reminderMinutes: Number(e.target.value) }))} className="select w-full">
+                                            {[5, 10, 15, 30, 60, 120].map(v => <option key={v} value={v}>{v} min before</option>)}
+                                        </CustomSelect>
                                     </div>
                                 </div>
 
@@ -287,53 +294,53 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                                     </div>
                                 )}
 
-                                {/* Agenda */}
-                                <div>
-                                    <label className="label">Agenda <span className="text-gray-400 font-normal">(optional)</span></label>
-                                    <textarea
-                                        value={meeting.agenda}
-                                        onChange={e => setMeeting(m => ({ ...m, agenda: e.target.value }))}
-                                        className="input resize-none font-mono text-sm"
-                                        rows={3}
-                                        placeholder={"1. Project status update\n2. Q&A\n3. Next steps"}
-                                    />
-                                </div>
-
-                                {/* Internal Attendees */}
-                                <div>
-                                    <label className="label flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Team Members to Invite</label>
-                                    <div className="max-h-44 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-50">
-                                        {users.length === 0 ? (
-                                            <p className="text-xs text-gray-400 p-3">Loading users...</p>
-                                        ) : users.map(u => {
-                                            const checked = meeting.attendeeIds.includes(u.id);
-                                            return (
-                                                <button
-                                                    key={u.id}
-                                                    type="button"
-                                                    onClick={() => toggleAttendee(u.id)}
-                                                    className={clsx(
-                                                        'w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition-colors',
-                                                        checked ? 'bg-sky-50' : 'hover:bg-gray-50'
-                                                    )}
-                                                >
-                                                    <div className={clsx('w-5 h-5 rounded flex items-center justify-center border flex-shrink-0 transition-all', checked ? 'bg-sky-500 border-sky-500' : 'border-gray-300')}>
-                                                        {checked && <CheckCircle className="w-3.5 h-3.5 text-white" />}
-                                                    </div>
-                                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
-                                                        {u.name?.[0]?.toUpperCase()}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="font-medium text-gray-800 truncate">{u.name}</p>
-                                                        <p className="text-xs text-gray-400 truncate">{u.email} · {u.role}</p>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
+                                {/* Internal Attendees and Clients */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    {/* Team Members */}
+                                    <div>
+                                        <label className="label flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Team Members</label>
+                                        <button type="button" onClick={() => setShowTeamModal(true)} className="btn-secondary w-full text-sm py-2">
+                                            <Plus className="w-4 h-4 mr-1" /> Select Team Members
+                                        </button>
+                                        {meeting.attendeeIds.length > 0 && (
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {meeting.attendeeIds.map(id => {
+                                                    const u = users.find(x => x.id === id);
+                                                    if (!u) return null;
+                                                    return (
+                                                        <div key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                                                            <div className="w-4 h-4 rounded-full bg-indigo-200 text-[9px] flex items-center justify-center text-indigo-700">{u.name?.[0]?.toUpperCase()}</div>
+                                                            {u.name}
+                                                            <button type="button" onClick={() => setMeeting(m => ({ ...m, attendeeIds: m.attendeeIds.filter(x => x !== id) }))} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
-                                    {meeting.attendeeIds.length > 0 && (
-                                        <p className="text-xs text-sky-600 mt-1.5">{meeting.attendeeIds.length} team member{meeting.attendeeIds.length > 1 ? 's' : ''} selected</p>
-                                    )}
+
+                                    {/* Clients */}
+                                    <div>
+                                        <label className="label flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Clients</label>
+                                        <button type="button" onClick={() => setShowClientModal(true)} className="btn-secondary w-full text-sm py-2">
+                                            <Plus className="w-4 h-4 mr-1" /> Select Clients
+                                        </button>
+                                        {meeting.clientIds.length > 0 && (
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {meeting.clientIds.map(id => {
+                                                    const c = clients.find(x => x.id === id);
+                                                    if (!c) return null;
+                                                    return (
+                                                        <div key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 text-xs font-medium text-sky-700 border border-sky-100">
+                                                            <div className="w-4 h-4 rounded-full bg-sky-200 text-[9px] flex items-center justify-center text-sky-700">{c.name?.[0]?.toUpperCase()}</div>
+                                                            {c.name}
+                                                            <button type="button" onClick={() => setMeeting(m => ({ ...m, clientIds: m.clientIds.filter(x => x !== id) }))} className="text-sky-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* External Attendees */}
@@ -349,32 +356,55 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS }: { date: Da
                                     <p className="text-xs text-gray-400 mt-1">Separate multiple emails with commas or new lines</p>
                                 </div>
 
-                                {/* Notes & Reminder */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="label flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Reminder (minutes before)</label>
-                                        <CustomSelect value={meeting.reminderMinutes} onChange={e => setMeeting(m => ({ ...m, reminderMinutes: Number(e.target.value) }))} className="select">
-                                            {[5, 10, 15, 30, 60, 120].map(v => <option key={v} value={v}>{v} min before</option>)}
-                                        </CustomSelect>
-                                    </div>
-                                    <div>
-                                        <label className="label">Notes</label>
-                                        <input type="text" value={meeting.notes} onChange={e => setMeeting(m => ({ ...m, notes: e.target.value }))} className="input" placeholder="Additional notes..." />
-                                    </div>
+                                {/* Agenda & Notes */}
+                                <div>
+                                    <label className="label">Agenda <span className="text-gray-400 font-normal">(optional)</span></label>
+                                    <textarea
+                                        value={meeting.agenda}
+                                        onChange={e => setMeeting(m => ({ ...m, agenda: e.target.value }))}
+                                        className="input resize-none font-mono text-sm"
+                                        rows={3}
+                                        placeholder={"1. Project status update\n2. Q&A\n3. Next steps"}
+                                    />
                                 </div>
+                                <div>
+                                    <label className="label">Notes / Additional Info</label>
+                                    <textarea value={meeting.notes} onChange={e => setMeeting(m => ({ ...m, notes: e.target.value }))} className="input resize-none" rows={4} placeholder="Detailed notes about this meeting..." />
+                                </div>
+
+
 
                                 {/* Email notice */}
                                 <div className="flex items-start gap-2.5 p-3 bg-sky-50 rounded-xl border border-sky-100">
                                     <Mail className="w-4 h-4 text-sky-500 flex-shrink-0 mt-0.5" />
                                     <p className="text-xs text-sky-700">
-                                        <strong>Auto-email enabled:</strong> A full meeting invite (with date, time, platform, link & agenda) will be sent to all {meeting.attendeeIds.length + meeting.externalAttendees.split(/[\n,;]+/).filter(Boolean).length} attendee{(meeting.attendeeIds.length + meeting.externalAttendees.split(/[\n,;]+/).filter(Boolean).length) !== 1 ? 's' : ''} upon creation.
+                                        <strong>Auto-email enabled:</strong> A full meeting invite (with date, time, platform, link & agenda) will be sent to all {meeting.attendeeIds.length + meeting.clientIds.length + meeting.externalAttendees.split(/[\n,;]+/).filter(Boolean).length} attendee{(meeting.attendeeIds.length + meeting.clientIds.length + meeting.externalAttendees.split(/[\n,;]+/).filter(Boolean).length) !== 1 ? 's' : ''} upon creation.
                                     </p>
                                 </div>
                             </div>
                         )}
                     </form>
-            </div>
-        </Drawer>
+                </div>
+            </Drawer>
+
+            <UserSelectionModal
+                isOpen={showTeamModal}
+                onClose={() => setShowTeamModal(false)}
+                type="employee"
+                title="Select Team Members"
+                currentIds={meeting.attendeeIds}
+                onSelect={(ids) => setMeeting(m => ({ ...m, attendeeIds: ids }))}
+            />
+
+            <UserSelectionModal
+                isOpen={showClientModal}
+                onClose={() => setShowClientModal(false)}
+                type="client"
+                title="Select Clients"
+                currentIds={meeting.clientIds}
+                onSelect={(ids) => setMeeting(m => ({ ...m, clientIds: ids }))}
+            />
+        </>
     );
 }
 
@@ -399,6 +429,7 @@ export default function CalendarPage() {
     // Default to today so events display immediately
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [showAddModal, setShowAddModal] = useState(false);
+    const [eventToEdit, setEventToEdit] = useState<any>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [resendingId, setResendingId] = useState<string | null>(null);
@@ -472,13 +503,14 @@ export default function CalendarPage() {
 
     return (
         <div>
-            {showAddModal && selectedDate && (
+            {(showAddModal || eventToEdit) && (
                 <AddEventModal
                     date={selectedDate}
                     user={user}
-                    onClose={() => setShowAddModal(false)}
+                    onClose={() => { setShowAddModal(false); setEventToEdit(null); }}
                     onSuccess={loadEvents}
                     PLATFORMS={PLATFORMS}
+                    eventToEdit={eventToEdit}
                 />
             )}
 
@@ -588,11 +620,6 @@ export default function CalendarPage() {
                         <h3 className="text-base font-bold text-gray-900">
                             {format(selectedDate, 'MMMM d, yyyy')}
                         </h3>
-                        {isAdmin && (
-                            <button onClick={() => setShowAddModal(true)} className="btn-primary text-xs px-3 py-1.5">
-                                <Plus className="w-3 h-3" /> Add
-                            </button>
-                        )}
                     </div>
                     {selectedDayEvents.length === 0 ? (
                         <div className="text-center py-12">
@@ -625,7 +652,7 @@ export default function CalendarPage() {
                                                         {(ev.meeting.startTime || ev.meeting.endTime) && (
                                                             <p className="text-xs text-gray-600 flex items-center gap-1">
                                                                 <Clock className="w-3 h-3 text-sky-400" />
-                                                                {ev.meeting.startTime}{ev.meeting.endTime ? ` â€“ ${ev.meeting.endTime}` : ''}
+                                                                {ev.meeting.startTime}{ev.meeting.endTime ? ` – ${ev.meeting.endTime}` : ''} <span className="font-medium">{getDuration(ev.meeting.startTime, ev.meeting.endTime)}</span>
                                                             </p>
                                                         )}
                                                         <p className="text-xs text-gray-600 flex items-center gap-1">
@@ -633,8 +660,8 @@ export default function CalendarPage() {
                                                         </p>
                                                         {ev.meeting.meetingLink && (
                                                             <a href={ev.meeting.meetingLink} target="_blank" rel="noopener noreferrer"
-                                                                className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700 font-medium">
-                                                                <Link2 className="w-3 h-3" /> Join Meeting
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg text-[11px] font-semibold transition-colors mt-1">
+                                                                <Link2 className="w-3.5 h-3.5" /> Join Meeting Link
                                                             </a>
                                                         )}
                                                         {ev.meeting.location && (
@@ -642,24 +669,33 @@ export default function CalendarPage() {
                                                                 <MapPin className="w-3 h-3 text-gray-400" /> {ev.meeting.location}
                                                             </p>
                                                         )}
-                                                        {ev.meeting.attendees?.length > 0 && (
-                                                            <div className="flex items-center gap-1">
-                                                                <Users className="w-3 h-3 text-gray-400" />
-                                                                <div className="flex -space-x-1">
-                                                                    {ev.meeting.attendees.slice(0, 5).map((a: any) => (
-                                                                        <div key={a.id} title={a.name} className="w-5 h-5 rounded-full bg-indigo-200 border border-white flex items-center justify-center text-[9px] font-bold text-indigo-700">
-                                                                            {a.name?.[0]?.toUpperCase()}
-                                                                        </div>
-                                                                    ))}
-                                                                    {ev.meeting.attendees.length > 5 && (
-                                                                        <div className="w-5 h-5 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[9px] text-gray-600">
-                                                                            +{ev.meeting.attendees.length - 5}
-                                                                        </div>
-                                                                    )}
+                                                        <div className="flex items-center gap-3 mt-1">
+                                                            {ev.meeting.attendees?.length > 0 && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Users className="w-3 h-3 text-gray-400" />
+                                                                    <div className="flex -space-x-1">
+                                                                        {ev.meeting.attendees.slice(0, 5).map((a: any) => (
+                                                                            <div key={a.id} title={a.name} className="w-5 h-5 rounded-full bg-indigo-200 border border-white flex items-center justify-center text-[9px] font-bold text-indigo-700">
+                                                                                {a.name?.[0]?.toUpperCase()}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    <span className="text-xs text-gray-400">{ev.meeting.attendees.length} attendee{ev.meeting.attendees.length !== 1 ? 's' : ''}</span>
                                                                 </div>
-                                                                <span className="text-xs text-gray-400">{ev.meeting.attendees.length} attendee{ev.meeting.attendees.length !== 1 ? 's' : ''}</span>
-                                                            </div>
-                                                        )}
+                                                            )}
+                                                            {ev.clients?.length > 0 && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <div className="flex -space-x-1">
+                                                                        {ev.clients.slice(0, 5).map((c: any) => (
+                                                                            <div key={c.id} title={c.name} className="w-5 h-5 rounded-full bg-sky-200 border border-white flex items-center justify-center text-[9px] font-bold text-sky-700">
+                                                                                {c.name?.[0]?.toUpperCase()}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    <span className="text-xs text-gray-400">{ev.clients.length} client{ev.clients.length !== 1 ? 's' : ''}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
 
                                                         {ev.meeting.roomId && (
                                                             <button
@@ -694,6 +730,9 @@ export default function CalendarPage() {
                                                         {resendingId === ev.id ? <LogoLoader className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                                                     </button>
                                                 )}
+                                                <button onClick={() => setEventToEdit(ev)} className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
                                                 <button onClick={() => setShowDeleteConfirm(ev.id)} className="p-1.5 hover:bg-red-50 rounded text-red-300 hover:text-red-500">
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>

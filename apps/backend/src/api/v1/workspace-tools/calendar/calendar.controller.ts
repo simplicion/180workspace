@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { CalendarService } from '@workspace/workspace-tools';
 // Using backend-common for email service if required, or importing it from communications
 import * as EmailService from '@workspace/communications';
-import { AutomationService } from '@workspace/communications';
+import { AutomationService } from '@workspace/automations';
 import { logAction } from '../../../../system-configs/utils/audit';
 
 export const getEvents = async (req: Request, res: Response, next: NextFunction) => {
@@ -56,29 +56,57 @@ export const createEvent = async (req: Request, res: Response, next: NextFunctio
             };
         }
 
-        const event = await CalendarService.createEvent(createData);
+        const actualClients = meeting?.clientIds;
+        delete createData.clientIds;
+        if (actualClients && Array.isArray(actualClients) && actualClients.length > 0) {
+            createData.clients = {
+                connect: actualClients.map((id: string) => ({ id }))
+            };
+        }
 
-        if (event.type === 'meeting' && event.attendees?.length > 0) {
-            for (const attendee of event.attendees) {
-                await AutomationService.trigger({
-                    eventType: 'meeting_scheduled',
-                    triggeredBy: (req as any).user.id,
-                    targetUser: attendee.id,
-                    relatedItem: { itemId: event.id, itemModel: 'CalendarEvent' },
-                    description: `You have been invited to meeting: ${event.title}`,
-                    metadata: {
-                        meetingTitle: event.title,
-                        startTime: event.startTime,
-                        platform: event.platform,
-                        meetingLink: event.meetingLink
+        const event = await CalendarService.createEvent(createData);
+        let smtpWarning: string | undefined = undefined;
+
+        if (event.type === 'meeting') {
+            const hasAttendees = event.attendees?.length > 0;
+            const hasClients = event.clients?.length > 0;
+
+            if (hasAttendees || hasClients) {
+                try {
+                    const isSmtpConfigured = await EmailService.verifyConfig('work');
+                    if (!isSmtpConfigured) {
+                        smtpWarning = "Email is not configured. We haven't sent the meeting invitation.";
+                    } else {
+                        const creator = await CalendarService.getUser((req as any).user.id);
+                        await CalendarService.sendMeetingInvites(EmailService, event, creator, process.env.CLIENT_URL as string);
                     }
-                });
+                } catch (e) {
+                    smtpWarning = "Email is not configured. We haven't sent the meeting invitation.";
+                }
+            }
+
+            if (hasAttendees) {
+                for (const attendee of event.attendees) {
+                    await AutomationService.trigger({
+                        eventType: 'meeting_scheduled',
+                        triggeredBy: (req as any).user.id,
+                        targetUser: attendee.id,
+                        relatedItem: { itemId: event.id, itemModel: 'CalendarEvent' },
+                        description: `You have been invited to meeting: ${event.title}`,
+                        metadata: {
+                            meetingTitle: event.title,
+                            startTime: event.startDate,
+                            platform: event.platform,
+                            meetingLink: event.meetingLink
+                        }
+                    });
+                }
             }
         }
 
         await logAction((req as any).user.id, 'CREATE', 'CalendarEvent', event.id, { title: event.title, type: event.type }, req);
 
-        res.status(201).json({ event });
+        res.status(201).json({ event, warning: smtpWarning });
     } catch (err) { next(err); }
 };
 
@@ -111,6 +139,14 @@ export const updateEvent = async (req: Request, res: Response, next: NextFunctio
         if (actualAttendees && Array.isArray(actualAttendees)) {
             updateData.attendees = {
                 set: actualAttendees.map((id: string) => ({ id }))
+            };
+        }
+        
+        const actualClients = meeting?.clientIds;
+        delete updateData.clientIds;
+        if (actualClients && Array.isArray(actualClients)) {
+            updateData.clients = {
+                set: actualClients.map((id: string) => ({ id }))
             };
         }
         
