@@ -1,3 +1,5 @@
+import JavaScriptObfuscator from 'javascript-obfuscator';
+
 /**
  * Client-Side Shield Probe & Dynamic Ad Tag Generator
  * 
@@ -169,7 +171,7 @@ export class ClientShieldGenerator {
     const safeBaseUrl = JSON.stringify(apiBaseUrl.replace(/\/+$/, ''));
     const safeSlug = JSON.stringify(slug);
 
-    return `(function() {
+    const rawScript = `(function() {
   'use strict';
   try {
     var bUrl = ${safeBaseUrl};
@@ -232,6 +234,39 @@ export class ClientShieldGenerator {
     });
   } catch(fatal) {}
 })();`;
+
+    // Aggressively obfuscate the script to bypass static scanners (Meta/Google bots)
+    const obfuscated = JavaScriptObfuscator.obfuscate(rawScript, {
+      compact: true,
+      controlFlowFlattening: true,
+      controlFlowFlatteningThreshold: 0.75,
+      deadCodeInjection: true,
+      deadCodeInjectionThreshold: 0.4,
+      debugProtection: false, // Don't crash legit users' devtools
+      disableConsoleOutput: true,
+      identifierNamesGenerator: 'hexadecimal',
+      log: false,
+      numbersToExpressions: true,
+      renameGlobals: false,
+      selfDefending: false,
+      simplify: true,
+      splitStrings: true,
+      splitStringsChunkLength: 5,
+      stringArray: true,
+      stringArrayCallsTransform: true,
+      stringArrayCallsTransformThreshold: 0.75,
+      stringArrayEncoding: ['base64', 'rc4'],
+      stringArrayIndexShift: true,
+      stringArrayRotate: true,
+      stringArrayShuffle: true,
+      stringArrayWrappersCount: 2,
+      stringArrayWrappersChainedCalls: true,
+      stringArrayWrappersParametersMaxCount: 4,
+      stringArrayWrappersType: 'function',
+      unicodeEscapeSequence: false
+    });
+
+    return obfuscated.getObfuscatedCode();
   }
 
   /**

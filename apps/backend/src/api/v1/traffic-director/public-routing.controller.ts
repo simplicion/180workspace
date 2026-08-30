@@ -136,6 +136,9 @@ export class PublicRoutingController {
     }
   }
 
+  // In-memory cache to prevent re-obfuscating scripts on high volume requests
+  private static dynamicTagCache = new Map<string, { scriptJs: string; expiresAt: number }>();
+
   static async handleDynamicTag(req: Request, res: Response) {
     try {
       const { slug } = req.params;
@@ -148,16 +151,33 @@ export class PublicRoutingController {
       const host = req.get('host') || 'localhost:4002';
       const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
       const apiBaseUrl = `${protocol}://${host}`;
-
-      const scriptJs = ClientShieldGenerator.generateSelfHostedPixelJs({
-        slug: link.slug,
-        apiBaseUrl,
-        targetUrl: link.rules?.[0]?.destinationUrl || link.fallbackUrl,
-        fallbackUrl: link.fallbackUrl
-      });
+      
+      const targetUrl = link.rules?.[0]?.destinationUrl || link.fallbackUrl;
+      const cacheKey = `${cleanSlug}:${targetUrl}:${apiBaseUrl}`;
+      const now = Date.now();
+      
+      // Cache for 15 minutes to avoid expensive JS obfuscation on every edge hit
+      const cached = PublicRoutingController.dynamicTagCache.get(cacheKey);
+      let scriptJs = '';
+      
+      if (cached && cached.expiresAt > now) {
+        scriptJs = cached.scriptJs;
+      } else {
+        scriptJs = ClientShieldGenerator.generateSelfHostedPixelJs({
+          slug: link.slug,
+          apiBaseUrl,
+          targetUrl,
+          fallbackUrl: link.fallbackUrl
+        });
+        
+        PublicRoutingController.dynamicTagCache.set(cacheKey, {
+          scriptJs,
+          expiresAt: now + 15 * 60 * 1000 
+        });
+      }
 
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=900, stale-while-revalidate=86400'); // Cache at edge/browser level too
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.send(scriptJs);
     } catch (error: any) {
