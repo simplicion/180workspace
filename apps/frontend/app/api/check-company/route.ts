@@ -18,6 +18,7 @@ export async function GET(req: Request) {
       }),
       prisma.domainRegistry.findUnique({
         where: { domain: slug },
+        select: { id: true, domain: true }
       })
     ]);
 

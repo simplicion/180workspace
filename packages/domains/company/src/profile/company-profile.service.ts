@@ -243,7 +243,14 @@ export class CompanyProfileService {
 
         // Check if domain is already registered globally
         const existingDomain = await prisma.domainRegistry.findUnique({
-            where: { domain }
+            where: { domain },
+            select: {
+                id: true,
+                domain: true,
+                type: true,
+                targetId: true,
+                companyId: true
+            }
         });
 
         if (existingDomain && existingDomain.targetId !== companyId) {
