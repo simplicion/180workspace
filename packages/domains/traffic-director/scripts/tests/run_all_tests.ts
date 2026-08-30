@@ -15,7 +15,8 @@ const testFiles = [
   'test_7_rule_priority_matrix.ts',
   'test_8_client_shield_and_tag_generator.ts',
   'test_9_analytics_and_anomaly_sentinel.ts',
-  'test_10_end_to_end_routing_simulator.ts'
+  'test_10_end_to_end_routing_simulator.ts',
+  'test_11_self_hosted_tag_generation_and_edge_eval.ts'
 ];
 
 let totalPassed = 0;

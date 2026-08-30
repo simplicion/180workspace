@@ -198,6 +198,12 @@ router.use('/shield/:slug', (req, res) => {
 router.use('/tag/:slug', (req, res) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleDynamicTag(req, res);
 });
+router.post('/v1/traffic-director/evaluate/:slug', (req, res) => {
+    return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
+});
+router.post('/evaluate/:slug', (req, res) => {
+    return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
+});
 router.use('/setup', setupRoutes);
 // Health moved to system routes
 // Release notes are now handled in communications

