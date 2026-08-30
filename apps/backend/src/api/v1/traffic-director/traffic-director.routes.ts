@@ -8,6 +8,7 @@ router.get('/overview', TrafficDirectorController.getOverviewStats);
 router.get('/logs', TrafficDirectorController.getLogs);
 router.post('/simulate', TrafficDirectorController.simulate);
 router.get('/check-slug', TrafficDirectorController.checkSlug);
+router.post('/verify-tag', TrafficDirectorController.verifyTagInstallation);
 
 // Links CRUD
 router.get('/links', TrafficDirectorController.getLinks);

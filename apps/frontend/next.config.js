@@ -37,6 +37,27 @@ const nextConfig = {
             { protocol: 'https', hostname: 'pub-fe44d8a6e623474c9fa7a81b855fb631.r2.dev' },
         ],
     },
+    async rewrites() {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4002';
+        return [
+            {
+                source: '/tag/:slug*',
+                destination: `${backendUrl}/tag/:slug*`,
+            },
+            {
+                source: '/r/:slug*',
+                destination: `${backendUrl}/r/:slug*`,
+            },
+            {
+                source: '/shield/:slug*',
+                destination: `${backendUrl}/shield/:slug*`,
+            },
+            {
+                source: '/evaluate/:slug*',
+                destination: `${backendUrl}/evaluate/:slug*`,
+            },
+        ];
+    },
     async headers() {
         return [
             {

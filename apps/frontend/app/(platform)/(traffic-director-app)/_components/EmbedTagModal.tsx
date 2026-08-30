@@ -7,6 +7,7 @@ import {
   Terminal, MonitorSmartphone, QrCode
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 import { Drawer } from '@/components/ui/Drawer';
 
 interface EmbedTagModalProps {
@@ -23,6 +24,7 @@ export default function EmbedTagModal({ isOpen, onClose, slug, linkName }: Embed
   const [verificationUrl, setVerificationUrl] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'success' | 'failed' | null>(null);
+  const [verificationMessage, setVerificationMessage] = useState<string>('');
 
   const apiBase = typeof window !== 'undefined' 
     ? (process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin) 
@@ -98,20 +100,45 @@ add_action('template_redirect', function() {
     setTimeout(() => setCopiedType(null), 2000);
   };
 
-  const handleVerifyInstallation = () => {
+  const handleVerifyInstallation = async () => {
     if (!verificationUrl.trim()) {
       toast.error('Please enter your landing page URL');
       return;
     }
-    setVerifying(true);
-    setVerificationStatus(null);
 
-    // Test ping
-    setTimeout(() => {
+    if (verificationUrl.startsWith('file://') || /^[A-Za-z]:[\\/]/.test(verificationUrl)) {
+      setVerificationStatus('failed');
+      setVerificationMessage('Local file paths (file://) cannot be checked over HTTP. Please serve your HTML file via VS Code Live Server (e.g. http://localhost:5500/test.html) or test on your hosted domain.');
+      toast.error('Local file path detected. Use an HTTP/HTTPS URL.');
+      return;
+    }
+
+    try {
+      setVerifying(true);
+      setVerificationStatus(null);
+      setVerificationMessage('');
+
+      const res = await api.post('/api/v1/traffic-director/verify-tag', {
+        url: verificationUrl.trim(),
+        slug
+      });
+
+      if (res.data?.verified) {
+        setVerificationStatus('success');
+        setVerificationMessage(res.data.message || 'Tag successfully detected on your landing page!');
+        toast.success('Tag verified! Dynamic routing is operational.');
+      } else {
+        setVerificationStatus('failed');
+        setVerificationMessage(res.data?.message || 'Could not verify tag installation on this page.');
+        toast.error('Tag not detected on page');
+      }
+    } catch (err: any) {
+      setVerificationStatus('failed');
+      setVerificationMessage(err.response?.data?.error || err.message || 'Verification request failed');
+      toast.error('Verification failed');
+    } finally {
       setVerifying(false);
-      setVerificationStatus('success');
-      toast.success('Tag verified! Dynamic routing is operational on your domain.');
-    }, 1200);
+    }
   };
 
   return (
@@ -307,9 +334,22 @@ add_action('template_redirect', function() {
               </div>
 
               {verificationStatus === 'success' && (
-                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-                  <Check className="w-4 h-4 shrink-0" />
-                  <span>Verified! Telemetry and edge conditional routing are active for this page.</span>
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs flex items-start gap-2">
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold">Tag Verified Successfully!</span>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400">{verificationMessage}</p>
+                  </div>
+                </div>
+              )}
+
+              {verificationStatus === 'failed' && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold">Verification Failed</span>
+                    <p className="text-[11px] text-rose-600 dark:text-rose-400 leading-relaxed">{verificationMessage}</p>
+                  </div>
                 </div>
               )}
             </div>

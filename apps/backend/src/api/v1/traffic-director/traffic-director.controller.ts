@@ -39,6 +39,65 @@ export class TrafficDirectorController {
     }
   }
 
+  static async verifyTagInstallation(req: Request, res: Response) {
+    try {
+      const { url, slug } = req.body || {};
+      if (!url || typeof url !== 'string' || !url.trim()) {
+        return res.status(400).json({ success: false, error: 'URL is required' });
+      }
+      if (!slug || typeof slug !== 'string' || !slug.trim()) {
+        return res.status(400).json({ success: false, error: 'Slug is required' });
+      }
+
+      let targetUrl = url.trim();
+      if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+        targetUrl = `https://${targetUrl}`;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      try {
+        const pageRes = await fetch(targetUrl, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) 180workspace-Tag-Verifier/1.0'
+          }
+        });
+        clearTimeout(timeoutId);
+
+        const html = await pageRes.text();
+        const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+        const tagPattern = new RegExp(`tag/${cleanSlug}(\\.js)?|evaluate/${cleanSlug}`, 'i');
+        const hasTag = tagPattern.test(html);
+
+        if (hasTag) {
+          return res.json({
+            success: true,
+            verified: true,
+            message: 'Tag successfully detected on your landing page!'
+          });
+        } else {
+          return res.json({
+            success: true,
+            verified: false,
+            message: `Could not detect the tag script for "/tag/${cleanSlug}.js" on this page. Please ensure you saved and published your HTML changes.`
+          });
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        return res.json({
+          success: true,
+          verified: false,
+          message: `Could not reach ${targetUrl} (${fetchError.message || 'Connection timeout or invalid URL'}). If you opened a local file directly in your browser, serve it via Live Server or a local HTTP server.`
+        });
+      }
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.verifyTagInstallation]', error);
+      return res.status(500).json({ success: false, error: 'Verification failed' });
+    }
+  }
+
   static async getLinkById(req: Request, res: Response) {
     try {
       const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
