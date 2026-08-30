@@ -400,14 +400,32 @@ export class PublicService {
 
         // Find in DomainRegistry using exact match (e.g., custom domains)
         let registry = await prisma.domainRegistry.findUnique({
-            where: { domain: lookupDomain }
+            where: { domain: lookupDomain },
+            select: {
+                id: true,
+                domain: true,
+                type: true,
+                targetId: true,
+                companyId: true,
+                createdAt: true,
+                updatedAt: true
+            }
         });
 
         // If not found, try treating it as a subdomain and matching by slug
         if (!registry && lookupDomain.includes('.')) {
             const slug = lookupDomain.split('.')[0];
             registry = await prisma.domainRegistry.findUnique({
-                where: { domain: slug }
+                where: { domain: slug },
+                select: {
+                    id: true,
+                    domain: true,
+                    type: true,
+                    targetId: true,
+                    companyId: true,
+                    createdAt: true,
+                    updatedAt: true
+                }
             });
         }
 
