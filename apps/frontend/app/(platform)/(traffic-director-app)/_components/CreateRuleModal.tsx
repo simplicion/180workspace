@@ -59,7 +59,7 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
 
     try {
       setLoading(true);
-      const res = await api.post(`/v1/traffic-director/links/${linkId}/rules`, {
+      const res = await api.post(`/api/v1/traffic-director/links/${linkId}/rules`, {
         name,
         destinationUrl,
         actionType,

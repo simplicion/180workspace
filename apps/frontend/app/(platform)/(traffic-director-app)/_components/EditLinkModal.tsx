@@ -43,7 +43,7 @@ export default function EditLinkModal({ isOpen, onClose, link, onSuccess }: Edit
         .map(t => t.trim())
         .filter(Boolean);
 
-      await api.put(`/v1/traffic-director/links/${link.id}`, {
+      await api.put(`/api/v1/traffic-director/links/${link.id}`, {
         name,
         description,
         customDomain: customDomain.trim() || null,

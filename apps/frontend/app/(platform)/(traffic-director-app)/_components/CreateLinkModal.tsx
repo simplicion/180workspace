@@ -48,7 +48,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
         .map(t => t.trim())
         .filter(Boolean);
 
-      const res = await api.post('/v1/traffic-director/links', {
+      const res = await api.post('/api/v1/traffic-director/links', {
         name,
         slug: slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-'),
         fallbackUrl,

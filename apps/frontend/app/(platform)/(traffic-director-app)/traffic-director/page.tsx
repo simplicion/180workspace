@@ -24,7 +24,7 @@ export default function TrafficDirectorOverviewPage() {
   const fetchOverview = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/v1/traffic-director/overview');
+      const res = await api.get('/api/v1/traffic-director/overview');
       setStats(res.data?.data || null);
     } catch (error: any) {
       console.error('Failed to fetch traffic stats:', error);

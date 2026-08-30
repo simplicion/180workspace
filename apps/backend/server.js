@@ -143,6 +143,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 const apiRoutes = require('./src/routes/index.routes').default || require('./src/routes/index.routes');
 app.use('/api', apiRoutes);
+app.use('/v1', (req, res, next) => {
+    req.url = '/v1' + req.url;
+    apiRoutes(req, res, next);
+});
 
 // ─── Public Traffic Director Edge Routing ─────────────────────────────────────
 const { publicRoutes: trafficDirectorPublicRoutes } = require('./src/api/v1/traffic-director/index');
