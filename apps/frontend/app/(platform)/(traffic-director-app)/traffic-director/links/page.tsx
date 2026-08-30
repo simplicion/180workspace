@@ -23,7 +23,7 @@ export default function SmartLinksDirectoryPage() {
   const fetchLinks = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/v1/traffic-director/links', {
+      const res = await api.get('/api/v1/traffic-director/links', {
         params: { search: search || undefined }
       });
       setLinks(res.data?.data?.links || []);
@@ -50,7 +50,7 @@ export default function SmartLinksDirectoryPage() {
   const handleToggleActive = async (link: any) => {
     try {
       const updated = !link.isActive;
-      await api.put(`/v1/traffic-director/links/${link.id}`, { isActive: updated });
+      await api.put(`/api/v1/traffic-director/links/${link.id}`, { isActive: updated });
       setLinks(prev => prev.map(l => l.id === link.id ? { ...l, isActive: updated } : l));
       toast.success(`Link is now ${updated ? 'Active' : 'Paused'}`);
     } catch (error: any) {
@@ -61,7 +61,7 @@ export default function SmartLinksDirectoryPage() {
   const handleDelete = async (linkId: string) => {
     if (!confirm('Are you sure you want to delete this Smart Link and all its rules?')) return;
     try {
-      await api.delete(`/v1/traffic-director/links/${linkId}`);
+      await api.delete(`/api/v1/traffic-director/links/${linkId}`);
       setLinks(prev => prev.filter(l => l.id !== linkId));
       toast.success('Link deleted successfully');
     } catch (error: any) {

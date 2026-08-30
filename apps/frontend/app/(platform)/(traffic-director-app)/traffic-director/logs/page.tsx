@@ -20,7 +20,7 @@ export default function TrafficStreamLogsPage() {
   const fetchLogs = async () => {
     try {
       const isBotParam = botFilter === 'bots' ? true : (botFilter === 'humans' ? false : undefined);
-      const res = await api.get('/v1/traffic-director/logs', {
+      const res = await api.get('/api/v1/traffic-director/logs', {
         params: { isBot: isBotParam, limit: 50 }
       });
       setLogs(res.data.data.logs || []);

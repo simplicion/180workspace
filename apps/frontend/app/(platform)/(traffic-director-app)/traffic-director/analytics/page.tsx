@@ -20,7 +20,7 @@ export default function TrafficAnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/v1/traffic-director/overview');
+      const res = await api.get('/api/v1/traffic-director/overview');
       setStats(res.data?.data || null);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);

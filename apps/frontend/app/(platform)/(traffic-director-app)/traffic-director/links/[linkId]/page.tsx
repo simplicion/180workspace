@@ -40,7 +40,7 @@ export default function SmartLinkRuleCanvasPage() {
   const fetchLinkDetails = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/v1/traffic-director/links/${linkId}`);
+      const res = await api.get(`/api/v1/traffic-director/links/${linkId}`);
       const lk = res.data.data.link;
       setLinkData(lk);
       setFallbackUrl(lk.fallbackUrl);
@@ -60,7 +60,7 @@ export default function SmartLinkRuleCanvasPage() {
   const handleUpdateShieldSettings = async () => {
     try {
       setSavingShield(true);
-      await api.put(`/v1/traffic-director/links/${linkId}`, {
+      await api.put(`/api/v1/traffic-director/links/${linkId}`, {
         datacenterBlocked,
         warmupUntil: warmupUntil ? new Date(warmupUntil).toISOString() : null,
         rampUpEnabled,
@@ -84,7 +84,7 @@ export default function SmartLinkRuleCanvasPage() {
 
   const handleUpdateFallback = async () => {
     try {
-      await api.put(`/v1/traffic-director/links/${linkId}`, { fallbackUrl });
+      await api.put(`/api/v1/traffic-director/links/${linkId}`, { fallbackUrl });
       toast.success('Fallback URL updated!');
     } catch (error) {
       toast.error('Failed to update fallback URL');
@@ -94,7 +94,7 @@ export default function SmartLinkRuleCanvasPage() {
   const handleToggleRuleActive = async (rule: any) => {
     try {
       const updated = !rule.isActive;
-      await api.put(`/v1/traffic-director/rules/${rule.id}`, { isActive: updated });
+      await api.put(`/api/v1/traffic-director/rules/${rule.id}`, { isActive: updated });
       setLinkData((prev: any) => ({
         ...prev,
         rules: prev.rules.map((r: any) => r.id === rule.id ? { ...r, isActive: updated } : r)
@@ -108,7 +108,7 @@ export default function SmartLinkRuleCanvasPage() {
   const handleDeleteRule = async (ruleId: string) => {
     if (!confirm('Are you sure you want to delete this rule?')) return;
     try {
-      await api.delete(`/v1/traffic-director/rules/${ruleId}`);
+      await api.delete(`/api/v1/traffic-director/rules/${ruleId}`);
       setLinkData((prev: any) => ({
         ...prev,
         rules: prev.rules.filter((r: any) => r.id !== ruleId)
@@ -132,7 +132,7 @@ export default function SmartLinkRuleCanvasPage() {
     setLinkData((prev: any) => ({ ...prev, rules: newRules }));
 
     try {
-      await api.post(`/v1/traffic-director/links/${linkId}/rules/reorder`, {
+      await api.post(`/api/v1/traffic-director/links/${linkId}/rules/reorder`, {
         orderedRuleIds: newRules.map(r => r.id)
       });
       toast.success('Priority order updated');

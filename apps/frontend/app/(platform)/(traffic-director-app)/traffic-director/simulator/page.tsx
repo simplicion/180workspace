@@ -96,7 +96,7 @@ function TrafficSimulatorContent() {
   const fetchLinks = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/v1/traffic-director/links');
+      const res = await api.get('/api/v1/traffic-director/links');
       const fetchedLinks = res.data?.data?.links || [];
       setLinks(fetchedLinks);
       if (!selectedLinkId && fetchedLinks.length > 0) {
@@ -137,7 +137,7 @@ function TrafficSimulatorContent() {
         queryParams[simulatedQueryKey.trim()] = simulatedQueryVal.trim();
       }
 
-      const res = await api.post('/v1/traffic-director/simulate', {
+      const res = await api.post('/api/v1/traffic-director/simulate', {
         linkId: selectedLinkId,
         simulatedIp,
         simulatedCountry,
