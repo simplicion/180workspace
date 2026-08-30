@@ -444,6 +444,16 @@ export class PublicService {
             payload = await prisma.website.findUnique({
                 where: { id: registry.targetId }
             });
+        } else if (registry.type === 'TRAFFIC_LINK') {
+            payload = await prisma.trafficLink.findUnique({
+                where: { id: registry.targetId },
+                include: {
+                    rules: {
+                        where: { isActive: true },
+                        orderBy: { priority: 'asc' }
+                    }
+                }
+            });
         }
         // else if (registry.type === 'FORM') { ... }
 

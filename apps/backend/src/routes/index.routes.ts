@@ -199,6 +199,8 @@ router.use('/v1/traffic-director', protect, moduleGuard('traffic-director'), tra
 router.use('/v1/social-media', protect, moduleGuard('tools'), socialMediaRoutes);
 router.use('/v1/insights', protect, moduleGuard('insights'), insightsRoutes);
 router.use('/v1/platform-billing', protect, platformBillingRoutes);
+router.use('/v1/domains', require('../api/v1/domains/domains.routes').default);
+router.use('/domains', require('../api/v1/domains/domains.routes').default);
 router.use('/p/contract', publicContractRoutes);
 router.use('/public', publicRoutes);
 router.use('/public', advertisingPublicRoutes);
