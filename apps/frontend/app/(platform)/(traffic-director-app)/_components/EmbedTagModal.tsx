@@ -46,8 +46,8 @@ export default function EmbedTagModal({
   } | null>(null);
 
   const apiBase = typeof window !== 'undefined' 
-    ? (process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin) 
-    : 'https://180workspace.com';
+    ? (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin) 
+    : (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '');
 
   const scriptTagCode = `<script src="${apiBase}/tag/${slug}.js" async></script>`;
   
@@ -143,7 +143,12 @@ add_action('template_redirect', function() {
   };
 
   const directUrl = `${apiBase}/r/${slug}`;
-  const brandedUrl = customDomain ? `https://${customDomain}/${slug}` : null;
+  const protocol = typeof window !== 'undefined' ? `${window.location.protocol}//` : (process.env.NODE_ENV === 'development' ? 'http://' : 'https://');
+  const brandedUrl = customDomain 
+    ? (customDomain.startsWith('http://') || customDomain.startsWith('https://') 
+        ? `${customDomain}/${slug}` 
+        : `${protocol}${customDomain}/${slug}`)
+    : null;
 
   return (
     <>

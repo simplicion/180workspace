@@ -5,6 +5,7 @@ import { Link as LinkIcon, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { PlatformModal } from '@/components/shared/PlatformModal';
+import { LogoLoader } from '@workspace/ui';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -26,8 +27,10 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (loading) return;
+
     if (!name.trim() || !slug.trim() || !fallbackUrl.trim()) {
       toast.error('Please fill in all required fields');
       return;
@@ -86,17 +89,18 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
+            onClick={handleSubmit}
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] rounded-xl shadow-md shadow-indigo-500/20 disabled:opacity-50 transition"
+            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] rounded-xl shadow-md shadow-indigo-500/20 disabled:opacity-50 transition cursor-pointer"
           >
             {loading ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <LogoLoader className="w-4 h-4 animate-spin text-white" />
             ) : (
               <Sparkles className="w-4 h-4" />
             )}

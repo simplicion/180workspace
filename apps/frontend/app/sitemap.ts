@@ -4,7 +4,9 @@ import { prisma } from '@workspace/db';
 export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://180workspace.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+    (process.env.NEXT_PUBLIC_ROOT_DOMAIN ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}` : '') || 
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:3002' : '');
 
   try {
     // Fetch all public companies

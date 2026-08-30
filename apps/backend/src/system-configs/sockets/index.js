@@ -68,7 +68,9 @@ function initSocket(httpServer) {
 
     const allowedOrigins = process.env.CLIENT_URL 
         ? process.env.CLIENT_URL.split(',').map(url => url.trim())
-        : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'https://180workspace.com'];
+        : (process.env.NODE_ENV === 'development' 
+            ? ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://127.0.0.1:3002', 'http://127.0.0.1:3003'] 
+            : [`https://${process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'}`]);
 
     const io = new Server(httpServer, {
         cors: {

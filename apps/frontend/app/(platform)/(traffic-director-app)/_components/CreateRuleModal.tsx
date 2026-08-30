@@ -1,25 +1,21 @@
 "use client";
 
 import { useState } from 'react';
-import { Plus, Trash2, Layers, ArrowRight, ShieldCheck, Globe, Smartphone, Bot } from 'lucide-react';
+import { Plus, Layers, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
 import CustomSelect from '@/components/ui/CustomSelect';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import { LogoLoader } from '@workspace/ui';
+import ConditionRow, { ConditionItem } from './ConditionRow';
+import { getDefaultValueForType } from './TargetingSignalPresets';
 
 interface CreateRuleModalProps {
   isOpen: boolean;
   onClose: () => void;
   linkId: string;
   onSuccess: (newRule: any) => void;
-}
-
-interface ConditionItem {
-  type: string;
-  operator: string;
-  key?: string;
-  value: string;
 }
 
 export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: CreateRuleModalProps) {
@@ -41,30 +37,6 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
 
   const handleRemoveCondition = (index: number) => {
     setConditions(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const getDefaultValueForType = (type: string): string => {
-    switch (type) {
-      case 'device_type':
-        return 'mobile';
-      case 'bot_status':
-        return 'human';
-      case 'touch_support':
-      case 'battery_valid':
-        return 'true';
-      case 'network_type':
-        return 'residential';
-      case 'asn_provider':
-        return 'AWS';
-      case 'os':
-        return 'ios';
-      case 'browser':
-        return 'chrome';
-      case 'geo_country':
-        return 'US';
-      default:
-        return '';
-    }
   };
 
   const handleUpdateCondition = (index: number, field: keyof ConditionItem, val: string) => {
@@ -118,36 +90,6 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
     }
   };
 
-  const conditionTypeOptions = [
-    { value: 'geo_country', label: 'Country (ISO Code)' },
-    { value: 'geo_city', label: 'City Name' },
-    { value: 'device_type', label: 'Device Type (Mobile/Desktop/Tablet)' },
-    { value: 'network_type', label: 'Network Type (Residential/Datacenter)' },
-    { value: 'asn_provider', label: 'Cloud Provider (AWS/GCP/Azure)' },
-    { value: 'touch_support', label: 'Touchscreen Hardware Present' },
-    { value: 'gpu_renderer', label: 'Hardware GPU (Exclude SwiftShader)' },
-    { value: 'battery_valid', label: 'Realistic Battery (Exclude 100% Static)' },
-    { value: 'os', label: 'Operating System (iOS/Android/Windows)' },
-    { value: 'browser', label: 'Browser Name (Chrome/Safari/In-App)' },
-    { value: 'bot_status', label: 'Bot / Human Status' },
-    { value: 'referrer', label: 'HTTP Referrer (Instagram/TikTok/Google)' },
-    { value: 'sec_ch_ua', label: 'Client Hints (Sec-CH-UA)' },
-    { value: 'ip_address', label: 'IP Address / Subnet' },
-    { value: 'header', label: 'Custom HTTP Header' },
-    { value: 'query_param', label: 'URL Query Parameter' },
-    { value: 'language', label: 'Accept-Language' }
-  ];
-
-  const operatorOptions = [
-    { value: 'equals', label: 'Equals (Exact Match)' },
-    { value: 'not_equals', label: 'Does Not Equal' },
-    { value: 'contains', label: 'Contains Substring' },
-    { value: 'not_contains', label: 'Does Not Contain' },
-    { value: 'in', label: 'In (Comma-separated List)' },
-    { value: 'not_in', label: 'Not In List' },
-    { value: 'regex', label: 'Matches Regular Expression' }
-  ];
-
   return (
     <Drawer
       isOpen={isOpen}
@@ -162,17 +104,17 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 active:scale-[0.98] rounded-xl shadow-md shadow-purple-500/20 disabled:opacity-50 transition"
+            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 active:scale-[0.98] rounded-xl shadow-md shadow-purple-500/20 disabled:opacity-50 transition cursor-pointer"
           >
             {loading ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <LogoLoader className="w-4 h-4 animate-spin text-white" />
             ) : (
               <ArrowRight className="w-4 h-4" />
             )}
@@ -255,185 +197,25 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
             <button
               type="button"
               onClick={handleAddCondition}
-              className="flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+              className="flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" /> Add Condition
             </button>
           </div>
 
           {conditions.map((cond, idx) => (
-            <div key={idx} className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 space-y-2.5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {/* Condition Type */}
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Signal Type</label>
-                  <CustomSelect
-                    value={cond.type}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'type', e.target.value)}
-                    options={conditionTypeOptions}
-                  />
-                </div>
-
-                {/* Operator */}
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Operator</label>
-                  <CustomSelect
-                    value={cond.operator}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'operator', e.target.value)}
-                    options={operatorOptions}
-                  />
-                </div>
-              </div>
-
-              {/* Optional Key for Header/Query */}
-              {(cond.type === 'header' || cond.type === 'query_param') && (
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                    {cond.type === 'header' ? 'Header Name' : 'Query Parameter Name'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={cond.type === 'header' ? 'e.g. x-custom-token' : 'e.g. utm_source'}
-                    value={cond.key || ''}
-                    onChange={(e) => handleUpdateCondition(idx, 'key', e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white"
-                  />
-                </div>
-              )}
-
-              {/* Match Value */}
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Target Value</label>
-                {cond.type === 'device_type' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'mobile', label: 'Mobile (Smartphone)' },
-                      { value: 'desktop', label: 'Desktop / Laptop' },
-                      { value: 'tablet', label: 'Tablet (iPad / Android Tablet)' }
-                    ]}
-                  />
-                ) : cond.type === 'bot_status' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'human', label: 'Human (Verified User)' },
-                      { value: 'bot', label: 'Bot (Crawler / Scraper / Review Engine)' }
-                    ]}
-                  />
-                ) : cond.type === 'touch_support' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'true', label: 'Yes (Touchscreen Hardware Present)' },
-                      { value: 'false', label: 'No (No Touchscreen / Emulated Mobile)' }
-                    ]}
-                  />
-                ) : cond.type === 'battery_valid' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'true', label: 'Yes (Realistic Battery Discharge)' },
-                      { value: 'false', label: 'No (Static 100% Cloud Tester)' }
-                    ]}
-                  />
-                ) : cond.type === 'network_type' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'residential', label: 'Residential ISP' },
-                      { value: 'datacenter', label: 'Datacenter / Cloud Subnet' },
-                      { value: 'cellular', label: 'Cellular 4G/5G' },
-                      { value: 'vpn', label: 'VPN / Proxy' }
-                    ]}
-                  />
-                ) : cond.type === 'asn_provider' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'AWS', label: 'Amazon AWS' },
-                      { value: 'GOOGLE_CLOUD', label: 'Google Cloud' },
-                      { value: 'AZURE', label: 'Microsoft Azure' },
-                      { value: 'DIGITALOCEAN', label: 'DigitalOcean' },
-                      { value: 'HETZNER', label: 'Hetzner Online' },
-                      { value: 'CLOUDFLARE', label: 'Cloudflare' },
-                      { value: 'OVH', label: 'OVH' },
-                      { value: 'ORACLE', label: 'Oracle Cloud' }
-                    ]}
-                  />
-                ) : cond.type === 'os' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'ios', label: 'iOS (iPhone / iPad)' },
-                      { value: 'android', label: 'Android' },
-                      { value: 'windows', label: 'Windows PC' },
-                      { value: 'macos', label: 'Apple macOS' },
-                      { value: 'linux', label: 'Linux' }
-                    ]}
-                  />
-                ) : cond.type === 'browser' ? (
-                  <CustomSelect
-                    value={cond.value}
-                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    options={[
-                      { value: 'chrome', label: 'Google Chrome' },
-                      { value: 'safari', label: 'Apple Safari' },
-                      { value: 'firefox', label: 'Mozilla Firefox' },
-                      { value: 'edge', label: 'Microsoft Edge' },
-                      { value: 'in_app_webview', label: 'In-App WebView (Instagram/TikTok/FB)' }
-                    ]}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    placeholder={
-                      cond.type === 'geo_country'
-                        ? 'e.g. US, CA, GB'
-                        : cond.type === 'geo_city'
-                        ? 'e.g. New York, London, Berlin'
-                        : cond.type === 'referrer'
-                        ? 'e.g. instagram.com, tiktok.com, facebook.com'
-                        : cond.type === 'ip_address'
-                        ? 'e.g. 192.168.1.1, 10.0.0.0/24'
-                        : cond.type === 'sec_ch_ua'
-                        ? 'e.g. ?0, ?1, Mobile'
-                        : cond.type === 'language'
-                        ? 'e.g. en, es, fr, de, pt'
-                        : cond.type === 'gpu_renderer'
-                        ? 'e.g. swiftshader, nvidia, apple'
-                        : 'Value to match'
-                    }
-                    value={cond.value}
-                    onChange={(e) => handleUpdateCondition(idx, 'value', e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white"
-                  />
-                )}
-              </div>
-
-              {/* Remove condition button */}
-              {conditions.length > 1 && (
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCondition(idx)}
-                    className="flex items-center gap-1 text-[11px] text-rose-500 hover:text-rose-600 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Remove Condition
-                  </button>
-                </div>
-              )}
-            </div>
+            <ConditionRow
+              key={idx}
+              condition={cond}
+              index={idx}
+              totalCount={conditions.length}
+              onUpdate={handleUpdateCondition}
+              onRemove={handleRemoveCondition}
+            />
           ))}
         </div>
       </form>
     </Drawer>
   );
 }
+

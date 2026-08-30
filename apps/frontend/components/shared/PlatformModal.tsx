@@ -61,11 +61,11 @@ export function PlatformModal({
 
     if (!mounted || !isOpen) return null;
 
-    const BodyWrapper = (onSubmit ? 'form' : 'div') as any;
+    const ContentWrapper = (onSubmit ? 'form' : 'div') as any;
 
     return createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <div className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 border border-gray-100 dark:border-gray-800`}>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+            <div className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 border border-gray-100 dark:border-gray-800 overflow-hidden`}>
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         {Icon && (
@@ -80,7 +80,7 @@ export function PlatformModal({
                         type="button"
                         aria-label="Close modal" 
                         title="Close modal" 
-                        className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                     >
                         <X className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -92,18 +92,20 @@ export function PlatformModal({
                     </div>
                 )}
 
-                <BodyWrapper 
+                <ContentWrapper 
                     onSubmit={onSubmit} 
-                    className={`flex-1 overflow-y-auto px-6 py-5 custom-scrollbar ${bodyClassName}`}
+                    className="flex flex-col flex-1 min-h-0 overflow-hidden"
                 >
-                    {children}
-                </BodyWrapper>
-
-                {footer && (
-                    <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-3 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
-                        {footer}
+                    <div className={`flex-1 overflow-y-auto px-6 py-5 custom-scrollbar ${bodyClassName}`}>
+                        {children}
                     </div>
-                )}
+
+                    {footer && (
+                        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-3 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
+                            {footer}
+                        </div>
+                    )}
+                </ContentWrapper>
             </div>
         </div>,
         document.body

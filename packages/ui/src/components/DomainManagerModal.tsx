@@ -71,13 +71,105 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const platformRoot = (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_ROOT_DOMAIN) 
-    ? process.env.NEXT_PUBLIC_ROOT_DOMAIN 
-    : '180workspace.com';
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availabilityResult, setAvailabilityResult] = useState<{
+    checked: boolean;
+    available: boolean;
+    reason?: string;
+  } | null>(null);
+
+  const platformRoot = (typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN)) 
+    ? (process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN) 
+    : (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? (window.location.port ? `${window.location.hostname}:${window.location.port}` : window.location.hostname)
+        : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'));
 
   const cleanCustomInput = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
   const isApex = cleanCustomInput ? cleanCustomInput.split('.').filter(Boolean).length <= 2 : false;
   const cleanSubdomain = subdomainSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+  const getApiUrl = (endpoint: string) => {
+    let base = apiBaseUrl || '';
+    if (!base && typeof window !== 'undefined') {
+      base = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '');
+    }
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${base}${cleanEndpoint}`;
+  };
+
+  const getAuthHeaders = () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('platform_auth_token') ||
+        document.cookie.match(/(^| )platform_auth_token=([^;]+)/)?.[2];
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    return headers;
+  };
+
+  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    const url = getApiUrl(endpoint);
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...(options.headers || {})
+      }
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    let json: any = null;
+    if (contentType.includes('application/json')) {
+      json = await res.json();
+    } else {
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(res.status === 404 ? 'Domain service endpoint is unavailable.' : text || `Server error (${res.status})`);
+      }
+      return { success: true, data: text };
+    }
+
+    if (!res.ok) {
+      throw new Error(json.error || json.message || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+  };
+
+  // Live debounced availability check
+  useEffect(() => {
+    if (domainMode !== 'subdomain' || !cleanSubdomain || cleanSubdomain.length < 2) {
+      setAvailabilityResult(null);
+      setCheckingAvailability(false);
+      return;
+    }
+
+    setCheckingAvailability(true);
+    const timer = setTimeout(async () => {
+      try {
+        const json = await apiRequest(`/api/v1/domains/check-availability?slug=${encodeURIComponent(cleanSubdomain)}&targetId=${encodeURIComponent(targetId)}`);
+        setAvailabilityResult({
+          checked: true,
+          available: json.data?.available ?? false,
+          reason: json.data?.reason
+        });
+      } catch (err: any) {
+        setAvailabilityResult({
+          checked: true,
+          available: false,
+          reason: err.message || 'Unable to verify availability.'
+        });
+      } finally {
+        setCheckingAvailability(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [cleanSubdomain, domainMode, targetId, apiBaseUrl]);
 
   useEffect(() => {
     setMounted(true);
@@ -121,13 +213,9 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     setLoading(true);
     setErrorMessage(null);
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      const res = await fetch(`${base}/api/v1/domains/${encodeURIComponent(domainToFetch)}/status`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data) {
-          setActiveDomainData(data.data);
-        }
+      const data = await apiRequest(`/api/v1/domains/${encodeURIComponent(domainToFetch)}/status`);
+      if (data.data) {
+        setActiveDomainData(data.data);
       }
     } catch (err: any) {
       console.warn('Could not fetch domain status:', err);
@@ -149,21 +237,14 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     setSuccessMessage(null);
 
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      const res = await fetch(`${base}/api/v1/domains`, {
+      const json = await apiRequest('/api/v1/domains', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           domain: fullSubdomain,
           type: targetType,
           targetId
         })
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || 'Failed to connect platform subdomain');
-      }
 
       setActiveDomainData({
         ...json.data,
@@ -192,21 +273,14 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     setSuccessMessage(null);
 
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      const res = await fetch(`${base}/api/v1/domains`, {
+      const json = await apiRequest('/api/v1/domains', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           domain: cleanCustomInput,
           type: targetType,
           targetId
         })
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || 'Failed to register custom domain');
-      }
 
       setActiveDomainData(json.data);
       if (onDomainSaved) onDomainSaved(cleanCustomInput);
@@ -224,15 +298,9 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     setSuccessMessage(null);
 
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      const res = await fetch(`${base}/api/v1/domains/${encodeURIComponent(activeDomainData.domain)}/verify`, {
+      const json = await apiRequest(`/api/v1/domains/${encodeURIComponent(activeDomainData.domain)}/verify`, {
         method: 'POST'
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || 'DNS Verification failed');
-      }
 
       setActiveDomainData(prev => prev ? {
         ...prev,
@@ -262,8 +330,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
 
     setLoading(true);
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      await fetch(`${base}/api/v1/domains/${encodeURIComponent(activeDomainData.domain)}`, {
+      await apiRequest(`/api/v1/domains/${encodeURIComponent(activeDomainData.domain)}`, {
         method: 'DELETE'
       });
 
@@ -361,9 +428,17 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
               {domainMode === 'subdomain' && (
                 <form onSubmit={handleConnectSubdomain} className="space-y-3 pt-1">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Subdomain Prefix
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Subdomain Prefix
+                      </label>
+                      {checkingAvailability && (
+                        <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                          <LogoLoader className="w-3 h-3 animate-spin text-indigo-500" />
+                          Checking...
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
                       <input
                         type="text"
@@ -376,15 +451,36 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
                         .{platformRoot}
                       </span>
                     </div>
+
+                    {/* Live availability feedback */}
+                    {cleanSubdomain.length >= 2 && !checkingAvailability && availabilityResult?.checked && (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+                        {availabilityResult.available ? (
+                          <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <strong>{cleanSubdomain}.{platformRoot}</strong> is available!
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            {availabilityResult.reason || 'Subdomain is not available'}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading || !cleanSubdomain}
-                    className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    disabled={loading || checkingAvailability || !availabilityResult?.available}
+                    className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
                   >
                     {loading ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : <Zap className="w-3.5 h-3.5" />}
-                    Connect Subdomain Instantly
+                    {checkingAvailability 
+                      ? 'Checking Availability...' 
+                      : availabilityResult?.available 
+                        ? 'Connect Subdomain Instantly' 
+                        : 'Enter Available Subdomain'}
                   </button>
                 </form>
               )}

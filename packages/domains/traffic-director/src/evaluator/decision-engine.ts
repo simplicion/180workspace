@@ -164,8 +164,17 @@ export class DecisionEngine {
       case 'geo_country':
         actualValue = signals.country;
         break;
+      case 'geo_postal_code':
+        actualValue = signals.postalCode;
+        break;
+      case 'geo_region':
+        actualValue = signals.region;
+        break;
       case 'geo_city':
         actualValue = signals.city;
+        break;
+      case 'geo_timezone':
+        actualValue = signals.timezone;
         break;
       case 'device_type':
         actualValue = signals.deviceType;
@@ -239,6 +248,8 @@ export class DecisionEngine {
         return actStr === expStr;
       case 'not_equals':
         return actStr !== expStr;
+      case 'starts_with':
+        return actStr.startsWith(expStr.replace(/\*$/, ''));
       case 'contains':
         return actStr.includes(expStr);
       case 'not_contains':
@@ -247,13 +258,23 @@ export class DecisionEngine {
         const list = Array.isArray(expected) 
           ? expected.map(x => normalize(x))
           : expStr.split(',').map(x => normalize(x));
-        return list.includes(actStr);
+        return list.some(item => {
+          if (item.endsWith('*')) {
+            return actStr.startsWith(item.replace(/\*$/, ''));
+          }
+          return item === actStr;
+        });
       }
       case 'not_in': {
         const list = Array.isArray(expected) 
           ? expected.map(x => normalize(x))
           : expStr.split(',').map(x => normalize(x));
-        return !list.includes(actStr);
+        return !list.some(item => {
+          if (item.endsWith('*')) {
+            return actStr.startsWith(item.replace(/\*$/, ''));
+          }
+          return item === actStr;
+        });
       }
       case 'regex':
         try {

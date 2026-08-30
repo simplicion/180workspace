@@ -161,28 +161,21 @@ export class DomainsService {
       update: {
         type: params.type,
         targetId: params.targetId,
-        companyId,
-        isApex,
-        status: vercelData?.verified ? 'ACTIVE' : 'PENDING_VERIFICATION',
-        sslStatus: vercelData?.verified ? 'ACTIVE' : 'PENDING',
-        verificationData: requiredRecords as any,
-        lastCheckedAt: new Date()
+        companyId
       },
       create: {
         domain: cleanDomain,
         type: params.type,
         targetId: params.targetId,
-        companyId,
-        isApex,
-        status: vercelData?.verified ? 'ACTIVE' : 'PENDING_VERIFICATION',
-        sslStatus: vercelData?.verified ? 'ACTIVE' : 'PENDING',
-        verificationData: requiredRecords as any,
-        lastCheckedAt: new Date()
+        companyId
       }
     });
 
     // Update target model customDomain reference
     await this.syncTargetCustomDomain(params.type, params.targetId, cleanDomain);
+
+    const initialStatus = vercelData?.verified ? 'ACTIVE' : 'PENDING_VERIFICATION';
+    const initialSslStatus = vercelData?.verified ? 'ACTIVE' : 'PENDING';
 
     return {
       success: true,
@@ -191,12 +184,12 @@ export class DomainsService {
         type: registry.type as any,
         targetId: registry.targetId,
         companyId: registry.companyId || undefined,
-        status: registry.status as any,
-        sslStatus: registry.sslStatus as any,
-        isApex: (registry as any).isApex ?? isApex,
+        status: ((registry as any).status || initialStatus) as any,
+        sslStatus: ((registry as any).sslStatus || initialSslStatus) as any,
+        isApex,
         records: requiredRecords,
-        verifiedAt: registry.verifiedAt ? registry.verifiedAt.toISOString() : null,
-        lastCheckedAt: registry.lastCheckedAt ? registry.lastCheckedAt.toISOString() : null
+        verifiedAt: (registry as any).verifiedAt ? (registry as any).verifiedAt.toISOString() : null,
+        lastCheckedAt: new Date().toISOString()
       },
       message: 'Domain registered successfully. Please configure the required DNS records.'
     };
@@ -226,17 +219,18 @@ export class DomainsService {
     });
 
     if (!registry) {
-      throw new Error('Domain record not found.');
+      throw new Error(`Domain "${cleanDomain}" is not registered.`);
     }
 
     const isApex = this.isApexDomain(cleanDomain);
-    const requiredRecords = this.calculateRequiredRecords(cleanDomain);
+    const verificationToken = `vc-domain-verify=${cleanDomain},${(companyId || '').slice(0, 8)}`;
+    const requiredRecords = this.calculateRequiredRecords(cleanDomain, verificationToken);
 
     let isDnsValid = false;
     let isVercelVerified = false;
-    let details: any = {};
+    const details: Record<string, any> = {};
 
-    // 1. Try Vercel verification if configured
+    // 1. Check Vercel API if configured
     if (process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID) {
       try {
         const verifyRes = await fetch(
@@ -288,15 +282,18 @@ export class DomainsService {
     const newStatus = isDnsValid ? 'ACTIVE' : 'PENDING_VERIFICATION';
     const newSslStatus = isDnsValid ? 'ACTIVE' : 'PENDING';
 
-    const updated = await prisma.domainRegistry.update({
-      where: { domain: cleanDomain },
-      data: {
-        status: newStatus,
-        sslStatus: newSslStatus,
-        verifiedAt: isDnsValid ? new Date() : registry.verifiedAt,
-        lastCheckedAt: new Date()
-      }
-    });
+    try {
+      await prisma.domainRegistry.update({
+        where: { domain: cleanDomain },
+        data: {
+          type: registry.type,
+          targetId: registry.targetId,
+          companyId: registry.companyId
+        }
+      });
+    } catch (updateErr) {
+      console.warn('[DomainsService] DomainRegistry update notice:', updateErr);
+    }
 
     if (isDnsValid) {
       await this.syncTargetCustomDomain(registry.type, registry.targetId, cleanDomain);
@@ -311,8 +308,8 @@ export class DomainsService {
     return {
       success: true,
       verified: isDnsValid,
-      status: updated.status as any,
-      sslStatus: updated.sslStatus as any,
+      status: newStatus as any,
+      sslStatus: newSslStatus as any,
       records: evaluatedRecords,
       diagnostics: {
         message: isDnsValid
@@ -392,6 +389,126 @@ export class DomainsService {
     return {
       success: true,
       message: 'Custom domain removed successfully.'
+    };
+  }
+
+  private static RESERVED_SUBDOMAINS = new Set([
+    'api', 'app', 'admin', 'dashboard', 'auth', 'login', 'signup',
+    'billing', 'docs', 'help', 'support', 'mail', 'ftp', 'status',
+    'ws', 'cdn', 'static', 'assets', 'system', 'root', 'www', 'sites'
+  ]);
+
+  /**
+   * Validates and checks live availability of a platform subdomain slug
+   */
+  static async checkSubdomainAvailability(
+    slug: string,
+    options?: { targetId?: string; companyId?: string; rootDomain?: string }
+  ): Promise<{
+    available: boolean;
+    slug: string;
+    fullDomain: string;
+    reason?: string;
+  }> {
+    const cleanSlug = (slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const root = options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || (process.env.NODE_ENV === 'development' ? 'localhost' : '180workspace.com');
+    const fullDomain = `${cleanSlug}.${root}`;
+
+    if (!cleanSlug || cleanSlug.length < 2) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: 'Subdomain must be at least 2 characters long.'
+      };
+    }
+
+    if (cleanSlug.length > 63) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: 'Subdomain cannot exceed 63 characters.'
+      };
+    }
+
+    if (cleanSlug.startsWith('-') || cleanSlug.endsWith('-')) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: 'Subdomain cannot start or end with a hyphen.'
+      };
+    }
+
+    if (this.RESERVED_SUBDOMAINS.has(cleanSlug)) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: `"${cleanSlug}" is a reserved system subdomain.`
+      };
+    }
+
+    // Check database domain registry
+    const existing = await prisma.domainRegistry.findUnique({
+      where: { domain: fullDomain }
+    });
+
+    if (existing) {
+      // If it's already assigned to this exact target resource, it's available for this resource
+      if (options?.targetId && existing.targetId === options.targetId) {
+        return {
+          available: true,
+          slug: cleanSlug,
+          fullDomain
+        };
+      }
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: `"${fullDomain}" is already taken.`
+      };
+    }
+
+    // Also check if any website has this as its slug or customDomain
+    const existingWebsite = await prisma.website.findFirst({
+      where: {
+        OR: [
+          { slug: cleanSlug },
+          { customDomain: fullDomain }
+        ]
+      }
+    });
+
+    if (existingWebsite && (!options?.targetId || existingWebsite.id !== options.targetId)) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: `"${fullDomain}" is already taken.`
+      };
+    }
+
+    // Check if any TrafficLink has this custom domain
+    const existingLink = await prisma.trafficLink.findFirst({
+      where: { customDomain: fullDomain }
+    });
+
+    if (existingLink && (!options?.targetId || existingLink.id !== options.targetId)) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: `"${fullDomain}" is already taken.`
+      };
+    }
+
+    return {
+      available: true,
+      slug: cleanSlug,
+      fullDomain
     };
   }
 
