@@ -78,6 +78,23 @@ const allowedOrigins = process.env.CLIENT_URL
     : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'];
 
 
+// ─── Public Traffic Director CORS bypass ──────────────────────────────────────
+// These endpoints are called from third-party advertiser domains (any origin).
+// They MUST bypass the global CORS whitelist since the tag/script runs on external sites.
+app.use((req, res, next) => {
+    const publicPaths = ['/api/v1/traffic-director/evaluate/', '/api/evaluate/', '/evaluate/', '/tag/', '/r/', '/shield/'];
+    const isPublicTD = publicPaths.some(p => req.path.startsWith(p));
+    if (isPublicTD) {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
+        }
+    }
+    next();
+});
+
 app.use(cors({
     origin: (origin, callback) => {
         const rootDomain = process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com';
