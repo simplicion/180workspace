@@ -7,6 +7,7 @@ const router = Router();
 router.get('/:slug', PublicRoutingController.handleRedirect);
 router.get('/shield/:slug', PublicRoutingController.handleShieldRoute);
 router.get('/tag/:slug', PublicRoutingController.handleDynamicTag);
+router.post('/evaluate/:slug', PublicRoutingController.handleEdgeEvaluate);
 
 export default router;
 

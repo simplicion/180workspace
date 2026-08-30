@@ -243,6 +243,31 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
+      {/* Meta & Google Ads Deployment Quick-Card */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-pink-950/20 border border-indigo-100 dark:border-indigo-900/50 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider">
+              Method 1: Gold Standard
+            </span>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+              Run Ads with Your Own Domain (Safe Page Pixel Tag)
+            </h3>
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            Paste our 1-line stealth script tag on your website safe page. Review bots see your compliant page; real human buyers convert on your target offer.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setIsEmbedModalOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm shrink-0 active:scale-95 transition"
+        >
+          <Code className="w-3.5 h-3.5" />
+          View Embed & Integration Snippets
+        </button>
+      </div>
+
       {/* Advanced Security, Shielding & Warmup Settings */}
       <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-5">
         <div className="flex items-center justify-between">
