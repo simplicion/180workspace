@@ -466,7 +466,7 @@ export default function RecruitmentPage() {
                                     <Users className="w-3.5 h-3.5" /> Pipeline
                                 </button>
                                 <button
-                                    onClick={() => copyToClipboard(`${origin || 'https://your-domain.com`}/jobs/apply/${job.id}`, `Application link')}
+                                    onClick={() => copyToClipboard(`${origin || 'https://your-domain.com'}/jobs/apply/${job.id}`, 'Application link')}
                                     className="btn-secondary text-xs px-3"
                                     title="Copy Application Link"
                                 >

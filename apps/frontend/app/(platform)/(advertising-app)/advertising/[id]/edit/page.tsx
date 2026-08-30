@@ -1514,8 +1514,8 @@ export default function WebsiteEditorPage() {
                                          if (website?.customDomain) {
                                              url = `https://${website.customDomain}`;
                                          } else if (website?.slug) {
-                                             const port = isLocal && typeof window !== 'undefined` && window.location.port ? `:${window.location.port}` : `';
-                                             const domainWithPort = rootDomain ? (rootDomain.includes(':`) ? rootDomain : `${rootDomain}${port}`) : `localhost${port || `:3000'}`;
+                                             const port = isLocal && typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
+                                             const domainWithPort = rootDomain ? (rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`) : `localhost${port || ':3000'}`;
                                              url = `http${isLocal ? '' : 's'}://${website.slug}.${domainWithPort}`;
                                          }
                                          if (url) {
