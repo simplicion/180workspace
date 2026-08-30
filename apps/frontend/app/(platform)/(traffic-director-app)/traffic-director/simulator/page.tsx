@@ -165,7 +165,7 @@ function TrafficSimulatorContent() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <LogoLoader />
+        <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
       </div>
     );
   }
