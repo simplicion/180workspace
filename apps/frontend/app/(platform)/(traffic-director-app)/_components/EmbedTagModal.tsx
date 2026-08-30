@@ -425,42 +425,64 @@ add_action('template_redirect', function() {
                 </h4>
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-300">
-                Connect your branded subdomain (e.g. <code className="px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 font-mono text-[11px]">go.yourbrand.com</code>) so all your smart links appear 100% native to your company.
+                Connect your branded subdomain (e.g. <code className="px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 font-mono text-[11px]">go.yourbrand.com</code>) so all your smart links appear 100% native to your company with free automatic SSL.
               </p>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
+              <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3 bg-white dark:bg-gray-900 shadow-sm">
                 <div className="font-bold text-gray-900 dark:text-white flex items-center justify-between">
                   <span>Step 1: Configure DNS CNAME Record</span>
-                  <span className="text-[10px] text-indigo-600 font-mono">DNS Manager</span>
+                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800">DNS Manager</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg font-mono text-[11px]">
-                  <div>Type: <span className="font-bold text-gray-900 dark:text-white">CNAME</span></div>
-                  <div>Name: <span className="font-bold text-gray-900 dark:text-white">go</span></div>
-                  <div>Target: <span className="font-bold text-indigo-600">traffic.180workspace.com</span></div>
+                <div className="grid grid-cols-3 gap-2 p-2.5 bg-gray-50 dark:bg-gray-800/80 rounded-xl font-mono text-[11px] border border-gray-100 dark:border-gray-700">
+                  <div>
+                    <span className="text-[10px] text-gray-400 block font-sans">Type</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">CNAME</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-400 block font-sans">Name / Host</span>
+                    <span className="font-bold text-gray-900 dark:text-white">go</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-400 block font-sans">Target / Value</span>
+                    <span className="font-bold text-gray-900 dark:text-white select-all">cname.vercel-dns.com</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                  <span>Target also accepts: <code className="text-gray-700 dark:text-gray-300 font-mono">cname.180workspace.com</code></span>
+                  <button
+                    onClick={() => copyToClipboard('cname.vercel-dns.com', 'cname_target')}
+                    className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1"
+                  >
+                    {copiedType === 'cname_target' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    {copiedType === 'cname_target' ? 'Copied Target!' : 'Copy Target'}
+                  </button>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
+              <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2 bg-white dark:bg-gray-900 shadow-sm">
                 <div className="font-bold text-gray-900 dark:text-white">
-                  Step 2: Your Generated Branded URL
+                  Step 2: Your Branded Link URL
                 </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     readOnly
                     value={`https://go.yourdomain.com/${slug}`}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-200"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-200 font-semibold select-all"
                   />
                   <button
                     onClick={() => copyToClipboard(`https://go.yourdomain.com/${slug}`, 'custom')}
-                    className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium flex items-center gap-1.5 shrink-0 transition"
+                    className="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition shadow-sm"
                   >
                     {copiedType === 'custom' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     Copy
                   </button>
                 </div>
+                <p className="text-[11px] text-gray-400 pt-1">
+                  Replace <code className="font-mono text-gray-600 dark:text-gray-300">yourdomain.com</code> with your actual connected domain name.
+                </p>
               </div>
             </div>
           </div>

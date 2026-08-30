@@ -2360,15 +2360,23 @@ model ProcessedWebhook {
 }
 
 model DomainRegistry {
-  id        String   @id @default(uuid())
-  domain    String   @unique
-  type      String
-  targetId  String
-  companyId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String    @id @default(uuid())
+  domain           String    @unique
+  type             String    // 'ADVERTISING_WEBSITE' | 'TRAFFIC_LINK' | 'COMPANY_PROFILE'
+  targetId         String    // websiteId, linkId, or companyId
+  companyId        String?
+  status           String    @default("PENDING_VERIFICATION") // 'PENDING_VERIFICATION' | 'ACTIVE' | 'FAILED' | 'REMOVED'
+  sslStatus        String    @default("PENDING")              // 'PENDING' | 'ACTIVE' | 'FAILED'
+  isApex           Boolean   @default(false)
+  verificationData Json?     @default("{}")
+  verifiedAt       DateTime?
+  lastCheckedAt    DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([domain])
+  @@index([companyId])
+  @@index([type, targetId])
 }
 
 // ------------------------------------------------------

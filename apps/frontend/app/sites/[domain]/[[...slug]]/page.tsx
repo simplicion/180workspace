@@ -2,6 +2,8 @@ import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCirc
 import { BuilderElement } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/BuilderElement';
 import { CompanyProfileUI } from '@/app/(platform)/(company-hub-app)/_components/CompanyProfileUI';
 
+import { redirect } from 'next/navigation';
+
 export default async function PublicWebsitePage({ 
     params 
 }: { 
@@ -45,6 +47,13 @@ export default async function PublicWebsitePage({
 
     if (registryData?.type === 'COMPANY_PROFILE') {
         return <CompanyProfileUI companyData={registryData.payload} isLoading={false} isPublicView={true} />;
+    }
+
+    if (registryData?.type === 'TRAFFIC_LINK') {
+        const linkSlug = registryData.payload?.slug;
+        if (linkSlug) {
+            redirect(`/r/${linkSlug}`);
+        }
     }
 
     const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';

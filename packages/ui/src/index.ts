@@ -11,3 +11,4 @@ export * from './components/LogoLoader';
 export * from './components/VoiceRecorder';
 export * from './components/FeatureLock';
 export * from './components/UniversalDateTimePicker';
+export * from './components/DomainManagerModal';
