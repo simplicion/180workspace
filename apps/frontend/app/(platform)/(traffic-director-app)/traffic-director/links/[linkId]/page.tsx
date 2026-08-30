@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { LogoLoader, ConfirmModal, UniversalDateTimePicker, DomainManagerModal } from '@workspace/ui';
+import { LogoLoader, ConfirmModal, UniversalDateTimePicker } from '@workspace/ui';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import CustomSelect from '@/components/ui/CustomSelect';
 import CreateRuleModal from '../../../_components/CreateRuleModal';
@@ -27,7 +27,6 @@ export default function SmartLinkRuleCanvasPage() {
   const [editingRule, setEditingRule] = useState<any>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
   const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<{ isOpen: boolean; rule: any; loading: boolean }>({
     isOpen: false,
     rule: null,
@@ -190,6 +189,9 @@ export default function SmartLinkRuleCanvasPage() {
         onClose={() => setIsEmbedModalOpen(false)}
         slug={linkData.slug}
         linkName={linkData.name}
+        linkId={linkId}
+        customDomain={linkData.customDomain}
+        onDomainUpdated={() => fetchLinkDetails()}
       />
 
       <EditLinkModal
@@ -197,17 +199,6 @@ export default function SmartLinkRuleCanvasPage() {
         onClose={() => setIsEditModalOpen(false)}
         link={linkData}
         onSuccess={() => fetchLinkDetails()}
-      />
-
-      <DomainManagerModal
-        isOpen={isDomainModalOpen}
-        onClose={() => setIsDomainModalOpen(false)}
-        targetType="TRAFFIC_LINK"
-        targetId={linkId}
-        targetName={linkData?.name}
-        initialDomain={linkData?.customDomain}
-        onDomainSaved={() => fetchLinkDetails()}
-        onDomainRemoved={() => fetchLinkDetails()}
       />
 
       <ConfirmModal
@@ -246,13 +237,6 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setIsDomainModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 text-xs font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/60 transition"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            {linkData.customDomain ? linkData.customDomain : 'Custom Domain'}
-          </button>
           <button
             onClick={() => setIsEditModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold transition"
