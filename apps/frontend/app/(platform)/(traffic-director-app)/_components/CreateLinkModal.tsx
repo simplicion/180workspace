@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Link as LinkIcon, Sparkles } from 'lucide-react';
+import { Link as LinkIcon, Sparkles, Globe, Shield } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { PlatformModal } from '@/components/shared/PlatformModal';
@@ -18,6 +18,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
   const [slug, setSlug] = useState('');
   const [fallbackUrl, setFallbackUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [shieldMode, setShieldMode] = useState<'server' | 'client_shield'>('server');
   const [loading, setLoading] = useState(false);
 
   const handleNameChange = (val: string) => {
@@ -44,7 +45,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
         fallbackUrl: fallbackUrl.trim(),
         description: description.trim() || undefined,
         datacenterBlocked: true,
-        shieldMode: 'server',
+        shieldMode,
         rampUpEnabled: true,
         rampUpDurationHours: 12
       });
@@ -57,6 +58,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
       setSlug('');
       setFallbackUrl('');
       setDescription('');
+      setShieldMode('server');
     } catch (error: any) {
       console.error('Failed to create link:', error);
       toast.error(error.response?.data?.error || error.message || 'Failed to create Smart Link');
@@ -110,6 +112,50 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
       }
     >
       <div className="space-y-4 p-1">
+        {/* Strategy Choice */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+            Deployment Architecture
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setShieldMode('server')}
+              className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 cursor-pointer ${
+                shieldMode === 'server'
+                  ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-bold text-xs">
+                <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Smart Link</span>
+              </div>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                No code needed on safe page. Automatic 200 OK reverse proxy.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShieldMode('client_shield')}
+              className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 cursor-pointer ${
+                shieldMode === 'client_shield'
+                  ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-bold text-xs">
+                <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                <span>Self-Hosted Code Injection</span>
+              </div>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                Paste pixel tag into your website &lt;head&gt;. Submit your own URL.
+              </p>
+            </button>
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
             Link Name <span className="text-rose-500">*</span>
