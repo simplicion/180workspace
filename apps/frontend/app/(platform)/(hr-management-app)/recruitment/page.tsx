@@ -308,9 +308,9 @@ export default function RecruitmentPage() {
                             <div className="mt-2">
                                 <p className="text-[10px] font-semibold text-indigo-400 mb-1 uppercase">Sample Fetch Request</p>
                                 <div className="bg-gray-900 rounded-lg p-3 font-mono text-[11px] text-gray-300 overflow-x-auto whitespace-pre">
-                                    {`fetch(`${origin || 'https://your-domain.com'}/api/public/jobs`, {
+                                    {`fetch('${origin || 'https://your-domain.com'}/api/public/jobs', {
   headers: {
-    'x-api-key': `${apiKey || 'YOUR_KEY_HERE'}`
+    'x-api-key': '${apiKey || 'YOUR_KEY_HERE'}'
   }
 })
 .then(res => res.json())
