@@ -1,6 +1,6 @@
 'use client';
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, DomainManagerModal } from "@workspace/ui";
 import { useState, useEffect, Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -178,12 +178,18 @@ function WebsiteDashboardInner() {
                 </motion.div>
             </AnimatePresence>
             
-            <CustomDomainModal 
-                isOpen={isDomainModalOpen} 
-                onClose={() => setIsDomainModalOpen(false)} 
-                website={website} 
-                onUpdate={fetchWebsiteData} 
-            />
+            {website && (
+                <DomainManagerModal 
+                    isOpen={isDomainModalOpen} 
+                    onClose={() => setIsDomainModalOpen(false)} 
+                    targetType="ADVERTISING_WEBSITE"
+                    targetId={website.id}
+                    targetName={website.name}
+                    initialDomain={website.customDomain}
+                    onDomainSaved={() => fetchWebsiteData()}
+                    onDomainRemoved={() => fetchWebsiteData()}
+                />
+            )}
         </div>
     );
 }
@@ -780,83 +786,4 @@ function UTMBuilder({ website }: any) {
     );
 }
 
-function CustomDomainModal({ isOpen, onClose, website, onUpdate }: any) {
-    const [customDomain, setCustomDomain] = useState('');
-    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (website?.customDomain) {
-            setCustomDomain(website.customDomain);
-        }
-    }, [website]);
-
-    const handleSave = async () => {
-        try {
-            setLoading(true);
-            await api.patch(`/api/websites/${website.id}`, { customDomain: customDomain || null });
-            toast.success('Custom domain updated!');
-            onUpdate();
-            onClose();
-        } catch (error) {
-            console.error(error);
-            toast.error('Failed to update custom domain');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div className="flex items-center justify-between p-5 border-b border-gray-100">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                            <Globe className="w-5 h-5 text-indigo-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-gray-900">Custom Domain</h2>
-                            <p className="text-xs text-gray-500">Connect a domain to this website</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-                <div className="p-5 space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Domain Name</label>
-                        <input 
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-indigo-500 focus:bg-white transition-colors"
-                            placeholder="www.example.com"
-                            value={customDomain}
-                            onChange={e => setCustomDomain(e.target.value)}
-                        />
-                    </div>
-                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-                        <p className="text-xs text-amber-800 leading-relaxed">
-                            <strong>Important:</strong> Please ensure you have added a CNAME or A record in your DNS settings pointing to our servers for this domain to work.
-                        </p>
-                    </div>
-                </div>
-                <div className="p-5 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                    <button 
-                        onClick={onClose}
-                        className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        onClick={handleSave}
-                        disabled={loading || customDomain === (website?.customDomain || '')}
-                        className="flex items-center justify-center min-w-[100px] px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                    >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Domain'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
