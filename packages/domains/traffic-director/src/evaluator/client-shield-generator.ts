@@ -227,6 +227,11 @@ export class ClientShieldGenerator {
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (data && data.success && data.route === 'target' && data.destinationUrl) {
+        var curUrl = window.location.href;
+        var destUrl = data.destinationUrl;
+        if (curUrl === destUrl || curUrl.indexOf(destUrl) === 0 || (destUrl.indexOf(window.location.pathname) !== -1 && window.location.pathname !== '/')) {
+          return;
+        }
         try {
           window.location.replace(data.destinationUrl);
         } catch(err) {

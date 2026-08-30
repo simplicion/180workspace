@@ -391,14 +391,14 @@ export class PublicService {
     }
 
     static async resolveDomain(domain: string) {
-        let lookupDomain = domain.toLowerCase();
+        let lookupDomain = decodeURIComponent(domain || '').toLowerCase().trim();
         
-        // Remove port if present
+        // Remove port if present (e.g. sghj.localhost:3002 -> sghj.localhost)
         if (lookupDomain.includes(':')) {
             lookupDomain = lookupDomain.split(':')[0];
         }
 
-        // Find in DomainRegistry using exact match (e.g., custom domains)
+        // 1. Try exact match (e.g. 'sghj.localhost', 'customdomain.com', 'prince.180workspace.com')
         let registry = await prisma.domainRegistry.findUnique({
             where: { domain: lookupDomain },
             select: {
@@ -412,11 +412,13 @@ export class PublicService {
             }
         });
 
-        // If not found, try treating it as a subdomain and matching by slug
+        // 2. If not found, try matching by subdomain prefix or standard variations
         if (!registry && lookupDomain.includes('.')) {
-            const slug = lookupDomain.split('.')[0];
+            const subdomainPrefix = lookupDomain.split('.')[0];
+            
+            // Try matching the prefix itself (e.g. 'sghj')
             registry = await prisma.domainRegistry.findUnique({
-                where: { domain: slug },
+                where: { domain: subdomainPrefix },
                 select: {
                     id: true,
                     domain: true,
@@ -427,10 +429,26 @@ export class PublicService {
                     updatedAt: true
                 }
             });
+
+            // Try matching with .localhost suffix if registered as localhost
+            if (!registry) {
+                registry = await prisma.domainRegistry.findUnique({
+                    where: { domain: `${subdomainPrefix}.localhost` },
+                    select: {
+                        id: true,
+                        domain: true,
+                        type: true,
+                        targetId: true,
+                        companyId: true,
+                        createdAt: true,
+                        updatedAt: true
+                    }
+                });
+            }
         }
 
         if (!registry) {
-            throw new Error('Domain not found');
+            throw new Error(`Domain not found: ${lookupDomain}`);
         }
 
         // Based on type, fetch the actual payload

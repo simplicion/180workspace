@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Smart Traffic Director and Conditional Delivery domain logic for 180workspace",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w"
