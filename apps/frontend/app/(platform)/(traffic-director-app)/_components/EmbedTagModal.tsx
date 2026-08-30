@@ -23,8 +23,14 @@ export default function EmbedTagModal({ isOpen, onClose, slug, linkName }: Embed
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const [verificationUrl, setVerificationUrl] = useState('');
   const [verifying, setVerifying] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'success' | 'failed' | null>(null);
-  const [verificationMessage, setVerificationMessage] = useState<string>('');
+  const [diagnosticResult, setDiagnosticResult] = useState<{
+    verified: boolean;
+    url?: string;
+    statusCode?: number;
+    latencyMs?: number;
+    checks?: Array<{ name: string; status: 'passed' | 'warning' | 'failed'; message: string }>;
+    summary?: string;
+  } | null>(null);
 
   const apiBase = typeof window !== 'undefined' 
     ? (process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin) 
@@ -90,7 +96,6 @@ add_action('template_redirect', function() {
 });
 ?>`;
 
-  const shieldUrl = `${apiBase}/shield/${slug}`;
   const directUrl = `${apiBase}/r/${slug}`;
 
   const copyToClipboard = (text: string, type: string) => {
@@ -107,34 +112,49 @@ add_action('template_redirect', function() {
     }
 
     if (verificationUrl.startsWith('file://') || /^[A-Za-z]:[\\/]/.test(verificationUrl)) {
-      setVerificationStatus('failed');
-      setVerificationMessage('Local file paths (file://) cannot be checked over HTTP. Please serve your HTML file via VS Code Live Server (e.g. http://localhost:5500/test.html) or test on your hosted domain.');
+      setDiagnosticResult({
+        verified: false,
+        url: verificationUrl,
+        summary: 'Local file paths (file://) cannot be verified over network requests.',
+        checks: [
+          {
+            name: 'Local File Notice',
+            status: 'failed',
+            message: 'Web browsers restrict servers from reading local hard-drive file paths. To test this file, run a local web server (e.g. VS Code Live Server at http://localhost:5500/TEST.HTML or npx serve) and paste the http:// URL here.'
+          }
+        ]
+      });
       toast.error('Local file path detected. Use an HTTP/HTTPS URL.');
       return;
     }
 
     try {
       setVerifying(true);
-      setVerificationStatus(null);
-      setVerificationMessage('');
+      setDiagnosticResult(null);
 
       const res = await api.post('/api/v1/traffic-director/verify-tag', {
         url: verificationUrl.trim(),
         slug
       });
 
+      setDiagnosticResult(res.data);
       if (res.data?.verified) {
-        setVerificationStatus('success');
-        setVerificationMessage(res.data.message || 'Tag successfully detected on your landing page!');
-        toast.success('Tag verified! Dynamic routing is operational.');
+        toast.success('All diagnostics passed! Tag verified.');
       } else {
-        setVerificationStatus('failed');
-        setVerificationMessage(res.data?.message || 'Could not verify tag installation on this page.');
-        toast.error('Tag not detected on page');
+        toast.error('One or more checks failed');
       }
     } catch (err: any) {
-      setVerificationStatus('failed');
-      setVerificationMessage(err.response?.data?.error || err.message || 'Verification request failed');
+      setDiagnosticResult({
+        verified: false,
+        summary: 'Verification request encountered an error.',
+        checks: [
+          {
+            name: 'Request Error',
+            status: 'failed',
+            message: err.response?.data?.error || err.message || 'Unable to communicate with the verification crawler.'
+          }
+        ]
+      });
       toast.error('Verification failed');
     } finally {
       setVerifying(false);
@@ -333,23 +353,61 @@ add_action('template_redirect', function() {
                 </button>
               </div>
 
-              {verificationStatus === 'success' && (
-                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs flex items-start gap-2">
-                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <span className="font-bold">Tag Verified Successfully!</span>
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400">{verificationMessage}</p>
+              {diagnosticResult && (
+                <div className="space-y-3 pt-1">
+                  {/* Summary Header */}
+                  <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+                    diagnosticResult.verified 
+                      ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-200'
+                      : 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-200'
+                  }`}>
+                    {diagnosticResult.verified ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+                    )}
+                    <div className="space-y-0.5 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold">
+                          {diagnosticResult.verified ? '100% Verification Passed' : 'Verification Issue Detected'}
+                        </span>
+                        {diagnosticResult.statusCode && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700">
+                            HTTP {diagnosticResult.statusCode} · {diagnosticResult.latencyMs}ms
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] opacity-90 leading-relaxed">{diagnosticResult.summary}</p>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {verificationStatus === 'failed' && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <span className="font-bold">Verification Failed</span>
-                    <p className="text-[11px] text-rose-600 dark:text-rose-400 leading-relaxed">{verificationMessage}</p>
-                  </div>
+                  {/* Multi-Point Checklist Breakdown */}
+                  {diagnosticResult.checks && diagnosticResult.checks.length > 0 && (
+                    <div className="p-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 space-y-2">
+                      <div className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Diagnostic Breakdown:
+                      </div>
+                      <div className="space-y-2">
+                        {diagnosticResult.checks.map((check, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs">
+                            {check.status === 'passed' && (
+                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                            )}
+                            {check.status === 'warning' && (
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                            )}
+                            {check.status === 'failed' && (
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1">
+                              <span className="font-semibold text-gray-900 dark:text-white">{check.name}: </span>
+                              <span className="text-gray-600 dark:text-gray-400 text-[11px] leading-relaxed">{check.message}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -411,62 +469,39 @@ add_action('template_redirect', function() {
         {/* TAB 3: DIRECT SHORT LINK */}
         {activeTab === 'direct_short' && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 space-y-2">
+            <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MonitorSmartphone className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">Direct Short Link (/r/:slug)</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                    <MonitorSmartphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">Direct Smart Link (/r/:slug)</span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Sub-3ms Edge HTTP 302 Redirect with ASN & Geolocation Firewall</p>
+                  </div>
                 </div>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
-                  Social & Bio
+                <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 font-semibold">
+                  Instant Link
                 </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Ideal for Instagram bio, TikTok bio, Twitter/X posts, YouTube descriptions, and emails.
-              </p>
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-2">
                 <input
                   type="text"
                   readOnly
                   value={directUrl}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-200 select-all"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-200 select-all font-semibold"
                 />
                 <button
                   onClick={() => copyToClipboard(directUrl, 'direct')}
-                  className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium flex items-center gap-1.5 shrink-0 transition"
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition shadow-sm"
                 >
-                  {copiedType === 'direct' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  Copy
+                  {copiedType === 'direct' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  Copy Link
                 </button>
               </div>
-            </div>
-
-            {/* Hardware Shield Gateway */}
-            <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">Hardware Shield Gateway (/shield/:slug)</span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Executes client-side GPU & touchscreen hardware verification before redirecting.
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                Use this link directly in emails, SMS broadcasts, QR codes, social media bios, or ad campaign URLs.
               </p>
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  readOnly
-                  value={shieldUrl}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-200 select-all"
-                />
-                <button
-                  onClick={() => copyToClipboard(shieldUrl, 'shield')}
-                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1.5 shrink-0 transition"
-                >
-                  {copiedType === 'shield' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  Copy
-                </button>
-              </div>
             </div>
           </div>
         )}

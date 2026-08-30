@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { LogoLoader } from '@workspace/ui';
+import { LogoLoader, ConfirmModal } from '@workspace/ui';
 import CreateLinkModal from '../../_components/CreateLinkModal';
 import EditLinkModal from '../../_components/EditLinkModal';
 
@@ -19,6 +19,11 @@ export default function SmartLinksDirectoryPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; link: any; loading: boolean }>({
+    isOpen: false,
+    link: null,
+    loading: false
+  });
 
   const fetchLinks = async () => {
     try {
@@ -58,14 +63,17 @@ export default function SmartLinksDirectoryPage() {
     }
   };
 
-  const handleDelete = async (linkId: string) => {
-    if (!confirm('Are you sure you want to delete this Smart Link and all its rules?')) return;
+  const confirmDeleteLink = async () => {
+    if (!deleteConfirm.link) return;
     try {
-      await api.delete(`/api/v1/traffic-director/links/${linkId}`);
-      setLinks(prev => prev.filter(l => l.id !== linkId));
-      toast.success('Link deleted successfully');
+      setDeleteConfirm(prev => ({ ...prev, loading: true }));
+      await api.delete(`/api/v1/traffic-director/links/${deleteConfirm.link.id}`);
+      setLinks(prev => prev.filter(l => l.id !== deleteConfirm.link.id));
+      toast.success('Smart Link deleted successfully');
+      setDeleteConfirm({ isOpen: false, link: null, loading: false });
     } catch (error: any) {
       toast.error('Failed to delete link');
+      setDeleteConfirm(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -82,6 +90,18 @@ export default function SmartLinksDirectoryPage() {
         onClose={() => setEditingLink(null)}
         link={editingLink}
         onSuccess={() => fetchLinks()}
+      />
+
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Smart Link"
+        message={`Are you sure you want to delete "${deleteConfirm.link?.name || 'this Smart Link'}" and all its associated routing rules? This action cannot be undone.`}
+        confirmText="Delete Link"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteLink}
+        onCancel={() => setDeleteConfirm({ isOpen: false, link: null, loading: false })}
+        loading={deleteConfirm.loading}
+        variant="danger"
       />
 
       {/* Header */}
@@ -201,7 +221,7 @@ export default function SmartLinksDirectoryPage() {
                 </Link>
 
                 <button
-                  onClick={() => handleDelete(link.id)}
+                  onClick={() => setDeleteConfirm({ isOpen: true, link, loading: false })}
                   className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-rose-500 hover:border-rose-200 dark:hover:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
                   title="Delete Link"
                 >

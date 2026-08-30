@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
 import CustomSelect from '@/components/ui/CustomSelect';
+import InfoTooltip from '@/components/ui/InfoTooltip';
 
 interface CreateRuleModalProps {
   isOpen: boolean;
@@ -42,10 +43,43 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
     setConditions(prev => prev.filter((_, i) => i !== index));
   };
 
+  const getDefaultValueForType = (type: string): string => {
+    switch (type) {
+      case 'device_type':
+        return 'mobile';
+      case 'bot_status':
+        return 'human';
+      case 'touch_support':
+      case 'battery_valid':
+        return 'true';
+      case 'network_type':
+        return 'residential';
+      case 'asn_provider':
+        return 'AWS';
+      case 'os':
+        return 'ios';
+      case 'browser':
+        return 'chrome';
+      case 'geo_country':
+        return 'US';
+      default:
+        return '';
+    }
+  };
+
   const handleUpdateCondition = (index: number, field: keyof ConditionItem, val: string) => {
     setConditions(prev => {
       const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: val };
+      if (field === 'type') {
+        copy[index] = {
+          ...copy[index],
+          type: val,
+          value: getDefaultValueForType(val),
+          key: (val === 'header' || val === 'query_param') ? (copy[index].key || '') : undefined
+        };
+      } else {
+        copy[index] = { ...copy[index], [field]: val };
+      }
       return copy;
     });
   };
@@ -93,9 +127,12 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
     { value: 'touch_support', label: 'Touchscreen Hardware Present' },
     { value: 'gpu_renderer', label: 'Hardware GPU (Exclude SwiftShader)' },
     { value: 'battery_valid', label: 'Realistic Battery (Exclude 100% Static)' },
-    { value: 'os', label: 'Operating System' },
-    { value: 'browser', label: 'Browser Name' },
+    { value: 'os', label: 'Operating System (iOS/Android/Windows)' },
+    { value: 'browser', label: 'Browser Name (Chrome/Safari/In-App)' },
     { value: 'bot_status', label: 'Bot / Human Status' },
+    { value: 'referrer', label: 'HTTP Referrer (Instagram/TikTok/Google)' },
+    { value: 'sec_ch_ua', label: 'Client Hints (Sec-CH-UA)' },
+    { value: 'ip_address', label: 'IP Address / Subnet' },
     { value: 'header', label: 'Custom HTTP Header' },
     { value: 'query_param', label: 'URL Query Parameter' },
     { value: 'language', label: 'Accept-Language' }
@@ -161,8 +198,9 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-              HTTP Action Type
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+              <span>HTTP Action Type</span>
+              <InfoTooltip content="302 is recommended for cloaking and dynamic routing because it avoids client-side browser caching." />
             </label>
             <CustomSelect
               value={actionType}
@@ -192,10 +230,11 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Traffic Weight Split ({weight}%)
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              <span>Traffic Weight Split ({weight}%)</span>
+              <InfoTooltip content="Set less than 100% to A/B test between multiple target offer URLs or split traffic." />
             </label>
-            <span className="text-xs text-gray-400">Percentage of matched traffic routed</span>
+            <span className="text-xs text-gray-400">Percentage routed</span>
           </div>
           <input
             type="range"
@@ -328,12 +367,46 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
                       { value: 'ORACLE', label: 'Oracle Cloud' }
                     ]}
                   />
+                ) : cond.type === 'os' ? (
+                  <CustomSelect
+                    value={cond.value}
+                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
+                    options={[
+                      { value: 'ios', label: 'iOS (iPhone / iPad)' },
+                      { value: 'android', label: 'Android' },
+                      { value: 'windows', label: 'Windows PC' },
+                      { value: 'macos', label: 'Apple macOS' },
+                      { value: 'linux', label: 'Linux' }
+                    ]}
+                  />
+                ) : cond.type === 'browser' ? (
+                  <CustomSelect
+                    value={cond.value}
+                    onChange={(e: any) => handleUpdateCondition(idx, 'value', e.target.value)}
+                    options={[
+                      { value: 'chrome', label: 'Google Chrome' },
+                      { value: 'safari', label: 'Apple Safari' },
+                      { value: 'firefox', label: 'Mozilla Firefox' },
+                      { value: 'edge', label: 'Microsoft Edge' },
+                      { value: 'in_app_webview', label: 'In-App WebView (Instagram/TikTok/FB)' }
+                    ]}
+                  />
                 ) : (
                   <input
                     type="text"
                     placeholder={
                       cond.type === 'geo_country'
                         ? 'e.g. US, CA, GB'
+                        : cond.type === 'geo_city'
+                        ? 'e.g. New York, London, Berlin'
+                        : cond.type === 'referrer'
+                        ? 'e.g. instagram.com, tiktok.com, facebook.com'
+                        : cond.type === 'ip_address'
+                        ? 'e.g. 192.168.1.1, 10.0.0.0/24'
+                        : cond.type === 'sec_ch_ua'
+                        ? 'e.g. ?0, ?1, Mobile'
+                        : cond.type === 'language'
+                        ? 'e.g. en, es, fr, de, pt'
                         : cond.type === 'gpu_renderer'
                         ? 'e.g. swiftshader, nvidia, apple'
                         : 'Value to match'

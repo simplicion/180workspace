@@ -39,6 +39,7 @@ export class PublicRoutingController {
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
           datacenterBlocked: link.datacenterBlocked,
+          createdAt: (link as any).createdAt,
           rules: link.rules
         },
         signals
@@ -96,6 +97,7 @@ export class PublicRoutingController {
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
           datacenterBlocked: link.datacenterBlocked,
+          createdAt: (link as any).createdAt,
           rules: link.rules
         },
         signals
@@ -177,14 +179,44 @@ export class PublicRoutingController {
       const serverSignals = SignalExtractor.extractFromRequest(req);
       const clientBody = req.body || {};
 
+      const effectiveUserAgent = clientBody.userAgent || serverSignals.userAgent;
+      const effectiveIp = clientBody.clientIp || serverSignals.ipAddress;
+      const effectiveTouchPoints = typeof clientBody.touchPoints === 'number' ? clientBody.touchPoints : serverSignals.touchPoints;
+      const effectiveGpuRenderer = clientBody.gpuRenderer || serverSignals.gpuRenderer;
+
       const mergedSignals = {
         ...serverSignals,
-        ip: clientBody.clientIp || serverSignals.ip,
-        userAgent: clientBody.userAgent || serverSignals.userAgent,
+        ipAddress: effectiveIp,
+        userAgent: effectiveUserAgent,
         referrer: clientBody.referrer || serverSignals.referrer,
-        touchPoints: typeof clientBody.touchPoints === 'number' ? clientBody.touchPoints : serverSignals.touchPoints,
-        gpuRenderer: clientBody.gpuRenderer || serverSignals.gpuRenderer
+        touchPoints: effectiveTouchPoints,
+        gpuRenderer: effectiveGpuRenderer
       };
+
+      // Re-evaluate bot patterns on effective user-agent if provided in client body
+      if (clientBody.userAgent) {
+        const { deviceType, os, browser } = SignalExtractor.parseClientCharacteristics(effectiveUserAgent);
+        mergedSignals.deviceType = deviceType;
+        mergedSignals.os = os;
+        mergedSignals.browser = browser;
+
+        for (const bot of [
+          { name: 'Googlebot', regex: /googlebot/i },
+          { name: 'Bingbot', regex: /bingbot/i },
+          { name: 'FacebookExternalHit', regex: /facebookexternalhit/i },
+          { name: 'Twitterbot', regex: /twitterbot/i },
+          { name: 'LinkedInBot', regex: /linkedinbot/i },
+          { name: 'PythonRequests', regex: /python-requests/i },
+          { name: 'cURL', regex: /curl\//i },
+          { name: 'HeadlessChrome', regex: /headlesschrome/i }
+        ]) {
+          if (bot.regex.test(effectiveUserAgent)) {
+            mergedSignals.isBot = true;
+            mergedSignals.botName = bot.name;
+            break;
+          }
+        }
+      }
 
       const result = DecisionEngine.evaluate(
         {
@@ -195,6 +227,7 @@ export class PublicRoutingController {
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
           datacenterBlocked: link.datacenterBlocked,
+          createdAt: (link as any).createdAt,
           rules: link.rules
         },
         mergedSignals
@@ -213,10 +246,10 @@ export class PublicRoutingController {
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       return res.json({
         success: true,
-        route: result.isBot ? 'fallback' : 'target',
+        route: result.isFallback ? 'fallback' : 'target',
         destinationUrl: result.destinationUrl,
-        matchedRule: result.matchedRule?.name || null,
-        isBot: result.isBot,
+        matchedRule: result.matchedRuleName || null,
+        isBot: Boolean(mergedSignals.isBot || result.datacenterBlocked || mergedSignals.isEmulated),
         latencyMs: result.evaluationLatencyMs
       });
     } catch (error: any) {

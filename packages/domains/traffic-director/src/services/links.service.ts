@@ -139,8 +139,8 @@ export class TrafficLinksService {
         customDomain,
         tags: tags || [],
         warmupUntil: warmupUntil ? new Date(warmupUntil) : undefined,
-        rampUpEnabled: rampUpEnabled ?? false,
-        rampUpDurationHours: rampUpDurationHours !== undefined ? Number(rampUpDurationHours) : 24,
+        rampUpEnabled: rampUpEnabled !== undefined ? rampUpEnabled : true,
+        rampUpDurationHours: rampUpDurationHours !== undefined ? Number(rampUpDurationHours) : 12,
         shieldMode: shieldMode || 'server',
         datacenterBlocked: datacenterBlocked ?? true
       },
