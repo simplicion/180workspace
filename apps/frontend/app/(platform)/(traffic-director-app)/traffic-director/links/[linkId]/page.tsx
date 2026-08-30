@@ -196,6 +196,7 @@ export default function SmartLinkRuleCanvasPage() {
         linkName={linkData.name}
         linkId={linkId}
         customDomain={linkData.customDomain}
+        shieldMode={shieldMode}
         onDomainUpdated={() => fetchLinkDetails()}
       />
 
@@ -250,10 +251,10 @@ export default function SmartLinkRuleCanvasPage() {
           </button>
           <button
             onClick={() => setIsEmbedModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
           >
             <Code className="w-3.5 h-3.5" />
-            Get Embed Codes
+            <span>{shieldMode === 'client_shield' ? 'Get Embed Snippets' : 'Smart Link Setup'}</span>
           </button>
           <Link
             href={`/traffic-director/simulator?linkId=${linkId}`}
@@ -264,7 +265,7 @@ export default function SmartLinkRuleCanvasPage() {
           </Link>
           <button
             onClick={() => setIsRuleModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-500/20 active:scale-95 transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-500/20 active:scale-95 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Rule
@@ -272,20 +273,104 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
-      {/* Safe Page Tag Integration Bar */}
-      <div className="p-3 px-4 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-pink-950/20 border border-indigo-100 dark:border-indigo-900/50 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h3 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-          Run Ads with Your Own Domain (Safe Page Pixel Tag)
-          <InfoTooltip content="Paste our 1-line stealth script tag on your website safe page. Review bots see your compliant page; real human buyers convert on your target offer." />
-        </h3>
+      {/* Deployment Strategy Switcher & Status Bar */}
+      <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                Deployment Architecture
+              </h3>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                shieldMode === 'server' 
+                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
+                  : 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
+              }`}>
+                {shieldMode === 'server' ? 'Smart Link (No Code)' : 'Code Injection Tag'}
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+              {shieldMode === 'server'
+                ? 'Traffic Director reverse-proxies your safe page to bots (200 OK) and routes humans to offers with zero code.'
+                : 'Pasting the JS tag into your safe page website lets you cloak traffic directly on your own host.'}
+            </p>
+          </div>
 
-        <button
-          onClick={() => setIsEmbedModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs shrink-0 active:scale-95 transition"
-        >
-          <Code className="w-3.5 h-3.5" />
-          View Embed & Integration Snippets
-        </button>
+          {/* Quick Switch Buttons */}
+          <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800 rounded-xl shrink-0">
+            <button
+              onClick={async () => {
+                setShieldMode('server');
+                try {
+                  await api.put(`/api/v1/traffic-director/links/${linkId}`, { shieldMode: 'server' });
+                  toast.success('Switched to Smart Link Mode');
+                } catch(e) {}
+              }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                shieldMode === 'server'
+                  ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Smart Link</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                setShieldMode('client_shield');
+                try {
+                  await api.put(`/api/v1/traffic-director/links/${linkId}`, { shieldMode: 'client_shield' });
+                  toast.success('Switched to Code Injection Mode');
+                } catch(e) {}
+              }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                shieldMode === 'client_shield'
+                  ? 'bg-white dark:bg-gray-900 text-purple-600 dark:text-purple-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Code Injection Tag</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Contextual Action Bar */}
+        {shieldMode === 'server' ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>
+                Connected Host:{' '}
+                <strong className="font-mono text-indigo-600 dark:text-indigo-400">
+                  {linkData.customDomain ? linkData.customDomain : 'No custom domain connected yet'}
+                </strong>
+              </span>
+            </div>
+            <button
+              onClick={() => setIsEmbedModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold transition shrink-0 cursor-pointer"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>View Smart Link & Domains</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+              <Shield className="w-4 h-4 text-purple-500 shrink-0" />
+              <span>Paste snippet tag into your landing page <code className="bg-purple-100 dark:bg-purple-950 px-1 py-0.5 rounded font-mono text-[11px]">&lt;head&gt;</code></span>
+            </div>
+            <button
+              onClick={() => setIsEmbedModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition shrink-0 cursor-pointer"
+            >
+              <Code className="w-3.5 h-3.5" />
+              <span>Get Embed Snippets & Verify</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Advanced Security, Shielding & Warmup Settings - 1 Line */}
@@ -392,11 +477,15 @@ export default function SmartLinkRuleCanvasPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[11px] font-bold text-gray-600 dark:text-gray-400">
-              FINAL FALLBACK
+              {shieldMode === 'server' ? 'SAFE PAGE ORIGIN' : 'FINAL FALLBACK'}
             </span>
-            <span className="text-xs font-bold text-gray-900 dark:text-white">Default Destination</span>
+            <span className="text-xs font-bold text-gray-900 dark:text-white">
+              {shieldMode === 'server' ? 'Compliant Safe Page URL (Reverse Proxied)' : 'Default Destination Target'}
+            </span>
           </div>
-          <span className="text-xs text-gray-400">Executed when zero rules match</span>
+          <span className="text-xs text-gray-400">
+            {shieldMode === 'server' ? 'Mirrored to Meta/Google review bots with HTTP 200 OK' : 'Executed when zero rules match'}
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -405,7 +494,7 @@ export default function SmartLinkRuleCanvasPage() {
             value={fallbackUrl}
             onChange={(e) => setFallbackUrl(e.target.value)}
             className="flex-1 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            placeholder="https://your-safe-page.com"
+            placeholder={shieldMode === 'server' ? 'https://example.com/safe-recipe-page' : 'https://example.com/main-landing'}
           />
           <button
             onClick={handleUpdateFallback}
@@ -418,7 +507,7 @@ export default function SmartLinkRuleCanvasPage() {
                 <span>Saving...</span>
               </>
             ) : (
-              <span>Save Fallback URL</span>
+              <span>Save Safe Page URL</span>
             )}
           </button>
         </div>

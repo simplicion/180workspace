@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Copy, Check, Shield, Globe, 
   Sparkles, CheckCircle2, AlertCircle,
-  Terminal, MonitorSmartphone, Settings2
+  Terminal, MonitorSmartphone, Settings2,
+  Code2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
@@ -18,6 +19,7 @@ interface EmbedTagModalProps {
   linkName: string;
   linkId?: string;
   customDomain?: string | null;
+  shieldMode?: 'server' | 'client_shield' | 'hybrid' | string;
   onDomainUpdated?: () => void;
 }
 
@@ -28,9 +30,19 @@ export default function EmbedTagModal({
   linkName,
   linkId,
   customDomain,
+  shieldMode = 'server',
   onDomainUpdated
 }: EmbedTagModalProps) {
-  const [activeTab, setActiveTab] = useState<'self_hosted' | 'direct_link'>('self_hosted');
+  // Directly bind active mode to the link's selected strategy
+  const isCodeMode = shieldMode === 'client_shield';
+  const [deploymentMode, setDeploymentMode] = useState<'code_injection' | 'smart_link'>(
+    isCodeMode ? 'code_injection' : 'smart_link'
+  );
+
+  useEffect(() => {
+    setDeploymentMode(shieldMode === 'client_shield' ? 'code_injection' : 'smart_link');
+  }, [shieldMode, isOpen]);
+
   const [snippetType, setSnippetType] = useState<'html_script' | 'wordpress_php' | 'inline_shield'>('html_script');
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const [verificationUrl, setVerificationUrl] = useState('');
@@ -60,7 +72,7 @@ export default function EmbedTagModal({
   var isMobile = /iphone|ipad|ipod|android|mobile/.test(ua);
   var tp = navigator.maxTouchPoints || 0;
   var hasTouch = ('ontouchstart' in window) || (tp > 0);
-  if (navigator.webdriver || (isMobile && !hasTouch && tp === 0)) return;
+  if (navigator.webdriver || (isMobile && !hasTouch && tp === 0) || (window.self !== window.top)) return;
   fetch(bUrl + '/api/v1/traffic-director/evaluate/' + s, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -101,7 +113,7 @@ add_action('template_redirect', function() {
 
     if (!is_wp_error($response)) {
         $body = json_decode(wp_remote_retrieve_body($response), true);
-        if (!empty($body['success']) && ($body['route'] ?? '') === 'target' && !empty($body['destinationUrl'])) {
+        if ($body && !empty($body['success']) && $body['route'] === 'target' && !empty($body['destinationUrl'])) {
             wp_redirect($body['destinationUrl'], 302);
             exit;
         }
@@ -155,53 +167,52 @@ add_action('template_redirect', function() {
       <Drawer
         isOpen={isOpen}
         onClose={onClose}
-        title="Campaign Deployment"
+        title={isCodeMode ? 'Code Injection Deployment' : 'Smart Link Deployment'}
         description={`${linkName} (/r/${slug})`}
         width="600px"
       >
         <div className="space-y-5">
-          {/* Strategy Advisory Banner */}
-          <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-              <strong className="font-semibold">Important Deployment Guide:</strong> Choose <strong>ONE</strong> method below. If you use a Connected Domain/Subdomain (Method 1), you <u>do not</u> need to paste code into your safe page.
+          {/* If opened from a multi-mode context, show toggle; otherwise show single active banner */}
+          {shieldMode === 'hybrid' ? (
+            <div className="p-1.5 bg-gray-100 dark:bg-gray-800/90 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 shadow-xs">
+              <div className="grid grid-cols-2 gap-1.5 relative">
+                <button
+                  type="button"
+                  onClick={() => setDeploymentMode('smart_link')}
+                  className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all duration-200 ${
+                    deploymentMode === 'smart_link'
+                      ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-gray-200/60 dark:border-gray-700/60'
+                      : 'text-gray-500 hover:text-gray-900 dark:hover:text-white font-medium'
+                  }`}
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>Smart Link</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeploymentMode('code_injection')}
+                  className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all duration-200 ${
+                    deploymentMode === 'code_injection'
+                      ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-gray-200/60 dark:border-gray-700/60'
+                      : 'text-gray-500 hover:text-gray-900 dark:hover:text-white font-medium'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Code Injection Tag</span>
+                </button>
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {/* Tab Navigation */}
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl text-xs font-semibold">
-            <button
-              onClick={() => setActiveTab('direct_link')}
-              className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
-                activeTab === 'direct_link'
-                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>1. Connected Domain (No Code)</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('self_hosted')}
-              className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
-                activeTab === 'self_hosted'
-                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>2. Code Injection (Tag/PHP)</span>
-            </button>
-          </div>
-
-          {/* TAB 1: CONNECTED DOMAIN & DIRECT SMART LINK */}
-          {activeTab === 'direct_link' && (
+          {/* VIEW 1: CODE INJECTION (TAG / PHP) */}
+          {(deploymentMode === 'code_injection' || isCodeMode) && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed">
-                  <strong>Zero-Code Setup:</strong> Submit your connected domain/subdomain URL to ad networks. Meta/Google review bots will automatically see your compliant safe page directly on your custom domain with <strong>HTTP 200 OK</strong>.
+              {/* Informative Callout */}
+              <div className="p-3.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/50 flex items-start gap-2.5">
+                <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                  <strong>Code Injection Active:</strong> Paste this snippet into your landing page <code className="bg-purple-100 dark:bg-purple-900/60 px-1 py-0.5 rounded font-mono text-[11px]">&lt;head&gt;</code>. Submit your <strong>existing website URL</strong> directly to ad networks.
                 </p>
               </div>
 
@@ -211,33 +222,33 @@ add_action('template_redirect', function() {
                   <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                     Snippet Format
                   </label>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg">
                     <button
                       onClick={() => setSnippetType('html_script')}
-                      className={`px-2.5 py-1 text-[11px] rounded-lg font-medium transition ${
+                      className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition ${
                         snippetType === 'html_script'
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       HTML Script
                     </button>
                     <button
                       onClick={() => setSnippetType('wordpress_php')}
-                      className={`px-2.5 py-1 text-[11px] rounded-lg font-medium transition ${
+                      className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition ${
                         snippetType === 'wordpress_php'
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       WordPress PHP
                     </button>
                     <button
                       onClick={() => setSnippetType('inline_shield')}
-                      className={`px-2.5 py-1 text-[11px] rounded-lg font-medium transition ${
+                      className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition ${
                         snippetType === 'inline_shield'
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       Inline Shield
@@ -265,7 +276,7 @@ add_action('template_redirect', function() {
                       className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-1.5 transition font-sans font-medium"
                     >
                       {copiedType === 'snippet' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      {copiedType === 'snippet' ? 'Copied' : 'Copy'}
+                      {copiedType === 'snippet' ? 'Copied' : 'Copy Code'}
                     </button>
                   </div>
 
@@ -329,41 +340,17 @@ add_action('template_redirect', function() {
             </div>
           )}
 
-          {/* TAB 2: DIRECT LINK & BRANDED CUSTOM DOMAIN */}
-          {activeTab === 'direct_link' && (
+          {/* VIEW 2: SMART LINK (DOMAIN & REVERSE PROXY) */}
+          {(deploymentMode === 'smart_link' || !isCodeMode) && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              {/* Card 1: Standard Direct Link */}
-              <div className="p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
-                      <MonitorSmartphone className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-900 dark:text-white">Direct Smart Link</h4>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400">Edge redirect with bot cloaking</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={directUrl}
-                    className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-200 select-all font-medium"
-                  />
-                  <button
-                    onClick={() => copyToClipboard(directUrl, 'direct')}
-                    className="px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition shadow-xs"
-                  >
-                    {copiedType === 'direct' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    Copy
-                  </button>
-                </div>
+              <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed">
+                  <strong>Smart Link Setup (Zero Code):</strong> Submit your connected domain/subdomain URL to ad networks. Meta/Google review bots will automatically see your compliant safe page directly on your custom domain with <strong>HTTP 200 OK</strong> without touching any website code.
+                </p>
               </div>
 
-              {/* Card 2: Branded Custom Domain / Platform Subdomain */}
+              {/* Card 1: Custom Domain / Subdomain */}
               <div className="p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -430,6 +417,37 @@ add_action('template_redirect', function() {
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* Card 2: Direct Smart Link */}
+              <div className="p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                      <MonitorSmartphone className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white">Direct Smart Link</h4>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">Standard edge redirect link</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={directUrl}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-200 select-all font-medium"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(directUrl, 'direct')}
+                    className="px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition shadow-xs"
+                  >
+                    {copiedType === 'direct' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    Copy
+                  </button>
+                </div>
               </div>
             </div>
           )}
