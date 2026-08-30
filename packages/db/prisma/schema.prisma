@@ -103,6 +103,7 @@ model Company {
   savedBanks               SavedBank[]
   teamActivityLogs         TeamActivityLog[]
   calendarEvents           CalendarEvent[]    @relation("CompanyCalendarEvents")
+  trafficLinks             TrafficLink[]
 }
 
 model SavedBank {
@@ -2430,3 +2431,82 @@ model MarketingFaq {
   targetPageSlug String // Links the FAQ to a specific MarketingPage or Blog for JSON-LD generation
   order          Int    @default(0)
 }
+
+model TrafficLink {
+  id                  String         @id @default(uuid())
+  companyId           String
+  name                String
+  slug                String         @unique
+  description         String?
+  fallbackUrl         String
+  isActive            Boolean        @default(true)
+  customDomain        String?
+  tags                String[]       @default([])
+  totalClicks         Int            @default(0)
+  warmupUntil         DateTime?
+  rampUpEnabled       Boolean        @default(false)
+  rampUpDurationHours Int            @default(24)
+  shieldMode          String         @default("server") // server, client_shield, hybrid
+  datacenterBlocked   Boolean        @default(true)
+  rules               TrafficRule[]
+  logs                TrafficLog[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([slug])
+}
+
+model TrafficRule {
+  id             String         @id @default(uuid())
+  linkId         String
+  name           String
+  priority       Int            @default(0)
+  isActive       Boolean        @default(true)
+  destinationUrl String
+  actionType     String         @default("redirect_302") // redirect_302, redirect_301, redirect_307, rewrite
+  conditions     Json           // Array of condition criteria: { type: 'geo'|'device'|'header'|'query'|'bot'|'time'|'network_type'|'asn_provider'|'touch_support'|'gpu_renderer'|'battery_valid', operator: 'equals'|'not_equals'|'contains'|'in', value: any }
+  weight         Int            @default(100)
+  matchCount     Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  link           TrafficLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId])
+  @@index([priority])
+}
+
+model TrafficLog {
+  id             String         @id @default(uuid())
+  linkId         String
+  ruleId         String?
+  ipAddress      String?
+  country        String?
+  city           String?
+  deviceType     String?
+  os             String?
+  browser        String?
+  userAgent      String?
+  referrer       String?
+  isBot          Boolean        @default(false)
+  botName        String?
+  networkType    String?        // residential, datacenter, cellular, vpn
+  gpuRenderer    String?
+  touchPoints    Int?
+  batteryLevel   Float?
+  isEmulated     Boolean        @default(false)
+  destinationUrl String
+  responseStatus Int            @default(302)
+  latencyMs      Int            @default(0)
+  timestamp      DateTime       @default(now())
+
+  link           TrafficLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, timestamp])
+  @@index([timestamp])
+}
+
+

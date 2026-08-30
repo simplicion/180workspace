@@ -43,7 +43,7 @@ function ThreeDotMenu({ websiteId, onDelete }: any) {
                         className="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
                     >
                         <button
-                            onClick={e => { e.stopPropagation(); setOpen(false); router.push('/advertising/${websiteId}/edit'); }}
+                            onClick={e => { e.stopPropagation(); setOpen(false); router.push(`/advertising/${websiteId}/edit`); }}
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
                         >
                             <Edit3 className="w-4 h-4" />
@@ -155,7 +155,7 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
             {/* Actions */}
             <div className="flex items-center gap-3 w-full md:w-auto pt-4 md:pt-0 pl-0 md:pl-6 border-t md:border-t-0 md:border-l border-gray-100 md:ml-2">
                 <Link
-                    href={'/advertising/${website.id}'}
+                    href={`/advertising/${website.id}`}
                     className="flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm whitespace-nowrap"
                 >
                     View Details

@@ -37,10 +37,13 @@ static async getLeads(page = 1, limit = 100) {
             status: data.status || data.stage || 'new',
             value: data.value ? parseFloat(data.value) : 0,
             engagementScore: data.engagementScore || 50,
-            assignedSalesRepId: data.owner || data.ownerId || data.assignedSalesRepId || userId,
             notes: data.notes || null,
             followUpDate: data.followUpDate ? new Date(data.followUpDate) : null
         };
+        const ownerId = data.owner || data.ownerId || data.assignedSalesRepId || userId;
+        if (ownerId) {
+            leadData.assignedSalesRep = { connect: { id: ownerId } };
+        }
         const lead = await prisma.lead.create({ data: leadData });
 
         let existingClient = null;
@@ -120,7 +123,14 @@ static async getLeads(page = 1, limit = 100) {
         if (updateData.status !== undefined || updateData.stage !== undefined) sanitizedData.status = updateData.status || updateData.stage;
         if (updateData.value !== undefined) sanitizedData.value = parseFloat(updateData.value);
         if (updateData.engagementScore !== undefined) sanitizedData.engagementScore = updateData.engagementScore;
-        if (updateData.owner || updateData.ownerId || updateData.assignedSalesRepId) sanitizedData.assignedSalesRepId = updateData.owner || updateData.ownerId || updateData.assignedSalesRepId;
+        if (updateData.owner !== undefined || updateData.ownerId !== undefined || updateData.assignedSalesRepId !== undefined) {
+            const ownerId = updateData.owner || updateData.ownerId || updateData.assignedSalesRepId;
+            if (ownerId) {
+                sanitizedData.assignedSalesRep = { connect: { id: ownerId } };
+            } else {
+                sanitizedData.assignedSalesRep = { disconnect: true };
+            }
+        }
         if (updateData.notes !== undefined) sanitizedData.notes = updateData.notes;
         if (updateData.followUpDate !== undefined) sanitizedData.followUpDate = updateData.followUpDate ? new Date(updateData.followUpDate) : null;
 

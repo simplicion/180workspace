@@ -77,7 +77,7 @@ export default function moduleGuard(appId?: string, moduleId?: string) {
                         if (typeof metadata === 'string') {
                             try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
                         }
-                        const defaultApps = ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising', 'social-media', 'assets'];
+                        const defaultApps = ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising', 'social-media', 'traffic-director', 'assets'];
                         config.enabledApps = (Array.isArray(metadata.enabledApps) && metadata.enabledApps.length > 0) ? metadata.enabledApps : defaultApps;
                         config.enabledModules = metadata.enabledModules || [];
                         req.companyConfig = config;
@@ -111,8 +111,8 @@ export default function moduleGuard(appId?: string, moduleId?: string) {
 
 
             // GATE 5: App-level access check
-            // Core workspace apps ('tools', 'system', 'projects') are essential platform suites and must never be blocked.
-            const CORE_ALWAYS_ENABLED_APPS = new Set(['tools', 'system', 'productivity-tools-app', 'productivity']);
+            // Core workspace apps ('tools', 'system', 'projects', 'traffic-director') are essential platform suites and must never be blocked.
+            const CORE_ALWAYS_ENABLED_APPS = new Set(['tools', 'system', 'productivity-tools-app', 'productivity', 'traffic-director', 'traffic-director-app', 'marketing', 'advertising']);
 
             if (appId && !CORE_ALWAYS_ENABLED_APPS.has(appId)) {
                 const userEnabledApps = Array.isArray(config.enabledApps) ? config.enabledApps : [];

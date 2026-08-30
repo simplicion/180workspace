@@ -141,8 +141,9 @@ export class ChatService {
         }
 
         // Group chat
-        if (user.role !== 'admin' && user.role !== 'hr' && user.role !== 'manager') {
-            throw new Error('Only admins/HR/managers can create group chats');
+        const hasPermission = user.permissions && (user.permissions.includes('can_manage_team') || user.permissions.includes('can_manage_hr'));
+        if (user.role !== 'admin' && user.role !== 'hr' && user.role !== 'manager' && user.role !== 'ceo' && !hasPermission) {
+            throw new Error('Only admins/HR/managers/CEOs can create group chats');
         }
 
         const membersList = [...new Set([user.id, ...(memberIds || [])])];
@@ -347,11 +348,21 @@ export class ChatService {
         const existing = chat.members.map((m: any) => m.id);
         const toAdd = memberIds.filter((id: string) => !existing.includes(id));
 
+        const validUsers = await db.user.findMany({
+            where: { id: { in: toAdd } },
+            select: { id: true, name: true }
+        });
+        const validUserIds = validUsers.map((u: any) => u.id);
+
+        if (validUserIds.length === 0) {
+            throw new Error('No valid users found to add');
+        }
+
         const updatedChat = await db.chat.update({
             where: { id: chatId },
             data: {
                 members: {
-                    connect: toAdd.map((id: string) => ({ id }))
+                    connect: validUserIds.map((id: string) => ({ id }))
                 }
             },
             include: {

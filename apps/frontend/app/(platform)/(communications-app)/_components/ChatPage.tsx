@@ -118,7 +118,7 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 // ── New Chat / Group Modal ────────────────────────────────────────────────────
-function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => void; onChatCreated: (c: Chat) => void; currentUser: User }) {
+function NewChatModal({ onClose, onChatCreated, currentUser, existingChats }: { onClose: () => void; onChatCreated: (c: Chat) => void; currentUser: User; existingChats: Chat[] }) {
     const [mode, setMode] = useState<'dm' | 'group'>('dm');
     const [users, setUsers] = useState<User[]>([]);
     const [search, setSearch] = useState('');
@@ -158,10 +158,16 @@ function NewChatModal({ onClose, onChatCreated, currentUser }: { onClose: () => 
     }, [(currentUser._id || currentUser.id)]);
 
 
+    const existingDmUserIds = existingChats
+        .filter(c => !c.isGroup)
+        .flatMap(c => c.members.map(m => (m._id || m.id) as string))
+        .filter(id => id !== (currentUser._id || currentUser.id));
+
     const filtered = users.filter(u =>
-        (u.name || "")?.toLowerCase().includes(search.toLowerCase()) ||
+        (mode === 'group' || !existingDmUserIds.includes(((u._id || u.id) as string))) &&
+        ((u.name || "")?.toLowerCase().includes(search.toLowerCase()) ||
         (u.email || "").toLowerCase().includes(search.toLowerCase()) ||
-        (u.role || "user").toLowerCase().includes(search.toLowerCase())
+        (u.role || "user").toLowerCase().includes(search.toLowerCase()))
     );
 
     function toggle(id: string) {
@@ -290,22 +296,12 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
     const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'ceo' || ((currentUser as any)?.permissions && (currentUser as any).permissions.includes('can_manage_team'));
 
     useEffect(() => {
-        Promise.all([
-            api.get('/api/users', { params: { limit: 200 } }).catch(() => ({ data: { users: [] } })),
-            api.get('/api/clients', { params: { limit: 200 } }).catch(() => ({ data: { clients: [] } }))
-        ]).then(([usersRes, clientsRes]) => {
-            const allUsers = usersRes.data.users || [];
-            const allClients = (clientsRes.data.clients || []).map((c: any) => ({
-                _id: c._id,
-                name: c.name,
-                email: c.email,
-                photoUrl: c.logoUrl,
-                role: 'client'
-            }));
-            const combined = [...allUsers, ...allClients];
-            const memberIds = chat.members.map(m => m._id || ((m._id || m.id) as string));
-            setUsers(combined.filter((u: User) => !memberIds.includes(u._id || ((u._id || u.id) as string))));
-        })
+        api.get('/api/users', { params: { limit: 200 } })
+            .then(res => {
+                const combined = res.data.users || [];
+                const memberIds = chat.members.map(m => m._id || ((m._id || m.id) as string));
+                setUsers(combined.filter((u: User) => !memberIds.includes(u._id || ((u._id || u.id) as string))));
+            })
             .catch(() => { });
     }, [chat.members]);
 
@@ -493,20 +489,9 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         api.get('/api/chat/settings').then(r => setClientChatAllowed(r.data.employeeClientChatAllowed)).catch(() => { });
 
         // Fetch all users for mentions globally
-        Promise.all([
-            api.get('/api/users', { params: { limit: 200 } }).catch(() => ({ data: { users: [] } })),
-            api.get('/api/clients', { params: { limit: 200 } }).catch(() => ({ data: { clients: [] } }))
-        ]).then(([usersRes, clientsRes]) => {
-            const allUsersData = usersRes.data.users || [];
-            const allClientsData = (clientsRes.data.clients || []).map((c: any) => ({
-                _id: c._id,
-                name: c.name,
-                email: c.email,
-                photoUrl: c.logoUrl,
-                role: 'client'
-            }));
-            setAllUsers([...allUsersData, ...allClientsData]);
-        }).catch(() => { });
+        api.get('/api/users', { params: { limit: 200 } })
+            .then(res => setAllUsers(res.data.users || []))
+            .catch(() => { });
     }, []);
 
     // Auto-open or create chat with userIdQuery
@@ -1123,6 +1108,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             {showNewChat && user && (
                 <NewChatModal
                     currentUser={user}
+                    existingChats={chats}
                     onClose={() => setShowNewChat(false)}
                     onChatCreated={(chat) => {
                         setChats(prev => [chat, ...prev.filter(c => c._id !== chat._id)]);

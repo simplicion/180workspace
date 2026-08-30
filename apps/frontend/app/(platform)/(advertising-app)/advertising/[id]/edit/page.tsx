@@ -1122,7 +1122,7 @@ export default function WebsiteEditorPage() {
             {!(showSettings || selectedElementId) && (
                 <div className="flex-none sticky top-0 z-50 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => router.push('/advertising/${id}')} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
+                        <button onClick={() => router.push(`/advertising/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div>
@@ -1179,7 +1179,7 @@ export default function WebsiteEditorPage() {
             <div className="flex-1 flex overflow-hidden">
                 {/* Dynamically load Google Font */}
                 <style dangerouslySetInnerHTML={{
-                    __html: `@import url('https://fonts.googleapis.com/css2?family=${(brand.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');`
+                    __html: `@import url(`https://fonts.googleapis.com/css2?family=${(brand.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap`);`
                 }} />
 
                 {/* Live Website Canvas */}
@@ -1213,7 +1213,7 @@ export default function WebsiteEditorPage() {
                                 fontFamily: `"${brand.fontFamily || 'Inter'}", sans-serif`,
                                 color: brand.textColor || '#111827',
                                 backgroundColor: brand.bgType === 'color' ? (brand.bgValue || brand.secondaryColor) : 'transparent',
-                                backgroundImage: brand.bgType === 'image' && brand.bgValue ? `url(${brand.bgValue})` : 'none',
+                                backgroundImage: brand.bgType === 'image` && brand.bgValue ? `url(${brand.bgValue})` : `none',
                                 backgroundSize: 'cover',
                                 backgroundAttachment: 'fixed',
                                 backgroundPosition: 'center',
@@ -1514,8 +1514,8 @@ export default function WebsiteEditorPage() {
                                          if (website?.customDomain) {
                                              url = `https://${website.customDomain}`;
                                          } else if (website?.slug) {
-                                             const port = isLocal && typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
-                                             const domainWithPort = rootDomain ? (rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`) : `localhost${port || ':3000'}`;
+                                             const port = isLocal && typeof window !== 'undefined` && window.location.port ? `:${window.location.port}` : `';
+                                             const domainWithPort = rootDomain ? (rootDomain.includes(':`) ? rootDomain : `${rootDomain}${port}`) : `localhost${port || `:3000'}`;
                                              url = `http${isLocal ? '' : 's'}://${website.slug}.${domainWithPort}`;
                                          }
                                          if (url) {

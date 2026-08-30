@@ -50,7 +50,7 @@ function AttendancePageInner() {
     // Sync tab with URL
     const handleTabChange = (t: TabType) => {
         setTab(t);
-        const url = t === 'attendance' ? '/attendance' : '/attendance?tab=${t}';
+        const url = t === 'attendance' ? '/attendance' : `/attendance?tab=${t}`;
         router.replace(url, { scroll: false });
     };
 
@@ -234,7 +234,7 @@ function AttendancePageInner() {
             filename = `leaves_${month}.csv`;
         }
 
-        const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+        const csvContent = [headers.join(',`), ...rows.map(r => r.map(v => `"${v}"`).join(`,'))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');

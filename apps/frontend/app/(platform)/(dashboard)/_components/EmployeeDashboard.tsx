@@ -528,7 +528,7 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                                     const progress = p.progress || 0;
                                     const projectId = p.id || p.id;
                                     return (
-                                        <Link key={projectId} href={'/projects/${projectId}'} className="flex flex-col gap-2 p-4 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group">
+                                        <Link key={projectId} href={`/projects/${projectId}`} className="flex flex-col gap-2 p-4 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group">
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">

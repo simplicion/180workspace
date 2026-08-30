@@ -131,7 +131,7 @@ export default function CalendarDetailView() {
                 </button>
                 <div className="flex gap-2">
                     <button 
-                        onClick={() => router.push('/content-calendar/create?extendFrom=${calendar.id}')}
+                        onClick={() => router.push(`/content-calendar/create?extendFrom=${calendar.id}`)}
                         className="btn flex items-center gap-2 text-sm bg-white hover:bg-indigo-50 text-indigo-600 border-indigo-200"
                     >
                         <Sparkles className="w-4 h-4" />

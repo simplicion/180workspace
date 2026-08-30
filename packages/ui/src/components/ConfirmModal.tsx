@@ -1,7 +1,8 @@
 "use client";
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { LogoLoader } from "./LogoLoader";
 import { X, AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 
 interface Props {
@@ -39,13 +40,18 @@ export default function ConfirmModal({
     placeholder = 'Enter value...',
     customActions
 }: Props) {
+    const [mounted, setMounted] = useState(false);
     const [promptValue, setPromptValue] = useState(defaultValue);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (isOpen) setPromptValue(defaultValue);
     }, [isOpen, defaultValue]);
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
     const variantStyles = {
         danger: {
@@ -81,9 +87,9 @@ export default function ConfirmModal({
     const currentVariant = variantStyles[variant];
     const { Icon } = currentVariant;
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 border border-gray-100">
                 {/* Header/Icon */}
                 <div className="p-6 text-center">
                     <div className={clsx(
@@ -157,6 +163,7 @@ export default function ConfirmModal({
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

@@ -127,7 +127,7 @@ export default async function PublicWebsitePage({
                 fontFamily: `"${config.typography?.body || brand?.fontFamily || 'Inter'}", sans-serif`,
                 color: brand?.textColor || '#111827',
                 backgroundColor: brand?.bgType === 'color' ? (brand.bgValue || colors.secondary || brand.secondaryColor) : (brand?.bgType === 'image' ? 'transparent' : colors.secondary),
-                backgroundImage: brand?.bgType === 'image' && brand?.bgValue ? `url(${brand.bgValue})` : 'none',
+                backgroundImage: brand?.bgType === 'image` && brand?.bgValue ? `url(${brand.bgValue})` : `none',
                 backgroundSize: 'cover',
                 backgroundAttachment: 'fixed',
                 backgroundPosition: 'center',
@@ -138,7 +138,7 @@ export default async function PublicWebsitePage({
             <div className="w-full max-w-full min-h-screen flex flex-col bg-transparent relative overflow-x-hidden">
                 <style dangerouslySetInnerHTML={{
                     __html: `
-                        @import url('https://fonts.googleapis.com/css2?family=${(config.typography?.body || brand?.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');
+                        @import url(`https://fonts.googleapis.com/css2?family=${(config.typography?.body || brand?.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap`);
                         
                         @media (max-width: 767px) {
                             /* Master Anti-Blowout Rule for all elements on mobile */

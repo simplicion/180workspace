@@ -80,6 +80,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     dangerouslySetInnerHTML={{
                         __html: `
                             if (typeof window !== 'undefined') {
+                                window.addEventListener('error', function(e) {
+                                    if (e && e.message && (e.message.indexOf('ChunkLoadError') !== -1 || e.message.indexOf('Loading chunk') !== -1)) {
+                                        if (!sessionStorage.getItem('chunk_reload_lock')) {
+                                            sessionStorage.setItem('chunk_reload_lock', '1');
+                                            window.location.reload();
+                                        }
+                                    }
+                                });
+                                window.addEventListener('load', function() {
+                                    setTimeout(function() {
+                                        sessionStorage.removeItem('chunk_reload_lock');
+                                    }, 3000);
+                                });
+
                                 document.addEventListener('click', function(e) {
                                     var btn = e.target.closest('button');
                                     if (btn && (btn.type === 'submit' || btn.classList.contains('btn-primary') || btn.textContent.toLowerCase().includes('save') || btn.textContent.toLowerCase().includes('add'))) {

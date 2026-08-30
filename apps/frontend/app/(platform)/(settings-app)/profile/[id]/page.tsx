@@ -177,7 +177,7 @@ export default function UnifiedProfilePage() {
                 recordId: targetId,
                 type: userData.role === 'client' ? 'Client' : 'User',
                 label: userData.name,
-                href: '/profile/${id}'
+                href: `/profile/${id}`
             }).then(() => {
                 window.dispatchEvent(new CustomEvent('recentItemsUpdated'));
             }).catch(err => console.error('Recent tracking error:', err));

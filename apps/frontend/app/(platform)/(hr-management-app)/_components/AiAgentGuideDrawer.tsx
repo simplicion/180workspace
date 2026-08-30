@@ -18,7 +18,7 @@ Please create a high-fidelity, responsive React or HTML/Tailwind component that 
 API CONFIGURATION:
 - Endpoint: GET ${origin}/api/public/jobs
 - Method: GET
-- Authentication: Header 'x-api-key' with value '${apiKey || 'YOUR_API_KEY'}'
+- Authentication: Header 'x-api-key' with value `${apiKey || 'YOUR_API_KEY'}`
 
 SECURITY NOTE (Domain Whitelisting):
 - For browser-based requests, you MUST ensure your website domain (e.g., yourcompany.com) is added to the "Whitelisted Domains" in the 180workspace Recruitment Dashboard -> API Settings.
