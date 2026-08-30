@@ -43,28 +43,28 @@ export class SignalExtractor {
     const headers = req.headers || {};
     const query = req.query || {};
     const rawIp = 
-      (headers['cf-connecting-ip'] as string) ||
-      (headers['x-real-ip'] as string) ||
-      (headers['x-forwarded-for'] ? (headers['x-forwarded-for'] as string).split(',')[0].trim() : '') ||
+      (typeof headers['cf-connecting-ip'] === 'string' ? headers['cf-connecting-ip'] : '') ||
+      (typeof headers['x-real-ip'] === 'string' ? headers['x-real-ip'] : '') ||
+      (typeof headers['x-forwarded-for'] === 'string' ? headers['x-forwarded-for'].split(',')[0].trim() : '') ||
       req.ip ||
       req.socket?.remoteAddress ||
       '127.0.0.1';
 
-    const userAgent = (headers['user-agent'] as string) || '';
-    const referrer = (headers['referer'] as string) || (headers['referrer'] as string) || '';
+    const userAgent = typeof headers['user-agent'] === 'string' ? headers['user-agent'] : '';
+    const referrer = typeof headers['referer'] === 'string' ? headers['referer'] : (typeof headers['referrer'] === 'string' ? headers['referrer'] : '');
     
     // Country detection (Edge headers or fallback)
     const country = 
-      (headers['cf-ipcountry'] as string) || 
-      (headers['x-country-code'] as string) || 
-      (headers['x-geo-country'] as string) || 
+      (typeof headers['cf-ipcountry'] === 'string' ? headers['cf-ipcountry'] : '') || 
+      (typeof headers['x-country-code'] === 'string' ? headers['x-country-code'] : '') || 
+      (typeof headers['x-geo-country'] === 'string' ? headers['x-geo-country'] : '') || 
       'US';
 
-    const city = (headers['cf-ipcity'] as string) || (headers['x-geo-city'] as string) || 'Unknown';
-    const postalCode = (headers['cf-postal-code'] as string) || (headers['x-geo-postal-code'] as string) || (headers['x-postal-code'] as string) || (headers['x-zip-code'] as string) || (query.zip as string) || (query.postal_code as string) || undefined;
-    const region = (headers['cf-region'] as string) || (headers['cf-region-code'] as string) || (headers['x-geo-region'] as string) || undefined;
-    const timezone = (headers['cf-timezone'] as string) || (headers['x-timezone'] as string) || (query.tz as string) || undefined;
-    const language = (headers['accept-language'] as string)?.split(',')[0]?.split(';')[0]?.trim() || 'en';
+    const city = (typeof headers['cf-ipcity'] === 'string' ? headers['cf-ipcity'] : '') || (typeof headers['x-geo-city'] === 'string' ? headers['x-geo-city'] : '') || 'Unknown';
+    const postalCode = (typeof headers['cf-postal-code'] === 'string' ? headers['cf-postal-code'] : '') || (typeof headers['x-geo-postal-code'] === 'string' ? headers['x-geo-postal-code'] : '') || (typeof headers['x-postal-code'] === 'string' ? headers['x-postal-code'] : '') || (typeof headers['x-zip-code'] === 'string' ? headers['x-zip-code'] : '') || (typeof query.zip === 'string' ? query.zip : undefined) || (typeof query.postal_code === 'string' ? query.postal_code : undefined);
+    const region = (typeof headers['cf-region'] === 'string' ? headers['cf-region'] : '') || (typeof headers['cf-region-code'] === 'string' ? headers['cf-region-code'] : '') || (typeof headers['x-geo-region'] === 'string' ? headers['x-geo-region'] : '') || undefined;
+    const timezone = (typeof headers['cf-timezone'] === 'string' ? headers['cf-timezone'] : '') || (typeof headers['x-timezone'] === 'string' ? headers['x-timezone'] : '') || (typeof query.tz === 'string' ? query.tz : undefined);
+    const language = typeof headers['accept-language'] === 'string' ? headers['accept-language'].split(',')[0]?.split(';')[0]?.trim() || 'en' : 'en';
 
     // Bot detection
     let isBot = false;

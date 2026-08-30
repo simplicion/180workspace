@@ -169,9 +169,11 @@ app.use('/v1', (req, res, next) => {
 const { publicRoutes: trafficDirectorPublicRoutes } = require('./src/api/v1/traffic-director/index');
 const { PublicRoutingController } = require('./src/api/v1/traffic-director/public-routing.controller');
 app.use('/r', trafficDirectorPublicRoutes);
-app.get('/shield/:slug', (req, res) => PublicRoutingController.handleShieldRoute(req, res));
-app.all('/tag/:slug', (req, res) => PublicRoutingController.handleDynamicTag(req, res));
-app.post('/evaluate/:slug', (req, res) => PublicRoutingController.handleEdgeEvaluate(req, res));
+app.get('/shield/:slug', (req, res, next) => PublicRoutingController.handleShieldRoute(req, res).catch(next));
+app.all('/tag/:slug', (req, res, next) => PublicRoutingController.handleDynamicTag(req, res).catch(next));
+app.post('/evaluate/:slug', (req, res, next) => PublicRoutingController.handleEdgeEvaluate(req, res).catch(next));
+app.post('/api/v1/traffic-director/evaluate/:slug', (req, res, next) => PublicRoutingController.handleEdgeEvaluate(req, res).catch(next));
+app.all('/api/v1/traffic-director/tag/:slug', (req, res, next) => PublicRoutingController.handleDynamicTag(req, res).catch(next));
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
