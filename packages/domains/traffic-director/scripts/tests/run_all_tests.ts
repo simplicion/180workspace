@@ -16,7 +16,9 @@ const testFiles = [
   'test_8_client_shield_and_tag_generator.ts',
   'test_9_analytics_and_anomaly_sentinel.ts',
   'test_10_end_to_end_routing_simulator.ts',
-  'test_11_self_hosted_tag_generation_and_edge_eval.ts'
+  'test_11_self_hosted_tag_generation_and_edge_eval.ts',
+  'test_12_stealth_ramp_up_and_cliff_prevention.ts',
+  'test_13_deep_production_audit_5_pillars.ts'
 ];
 
 let totalPassed = 0;

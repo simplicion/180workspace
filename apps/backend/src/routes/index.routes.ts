@@ -182,12 +182,15 @@ router.use('/v1/hr-management', protect, moduleGuard('hr'), hrManagementRoutes);
 router.use('/v1/finance', protect, moduleGuard('finance'), financeRoutes);
 router.use('/v1/crm-and-sales', protect, moduleGuard('crm'), crmAndSalesRoutes);
 router.use('/v1/workspace-tools', protect, moduleGuard('tools'), workspaceToolsRoutes);
-// Public Edge Traffic Director routes (unauthenticated for client tag / ad review bots)
+// Public Edge Traffic Director routes (unauthenticated for client tag / ad review bots / tag verifier)
 router.post('/v1/traffic-director/evaluate/:slug', (req, res) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
 });
 router.all('/v1/traffic-director/tag/:slug', (req, res) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleDynamicTag(req, res);
+});
+router.post('/v1/traffic-director/verify-tag', (req, res) => {
+    return require('../api/v1/traffic-director/traffic-director.controller').TrafficDirectorController.verifyTagInstallation(req, res);
 });
 
 router.use('/v1/communications', protect, communicationsRoutes);

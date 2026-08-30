@@ -19,6 +19,7 @@ export interface EvaluatableLink {
   rampUpEnabled?: boolean;
   rampUpDurationHours?: number;
   datacenterBlocked?: boolean;
+  createdAt?: Date | string | null;
   rules: EvaluatableRule[];
 }
 
@@ -76,13 +77,18 @@ export class DecisionEngine {
 
     // 3. Stealth Traffic Ramp-Up Weight Calculation
     let rampFactor = 1.0;
-    if (link.rampUpEnabled && link.warmupUntil) {
-      const warmupTime = new Date(link.warmupUntil).getTime();
-      const rampDurationMs = (link.rampUpDurationHours || 24) * 3600 * 1000;
-      const timeSinceWarmup = now - warmupTime;
-      if (timeSinceWarmup > 0 && timeSinceWarmup < rampDurationMs) {
-        // Linear scale 10% -> 100%
-        rampFactor = 0.10 + (0.90 * (timeSinceWarmup / rampDurationMs));
+    if (link.rampUpEnabled) {
+      const rampStartTime = link.warmupUntil 
+        ? new Date(link.warmupUntil).getTime() 
+        : (link.createdAt ? new Date(link.createdAt).getTime() : now);
+      
+      const rampDurationHours = Math.max(1, link.rampUpDurationHours || 24);
+      const rampDurationMs = rampDurationHours * 3600 * 1000;
+      const timeSinceRampStart = now - rampStartTime;
+
+      if (timeSinceRampStart >= 0 && timeSinceRampStart < rampDurationMs) {
+        // Linear scale 10% -> 100% over the duration window
+        rampFactor = 0.10 + (0.90 * (timeSinceRampStart / rampDurationMs));
         const roll = Math.random();
         if (roll > rampFactor) {
           const elapsed = Math.round(performance.now() - startTime);
@@ -190,6 +196,15 @@ export class DecisionEngine {
         break;
       case 'language':
         actualValue = signals.language;
+        break;
+      case 'referrer':
+        actualValue = signals.referrer;
+        break;
+      case 'sec_ch_ua':
+        actualValue = signals.headers['sec-ch-ua'] || signals.headers['sec-ch-ua-mobile'] || '';
+        break;
+      case 'ip_address':
+        actualValue = signals.ipAddress;
         break;
       case 'header':
         if (!cond.key) return false;

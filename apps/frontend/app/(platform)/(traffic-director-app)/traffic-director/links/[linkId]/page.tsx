@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { LogoLoader } from '@workspace/ui';
+import { LogoLoader, ConfirmModal, UniversalDateTimePicker } from '@workspace/ui';
+import InfoTooltip from '@/components/ui/InfoTooltip';
 import CustomSelect from '@/components/ui/CustomSelect';
 import CreateRuleModal from '../../../_components/CreateRuleModal';
 import EditRuleModal from '../../../_components/EditRuleModal';
@@ -26,14 +27,19 @@ export default function SmartLinkRuleCanvasPage() {
   const [editingRule, setEditingRule] = useState<any>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<{ isOpen: boolean; rule: any; loading: boolean }>({
+    isOpen: false,
+    rule: null,
+    loading: false
+  });
   const [fallbackUrl, setFallbackUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
   // Advanced Shield & Warmup State
   const [datacenterBlocked, setDatacenterBlocked] = useState(true);
   const [warmupUntil, setWarmupUntil] = useState('');
-  const [rampUpEnabled, setRampUpEnabled] = useState(false);
-  const [rampUpDurationHours, setRampUpDurationHours] = useState(24);
+  const [rampUpEnabled, setRampUpEnabled] = useState(true);
+  const [rampUpDurationHours, setRampUpDurationHours] = useState(12);
   const [shieldMode, setShieldMode] = useState('server');
   const [savingShield, setSavingShield] = useState(false);
 
@@ -45,9 +51,9 @@ export default function SmartLinkRuleCanvasPage() {
       setLinkData(lk);
       setFallbackUrl(lk.fallbackUrl);
       setDatacenterBlocked(lk.datacenterBlocked ?? true);
-      setWarmupUntil(lk.warmupUntil ? new Date(lk.warmupUntil).toISOString().slice(0, 16) : '');
-      setRampUpEnabled(lk.rampUpEnabled ?? false);
-      setRampUpDurationHours(lk.rampUpDurationHours ?? 24);
+      setWarmupUntil(lk.warmupUntil ? new Date(lk.warmupUntil).toISOString() : '');
+      setRampUpEnabled(lk.rampUpEnabled !== undefined && lk.rampUpEnabled !== null ? (lk.rampUpDurationHours === 24 && !lk.rampUpEnabled ? true : lk.rampUpEnabled) : true);
+      setRampUpDurationHours((lk.rampUpDurationHours && lk.rampUpDurationHours !== 24) ? lk.rampUpDurationHours : 12);
       setShieldMode(lk.shieldMode || 'server');
     } catch (error: any) {
       console.error('Failed to fetch link details:', error);
@@ -105,17 +111,20 @@ export default function SmartLinkRuleCanvasPage() {
     }
   };
 
-  const handleDeleteRule = async (ruleId: string) => {
-    if (!confirm('Are you sure you want to delete this rule?')) return;
+  const confirmDeleteRule = async () => {
+    if (!deleteRuleConfirm.rule) return;
     try {
-      await api.delete(`/api/v1/traffic-director/rules/${ruleId}`);
+      setDeleteRuleConfirm(prev => ({ ...prev, loading: true }));
+      await api.delete(`/api/v1/traffic-director/rules/${deleteRuleConfirm.rule.id}`);
       setLinkData((prev: any) => ({
         ...prev,
-        rules: prev.rules.filter((r: any) => r.id !== ruleId)
+        rules: prev.rules.filter((r: any) => r.id !== deleteRuleConfirm.rule.id)
       }));
       toast.success('Rule removed');
+      setDeleteRuleConfirm({ isOpen: false, rule: null, loading: false });
     } catch (error) {
       toast.error('Failed to delete rule');
+      setDeleteRuleConfirm(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -189,6 +198,18 @@ export default function SmartLinkRuleCanvasPage() {
         onSuccess={() => fetchLinkDetails()}
       />
 
+      <ConfirmModal
+        isOpen={deleteRuleConfirm.isOpen}
+        title="Delete Routing Rule"
+        message={`Are you sure you want to delete "${deleteRuleConfirm.rule?.name || 'this rule'}"? Traffic will no longer be evaluated against its conditions.`}
+        confirmText="Delete Rule"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteRule}
+        onCancel={() => setDeleteRuleConfirm({ isOpen: false, rule: null, loading: false })}
+        loading={deleteRuleConfirm.loading}
+        variant="danger"
+      />
+
       {/* Top Breadcrumb & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -243,149 +264,124 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
-      {/* Meta & Google Ads Deployment Quick-Card */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-pink-950/20 border border-indigo-100 dark:border-indigo-900/50 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider">
-              Method 1: Gold Standard
-            </span>
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-              Run Ads with Your Own Domain (Safe Page Pixel Tag)
-            </h3>
-          </div>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            Paste our 1-line stealth script tag on your website safe page. Review bots see your compliant page; real human buyers convert on your target offer.
-          </p>
-        </div>
+      {/* Safe Page Tag Integration Bar */}
+      <div className="p-3 px-4 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-pink-950/20 border border-indigo-100 dark:border-indigo-900/50 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h3 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+          Run Ads with Your Own Domain (Safe Page Pixel Tag)
+          <InfoTooltip content="Paste our 1-line stealth script tag on your website safe page. Review bots see your compliant page; real human buyers convert on your target offer." />
+        </h3>
 
         <button
           onClick={() => setIsEmbedModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm shrink-0 active:scale-95 transition"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs shrink-0 active:scale-95 transition"
         >
           <Code className="w-3.5 h-3.5" />
           View Embed & Integration Snippets
         </button>
       </div>
 
-      {/* Advanced Security, Shielding & Warmup Settings */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-5">
+      {/* Advanced Security, Shielding & Warmup Settings - 1 Line */}
+      <div className="p-3.5 px-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
-              <Shield className="w-5 h-5" />
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+              <Shield className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Security, Hardware Shielding & Temporal Warmup</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Configure scanner evasion, cloud datacenter firewall, and DSP review warmup</p>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white">Security & Warmup Controls</h3>
+              <InfoTooltip content="Configure scanner evasion, cloud datacenter firewall, and DSP review warmup." />
             </div>
           </div>
           <button
             onClick={handleUpdateShieldSettings}
             disabled={savingShield}
-            className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold disabled:opacity-50 transition shadow-sm"
+            className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold disabled:opacity-50 transition shadow-xs"
           >
             {savingShield ? 'Saving...' : 'Save Shield Settings'}
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* 1. Datacenter ASN Firewall */}
-          <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-900 dark:text-white">Datacenter ASN Firewall</label>
-              <input
-                type="checkbox"
-                checked={datacenterBlocked}
-                onChange={(e) => setDatacenterBlocked(e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600 accent-purple-600"
-              />
+          <div className="p-2.5 px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-gray-900 dark:text-white">Datacenter ASN Firewall</span>
+              <InfoTooltip content="Instantly drops traffic originating from AWS, GCP, Azure, Meta, DigitalOcean, and Hetzner hosting subnets to fallback safe page." />
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Instantly drops traffic originating from AWS, GCP, Azure, DigitalOcean, and Hetzner hosting subnets to fallback safe page.
-            </p>
-          </div>
-
-          {/* 2. Routing Shield Mode */}
-          <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 space-y-2">
-            <label className="text-xs font-bold text-gray-900 dark:text-white block">Routing Mode</label>
-            <CustomSelect
-              value={shieldMode}
-              onChange={(e: any) => setShieldMode(e.target.value)}
-              options={[
-                { value: 'server', label: 'Server Redirect (Sub-3ms Edge)' },
-                { value: 'client_shield', label: 'Client Hardware Shield Probe' }
-              ]}
+            <input
+              type="checkbox"
+              checked={datacenterBlocked}
+              onChange={(e) => setDatacenterBlocked(e.target.checked)}
+              className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
             />
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              {shieldMode === 'client_shield' ? 'Executes WebGL GPU, touchscreen & battery checks in browser before redirect.' : 'Direct HTTP 302/307 edge evaluation.'}
-            </p>
           </div>
 
-          {/* 3. Temporal Warmup Window */}
-          <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-900 dark:text-white">DSP Approval Warmup Until</label>
+          {/* 2. Temporal Warmup Window */}
+          <div className="p-2.5 px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs font-semibold text-gray-900 dark:text-white">DSP Warmup</span>
+              <InfoTooltip content="100% of visitors see the clean Safe Page during your ad QA review window." />
               {warmupUntil && new Date(warmupUntil).getTime() > Date.now() && (
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full">
-                  Warmup Active
+                <span className="text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.5 rounded">
+                  Active
                 </span>
               )}
             </div>
-            <input
-              type="datetime-local"
+            <UniversalDateTimePicker
               value={warmupUntil}
-              onChange={(e) => setWarmupUntil(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white"
+              onChange={(val) => setWarmupUntil(val || '')}
+              mode="datetime"
+              disablePast={true}
+              placeholder="Set warmup end..."
+              presets={[
+                { label: '+6h', offsetHours: 6 },
+                { label: '+12h', offsetHours: 12 },
+                { label: '+24h', offsetHours: 24 },
+                { label: '+48h', offsetHours: 48 },
+              ]}
             />
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              All traffic routes 100% to clean fallback URL during platform review window.
-            </p>
           </div>
-        </div>
 
-        {/* Stealth Ramp-Up Settings */}
-        <div className="p-3.5 rounded-xl bg-purple-50/40 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <Flame className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-            <div>
-              <span className="text-xs font-bold text-gray-900 dark:text-white">Stealth Traffic Ramp-Up</span>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">Gradually scale active routing (10% → 100%) after warmup expires to prevent CTR spikes.</p>
+          {/* 3. Stealth Ramp-Up Settings */}
+          <div className="p-2.5 px-3 rounded-lg bg-purple-50/40 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+              <span className="text-xs font-semibold text-gray-900 dark:text-white">Stealth Ramp-Up</span>
+              <InfoTooltip content="Gradually scales redirects (10% → 100%) after DSP warmup expires to eliminate conversion cliffs and protect ad accounts." />
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
-              <span>Duration:</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="text-[11px] text-gray-600 dark:text-gray-400 flex items-center gap-1 font-medium">
+                <input
+                  type="number"
+                  min="1"
+                  max="168"
+                  value={rampUpDurationHours}
+                  onChange={(e) => setRampUpDurationHours(Number(e.target.value))}
+                  className="w-10 px-1 py-0.5 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-[11px] text-center text-gray-900 dark:text-white font-mono"
+                />
+                <span>h</span>
+              </label>
               <input
-                type="number"
-                min="1"
-                max="168"
-                value={rampUpDurationHours}
-                onChange={(e) => setRampUpDurationHours(Number(e.target.value))}
-                className="w-16 px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-center text-gray-900 dark:text-white"
+                type="checkbox"
+                checked={rampUpEnabled}
+                onChange={(e) => setRampUpEnabled(e.target.checked)}
+                className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
               />
-              <span>hours</span>
-            </label>
-            <input
-              type="checkbox"
-              checked={rampUpEnabled}
-              onChange={(e) => setRampUpEnabled(e.target.checked)}
-              className="w-4 h-4 rounded text-purple-600 accent-purple-600"
-            />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Rules Decision Sequence Banner */}
-      <div className="p-5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 flex items-start gap-4">
-        <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 shrink-0">
-          <Layers className="w-5 h-5" />
-        </div>
-        <div className="text-xs text-indigo-900 dark:text-indigo-200 space-y-1">
-          <span className="font-bold">Evaluation Order: Priority Matrix (Top-to-Bottom)</span>
-          <p className="text-indigo-700/80 dark:text-indigo-300/70 leading-relaxed">
-            Requests are evaluated against each rule in sequence. The first rule whose complete condition set matches will handle the redirect. If no rules match, the request will drop through to the default Fallback Target.
-          </p>
+      <div className="p-3 px-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 shrink-0">
+            <Layers className="w-4 h-4" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200">Priority Matrix Evaluation (Top-to-Bottom)</span>
+            <InfoTooltip content="Requests are evaluated against each rule in sequence. The first rule whose complete condition set matches will handle the redirect. If no rules match, the request will drop through to the default Fallback Target." />
+          </div>
         </div>
       </div>
 
@@ -500,7 +496,7 @@ export default function SmartLinkRuleCanvasPage() {
                     </button>
 
                     <button
-                      onClick={() => handleDeleteRule(rule.id)}
+                      onClick={() => setDeleteRuleConfirm({ isOpen: true, rule, loading: false })}
                       className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
                       title="Delete Rule"
                     >

@@ -54,47 +54,149 @@ export class TrafficDirectorController {
         targetUrl = `https://${targetUrl}`;
       }
 
+      const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+      const startTime = Date.now();
+
+      // Check 1: Verify Smart Link exists in our platform
+      const link = await TrafficLinksService.getLinkBySlug(cleanSlug);
+      const linkExists = Boolean(link);
+
+      const checks: Array<{
+        name: string;
+        status: 'passed' | 'warning' | 'failed';
+        message: string;
+      }> = [];
+
+      // Add Link Existence Check
+      if (linkExists) {
+        checks.push({
+          name: 'Link Configuration',
+          status: 'passed',
+          message: `Smart Link "/r/${cleanSlug}" is active with ${link?.rules?.length || 0} rule(s) and fallback target.`
+        });
+      } else {
+        checks.push({
+          name: 'Link Configuration',
+          status: 'failed',
+          message: `Smart Link with slug "${cleanSlug}" was not found in the database. Please create the link first.`
+        });
+      }
+
+      // Fetch the landing page
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       try {
         const pageRes = await fetch(targetUrl, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) 180workspace-Tag-Verifier/1.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 180workspace-Tag-Verifier/1.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
           }
         });
         clearTimeout(timeoutId);
 
-        const html = await pageRes.text();
-        const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-        const tagPattern = new RegExp(`tag/${cleanSlug}(\\.js)?|evaluate/${cleanSlug}`, 'i');
-        const hasTag = tagPattern.test(html);
+        const latencyMs = Date.now() - startTime;
+        const statusCode = pageRes.status;
 
-        if (hasTag) {
-          return res.json({
-            success: true,
-            verified: true,
-            message: 'Tag successfully detected on your landing page!'
+        // Check 2: HTTP Reachability
+        if (statusCode >= 200 && statusCode < 400) {
+          checks.push({
+            name: 'Page Reachability',
+            status: 'passed',
+            message: `Website reached successfully (HTTP ${statusCode}) in ${latencyMs}ms.`
           });
         } else {
-          return res.json({
-            success: true,
-            verified: false,
-            message: `Could not detect the tag script for "/tag/${cleanSlug}.js" on this page. Please ensure you saved and published your HTML changes.`
+          checks.push({
+            name: 'Page Reachability',
+            status: 'failed',
+            message: `Website returned error status HTTP ${statusCode}. Ensure your page is published and publicly accessible.`
           });
         }
+
+        const html = await pageRes.text();
+        const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+        const headContent = headMatch ? headMatch[1] : '';
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        const bodyContent = bodyMatch ? bodyMatch[1] : html;
+
+        // Check 3: Script Tag Detection (in head vs body)
+        const tagPattern = new RegExp(`tag/${cleanSlug}(\\.js)?|evaluate/${cleanSlug}`, 'i');
+        const inHead = tagPattern.test(headContent);
+        const inBody = tagPattern.test(bodyContent) || tagPattern.test(html);
+
+        if (inHead) {
+          checks.push({
+            name: 'Tag Detection & Head Placement',
+            status: 'passed',
+            message: 'Tag script is properly installed inside <head> for zero-flicker instant redirection.'
+          });
+        } else if (inBody) {
+          checks.push({
+            name: 'Tag Detection & Head Placement',
+            status: 'warning',
+            message: 'Tag script was found, but placed inside <body>. We recommend moving it into <head> for faster execution before page render.'
+          });
+        } else {
+          checks.push({
+            name: 'Tag Detection & Head Placement',
+            status: 'failed',
+            message: `Could not find the script tag matching "/tag/${cleanSlug}.js" or inline shield code in this page HTML.`
+          });
+        }
+
+        // Check 4: Async / Defer Optimization
+        if (inHead || inBody) {
+          const scriptTagMatch = html.match(new RegExp(`<script[^>]*tag/${cleanSlug}[^>]*>`, 'i'));
+          if (scriptTagMatch && /async|defer/i.test(scriptTagMatch[0])) {
+            checks.push({
+              name: 'Non-Blocking Execution',
+              status: 'passed',
+              message: 'Script tag includes "async" attribute to prevent blocking safe page rendering for review bots.'
+            });
+          } else {
+            checks.push({
+              name: 'Non-Blocking Execution',
+              status: 'warning',
+              message: 'Script tag is missing "async". Add async attribute (<script src="..." async></script>) for better compliance.'
+            });
+          }
+        }
+
+        const isFullyVerified = checks.every(c => c.status !== 'failed');
+
+        return res.json({
+          success: true,
+          verified: isFullyVerified,
+          url: targetUrl,
+          statusCode,
+          latencyMs,
+          checks,
+          summary: isFullyVerified
+            ? 'All diagnostics passed! Your safe landing page is fully protected and ready for Meta / Google Ads review.'
+            : 'One or more diagnostic checks require your attention.'
+        });
+
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
+        checks.push({
+          name: 'Page Reachability',
+          status: 'failed',
+          message: `Network error connecting to ${targetUrl}: ${fetchError.message || 'Connection timeout or invalid domain'}. If testing a local file, ensure it is served over http:// (e.g. VS Code Live Server).`
+        });
+
         return res.json({
           success: true,
           verified: false,
-          message: `Could not reach ${targetUrl} (${fetchError.message || 'Connection timeout or invalid URL'}). If you opened a local file directly in your browser, serve it via Live Server or a local HTTP server.`
+          url: targetUrl,
+          checks,
+          summary: 'Could not connect to the provided URL.'
         });
       }
+
     } catch (error: any) {
       console.error('[TrafficDirectorController.verifyTagInstallation]', error);
-      return res.status(500).json({ success: false, error: 'Verification failed' });
+      return res.status(500).json({ success: false, error: 'Verification error' });
     }
   }
 

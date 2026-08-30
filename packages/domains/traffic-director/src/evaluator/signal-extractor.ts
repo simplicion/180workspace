@@ -26,6 +26,8 @@ const BOT_PATTERNS = [
 ];
 
 const CLOUD_ASN_PATTERNS = [
+  { org: 'META', regex: /facebook|meta.*platforms/i, asns: ['32934', '63293'] },
+  { org: 'BYTEDANCE', regex: /bytedance|tiktok/i, asns: ['138699'] },
   { org: 'AWS', regex: /amazon|aws/i, asns: ['16509', '14618', '8987'] },
   { org: 'GOOGLE_CLOUD', regex: /google.*cloud|google.*llc/i, asns: ['15169', '396982', '36040'] },
   { org: 'AZURE', regex: /microsoft|azure/i, asns: ['8075', '8068', '8069'] },
@@ -90,9 +92,21 @@ export class SignalExtractor {
     }
 
     // Heuristic datacenter detection for common cloud hosting IP ranges
-    if (rawIp.startsWith('54.') || rawIp.startsWith('52.') || rawIp.startsWith('34.') || rawIp.startsWith('35.') || rawIp.startsWith('104.196.')) {
+    if (
+      rawIp.startsWith('54.') || 
+      rawIp.startsWith('52.') || 
+      rawIp.startsWith('34.') || 
+      rawIp.startsWith('35.') || 
+      rawIp.startsWith('104.196.') ||
+      rawIp.startsWith('157.240.') ||
+      rawIp.startsWith('31.13.') ||
+      rawIp.startsWith('69.63.') ||
+      rawIp.startsWith('69.171.') ||
+      rawIp.startsWith('66.220.')
+    ) {
       networkType = 'datacenter';
       if (!asnOrg) asnOrg = 'CLOUD_PROVIDER';
+      isBot = true;
     }
 
     // Device & OS detection
@@ -115,6 +129,12 @@ export class SignalExtractor {
     }
     if (deviceType === 'mobile' && touchPoints === 0) {
       isEmulated = true;
+    }
+
+    // Client Hints verification (Detect desktop pretending to be mobile)
+    const secChUaMobile = headers['sec-ch-ua-mobile'] as string;
+    if (secChUaMobile === '?0' && deviceType === 'mobile') {
+      isEmulated = true; // User-Agent spoofing detected!
     }
 
     return {
