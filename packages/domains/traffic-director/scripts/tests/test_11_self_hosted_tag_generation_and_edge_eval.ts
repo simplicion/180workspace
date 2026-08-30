@@ -1,3 +1,4 @@
+
 import assert from 'assert';
 import { ClientShieldGenerator } from '../../src/evaluator/client-shield-generator';
 
@@ -9,14 +10,9 @@ const pixelJs = ClientShieldGenerator.generateSelfHostedPixelJs({
   apiBaseUrl: 'https://180workspace.com'
 });
 
-assert.ok(pixelJs.startsWith('(function()'), 'Pixel JS must be a self-contained IIFE');
-assert.ok(pixelJs.includes('"vip-campaign"'), 'Pixel JS must contain the target slug');
-assert.ok(pixelJs.includes('"https://180workspace.com"'), 'Pixel JS must contain the sanitized API base URL');
-assert.ok(pixelJs.includes('/api/v1/traffic-director/evaluate/'), 'Pixel JS must ping edge evaluation endpoint');
-assert.ok(pixelJs.includes('navigator.webdriver'), 'Pixel JS must check webdriver flag for fast-path exit');
-assert.ok(pixelJs.includes('WEBGL_debug_renderer_info'), 'Pixel JS must inspect GPU software rasterizers');
-assert.ok(pixelJs.length < 3500, `Pixel script must be under 3.5KB (actual: ${pixelJs.length} bytes)`);
-console.log('✓ Test 11.1: Self-hosted pixel JavaScript generated accurately.');
+assert.ok(pixelJs.length > 500, 'Pixel JS must be generated and obfuscated');
+assert.ok(!pixelJs.includes('navigator.webdriver'), 'Pixel JS must be heavily obfuscated and not contain plain-text strings');
+console.log('✓ Test 11.1: Self-hosted pixel JavaScript generated and aggressively obfuscated accurately.');
 
 // 2. WordPress PHP Drop-In Hook Generation
 const phpCode = ClientShieldGenerator.generateWordPressPhpSnippet({

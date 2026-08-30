@@ -9,12 +9,13 @@
   },
   "dependencies": {
     "@prisma/client": "^5.x.x",
-    "@workspace/db": "workspace:*",
-    "@workspace/backend-infra": "workspace:*"
+    "@workspace/backend-infra": "workspace:*",
+    "@workspace/db": "workspace:*"
   },
   "devDependencies": {
+    "@types/javascript-obfuscator": "^0.17.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "@workspace/typescript-config": "workspace:*"
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "^5.0.0"
   }
 }
