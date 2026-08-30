@@ -4,7 +4,8 @@ import {
   DecisionEngine,
   TrafficLinksService,
   TrafficAnalyticsService,
-  ClientShieldGenerator
+  ClientShieldGenerator,
+  ReverseProxyService
 } from '@workspace/traffic-director';
 
 export class PublicRoutingController {
@@ -39,6 +40,7 @@ export class PublicRoutingController {
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
           datacenterBlocked: link.datacenterBlocked,
+          safePageProxyMode: (link as any).safePageProxyMode,
           createdAt: (link as any).createdAt,
           rules: link.rules
         },
@@ -62,7 +64,34 @@ export class PublicRoutingController {
         finalDestination = `${finalDestination}${separator}${originalQuery}`;
       }
 
-      // 6. Execute Redirect
+      // 6. Action Execution: Reverse Proxy (HTTP 200 OK) vs JavaScript Replace vs Standard 302 Redirect
+      if (result.actionType === 'proxy_safe_page' || result.actionType === 'proxy_target_offer' || result.actionType === 'rewrite') {
+        try {
+          const proxyRes = await ReverseProxyService.fetchAndMirror(finalDestination, {
+            customHeaders: {
+              'user-agent': req.get('user-agent') || '',
+              'accept-language': req.get('accept-language') || ''
+            }
+          });
+
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=86400');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          return res.status(proxyRes.statusCode || 200).send(proxyRes.html);
+        } catch (proxyErr: any) {
+          console.warn('[PublicRoutingController] Reverse proxy fetch fallback to 302:', proxyErr.message);
+          // Graceful fallback to 302 redirect if upstream site fails or blocks
+        }
+      }
+
+      if (result.actionType === 'js_replace') {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        const safeUrl = JSON.stringify(finalDestination);
+        return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><script>try{window.location.replace(${safeUrl});}catch(e){window.location.href=${safeUrl};}</script></head><body></body></html>`);
+      }
+
+      // Default Standard Redirect (302 / 301 / 307)
       const statusCode = result.actionType === 'redirect_301' 
         ? 301 
         : (result.actionType === 'redirect_307' ? 307 : 302);

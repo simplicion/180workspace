@@ -3,6 +3,7 @@ import { BuilderElement } from '@/app/(platform)/(advertising-app)/advertising/[
 import { CompanyProfileUI } from '@/app/(platform)/(company-hub-app)/_components/CompanyProfileUI';
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 
 export default async function PublicWebsitePage({ 
     params 
@@ -55,7 +56,49 @@ export default async function PublicWebsitePage({
     if (registryData?.type === 'TRAFFIC_LINK') {
         const linkSlug = registryData.payload?.slug;
         if (linkSlug) {
-            redirect(`/r/${linkSlug}`);
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 
+                process.env.NEXT_PUBLIC_BACKEND_URL || 
+                process.env.BACKEND_INTERNAL_URL || 
+                (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'http://localhost:5000');
+            
+            try {
+                const headerList = await headers();
+                const linkRes = await fetch(`${apiBase}/r/${linkSlug}`, {
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': headerList.get('user-agent') || '',
+                        'Accept-Language': headerList.get('accept-language') || '',
+                        'X-Forwarded-For': headerList.get('x-forwarded-for') || ''
+                    },
+                    redirect: 'manual',
+                    next: { revalidate: 0 }
+                });
+
+                // If backend responded with redirect (e.g. for human rule match to offer)
+                if (linkRes.status >= 300 && linkRes.status < 400) {
+                    const location = linkRes.headers.get('location');
+                    if (location) {
+                        redirect(location);
+                    }
+                }
+
+                // If backend responded with 200 OK (Reverse Proxy Safe Page)
+                if (linkRes.ok) {
+                    const html = await linkRes.text();
+                    return (
+                        <div 
+                            dangerouslySetInnerHTML={{ __html: html }} 
+                            style={{ width: '100vw', minHeight: '100vh', margin: 0, padding: 0 }}
+                        />
+                    );
+                }
+            } catch (err: any) {
+                if (err?.digest?.startsWith('NEXT_REDIRECT')) {
+                    throw err;
+                }
+                console.error('Error proxying traffic link:', err);
+                redirect(`/r/${linkSlug}`);
+            }
         }
     }
 
