@@ -182,6 +182,11 @@ export class ClientShieldGenerator {
     var hasTouch = ('ontouchstart' in window) || (tp > 0);
     var isWd = navigator.webdriver === true || !!window.__nightmare || !!window._phantom || !!window.callPhantom;
 
+    // If running inside a reverse-proxy sandbox or frame, don't double-evaluate
+    if (window.self !== window.top) {
+      return;
+    }
+
     // Fast-path client heuristic check: Bot / Automation detected -> stay on safe page quietly
     if (isWd || (isMobile && !hasTouch && tp === 0)) {
       return;
