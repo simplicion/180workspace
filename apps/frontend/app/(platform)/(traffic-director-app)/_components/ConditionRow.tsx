@@ -135,7 +135,7 @@ export default function ConditionRow({
             onChange={(e: any) => handleTypeChange(e.target.value)}
             options={CONDITION_TYPE_OPTIONS.map(opt => ({
               value: opt.value,
-              label: `[${opt.group}] ${opt.label}`
+              label: opt.label
             }))}
           />
         </div>

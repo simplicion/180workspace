@@ -88,7 +88,7 @@ export default function EditRuleModal({ isOpen, onClose, linkId, rule, onSuccess
 
     try {
       setLoading(true);
-      const res = await api.put(`/api/v1/traffic-director/links/${linkId}/rules/${rule.id}`, {
+      const res = await api.put(`/api/v1/traffic-director/rules/${rule.id}`, {
         name,
         destinationUrl,
         actionType,
