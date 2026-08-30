@@ -11,6 +11,7 @@ export default async function PublicWebsitePage({
     params: Promise<{ domain: string; slug?: string | string[] }> 
 }) {
     const { domain, slug } = await params;
+    const cleanDomain = decodeURIComponent(domain || '').split(':')[0].toLowerCase().trim();
     
     let registryData: any = null;
     let website: any = null;
@@ -24,7 +25,7 @@ export default async function PublicWebsitePage({
             (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
         
         const searchParams = new URLSearchParams();
-        searchParams.append('domain', domain);
+        searchParams.append('domain', cleanDomain);
         if (slug) {
             const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
             searchParams.append('slug', slugStr);
@@ -56,61 +57,7 @@ export default async function PublicWebsitePage({
     if (registryData?.type === 'TRAFFIC_LINK') {
         const linkSlug = registryData.payload?.slug;
         if (linkSlug) {
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 
-                process.env.NEXT_PUBLIC_BACKEND_URL || 
-                process.env.BACKEND_INTERNAL_URL || 
-                (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
-            
-            try {
-                const headerList = await headers();
-                const linkRes = await fetch(`${apiBase}/r/${linkSlug}`, {
-                    method: 'GET',
-                    headers: {
-                        'User-Agent': headerList.get('user-agent') || '',
-                        'Accept-Language': headerList.get('accept-language') || '',
-                        'X-Forwarded-For': headerList.get('x-forwarded-for') || ''
-                    },
-                    redirect: 'manual',
-                    next: { revalidate: 0 }
-                });
-
-                // If backend responded with redirect (e.g. for human rule match to offer)
-                if (linkRes.status >= 300 && linkRes.status < 400) {
-                    const location = linkRes.headers.get('location');
-                    if (location) {
-                        redirect(location);
-                    }
-                }
-
-                // If backend responded with 200 OK (Reverse Proxy Safe Page)
-                if (linkRes.ok) {
-                    const html = await linkRes.text();
-                    return (
-                        <iframe
-                            srcDoc={html}
-                            title="Safe Page Mirror"
-                            style={{
-                                position: 'fixed',
-                                top: 0,
-                                left: 0,
-                                width: '100vw',
-                                height: '100vh',
-                                border: 'none',
-                                margin: 0,
-                                padding: 0,
-                                overflow: 'auto',
-                                zIndex: 99999
-                            }}
-                        />
-                    );
-                }
-            } catch (err: any) {
-                if (err?.digest?.startsWith('NEXT_REDIRECT')) {
-                    throw err;
-                }
-                console.error('Error proxying traffic link:', err);
-                redirect(`/r/${linkSlug}`);
-            }
+            redirect(`/r/${linkSlug}`);
         }
     }
 

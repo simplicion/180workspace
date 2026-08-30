@@ -79,6 +79,9 @@ export default function EmbedTagModal({
     body: JSON.stringify({ touchPoints: tp, referrer: document.referrer || '', url: window.location.href })
   }).then(function(r){ return r.json(); }).then(function(d){
     if (d && d.success && d.route === 'target' && d.destinationUrl) {
+      var cur = window.location.href.split('#')[0].replace(/\/+$/, '');
+      var dest = d.destinationUrl.split('#')[0].replace(/\/+$/, '');
+      if (cur === dest || window.location.pathname === dest || cur.indexOf(dest) === 0) return;
       window.location.replace(d.destinationUrl);
     }
   }).catch(function(){});
@@ -166,7 +169,7 @@ add_action('template_redirect', function() {
     fullHost = `${protocol}${fullHost}`;
   }
 
-  const brandedUrl = fullHost ? `${fullHost.replace(/\/+$/, '')}/${slug}` : null;
+  const brandedUrl = fullHost ? fullHost.replace(/\/+$/, '') : null;
 
   return (
     <>

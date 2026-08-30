@@ -128,15 +128,22 @@ export class ReverseProxyService {
       const rawHtml = await response.text();
       let transformedHtml = rawHtml;
 
-      // Inject <base href="..."> into <head> if not already present
+      // Inject <base href="..."> and client-side SPA router normalization into <head>
+      const routerPatchScript = `<script>(function(){try{if(window.location.pathname!=='/'&&!window.location.pathname.startsWith('/assets')){window.history.replaceState(null,'','/'+window.location.search+window.location.hash);}}catch(e){}})();</script>`;
+      const injection = `\n  <base href="${baseHref}">\n  ${routerPatchScript}`;
+
       if (!/<base\s+[^>]*href=/i.test(transformedHtml)) {
-        const baseTag = `\n  <base href="${baseHref}">`;
         if (/<head[^>]*>/i.test(transformedHtml)) {
-          transformedHtml = transformedHtml.replace(/(<head[^>]*>)/i, `$1${baseTag}`);
+          transformedHtml = transformedHtml.replace(/(<head[^>]*>)/i, `$1${injection}`);
         } else if (/<html[^>]*>/i.test(transformedHtml)) {
-          transformedHtml = transformedHtml.replace(/(<html[^>]*>)/i, `$1\n<head>${baseTag}</head>`);
+          transformedHtml = transformedHtml.replace(/(<html[^>]*>)/i, `$1\n<head>${injection}</head>`);
         } else {
-          transformedHtml = `<head>${baseTag}</head>\n${transformedHtml}`;
+          transformedHtml = `<head>${injection}</head>\n${transformedHtml}`;
+        }
+      } else {
+        // If <base href> was already there, inject the router patch right after <head>
+        if (/<head[^>]*>/i.test(transformedHtml)) {
+          transformedHtml = transformedHtml.replace(/(<head[^>]*>)/i, `$1\n  ${routerPatchScript}`);
         }
       }
 
