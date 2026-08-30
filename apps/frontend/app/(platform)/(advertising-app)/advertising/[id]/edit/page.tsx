@@ -1179,7 +1179,7 @@ export default function WebsiteEditorPage() {
             <div className="flex-1 flex overflow-hidden">
                 {/* Dynamically load Google Font */}
                 <style dangerouslySetInnerHTML={{
-                    __html: `@import url(`https://fonts.googleapis.com/css2?family=${(brand.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap`);`
+                    __html: `@import url('https://fonts.googleapis.com/css2?family=${(brand.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');`
                 }} />
 
                 {/* Live Website Canvas */}
