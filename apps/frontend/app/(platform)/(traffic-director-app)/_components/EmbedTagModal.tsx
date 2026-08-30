@@ -587,7 +587,6 @@ add_action('template_redirect', function() {
                   <code>{selectedItem.code}</code>
                 </pre>
               </div>
-            </div>
 
               {/* Live Tag Diagnostic Tool */}
               <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2.5 bg-white dark:bg-gray-900 shadow-xs">
