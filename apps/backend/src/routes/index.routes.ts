@@ -28,11 +28,12 @@ const financeRoutes = require('../api/v1/finance/index').default;
 const crmAndSalesRoutes = require('../api/v1/crm-and-sales/index').default;
 const workspaceToolsRoutes = require('../api/v1/workspace-tools/index').default;
 const communicationsRoutes = require('../api/v1/communications/index').default;
-// Force nodemon restart
+const { protectedRoutes: advertisingRoutes, publicRoutes: advertisingPublicRoutes } = require('../api/v1/advertising/index');
 const trafficDirectorModule = require('../api/v1/traffic-director/index');
 const trafficDirectorRoutes = trafficDirectorModule.protectedRoutes?.default || trafficDirectorModule.protectedRoutes || trafficDirectorModule.default;
 const trafficDirectorPublicRoutes = trafficDirectorModule.publicRoutes?.default || trafficDirectorModule.publicRoutes || require('../api/v1/traffic-director/public-routing.routes').default || require('../api/v1/traffic-director/public-routing.routes');
 const { publicContractRoutes } = require('../api/v1/crm-and-sales/index');
+const socialMediaRoutes = require('../api/v1/social-media/index').default;
 const releaseNotesRoutes = require('../api/v1/communications/index').default;
 
 // Initialize CRM listeners
