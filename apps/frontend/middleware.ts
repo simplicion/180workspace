@@ -6,6 +6,11 @@ export default withAuth(
     const url = req.nextUrl;
     const hostname = req.headers.get("host") || "";
 
+    // Internal dynamic site rewrites and fast redirect routes always bypass auth middleware
+    if (req.nextUrl.pathname.startsWith('/sites') || req.nextUrl.pathname.startsWith('/r/')) {
+      return NextResponse.next();
+    }
+
     // Define main application domains (add more if needed, e.g., production domains)
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "";
     const mainDomains = [ "180workspace.com", "www.180workspace.com", "app.180workspace.com", 
@@ -24,12 +29,26 @@ export default withAuth(
       const path = req.nextUrl.pathname;
       const search = req.nextUrl.search;
 
-      const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f'];
-      const is180workspacePath = path === '/' || WORKSPACE_ROUTES.some(r => path.startsWith(r));
-      const isSystemPath = path.startsWith('/_next') || path.startsWith('/api') || path.startsWith('/.well-known');
-      
-      // Force all authentication, setup, and platform (IMS) flows to the root domain for security
-      if (!is180workspacePath && !isSystemPath) {
+      // Allow internal Next.js assets, API routes, and well-known paths to pass through
+      if (
+        path.startsWith('/_next') ||
+        path.startsWith('/api') ||
+        path.startsWith('/.well-known')
+      ) {
+        return NextResponse.next();
+      }
+
+      // Platform internal administrative & auth routes must redirect to the primary platform domain
+      const PLATFORM_ADMIN_ROUTES = [
+        '/login', '/signup', '/onboarding', '/workspace-setup', 
+        '/traffic-director', '/advertising', '/crm', '/finance', 
+        '/hr', '/settings', '/projects', '/insights', '/communications', 
+        '/social-media', '/workspace-tools', '/billing', '/superadmin', 
+        '/company-hub'
+      ];
+      const isPlatformAdminRoute = PLATFORM_ADMIN_ROUTES.some(r => path === r || path.startsWith(r + '/'));
+
+      if (isPlatformAdminRoute) {
         const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
         const port = hostname.split(':')[1];
         const isLocalhostDomain = rootDomain === 'localhost' || rootDomain === '127.0.0.1';
@@ -45,15 +64,8 @@ export default withAuth(
         return NextResponse.redirect(targetUrl);
       }
 
-      // Allow internal Next.js routes, API routes, and well-known paths to pass through normally
-      if (
-        !path.startsWith('/_next') &&
-        !path.startsWith('/api') &&
-        !path.startsWith('/.well-known')
-      ) {
-        // Rewrite to the dynamic sites directory
-        return NextResponse.rewrite(new URL(`/sites/${hostname}${path}`, req.url));
-      }
+      // ALL other paths on custom domains/subdomains (e.g. /prince, /, /about, etc.) rewrite to dynamic sites directory
+      return NextResponse.rewrite(new URL(`/sites/${hostname}${path}`, req.url));
     }
 
     const token = req.nextauth.token
@@ -166,8 +178,8 @@ export default withAuth(
 
     // 5. User is trying to access 180workspace routes
     if (is180workspaceRoute) {
-      // If personal onboarding is not complete, redirect back to signup
-      if (!isOnboardingDone) {
+      // If user is authenticated but personal onboarding is not complete, redirect back to signup
+      if (isAuth && !isOnboardingDone) {
         return NextResponse.redirect(new URL("/signup", req.url));
       }
       return null;
