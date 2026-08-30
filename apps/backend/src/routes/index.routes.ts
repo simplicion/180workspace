@@ -183,6 +183,12 @@ router.use('/v1/finance', protect, moduleGuard('finance'), financeRoutes);
 router.use('/v1/crm-and-sales', protect, moduleGuard('crm'), crmAndSalesRoutes);
 router.use('/v1/workspace-tools', protect, moduleGuard('tools'), workspaceToolsRoutes);
 // Public Edge Traffic Director routes (unauthenticated for client tag / ad review bots / tag verifier)
+router.options('/v1/traffic-director/evaluate/:slug', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).end();
+});
 router.post('/v1/traffic-director/evaluate/:slug', (req, res) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
 });
@@ -210,6 +216,12 @@ router.use('/shield/:slug', (req, res) => {
 });
 router.use('/tag/:slug', (req, res) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleDynamicTag(req, res);
+});
+router.options('/evaluate/:slug', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).end();
 });
 router.post('/evaluate/:slug', (req, res) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
