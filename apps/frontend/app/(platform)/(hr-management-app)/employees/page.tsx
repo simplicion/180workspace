@@ -155,7 +155,7 @@ export default function EmployeesPage() {
                                                 toast.error('Cannot open profile: missing ID');
                                                 return;
                                             }
-                                            router.push('/profile/${id}');
+                                            router.push(`/profile/${id}`);
                                         }}
                                     >
                                         <td>
@@ -196,7 +196,7 @@ export default function EmployeesPage() {
                                                                     toast.error('Missing ID');
                                                                     return;
                                                                 }
-                                                                router.push('/profile/${id}');
+                                                                router.push(`/profile/${id}`);
                                                             },
                                                             variant: 'primary'
                                                         },

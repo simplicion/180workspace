@@ -30,6 +30,7 @@ const workspaceToolsRoutes = require('../api/v1/workspace-tools/index').default;
 const communicationsRoutes = require('../api/v1/communications/index').default;
 // Force nodemon restart
 const { protectedRoutes: advertisingRoutes, publicRoutes: advertisingPublicRoutes } = require('../api/v1/advertising/index');
+const { protectedRoutes: trafficDirectorRoutes, publicRoutes: trafficDirectorPublicRoutes } = require('../api/v1/traffic-director/index');
 const socialMediaRoutes = require('../api/v1/social-media/index').default;
 const { publicContractRoutes } = require('../api/v1/crm-and-sales/index');
 const releaseNotesRoutes = require('../api/v1/communications/index').default;
@@ -183,12 +184,20 @@ router.use('/v1/crm-and-sales', protect, moduleGuard('crm'), crmAndSalesRoutes);
 router.use('/v1/workspace-tools', protect, moduleGuard('tools'), workspaceToolsRoutes);
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
+router.use('/v1/traffic-director', protect, moduleGuard('traffic-director'), trafficDirectorRoutes);
 router.use('/v1/social-media', protect, moduleGuard('tools'), socialMediaRoutes);
 router.use('/v1/insights', protect, moduleGuard('insights'), insightsRoutes);
 router.use('/v1/platform-billing', protect, platformBillingRoutes);
 router.use('/p/contract', publicContractRoutes);
 router.use('/public', publicRoutes);
 router.use('/public', advertisingPublicRoutes);
+router.use('/r', trafficDirectorPublicRoutes);
+router.use('/shield/:slug', (req, res) => {
+    return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleShieldRoute(req, res);
+});
+router.use('/tag/:slug', (req, res) => {
+    return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleDynamicTag(req, res);
+});
 router.use('/setup', setupRoutes);
 // Health moved to system routes
 // Release notes are now handled in communications

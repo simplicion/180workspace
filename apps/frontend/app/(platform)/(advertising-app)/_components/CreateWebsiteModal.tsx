@@ -83,12 +83,12 @@ const getInitialSectionsForPage = (pageType: string, companyData: any = null) =>
     const companyPhone = companyData?.phone || '+1 234 567 8900';
     
     if (pageType === 'home') return [
-        { id: `sec-home-hero-${ts}`, type: 'hero', data: { badge: 'Welcome', title: `Welcome to ${companyName}`, subtitle: 'Transform your business with our cutting-edge solutions.', buttonText: 'Get Started' } },
+        { id: `sec-home-hero-${ts}`, type: 'hero', data: { badge: 'Welcome`, title: `Welcome to ${companyName}`, subtitle: `Transform your business with our cutting-edge solutions.', buttonText: 'Get Started' } },
         { id: `sec-home-about-${ts}`, type: 'about', data: { title: 'About Us', content: 'We are a dedicated team providing top-notch services.', image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=800' } },
         { id: `sec-home-contact-${ts}`, type: 'contact', data: { title: 'Contact Us', subtitle: `Get in touch with us at ${companyEmail}.` } }
     ];
     if (pageType === 'about') return [
-        { id: `sec-about-hero-${ts}`, type: 'hero', data: { badge: 'About Us', title: `Who We Are at ${companyName}`, subtitle: 'Learn more about our mission and values.', buttonText: 'Read Story' } },
+        { id: `sec-about-hero-${ts}`, type: 'hero', data: { badge: 'About Us`, title: `Who We Are at ${companyName}`, subtitle: `Learn more about our mission and values.', buttonText: 'Read Story' } },
         { id: `sec-about-about-${ts}`, type: 'about', data: { title: 'Our Journey', content: 'Founded with a simple vision: to deliver excellence and build trust.', image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=800' } }
     ];
     if (pageType === 'services') return [
@@ -225,7 +225,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
             toast.success('Website created!');
             onSuccess();
             handleClose();
-            router.push('/advertising/${created.id}/edit');
+            router.push(`/advertising/${created.id}/edit`);
         } catch (err) {
             toast.error(err?.response?.data?.error || 'Failed to create website');
         } finally {

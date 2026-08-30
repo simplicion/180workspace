@@ -247,6 +247,9 @@ importers:
       '@workspace/social-media':
         specifier: workspace:*
         version: link:../../packages/domains/social-media
+      '@workspace/traffic-director':
+        specifier: workspace:*
+        version: link:../../packages/domains/traffic-director
       '@workspace/workspace-tools':
         specifier: workspace:*
         version: link:../../packages/domains/workspace-tools
@@ -1117,6 +1120,28 @@ importers:
       '@workspace/workspace-tools':
         specifier: workspace:*
         version: link:../workspace-tools
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../typescript-config
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  packages/domains/traffic-director:
+    dependencies:
+      '@prisma/client':
+        specifier: ^5.x.x
+        version: 5.22.0(prisma@5.22.0)
+      '@workspace/backend-infra':
+        specifier: workspace:*
+        version: link:../../backend-common
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../../db
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -21349,7 +21374,7 @@ snapshots:
 
   '@types/bcrypt@6.0.0':
     dependencies:
-      '@types/node': 25.9.5
+      '@types/node': 26.3.0
 
   '@types/bcryptjs@2.4.6': {}
 
@@ -21518,7 +21543,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 20.19.43
+      '@types/node': 26.3.0
       form-data: 4.0.6
 
   '@types/node@10.17.60': {}
@@ -21549,7 +21574,7 @@ snapshots:
 
   '@types/papaparse@5.5.2':
     dependencies:
-      '@types/node': 25.9.5
+      '@types/node': 26.3.0
 
   '@types/prismjs@1.26.6': {}
 

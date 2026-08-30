@@ -27,7 +27,7 @@ export default function NewContractPage() {
             }).unwrap();
             
             toast.success('Contract created');
-            router.push('/documents/contract/${res.contract._id}/edit');
+            router.push(`/documents/contract/${res.contract._id}/edit`);
         } catch (error) {
             toast.error('Failed to create contract');
         }

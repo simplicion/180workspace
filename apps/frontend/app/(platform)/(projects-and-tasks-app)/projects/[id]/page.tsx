@@ -174,7 +174,7 @@ export default function ProjectDetailPage() {
                     recordId: id,
                     type: 'Project',
                     label: projectData.name,
-                    href: '/projects/${id}'
+                    href: `/projects/${id}`
                 }).then(() => {
                     window.dispatchEvent(new CustomEvent('recentItemsUpdated'));
                 }).catch(err => console.error('Recent tracking error:', err));

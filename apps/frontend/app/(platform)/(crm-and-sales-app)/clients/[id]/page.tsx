@@ -249,7 +249,7 @@ function ClientOverview({ client, onCreateInvoice }: any) {
             iconBg: 'bg-indigo-50',
             iconColor: 'text-indigo-600',
             accent: 'hover:border-indigo-200 hover:bg-indigo-50/40',
-            href: '/projects?clientId=${client.id}&clientName=${encodeURIComponent(client.name)}',
+            href: `/projects?clientId=${client.id}&clientName=${encodeURIComponent(client.name)}`,
         },
         {
             label: 'Create Invoice',
@@ -379,7 +379,7 @@ function ClientProjects({ projects, clientId }: { projects: any[]; clientId: str
                 <div
                     key={p.id}
                     className="card p-5 hover:border-blue-200 transition-colors group cursor-pointer"
-                    onClick={() => (window.location.href = '/projects/${p.id}')}
+                    onClick={() => (window.location.href = `/projects/${p.id}`)}
                 >
                     <div className="flex justify-between items-start mb-4">
                         <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -625,7 +625,7 @@ function ClientFinances({ invoices }: { invoices: any[] }) {
                                     <td className="text-right font-bold text-gray-900">₹{inv.totalAmount?.toLocaleString()}</td>
                                     <td className="text-right">
                                         <button
-                                            onClick={() => window.open('/invoices/${inv.id}', '_blank')}
+                                            onClick={() => window.open(`/invoices/${inv.id}`, '_blank')}
                                             className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
                                             title="View Invoice"
                                         >

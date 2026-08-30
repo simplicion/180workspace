@@ -1,0 +1,238 @@
+# Architectural & Implementation Plan: Smart Traffic Director & Conditional Delivery App
+
+## Executive Summary & Product Alignment
+
+Based on deep technical research into conditional content delivery, differential evaluation, and edge decision engines, this plan introduces the **Smart Traffic Director & Conditional Delivery Application** (`traffic-director`) into the **180workspace** monorepo.
+
+This platform empowers marketing, engineering, growth, and security teams to build, test, and manage high-performance dynamic routing rules, multi-variant traffic splits, geo-targeted delivery, bot/crawler inspection, and real-time differential traffic logs without requiring code deployments.
+
+---
+
+## Multi-Persona Requirements Analysis
+
+### 1. Product Manager Perspective
+- **Core Value Proposition**: A unified control plane for dynamic URL routing, adaptive content delivery, A/B/n multivariate testing, and bot/crawler handling.
+- **Key Modules**:
+  1. **Smart Links & Campaigns**: Create short links or endpoint aliases with weighted multi-destination routing.
+  2. **Rule Matrix & Condition Engine**: Multi-dimensional rule builder combining Geography (Country/City), Device Type (Mobile/Desktop/Tablet), OS/Browser, Referrer, UTM Parameters, Time-of-Day, and Network Type (Residential/Datacenter).
+  3. **Bot & Crawler Policies**: Differentiated handling for verified search engines, social media preview crawlers, AI scraping bots, and commercial scanners (e.g., render static HTML vs. dynamic SPA vs. challenge/redirect).
+  4. **Live Stream Inspector & Differential Analytics**: Real-time traffic observer logging request headers, matched rules, decision paths, response codes, and latency.
+  5. **Custom Domains & SSL**: Route traffic on custom branded subdomains.
+
+### 2. UI/UX Designer Perspective
+- **Design Standard**: Conforms strictly to `.agents/rules/ui-architecture.md` and `design-system.md` using `@workspace/ui`, Shadcn UI primitives, Tailwind CSS, dark mode, and sleek glassmorphism.
+- **Key Screens**:
+  - **Overview Dashboard**: High-level traffic volume, active links, route match distribution, top countries, and bot-vs-human ratio.
+  - **Link Manager & Rule Canvas**: Visual IF/THEN rule builder with drag-and-drop priority ordering and fallbacks.
+  - **Live Traffic Stream**: Real-time terminal-like or card-based log stream with rich inspection drawers showing exact request headers, IP geolocation, and decision paths.
+  - **Differential Simulator**: Live testing playground where users input simulated headers/IP to verify which route would be selected.
+  - **Domain & Edge Settings**: DNS verification status, SSL badge, and fallback configurations.
+
+### 3. Lead Architect & Senior Engineer Perspective
+- **Engineering Doctrine Alignment** (`.agents/rules/ENGINEERING_MINDSET.md`):
+  - **Performance Requirement**: Routing evaluation latency target $P_{99} < 25\text{ms}$.
+  - **Scalability**: Stateless rule evaluation engine with in-memory rule caching and Redis cache-aside invalidation.
+  - **Data Isolation & Security**: Multi-tenant isolation enforced at DB queries via company tenant scoping (`companyId`).
+  - **Layered Architecture**:
+    - **UI Layer**: Pure visual components consuming `@workspace/ui`.
+    - **Behavior Layer**: Custom hooks, state management, and SWR/React Query hooks.
+    - **Service & Domain Layer**: Clean domain package `@workspace/traffic-director` containing pure business logic, mathematical decision solvers, and Prisma repositories.
+
+---
+
+## System Architecture & Data Flow
+
+```mermaid
+flowchart TD
+    ClientReq[Client HTTP Request /r/:slug] --> EdgeProxy[Express Gateway / Public Engine]
+    EdgeProxy --> SignalExtractor[Signal Extractor: IP, Headers, Geo, Device]
+    SignalExtractor --> CacheCheck{Rule Set in Redis?}
+    CacheCheck -- Yes --> Evaluator[Decision Engine: Priority Matrix Evaluator]
+    CacheCheck -- No --> DB[(PostgreSQL via Prisma)]
+    DB --> CacheWrite[Populate Redis Cache]
+    CacheWrite --> Evaluator
+    Evaluator --> Decision[Destination Selected: Redirect 302/307 or Proxy]
+    Evaluator --> LogQueue[Async Event Logger / Worker]
+    LogQueue --> LogStore[(Traffic Logs DB / Analytics)]
+    Decision --> Response[Client Response]
+```
+
+---
+
+## Proposed Technical Changes
+
+### 1. Database Layer (`packages/db`)
+
+#### [MODIFY] [schema.prisma](file:///c:/Users/saavi/OneDrive/Desktop/180workspace/packages/db/prisma/schema.prisma)
+Add the following Prisma models to support the Traffic Director domain:
+
+```prisma
+model TrafficLink {
+  id             String         @id @default(uuid())
+  companyId      String
+  name           String
+  slug           String         @unique
+  description    String?
+  fallbackUrl    String
+  isActive       Boolean        @default(true)
+  customDomain   String?
+  tags           String[]       @default([])
+  totalClicks    Int            @default(0)
+  rules          TrafficRule[]
+  logs           TrafficLog[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([slug])
+}
+
+model TrafficRule {
+  id             String         @id @default(uuid())
+  linkId         String
+  name           String
+  priority       Int            @default(0)
+  isActive       Boolean        @default(true)
+  destinationUrl String
+  actionType     String         @default("redirect") // redirect_302, redirect_301, redirect_307, rewrite
+  conditions     Json           // Array of condition criteria: { type: 'geo'|'device'|'header'|'query'|'bot'|'time', operator: 'eq'|'in'|'regex', value: any }
+  weight         Int            @default(100) // For split-testing within rule
+  matchCount     Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  link           TrafficLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId])
+  @@index([priority])
+}
+
+model TrafficLog {
+  id             String         @id @default(uuid())
+  linkId         String
+  ruleId         String?
+  ipAddress      String?
+  country        String?
+  city           String?
+  deviceType     String?
+  os             String?
+  browser        String?
+  userAgent      String?
+  referrer       String?
+  isBot          Boolean        @default(false)
+  botName        String?
+  destinationUrl String
+  responseStatus Int            @default(302)
+  latencyMs      Int            @default(0)
+  timestamp      DateTime       @default(now())
+
+  link           TrafficLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, timestamp])
+  @@index([timestamp])
+}
+```
+
+---
+
+### 2. Domain Package Layer (`packages/domains/traffic-director`)
+
+#### [NEW] [package.json](file:///c:/Users/saavi/OneDrive/Desktop/180workspace/packages/domains/traffic-director/package.json)
+- Define `@workspace/traffic-director` package with TypeScript build configuration and dependencies on `@workspace/db` and `@workspace/backend-infra`.
+
+#### [NEW] [tsconfig.json](file:///c:/Users/saavi/OneDrive/Desktop/180workspace/packages/domains/traffic-director/tsconfig.json)
+- Configure TypeScript settings extending `@workspace/typescript-config`.
+
+#### [NEW] `packages/domains/traffic-director/src/`:
+- `types/index.ts`: Strongly typed interfaces for Rule Conditions, Extracted Signals, Decision Contexts, and Evaluation Results.
+- `evaluator/signal-extractor.ts`: Extracts IP, Geo headers (Cloudflare/AWS headers like `cf-ipcountry`, `x-forwarded-for`), User-Agent parsing (mobile, tablet, desktop, bot detection), and query parameter extraction.
+- `evaluator/decision-engine.ts`: Pure mathematical evaluator executing condition sets with short-circuiting, priority sorting, and deterministic pseudo-random weighted distribution.
+- `services/links.service.ts`: CRUD operations and stats aggregation for `TrafficLink`.
+- `services/rules.service.ts`: CRUD, validation, and priority reordering for `TrafficRule`.
+- `services/analytics.service.ts`: Real-time log queries, time-series aggregations, geographic distribution, and bot breakdown.
+- `services/simulator.service.ts`: Synthetic evaluation service for testing rules with mock request contexts.
+- `index.ts`: Public API export for the domain.
+
+---
+
+### 3. Backend API Layer (`apps/backend`)
+
+#### [NEW] `apps/backend/src/api/v1/traffic-director/`:
+- `traffic-director.controller.ts`: Handles link CRUD, rule updates, analytics queries, simulation tests, and log stream polling.
+- `traffic-director.routes.ts`: Protected routes mounted with authentication and module guards.
+- `public-routing.controller.ts`: Ultra-fast public endpoint `/r/:slug` executing signal extraction, decision evaluation, asynchronous log queueing, and HTTP redirect delivery.
+- `public-routing.routes.ts`: Unauthenticated public routing engine.
+- `index.ts`: Route aggregator exporting `protectedRoutes` and `publicRoutes`.
+
+#### [MODIFY] [apps/backend/src/routes/index.routes.ts](file:///c:/Users/saavi/OneDrive/Desktop/180workspace/apps/backend/src/routes/index.routes.ts)
+- Mount `/v1/traffic-director` protected routes with `protect` and `moduleGuard('traffic-director')`.
+- Mount public routing `/r` for global high-speed link redirects.
+
+---
+
+### 4. Frontend Application Layer (`apps/frontend`)
+
+#### [MODIFY] [apps/frontend/lib/module-map.ts](file:///c:/Users/saavi/OneDrive/Desktop/180workspace/apps/frontend/lib/module-map.ts)
+- Register `traffic-director` in `APPS_CONFIG`:
+  ```typescript
+  {
+      id: 'traffic-director',
+      name: 'Traffic Director',
+      icon: GitFork, // or Shuffle/Compass
+      tag: 'Marketing',
+      description: 'Smart routing, dynamic landing page delivery, and differential traffic analytics',
+      modules: [
+          { id: 'overview', name: 'Traffic Overview' },
+          { id: 'links', name: 'Smart Links & Rules' },
+          { id: 'simulator', name: 'Routing Simulator' },
+          { id: 'logs', name: 'Live Stream Logs' },
+          { id: 'analytics', name: 'Traffic Analytics' }
+      ]
+  }
+  ```
+
+#### [NEW] `apps/frontend/app/(platform)/(traffic-director-app)/traffic-director/`:
+- `page.tsx`: Overview dashboard with metrics (Total Traffic, Matched Rules, Bot Ratio, Live Geo Map, Active Links).
+- `links/page.tsx`: Data table of all Smart Links with quick-toggle active state, click counters, and modal to create new links.
+- `links/[linkId]/page.tsx`: Visual Rule Matrix editor where users configure IF conditions (Country, Device, Query Param, Bot) -> THEN actions (Redirect URL, Weight, Status code).
+- `simulator/page.tsx`: Interactive differential testing workbench where users simulate client requests with custom IP, User-Agent, and headers to see instant routing decisions.
+- `logs/page.tsx`: Live stream log viewer with search, filtering by link/country/bot, and JSON header inspection drawer.
+- `analytics/page.tsx`: Visual charts (time-series traffic, country breakdown, device distribution, bot analysis).
+
+---
+
+## Step-by-Step Implementation Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Agent as Antigravity AI
+    participant DB as Prisma Schema & DB
+    participant Domain as @workspace/traffic-director
+    participant Backend as Express Backend API
+    participant Frontend as Next.js Frontend App
+    
+    Agent->>DB: 1. Add TrafficLink, TrafficRule, TrafficLog models
+    Agent->>Domain: 2. Scaffold packages/domains/traffic-director & Decision Engine
+    Agent->>Backend: 3. Create API controllers & public redirect router /r/:slug
+    Agent->>Frontend: 4. Register in APPS_CONFIG & build modern UI screens
+    Agent->>Frontend: 5. Verify build, routing, and simulation end-to-end
+```
+
+---
+
+## Verification & Testing Plan
+
+### 1. Unit & Domain Logic Verification
+- Test `SignalExtractor` with various User-Agent strings (Mobile Safari, Desktop Chrome, Googlebot, Python-requests).
+- Test `DecisionEngine` for correct priority order, fallback execution, and multi-condition AND/OR evaluations.
+
+### 2. API & Integration Testing
+- Create a test `TrafficLink` with 3 rules (Geo-based rule for 'US', Device-based rule for 'Mobile', Default fallback).
+- Issue HTTP GET requests with custom `User-Agent` and headers to `/r/test-slug` and assert correct `302/307 Location` headers.
+
+### 3. Frontend Verification
+- Navigate through `/traffic-director`, `/traffic-director/links`, `/traffic-director/simulator`, and `/traffic-director/logs`.
+- Test creating a link, building a rule set, running a simulation in the UI, and verifying live logs appear correctly.

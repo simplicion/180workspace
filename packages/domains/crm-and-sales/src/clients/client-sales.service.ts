@@ -24,9 +24,9 @@ static async getAccounts(page = 1, limit = 100) {
 
         const accounts = await Promise.all(accountsRaw.map(async acc => {
             const [lostDeals, staleContacts] = await Promise.all([
-                prisma.deal.count({ where: { accountId: acc.id, stage: 'ClosedLost' } }),
+                prisma.deal.count({ where: { clientId: acc.id, stage: 'ClosedLost' } }),
                 Contact.count({ where: {
-                    accountId: acc.id,
+                    clientId: acc.id,
                     lastContacted: { lt: moment().subtract(60, 'days').toDate() }
                 } })
             ]);
@@ -70,7 +70,6 @@ static async getContacts(page = 1, limit = 100) {
         const skip = (page - 1) * limit;
         const Contact = prisma.client;
         const contacts = await Contact.findMany({
-            include: { accountId: { select: { companyName: true } } },
             skip: skip,
             take: limit
         });
@@ -82,24 +81,20 @@ static async getContacts(page = 1, limit = 100) {
 static async getContact(id) {
         const Contact = prisma.client;
         const contact = await Contact.findUnique({ 
-            where: { id },
-            include: { accountId: { select: { companyName: true, clv: true, industry: true } } }
+            where: { id }
         });
 
         if (!contact) throw new Error('Contact not found');
 
         const opportunities = await prisma.deal.findMany({
-            where: { accountId: contact.accountId },
+            where: { clientId: contact.clientId || contact.id },
             select: { title: true, value: true, stage: true, probability: true, expectedCloseDate: true }
         });
 
         const SalesActivity = prisma.salesActivity;
         const activities = await SalesActivity.findMany({
             where: {
-                OR: [
-                    { relatedAccount: contact.accountId },
-                    { relatedContact: contact.id }
-                ]
+                relatedClientId: contact.id
             },
             include: { owner: { select: { name: true } } },
             orderBy: { timestamp: 'desc' },
@@ -122,9 +117,9 @@ static async createContact(data) {
             }
         }
 
-        if (data.accountId && data.name) {
+        if (data.clientId && data.name) {
             const existingByName = await Contact.findFirst({ where: {
-                accountId: data.accountId,
+                clientId: data.clientId,
                 name: { equals: data.name.trim(), mode: 'insensitive' }
             } });
             if (existingByName) {

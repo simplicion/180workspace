@@ -144,6 +144,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 const apiRoutes = require('./src/routes/index.routes').default || require('./src/routes/index.routes');
 app.use('/api', apiRoutes);
 
+// ─── Public Traffic Director Edge Routing ─────────────────────────────────────
+const { publicRoutes: trafficDirectorPublicRoutes } = require('./src/api/v1/traffic-director/index');
+const { PublicRoutingController } = require('./src/api/v1/traffic-director/public-routing.controller');
+app.use('/r', trafficDirectorPublicRoutes);
+app.get('/shield/:slug', (req, res) => PublicRoutingController.handleShieldRoute(req, res));
+app.get('/tag/:slug', (req, res) => PublicRoutingController.handleDynamicTag(req, res));
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {

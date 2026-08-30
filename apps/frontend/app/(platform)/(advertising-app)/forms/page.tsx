@@ -52,7 +52,7 @@ export default function FormsListPage() {
       const newForm = response.data.data.form;
       toast.success('Form created successfully');
       setIsCreateModalOpen(false);
-      router.push('/forms/${newForm.id}');
+      router.push(`/forms/${newForm.id}`);
     } catch (error) {
       console.error('Failed to create form:', error);
       toast.error('Failed to create form');
@@ -166,7 +166,7 @@ export default function FormsListPage() {
                 </button>
                 <button 
                   className="w-1/2 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-                  onClick={() => router.push('/forms/${form.id}')}
+                  onClick={() => router.push(`/forms/${form.id}`)}
                 >
                   <Edit className="h-4 w-4" /> Edit
                 </button>

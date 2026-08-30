@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface PlatformModalProps {
     isOpen: boolean;
@@ -60,28 +61,28 @@ export function PlatformModal({
 
     if (!mounted || !isOpen) return null;
 
-    const BodyWrapper = onSubmit ? 'form' : 'div';
-    
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidthClass} max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200`}>
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+    const BodyWrapper = (onSubmit ? 'form' : 'div') as any;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 border border-gray-100 dark:border-gray-800`}>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         {Icon && (
                             <div className={`w-9 h-9 rounded-xl ${iconBgClass} flex items-center justify-center flex-shrink-0`}>
                                 <Icon className={`w-4 h-4 ${iconColorClass}`} />
                             </div>
                         )}
-                        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
                     </div>
                     <button 
                         onClick={onClose} 
                         type="button"
                         aria-label="Close modal" 
                         title="Close modal" 
-                        className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors flex-shrink-0"
+                        className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                     >
-                        <X className="w-4 h-4 text-gray-500" aria-hidden="true" />
+                        <X className="w-4 h-4" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -99,11 +100,12 @@ export function PlatformModal({
                 </BodyWrapper>
 
                 {footer && (
-                    <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 flex-shrink-0">
+                    <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-3 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
                         {footer}
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

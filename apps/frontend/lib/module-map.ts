@@ -63,6 +63,13 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // Social Media Management
   '/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
   '/social-media-assets': { appId: 'social-media', moduleId: 'social-media-assets' },
+
+  // Traffic Director (Smart Routing & Conditional Delivery)
+  '/traffic-director': { appId: 'traffic-director', moduleId: 'overview' },
+  '/traffic-director/links': { appId: 'traffic-director', moduleId: 'links' },
+  '/traffic-director/simulator': { appId: 'traffic-director', moduleId: 'simulator' },
+  '/traffic-director/logs': { appId: 'traffic-director', moduleId: 'logs' },
+  '/traffic-director/analytics': { appId: 'traffic-director', moduleId: 'analytics' },
 };
 
 export interface ModuleConfig {
@@ -84,7 +91,7 @@ export interface AppConfig {
 
 import { 
     LayoutGrid, Smartphone, Globe, ShieldCheck, Database, CreditCard, Bell,
-    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy
+    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy, GitFork
 } from 'lucide-react';
 
 export const APPS_CONFIG: AppConfig[] = [
@@ -107,6 +114,20 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'revenue', name: 'Revenue Tracking' },
             { id: 'forecasting', name: 'Sales Forecasting' },
             { id: 'clients', name: 'Client Database' }
+        ]
+    },
+    {
+        id: 'traffic-director',
+        name: 'Traffic Director',
+        icon: GitFork,
+        tag: 'Marketing',
+        description: 'Smart routing, dynamic landing page delivery, and differential traffic analytics',
+        modules: [
+            { id: 'overview', name: 'Traffic Overview' },
+            { id: 'links', name: 'Smart Links & Rules' },
+            { id: 'simulator', name: 'Routing Simulator' },
+            { id: 'logs', name: 'Live Stream Logs' },
+            { id: 'analytics', name: 'Traffic Analytics' }
         ]
     },
     {

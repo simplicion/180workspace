@@ -255,19 +255,19 @@ export default function DocumentsPage() {
 
     const handleDocumentClick = (doc: Document & { isQuote?: boolean; isInvoice?: boolean }) => {
         if (doc.isArticle) {
-            router.push('/documents/${doc.id || doc._id}');
+            router.push(`/documents/${doc.id || doc._id}`);
             return;
         }
         if (doc.isContract) {
-            router.push('/documents/contract/${doc.id || doc._id}/edit');
+            router.push(`/documents/contract/${doc.id || doc._id}/edit`);
             return;
         }
         if (doc.isQuote) {
-            router.push('/documents/quote/${doc.id || doc._id}');
+            router.push(`/documents/quote/${doc.id || doc._id}`);
             return;
         }
         if (doc.isInvoice) {
-            router.push('/documents/invoice/${doc.id || doc._id}');
+            router.push(`/documents/invoice/${doc.id || doc._id}`);
             return;
         }
         const isLink = (doc as any).isLinkOnly || (doc as any).fileType === 'link' || doc.type === 'link';

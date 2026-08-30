@@ -146,7 +146,7 @@ export default function ContentCalendarPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {calendars.map((calendar) => (
                         <div key={calendar.id} className="card p-5 hover:shadow-md transition-all group relative overflow-hidden flex flex-col justify-between">
-                            <div onClick={() => router.push('/content-calendar/${calendar.id}')} className="cursor-pointer flex-1">
+                            <div onClick={() => router.push(`/content-calendar/${calendar.id}`)} className="cursor-pointer flex-1">
                                 <div className="flex items-start justify-between mb-3">
                                     <h3 className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors line-clamp-1">{calendar.brandName}</h3>
                                     <span className={clsx('badge', STATUS_COLORS[calendar.status] || 'badge-gray')}>
@@ -186,7 +186,7 @@ export default function ContentCalendarPage() {
                                         {
                                             label: 'Open',
                                             icon: Eye,
-                                            onClick: () => router.push('/content-calendar/${calendar.id}'),
+                                            onClick: () => router.push(`/content-calendar/${calendar.id}`),
                                             variant: 'primary'
                                         },
                                         {

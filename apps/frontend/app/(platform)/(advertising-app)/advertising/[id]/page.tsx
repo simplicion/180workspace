@@ -113,7 +113,7 @@ function WebsiteDashboardInner() {
                         <Globe className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => router.push('/advertising/${website.id}/edit')}
+                        onClick={() => router.push(`/advertising/${website.id}/edit`)}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-sm font-bold text-indigo-600 hover:bg-indigo-100 transition-all"
                     >
                         <Edit3 className="w-4 h-4" />

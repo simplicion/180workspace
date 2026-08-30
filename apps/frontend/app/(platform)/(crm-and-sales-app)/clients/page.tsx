@@ -234,7 +234,7 @@ export default function ClientsPage() {
                                             "hover:bg-gray-50/80 cursor-pointer transition-colors group",
                                             selectedClients.includes(client.id) && "bg-indigo-50/30"
                                         )}
-                                        onClick={() => router.push('/clients/${client.id}')}
+                                        onClick={() => router.push(`/clients/${client.id}`)}
                                     >
                                         <td onClick={(e) => e.stopPropagation()}>
                                             <input 
@@ -343,7 +343,7 @@ export default function ClientsPage() {
                                                     {
                                                         label: 'View Profile',
                                                         icon: Eye,
-                                                        onClick: () => router.push('/clients/${client.id}'),
+                                                        onClick: () => router.push(`/clients/${client.id}`),
                                                         variant: 'primary'
                                                     },
                                                     {

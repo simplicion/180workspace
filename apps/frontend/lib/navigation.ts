@@ -1,5 +1,5 @@
 import { LogoLoader } from "@workspace/ui";
-import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork } from 'lucide-react';
 
 export const navigation = [
     {
@@ -57,6 +57,20 @@ export const navigation = [
         items: [
             { id: 'ad-websites', name: 'Ad Websites', href: '/advertising', icon: Globe, roles: ['admin'] },
             { name: 'Form Builder', href: '/forms', icon: FileText, roles: ['admin'] },
+        ]
+    },
+
+    {
+        group: 'Traffic Director',
+        appId: 'traffic-director',
+        icon: GitFork,
+        roles: ['admin', 'employee'],
+        items: [
+            { id: 'overview', name: 'Traffic Overview', href: '/traffic-director', icon: GitFork, roles: ['admin', 'employee'] },
+            { id: 'links', name: 'Smart Links', href: '/traffic-director/links', icon: Globe, roles: ['admin', 'employee'] },
+            { id: 'simulator', name: 'Routing Simulator', href: '/traffic-director/simulator', icon: Sparkles, roles: ['admin', 'employee'] },
+            { id: 'logs', name: 'Live Stream Logs', href: '/traffic-director/logs', icon: Activity, roles: ['admin', 'employee'] },
+            { id: 'analytics', name: 'Traffic Analytics', href: '/traffic-director/analytics', icon: BarChart3, roles: ['admin', 'employee'] },
         ]
     },
 

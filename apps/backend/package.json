@@ -37,6 +37,7 @@
     "@workspace/public": "workspace:*",
     "@workspace/settings": "workspace:*",
     "@workspace/social-media": "workspace:*",
+    "@workspace/traffic-director": "workspace:*",
     "@workspace/workspace-tools": "workspace:*",
     "axios": "^1.13.6",
     "bad-words": "^3.0.4",

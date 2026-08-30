@@ -131,7 +131,7 @@ export default function CreateCalendarPage() {
         try {
             const res = await contentCalendarService.createCalendar(finalConfig);
             toast.success('Calendar generated successfully!');
-            router.push('/content-calendar/${res.calendar_id}');
+            router.push(`/content-calendar/${res.calendar_id}`);
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to generate calendar');
         } finally {

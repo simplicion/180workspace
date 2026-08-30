@@ -441,7 +441,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 3);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 
