@@ -118,7 +118,7 @@ export default function SmartLinksDirectoryPage() {
       {/* Links List */}
       {loading ? (
         <div className="flex h-64 items-center justify-center">
-          <LogoLoader />
+          <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
         </div>
       ) : links.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">

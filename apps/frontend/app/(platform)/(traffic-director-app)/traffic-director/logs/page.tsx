@@ -98,7 +98,7 @@ export default function TrafficStreamLogsPage() {
       {/* Logs Table */}
       {loading && logs.length === 0 ? (
         <div className="flex h-64 items-center justify-center">
-          <LogoLoader />
+          <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
         </div>
       ) : logs.length > 0 ? (
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
