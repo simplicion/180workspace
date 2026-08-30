@@ -27,6 +27,18 @@ export class TrafficDirectorController {
     }
   }
 
+  static async checkSlug(req: Request, res: Response) {
+    try {
+      const slug = String(req.query.slug || '');
+      const excludeLinkId = req.query.excludeLinkId ? String(req.query.excludeLinkId) : undefined;
+      const result = await TrafficLinksService.checkSlugAvailability(slug, excludeLinkId);
+      return res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.checkSlug]', error);
+      return res.status(500).json({ success: false, error: error.message || 'Failed to check slug' });
+    }
+  }
+
   static async getLinkById(req: Request, res: Response) {
     try {
       const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;

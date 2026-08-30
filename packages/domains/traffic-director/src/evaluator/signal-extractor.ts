@@ -98,10 +98,16 @@ export class SignalExtractor {
     // Device & OS detection
     const { deviceType, os, browser } = this.parseClientCharacteristics(userAgent);
 
-    // Optional telemetry parameters passed from client probe
-    const touchPoints = query.tp ? parseInt(query.tp as string, 10) : undefined;
-    const gpuRenderer = (query.gpu as string) || undefined;
-    const batteryLevel = query.bat ? parseFloat(query.bat as string) : undefined;
+    // Optional telemetry parameters passed from client probe (query or JSON body)
+    const body = req.body || {};
+    const touchPoints = typeof query.tp !== 'undefined' 
+      ? parseInt(query.tp as string, 10) 
+      : (typeof body.touchPoints === 'number' ? body.touchPoints : undefined);
+
+    const gpuRenderer = (query.gpu as string) || (typeof body.gpuRenderer === 'string' ? body.gpuRenderer : undefined);
+    const batteryLevel = typeof query.bat !== 'undefined' 
+      ? parseFloat(query.bat as string) 
+      : (typeof body.batteryLevel === 'number' ? body.batteryLevel : undefined);
     
     let isEmulated = false;
     if (gpuRenderer && /swiftshader|llvmpipe|software rasterizer|virtualbox/i.test(gpuRenderer)) {

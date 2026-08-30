@@ -219,4 +219,26 @@ export class TrafficLinksService {
 
     return { success: true };
   }
+
+  static async checkSlugAvailability(slug: string, excludeLinkId?: string): Promise<{ available: boolean; slug: string }> {
+    const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/^-+|-+$/g, '');
+    if (!cleanSlug) {
+      return { available: false, slug: cleanSlug };
+    }
+
+    const existing = await db.trafficLink.findUnique({
+      where: { slug: cleanSlug }
+    });
+
+    if (!existing) {
+      return { available: true, slug: cleanSlug };
+    }
+
+    if (excludeLinkId && existing.id === excludeLinkId) {
+      return { available: true, slug: cleanSlug };
+    }
+
+    return { available: false, slug: cleanSlug };
+  }
 }
+
