@@ -166,9 +166,8 @@ app.use('/v1', (req, res, next) => {
 });
 
 // ─── Public Traffic Director Edge Routing ─────────────────────────────────────
-const { publicRoutes: trafficDirectorPublicRoutes } = require('./src/api/v1/traffic-director/index');
 const { PublicRoutingController } = require('./src/api/v1/traffic-director/public-routing.controller');
-app.use('/r', trafficDirectorPublicRoutes);
+app.get('/r/:slug', (req, res, next) => PublicRoutingController.handleRedirect(req, res).catch(next));
 app.get('/shield/:slug', (req, res, next) => PublicRoutingController.handleShieldRoute(req, res).catch(next));
 app.all('/tag/:slug', (req, res, next) => PublicRoutingController.handleDynamicTag(req, res).catch(next));
 app.post('/evaluate/:slug', (req, res, next) => PublicRoutingController.handleEdgeEvaluate(req, res).catch(next));

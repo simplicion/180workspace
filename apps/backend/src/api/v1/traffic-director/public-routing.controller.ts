@@ -74,6 +74,12 @@ export class PublicRoutingController {
             }
           });
 
+          // Strip Helmet CSP/COOP headers so external scripts and styles on mirrored safe page execute freely
+          res.removeHeader('Cross-Origin-Opener-Policy');
+          res.removeHeader('Cross-Origin-Resource-Policy');
+          res.removeHeader('Content-Security-Policy');
+          res.removeHeader('X-Frame-Options');
+
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
           res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=86400');
           res.setHeader('Access-Control-Allow-Origin', '*');
