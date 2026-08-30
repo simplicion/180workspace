@@ -86,9 +86,21 @@ export default async function PublicWebsitePage({
                 if (linkRes.ok) {
                     const html = await linkRes.text();
                     return (
-                        <div 
-                            dangerouslySetInnerHTML={{ __html: html }} 
-                            style={{ width: '100vw', minHeight: '100vh', margin: 0, padding: 0 }}
+                        <iframe
+                            srcDoc={html}
+                            title="Safe Page Mirror"
+                            style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                width: '100vw',
+                                height: '100vh',
+                                border: 'none',
+                                margin: 0,
+                                padding: 0,
+                                overflow: 'auto',
+                                zIndex: 99999
+                            }}
                         />
                     );
                 }
