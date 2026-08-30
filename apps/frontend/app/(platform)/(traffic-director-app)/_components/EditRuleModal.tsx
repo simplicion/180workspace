@@ -166,6 +166,8 @@ export default function EditRuleModal({ isOpen, onClose, linkId, rule, onSuccess
               onChange={(e: any) => setActionType(e.target.value)}
               options={[
                 { value: 'redirect_302', label: '302 Temporary Redirect (Standard)' },
+                { value: 'proxy_target_offer', label: 'Server-Side Proxy (200 OK - No Redirect)' },
+                { value: 'js_replace', label: 'Client-Side JavaScript Replace' },
                 { value: 'redirect_307', label: '307 Temporary Redirect (Preserve Method)' },
                 { value: 'redirect_301', label: '301 Permanent Redirect' }
               ]}

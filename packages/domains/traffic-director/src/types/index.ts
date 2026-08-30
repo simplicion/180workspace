@@ -67,11 +67,20 @@ export interface ExtractedSignals {
   timestamp: Date;
 }
 
+export type TrafficActionType = 
+  | 'redirect_302' 
+  | 'redirect_301' 
+  | 'redirect_307' 
+  | 'rewrite'
+  | 'proxy_safe_page'
+  | 'proxy_target_offer'
+  | 'js_replace';
+
 export interface EvaluationResult {
   matchedRuleId: string | null;
   matchedRuleName: string | null;
   destinationUrl: string;
-  actionType: 'redirect_302' | 'redirect_301' | 'redirect_307' | 'rewrite';
+  actionType: TrafficActionType;
   isFallback: boolean;
   evaluationLatencyMs: number;
   signals: ExtractedSignals;
@@ -93,6 +102,7 @@ export interface CreateTrafficLinkDTO {
   rampUpDurationHours?: number;
   shieldMode?: 'server' | 'client_shield' | 'hybrid';
   datacenterBlocked?: boolean;
+  safePageProxyMode?: boolean;
 }
 
 export interface UpdateTrafficLinkDTO {
@@ -108,6 +118,7 @@ export interface UpdateTrafficLinkDTO {
   rampUpDurationHours?: number;
   shieldMode?: 'server' | 'client_shield' | 'hybrid';
   datacenterBlocked?: boolean;
+  safePageProxyMode?: boolean;
 }
 
 export interface CreateTrafficRuleDTO {
@@ -115,7 +126,7 @@ export interface CreateTrafficRuleDTO {
   name: string;
   priority?: number;
   destinationUrl: string;
-  actionType?: 'redirect_302' | 'redirect_301' | 'redirect_307' | 'rewrite';
+  actionType?: TrafficActionType;
   conditions: RuleCondition[];
   weight?: number;
   isActive?: boolean;
@@ -125,7 +136,7 @@ export interface UpdateTrafficRuleDTO {
   name?: string;
   priority?: number;
   destinationUrl?: string;
-  actionType?: 'redirect_302' | 'redirect_301' | 'redirect_307' | 'rewrite';
+  actionType?: TrafficActionType;
   conditions?: RuleCondition[];
   weight?: number;
   isActive?: boolean;

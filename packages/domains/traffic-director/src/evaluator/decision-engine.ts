@@ -19,6 +19,7 @@ export interface EvaluatableLink {
   rampUpEnabled?: boolean;
   rampUpDurationHours?: number;
   datacenterBlocked?: boolean;
+  safePageProxyMode?: boolean;
   createdAt?: Date | string | null;
   rules: EvaluatableRule[];
 }
@@ -26,6 +27,7 @@ export interface EvaluatableLink {
 export class DecisionEngine {
   static evaluate(link: EvaluatableLink, signals: ExtractedSignals): EvaluationResult {
     const startTime = performance.now();
+    const fallbackAction = link.safePageProxyMode !== false ? 'proxy_safe_page' : 'redirect_302';
 
     if (!link.isActive) {
       const elapsed = Math.round(performance.now() - startTime);
@@ -33,7 +35,7 @@ export class DecisionEngine {
         matchedRuleId: null,
         matchedRuleName: null,
         destinationUrl: link.fallbackUrl,
-        actionType: 'redirect_302',
+        actionType: fallbackAction,
         isFallback: true,
         evaluationLatencyMs: elapsed,
         signals
@@ -51,7 +53,7 @@ export class DecisionEngine {
           matchedRuleId: null,
           matchedRuleName: 'Temporal Warmup Safe Mode',
           destinationUrl: link.fallbackUrl,
-          actionType: 'redirect_302',
+          actionType: fallbackAction,
           isFallback: true,
           warmupBlocked: true,
           evaluationLatencyMs: elapsed,
@@ -67,7 +69,7 @@ export class DecisionEngine {
         matchedRuleId: null,
         matchedRuleName: 'Datacenter ASN Firewall Drop',
         destinationUrl: link.fallbackUrl,
-        actionType: 'redirect_302',
+        actionType: fallbackAction,
         isFallback: true,
         datacenterBlocked: true,
         evaluationLatencyMs: elapsed,
@@ -96,7 +98,7 @@ export class DecisionEngine {
             matchedRuleId: null,
             matchedRuleName: `Stealth Ramp-Up (${Math.round(rampFactor * 100)}%)`,
             destinationUrl: link.fallbackUrl,
-            actionType: 'redirect_302',
+            actionType: fallbackAction,
             isFallback: true,
             rampUpApplied: true,
             evaluationLatencyMs: elapsed,
@@ -150,7 +152,7 @@ export class DecisionEngine {
       matchedRuleId: null,
       matchedRuleName: null,
       destinationUrl: link.fallbackUrl,
-      actionType: 'redirect_302',
+      actionType: fallbackAction,
       isFallback: true,
       evaluationLatencyMs: elapsed,
       signals
