@@ -43,7 +43,7 @@ export default function EmbedTagModal({
     setDeploymentMode(shieldMode === 'client_shield' ? 'code_injection' : 'smart_link');
   }, [shieldMode, isOpen]);
 
-  const [snippetType, setSnippetType] = useState<'html_script' | 'wordpress_php' | 'inline_shield'>('html_script');
+  const [snippetType, setSnippetType] = useState<'html_script' | 'wordpress_php' | 'edge_middleware' | 'inline_shield'>('html_script');
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const [verificationUrl, setVerificationUrl] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -63,6 +63,41 @@ export default function EmbedTagModal({
 
   const scriptTagCode = `<script src="${apiBase}/tag/${slug}.js" async></script>`;
   
+  const edgeMiddlewareCode = `/**
+ * 180workspace Traffic Director - Server-Side Edge Middleware
+ * Place in middleware.js (or middleware.ts) at the root of your Vercel / Next.js / Node app
+ */
+export const config = {
+  matcher: ['/((?!assets|_next|favicon.ico|.*\\..*).*)'],
+};
+
+export default async function middleware(request) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '';
+  const ua = request.headers.get('user-agent') || '';
+  const ref = request.headers.get('referer') || '';
+  const url = request.url;
+
+  try {
+    const res = await fetch('${apiBase.replace(/\/+$/, '')}/api/v1/traffic-director/evaluate/${slug}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, userAgent: ua, referrer: ref, url }),
+      signal: AbortSignal.timeout(1200)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data?.route === 'target' && data?.destinationUrl) {
+        if (url !== data.destinationUrl) {
+          return Response.redirect(data.destinationUrl, 302);
+        }
+      }
+    }
+  } catch (err) {
+    // Fail silently: serve the normal safe page on timeout or error
+  }
+}`;
+
   const inlineShieldCode = `<!-- 180workspace Stealth Ad Shield Tag -->
 <script>
 (function(){
@@ -253,6 +288,16 @@ add_action('template_redirect', function() {
                       WordPress PHP
                     </button>
                     <button
+                      onClick={() => setSnippetType('edge_middleware')}
+                      className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition ${
+                        snippetType === 'edge_middleware'
+                          ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      Edge Middleware
+                    </button>
+                    <button
                       onClick={() => setSnippetType('inline_shield')}
                       className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition ${
                         snippetType === 'inline_shield'
@@ -273,13 +318,15 @@ add_action('template_redirect', function() {
                       <span>
                         {snippetType === 'html_script' && 'HTML Header Embed'}
                         {snippetType === 'wordpress_php' && 'WordPress Hook (functions.php)'}
+                        {snippetType === 'edge_middleware' && 'Edge Middleware (middleware.js / Vercel)'}
                         {snippetType === 'inline_shield' && 'Standalone Shield Script'}
                       </span>
                     </div>
                     <button
                       onClick={() => copyToClipboard(
                         snippetType === 'html_script' ? scriptTagCode :
-                        snippetType === 'wordpress_php' ? wordPressPhpCode : inlineShieldCode,
+                        snippetType === 'wordpress_php' ? wordPressPhpCode :
+                        snippetType === 'edge_middleware' ? edgeMiddlewareCode : inlineShieldCode,
                         'snippet'
                       )}
                       className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs flex items-center gap-1.5 transition font-sans font-medium"
@@ -293,6 +340,7 @@ add_action('template_redirect', function() {
                     <code>
                       {snippetType === 'html_script' && scriptTagCode}
                       {snippetType === 'wordpress_php' && wordPressPhpCode}
+                      {snippetType === 'edge_middleware' && edgeMiddlewareCode}
                       {snippetType === 'inline_shield' && inlineShieldCode}
                     </code>
                   </pre>
