@@ -96,12 +96,42 @@ export class PublicRoutingController {
         ? 301 
         : (result.actionType === 'redirect_307' ? 307 : 302);
 
+      // Strip COOP / CSP / X-Frame-Options headers from Helmet that can break cross-origin redirection
+      res.removeHeader('Cross-Origin-Opener-Policy');
+      res.removeHeader('Cross-Origin-Resource-Policy');
+      res.removeHeader('Content-Security-Policy');
+      res.removeHeader('X-Frame-Options');
+
       // Add no-cache headers so dynamic routing is re-evaluated on each request
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      res.setHeader('Location', finalDestination);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
-      return res.redirect(statusCode, finalDestination);
+      const safeUrl = JSON.stringify(finalDestination);
+      return res.status(statusCode).send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0;url=${finalDestination}">
+  <title>Redirecting...</title>
+  <script>
+    try { window.location.replace(${safeUrl}); } catch(e) { window.location.href = ${safeUrl}; }
+  </script>
+</head>
+<body style="font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fafafa;color:#333;">
+  <div style="text-align:center;">
+    <p style="font-size:14px;margin-bottom:8px;">Redirecting...</p>
+    <a href="${finalDestination}" style="font-size:12px;color:#6366f1;text-decoration:none;">Click here if you are not redirected automatically</a>
+  </div>
+  <script>
+    setTimeout(function() {
+      try { window.location.replace(${safeUrl}); } catch(e) { window.location.href = ${safeUrl}; }
+    }, 100);
+  </script>
+</body>
+</html>`);
     } catch (error: any) {
       console.error('[PublicRoutingController.handleRedirect]', error);
       return res.status(500).send('Routing Error');

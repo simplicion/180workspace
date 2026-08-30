@@ -156,11 +156,17 @@ add_action('template_redirect', function() {
 
   const directUrl = `${apiBase}/r/${slug}`;
   const protocol = typeof window !== 'undefined' ? `${window.location.protocol}//` : (process.env.NODE_ENV === 'development' ? 'http://' : 'https://');
-  const brandedUrl = customDomain 
-    ? (customDomain.startsWith('http://') || customDomain.startsWith('https://') 
-        ? `${customDomain}/${slug}` 
-        : `${protocol}${customDomain}/${slug}`)
-    : null;
+  const portSuffix = (typeof window !== 'undefined' && window.location.port && !customDomain?.includes(':')) ? `:${window.location.port}` : '';
+
+  let fullHost = customDomain || '';
+  if (fullHost && !fullHost.startsWith('http://') && !fullHost.startsWith('https://')) {
+    if (fullHost.includes('localhost') && portSuffix) {
+      fullHost = `${fullHost}${portSuffix}`;
+    }
+    fullHost = `${protocol}${fullHost}`;
+  }
+
+  const brandedUrl = fullHost ? `${fullHost.replace(/\/+$/, '')}/${slug}` : null;
 
   return (
     <>

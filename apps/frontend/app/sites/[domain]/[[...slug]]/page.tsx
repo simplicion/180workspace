@@ -21,7 +21,7 @@ export default async function PublicWebsitePage({
         const apiBase = process.env.NEXT_PUBLIC_API_URL || 
             process.env.NEXT_PUBLIC_BACKEND_URL || 
             process.env.BACKEND_INTERNAL_URL || 
-            (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : '');
+            (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
         
         const searchParams = new URLSearchParams();
         searchParams.append('domain', domain);
@@ -59,7 +59,7 @@ export default async function PublicWebsitePage({
             const apiBase = process.env.NEXT_PUBLIC_API_URL || 
                 process.env.NEXT_PUBLIC_BACKEND_URL || 
                 process.env.BACKEND_INTERNAL_URL || 
-                (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'http://localhost:5000');
+                (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
             
             try {
                 const headerList = await headers();
