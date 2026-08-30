@@ -189,14 +189,32 @@ router.options('/v1/traffic-director/evaluate/:slug', (req, res) => {
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(200).end();
 });
-router.post('/v1/traffic-director/evaluate/:slug', (req, res) => {
-    return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
+router.post('/v1/traffic-director/evaluate/:slug', (req, res, next) => {
+    try {
+        const mod = require('../api/v1/traffic-director/public-routing.controller');
+        const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
+        return ctrl.handleEdgeEvaluate(req, res);
+    } catch (err) {
+        next(err);
+    }
 });
-router.all('/v1/traffic-director/tag/:slug', (req, res) => {
-    return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleDynamicTag(req, res);
+router.all('/v1/traffic-director/tag/:slug', (req, res, next) => {
+    try {
+        const mod = require('../api/v1/traffic-director/public-routing.controller');
+        const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
+        return ctrl.handleDynamicTag(req, res);
+    } catch (err) {
+        next(err);
+    }
 });
-router.post('/v1/traffic-director/verify-tag', (req, res) => {
-    return require('../api/v1/traffic-director/traffic-director.controller').TrafficDirectorController.verifyTagInstallation(req, res);
+router.post('/v1/traffic-director/verify-tag', (req, res, next) => {
+    try {
+        const mod = require('../api/v1/traffic-director/traffic-director.controller');
+        const ctrl = mod.TrafficDirectorController || mod.default?.TrafficDirectorController || mod;
+        return ctrl.verifyTagInstallation(req, res);
+    } catch (err) {
+        next(err);
+    }
 });
 
 router.use('/v1/communications', protect, communicationsRoutes);
