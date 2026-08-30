@@ -99,18 +99,6 @@ export class TrafficLinksService {
     return link;
   }
 
-  static async checkSlugAvailability(slug: string, excludeLinkId?: string) {
-    const existing = await db.trafficLink.findUnique({
-      where: { slug }
-    });
-
-    if (existing && existing.id !== excludeLinkId) {
-      return { available: false, reason: 'This slug is already in use.' };
-    }
-
-    return { available: true };
-  }
-
   static async createLink(companyId: string | undefined, data: CreateTrafficLinkDTO) {
     const effectiveCompanyId = this.resolveCompanyId(companyId) || data.companyId;
     if (!effectiveCompanyId) {
@@ -220,10 +208,10 @@ export class TrafficLinksService {
     return { success: true };
   }
 
-  static async checkSlugAvailability(slug: string, excludeLinkId?: string): Promise<{ available: boolean; slug: string }> {
+  static async checkSlugAvailability(slug: string, excludeLinkId?: string): Promise<{ available: boolean; slug: string; reason?: string }> {
     const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/^-+|-+$/g, '');
     if (!cleanSlug) {
-      return { available: false, slug: cleanSlug };
+      return { available: false, slug: cleanSlug, reason: 'Slug cannot be empty.' };
     }
 
     const existing = await db.trafficLink.findUnique({
@@ -238,7 +226,7 @@ export class TrafficLinksService {
       return { available: true, slug: cleanSlug };
     }
 
-    return { available: false, slug: cleanSlug };
+    return { available: false, slug: cleanSlug, reason: 'This slug is already in use.' };
   }
 }
 

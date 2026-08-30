@@ -1,5 +1,6 @@
 import { prisma } from '@workspace/db';
-import PDFDocument from 'pdfkit';
+// @ts-ignore
+const PDFDocument = require('pdfkit');
 
 export class PDFService {
     /**
