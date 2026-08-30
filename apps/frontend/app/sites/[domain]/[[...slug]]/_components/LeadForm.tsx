@@ -26,7 +26,9 @@ export function LeadFormWrapper({ domain, slug, primaryColor, buttonText, succes
         e.preventDefault();
         try {
             setSubmitting(true);
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 
+                process.env.NEXT_PUBLIC_BACKEND_URL || 
+                (typeof window !== 'undefined' ? window.location.origin : '');
             
             const params = new URLSearchParams();
             params.append('domain', domain);

@@ -183,7 +183,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                 {!isPublicView && company.slug && (
                                     <a 
                                         href={(() => {
-                                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '180workspace.com';
+                                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'localhost' : '180workspace.com');
                                             const protocol = (typeof window !== 'undefined' && window.location.protocol === 'https:') || (rootDomain !== 'localhost' && !rootDomain.includes('127.0.0.1')) ? 'https://' : 'http://';
                                             const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
                                             return `${protocol}${company.slug}.${rootDomain}${port}`;

@@ -240,7 +240,7 @@ function LoginForm() {
             </div>
 
             {/* ── Back to Landing Page Button ─────────────────────────── */}
-            <Link href={process.env.NEXT_PUBLIC_MARKETING_URL || 'http://localhost:3004'} className="absolute top-6 left-6 z-50">
+            <Link href={process.env.NEXT_PUBLIC_MARKETING_URL || '/'} className="absolute top-6 left-6 z-50">
                 <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

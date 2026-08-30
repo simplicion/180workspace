@@ -80,8 +80,8 @@ const allowedOrigins = process.env.CLIENT_URL
 
 app.use(cors({
     origin: (origin, callback) => {
-        console.log('RECEIVED ORIGIN:', origin);
-        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.180workspace.com') || process.env.NODE_ENV === 'development') {
+        const rootDomain = process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com';
+        if (!origin || allowedOrigins.includes(origin) || (rootDomain && origin.endsWith(`.${rootDomain}`)) || process.env.NODE_ENV === 'development') {
             return callback(null, true);
         }
         return callback(new Error('CORS policy violation'), false);

@@ -61,6 +61,9 @@ export class SignalExtractor {
       'US';
 
     const city = (headers['cf-ipcity'] as string) || (headers['x-geo-city'] as string) || 'Unknown';
+    const postalCode = (headers['cf-postal-code'] as string) || (headers['x-geo-postal-code'] as string) || (headers['x-postal-code'] as string) || (headers['x-zip-code'] as string) || (query.zip as string) || (query.postal_code as string) || undefined;
+    const region = (headers['cf-region'] as string) || (headers['cf-region-code'] as string) || (headers['x-geo-region'] as string) || undefined;
+    const timezone = (headers['cf-timezone'] as string) || (headers['x-timezone'] as string) || (query.tz as string) || undefined;
     const language = (headers['accept-language'] as string)?.split(',')[0]?.split(';')[0]?.trim() || 'en';
 
     // Bot detection
@@ -114,6 +117,10 @@ export class SignalExtractor {
 
     // Optional telemetry parameters passed from client probe (query or JSON body)
     const body = req.body || {};
+    const finalPostal = postalCode || (body.postalCode as string) || (body.zip as string) || undefined;
+    const finalRegion = region || (body.region as string) || undefined;
+    const finalTimezone = timezone || (body.timezone as string) || undefined;
+
     const touchPoints = typeof query.tp !== 'undefined' 
       ? parseInt(query.tp as string, 10) 
       : (typeof body.touchPoints === 'number' ? body.touchPoints : undefined);
@@ -141,6 +148,9 @@ export class SignalExtractor {
       ipAddress: rawIp,
       country: country.toUpperCase(),
       city,
+      postalCode: finalPostal,
+      region: finalRegion,
+      timezone: finalTimezone,
       deviceType,
       os,
       browser,
@@ -183,7 +193,13 @@ export class SignalExtractor {
     else if (/linux/i.test(lower)) os = 'Linux';
 
     let browser = 'Unknown Browser';
-    if (/edg\//i.test(lower)) browser = 'Microsoft Edge';
+    if (/instagram/i.test(lower)) browser = 'Instagram In-App';
+    else if (/tiktok|bytedance|musical_ly/i.test(lower)) browser = 'TikTok In-App';
+    else if (/fban|fbav|fb_iab/i.test(lower)) browser = 'Facebook In-App';
+    else if (/snapchat/i.test(lower)) browser = 'Snapchat In-App';
+    else if (/samsungbrowser/i.test(lower)) browser = 'Samsung Browser';
+    else if (/brave/i.test(lower)) browser = 'Brave';
+    else if (/edg\//i.test(lower)) browser = 'Microsoft Edge';
     else if (/chrome|crios/i.test(lower)) browser = 'Chrome';
     else if (/firefox|fxios/i.test(lower)) browser = 'Firefox';
     else if (/safari/i.test(lower) && !/chrome/i.test(lower)) browser = 'Safari';

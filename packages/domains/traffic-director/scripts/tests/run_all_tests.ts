@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 
 console.log('================================================================');
-console.log('  180WORKSPACE TRAFFIC DIRECTOR: 10-SUITE AUTOMATED TEST RUNNER ');
+console.log('  180WORKSPACE TRAFFIC DIRECTOR: 16-SUITE AUTOMATED TEST RUNNER ');
 console.log('================================================================\n');
 
 const testFiles = [
@@ -20,7 +20,8 @@ const testFiles = [
   'test_12_stealth_ramp_up_and_cliff_prevention.ts',
   'test_13_deep_production_audit_5_pillars.ts',
   'test_14_custom_domain_centralized_manager.ts',
-  'test_15_centralized_custom_domain_e2e_simulation.ts'
+  'test_15_centralized_custom_domain_e2e_simulation.ts',
+  'test_16_pincode_and_advanced_targeting_matrix.ts'
 ];
 
 let totalPassed = 0;
@@ -30,7 +31,7 @@ const results: { file: string; status: 'PASSED' | 'FAILED'; output?: string; err
 for (let i = 0; i < testFiles.length; i++) {
   const file = testFiles[i];
   const filePath = path.join(__dirname, file);
-  console.log(`[Running Suite ${i + 1}/10] ${file}...`);
+  console.log(`[Running Suite ${i + 1}/${testFiles.length}] ${file}...`);
   try {
     const output = execSync(`npx tsx "${filePath}"`, {
       encoding: 'utf-8',

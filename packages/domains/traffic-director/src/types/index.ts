@@ -1,6 +1,9 @@
 export type ConditionType = 
   | 'geo_country' 
+  | 'geo_postal_code'
+  | 'geo_region'
   | 'geo_city' 
+  | 'geo_timezone'
   | 'device_type' 
   | 'os' 
   | 'browser' 
@@ -27,7 +30,8 @@ export type ConditionOperator =
   | 'not_in' 
   | 'regex' 
   | 'exists' 
-  | 'not_exists';
+  | 'not_exists'
+  | 'starts_with';
 
 export interface RuleCondition {
   type: ConditionType;
@@ -40,6 +44,9 @@ export interface ExtractedSignals {
   ipAddress: string;
   country: string;
   city: string;
+  postalCode?: string;
+  region?: string;
+  timezone?: string;
   deviceType: 'mobile' | 'tablet' | 'desktop' | 'unknown';
   os: string;
   browser: string;

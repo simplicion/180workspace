@@ -912,7 +912,7 @@ export class AuthService {
         });
 
         const mailOptions = {
-            from: process.env.EMAIL_FROM || '"180Workspace Auth" <noreply@180workspace.com>',
+            from: process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@localhost',
             to: email,
             subject: "Your PitchIn Verification Code",
             html: `<div style="font-family: Arial, sans-serif; padding: 20px;">

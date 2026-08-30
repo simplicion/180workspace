@@ -17,7 +17,10 @@ export default async function PublicWebsitePage({
     let error = '';
 
     try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 
+            process.env.NEXT_PUBLIC_BACKEND_URL || 
+            process.env.BACKEND_INTERNAL_URL || 
+            (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : '');
         
         const searchParams = new URLSearchParams();
         searchParams.append('domain', domain);

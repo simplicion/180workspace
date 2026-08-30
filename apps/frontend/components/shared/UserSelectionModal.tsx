@@ -77,11 +77,11 @@ export default function UserSelectionModal({
     if (!isOpen || !mounted) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200 border border-gray-100 dark:border-gray-800">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
-                    <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
@@ -124,7 +124,7 @@ export default function UserSelectionModal({
                                         }
                                     }}
                                     className={clsx(
-                                        "w-full flex items-center justify-between p-3 rounded-xl transition-colors text-left group",
+                                        "w-full flex items-center justify-between p-3 rounded-xl transition-colors text-left group cursor-pointer",
                                         isSelected ? "bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200" : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                                     )}
                                 >
@@ -164,10 +164,10 @@ export default function UserSelectionModal({
                         {selected.length} selected
                     </p>
                     <div className="flex gap-2">
-                        <button onClick={onClose} className="btn-secondary py-2">Cancel</button>
+                        <button onClick={onClose} className="btn-secondary py-2 cursor-pointer">Cancel</button>
                         <button
                             onClick={() => onSelect(selected)}
-                            className="btn-primary py-2 px-6"
+                            className="btn-primary py-2 px-6 cursor-pointer"
                             disabled={loading}
                         >
                             Confirm Selection
