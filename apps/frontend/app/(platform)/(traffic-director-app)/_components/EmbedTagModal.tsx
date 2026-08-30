@@ -160,8 +160,28 @@ add_action('template_redirect', function() {
         width="600px"
       >
         <div className="space-y-5">
+          {/* Strategy Advisory Banner */}
+          <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+              <strong className="font-semibold">Important Deployment Guide:</strong> Choose <strong>ONE</strong> method below. If you use a Connected Domain/Subdomain (Method 1), you <u>do not</u> need to paste code into your safe page.
+            </div>
+          </div>
+
           {/* Tab Navigation */}
           <div className="grid grid-cols-2 gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl text-xs font-semibold">
+            <button
+              onClick={() => setActiveTab('direct_link')}
+              className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'direct_link'
+                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>1. Connected Domain (No Code)</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('self_hosted')}
               className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
@@ -171,30 +191,17 @@ add_action('template_redirect', function() {
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
-              <span>1. Self-Hosted Tag</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('direct_link')}
-              className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
-                activeTab === 'direct_link'
-                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <MonitorSmartphone className="w-3.5 h-3.5" />
-              <span>2. Direct Link</span>
+              <span>2. Code Injection (Tag/PHP)</span>
             </button>
           </div>
 
-          {/* TAB 1: SELF-HOSTED PIXEL TAG */}
-          {activeTab === 'self_hosted' && (
+          {/* TAB 1: CONNECTED DOMAIN & DIRECT SMART LINK */}
+          {activeTab === 'direct_link' && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              {/* Value Proposition Callout */}
-              <div className="p-3.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Embed on your safe page. Ad review crawlers inspect clean content while real users route seamlessly to your targeted offer.
+              <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed">
+                  <strong>Zero-Code Setup:</strong> Submit your connected domain/subdomain URL to ad networks. Meta/Google review bots will automatically see your compliant safe page directly on your custom domain with <strong>HTTP 200 OK</strong>.
                 </p>
               </div>
 
