@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   GitFork, Link as LinkIcon, Activity, ShieldCheck, Globe, 
-  Smartphone, Plus, ArrowRight, Play, ExternalLink, RefreshCw, Bot, Users
+  Smartphone, Plus, Play, ExternalLink, RefreshCw, Bot, Users
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -90,120 +90,222 @@ export default function TrafficDirectorOverviewPage() {
         </div>
       </div>
 
+      {/* Anomaly Alert Banner */}
+      {stats?.anomalyDetected && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-start gap-3.5 text-rose-900 dark:text-rose-200">
+          <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-400 shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5 text-xs">
+            <span className="font-bold text-sm">Ad Traffic Anomaly Alert</span>
+            <p className="text-rose-700 dark:text-rose-300">
+              {stats.anomalyMessage || 'Unusual surge in automated crawler and cloud datacenter ASN traffic detected.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Total Traffic */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
           <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Traffic</span>
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+            <span className="text-xs font-bold uppercase tracking-wider">Total Traffic</span>
+            <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
               <Activity className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
+            <span className="text-2xl font-extrabold text-gray-900 dark:text-white">
               {(stats?.totalRequests || 0).toLocaleString()}
             </span>
-            <span className="text-xs text-emerald-500 font-medium">routed</span>
+            <span className="text-xs text-indigo-500 font-semibold">routed</span>
           </div>
-          <p className="text-xs text-gray-400">Across {stats?.totalLinks || 0} active links</p>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+            <div className="bg-indigo-500 h-full rounded-full w-full" />
+          </div>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
+        {/* Human Traffic */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
           <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Human Traffic</span>
-            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-bold uppercase tracking-wider">Human Traffic</span>
+            <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
               <Users className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
+            <span className="text-2xl font-extrabold text-gray-900 dark:text-white">
               {(stats?.totalHumans || 0).toLocaleString()}
             </span>
-            <span className="text-xs text-emerald-500 font-medium">
+            <span className="text-xs font-semibold text-emerald-500">
               {stats?.totalRequests > 0 ? Math.round(((stats?.totalHumans || 0) / stats.totalRequests) * 100) : 100}%
             </span>
           </div>
-          <p className="text-xs text-gray-400">Targeted real users</p>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-emerald-500 h-full rounded-full transition-all"
+              style={{ width: `${stats?.totalRequests > 0 ? Math.round(((stats?.totalHumans || 0) / stats.totalRequests) * 100) : 100}%` }}
+            />
+          </div>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
+        {/* Bot & Crawlers */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
           <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Bot / Crawler Ratio</span>
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
+            <span className="text-xs font-bold uppercase tracking-wider">Bot & Scrapers</span>
+            <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
               <Bot className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
+            <span className="text-2xl font-extrabold text-gray-900 dark:text-white">
+              {(stats?.totalBots || 0).toLocaleString()}
+            </span>
+            <span className="text-xs font-semibold text-amber-500">
               {stats?.botRatio || 0}%
             </span>
-            <span className="text-xs text-amber-500 font-medium">
-              {(stats?.totalBots || 0).toLocaleString()} detected
-            </span>
           </div>
-          <p className="text-xs text-gray-400">Googlebot, scrapers & crawlers</p>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-amber-500 h-full rounded-full transition-all"
+              style={{ width: `${stats?.botRatio || 0}%` }}
+            />
+          </div>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
+        {/* Datacenter ASNs */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
           <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Active Links</span>
-            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+            <span className="text-xs font-bold uppercase tracking-wider">Datacenter ASNs</span>
+            <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
+              <Globe className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-gray-900 dark:text-white">
+              {(stats?.totalDatacenter || 0).toLocaleString()}
+            </span>
+            <span className="text-xs font-semibold text-rose-500">
+              {stats?.datacenterRatio || 0}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-rose-500 h-full rounded-full transition-all"
+              style={{ width: `${stats?.datacenterRatio || 0}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Active Links */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-3 sm:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+            <span className="text-xs font-bold uppercase tracking-wider">Active Links</span>
+            <div className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
               <LinkIcon className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
+            <span className="text-2xl font-extrabold text-gray-900 dark:text-white">
               {stats?.activeLinks || 0}
             </span>
-            <span className="text-xs text-gray-400">/ {stats?.totalLinks || 0} configured</span>
+            <span className="text-xs text-purple-500 font-semibold">
+              / {stats?.totalLinks || 0} total
+            </span>
           </div>
-          <p className="text-xs text-gray-400">Routing in production</p>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-purple-500 h-full rounded-full transition-all"
+              style={{
+                width: `${stats?.totalLinks > 0 ? Math.round(((stats?.activeLinks || 0) / stats.totalLinks) * 100) : 100}%`
+              }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <Link
-          href="/traffic-director/links"
-          className="group p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-900/50 shadow-sm hover:shadow-md transition space-y-2"
-        >
+      {/* Analytics Breakdown Grid: Geographies & Devices */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Geographies */}
+        <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition">
-              <LinkIcon className="w-5 h-5" />
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-indigo-500" />
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                Top Geographies (Countries)
+              </h2>
             </div>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
+            <span className="text-[11px] text-gray-400 font-medium">
+              {stats?.topCountries?.length || 0} active regions
+            </span>
           </div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-base">Smart Links & Rules</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Manage short URL aliases, IF/THEN condition matrices, and destination targets.</p>
-        </Link>
 
-        <Link
-          href="/traffic-director/simulator"
-          className="group p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-purple-200 dark:hover:border-purple-900/50 shadow-sm hover:shadow-md transition space-y-2"
-        >
-          <div className="flex items-center justify-between">
-            <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition">
-              <Play className="w-5 h-5" />
+          {stats?.topCountries && stats.topCountries.length > 0 ? (
+            <div className="space-y-3">
+              {stats.topCountries.map((c: any, idx: number) => {
+                const total = stats?.totalRequests || 1;
+                const pct = Math.round((c.count / total) * 100);
+                return (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-medium">
+                      <span className="text-gray-900 dark:text-white font-semibold">{c.country}</span>
+                      <span className="text-gray-400">{c.count} visits ({pct}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-indigo-500 h-full rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition" />
-          </div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-base">Routing Simulator</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Test client profiles, simulated IPs, and User-Agents to preview routing decisions before going live.</p>
-        </Link>
+          ) : (
+            <div className="py-8 text-center text-xs text-gray-400">No geographic data recorded yet.</div>
+          )}
+        </div>
 
-        <Link
-          href="/traffic-director/logs"
-          className="group p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-emerald-200 dark:hover:border-emerald-900/50 shadow-sm hover:shadow-md transition space-y-2"
-        >
+        {/* Device Classification */}
+        <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition">
-              <Activity className="w-5 h-5" />
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-purple-500" />
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                Device Classification
+              </h2>
             </div>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition" />
+            <span className="text-[11px] text-gray-400 font-medium">
+              Hardware & OS split
+            </span>
           </div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-base">Live Stream Inspector</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Inspect live request headers, matched rules, decision latencies, and bot classification logs.</p>
-        </Link>
+
+          {stats?.topDevices && stats.topDevices.length > 0 ? (
+            <div className="space-y-3">
+              {stats.topDevices.map((d: any, idx: number) => {
+                const total = stats?.totalRequests || 1;
+                const pct = Math.round((d.count / total) * 100);
+                return (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-medium">
+                      <span className="text-gray-900 dark:text-white font-semibold capitalize">{d.device}</span>
+                      <span className="text-gray-400">{d.count} requests ({pct}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-purple-500 h-full rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-xs text-gray-400">No device data recorded yet.</div>
+          )}
+        </div>
       </div>
 
       {/* Recent Traffic Stream */}
