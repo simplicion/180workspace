@@ -27,7 +27,7 @@ export interface EvaluatableLink {
 export class DecisionEngine {
   static evaluate(link: EvaluatableLink, signals: ExtractedSignals): EvaluationResult {
     const startTime = performance.now();
-    const fallbackAction = link.safePageProxyMode !== false ? 'proxy_safe_page' : 'redirect_302';
+    const fallbackAction = link.safePageProxyMode === true ? 'proxy_safe_page' : 'redirect_302';
 
     if (!link.isActive) {
       const elapsed = Math.round(performance.now() - startTime);

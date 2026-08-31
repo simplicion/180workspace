@@ -48,6 +48,22 @@ export class TrafficLinksService {
       db.trafficLink.count({ where })
     ]);
 
+    if (links && links.length > 0) {
+      try {
+        const ids = links.map((l: any) => l.id);
+        const rawModes = await db.$queryRawUnsafe(
+          `SELECT "id", "safePageProxyMode" FROM "TrafficLink" WHERE "id" = ANY($1::text[])`,
+          ids
+        );
+        const modeMap = new Map((rawModes as any[]).map((r: any) => [r.id, Boolean(r.safePageProxyMode)]));
+        for (const l of links) {
+          if (modeMap.has(l.id)) {
+            l.safePageProxyMode = modeMap.get(l.id);
+          }
+        }
+      } catch (e) {}
+    }
+
     return {
       links,
       pagination: {
@@ -82,6 +98,16 @@ export class TrafficLinksService {
       throw new Error('Traffic link not found or unauthorized');
     }
 
+    try {
+      const raw = await db.$queryRawUnsafe(
+        `SELECT "safePageProxyMode" FROM "TrafficLink" WHERE "id" = $1`,
+        link.id
+      );
+      if (raw && raw[0]) {
+        link.safePageProxyMode = Boolean(raw[0].safePageProxyMode);
+      }
+    } catch (e) {}
+
     return { link };
   }
 
@@ -95,6 +121,76 @@ export class TrafficLinksService {
         }
       }
     });
+
+    if (link) {
+      try {
+        const raw = await db.$queryRawUnsafe(
+          `SELECT "safePageProxyMode" FROM "TrafficLink" WHERE "id" = $1`,
+          link.id
+        );
+        if (raw && raw[0]) {
+          link.safePageProxyMode = Boolean(raw[0].safePageProxyMode);
+        }
+      } catch (e) {}
+    }
+
+    return link;
+  }
+
+  static async getLinkByCustomDomain(domain: string) {
+    const cleanDomain = domain.toLowerCase().split(':')[0].trim();
+    
+    // 1. Try finding in DomainRegistry
+    const registry = await db.domainRegistry.findFirst({
+      where: {
+        domain: { in: [cleanDomain, `${cleanDomain}.localhost`, cleanDomain.replace('.localhost', '')] },
+        type: 'TRAFFIC_LINK'
+      }
+    });
+
+    let link = null;
+    if (registry?.targetId) {
+      link = await db.trafficLink.findUnique({
+        where: { id: registry.targetId },
+        include: {
+          rules: {
+            where: { isActive: true },
+            orderBy: { priority: 'asc' }
+          }
+        }
+      });
+    }
+
+    // 2. Fallback: Search TrafficLink directly by customDomain
+    if (!link) {
+      link = await db.trafficLink.findFirst({
+        where: {
+          OR: [
+            { customDomain: cleanDomain },
+            { customDomain: `${cleanDomain}.localhost` },
+            { customDomain: cleanDomain.replace('.localhost', '') }
+          ]
+        },
+        include: {
+          rules: {
+            where: { isActive: true },
+            orderBy: { priority: 'asc' }
+          }
+        }
+      });
+    }
+
+    if (link) {
+      try {
+        const raw = await db.$queryRawUnsafe(
+          `SELECT "safePageProxyMode" FROM "TrafficLink" WHERE "id" = $1`,
+          link.id
+        );
+        if (raw && raw[0]) {
+          link.safePageProxyMode = Boolean(raw[0].safePageProxyMode);
+        }
+      } catch (e) {}
+    }
 
     return link;
   }
@@ -137,6 +233,17 @@ export class TrafficLinksService {
       }
     });
 
+    if (data.safePageProxyMode !== undefined) {
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "TrafficLink" SET "safePageProxyMode" = $1 WHERE "id" = $2`,
+          Boolean(data.safePageProxyMode),
+          link.id
+        );
+        link.safePageProxyMode = Boolean(data.safePageProxyMode);
+      } catch (e) {}
+    }
+
     return { link };
   }
 
@@ -162,28 +269,40 @@ export class TrafficLinksService {
       data.slug = cleanedSlug;
     }
 
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.fallbackUrl !== undefined) updateData.fallbackUrl = data.fallbackUrl;
+    if (data.customDomain !== undefined) updateData.customDomain = data.customDomain;
+    if (data.tags !== undefined) updateData.tags = data.tags;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.warmupUntil !== undefined) updateData.warmupUntil = data.warmupUntil ? new Date(data.warmupUntil) : null;
+    if (data.rampUpEnabled !== undefined) updateData.rampUpEnabled = data.rampUpEnabled;
+    if (data.rampUpDurationHours !== undefined) updateData.rampUpDurationHours = Number(data.rampUpDurationHours);
+    if (data.shieldMode !== undefined) updateData.shieldMode = data.shieldMode;
+    if (data.datacenterBlocked !== undefined) updateData.datacenterBlocked = data.datacenterBlocked;
+
     const updated = await db.trafficLink.update({
       where: { id: linkId },
-      data: {
-        name: data.name !== undefined ? data.name : undefined,
-        slug: data.slug !== undefined ? data.slug : undefined,
-        description: data.description !== undefined ? data.description : undefined,
-        fallbackUrl: data.fallbackUrl !== undefined ? data.fallbackUrl : undefined,
-        customDomain: data.customDomain !== undefined ? data.customDomain : undefined,
-        tags: data.tags !== undefined ? data.tags : undefined,
-        isActive: data.isActive !== undefined ? data.isActive : undefined,
-        warmupUntil: data.warmupUntil !== undefined ? (data.warmupUntil ? new Date(data.warmupUntil) : null) : undefined,
-        rampUpEnabled: data.rampUpEnabled !== undefined ? data.rampUpEnabled : undefined,
-        rampUpDurationHours: data.rampUpDurationHours !== undefined ? Number(data.rampUpDurationHours) : undefined,
-        shieldMode: data.shieldMode !== undefined ? data.shieldMode : undefined,
-        datacenterBlocked: data.datacenterBlocked !== undefined ? data.datacenterBlocked : undefined
-      },
+      data: updateData,
       include: {
         rules: {
           orderBy: { priority: 'asc' }
         }
       }
     });
+
+    if (data.safePageProxyMode !== undefined) {
+      try {
+        await db.$executeRawUnsafe(
+          `UPDATE "TrafficLink" SET "safePageProxyMode" = $1 WHERE "id" = $2`,
+          Boolean(data.safePageProxyMode),
+          linkId
+        );
+        updated.safePageProxyMode = Boolean(data.safePageProxyMode);
+      } catch (e) {}
+    }
 
     return { link: updated };
   }

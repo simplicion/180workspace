@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { Link as LinkIcon, Sparkles, Globe, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link as LinkIcon, Sparkles, Globe, Shield, CheckCircle2, XCircle, Loader2, ArrowRightLeft, Eye } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { PlatformModal } from '@/components/shared/PlatformModal';
@@ -16,7 +16,10 @@ interface CreateLinkModalProps {
 export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalProps) {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
+  const [slugMessage, setSlugMessage] = useState('');
   const [fallbackUrl, setFallbackUrl] = useState('');
+  const [safePageProxyMode, setSafePageProxyMode] = useState(false);
   const [description, setDescription] = useState('');
   const [shieldMode, setShieldMode] = useState<'server' | 'client_shield'>('server');
   const [loading, setLoading] = useState(false);
@@ -28,12 +31,64 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
     }
   };
 
+  // Live real-time slug availability check (debounced 300ms)
+  useEffect(() => {
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    if (!cleanSlug) {
+      setSlugStatus('idle');
+      setSlugMessage('');
+      return;
+    }
+
+    if (cleanSlug.length < 2) {
+      setSlugStatus('invalid');
+      setSlugMessage('Slug must be at least 2 characters.');
+      return;
+    }
+
+    setSlugStatus('checking');
+    setSlugMessage('Checking availability...');
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get('/api/v1/traffic-director/check-slug', {
+          params: { slug: cleanSlug }
+        });
+
+        if (res.data?.data?.available) {
+          setSlugStatus('available');
+          setSlugMessage('Slug is available!');
+        } else {
+          setSlugStatus('unavailable');
+          setSlugMessage(res.data?.data?.reason || 'This slug is already in use. Please pick another.');
+        }
+      } catch (err: any) {
+        setSlugStatus('unavailable');
+        setSlugMessage(err.response?.data?.error || 'Could not verify slug availability.');
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [slug]);
+
+  const isFormValid = Boolean(
+    name.trim() &&
+    fallbackUrl.trim() &&
+    slug.trim() &&
+    slugStatus === 'available'
+  );
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (loading) return;
+    if (loading || !isFormValid) return;
 
     if (!name.trim() || !slug.trim() || !fallbackUrl.trim()) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (slugStatus !== 'available') {
+      toast.error('Please choose an available routing slug');
       return;
     }
 
@@ -46,6 +101,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
         description: description.trim() || undefined,
         datacenterBlocked: true,
         shieldMode,
+        safePageProxyMode,
         rampUpEnabled: true,
         rampUpDurationHours: 12
       });
@@ -56,7 +112,10 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
       // Reset form
       setName('');
       setSlug('');
+      setSlugStatus('idle');
+      setSlugMessage('');
       setFallbackUrl('');
+      setSafePageProxyMode(false);
       setDescription('');
       setShieldMode('server');
     } catch (error: any) {
@@ -98,8 +157,12 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
           <button
             type="submit"
             onClick={handleSubmit}
-            disabled={loading}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] rounded-xl shadow-md shadow-indigo-500/20 disabled:opacity-50 transition cursor-pointer"
+            disabled={!isFormValid || loading || slugStatus === 'checking'}
+            className={`flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white rounded-xl shadow-md transition cursor-pointer ${
+              isFormValid && !loading
+                ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-500/20'
+                : 'bg-gray-300 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
+            }`}
           >
             {loading ? (
               <LogoLoader className="w-4 h-4 animate-spin text-white" />
@@ -171,10 +234,39 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-            Routing Slug <span className="text-rose-500">*</span>
-          </label>
-          <div className="flex items-center rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Routing Slug <span className="text-rose-500">*</span>
+            </label>
+            {slugStatus === 'checking' && (
+              <span className="text-[11px] text-gray-400 flex items-center gap-1 font-medium">
+                <Loader2 className="w-3 h-3 animate-spin" /> Checking...
+              </span>
+            )}
+            {slugStatus === 'available' && (
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Available
+              </span>
+            )}
+            {slugStatus === 'unavailable' && (
+              <span className="text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1 font-semibold">
+                <XCircle className="w-3.5 h-3.5" /> Already Taken
+              </span>
+            )}
+            {slugStatus === 'invalid' && (
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                Too short
+              </span>
+            )}
+          </div>
+
+          <div className={`flex items-center rounded-xl border transition bg-gray-50 dark:bg-gray-800/50 overflow-hidden focus-within:ring-2 ${
+            slugStatus === 'available'
+              ? 'border-emerald-400 dark:border-emerald-600 focus-within:ring-emerald-500'
+              : slugStatus === 'unavailable'
+              ? 'border-rose-400 dark:border-rose-600 focus-within:ring-rose-500'
+              : 'border-gray-200 dark:border-gray-700 focus-within:ring-indigo-500'
+          }`}>
             <span className="px-3 text-xs text-gray-400 font-mono">/r/</span>
             <input
               type="text"
@@ -182,9 +274,27 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
               placeholder="summer-promo"
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-              className="w-full py-2.5 pr-3.5 bg-transparent text-gray-900 dark:text-white text-sm font-mono focus:outline-none"
+              className="w-full py-2.5 pr-2 bg-transparent text-gray-900 dark:text-white text-sm font-mono focus:outline-none"
             />
+            <div className="pr-3 flex items-center">
+              {slugStatus === 'checking' && <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />}
+              {slugStatus === 'available' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+              {slugStatus === 'unavailable' && <XCircle className="w-4 h-4 text-rose-500" />}
+            </div>
           </div>
+
+          {slugMessage && (
+            <p className={`text-[11px] mt-1 font-medium ${
+              slugStatus === 'available'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : slugStatus === 'unavailable'
+                ? 'text-rose-600 dark:text-rose-400'
+                : 'text-gray-400'
+            }`}>
+              {slugMessage}
+            </p>
+          )}
+
           <p className="text-[11px] text-gray-400 mt-1">
             Public edge redirect: <code className="text-indigo-500 font-mono">{baseUrl || 'https://yourdomain.com'}/r/{slug || '...'}</code>
           </p>
@@ -204,6 +314,51 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
           />
           <p className="text-[11px] text-gray-400 mt-1">Served when zero custom rules match or when cloud crawler filtering intercepts.</p>
         </div>
+
+        {shieldMode === 'server' && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+              Fallback Delivery Action
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setSafePageProxyMode(false)}
+                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
+                  !safePageProxyMode
+                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>302 Browser Redirect</span>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                  Standard redirect. Browser address bar changes to destination URL.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSafePageProxyMode(true)}
+                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
+                  safePageProxyMode
+                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>In-Place Reverse Proxy</span>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                  Mirrors safe page with HTTP 200 OK. URL stays on your link.
+                </p>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">

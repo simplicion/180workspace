@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import {
   SignalExtractor,
   DecisionEngine,
@@ -12,12 +12,17 @@ export class PublicRoutingController {
   static async handleRedirect(req: Request, res: Response) {
     try {
       const { slug } = req.params;
-      if (!slug) {
-        return res.status(404).send('Not Found');
+      const domainQuery = (req.query.domain as string) || (req.headers['x-forwarded-host'] as string) || (req.headers.host as string);
+
+      let link = null;
+      if (slug && slug !== '_domain') {
+        link = await TrafficLinksService.getLinkBySlug(slug);
+      }
+      
+      if (!link && domainQuery) {
+        link = await TrafficLinksService.getLinkByCustomDomain(domainQuery);
       }
 
-      // 1. Fetch Link with Active Rules
-      const link = await TrafficLinksService.getLinkBySlug(slug);
       if (!link) {
         return res.status(404).send('Smart Link Not Found');
       }
@@ -65,28 +70,22 @@ export class PublicRoutingController {
       }
 
       // 6. Action Execution: Reverse Proxy (HTTP 200 OK) vs JavaScript Replace vs Standard 302 Redirect
-      if (result.actionType === 'proxy_safe_page' || result.actionType === 'proxy_target_offer' || result.actionType === 'rewrite') {
-        try {
-          const proxyRes = await ReverseProxyService.fetchAndMirror(finalDestination, {
-            customHeaders: {
-              'user-agent': req.get('user-agent') || '',
-              'accept-language': req.get('accept-language') || ''
-            }
-          });
+      const shouldProxyInPlace = result.actionType === 'proxy_safe_page' || result.actionType === 'proxy_target_offer' || result.actionType === 'rewrite';
 
-          // Strip Helmet CSP/COOP headers so external scripts and styles on mirrored safe page execute freely
+      if (shouldProxyInPlace) {
+        try {
+          const containerHtml = ReverseProxyService.renderSeamlessContainer(finalDestination);
           res.removeHeader('Cross-Origin-Opener-Policy');
           res.removeHeader('Cross-Origin-Resource-Policy');
           res.removeHeader('Content-Security-Policy');
           res.removeHeader('X-Frame-Options');
 
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=86400');
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
           res.setHeader('Access-Control-Allow-Origin', '*');
-          return res.status(proxyRes.statusCode || 200).send(proxyRes.html);
+          return res.status(200).send(containerHtml);
         } catch (proxyErr: any) {
-          console.warn('[PublicRoutingController] Reverse proxy fetch fallback to 302:', proxyErr.message);
-          // Graceful fallback to 302 redirect if upstream site fails or blocks
+          console.warn('[PublicRoutingController] Reverse proxy fallback to 302:', proxyErr.message);
         }
       }
 
@@ -340,6 +339,35 @@ export class PublicRoutingController {
     } catch (error: any) {
       console.error('[PublicRoutingController.handleEdgeEvaluate]', error);
       return res.status(500).json({ success: false, error: 'Evaluation Error' });
+    }
+  }
+
+  static async handleProxyStream(req: Request, res: Response) {
+    try {
+      const targetUrl = String(req.query.url || '').trim();
+      if (!targetUrl || !ReverseProxyService.isSafeUrl(targetUrl)) {
+        return res.status(400).send('Invalid or blocked proxy destination URL');
+      }
+
+      const streamResult = await ReverseProxyService.fetchAndStreamHtml(targetUrl, {
+        customHeaders: {
+          'user-agent': req.get('user-agent') || '',
+          'accept-language': req.get('accept-language') || ''
+        }
+      });
+
+      res.removeHeader('Cross-Origin-Opener-Policy');
+      res.removeHeader('Cross-Origin-Resource-Policy');
+      res.removeHeader('Content-Security-Policy');
+      res.removeHeader('X-Frame-Options');
+
+      res.setHeader('Content-Type', streamResult.contentType);
+      res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=86400');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.status(streamResult.statusCode || 200).send(streamResult.html);
+    } catch (err: any) {
+      console.error('[PublicRoutingController.handleProxyStream]', err);
+      return res.status(500).send('Proxy Stream Error: ' + (err.message || 'Internal error'));
     }
   }
 }

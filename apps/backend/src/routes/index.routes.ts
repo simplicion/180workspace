@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+console.log('[Router] Index routes loaded with Public Edge Traffic Director & Reverse Proxy Streamer');
 
 // Middleware
 const { protect } = require('../system-configs/middleware/auth/auth.ts');
@@ -204,6 +205,15 @@ router.all('/v1/traffic-director/tag/:slug', (req, res, next) => {
         const mod = require('../api/v1/traffic-director/public-routing.controller');
         const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
         return ctrl.handleDynamicTag(req, res);
+    } catch (err) {
+        next(err);
+    }
+});
+router.all('/v1/traffic-director/stream-proxy', (req, res, next) => {
+    try {
+        const mod = require('../api/v1/traffic-director/public-routing.controller');
+        const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
+        return ctrl.handleProxyStream(req, res);
     } catch (err) {
         next(err);
     }

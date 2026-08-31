@@ -64,6 +64,152 @@ export class ReverseProxyService {
   }
 
   /**
+   * Generates a seamless, responsive, full-screen live viewport container
+   */
+  static renderSeamlessContainer(targetUrl: string, title?: string): string {
+    const cleanUrl = targetUrl.trim();
+    const streamUrl = `/r/_proxy/stream?url=${encodeURIComponent(cleanUrl)}`;
+    const pageTitle = title || 'Welcome';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>${pageTitle}</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    #viewport-frame {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      border: none;
+      margin: 0;
+      padding: 0;
+      display: block;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <iframe 
+    id="viewport-frame" 
+    src="${streamUrl}" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+    allowfullscreen>
+  </iframe>
+  <script>
+    // Sync browser tab title from embedded frame once loaded
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.type === '__TD_TITLE__' && e.data.title) {
+        document.title = e.data.title;
+      }
+    });
+  </script>
+</body>
+</html>`;
+  }
+
+  /**
+   * Fetches target URL and strips framing/CORS restrictions while rewriting assets
+   */
+  static async fetchAndStreamHtml(
+    targetUrl: string,
+    options: {
+      customHeaders?: Record<string, string>;
+      timeoutMs?: number;
+    } = {}
+  ): Promise<{ statusCode: number; html: string; contentType: string }> {
+    const cleanUrl = targetUrl.trim();
+    if (!this.isSafeUrl(cleanUrl)) {
+      throw new Error(`Invalid or blocked destination URL: ${cleanUrl}`);
+    }
+
+    const parsedUrl = new URL(cleanUrl);
+    const origin = `${parsedUrl.protocol}//${parsedUrl.host}`;
+    const basePath = parsedUrl.pathname.endsWith('/') 
+      ? `${origin}${parsedUrl.pathname}` 
+      : `${origin}${parsedUrl.pathname.substring(0, parsedUrl.pathname.lastIndexOf('/') + 1)}`;
+    const baseHref = basePath.endsWith('/') ? basePath : `${basePath}/`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 6000);
+
+    try {
+      const response = await fetch(cleanUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': options.customHeaders?.['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': options.customHeaders?.['accept-language'] || 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        signal: controller.signal,
+        redirect: 'follow'
+      });
+
+      clearTimeout(timeoutId);
+
+      let html = await response.text();
+
+      // 1. Neutralize top-level frame-busting scripts
+      html = html.replace(/if\s*\(\s*top\s*!==?\s*self\s*\)/gi, 'if (false)');
+      html = html.replace(/top\.location\s*=/gi, 'window.location =');
+      html = html.replace(/window\.top\.location\s*=/gi, 'window.location =');
+
+      // 2. Rewrite root-relative assets to absolute URLs
+      html = html
+        .replace(/\b(href|src|poster|data-src)=["']\/(?!\/)([^"']*)["']/gi, `$1="${origin}/$2"`)
+        .replace(/\bsrcset=["']([^"']+)["']/gi, (_m, val) => {
+          const rewritten = val.split(',').map((part: string) => {
+            const p = part.trim();
+            return p.startsWith('/') && !p.startsWith('//') ? `${origin}${p}` : p;
+          }).join(', ');
+          return `srcset="${rewritten}"`;
+        })
+        .replace(/url\(\s*["']?\/(?!\/)([^"')]+)["']?\s*\)/gi, `url("${origin}/$1")`);
+
+      // 3. Inject base href, title broadcaster & animation fallback into <head>
+      const broadcasterScript = `<script>try{if(document.title){window.parent.postMessage({type:'__TD_TITLE__',title:document.title},'*');}}catch(e){}</script>`;
+      const animationFallback = `<style>@keyframes __td_reveal{to{opacity:1 !important; visibility:visible !important; transform:none !important;}} [style*="opacity: 0"], [style*="opacity:0"] { animation: __td_reveal 0.01s forwards 0.4s; }</style>`;
+      const injection = `\n  <base href="${baseHref}">\n  ${animationFallback}\n  ${broadcasterScript}`;
+
+      if (!/<base\s+[^>]*href=/i.test(html)) {
+        if (/<head[^>]*>/i.test(html)) {
+          html = html.replace(/(<head[^>]*>)/i, `$1${injection}`);
+        } else if (/<html[^>]*>/i.test(html)) {
+          html = html.replace(/(<html[^>]*>)/i, `$1\n<head>${injection}</head>`);
+        } else {
+          html = `<head>${injection}</head>\n${html}`;
+        }
+      } else {
+        if (/<head[^>]*>/i.test(html)) {
+          html = html.replace(/(<head[^>]*>)/i, `$1\n  ${animationFallback}\n  ${broadcasterScript}`);
+        }
+      }
+
+      return {
+        statusCode: response.status,
+        html,
+        contentType: response.headers.get('content-type') || 'text/html; charset=utf-8'
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      throw new Error(`Failed to stream proxied page: ${err.message}`);
+    }
+  }
+
+  /**
    * Fetches target URL and injects <base href> so all assets (CSS, JS, images) load seamlessly
    */
   static async fetchAndMirror(
@@ -99,87 +245,40 @@ export class ReverseProxyService {
       }
     }
 
-    const parsedUrl = new URL(cleanUrl);
-    const origin = `${parsedUrl.protocol}//${parsedUrl.host}`;
-    const basePath = parsedUrl.pathname.endsWith('/') 
-      ? `${origin}${parsedUrl.pathname}` 
-      : `${origin}${parsedUrl.pathname.substring(0, parsedUrl.pathname.lastIndexOf('/') + 1)}`;
-    const baseHref = basePath.endsWith('/') ? basePath : `${basePath}/`;
+    const { statusCode, html, contentType } = await this.fetchAndStreamHtml(cleanUrl, {
+      customHeaders: options.customHeaders,
+      timeoutMs: options.timeoutMs
+    });
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 4000);
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=180, stale-while-revalidate=86400',
+      'X-Powered-By': '180workspace-Traffic-Director',
+      'Access-Control-Allow-Origin': '*'
+    };
 
-    try {
-      const response = await fetch(cleanUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': options.customHeaders?.['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': options.customHeaders?.['accept-language'] || 'en-US,en;q=0.9',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        signal: controller.signal,
-        redirect: 'follow'
-      });
-
-      clearTimeout(timeoutId);
-
-      const rawHtml = await response.text();
-      let transformedHtml = rawHtml;
-
-      // Inject <base href="..."> and client-side SPA router normalization into <head>
-      const routerPatchScript = `<script>(function(){try{if(window.location.pathname!=='/'&&!window.location.pathname.startsWith('/assets')){window.history.replaceState(null,'','/'+window.location.search+window.location.hash);}}catch(e){}})();</script>`;
-      const injection = `\n  <base href="${baseHref}">\n  ${routerPatchScript}`;
-
-      if (!/<base\s+[^>]*href=/i.test(transformedHtml)) {
-        if (/<head[^>]*>/i.test(transformedHtml)) {
-          transformedHtml = transformedHtml.replace(/(<head[^>]*>)/i, `$1${injection}`);
-        } else if (/<html[^>]*>/i.test(transformedHtml)) {
-          transformedHtml = transformedHtml.replace(/(<html[^>]*>)/i, `$1\n<head>${injection}</head>`);
-        } else {
-          transformedHtml = `<head>${injection}</head>\n${transformedHtml}`;
-        }
-      } else {
-        // If <base href> was already there, inject the router patch right after <head>
-        if (/<head[^>]*>/i.test(transformedHtml)) {
-          transformedHtml = transformedHtml.replace(/(<head[^>]*>)/i, `$1\n  ${routerPatchScript}`);
-        }
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=180, stale-while-revalidate=86400',
-        'X-Powered-By': '180workspace-Traffic-Director',
-        'Access-Control-Allow-Origin': '*'
-      };
-
-      // Store in LRU cache
-      if (this.cache.size >= this.MAX_CACHE_ENTRIES) {
-        const firstKey = this.cache.keys().next().value;
-        if (firstKey) this.cache.delete(firstKey);
-      }
-
-      this.cache.set(cacheKey, {
-        html: transformedHtml,
-        statusCode: response.status,
-        headers,
-        expiresAt: now + this.CACHE_TTL_MS
-      });
-
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      return {
-        statusCode: response.status,
-        headers,
-        html: transformedHtml,
-        isCached: false,
-        latencyMs
-      };
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      throw new Error(`Reverse proxy failed to fetch safe page (${cleanUrl}): ${err.message}`);
+    // Store in LRU cache
+    if (this.cache.size >= this.MAX_CACHE_ENTRIES) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
     }
+
+    this.cache.set(cacheKey, {
+      html,
+      statusCode,
+      headers,
+      expiresAt: now + this.CACHE_TTL_MS
+    });
+
+    const latencyMs = Math.round(performance.now() - startTime);
+
+    return {
+      statusCode,
+      headers,
+      html,
+      isCached: false,
+      latencyMs
+    };
   }
 
   /**

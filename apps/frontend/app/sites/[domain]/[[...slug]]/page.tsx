@@ -32,7 +32,7 @@ export default async function PublicWebsitePage({
         }
         const targetUrl = `${apiBase}/api/public/domains/resolve?${searchParams.toString()}`;
 
-        const res = await fetch(targetUrl, { next: { revalidate: 0 } });
+        const res = await fetch(targetUrl, { cache: 'no-store' });
         
         if (!res.ok) {
             throw new Error('Domain not found');
@@ -69,15 +69,24 @@ export default async function PublicWebsitePage({
                     process.env.BACKEND_INTERNAL_URL || 
                     (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
 
-                const evalRes = await fetch(`${apiBase}/api/v1/traffic-director/r/${linkSlug}`, {
+                const searchParamsStr = slug ? `?subpath=${encodeURIComponent(Array.isArray(slug) ? slug.join('/') : slug)}` : '';
+                const evalRes = await fetch(`${apiBase}/r/${linkSlug}${searchParamsStr}`, {
                     headers: {
                         'user-agent': userAgent,
                         'x-forwarded-for': clientIp,
                         'referer': referer,
                         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
                     },
+                    redirect: 'manual',
                     cache: 'no-store'
                 });
+
+                if (evalRes.status >= 300 && evalRes.status < 400) {
+                    const location = evalRes.headers.get('location');
+                    if (location) {
+                        redirect(location);
+                    }
+                }
 
                 const contentType = evalRes.headers.get('content-type') || '';
                 if (contentType.includes('text/html')) {
@@ -85,7 +94,7 @@ export default async function PublicWebsitePage({
                     return (
                         <div 
                             dangerouslySetInnerHTML={{ __html: html }}
-                            className="w-full h-full min-h-screen"
+                            className="fixed inset-0 w-screen h-screen m-0 p-0 overflow-hidden bg-black z-[9999]"
                         />
                     );
                 }
@@ -96,7 +105,7 @@ export default async function PublicWebsitePage({
                 }
             } catch (err: any) {
                 // If redirect was thrown by Next.js, let it propagate
-                if (err.message === 'NEXT_REDIRECT') {
+                if (err.message === 'NEXT_REDIRECT' || err.digest?.includes('NEXT_REDIRECT') || String(err?.message || '').includes('NEXT_REDIRECT')) {
                     throw err;
                 }
                 console.error('[sites/TRAFFIC_LINK] In-place proxy error:', err);

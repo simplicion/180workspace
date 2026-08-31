@@ -218,7 +218,8 @@ export class TrafficDirectorController {
       const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
       const { 
         name, slug, description, fallbackUrl, customDomain, tags,
-        warmupUntil, rampUpEnabled, rampUpDurationHours, shieldMode, datacenterBlocked
+        warmupUntil, rampUpEnabled, rampUpDurationHours, shieldMode, datacenterBlocked,
+        safePageProxyMode
       } = req.body;
 
       if (!name || !slug || !fallbackUrl) {
@@ -237,7 +238,8 @@ export class TrafficDirectorController {
         rampUpEnabled,
         rampUpDurationHours,
         shieldMode,
-        datacenterBlocked
+        datacenterBlocked,
+        safePageProxyMode
       });
 
       return res.status(201).json({ success: true, data: result });

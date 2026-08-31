@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   GitFork, ArrowLeft, Plus, Play, Layers, ShieldCheck, Shield,
-  Trash2, ArrowUp, ArrowDown, ExternalLink, Power, Check, Copy, Globe, Smartphone, Bot, Clock, Code, Flame
+  Trash2, ArrowUp, ArrowDown, ExternalLink, Power, Check, Copy, Globe, Smartphone, Bot, Clock, Code, Flame,
+  ArrowRightLeft, Eye
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -32,17 +33,19 @@ export default function SmartLinkRuleCanvasPage() {
     rule: null,
     loading: false
   });
+
   const [fallbackUrl, setFallbackUrl] = useState('');
+  const [safePageProxyMode, setSafePageProxyMode] = useState(false);
+  const [savingFallback, setSavingFallback] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Advanced Shield & Warmup State
+  // Security & Warmup Shield Controls
   const [datacenterBlocked, setDatacenterBlocked] = useState(true);
-  const [warmupUntil, setWarmupUntil] = useState('');
+  const [warmupUntil, setWarmupUntil] = useState<string>('');
   const [rampUpEnabled, setRampUpEnabled] = useState(true);
   const [rampUpDurationHours, setRampUpDurationHours] = useState(12);
-  const [shieldMode, setShieldMode] = useState('server');
+  const [shieldMode, setShieldMode] = useState<'server' | 'client_shield'>('server');
   const [savingShield, setSavingShield] = useState(false);
-  const [savingFallback, setSavingFallback] = useState(false);
 
   const fetchLinkDetails = async () => {
     try {
@@ -51,6 +54,7 @@ export default function SmartLinkRuleCanvasPage() {
       const lk = res.data.data.link;
       setLinkData(lk);
       setFallbackUrl(lk.fallbackUrl);
+      setSafePageProxyMode(Boolean(lk.safePageProxyMode));
       setDatacenterBlocked(lk.datacenterBlocked ?? true);
       setWarmupUntil(lk.warmupUntil ? new Date(lk.warmupUntil).toISOString() : '');
       setRampUpEnabled(lk.rampUpEnabled !== undefined && lk.rampUpEnabled !== null ? (lk.rampUpDurationHours === 24 && !lk.rampUpEnabled ? true : lk.rampUpEnabled) : true);
@@ -72,7 +76,8 @@ export default function SmartLinkRuleCanvasPage() {
         warmupUntil: warmupUntil ? new Date(warmupUntil).toISOString() : null,
         rampUpEnabled,
         rampUpDurationHours: Number(rampUpDurationHours),
-        shieldMode
+        shieldMode,
+        safePageProxyMode
       });
       toast.success('Shield & Warmup settings saved!');
       fetchLinkDetails();
@@ -93,10 +98,14 @@ export default function SmartLinkRuleCanvasPage() {
     if (savingFallback) return;
     try {
       setSavingFallback(true);
-      await api.put(`/api/v1/traffic-director/links/${linkId}`, { fallbackUrl });
-      toast.success('Fallback URL updated!');
+      await api.put(`/api/v1/traffic-director/links/${linkId}`, { 
+        fallbackUrl,
+        safePageProxyMode
+      });
+      toast.success('Fallback settings updated!');
+      fetchLinkDetails();
     } catch (error) {
-      toast.error('Failed to update fallback URL');
+      toast.error('Failed to update fallback settings');
     } finally {
       setSavingFallback(false);
     }
@@ -473,18 +482,20 @@ export default function SmartLinkRuleCanvasPage() {
       </div>
 
       {/* Fallback Destination Target Box */}
-      <div className="p-4 px-5 rounded-2xl bg-gray-50 dark:bg-gray-900/60 border border-dashed border-gray-200 dark:border-gray-800 space-y-3 shadow-2xs">
+      <div className="p-4 px-5 rounded-2xl bg-gray-50 dark:bg-gray-900/60 border border-dashed border-gray-200 dark:border-gray-800 space-y-4 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[11px] font-bold text-gray-600 dark:text-gray-400">
               {shieldMode === 'server' ? 'SAFE PAGE ORIGIN' : 'FINAL FALLBACK'}
             </span>
             <span className="text-xs font-bold text-gray-900 dark:text-white">
-              {shieldMode === 'server' ? 'Compliant Safe Page URL (Reverse Proxied)' : 'Default Destination Target'}
+              {shieldMode === 'server' ? 'Compliant Safe Page URL' : 'Default Destination Target'}
             </span>
           </div>
           <span className="text-xs text-gray-400">
-            {shieldMode === 'server' ? 'Mirrored to Meta/Google review bots with HTTP 200 OK' : 'Executed when zero rules match'}
+            {safePageProxyMode 
+              ? 'Mirrored to review bots with HTTP 200 OK (URL preserved)' 
+              : 'Executed via clean HTTP 302 Browser Redirect'}
           </span>
         </div>
 
@@ -511,6 +522,67 @@ export default function SmartLinkRuleCanvasPage() {
             )}
           </button>
         </div>
+
+        {/* Fallback Delivery Mode Toggle (Only applicable for Smart Link mode) */}
+        {shieldMode === 'server' && (
+          <div className="pt-1 border-t border-gray-200/60 dark:border-gray-800/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Fallback Delivery Action
+              </span>
+              <span className="text-[11px] text-gray-400">
+                When review bots or non-matching traffic visit
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSafePageProxyMode(false);
+                  api.put(`/api/v1/traffic-director/links/${linkId}`, { safePageProxyMode: false })
+                    .then(() => toast.success('Delivery mode: 302 Redirect'))
+                    .catch(() => toast.error('Failed to update delivery mode'));
+                }}
+                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
+                  !safePageProxyMode
+                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>302 Browser Redirect (Standard)</span>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                  Browser address bar changes directly to destination URL. Best for DMs and bio links.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSafePageProxyMode(true);
+                  api.put(`/api/v1/traffic-director/links/${linkId}`, { safePageProxyMode: true })
+                    .then(() => toast.success('Delivery mode: In-Place Proxy'))
+                    .catch(() => toast.error('Failed to update delivery mode'));
+                }}
+                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
+                  safePageProxyMode
+                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>In-Place Reverse Proxy (HTTP 200)</span>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                  Mirrors safe page without changing URL. Best for Meta/Google Ads compliance.
+                </p>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Rules Decision Sequence Banner */}
