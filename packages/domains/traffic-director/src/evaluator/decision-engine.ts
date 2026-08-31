@@ -246,10 +246,20 @@ export class DecisionEngine {
     const expStr = normalize(expected);
 
     switch (operator) {
-      case 'equals':
+      case 'equals': {
+        if (expStr.includes(',')) {
+          const list = expStr.split(',').map(x => normalize(x));
+          return list.includes(actStr);
+        }
         return actStr === expStr;
-      case 'not_equals':
+      }
+      case 'not_equals': {
+        if (expStr.includes(',')) {
+          const list = expStr.split(',').map(x => normalize(x));
+          return !list.includes(actStr);
+        }
         return actStr !== expStr;
+      }
       case 'starts_with':
         return actStr.startsWith(expStr.replace(/\*$/, ''));
       case 'contains':

