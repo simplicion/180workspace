@@ -619,12 +619,7 @@ export class DocumentService {
             try {
                 const mod: any = await import('@workspace/backend-infra');
                 queueService = mod.queueService || mod;
-            } catch (e) {
-                try {
-                    const mod: any = await import('../../../../backend-common/src/index');
-                    queueService = mod.queueService || mod;
-                } catch (e2) {}
-            }
+            } catch (e) {}
             const companyId = article.companyId || (requestContext.getStore()?.companyId as string);
             const inviter = inviterId ? await prisma.user.findFirst({ where: { id: inviterId }, select: { name: true, email: true } }) : null;
             const senderName = inviter?.name || '180 Workspace';
