@@ -2,9 +2,13 @@
 import Layout from '../../layouts/Layout.astro';
 import { prisma } from '@workspace/db';
 
-export async function getStaticPaths() {
-  const blogs = await prisma.marketingBlog.findMany({
+const { slug } = Astro.params;
+
+let blog = null;
+try {
+  blog = await prisma.marketingBlog.findFirst({
     where: {
+      slug,
       published: true,
     },
     select: {
@@ -19,14 +23,13 @@ export async function getStaticPaths() {
       keywords: true,
     }
   });
-
-  return blogs.map(blog => ({
-    params: { slug: blog.slug },
-    props: { blog },
-  }));
+} catch (error) {
+  console.error("Failed to fetch blog post:", error);
 }
 
-const { blog } = Astro.props;
+if (!blog) {
+  return Astro.redirect('/blog');
+}
 
 // Default structured data for Article schema
 const defaultStructuredData = {
