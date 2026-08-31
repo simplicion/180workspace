@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: useSecureCookies,
-        domain: cookieDomain,
+        ...(cookieDomain ? { domain: cookieDomain } : {})
       }
     },
     callbackUrl: {
@@ -27,7 +27,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: useSecureCookies,
-        domain: cookieDomain,
+        ...(cookieDomain ? { domain: cookieDomain } : {})
       }
     },
     csrfToken: {
@@ -37,7 +37,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: useSecureCookies,
-        domain: cookieDomain,
+        ...(cookieDomain ? { domain: cookieDomain } : {})
       }
     }
   },
@@ -165,7 +165,6 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      console.log('[JWT] incoming token:', JSON.stringify(token));
 
       // Initialize or update token on sign in
       if (user) {
@@ -202,7 +201,6 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      console.log('[Session Callback] token:', JSON.stringify(token));
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).username = token.username;
