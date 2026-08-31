@@ -10,6 +10,7 @@ router.post('/upload-voice', upload.single('file'), handleUpload('voice_notes'),
 router.get('/presigned-url', ctrl.getPresignedUrl);
 router.post('/link', ctrl.addFileLink);
 router.post('/attach-existing', ctrl.attachExistingFile);
+router.get('/stats', ctrl.getStorageStats);
 router.get('/', ctrl.getFiles);
 router.post('/sign/:id', ctrl.signFile);
 router.delete('/:id', ctrl.deleteFile);

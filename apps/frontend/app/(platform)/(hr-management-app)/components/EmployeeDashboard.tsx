@@ -343,7 +343,7 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                     <XAxis dataKey="period" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                                     <YAxis domain={[0, 500]} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                                    <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.08)`, fontSize: 12 }} formatter={(val: any) => [`${val} pts`, `Points']} />
+                                    <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', fontSize: 12 }} formatter={(val: any) => [`${val} pts`, `Points`]} />
                                     <Area type="monotone" dataKey="Points" stroke={tier.color} strokeWidth={2.5} fill="url(#ptGrad)" dot={{ r: 3, fill: tier.color, strokeWidth: 0 }} activeDot={{ r: 5 }} />
                                 </AreaChart>
                             </ResponsiveContainer>

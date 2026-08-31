@@ -48,6 +48,42 @@ export const knowledgeApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ['Knowledge']
         }),
+        approveDocument: builder.mutation({
+            query: (id) => ({
+                url: `/api/v1/workspace-tools/documents/${id}/approve`,
+                method: 'POST'
+            }),
+            invalidatesTags: ['Knowledge', 'Finance', 'CRM']
+        }),
+        recordPayment: builder.mutation({
+            query: ({ id, ...data }) => ({
+                url: `/api/v1/workspace-tools/documents/${id}/record-payment`,
+                method: 'POST',
+                body: data
+            }),
+            invalidatesTags: ['Knowledge', 'Finance', 'CRM']
+        }),
+        sendPaymentReminder: builder.mutation({
+            query: (id) => ({
+                url: `/api/v1/workspace-tools/documents/${id}/remind`,
+                method: 'POST'
+            }),
+            invalidatesTags: ['Knowledge']
+        }),
+        convertToInvoice: builder.mutation({
+            query: (id) => ({
+                url: `/api/v1/workspace-tools/documents/${id}/convert-to-invoice`,
+                method: 'POST'
+            }),
+            invalidatesTags: ['Knowledge', 'Finance']
+        }),
+        generateShareLink: builder.mutation({
+            query: (id) => ({
+                url: `/api/v1/workspace-tools/documents/${id}/share`,
+                method: 'POST'
+            }),
+            invalidatesTags: (result, error, id) => [{ type: 'Knowledge', id }]
+        }),
         lockArticle: builder.mutation({
             query: (id) => ({
                 url: `/api/v1/workspace-tools/documents/${id}/lock`,
@@ -88,6 +124,11 @@ export const {
     useCreateArticleMutation,
     useUpdateArticleMutation,
     useDeleteArticleMutation,
+    useApproveDocumentMutation,
+    useRecordPaymentMutation,
+    useSendPaymentReminderMutation,
+    useConvertToInvoiceMutation,
+    useGenerateShareLinkMutation,
     useLockArticleMutation,
     useUnlockArticleMutation,
     useGetLinksForEntityQuery,

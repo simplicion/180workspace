@@ -261,6 +261,15 @@ function ClientOverview({ client, onCreateInvoice }: any) {
             onClick: onCreateInvoice,
         },
         {
+            label: 'Draft Contract / Proposal',
+            desc: 'Create with Visual Document Editor',
+            icon: FileText,
+            iconBg: 'bg-emerald-50',
+            iconColor: 'text-emerald-600',
+            accent: 'hover:border-emerald-200 hover:bg-emerald-50/40',
+            href: `/document-editor?clientId=${client.id}&clientName=${encodeURIComponent(client.name)}&templateId=t-sales-01`,
+        },
+        {
             label: 'Log Interaction',
             desc: 'Record a call, email, or note',
             icon: MessageSquare,

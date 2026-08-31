@@ -1,9 +1,14 @@
-import React, { useEffect } from 'react';
+'use client';
+
+import React, { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateBlock, Block } from '../../../../../../redux/slices/documentSlice';
+import { updateBlock, Block } from '@/redux/slices/documentSlice';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import CustomSelect from '@/components/ui/CustomSelect';
+import { Bold, Italic, Strikethrough, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Code, RotateCcw } from 'lucide-react';
+import clsx from 'clsx';
+
+import { autoLinkUrls } from '../utils/autoLinkUrls';
 
 interface TextBlockProps {
   block: Block;
@@ -16,9 +21,13 @@ export function TextBlock({ block, isSelected }: TextBlockProps) {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3, 4],
+        },
+      }),
     ],
-    content: block.content?.text || '',
+    content: block.content?.text || (block.type === 'heading' ? `<h2>${block.content?.text || 'Heading'}</h2>` : '<p>Enter text...</p>'),
     onUpdate: ({ editor }) => {
       dispatch(updateBlock({
         id: block.id,
@@ -34,77 +43,99 @@ export function TextBlock({ block, isSelected }: TextBlockProps) {
   useEffect(() => {
     if (editor) {
       editor.setEditable(isSelected);
-      if (isSelected) {
+      if (isSelected && !editor.isFocused) {
         editor.commands.focus('end');
       }
     }
   }, [editor, isSelected]);
 
-  // Replace variables in text (only for viewing mode logic, though tiptap handles rendering differently, we might need a custom extension or just replace it on render if we disable tiptap for viewing, but it's easier to just use tiptap for rendering too. Wait, variables should be replaced dynamically. For now, let's just let tiptap render the raw variables if we're not touching custom node views. 
-  // Actually, for a WYSIWYG editor, we want variables to remain as {{var}} in the source, but maybe render as badges? 
-  // For simplicity, let's just use tiptap for editing, and a dangerouslySetInnerHTML div for viewing where variables are replaced!
+  // Sync external text updates if changed from outside
+  useEffect(() => {
+    if (editor && block.content?.text !== undefined && editor.getHTML() !== block.content.text) {
+      // only update if not focused to prevent cursor jumping
+      if (!editor.isFocused) {
+        editor.commands.setContent(block.content.text || '<p></p>');
+      }
+    }
+  }, [block.content?.text, editor]);
 
+  // Computed styles from block.styles
+  const computedStyles: React.CSSProperties = useMemo(() => {
+    const s = block.styles || {};
+
+    const letterSpacingMap: Record<string, string> = {
+      tight: '-0.025em',
+      normal: '0em',
+      wide: '0.025em',
+    };
+
+    const fontWeightMap: Record<string, number> = {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+      black: 900,
+    };
+
+    return {
+      fontSize: s.fontSize ? `${s.fontSize}px` : undefined,
+      fontFamily: (s.fontFamily as string) || undefined,
+      fontWeight: s.fontWeight ? (fontWeightMap[s.fontWeight as string] || s.fontWeight) : undefined,
+      fontStyle: (s.fontStyle as any) || undefined,
+      textDecoration: (s.textDecoration as any) || undefined,
+      color: (s.color as string) || undefined,
+      backgroundColor: (s.highlightColor as string) || (s.backgroundColor as string) || undefined,
+      textAlign: (s.alignment as any) || (s.textAlign as any) || 'left',
+      lineHeight: (s.lineHeight as any) || 1.6,
+      letterSpacing: s.letterSpacing ? (letterSpacingMap[s.letterSpacing as string] || s.letterSpacing) : undefined,
+      textTransform: (s.textTransform as any) || undefined,
+      textShadow: (s.textShadow as string) || undefined,
+      padding: s.padding ? `${s.padding}` : undefined,
+      borderRadius: s.borderRadius ? `${s.borderRadius}px` : undefined,
+      border: s.borderColor ? `${s.borderWidth || 1}px ${s.borderStyle || 'solid'} ${s.borderColor}` : undefined,
+    };
+  }, [block.styles]);
+
+  // Replace template variables dynamically on view
   const getRenderedHtml = () => {
-    let html = block.content?.text || '<p>Enter text...</p>';
-    if (!documentDetails) return html;
+    let html = block.content?.text || (block.type === 'heading' ? `<h2>${block.content?.text || 'Heading'}</h2>` : '<p>Enter text...</p>');
     
-    Object.keys(documentDetails).forEach(key => {
+    const fallbackPlaceholders: Record<string, string> = {
+      companyName: 'Company Name',
+      companyAddress: 'Company Address',
+      companyEmail: 'company@example.com',
+      companyPhone: '+9999999999',
+      companyWebsite: 'www.company.com',
+      companyGst: 'TAX-ID-0000',
+      authorizedSignatory: 'Authorized Signatory',
+    };
+
+    const mergedVars = {
+      ...fallbackPlaceholders,
+      ...(documentDetails || {})
+    };
+
+    Object.keys(mergedVars).forEach(key => {
+      const val = mergedVars[key] || fallbackPlaceholders[key] || '';
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-      html = html.replace(regex, documentDetails[key] || '');
+      html = html.replace(regex, val);
     });
-    return html;
+    return autoLinkUrls(html);
   };
 
   return (
     <div 
-      className="w-full group relative"
-      style={{
-        '--tw-prose-body': block.styles?.color,
-        '--tw-prose-headings': block.styles?.color,
-        '--tw-prose-links': block.styles?.color,
-        '--tw-prose-bold': block.styles?.color,
-        '--tw-prose-quotes': block.styles?.color,
-        fontSize: block.styles?.fontSize ? `${block.styles.fontSize}px` : undefined,
-        fontFamily: block.styles?.fontFamily || undefined,
-        color: block.styles?.color || undefined,
-      } as React.CSSProperties}
+      className="w-full group relative transition-all"
+      style={computedStyles}
     >
       {isSelected ? (
-        <div className="bg-white border border-indigo-200 rounded-lg p-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
-          {editor && (
-            <div className="flex items-center gap-1 mb-2 border-b border-gray-100 pb-2 flex-wrap">
-              <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1 rounded ${editor.isActive('bold') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}><b>B</b></button>
-              <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1 rounded ${editor.isActive('italic') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}><i>I</i></button>
-              <button onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-1 rounded ${editor.isActive('strike') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}><s>S</s></button>
-              <div className="w-px h-4 bg-gray-200 mx-1" />
-              <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1 rounded ${editor.isActive('bulletList') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}>• List</button>
-              <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1 rounded ${editor.isActive('orderedList') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}>1. List</button>
-              <div className="w-px h-4 bg-gray-200 mx-1" />
-              <CustomSelect 
-                onChange={(e) => {
-                  if (e.target.value) {
-                    editor.chain().focus().insertContent(`{{${e.target.value}}}`).run();
-                    e.target.value = '';
-                  }
-                }}
-                className="text-xs border border-gray-200 rounded px-2 py-1 text-indigo-600 bg-indigo-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-              >
-                <option value="">{`{ }`} Insert Variable</option>
-                <option value="clientName">Client Name</option>
-                <option value="clientEmail">Client Email</option>
-                <option value="clientAddress">Client Address</option>
-                <option value="employeeName">Employee Name</option>
-                <option value="employeeEmail">Employee Email</option>
-                <option value="totalAmount">Total Amount</option>
-                <option value="validUntil">Valid Until</option>
-              </CustomSelect>
-            </div>
-          )}
-          <EditorContent editor={editor} className="prose max-w-none text-gray-700 min-h-[50px] outline-none" />
-        </div>
+        <EditorContent 
+          editor={editor} 
+          className="prose max-w-none min-h-[32px] outline-none focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[32px] [&_*]:text-inherit [&_p]:font-inherit [&_a]:!text-blue-600 [&_a]:!underline" 
+        />
       ) : (
         <div 
-          className="prose max-w-none text-gray-700 min-h-[24px] pointer-events-none"
+          className="prose max-w-none min-h-[24px] pointer-events-none [&_*]:text-inherit [&_p]:font-inherit [&_a]:pointer-events-auto [&_a]:!text-blue-600 [&_a]:!underline [&_a]:cursor-pointer"
           dangerouslySetInnerHTML={{ __html: getRenderedHtml() }}
         />
       )}

@@ -19,7 +19,7 @@ export function Providers({ children, session }: { children: ReactNode, session?
     return (
         <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
-                <SessionProvider session={session} refetchOnWindowFocus={false}>
+                <SessionProvider session={session} refetchOnWindowFocus={false} refetchInterval={0} refetchWhenOffline={false}>
                     <GoogleOAuthProvider clientId={clientId}>
                         <AuthProvider>
                             <SettingsProvider>

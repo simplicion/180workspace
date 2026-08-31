@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type BlockType = 'text' | 'heading' | 'list' | 'grid' | 'divider' | 'box' | 'image' | 'signature' | 'input' | 'pagebreak';
+export type BlockType = 'text' | 'heading' | 'list' | 'grid' | 'pricing_table' | 'payment_checkout' | 'payment' | 'checkout' | 'divider' | 'line' | 'box' | 'container' | 'image' | 'signature' | 'approval_buttons' | 'decision' | 'input' | 'pagebreak';
 export type MetaType = 'general' | 'quotation' | 'invoice' | 'contract';
 
 export interface Block {
@@ -11,6 +11,7 @@ export interface Block {
   size?: { width: number | string; height: number | string };
   styles?: Record<string, string | number>;
   visibilityRule?: string | { field: string; operator: string; value: string };
+  parentId?: string;
 }
 
 export interface DocumentState {
@@ -47,6 +48,14 @@ export interface DocumentState {
     showTotalAmount?: boolean;
     totalAmount?: string;
     requireName?: boolean;
+
+    companyName?: string;
+    companyAddress?: string;
+    companyEmail?: string;
+    companyPhone?: string;
+    companyWebsite?: string;
+    companyGst?: string;
+    authorizedSignatory?: string;
   };
   designSettings: {
     fontFamily: string;
@@ -54,6 +63,8 @@ export interface DocumentState {
     primaryColor: string;
     selectedHeaderId?: string;
     selectedFooterId?: string;
+    pageBackground?: string;
+    pagePadding?: string;
   };
 }
 
@@ -86,9 +97,18 @@ const initialState: DocumentState = {
     showTotalAmount: false,
     totalAmount: '0.00',
     requireName: false,
+    companyName: 'Company Name',
+    companyAddress: 'Company Address',
+    companyEmail: 'company@example.com',
+    companyPhone: '+9999999999',
+    companyWebsite: 'www.company.com',
+    companyGst: 'TAX-ID-0000',
+    authorizedSignatory: 'Authorized Signatory',
   },
   designSettings: {
-    fontFamily: 'sans-serif',
+    fontFamily: 'Inter, sans-serif',
+    pageBackground: '#FFFFFF',
+    pagePadding: '40px',
     fontSize: 16,
     primaryColor: '#2563eb',
     selectedHeaderId: 'header-corporate',
@@ -133,22 +153,39 @@ const documentSlice = createSlice({
           newBlock.styles.textAlign = 'center';
       }
       state.blocks.push(newBlock);
+      state.selectedBlockId = newBlock.id;
     },
-    updateBlock: (state, action: PayloadAction<{ id: string; updates: Partial<Block> }>) => {
-      const id = action.payload.id;
+    insertBlockAt: (state, action: PayloadAction<{ block: Block; index: number; parentId?: string }>) => {
+      saveHistory(state);
+      const { block, index, parentId } = action.payload;
+      if (!block.styles) {
+        block.styles = { textAlign: 'center' };
+      } else if (!block.styles.textAlign) {
+        block.styles.textAlign = 'center';
+      }
+      if (parentId) {
+        block.parentId = parentId;
+      }
+      const safeIndex = Math.max(0, Math.min(state.blocks.length, index));
+      state.blocks.splice(safeIndex, 0, block);
+      state.selectedBlockId = block.id;
+    },
+    updateBlock: (state, action: PayloadAction<{ id: string; updates?: Partial<Block>; styles?: any; content?: any; position?: any; size?: any; visibilityRule?: any }>) => {
+      const { id, updates, ...rest } = action.payload;
+      const mergedUpdates = updates ? updates : rest;
       let index = state.blocks.findIndex((b) => b.id === id);
       if (index !== -1) {
-        state.blocks[index] = { ...state.blocks[index], ...action.payload.updates };
+        state.blocks[index] = { ...state.blocks[index], ...mergedUpdates };
         return;
       }
       index = state.headerBlocks.findIndex((b) => b.id === id);
       if (index !== -1) {
-        state.headerBlocks[index] = { ...state.headerBlocks[index], ...action.payload.updates };
+        state.headerBlocks[index] = { ...state.headerBlocks[index], ...mergedUpdates };
         return;
       }
       index = state.footerBlocks.findIndex((b) => b.id === id);
       if (index !== -1) {
-        state.footerBlocks[index] = { ...state.footerBlocks[index], ...action.payload.updates };
+        state.footerBlocks[index] = { ...state.footerBlocks[index], ...mergedUpdates };
         return;
       }
     },
@@ -210,6 +247,13 @@ const documentSlice = createSlice({
     updateDesignSettings: (state, action: PayloadAction<Partial<DocumentState['designSettings']>>) => {
       state.designSettings = { ...state.designSettings, ...action.payload };
     },
+    setBlocks: (state, action: PayloadAction<Block[]>) => {
+      saveHistory(state);
+      state.blocks = action.payload;
+    },
+    setDocumentDetails: (state, action: PayloadAction<Partial<DocumentState['documentDetails']>>) => {
+      state.documentDetails = { ...state.documentDetails, ...action.payload };
+    },
     setHeaderBlocks: (state, action: PayloadAction<Block[]>) => {
       state.headerBlocks = action.payload;
     },
@@ -223,6 +267,7 @@ export const {
   undo,
   redo,
   addBlock,
+  insertBlockAt,
   updateBlock,
   removeBlock,
   duplicateBlock,
@@ -231,10 +276,18 @@ export const {
   updateMetaType,
   initializeDocument,
   updateDocumentDetails,
+  setDocumentDetails,
+  setBlocks,
   reorderBlocks,
   updateDesignSettings,
   setHeaderBlocks,
   setFooterBlocks,
 } = documentSlice.actions;
+
+export const selectDocumentDetails = (state: any) => state.document?.documentDetails;
+export const selectBlocks = (state: any) => state.document?.blocks || [];
+export const selectSelectedBlockId = (state: any) => state.document?.selectedBlockId || null;
+export const selectDesignSettings = (state: any) => state.document?.designSettings;
+export const selectMetaType = (state: any) => state.document?.metaType;
 
 export default documentSlice.reducer;

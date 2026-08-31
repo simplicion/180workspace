@@ -45,6 +45,14 @@ const nextConfig = {
                 destination: `${backendUrl}/api/v1/:path*`,
             },
             {
+                source: '/api/p/:path*',
+                destination: `${backendUrl}/p/:path*`,
+            },
+            {
+                source: '/api/:path*',
+                destination: `${backendUrl}/api/:path*`,
+            },
+            {
                 source: '/tag/:slug*',
                 destination: `${backendUrl}/tag/:slug*`,
             },
