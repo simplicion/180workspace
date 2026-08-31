@@ -44,6 +44,8 @@ export class SignalExtractor {
     const query = req.query || {};
     const rawIp = 
       (typeof headers['cf-connecting-ip'] === 'string' ? headers['cf-connecting-ip'] : '') ||
+      (typeof headers['true-client-ip'] === 'string' ? headers['true-client-ip'] : '') ||
+      (typeof headers['x-client-ip'] === 'string' ? headers['x-client-ip'] : '') ||
       (typeof headers['x-real-ip'] === 'string' ? headers['x-real-ip'] : '') ||
       (typeof headers['x-forwarded-for'] === 'string' ? headers['x-forwarded-for'].split(',')[0].trim() : '') ||
       req.ip ||

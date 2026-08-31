@@ -50,8 +50,8 @@ registerSocketProvider((companyId, event, payload) => {
 const app = express();
 const server = http.createServer(app);
 
-// Trust proxy is required for rate-limiting behind load balancers/proxies
-app.set('trust proxy', 1);
+// Trust proxy is required for rate-limiting behind load balancers/proxies (Cloudflare/Vercel/ALB)
+app.set('trust proxy', true);
 
 // ─── Performance Instrumentation ──────────────────────────────────────────────
 app.use(require('./src/system-configs/middleware/system/performance.middleware').default || require('./src/system-configs/middleware/system/performance.middleware'));
