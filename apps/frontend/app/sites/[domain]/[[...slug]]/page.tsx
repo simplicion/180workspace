@@ -57,7 +57,51 @@ export default async function PublicWebsitePage({
     if (registryData?.type === 'TRAFFIC_LINK') {
         const linkSlug = registryData.payload?.slug;
         if (linkSlug) {
-            redirect(`/r/${linkSlug}`);
+            try {
+                const incomingHeaders = await headers();
+                const userAgent = incomingHeaders.get('user-agent') || '';
+                const forwardedFor = incomingHeaders.get('x-forwarded-for') || '';
+                const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : '';
+                const referer = incomingHeaders.get('referer') || '';
+
+                const apiBase = process.env.NEXT_PUBLIC_API_URL || 
+                    process.env.NEXT_PUBLIC_BACKEND_URL || 
+                    process.env.BACKEND_INTERNAL_URL || 
+                    (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
+
+                const evalRes = await fetch(`${apiBase}/api/v1/traffic-director/r/${linkSlug}`, {
+                    headers: {
+                        'user-agent': userAgent,
+                        'x-forwarded-for': clientIp,
+                        'referer': referer,
+                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                    },
+                    cache: 'no-store'
+                });
+
+                const contentType = evalRes.headers.get('content-type') || '';
+                if (contentType.includes('text/html')) {
+                    const html = await evalRes.text();
+                    return (
+                        <div 
+                            dangerouslySetInnerHTML={{ __html: html }}
+                            className="w-full h-full min-h-screen"
+                        />
+                    );
+                }
+
+                const location = evalRes.headers.get('location');
+                if (location) {
+                    redirect(location);
+                }
+            } catch (err: any) {
+                // If redirect was thrown by Next.js, let it propagate
+                if (err.message === 'NEXT_REDIRECT') {
+                    throw err;
+                }
+                console.error('[sites/TRAFFIC_LINK] In-place proxy error:', err);
+                redirect(`/r/${linkSlug}`);
+            }
         }
     }
 
