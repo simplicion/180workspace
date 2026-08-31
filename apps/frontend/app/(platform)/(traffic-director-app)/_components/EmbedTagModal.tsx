@@ -31,16 +31,6 @@ export default function EmbedTagModal({
   shieldMode = 'server',
   onDomainUpdated
 }: EmbedTagModalProps) {
-  // Directly bind active mode to the link's selected strategy
-  const isCodeMode = shieldMode === 'client_shield';
-  const [deploymentMode, setDeploymentMode] = useState<'code_injection' | 'smart_link'>(
-    isCodeMode ? 'code_injection' : 'smart_link'
-  );
-
-  useEffect(() => {
-    setDeploymentMode(shieldMode === 'client_shield' ? 'code_injection' : 'smart_link');
-  }, [shieldMode, isOpen]);
-
   type SnippetFormat = 'vercel_edge' | 'node_express' | 'wordpress_php' | 'html_script' | 'inline_shield';
   const [snippetType, setSnippetType] = useState<SnippetFormat>('vercel_edge');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -449,43 +439,13 @@ add_action('template_redirect', function() {
       <Drawer
         isOpen={isOpen}
         onClose={onClose}
-        title={deploymentMode === 'smart_link' ? 'Smart Link Deployment' : 'Code Injection Deployment'}
+        title={shieldMode === 'server' ? 'Smart Link Deployment' : 'Code Injection Deployment'}
         description={`${linkName} (/r/${slug})`}
         maxWidth="max-w-xl"
       >
         <div className="p-5 space-y-4">
-          {/* TOP TOGGLE: Only show if link has NOT explicitly chosen a fixed shieldMode */}
-          {!isCodeMode ? (
-            <div className="grid grid-cols-2 gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-              <button
-                type="button"
-                onClick={() => setDeploymentMode('smart_link')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition ${
-                  deploymentMode === 'smart_link'
-                    ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-xs border border-gray-200/60 dark:border-gray-700/60'
-                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Smart Link</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeploymentMode('code_injection')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition ${
-                  deploymentMode === 'code_injection'
-                    ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-xs border border-gray-200/60 dark:border-gray-700/60'
-                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>Code Injection</span>
-              </button>
-            </div>
-          ) : null}
-
-          {/* VIEW 1: CODE INJECTION (CUSTOM DROPDOWN & FIXED SCROLLBAR-FREE CODE BOX) */}
-          {(deploymentMode === 'code_injection' || isCodeMode) && (
+          {/* VIEW 1: CODE INJECTION (ONLY WHEN shieldMode === 'client_shield') */}
+          {shieldMode === 'client_shield' && (
             <div className="space-y-3.5 animate-in fade-in duration-200">
               {/* Custom Animated Framework Dropdown Selector */}
               <div className="space-y-1.5">
@@ -638,8 +598,8 @@ add_action('template_redirect', function() {
             </div>
           )}
 
-          {/* VIEW 2: SMART LINK (DOMAIN & REVERSE PROXY) */}
-          {(deploymentMode === 'smart_link' || !isCodeMode) && (
+          {/* VIEW 2: SMART LINK (ONLY WHEN shieldMode !== 'client_shield') */}
+          {shieldMode !== 'client_shield' && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
