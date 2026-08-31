@@ -84,12 +84,13 @@ export default withAuth(
 
     const isSetupPage = req.nextUrl.pathname.startsWith("/workspace-setup")
 
-    const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f'];
+    const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f', '/api'];
     const is180workspaceRoute = WORKSPACE_ROUTES.some(r => req.nextUrl.pathname.startsWith(r));
 
     // 180workspace Platform routes (Requires Workspace Setup)
-    // Anything that is NOT 180workspace, NOT Auth, and NOT Setup is considered an IMS route
-    const isIMSRoute = !is180workspaceRoute && !isAuthPage && !isSetupPage;
+    // Anything that is NOT 180workspace, NOT Auth, NOT Setup, and NOT API is considered an IMS route
+    const isApiRoute = req.nextUrl.pathname.startsWith('/api');
+    const isIMSRoute = !is180workspaceRoute && !isAuthPage && !isSetupPage && !isApiRoute;
 
     const isWorkspaceSetupComplete = !!(token?.companyId && token?.isOnboardingComplete);
     const is180workspaceUser = token?.role === 'USER';
@@ -152,7 +153,7 @@ export default withAuth(
       if (!isOnboardingDone) {
         // If they're on /login, let them stay — they might want to switch accounts
         if (req.nextUrl.pathname.startsWith("/login")) {
-          return null;
+          return NextResponse.next();
         }
         return NextResponse.redirect(new URL("/signup", req.url));
       }
@@ -171,7 +172,7 @@ export default withAuth(
         return NextResponse.redirect(new URL("/workspace-setup", req.url));
       }
 
-      return null; // Allow access
+      return NextResponse.next(); // Allow access
     }
 
     // 4. User is trying to access Workspace Setup
@@ -180,7 +181,7 @@ export default withAuth(
       if (isWorkspaceSetupComplete) {
         return NextResponse.redirect(new URL("/", req.url));
       }
-      return null; // Allow access to workspace setup
+      return NextResponse.next(); // Allow access to workspace setup
     }
 
     // 5. User is trying to access 180workspace routes
@@ -189,10 +190,10 @@ export default withAuth(
       if (isAuth && !isOnboardingDone) {
         return NextResponse.redirect(new URL("/signup", req.url));
       }
-      return null;
+      return NextResponse.next();
     }
 
-    return null
+    return NextResponse.next();
   },
   {
     callbacks: {
