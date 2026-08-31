@@ -7,7 +7,13 @@ export default withAuth(
     const hostname = req.headers.get("host") || "";
 
     // Internal dynamic site rewrites and fast redirect routes always bypass auth middleware
-    if (req.nextUrl.pathname.startsWith('/sites') || req.nextUrl.pathname.startsWith('/r/')) {
+    if (
+      req.nextUrl.pathname.startsWith('/sites') ||
+      req.nextUrl.pathname.startsWith('/r/') ||
+      req.nextUrl.pathname.startsWith('/shield/') ||
+      req.nextUrl.pathname.startsWith('/tag/') ||
+      req.nextUrl.pathname.startsWith('/evaluate/')
+    ) {
       return NextResponse.next();
     }
 
@@ -65,7 +71,8 @@ export default withAuth(
       }
 
       // ALL other paths on custom domains/subdomains (e.g. /prince, /, /about, etc.) rewrite to dynamic sites directory
-      return NextResponse.rewrite(new URL(`/sites/${hostname}${path}`, req.url));
+      const domainKey = hostname.split(':')[0].toLowerCase();
+      return NextResponse.rewrite(new URL(`/sites/${domainKey}${path}${search}`, req.url));
     }
 
     const token = req.nextauth.token

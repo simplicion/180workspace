@@ -2456,6 +2456,7 @@ model TrafficLink {
   rampUpDurationHours Int            @default(24)
   shieldMode          String         @default("server") // server, client_shield, hybrid
   datacenterBlocked   Boolean        @default(true)
+  safePageProxyMode   Boolean        @default(false)
   rules               TrafficRule[]
   logs                TrafficLog[]
   createdAt           DateTime       @default(now())

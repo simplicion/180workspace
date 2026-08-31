@@ -1,4 +1,4 @@
-// Cache bust comment to force Vercel to rebuild and drop deleted job-hunter-app components
+// Reload rewrites to sync with backend port
 const path = require('path');
 const fs = require('fs');
 
@@ -49,10 +49,6 @@ const nextConfig = {
                 destination: `${backendUrl}/tag/:slug*`,
             },
             {
-                source: '/r/:slug*',
-                destination: `${backendUrl}/r/:slug*`,
-            },
-            {
                 source: '/shield/:slug*',
                 destination: `${backendUrl}/shield/:slug*`,
             },
@@ -65,7 +61,7 @@ const nextConfig = {
     async headers() {
         return [
             {
-                source: '/(.*)',
+                source: '/((?!r/|shield/|tag/|evaluate/).*)',
                 headers: [
                     { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
                     { key: 'X-Content-Type-Options', value: 'nosniff' },
