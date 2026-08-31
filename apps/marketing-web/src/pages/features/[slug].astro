@@ -2,9 +2,13 @@
 import Layout from '../../layouts/Layout.astro';
 import { prisma } from '@workspace/db';
 
-export async function getStaticPaths() {
-  const features = await prisma.marketingPage.findMany({
+const { slug } = Astro.params;
+
+let feature = null;
+try {
+  feature = await prisma.marketingPage.findFirst({
     where: {
+      slug,
       type: 'FEATURE',
       published: true,
     },
@@ -17,14 +21,13 @@ export async function getStaticPaths() {
       jsonLdSchema: true
     }
   });
-
-  return features.map(feature => ({
-    params: { slug: feature.slug },
-    props: { feature },
-  }));
+} catch (error) {
+  console.error("Failed to fetch feature page:", error);
 }
 
-const { feature } = Astro.props;
+if (!feature) {
+  return Astro.redirect('/features');
+}
 
 // Default structured data for Product schema
 const defaultStructuredData = {
