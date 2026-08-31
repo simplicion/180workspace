@@ -2,6 +2,7 @@
 
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { useSettings } from '@/lib/settings-context';
 import { FileText, Plus, X, Trash2, Eye, Filter, CheckCircle2, Send, Banknote, AlertCircle, Printer, CreditCard, ExternalLink, Download, ShieldAlert } from 'lucide-react';
@@ -121,9 +122,14 @@ export default function InvoicesPage() {
                     <p className="page-subtitle">{user?.role === 'client' ? 'View and pay your invoices' : 'Create and track client invoices'}</p>
                 </div>
                 {user?.role !== 'client' && (
-                    <button onClick={() => setShowCreate(true)} className="btn-primary">
-                        <Plus className="w-4 h-4" /> Create Invoice
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <Link href="/document-editor?templateId=t-tax-invoice" className="btn-secondary flex items-center gap-1.5">
+                            <FileText className="w-4 h-4 text-indigo-600" /> Visual Invoice Editor
+                        </Link>
+                        <button onClick={() => setShowCreate(true)} className="btn-primary">
+                            <Plus className="w-4 h-4" /> Quick Invoice
+                        </button>
+                    </div>
                 )}
             </div>
 

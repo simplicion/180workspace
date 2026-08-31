@@ -1,14 +1,21 @@
 'use client';
 
 import { LogoLoader } from "@workspace/ui";
-import { useEffect, useState, Suspense, useMemo } from 'react';
+import React, { useEffect, useState, useRef, Suspense, useMemo } from 'react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { X, FileText, Edit2, Tags, Mail, Users, ChevronDown, Check, Download, Printer, HardDrive, ExternalLink, ArrowLeft, Save, FileBadge2, Search, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Palette, ZoomIn, ZoomOut, Maximize, FileSymlink, MessageSquare, Undo, Redo, Plus, Heading1, List, Grid, Minus, Square, Image as ImageIcon, FormInput, EyeOff, Eye, LayoutTemplate, Settings2, Trash2, Signature, Scissors } from 'lucide-react';
+import { X, FileText, Edit2, Tags, Mail, Users, ChevronDown, ChevronLeft, ChevronRight, FilePlus, Check, Download, Printer, HardDrive, ExternalLink, ArrowLeft, Save, FileBadge2, Search, Type, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Palette, ZoomIn, ZoomOut, Maximize, Minimize, FileSymlink, MessageSquare, Undo, Redo, Plus, Heading1, List, Grid, Minus, Square, Image as ImageIcon, FormInput, EyeOff, Eye, LayoutTemplate, Settings2, Trash2, Signature, Scissors, Link2, Sparkles, Calculator, Columns, Rows, LayoutGrid, Share2, Sliders, Code2, Keyboard } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setZoomLevel, addBlock, selectBlock, reorderBlocks, updateDocumentDetails, updateDesignSettings, undo, redo, updateMetaType, MetaType, updateBlock, initializeDocument, setHeaderBlocks, setFooterBlocks } from '../../../../redux/slices/documentSlice';
+import { setZoomLevel, addBlock, insertBlockAt, selectBlock, reorderBlocks, updateDocumentDetails, updateDesignSettings, undo, redo, updateMetaType, MetaType, updateBlock, removeBlock, duplicateBlock, initializeDocument, setHeaderBlocks, setFooterBlocks } from '@/redux/slices/documentSlice';
 import { SortableBlock } from './_components/SortableBlock';
 import { StaticBlockRenderer } from './_components/StaticBlockRenderer';
+import { DocumentRecipientDropdown } from './_components/DocumentRecipientDropdown';
+import { GlobalDesignPanel } from './_components/GlobalDesignPanel';
+import { ElementPropertiesDispatcher } from './_components/properties/ElementPropertiesDispatcher';
+import { ElementsCatalogPanel, createDefaultDocumentBlock } from './_components/ElementsCatalogPanel';
+import { JsonSchemaEditorModal } from './_components/JsonSchemaEditorModal';
+import { AIDocumentDrawer } from './_components/AIDocumentDrawer';
+import { LiveAIStreamOverlay } from './_components/LiveAIStreamOverlay';
 import { DOCUMENT_TEMPLATES, DocumentTemplate, BrandConfig } from '../_components/templatesData';
 import { HEADER_TEMPLATES, FOOTER_TEMPLATES } from '../_components/headerFooterTemplates';
 import { generateHtmlFromBlocks } from './_components/utils/generateHtml';
@@ -23,6 +30,7 @@ import { generatePDF } from '@/lib/pdf-utils';
 import { generateDOCX } from '@/lib/docx-utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CustomSelect from '@/components/ui/CustomSelect';
+import ShareDocumentModal from '../_components/ShareDocumentModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
@@ -175,21 +183,29 @@ function TemplateEditor({
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [emailFormat, setEmailFormat] = useState<'pdf' | 'docx'>('pdf');
     const [showTemplateModal, setShowTemplateModal] = useState(false);
+    const [showShortcutsModal, setShowShortcutsModal] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [templateName, setTemplateName] = useState('');
-    const [activeTab, setActiveTab] = useState<'design' | 'details'>('design');
+    const [activeTab, setActiveTab] = useState<'properties' | 'design'>('properties');
     const dispatch = useDispatch();
     const zoomLevel = useSelector((state: any) => state.document?.zoomLevel || 100);
     const blocks = useSelector((state: any) => state.document?.blocks || []);
+    const rootBlocks = blocks.filter((b: any) => !b.parentId);
     const headerBlocks = useSelector((state: any) => state.document?.headerBlocks || []);
     const footerBlocks = useSelector((state: any) => state.document?.footerBlocks || []);
     const selectedBlockId = useSelector((state: any) => state.document?.selectedBlockId || null);
     const documentDetails = useSelector((state: any) => state.document?.documentDetails);
     const metaType = useSelector((state: any) => state.document?.metaType || 'general');
-    const rawDesignSettings = useSelector((state: any) => state.document?.designSettings || { fontFamily: 'sans-serif', fontSize: 16, primaryColor: '#2563eb', selectedHeaderId: 'none', selectedFooterId: 'none' });
+    const rawDesignSettings = useSelector((state: any) => state.document?.designSettings || { fontFamily: 'Inter, sans-serif', primaryColor: '#2563eb', pageBackground: '#ffffff', pagePadding: '40px', selectedHeaderId: 'none', selectedFooterId: 'none' });
     const isDefaultColor = rawDesignSettings.primaryColor === '#2563eb';
-    const effectiveDesignSettings = { ...rawDesignSettings, primaryColor: isDefaultColor ? brand.brandColor : rawDesignSettings.primaryColor };
-    const designSettings = rawDesignSettings;
+    const effectiveDesignSettings = { 
+        fontFamily: rawDesignSettings.fontFamily || 'Inter, sans-serif',
+        pageBackground: rawDesignSettings.pageBackground || '#ffffff',
+        pagePadding: rawDesignSettings.pagePadding || '40px',
+        ...rawDesignSettings,
+        primaryColor: isDefaultColor ? (brand?.brandColor || rawDesignSettings.primaryColor) : rawDesignSettings.primaryColor
+    };
+    const designSettings = effectiveDesignSettings;
     const pastLength = useSelector((state: any) => state.document?.past?.length || 0);
     const futureLength = useSelector((state: any) => state.document?.future?.length || 0);
 
@@ -201,34 +217,157 @@ function TemplateEditor({
     const employees = employeesData?.users || employeesData?.data || [];
     const projects = projectsData?.projects || projectsData?.data || [];
 
+    // Switch to properties tab whenever a block is clicked/selected
+    useEffect(() => {
+        if (selectedBlockId) {
+            setActiveTab('properties');
+        }
+    }, [selectedBlockId]);
 
-    // Initialize Redux state with template
+    // Initialize Redux state with template and dynamic company brand details
     useEffect(() => {
         if (template) {
             dispatch(initializeDocument({
                 blocks: template.blocks || [],
-                documentDetails: template.documentDetails || { title: template.title }
+                documentDetails: {
+                    companyName: (brand as any)?.companyName || 'Company Name',
+                    companyAddress: (brand as any)?.companyAddress || 'Company Address',
+                    companyEmail: (brand as any)?.companyEmail || 'company@example.com',
+                    companyPhone: (brand as any)?.companyPhone || '+9999999999',
+                    companyWebsite: (brand as any)?.companyWebsite || 'www.company.com',
+                    companyLogo: (brand as any)?.companyLogo || '',
+                    companyGst: (brand as any)?.companyGst || 'TAX-ID-0000',
+                    authorizedSignatory: (brand as any)?.authorizedSignatory || 'Authorized Signatory',
+                    ...(template.documentDetails || { title: template.title })
+                }
             }));
         }
-    }, [template, dispatch]);
+    }, [template, brand, dispatch]);
+
+    // Dynamically inject active Google Font stylesheet into <head>
+    useEffect(() => {
+        const fontName = (designSettings?.fontFamily || 'Inter').split(',')[0].replace(/['"]/g, '').trim();
+        if (fontName) {
+            const linkId = `google-font-page-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+            if (!document.getElementById(linkId)) {
+                const link = document.createElement('link');
+                link.id = linkId;
+                link.rel = 'stylesheet';
+                link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}:wght@300;400;500;600;700;800&display=swap`;
+                document.head.appendChild(link);
+            }
+        }
+    }, [designSettings?.fontFamily]);
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (over && active.id !== over.id) {
+            const activeBlock = blocks.find((b: any) => b.id === active.id);
+            const overBlock = blocks.find((b: any) => b.id === over.id);
+            
+            if (activeBlock && overBlock) {
+                // If dragging over an empty container (which is a sortable item itself)
+                if (overBlock.type === 'container') {
+                    // Check if they dropped it directly onto the container's sortable representation
+                    dispatch(updateBlock({ id: active.id as string, updates: { parentId: overBlock.id } }));
+                    
+                    const oldIndex = blocks.findIndex((b: any) => b.id === active.id);
+                    // Move the block to be visually inside the container by placing it right after it in the flat list
+                    const newIndex = blocks.findIndex((b: any) => b.id === over.id) + 1;
+                    dispatch(reorderBlocks({ oldIndex, newIndex }));
+                    return;
+                }
+                
+                // If dragging between different containers/roots, update parentId
+                if (activeBlock.parentId !== overBlock.parentId) {
+                    dispatch(updateBlock({ id: active.id as string, updates: { parentId: overBlock.parentId } }));
+                }
+            }
+
             const oldIndex = blocks.findIndex((b: any) => b.id === active.id);
             const newIndex = blocks.findIndex((b: any) => b.id === over.id);
             dispatch(reorderBlocks({ oldIndex, newIndex }));
         }
     };
 
-    const handleZoomIn = () => dispatch(setZoomLevel(Math.min(zoomLevel + 10, 200)));
+    const handleZoomIn = () => dispatch(setZoomLevel(Math.min(zoomLevel + 10, 120)));
     const handleZoomOut = () => dispatch(setZoomLevel(Math.max(zoomLevel - 10, 50)));
 
+    const handleToggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+            setIsFullscreen(true);
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+            setIsFullscreen(false);
+        }
+    };
 
+    // Keep fullscreen state perfectly synced with native browser changes
+    useEffect(() => {
+        const onFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    }, []);
 
-    // Export Menu State
-    const [showExportMenu, setShowExportMenu] = useState(false);
-    const [documentId, setDocumentId] = useState<string | null>(null);
+    // View and Share/Export Dropdown States & Refs
+    const [showViewMenu, setShowViewMenu] = useState(false);
+    const [showShareExportMenu, setShowShareExportMenu] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [showJsonModal, setShowJsonModal] = useState(false);
+    const viewMenuRef = useRef<HTMLDivElement>(null);
+    const shareExportMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) {
+                setShowViewMenu(false);
+            }
+            if (shareExportMenuRef.current && !shareExportMenuRef.current.contains(e.target as Node)) {
+                setShowShareExportMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const [nativeDragOverIndex, setNativeDragOverIndex] = useState<number | null>(null);
+    const [documentId, setDocumentId] = useState<string | null>(
+        template?.id && !template.id.startsWith('t-') ? template.id : null
+    );
+
+    // AI Document Builder Drawer & Live Generation State
+    const [showAIDrawer, setShowAIDrawer] = useState(false);
+    const [isAIGenerating, setIsAIGenerating] = useState(false);
+    const [aiStatusMessage, setAIStatusMessage] = useState('AI is synthesizing document structure...');
+    const aiAbortControllerRef = useRef<AbortController | null>(null);
+
+    const searchParams = useSearchParams();
+    useEffect(() => {
+        if (searchParams?.get('ai') === 'open') {
+            setShowAIDrawer(true);
+        }
+    }, [searchParams]);
+
+    const handleStopAIGeneration = () => {
+        if (aiAbortControllerRef.current) {
+            aiAbortControllerRef.current.abort();
+        }
+        setIsAIGenerating(false);
+        setShowAIDrawer(true);
+        toast('AI Generation stopped', { icon: '⏹' });
+    };
+
+    const handleDropNewBlock = (blockType: string, index: number, parentId?: string) => {
+        const newBlock = createDefaultDocumentBlock(blockType, documentDetails);
+        dispatch(insertBlockAt({ block: newBlock, index, parentId }));
+        toast.success(`Added ${newBlock.type} block`, { id: 'canvas-drop-toast', duration: 1500, icon: '✨' });
+    };
+
 
     // Derived document detail variables
     const title = documentDetails?.title || '';
@@ -242,7 +381,112 @@ function TemplateEditor({
     // Generate live branded HTML from template
     const liveHtml = generateHtmlFromBlocks(blocks, documentDetails, effectiveDesignSettings, brand);
 
-    // headerHtmlPreview and footerHtmlPreview removed as they are now replaced by headerBlocks and footerBlocks
+    const persistDocument = async (): Promise<string | null> => {
+        try {
+            setSaving(true);
+            const docTitle = title?.trim() || 'Untitled Document';
+            const payload = {
+                title: docTitle,
+                name: docTitle,
+                content: JSON.stringify({ blocks, documentDetails }),
+                category: documentDetails?.metaType || 'Document',
+                tags: ['draft'],
+                documentType: (documentDetails?.metaType || 'INVOICE').toUpperCase(),
+                blocks,
+                headerBlocks,
+                footerBlocks,
+                variables: documentDetails,
+                designSettings: effectiveDesignSettings,
+                clientId: documentDetails?.selectedClientId || null,
+                employeeId: documentDetails?.selectedEmployeeId || null,
+                subtotal: Number(documentDetails?.subtotal || 0),
+                taxPercent: Number(documentDetails?.taxPercent || 0),
+                taxAmount: Number(documentDetails?.taxAmount || 0),
+                discount: Number(documentDetails?.discount || 0),
+                grandTotal: Number(documentDetails?.totalAmount || documentDetails?.grandTotal || 0)
+            };
+
+            let targetId = documentId;
+            if (targetId && !targetId.startsWith('t-')) {
+                try {
+                    const res = await api.put(`/api/v1/workspace-tools/documents/${targetId}`, payload);
+                    const updatedId = res.data?.document?.id || res.data?.article?.id || res.data?.data?.id || targetId;
+                    if (updatedId) {
+                        setDocumentId(updatedId);
+                        return updatedId;
+                    }
+                } catch (putErr) {
+                    console.warn('PUT failed, falling back to POST create:', putErr);
+                }
+            }
+
+            // Create new document if targetId was null, starts with 't-', or PUT failed
+            const res = await api.post('/api/v1/workspace-tools/documents', payload);
+            const createdId = res.data?.document?.id || res.data?.article?.id || res.data?.data?.id || res.data?.data?._id || res.data?.id;
+            if (createdId) {
+                setDocumentId(createdId);
+                return createdId;
+            }
+        } catch (err: any) {
+            console.error('Failed to persist document:', err);
+            toast.error(err?.response?.data?.message || 'Failed to save document draft.');
+        } finally {
+            setSaving(false);
+        }
+        return documentId;
+    };
+
+    const handleOpenViewer = async () => {
+        let activeId = documentId;
+        if (!activeId || activeId.startsWith('t-')) {
+            const toastId = toast.loading('Preparing document preview...');
+            activeId = await persistDocument();
+            toast.dismiss(toastId);
+        }
+        if (activeId) {
+            window.open(`/document-viewer?id=${activeId}`, '_blank');
+        } else {
+            toast.error('Unable to open document viewer. Please check document title.');
+        }
+    };
+
+    const handleOpenShareModal = async () => {
+        let activeId = documentId;
+        if (!activeId || activeId.startsWith('t-')) {
+            const toastId = toast.loading('Preparing document for sharing...');
+            activeId = await persistDocument();
+            toast.dismiss(toastId);
+        }
+        if (activeId) {
+            setShowShareModal(true);
+        } else {
+            toast.error('Unable to prepare document. Please check document contents.');
+        }
+    };
+
+    const handleCopyShareLink = async () => {
+        try {
+            let activeId = documentId;
+            if (!activeId || activeId.startsWith('t-')) {
+                activeId = await persistDocument();
+            }
+
+            if (!activeId) {
+                toast.error('Unable to save document right now. Please try again.');
+                return;
+            }
+
+            const shareRes = await api.post(`/api/v1/workspace-tools/documents/${activeId}/share`);
+            if (shareRes.data?.shareToken) {
+                const url = `${window.location.origin}/f/document/${shareRes.data.shareToken}`;
+                await navigator.clipboard.writeText(url);
+                toast.success('Public E-Sign link copied to clipboard!');
+            }
+        } catch (err) {
+            console.error('Error generating share link:', err);
+            toast.error('Failed to generate public signing link');
+        }
+    };
 
     // Autosave functionality
     useEffect(() => {
@@ -252,20 +496,37 @@ function TemplateEditor({
             try {
                 const payload = {
                     title,
+                    name: title,
                     content: JSON.stringify({ blocks, documentDetails }),
-                    category: 'Document',
+                    category: documentDetails?.metaType || 'Document',
                     tags: ['draft'],
+                    documentType: (documentDetails?.metaType || 'INVOICE').toUpperCase(),
+                    blocks,
+                    headerBlocks,
+                    footerBlocks,
+                    variables: documentDetails,
+                    designSettings: effectiveDesignSettings,
+                    clientId: documentDetails?.selectedClientId || null,
+                    employeeId: documentDetails?.selectedEmployeeId || null,
+                    subtotal: Number(documentDetails?.subtotal || 0),
+                    taxPercent: Number(documentDetails?.taxPercent || 0),
+                    taxAmount: Number(documentDetails?.taxAmount || 0),
+                    discount: Number(documentDetails?.discount || 0),
+                    grandTotal: Number(documentDetails?.totalAmount || documentDetails?.grandTotal || 0)
                 };
                 
-                if (documentId) {
-                    await api.put(`/api/v1/workspace-tools/documents/files/${documentId}`, payload);
-                } else {
-                    const res = await api.post('/api/v1/workspace-tools/documents/files', payload);
-                    if (res.data?.data?._id) {
-                        setDocumentId(res.data.data._id);
-                    } else if (res.data?.id) {
-                        setDocumentId(res.data.id);
+                if (documentId && !documentId.startsWith('t-')) {
+                    try {
+                        await api.put(`/api/v1/workspace-tools/documents/${documentId}`, payload);
+                    } catch (putErr) {
+                        const res = await api.post('/api/v1/workspace-tools/documents', payload);
+                        const newId = res.data?.document?.id || res.data?.data?.id || res.data?.data?._id || res.data?.id;
+                        if (newId) setDocumentId(newId);
                     }
+                } else {
+                    const res = await api.post('/api/v1/workspace-tools/documents', payload);
+                    const newId = res.data?.document?.id || res.data?.data?.id || res.data?.data?._id || res.data?.id;
+                    if (newId) setDocumentId(newId);
                 }
             } catch (err) {
                 console.error("Autosave failed", err);
@@ -279,7 +540,7 @@ function TemplateEditor({
         }, 2000); // 2 seconds debounce
 
         return () => clearTimeout(timer);
-    }, [blocks, documentDetails, title, documentId]);
+    }, [blocks, documentDetails, title, documentId, headerBlocks, footerBlocks, effectiveDesignSettings]);
 
     // Auto-fill recipient when modal opens or tagged users change
     useEffect(() => {
@@ -291,11 +552,16 @@ function TemplateEditor({
 
     useEffect(() => {
         setLoadingUsers(true);
-        api.get('/api/users?limit=200')
-            .then(({ data }) => setAllUsers(data.users || data || []))
+        api.get('/api/v1/identity/users')
+            .catch(() => api.get('/api/users'))
+            .then((res) => {
+                if (res?.data) {
+                    setAllUsers(res.data.users || res.data.data || res.data || []);
+                }
+            })
             .catch((err) => {
-                console.error('Failed to fetch users:', err);
-                toast.error('Could not load users for tagging');
+                console.warn('Optional users tagging fetch skipped:', err);
+                setAllUsers([]);
             })
             .finally(() => setLoadingUsers(false));
     }, []);
@@ -319,6 +585,188 @@ function TemplateEditor({
         window.addEventListener('wheel', handleGlobalWheel, { passive: false });
         return () => window.removeEventListener('wheel', handleGlobalWheel);
     }, [dispatch, zoomLevel]);
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // System Controls & Keyboard Shortcuts (Ctrl+A, Delete, Ctrl+B, Ctrl+Z, Ctrl+S, etc.)
+    // ─────────────────────────────────────────────────────────────────────────────
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const activeEl = document.activeElement;
+            const isInputActive = activeEl && (
+                activeEl.tagName === 'INPUT' || 
+                activeEl.tagName === 'TEXTAREA' || 
+                activeEl.getAttribute('contenteditable') === 'true' ||
+                (activeEl as HTMLElement).isContentEditable ||
+                Boolean(activeEl.closest('.ProseMirror')) ||
+                Boolean(activeEl.closest('.tiptap'))
+            );
+
+            const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+            const isCmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+            // 1. DELETE / BACKSPACE: Delete selected block when not typing inside an input field
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !isInputActive) {
+                if (selectedBlockId) {
+                    e.preventDefault();
+                    dispatch(removeBlock(selectedBlockId));
+                    toast.success('Block deleted', { id: 'block-del', duration: 1200 });
+                }
+                return;
+            }
+
+            // 2. ESCAPE: Deselect active block, close shortcuts modal, or exit fullscreen
+            if (e.key === 'Escape') {
+                if (showShortcutsModal) {
+                    setShowShortcutsModal(false);
+                } else if (isFullscreen) {
+                    setIsFullscreen(false);
+                } else if (selectedBlockId) {
+                    dispatch(selectBlock(null));
+                }
+                return;
+            }
+
+            // 3. CTRL / CMD KEYBOARD CONTROLS
+            if (isCmdOrCtrl) {
+                const key = e.key.toLowerCase();
+
+                // Ctrl + S : Save Document Draft
+                if (key === 's') {
+                    e.preventDefault();
+                    persistDocument().then(() => {
+                        toast.success('Document draft saved!', { id: 'doc-saved', duration: 1500 });
+                    });
+                    return;
+                }
+
+                // Ctrl + Z : Undo
+                if (key === 'z' && !e.shiftKey) {
+                    if (!isInputActive) {
+                        e.preventDefault();
+                        if (pastLength > 0) {
+                            dispatch(undo());
+                            toast('Undo', { icon: '↶', id: 'undo', duration: 1000 });
+                        }
+                    }
+                    return;
+                }
+
+                // Ctrl + Y or Ctrl + Shift + Z : Redo
+                if (key === 'y' || (key === 'z' && e.shiftKey)) {
+                    if (!isInputActive) {
+                        e.preventDefault();
+                        if (futureLength > 0) {
+                            dispatch(redo());
+                            toast('Redo', { icon: '↷', id: 'redo', duration: 1000 });
+                        }
+                    }
+                    return;
+                }
+
+                // Ctrl + D : Duplicate Selected Block
+                if (key === 'd') {
+                    if (selectedBlockId && !isInputActive) {
+                        e.preventDefault();
+                        dispatch(duplicateBlock(selectedBlockId));
+                        toast.success('Block duplicated', { id: 'block-dup', duration: 1200 });
+                    }
+                    return;
+                }
+
+                // Ctrl + B : Bold Text / Style Toggle
+                if (key === 'b') {
+                    if (!isInputActive && selectedBlockId) {
+                        e.preventDefault();
+                        const b = blocks.find((item: any) => item.id === selectedBlockId);
+                        if (b) {
+                            const isBold = b.styles?.fontWeight === 'bold' || b.styles?.fontWeight === 700 || b.styles?.fontWeight === '700';
+                            dispatch(updateBlock({
+                                id: selectedBlockId,
+                                updates: {
+                                    styles: {
+                                        ...b.styles,
+                                        fontWeight: isBold ? 'normal' : 'bold'
+                                    }
+                                }
+                            }));
+                            toast.success(isBold ? 'Normal weight' : 'Bold weight', { id: 'style-bold', duration: 1000 });
+                        }
+                    }
+                    return;
+                }
+
+                // Ctrl + I : Italic Text / Style Toggle
+                if (key === 'i') {
+                    if (!isInputActive && selectedBlockId) {
+                        e.preventDefault();
+                        const b = blocks.find((item: any) => item.id === selectedBlockId);
+                        if (b) {
+                            const isItalic = b.styles?.fontStyle === 'italic';
+                            dispatch(updateBlock({
+                                id: selectedBlockId,
+                                updates: {
+                                    styles: {
+                                        ...b.styles,
+                                        fontStyle: isItalic ? 'normal' : 'italic'
+                                    }
+                                }
+                            }));
+                            toast.success(isItalic ? 'Normal style' : 'Italic style', { id: 'style-italic', duration: 1000 });
+                        }
+                    }
+                    return;
+                }
+
+                // Ctrl + U : Underline Text / Style Toggle
+                if (key === 'u') {
+                    if (!isInputActive && selectedBlockId) {
+                        e.preventDefault();
+                        const b = blocks.find((item: any) => item.id === selectedBlockId);
+                        if (b) {
+                            const isUnderlined = b.styles?.textDecoration === 'underline';
+                            dispatch(updateBlock({
+                                id: selectedBlockId,
+                                updates: {
+                                    styles: {
+                                        ...b.styles,
+                                        textDecoration: isUnderlined ? 'none' : 'underline'
+                                    }
+                                }
+                            }));
+                            toast.success(isUnderlined ? 'Underline removed' : 'Underline applied', { id: 'style-underline', duration: 1000 });
+                        }
+                    }
+                    return;
+                }
+
+                // Ctrl + / : Open Shortcuts Cheat Sheet
+                if (key === '/' || key === '?') {
+                    e.preventDefault();
+                    setShowShortcutsModal(prev => !prev);
+                    return;
+                }
+
+                // Ctrl + A : When block is selected and not editing an input, focus the block's text content and select all
+                if (key === 'a' && !isInputActive && selectedBlockId) {
+                    const blockEl = document.getElementById(`block-${selectedBlockId}`);
+                    if (blockEl) {
+                        const targetInput = blockEl.querySelector('input') || blockEl.querySelector('textarea') || blockEl.querySelector('.tiptap');
+                        if (targetInput) {
+                            e.preventDefault();
+                            (targetInput as HTMLElement).focus();
+                            if (targetInput instanceof HTMLInputElement || targetInput instanceof HTMLTextAreaElement) {
+                                targetInput.select();
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedBlockId, blocks, isFullscreen, pastLength, futureLength, showShortcutsModal, dispatch]);
 
     const filteredUsers = allUsers.filter(u =>
         `${u.name} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())
@@ -525,18 +973,38 @@ function TemplateEditor({
             
             {/* Top Navigation Bar */}
             <div className={clsx("bg-white border-b border-gray-200 px-4 flex items-center justify-between h-16 flex-shrink-0 transition-all duration-300", isFullscreen ? "h-0 overflow-hidden border-none p-0 opacity-0" : "opacity-100")}>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
-                        <ArrowLeft className="w-4 h-4" /> Back to Documents
+                        <ArrowLeft className="w-4 h-4" /> Back
                     </button>
-                    <div className="flex items-center gap-2 border-l border-gray-200 pl-4">
+                    <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
                         <Edit2 className="w-4 h-4 text-gray-400" />
                         <input 
                             type="text" 
                             value={title} 
                             onChange={(e) => handleDetailChange('title', e.target.value)}
-                            className="text-base font-bold text-gray-900 min-w-[250px] border-none focus:outline-none focus:ring-0 bg-transparent hover:bg-gray-50 px-1 rounded transition-colors"
+                            placeholder="Untitled Document"
+                            className="text-sm font-bold text-gray-900 min-w-[180px] max-w-[260px] border-none focus:outline-none focus:ring-0 bg-transparent hover:bg-gray-50 px-1 rounded transition-colors truncate"
                         />
+                    </div>
+
+                    {/* Document Type Selector Pill */}
+                    <div className="flex items-center gap-1 border-l border-gray-200 pl-3">
+                        <select
+                            value={metaType}
+                            onChange={(e) => dispatch(updateMetaType(e.target.value as MetaType))}
+                            className="text-xs font-bold text-gray-700 bg-gray-100/80 hover:bg-gray-200/70 border border-gray-200/80 rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
+                        >
+                            <option value="general">📄 General Doc</option>
+                            <option value="quotation">💼 Quotation</option>
+                            <option value="invoice">🧾 Tax Invoice</option>
+                            <option value="contract">📜 Contract</option>
+                        </select>
+                    </div>
+
+                    {/* Document Recipient Linker (CRM Client / HR Employee / Terms) */}
+                    <div className="border-l border-gray-200 pl-3">
+                        <DocumentRecipientDropdown />
                     </div>
                 </div>
                 
@@ -552,34 +1020,118 @@ function TemplateEditor({
                     </div>
                     
                     {/* Autosave Status */}
-                    <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1.5 rounded-md flex items-center gap-1.5 mr-2">
+                    <span className="text-xs font-semibold text-gray-500 bg-gray-100/80 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 mr-1 border border-gray-200/60 shadow-2xs">
                         {saving ? <LogoLoader className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                        {saving ? 'Saving...' : 'Saved to drafts'}
+                        {saving ? 'Saving...' : 'Saved'}
                     </span>
 
-                    {/* Split Button for Send to Client */}
-                    <div className="relative flex items-center shadow-sm rounded-lg">
-                        <button onClick={() => setShowEmailModal(true)} className="flex items-center gap-1.5 text-sm font-semibold bg-[#2563eb] text-white px-4 py-2 rounded-l-lg hover:bg-[#2563eb]/90 transition-colors border-r border-blue-600/50">
-                            <Mail className="w-4 h-4" /> Send to Client
+                    {/* AI Builder Button */}
+                    <button
+                        onClick={() => setShowAIDrawer(true)}
+                        className="flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white px-3.5 py-2 rounded-xl transition-all shadow-xs shadow-indigo-600/20 active:scale-[0.98] cursor-pointer"
+                        title="Open AI Document Builder"
+                    >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                        <span>AI Builder</span>
+                    </button>
+
+                    {/* 1. Unified View Dropdown (Live Preview + JSON AST) */}
+                    <div className="relative" ref={viewMenuRef}>
+                        <button
+                            onClick={() => {
+                                setShowViewMenu(v => !v);
+                                setShowShareExportMenu(false);
+                            }}
+                            className={clsx(
+                                "flex items-center gap-1.5 text-sm font-semibold border px-3.5 py-2 rounded-xl transition-all shadow-2xs active:scale-[0.98]",
+                                showViewMenu 
+                                    ? "bg-blue-50 text-blue-700 border-blue-200" 
+                                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+                            )}
+                            title="View Options"
+                        >
+                            <Eye className="w-4 h-4 text-blue-600" />
+                            <span>View</span>
+                            <ChevronDown className={clsx("w-3.5 h-3.5 text-gray-400 transition-transform duration-150", showViewMenu && "rotate-180")} />
                         </button>
-                        <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center justify-center bg-[#2563eb] text-white px-2 py-2 rounded-r-lg hover:bg-[#2563eb]/90 transition-colors">
-                            <ChevronDown className="w-4 h-4" />
-                        </button>
-                        
-                        {showExportMenu && (
-                            <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-[150] py-1.5">
-                                <button onClick={() => { setShowExportMenu(false); handleDownload('pdf'); }} className="w-full text-left px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5">
-                                    <Download className="w-4 h-4 text-gray-400" /> Download PDF
-                                </button>
-                                <button onClick={() => { setShowExportMenu(false); handleDownload('docx'); }} className="w-full text-left px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5">
-                                    <FileText className="w-4 h-4 text-gray-400" /> Download DOCX
-                                </button>
-                                <button onClick={() => { setShowExportMenu(false); handleExportJson(); }} className="w-full text-left px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5">
-                                    <FileText className="w-4 h-4 text-gray-400" /> Download JSON
+
+                        {showViewMenu && (
+                            <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-[150] py-1.5 animate-in fade-in-50 duration-100">
+                                <button 
+                                    onClick={() => { setShowViewMenu(false); handleOpenViewer(); }} 
+                                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors"
+                                >
+                                    <Eye className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                    <div>
+                                        <div className="font-bold">Live Preview</div>
+                                        <div className="text-[10px] text-gray-400 font-normal">Open public document viewer</div>
+                                    </div>
                                 </button>
                                 <div className="h-px bg-gray-100 my-1 mx-2" />
-                                <button onClick={() => { setShowExportMenu(false); setShowTemplateModal(true); }} className="w-full text-left px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5">
-                                    <Save className="w-4 h-4 text-gray-400" /> Save as Template
+                                <button 
+                                    onClick={() => { setShowViewMenu(false); setShowJsonModal(true); }} 
+                                    className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors"
+                                >
+                                    <Code2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                                    <div>
+                                        <div className="font-bold">JSON Schema AST</div>
+                                        <div className="text-[10px] text-gray-400 font-normal">View AST & generate with AI</div>
+                                    </div>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 2. Unified Share & Export Dropdown */}
+                    <div className="relative" ref={shareExportMenuRef}>
+                        <button
+                            onClick={() => {
+                                setShowShareExportMenu(v => !v);
+                                setShowViewMenu(false);
+                            }}
+                            className="flex items-center gap-1.5 text-sm font-semibold bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all shadow-xs shadow-blue-600/20 active:scale-[0.98]"
+                            title="Share or Export Document"
+                        >
+                            <Share2 className="w-4 h-4" />
+                            <span>Share & Export</span>
+                            <ChevronDown className={clsx("w-3.5 h-3.5 text-blue-100 transition-transform duration-150", showShareExportMenu && "rotate-180")} />
+                        </button>
+
+                        {showShareExportMenu && (
+                            <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-gray-200 rounded-xl shadow-xl z-[150] py-1.5 animate-in fade-in-50 duration-100">
+                                {/* Share Action */}
+                                <div className="px-2 py-1">
+                                    <button 
+                                        onClick={() => { setShowShareExportMenu(false); handleOpenShareModal(); }} 
+                                        className="w-full text-left px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50/80 hover:bg-blue-100/80 rounded-lg flex items-center gap-2.5 transition-colors"
+                                    >
+                                        <Share2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                        <div>
+                                            <div>Share & Send Link</div>
+                                            <div className="text-[10px] text-blue-500/80 font-normal">Email or copy secure client link</div>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                <div className="h-px bg-gray-100 my-1 mx-2" />
+                                <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Export As</div>
+
+                                <button onClick={() => { setShowShareExportMenu(false); handleDownload('pdf'); }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+                                    <Download className="w-4 h-4 text-gray-500 flex-shrink-0" /> Download PDF
+                                </button>
+                                <button onClick={() => { setShowShareExportMenu(false); handleDownload('docx'); }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+                                    <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" /> Download DOCX
+                                </button>
+                                <button onClick={() => { setShowShareExportMenu(false); handleDownload('html' as any); }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+                                    <Code2 className="w-4 h-4 text-gray-500 flex-shrink-0" /> Download HTML Package
+                                </button>
+                                <button onClick={() => { setShowShareExportMenu(false); handleExportJson(); }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+                                    <Code2 className="w-4 h-4 text-gray-500 flex-shrink-0" /> Export JSON
+                                </button>
+
+                                <div className="h-px bg-gray-100 my-1 mx-2" />
+                                <button onClick={() => { setShowShareExportMenu(false); setShowTemplateModal(true); }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+                                    <Save className="w-4 h-4 text-gray-500 flex-shrink-0" /> Save as Template
                                 </button>
                             </div>
                         )}
@@ -590,96 +1142,196 @@ function TemplateEditor({
             {/* Main Content Area */}
             <div className="flex-1 flex flex-row min-h-0">
                 
-                {/* Left: Sidebar (Add Elements) */}
-                <div className={clsx("w-72 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 overflow-hidden shadow-xl z-20 select-none transition-all duration-300", isFullscreen ? "w-0 border-none opacity-0" : "opacity-100")}>
-                    <div className="flex px-4 py-3.5 border-b border-gray-200 flex-shrink-0 bg-gray-50 items-center justify-between">
-                        <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2 uppercase tracking-wide">
-                            <Plus className="w-4 h-4 text-[#2563eb]" /> Add Elements
-                        </h3>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'heading', content: { text: 'New Heading' } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <Heading1 className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Heading</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'text', content: { text: 'Enter your text here...' } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <Type className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Text</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'list', content: { items: ['List item 1', 'List item 2'] } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <List className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">List</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'grid', content: { text: 'Grid Placeholder' } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <Grid className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Data Grid</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'divider', content: {} }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <Minus className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Divider</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'box', content: { text: 'Box Content' } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <Square className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Box</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'image', content: { url: '' } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <ImageIcon className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider group-hover:text-indigo-700">Image</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'signature', content: { label: 'Authorized Signatory', requireName: true } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <FileBadge2 className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider text-center group-hover:text-indigo-700">Signature</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'input', content: { inputType: 'text', label: 'New Input Field' } }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <FormInput className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider text-center group-hover:text-indigo-700">Input Field</span>
-                            </button>
-                            <button onClick={() => dispatch(addBlock({ id: Date.now().toString(), type: 'pagebreak', content: {} }))} className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow group">
-                                <Scissors className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider text-center group-hover:text-indigo-700">Page Break</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                {/* Left: Sidebar (Elements & Blocks Catalog) */}
+                <ElementsCatalogPanel
+                    isFullscreen={isFullscreen}
+                    documentDetails={documentDetails}
+                    onAddBlock={(block) => dispatch(addBlock(block))}
+                />
 
                 {/* Center: Canvas Area */}
                 <div className="flex-1 flex flex-col min-w-0 bg-gray-100">
-                    {/* Canvas Toolbar */}
-                    <div className="bg-white border-b border-gray-200 px-4 flex items-center justify-between h-12 flex-shrink-0 shadow-sm z-10">
+                    {/* Canvas Toolbar - Completely hidden in Full View */}
+                    <div className={clsx("bg-white border-b border-gray-200 px-4 items-center justify-between h-12 flex-shrink-0 shadow-sm z-10 transition-all duration-200", isFullscreen ? "hidden" : "flex")}>
                         <div className="flex items-center gap-4 relative">
 
                             <div className="flex items-center gap-1">
-                                <button onClick={() => dispatch(undo())} disabled={pastLength === 0} className={clsx("p-1.5 rounded transition-colors", pastLength > 0 ? "text-gray-700 hover:bg-gray-100" : "text-gray-300")}><Undo className="w-4 h-4" /></button>
-                                <button onClick={() => dispatch(redo())} disabled={futureLength === 0} className={clsx("p-1.5 rounded transition-colors", futureLength > 0 ? "text-gray-700 hover:bg-gray-100" : "text-gray-300")}><Redo className="w-4 h-4" /></button>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm font-medium text-gray-500 border-l border-gray-200 pl-4">
-                                <FileText className="w-4 h-4" /> Page 1/1
+                                <button onClick={() => dispatch(undo())} disabled={pastLength === 0} title="Undo (Ctrl+Z)" className={clsx("p-1.5 rounded transition-colors", pastLength > 0 ? "text-gray-700 hover:bg-gray-100" : "text-gray-300")}><Undo className="w-4 h-4" /></button>
+                                <button onClick={() => dispatch(redo())} disabled={futureLength === 0} title="Redo (Ctrl+Y)" className={clsx("p-1.5 rounded transition-colors", futureLength > 0 ? "text-gray-700 hover:bg-gray-100" : "text-gray-300")}><Redo className="w-4 h-4" /></button>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 text-sm font-medium text-gray-500">
-                            <button onClick={handleZoomOut} className="hover:text-gray-800 transition-colors">-</button>
+                        <div className="flex items-center gap-2.5 text-sm font-medium text-gray-500">
+                            <button onClick={handleZoomOut} className="hover:text-gray-800 transition-colors px-1">-</button>
                             <span>{zoomLevel}%</span>
-                            <button onClick={handleZoomIn} className="hover:text-gray-800 transition-colors">+</button>
+                            <button onClick={handleZoomIn} className="hover:text-gray-800 transition-colors px-1">+</button>
                             <div className="w-px h-4 bg-gray-200 mx-1" />
-                            <button onClick={() => setIsFullscreen(!isFullscreen)} className="hover:text-gray-800 transition-colors" title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}>
-                                <Maximize className="w-4 h-4" />
+                            <button 
+                                onClick={() => setShowShortcutsModal(true)} 
+                                className="p-1.5 rounded-lg transition-colors flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                                title="Keyboard Shortcuts (Ctrl + /)"
+                            >
+                                <Keyboard className="w-4 h-4" />
+                            </button>
+                            <button 
+                                onClick={handleToggleFullscreen} 
+                                className={clsx(
+                                    "p-1.5 rounded-lg transition-colors flex items-center justify-center",
+                                    isFullscreen ? "text-blue-600 bg-blue-50 hover:bg-blue-100" : "hover:text-gray-800 hover:bg-gray-100"
+                                )}
+                                title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen"}
+                            >
+                                {isFullscreen ? <Minimize className="w-4 h-4 text-blue-600" /> : <Maximize className="w-4 h-4" />}
                             </button>
                         </div>
                     </div>
 
                     {/* Canvas Document */}
-                    <div id="document-canvas-container" className="flex-1 overflow-auto p-8 bg-gray-100 flex justify-center items-start hidden-scrollbar">
-                        <div className="w-full max-w-[816px] bg-white rounded-sm shadow-md overflow-hidden relative" style={{ minHeight: '1056px', transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}>
+                    <div 
+                        id="document-canvas-container" 
+                        onClick={() => dispatch(selectBlock(null))}
+                        className={clsx(
+                            "flex-1 overflow-auto bg-gray-100 flex justify-center items-start hidden-scrollbar relative transition-all",
+                            isFullscreen ? "p-4 sm:p-8" : "p-8"
+                        )}
+                    >
+                        {/* Live AI Streaming Glassmorphism Overlay */}
+                        <LiveAIStreamOverlay
+                            isGenerating={isAIGenerating}
+                            statusMessage={aiStatusMessage}
+                            onStop={handleStopAIGeneration}
+                        />
+
+                        {isFullscreen && (
+                            <button
+                                onClick={handleToggleFullscreen}
+                                className="fixed top-5 right-5 z-[300] bg-gray-900/90 hover:bg-gray-900 text-white backdrop-blur shadow-2xl px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:scale-105 active:scale-95 border border-white/20"
+                                title="Exit Full View (Esc)"
+                            >
+                                <Minimize className="w-3.5 h-3.5 text-blue-400" />
+                                <span>Exit Full View</span>
+                            </button>
+                        )}
+                        <div 
+                            onClick={(e) => {
+                                if (e.target === e.currentTarget) {
+                                    dispatch(selectBlock(null));
+                                }
+                            }}
+                            className="w-full max-w-[816px] rounded-sm shadow-md overflow-hidden relative transition-colors duration-200" 
+                            style={{ 
+                                minHeight: '1056px', 
+                                transform: `scale(${zoomLevel / 100})`, 
+                                transformOrigin: 'top center',
+                                backgroundColor: effectiveDesignSettings.pageBackground || '#ffffff',
+                                color: '#1e293b'
+                            }}
+                        >
                             <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                <SortableContext items={blocks.map((b: any) => b.id)} strategy={verticalListSortingStrategy}>
-                                    <div className="flex flex-col gap-4 p-8 w-full min-h-full" style={{ fontFamily: effectiveDesignSettings.fontFamily, fontSize: `${effectiveDesignSettings.fontSize}px`, color: effectiveDesignSettings.primaryColor }}>
+                                <SortableContext items={rootBlocks.map((b: any) => b.id)} strategy={verticalListSortingStrategy}>
+                                    <div 
+                                        onClick={(e) => {
+                                            if (e.target === e.currentTarget) {
+                                                dispatch(selectBlock(null));
+                                            }
+                                        }}
+                                        className="flex flex-col gap-3 w-full min-h-full transition-all" 
+                                        style={{ 
+                                            fontFamily: effectiveDesignSettings.fontFamily || 'Inter, sans-serif',
+                                            padding: effectiveDesignSettings.pagePadding || '40px'
+                                        }}
+                                    >
                                         {headerBlocks.map((block: any) => (
                                             <StaticBlockRenderer key={block.id} block={block} />
                                         ))}
-                                        {blocks.map((block: any) => (
-                                            <SortableBlock key={block.id} block={block} />
-                                        ))}
+
+                                        {rootBlocks.length === 0 ? (
+                                            <div
+                                                className={clsx(
+                                                    "w-full border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 my-4",
+                                                    nativeDragOverIndex === 0
+                                                        ? "bg-indigo-50/90 border-indigo-500 scale-[1.01] shadow-inner"
+                                                        : "border-gray-200 hover:border-indigo-300 bg-gray-50/40 hover:bg-indigo-50/20"
+                                                )}
+                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
+                                                onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setNativeDragOverIndex(null);
+                                                    const blockType = e.dataTransfer.getData('newBlockType') || e.dataTransfer.getData('text/plain');
+                                                    if (blockType) handleDropNewBlock(blockType, 0);
+                                                }}
+                                                onClick={() => handleDropNewBlock('heading', 0)}
+                                            >
+                                                <div className="w-14 h-14 rounded-2xl bg-indigo-100/80 text-indigo-600 flex items-center justify-center mb-3 shadow-xs">
+                                                    <Plus className="w-7 h-7" />
+                                                </div>
+                                                <h3 className="text-base font-bold text-gray-900 mb-1">Start Building Your Document</h3>
+                                                <p className="text-xs text-gray-500 max-w-sm">
+                                                    Drag & drop any block from the left panel, or click here to add a heading.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {/* Top Dropzone */}
+                                                <div
+                                                    className={clsx(
+                                                        "w-full transition-all duration-200 flex items-center justify-center -mb-2 relative z-50 rounded-xl",
+                                                        nativeDragOverIndex === 0
+                                                            ? "h-16 bg-indigo-50/90 border-2 border-indigo-400 border-dashed mb-2 mt-1 shadow-inner"
+                                                            : "h-3 opacity-0 hover:opacity-100 hover:h-4"
+                                                    )}
+                                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
+                                                    onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setNativeDragOverIndex(null);
+                                                        const blockType = e.dataTransfer.getData('newBlockType') || e.dataTransfer.getData('text/plain');
+                                                        if (blockType) handleDropNewBlock(blockType, 0);
+                                                    }}
+                                                >
+                                                    {nativeDragOverIndex === 0 && (
+                                                        <span className="text-indigo-600 text-xs font-bold flex items-center gap-1.5 animate-pulse">
+                                                            <Plus className="w-3.5 h-3.5" /> Drop Block Here (Top)
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Blocks List with Dropzones */}
+                                                {rootBlocks.map((block: any, idx: number) => (
+                                                    <React.Fragment key={block.id}>
+                                                        <SortableBlock block={block} />
+
+                                                        {/* Dropzone after this block */}
+                                                        <div
+                                                            className={clsx(
+                                                                "w-full transition-all duration-200 flex items-center justify-center -my-2 relative z-50 rounded-xl",
+                                                                nativeDragOverIndex === idx + 1
+                                                                    ? "h-16 bg-indigo-50/90 border-2 border-indigo-400 border-dashed my-2 shadow-inner"
+                                                                    : "h-3 opacity-0 hover:opacity-100 hover:h-4"
+                                                            )}
+                                                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(idx + 1); }}
+                                                            onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === idx + 1) setNativeDragOverIndex(null); }}
+                                                            onDrop={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setNativeDragOverIndex(null);
+                                                                const blockType = e.dataTransfer.getData('newBlockType') || e.dataTransfer.getData('text/plain');
+                                                                if (blockType) handleDropNewBlock(blockType, idx + 1);
+                                                            }}
+                                                        >
+                                                            {nativeDragOverIndex === idx + 1 && (
+                                                                <span className="text-indigo-600 text-xs font-bold flex items-center gap-1.5 animate-pulse">
+                                                                    <Plus className="w-3.5 h-3.5" /> Drop Block Here
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </React.Fragment>
+                                                ))}
+                                            </>
+                                        )}
+
                                         {footerBlocks.map((block: any) => (
                                             <StaticBlockRenderer key={block.id} block={block} />
                                         ))}
@@ -690,410 +1342,43 @@ function TemplateEditor({
                     </div>
                 </div>
 
-                {/* Right: Sidebar Properties (Design & Data Sources) */}
-                <div className={clsx("w-80 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 overflow-hidden shadow-xl z-20 select-none transition-all duration-300", isFullscreen ? "w-0 border-none opacity-0" : "opacity-100")}>
+                {/* Right: Sidebar Properties & Page Design */}
+                <div className={clsx("w-[420px] lg:w-[440px] xl:w-[460px] bg-white border-l border-gray-200 flex flex-col flex-shrink-0 overflow-hidden shadow-xl z-20 select-none transition-all duration-300", isFullscreen ? "w-0 border-none opacity-0" : "opacity-100")}>
                     {/* Tabs */}
-                    <div className="flex px-2 pt-2 gap-2 border-b border-gray-200 flex-shrink-0 overflow-x-auto hide-scrollbar">
+                    <div className="flex px-3 pt-2.5 gap-2 border-b border-gray-200 flex-shrink-0 bg-slate-50/80">
                         <button 
-                            onClick={() => setActiveTab('design')}
-                            className={clsx("flex-1 py-3 text-sm font-bold rounded-t-lg transition-colors flex items-center justify-center gap-2", activeTab === 'design' ? "bg-blue-50 text-[#2563eb] border-b-2 border-[#2563eb]" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50")}
+                            onClick={() => setActiveTab('properties')}
+                            className={clsx(
+                                "flex-1 py-2 text-xs font-bold rounded-t-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                                activeTab === 'properties' 
+                                    ? "bg-white text-indigo-600 border-t-2 border-x border-b-0 border-indigo-600 shadow-xs" 
+                                    : "text-gray-500 hover:text-gray-800 hover:bg-gray-100/60"
+                            )}
                         >
-                            <Palette className="w-4 h-4" /> Design
+                            <Sliders className="w-3.5 h-3.5" /> Properties
                         </button>
                         <button 
-                            onClick={() => setActiveTab('details')}
-                            className={clsx("flex-1 py-3 text-sm font-bold rounded-t-lg transition-colors flex items-center justify-center gap-2", activeTab === 'details' ? "bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50")}
+                            onClick={() => setActiveTab('design')}
+                            className={clsx(
+                                "flex-1 py-2 text-xs font-bold rounded-t-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                                activeTab === 'design' 
+                                    ? "bg-white text-indigo-600 border-t-2 border-x border-b-0 border-indigo-600 shadow-xs" 
+                                    : "text-gray-500 hover:text-gray-800 hover:bg-gray-100/60"
+                            )}
                         >
-                            <FileText className="w-4 h-4" /> Data Sources
+                            <Palette className="w-3.5 h-3.5" /> Page Design
                         </button>
                     </div>
 
                     {/* Tab Content */}
-                    <div className="flex-1 overflow-y-auto p-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                        {activeTab === 'design' ? (
-                            <div className="space-y-6">
-                                <div>
-                                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">TEXT</h3>
-                                    <div className="space-y-3">
-                                        <div className="flex gap-2">
-                                            <div className="flex-1 border border-gray-200 rounded-lg flex items-center px-3 bg-white hover:border-gray-300 transition-colors">
-                                                <Type className="w-4 h-4 text-gray-400 mr-2" />
-                                                <CustomSelect value={designSettings.fontFamily} onChange={e => dispatch(updateDesignSettings({ fontFamily: e.target.value }))} className="w-full text-sm font-medium py-2.5 bg-transparent focus:outline-none cursor-pointer text-gray-700">
-                                                    <option value="sans-serif">Sans-Serif</option>
-                                                    <option value="serif">Serif</option>
-                                                    <option value="monospace">Monospace</option>
-                                                    <option value="Inter">Inter</option>
-                                                </CustomSelect>
-                                            </div>
-                                            <div className="w-24 border border-gray-200 rounded-lg flex items-center bg-white overflow-hidden hover:border-gray-300 transition-colors">
-                                                <button onClick={() => dispatch(updateDesignSettings({ fontSize: Math.max(10, designSettings.fontSize - 1) }))} className="px-3 text-gray-500 hover:bg-gray-100 font-medium">-</button>
-                                                <input type="text" value={designSettings.fontSize} readOnly className="w-full text-center text-sm font-medium text-gray-700 focus:outline-none" />
-                                                <button onClick={() => dispatch(updateDesignSettings({ fontSize: Math.min(32, designSettings.fontSize + 1) }))} className="px-3 text-gray-500 hover:bg-gray-100 font-medium">+</button>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-2">
-                                            <div className="flex-1 border border-gray-200 rounded-lg flex items-center justify-around py-2 bg-white">
-                                                <button className="p-1 rounded text-[#2563eb] bg-blue-50 font-bold"><Bold className="w-4 h-4" /></button>
-                                                <button className="p-1 rounded hover:bg-gray-50 text-gray-600 italic"><Italic className="w-4 h-4" /></button>
-                                                <button className="p-1 rounded hover:bg-gray-50 text-gray-600 underline"><Underline className="w-4 h-4" /></button>
-                                                <div className="w-px h-4 bg-gray-200" />
-                                                <button className="p-1 rounded hover:bg-gray-50 text-gray-600"><AlignLeft className="w-4 h-4" /></button>
-                                            </div>
-                                            <div className="relative w-24 border border-gray-200 rounded-lg bg-white flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-colors overflow-hidden">
-                                                <input type="color" value={effectiveDesignSettings.primaryColor} onChange={e => dispatch(updateDesignSettings({ primaryColor: e.target.value }))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                                                <div className="w-4 h-4 rounded-full shadow-sm pointer-events-none" style={{ backgroundColor: effectiveDesignSettings.primaryColor }}></div>
-                                                <span className="text-xs font-bold text-gray-600 uppercase pointer-events-none">Color</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-100">
-                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Header Template</label>
-                                            <div className="border border-gray-200 rounded-lg flex items-center px-3 bg-white hover:border-gray-300 transition-colors">
-                                                <LayoutTemplate className="w-4 h-4 text-gray-400 mr-2" />
-                                                <CustomSelect value={designSettings.selectedHeaderId || 'none'} onChange={e => {
-                                                    const val = e.target.value;
-                                                    dispatch(updateDesignSettings({ selectedHeaderId: val }));
-                                                    if (val !== 'none') {
-                                                        const template = HEADER_TEMPLATES.find(t => t.id === val);
-                                                        if (template) {
-                                                            const newBlocks = JSON.parse(JSON.stringify(template.blocks)).map((b: any) => ({ ...b, id: 'header-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9) }));
-                                                            dispatch(setHeaderBlocks(newBlocks));
-                                                        }
-                                                    } else {
-                                                        dispatch(setHeaderBlocks([]));
-                                                    }
-                                                }} className="w-full text-sm font-medium py-2 bg-transparent focus:outline-none cursor-pointer text-gray-700">
-                                                    <option value="none">No Header</option>
-                                                    {HEADER_TEMPLATES.map(t => (
-                                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                                    ))}
-                                                </CustomSelect>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col gap-2 mt-2">
-                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Footer Template</label>
-                                            <div className="border border-gray-200 rounded-lg flex items-center px-3 bg-white hover:border-gray-300 transition-colors">
-                                                <LayoutTemplate className="w-4 h-4 text-gray-400 mr-2" />
-                                                <CustomSelect value={designSettings.selectedFooterId || 'none'} onChange={e => {
-                                                    const val = e.target.value;
-                                                    dispatch(updateDesignSettings({ selectedFooterId: val }));
-                                                    if (val !== 'none') {
-                                                        const template = FOOTER_TEMPLATES.find(t => t.id === val);
-                                                        if (template) {
-                                                            const newBlocks = JSON.parse(JSON.stringify(template.blocks)).map((b: any) => ({ ...b, id: 'footer-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9) }));
-                                                            dispatch(setFooterBlocks(newBlocks));
-                                                        }
-                                                    } else {
-                                                        dispatch(setFooterBlocks([]));
-                                                    }
-                                                }} className="w-full text-sm font-medium py-2 bg-transparent focus:outline-none cursor-pointer text-gray-700">
-                                                    <option value="none">No Footer</option>
-                                                    {FOOTER_TEMPLATES.map(t => (
-                                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                                    ))}
-                                                </CustomSelect>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="border-t border-gray-100 pt-4">
-                                    <button className="w-full flex items-center justify-between py-2 text-sm font-semibold text-gray-700 hover:text-gray-900 group">
-                                        <div className="flex items-center gap-2"><AlignLeft className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" /> Arrange</div>
-                                        <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                                    </button>
-                                </div>
-                                
-                                {selectedBlock && (
-                                    <div className="border-t border-gray-100 pt-6 mt-6">
-                                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                            <Edit2 className="w-4 h-4" /> Block Layout
-                                        </h3>
-                                        <div className="space-y-4 mb-6">
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-500 mb-2 block">Width</label>
-                                                <CustomSelect 
-                                                    value={selectedBlock.styles?.width || '100%'}
-                                                    onChange={(e) => dispatch(updateBlock({ 
-                                                        id: selectedBlock.id, 
-                                                        updates: { styles: { ...selectedBlock.styles, width: e.target.value } } 
-                                                    }))}
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none"
-                                                >
-                                                    <option value="25%">25%</option>
-                                                    <option value="50%">50%</option>
-                                                    <option value="75%">75%</option>
-                                                    <option value="100%">100%</option>
-                                                </CustomSelect>
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-500 mb-2 block">Alignment</label>
-                                                <div className="flex border border-gray-200 rounded-lg bg-white overflow-hidden">
-                                                    {(['left', 'center', 'right'] as const).map(align => (
-                                                        <button 
-                                                            key={align}
-                                                            onClick={() => dispatch(updateBlock({ 
-                                                                id: selectedBlock.id, 
-                                                                updates: { styles: { ...selectedBlock.styles, alignment: align } } 
-                                                            }))}
-                                                            className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
-                                                                (selectedBlock.styles?.alignment || 'center') === align 
-                                                                    ? 'bg-[#2563eb] text-white' 
-                                                                    : 'text-gray-600 hover:bg-gray-50'
-                                                            }`}
-                                                        >
-                                                            {align.charAt(0).toUpperCase() + align.slice(1)}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-500 mb-2 block">Padding (px)</label>
-                                                <input 
-                                                    type="number"
-                                                    value={parseInt(selectedBlock.styles?.padding || '0')}
-                                                    onChange={(e) => dispatch(updateBlock({ 
-                                                        id: selectedBlock.id, 
-                                                        updates: { styles: { ...selectedBlock.styles, padding: `${e.target.value}px` } } 
-                                                    }))}
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                            <Eye className="w-4 h-4" /> Visibility Rules (Selected Block)
-                                        </h3>
-                                        <p className="text-xs text-gray-400 mb-3">Define when this block should be visible in the generated document.</p>
-                                        <div className="space-y-3">
-                                            <input 
-                                                type="text" 
-                                                value={selectedBlock.visibilityRule || ''} 
-                                                onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { visibilityRule: e.target.value } }))}
-                                                placeholder="e.g. {{clientName}} != ''" 
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none" 
-                                            />
-                                            {selectedBlock.visibilityRule && (
-                                                <div className="flex items-center gap-2 text-xs font-medium text-blue-600 bg-blue-50 p-2 rounded-md">
-                                                    <EyeOff className="w-3 h-3" /> Block hidden when condition is false.
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Block Specific Settings */}
-                                        {selectedBlock.type === 'divider' && (
-                                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Divider Settings</h3>
-                                                <div className="space-y-4">
-                                                    <div>
-                                                        <label className="text-xs font-bold text-gray-500 mb-2 block">Thickness (px)</label>
-                                                        <input type="number" value={selectedBlock.styles?.borderWidth || 2} onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, borderWidth: parseInt(e.target.value) } } }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs font-bold text-gray-500 mb-2 block">Style</label>
-                                                        <CustomSelect value={selectedBlock.styles?.borderStyle || 'solid'} onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, borderStyle: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none">
-                                                            <option value="solid">Solid</option>
-                                                            <option value="dashed">Dashed</option>
-                                                            <option value="dotted">Dotted</option>
-                                                        </CustomSelect>
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs font-bold text-gray-500 mb-2 block">Color</label>
-                                                        <input type="color" value={selectedBlock.styles?.borderColor || '#d1d5db'} onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, borderColor: e.target.value } } }))} className="w-full h-10 px-1 py-1 border border-gray-200 rounded-lg cursor-pointer" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {selectedBlock.type === 'box' && (
-                                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Box Settings</h3>
-                                                <div className="space-y-4">
-                                                    <div>
-                                                        <label className="text-xs font-bold text-gray-500 mb-2 block">Background Color</label>
-                                                        <input type="color" value={selectedBlock.styles?.backgroundColor || '#f9fafb'} onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, backgroundColor: e.target.value } } }))} className="w-full h-10 px-1 py-1 border border-gray-200 rounded-lg cursor-pointer" />
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                            <label className="text-xs font-bold text-gray-500 mb-2 block">Border Color</label>
-                                                            <input type="color" value={selectedBlock.styles?.borderColor || '#e5e7eb'} onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, borderColor: e.target.value } } }))} className="w-full h-10 px-1 py-1 border border-gray-200 rounded-lg cursor-pointer" />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs font-bold text-gray-500 mb-2 block">Radius (px)</label>
-                                                            <input type="number" value={selectedBlock.styles?.borderRadius || 6} onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, borderRadius: parseInt(e.target.value) } } }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none h-10" />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {selectedBlock.type === 'list' && (
-                                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">List Settings</h3>
-                                                <div>
-                                                    <label className="text-xs font-bold text-gray-500 mb-2 block">List Type</label>
-                                                    <div className="flex border border-gray-200 rounded-lg bg-white overflow-hidden">
-                                                        {(['bullet', 'number'] as const).map(listType => (
-                                                            <button 
-                                                                key={listType}
-                                                                onClick={() => dispatch(updateBlock({ 
-                                                                    id: selectedBlock.id, 
-                                                                    updates: { styles: { ...selectedBlock.styles, listType } } 
-                                                                }))}
-                                                                className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
-                                                                    (selectedBlock.styles?.listType || 'bullet') === listType 
-                                                                        ? 'bg-[#2563eb] text-white' 
-                                                                        : 'text-gray-600 hover:bg-gray-50'
-                                                                }`}
-                                                            >
-                                                                {listType === 'bullet' ? 'Bulleted' : 'Numbered'}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                    <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        {activeTab === 'properties' ? (
+                            <ElementPropertiesDispatcher />
                         ) : (
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 mb-2 block">Document Type</label>
-                                    <CustomSelect value={metaType} onChange={e => dispatch(updateMetaType(e.target.value as MetaType))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none bg-white">
-                                        <option value="general">General Document / Policy</option>
-                                        <option value="quotation">Quotation / Proposal</option>
-                                        <option value="invoice">Invoice / Bill</option>
-                                        <option value="contract">Contract / Agreement</option>
-                                    </CustomSelect>
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 mb-2 block">Document title</label>
-                                    <input value={title} onChange={e => handleDetailChange('title', e.target.value)} placeholder="New Document" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none" />
-                                </div>
-
-                                {/* Project Assignment */}
-                                {(metaType === 'quotation' || metaType === 'general' || metaType === 'invoice' || metaType === 'contract') && (
-                                    <div className="mb-4">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Link Project</label>
-                                        <CustomSelect onChange={handleProjectSelect} value={documentDetails?.selectedProjectId || ''} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none bg-white mb-3">
-                                            <option value="">Select a Project...</option>
-                                            {projectsLoading ? <option disabled>Loading...</option> : projects.map((p: any) => (
-                                                <option key={p.id} value={p.id}>{p.name || p.title || `Project #${p.id}`}</option>
-                                            ))}
-                                        </CustomSelect>
-                                    </div>
-                                )}
-                                
-                                {/* Client Data Source */}
-                                {['quotation', 'invoice', 'contract', 'general'].includes(metaType) && (
-                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                                        <label className="text-xs font-bold text-gray-700 mb-2 block flex items-center gap-1"><Users className="w-3 h-3" /> Link Client</label>
-                                        <CustomSelect onChange={handleClientSelect} value={documentDetails?.selectedClientId || ''} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none bg-white mb-3">
-                                            <option value="">-- Select Client --</option>
-                                            {clientsLoading ? <option disabled>Loading...</option> : clients.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </CustomSelect>
-                                    </div>
-                                )}
-
-                                {/* Employee Data Source */}
-                                {['contract', 'general', 'offer_letter'].includes(metaType) && (
-                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                                        <label className="text-xs font-bold text-gray-700 mb-2 block flex items-center gap-1"><Users className="w-3 h-3" /> Link Employee / Candidate</label>
-                                        <CustomSelect onChange={handleEmployeeSelect} value={documentDetails?.selectedEmployeeId || ''} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none bg-white mb-3">
-                                            <option value="">-- Select Employee --</option>
-                                            {employeesLoading ? <option disabled>Loading...</option> : employees.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                                        </CustomSelect>
-                                    </div>
-                                )}
-                                
-                                {['quotation', 'invoice', 'contract'].includes(metaType) && (
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-500 mb-2 block">{metaType === 'invoice' ? 'Due Date' : 'Valid until'}</label>
-                                        <div className="flex items-center gap-2">
-                                            <input type="date" value={validUntil} onChange={e => handleDetailChange('validUntil', e.target.value)} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none text-gray-500" />
-                                            <button onClick={() => { navigator.clipboard.writeText('{{validUntil}}'); toast.success('Copied {{validUntil}}'); }} className="text-[10px] bg-gray-100 hover:bg-blue-50 hover:text-blue-600 px-2 py-2 rounded border border-gray-200 whitespace-nowrap">Copy <code className="ml-1">{'{{validUntil}}'}</code></button>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider text-right flex justify-end items-center gap-1"><Check className="w-3 h-3" /> Auto-saved</p>
+                            <div className="p-4">
+                                <GlobalDesignPanel />
                             </div>
                         )}
-                                                       {selectedBlock && (
-                                        <>
-                                        {/* Block Text Styling */}
-                                        <div className="mb-6 pb-6 border-b border-gray-100">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                                    <Type className="w-4 h-4 text-indigo-500" /> Block Text Styling
-                                                </h3>
-                                            </div>
-                                            
-                                            <div className="space-y-4">
-                                                <div className="flex gap-4">
-                                                    <div className="flex-1 space-y-1">
-                                                        <label className="text-xs font-semibold text-gray-500 block">Font Size (px)</label>
-                                                        <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden">
-                                                            <button 
-                                                                onClick={() => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, fontSize: Math.max(8, parseInt(selectedBlock.styles?.fontSize as any || '16') - 1) } } }))}
-                                                                className="px-2 hover:bg-gray-50 border-r border-gray-200 text-gray-600 font-bold"
-                                                            >-</button>
-                                                            <input 
-                                                                type="number" 
-                                                                value={parseInt(selectedBlock.styles?.fontSize as any || '16')}
-                                                                onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, fontSize: parseInt(e.target.value) } } }))}
-                                                                className="w-full px-2 py-1.5 text-sm font-medium focus:outline-none text-center" 
-                                                            />
-                                                            <button 
-                                                                onClick={() => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, fontSize: parseInt(selectedBlock.styles?.fontSize as any || '16') + 1 } } }))}
-                                                                className="px-2 hover:bg-gray-50 border-l border-gray-200 text-gray-600 font-bold"
-                                                            >+</button>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div className="flex-1 space-y-1">
-                                                        <label className="text-xs font-semibold text-gray-500 block">Text Color</label>
-                                                        <div className="relative border border-gray-200 rounded-lg bg-white flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 h-9 transition-colors overflow-hidden">
-                                                            <input 
-                                                                type="color" 
-                                                                value={selectedBlock.styles?.color || '#000000'} 
-                                                                onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, color: e.target.value } } }))}
-                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                                                            />
-                                                            <div className="w-4 h-4 rounded-full shadow-sm pointer-events-none" style={{ backgroundColor: selectedBlock.styles?.color || '#000000' }}></div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-semibold text-gray-500 block">Font Family</label>
-                                                    <CustomSelect 
-                                                        value={selectedBlock.styles?.fontFamily || 'inherit'}
-                                                        onChange={(e) => dispatch(updateBlock({ id: selectedBlock.id, updates: { styles: { ...selectedBlock.styles, fontFamily: e.target.value } } }))}
-                                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-[#2563eb] outline-none"
-                                                    >
-                                                        <option value="inherit">Inherit from document</option>
-                                                        <option value="Arial, sans-serif">Arial</option>
-                                                        <option value="'Courier New', monospace">Courier New</option>
-                                                        <option value="Georgia, serif">Georgia</option>
-                                                        <option value="'Times New Roman', serif">Times New Roman</option>
-                                                        <option value="Verdana, sans-serif">Verdana</option>
-                                                        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
-                                                    </CustomSelect>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                                <Settings2 className="w-4 h-4 text-[#2563eb]" /> Block Layout
-                                            </h3>
-                                        </div>
-                                        </>
-                                        )}
                     </div>
                 </div>
             </div>
@@ -1208,6 +1493,182 @@ function TemplateEditor({
                     </div>
                 </div>
             )}
+
+            {/* System Controls & Keyboard Shortcuts Modal */}
+            {showShortcutsModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/70">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                    <Keyboard className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900 text-sm">Keyboard Shortcuts & System Controls</h3>
+                                    <p className="text-xs text-gray-500">Accelerate your document workflow with fast keyboard commands</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowShortcutsModal(false)}
+                                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto text-xs">
+                            {/* Group 1: General & History */}
+                            <div>
+                                <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">General & History</h4>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Save Document Draft</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">S</kbd>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Undo Last Action</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Z</kbd>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Redo Last Action</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Y</kbd>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Group 2: Block Actions */}
+                            <div>
+                                <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Block Management</h4>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Delete Selected Block</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-rose-50 border border-rose-200 rounded font-mono text-[11px] text-rose-700 shadow-2xs">Delete</kbd>
+                                            <span className="text-gray-400">or</span>
+                                            <kbd className="px-2 py-1 bg-rose-50 border border-rose-200 rounded font-mono text-[11px] text-rose-700 shadow-2xs">Backspace</kbd>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Duplicate Selected Block</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">D</kbd>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Deselect Block / Exit Fullscreen</span>
+                                        <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Esc</kbd>
+                                    </div>
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Select Block Text Content</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">A</kbd>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Group 3: Text & Typography Styling */}
+                            <div>
+                                <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Text & Style Controls</h4>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Bold Formatting / Weight</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs font-bold">B</kbd>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Italic Formatting / Style</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs italic">I</kbd>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                                        <span className="text-gray-700 font-medium">Underline Formatting</span>
+                                        <div className="flex items-center gap-1">
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs">Ctrl</kbd>
+                                            <span className="text-gray-400">+</span>
+                                            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded font-mono text-[11px] text-gray-800 shadow-2xs underline">U</kbd>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-3.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                            <span>Tip: macOS users can use <kbd className="font-mono font-bold">⌘</kbd> instead of <kbd className="font-mono font-bold">Ctrl</kbd></span>
+                            <button
+                                onClick={() => setShowShortcutsModal(false)}
+                                className="px-4 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Universal Share & Send Modal with Public vs Restricted Access Controls */}
+            {showShareModal && (
+                <ShareDocumentModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    documentId={documentId || ''}
+                    documentTitle={title || 'Document'}
+                    clientName={clientName}
+                    clientEmail={clientEmail}
+                    initialAccessType={documentDetails?.accessType}
+                    initialAllowedUserIds={documentDetails?.allowedUserIds}
+                    initialAllowedEmails={documentDetails?.allowedEmails}
+                    onAccessTypeUpdated={(newType) => {
+                        dispatch(updateDocumentDetails({ accessType: newType } as any));
+                    }}
+                />
+            )}
+
+            {/* Document JSON Schema AST Editor & AI Prompt Modal */}
+            {showJsonModal && (
+                <JsonSchemaEditorModal
+                    isOpen={showJsonModal}
+                    onClose={() => setShowJsonModal(false)}
+                />
+            )}
+
+            {/* AI Document Builder Side Drawer */}
+            <AIDocumentDrawer
+                isOpen={showAIDrawer}
+                onClose={() => setShowAIDrawer(false)}
+                onStartGenerating={(status) => {
+                    setShowAIDrawer(false);
+                    setIsAIGenerating(true);
+                    setAIStatusMessage(status);
+                }}
+                onFinishGenerating={() => {
+                    setIsAIGenerating(false);
+                    setShowAIDrawer(true);
+                }}
+                abortControllerRef={aiAbortControllerRef}
+            />
         </div>
     );
 }
@@ -1227,14 +1688,74 @@ function DocumentEditorPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { settings } = useSettings();
+    const id = searchParams?.get('id');
     const templateId = searchParams?.get('templateId');
+    const clientId = searchParams?.get('clientId');
+    const clientName = searchParams?.get('clientName');
+    const employeeId = searchParams?.get('employeeId');
+    const employeeName = searchParams?.get('employeeName');
     const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
 
     useEffect(() => {
-        if (templateId) {
+        if (id) {
+            const fetchDocument = async () => {
+                try {
+                    const res = await api.get(`/api/v1/workspace-tools/documents/${id}`);
+                    const doc = res.data?.document || res.data?.article || res.data;
+                    if (doc) {
+                        let contentBlocks = doc.contentBlocks || doc.blocks || [];
+                        let parsedVariables = doc.variables || {};
+
+                        if ((!contentBlocks || contentBlocks.length === 0) && doc.content) {
+                            try {
+                                const parsed = JSON.parse(doc.content);
+                                contentBlocks = parsed.blocks || [];
+                                parsedVariables = parsed.documentDetails || parsedVariables;
+                            } catch (e) {}
+                        }
+
+                        setSelectedTemplate({
+                            id: doc.id || id,
+                            category: doc.category || doc.documentType || 'other',
+                            title: doc.title || doc.name || 'Untitled Document',
+                            description: doc.description || '',
+                            blocks: contentBlocks,
+                            documentDetails: {
+                                title: doc.title || doc.name || 'Untitled Document',
+                                documentType: doc.documentType || 'general',
+                                metaType: doc.documentType || 'Document',
+                                subtotal: doc.subtotal || 0,
+                                taxPercent: doc.taxPercent || 0,
+                                taxAmount: doc.taxAmount || 0,
+                                discount: doc.discount || 0,
+                                totalAmount: doc.grandTotal || doc.subtotal || '0.00',
+                                showTotalAmount: !!(doc.grandTotal || doc.subtotal),
+                                clientName: doc.client?.name || doc.client?.companyName || parsedVariables.clientName || clientName || '',
+                                clientEmail: doc.client?.email || parsedVariables.clientEmail || '',
+                                clientAddress: doc.client?.billingAddress || parsedVariables.clientAddress || '',
+                                selectedClientId: doc.clientId || parsedVariables.selectedClientId || clientId || null,
+                                selectedEmployeeId: doc.employeeId || parsedVariables.selectedEmployeeId || employeeId || null,
+                                selectedProjectId: doc.projectId || parsedVariables.selectedProjectId || null,
+                                ...parsedVariables
+                            }
+                        } as any);
+                    }
+                } catch (e) {
+                    console.error('Failed to load document by id', e);
+                    toast.error('Failed to load document');
+                    setSelectedTemplate(DOCUMENT_TEMPLATES[0]);
+                }
+            };
+            fetchDocument();
+        } else if (templateId) {
             const template = DOCUMENT_TEMPLATES.find((t) => t.id === templateId);
             if (template) {
-                setSelectedTemplate(template);
+                const initialDetails = {
+                    ...template.documentDetails,
+                    ...(clientId ? { selectedClientId: clientId, clientName: clientName || '' } : {}),
+                    ...(employeeId ? { selectedEmployeeId: employeeId, employeeName: employeeName || '' } : {})
+                };
+                setSelectedTemplate({ ...template, documentDetails: initialDetails });
             } else {
                 const fetchTemplate = async () => {
                     try {
@@ -1251,7 +1772,11 @@ function DocumentEditorPageContent() {
                                     description: 'Custom saved template',
                                     isCustom: true,
                                     blocks: content?.blocks || [],
-                                    documentDetails: content?.documentDetails || null,
+                                    documentDetails: {
+                                        ...(content?.documentDetails || {}),
+                                        ...(clientId ? { selectedClientId: clientId, clientName: clientName || '' } : {}),
+                                        ...(employeeId ? { selectedEmployeeId: employeeId, employeeName: employeeName || '' } : {})
+                                    },
                                 } as any);
                             } else {
                                 toast.error('Template not found');
@@ -1265,24 +1790,30 @@ function DocumentEditorPageContent() {
                 fetchTemplate();
             }
         } else {
-            // Default to first template or a blank one if no templateId provided
-            setSelectedTemplate(DOCUMENT_TEMPLATES[0]);
+            // Default to first template with pre-filled query params if present
+            const baseTemplate = DOCUMENT_TEMPLATES[0];
+            const initialDetails = {
+                ...baseTemplate.documentDetails,
+                ...(clientId ? { selectedClientId: clientId, clientName: clientName || '' } : {}),
+                ...(employeeId ? { selectedEmployeeId: employeeId, employeeName: employeeName || '' } : {})
+            };
+            setSelectedTemplate({ ...baseTemplate, documentDetails: initialDetails });
         }
-    }, [templateId]);
+    }, [id, templateId, clientId, clientName, employeeId, employeeName]);
 
     const s = settings as any;
     const brand: any = {
-        companyName: s?.companyName || 'Your Company',
+        ...(s || {}),
+        companyName: s?.companyName?.trim() || 'Company Name',
         companyLogo: s?.logoUrl || '',
-        companyEmail: s?.emailFrom || s?.adminEmail || '',
-        companyPhone: s?.primaryPhone || '',
-        companyAddress: [s?.address, s?.city, s?.state, s?.country, s?.zipCode].filter(Boolean).join(', ') || '',
-        companyWebsite: s?.website || '',
-        companyGst: s?.gstNumber || '',
+        companyEmail: s?.emailFrom || s?.supportEmail || s?.adminEmail || 'company@example.com',
+        companyPhone: s?.primaryPhone || s?.companyPhone || s?.phone || '+9999999999',
+        companyAddress: [s?.address, s?.city, s?.state, s?.country, s?.zipCode].filter(Boolean).join(', ') || s?.companyAddress || 'Company Address',
+        companyWebsite: s?.website || s?.companyWebsite || 'www.company.com',
+        companyGst: s?.gstNumber || s?.taxId || 'TAX-ID-0000',
         companySign: s?.authorizedSignatorySignature || '',
-        authorizedSignatory: s?.authorizedSignatoryName || '',
-        brandColor: s?.themeColor || '#4f46e5',
-        ...settings, // fallback to capture any other fields
+        authorizedSignatory: s?.authorizedSignatoryName || s?.authorizedSignatory || 'Authorized Signatory',
+        brandColor: s?.themeColor || '#2563eb',
     };
 
     const driveConfigured = settings?.storageMode === 'google_drive' && !!settings?.googleDriveServiceAccount;

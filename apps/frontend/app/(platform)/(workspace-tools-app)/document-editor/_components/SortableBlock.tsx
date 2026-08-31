@@ -4,18 +4,19 @@ import { CSS } from '@dnd-kit/utilities';
 import clsx from 'clsx';
 import { X, GripVertical } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectBlock, removeBlock, updateBlock, duplicateBlock, Block } from '../../../../../redux/slices/documentSlice';
+import { selectBlock, removeBlock, updateBlock, duplicateBlock, Block } from '@/redux/slices/documentSlice';
 import dynamic from 'next/dynamic';
 const TextBlock = dynamic(() => import('./blocks/TextBlock').then(mod => mod.TextBlock), { ssr: false });
-import { HeadingBlock } from './blocks/HeadingBlock';
-import { DividerBlock } from './blocks/DividerBlock';
+import { LineBlock } from './blocks/LineBlock';
 import { BoxBlock } from './blocks/BoxBlock';
 import { ImageBlock } from './blocks/ImageBlock';
 import { ListBlock } from './blocks/ListBlock';
 import { GridBlock } from './blocks/GridBlock';
+import { PricingTableBlock } from './blocks/PricingTableBlock';
 import { SignatureBlock } from './blocks/SignatureBlock';
-import { InputBlock } from './blocks/InputBlock';
-import { PageBreakBlock } from './blocks/PageBreakBlock';
+import { ApprovalButtonBlock } from './blocks/ApprovalButtonBlock';
+import { ContainerBlock } from './blocks/ContainerBlock';
+import { PaymentCheckoutBlock } from './blocks/PaymentCheckoutBlock';
 import { EyeOff, Copy } from 'lucide-react';
 
 interface SortableBlockProps {
@@ -30,7 +31,7 @@ export function SortableBlock({ block }: SortableBlockProps) {
 
   const [localHeight, setLocalHeight] = React.useState<string | null>(null);
 
-  const startResize = (direction: 'right' | 'bottom' | 'bottom-right') => (e: React.MouseEvent) => {
+  const startResize = (direction: 'right' | 'left' | 'bottom' | 'bottom-right') => (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     
@@ -46,6 +47,11 @@ export function SortableBlock({ block }: SortableBlockProps) {
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (direction === 'right' || direction === 'bottom-right') {
         const deltaX = moveEvent.clientX - startX;
+        const newWidthPx = startPxWidth + deltaX;
+        const newWidthPct = Math.max(10, Math.min(100, (newWidthPx / parentWidth) * 100));
+        setLocalWidth(`${newWidthPct}%`);
+      } else if (direction === 'left') {
+        const deltaX = startX - moveEvent.clientX;
         const newWidthPx = startPxWidth + deltaX;
         const newWidthPct = Math.max(10, Math.min(100, (newWidthPx / parentWidth) * 100));
         setLocalWidth(`${newWidthPct}%`);
@@ -66,12 +72,17 @@ export function SortableBlock({ block }: SortableBlockProps) {
         const finalDeltaX = upEvent.clientX - startX;
         const finalWidthPx = startPxWidth + finalDeltaX;
         const finalWidthPct = Math.max(10, Math.min(100, (finalWidthPx / parentWidth) * 100));
-        updates.width = `${finalWidthPct}%`;
+        updates.width = `${Math.round(finalWidthPct)}%`;
+      } else if (direction === 'left') {
+        const finalDeltaX = startX - upEvent.clientX;
+        const finalWidthPx = startPxWidth + finalDeltaX;
+        const finalWidthPct = Math.max(10, Math.min(100, (finalWidthPx / parentWidth) * 100));
+        updates.width = `${Math.round(finalWidthPct)}%`;
       }
       if (direction === 'bottom' || direction === 'bottom-right') {
         const finalDeltaY = upEvent.clientY - startY;
         const finalHeightPx = Math.max(30, startPxHeight + finalDeltaY);
-        updates.minHeight = `${finalHeightPx}px`;
+        updates.minHeight = `${Math.round(finalHeightPx)}px`;
       }
       
       setLocalWidth(null);
@@ -112,6 +123,7 @@ export function SortableBlock({ block }: SortableBlockProps) {
 
   return (
     <div
+      id={`block-${block.id}`}
       ref={setNodeRef}
       style={style}
       onClick={(e) => {
@@ -119,9 +131,9 @@ export function SortableBlock({ block }: SortableBlockProps) {
         dispatch(selectBlock(block.id));
       }}
       className={clsx(
-        "relative cursor-pointer transition-all border-2 rounded-md group/block bg-white",
+        "relative cursor-pointer transition-all border-2 rounded-md group/block bg-transparent",
         isSelected 
-          ? "border-[#2563eb] shadow-sm bg-blue-50/10" 
+          ? "border-[#2563eb] shadow-sm" 
           : "border-transparent hover:border-gray-200"
       )}
     >
@@ -145,17 +157,17 @@ export function SortableBlock({ block }: SortableBlockProps) {
 
       {/* Block Content Renderer */}
       <div className="p-4 w-full h-full">
-        {block.type === 'heading' && <HeadingBlock block={block} isSelected={isSelected} />}
-        {block.type === 'text' && <TextBlock block={block} isSelected={isSelected} />}
-        {block.type === 'divider' && <DividerBlock block={block} isSelected={isSelected} />}
+        {(block.type === 'heading' || block.type === 'text') && <TextBlock block={block} isSelected={isSelected} />}
+        {(block.type === 'divider' || block.type === 'line' || block.type === 'pagebreak') && <LineBlock block={block} isSelected={isSelected} />}
         {block.type === 'box' && <BoxBlock block={block} isSelected={isSelected} />}
+        {block.type === 'container' && <ContainerBlock block={block as any} isSelected={isSelected} />}
         {block.type === 'image' && <ImageBlock block={block} isSelected={isSelected} />}
         {block.type === 'list' && <ListBlock block={block} isSelected={isSelected} />}
-        {block.type === 'grid' && <GridBlock block={block} isSelected={isSelected} />}
+        {block.type === 'grid' && (block.content?.items ? <PricingTableBlock block={block} isSelected={isSelected} /> : <GridBlock block={block} isSelected={isSelected} />)}
+        {block.type === 'pricing_table' && <PricingTableBlock block={block} isSelected={isSelected} />}
+        {(block.type === 'payment_checkout' || block.type === 'payment' || block.type === 'checkout') && <PaymentCheckoutBlock block={block} isSelected={isSelected} />}
         {block.type === 'signature' && <SignatureBlock block={block} isSelected={isSelected} />}
-        {block.type === 'input' && <InputBlock block={block} isSelected={isSelected} />}
-        {block.type === 'pagebreak' && <PageBreakBlock block={block} isSelected={isSelected} />}
-        {/* Placeholder for other block types */}
+        {(block.type === 'approval_buttons' || block.type === 'decision') && <ApprovalButtonBlock block={block} isSelected={isSelected} />}
       </div>
 
       {/* Action Buttons */}
@@ -184,24 +196,38 @@ export function SortableBlock({ block }: SortableBlockProps) {
         </div>
       )}
 
-      {/* Resize Handles */}
+      {/* Selection Border & Drag Adjuster Handles */}
       {isSelected && (
         <>
-          {/* Right edge */}
+          {/* Right Edge Adjuster Pill */}
           <div 
             onMouseDown={startResize('right')}
-            className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-3 h-8 bg-indigo-500 rounded-full shadow-sm cursor-col-resize opacity-0 group-hover/block:opacity-100 transition-opacity z-10 hover:bg-indigo-600 hover:scale-110 active:bg-indigo-700"
+            className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-3.5 h-8 bg-indigo-600 rounded-full shadow-md cursor-col-resize z-20 hover:scale-125 transition-transform"
+            title="Drag to resize width"
           />
-          {/* Bottom edge */}
+
+          {/* Left Edge Adjuster Pill */}
+          <div 
+            onMouseDown={startResize('left')}
+            className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3.5 h-8 bg-indigo-600 rounded-full shadow-md cursor-col-resize z-20 hover:scale-125 transition-transform"
+            title="Drag to resize width"
+          />
+
+          {/* Bottom Edge Adjuster Pill */}
           <div 
             onMouseDown={startResize('bottom')}
-            className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-8 h-3 bg-indigo-500 rounded-full shadow-sm cursor-row-resize opacity-0 group-hover/block:opacity-100 transition-opacity z-10 hover:bg-indigo-600 hover:scale-110 active:bg-indigo-700"
+            className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-8 h-3.5 bg-indigo-600 rounded-full shadow-md cursor-row-resize z-20 hover:scale-125 transition-transform"
+            title="Drag to adjust height"
           />
-          {/* Bottom Right Corner */}
+
+          {/* Corner Dots */}
           <div 
             onMouseDown={startResize('bottom-right')}
-            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-indigo-500 rounded-full shadow-sm cursor-nwse-resize opacity-0 group-hover/block:opacity-100 transition-opacity z-10 hover:bg-indigo-600 hover:scale-110 active:bg-indigo-700"
+            className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-indigo-600 border-2 border-white rounded-full shadow-sm cursor-nwse-resize z-20 hover:scale-125 transition-transform"
+            title="Drag to resize"
           />
+          <div className="absolute -top-1.5 -left-1.5 w-2.5 h-2.5 bg-indigo-600 border-2 border-white rounded-full shadow-xs z-10 pointer-events-none" />
+          <div className="absolute -bottom-1.5 -left-1.5 w-2.5 h-2.5 bg-indigo-600 border-2 border-white rounded-full shadow-xs z-10 pointer-events-none" />
         </>
       )}
     </div>

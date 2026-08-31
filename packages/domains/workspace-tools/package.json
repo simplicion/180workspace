@@ -14,6 +14,7 @@
     "@prisma/client": "^5.x.x",
     "@types/node-cron": "^3.0.11",
     "@workspace/automations": "workspace:*",
+    "@workspace/backend-infra": "workspace:*",
     "@workspace/db": "workspace:*",
     "axios": "^1.19.0",
     "mammoth": "^1.12.1",

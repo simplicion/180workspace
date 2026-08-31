@@ -69,7 +69,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/traffic-director/links': { appId: 'traffic-director', moduleId: 'links' },
   '/traffic-director/simulator': { appId: 'traffic-director', moduleId: 'simulator' },
   '/traffic-director/logs': { appId: 'traffic-director', moduleId: 'logs' },
-  '/traffic-director/analytics': { appId: 'traffic-director', moduleId: 'analytics' },
 };
 
 export interface ModuleConfig {

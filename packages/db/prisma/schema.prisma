@@ -232,6 +232,7 @@ model Client {
   deals                                   Deal[]                @relation("ClientDeals")
   salesActivities                         SalesActivity[]       @relation("ActivityClient")
   tasks                                   Task[]
+  documents                               Document[]            @relation("ClientDocuments")
 
   @@index([companyId])
   @@index([companyId, id])
@@ -390,6 +391,7 @@ model User {
   knowledgeLocked   KnowledgeArticle[]        @relation("KnowledgeLockedBy")
   knowledgeVersions KnowledgeArticleVersion[] @relation("KnowledgeVersionCreator")
   teamActivityLogs  TeamActivityLog[]         @relation("UserTeamActivityLogs")
+  employeeDocuments Document[]                @relation("EmployeeDocuments")
 
   @@index([companyId])
   @@index([companyId, id])
@@ -426,6 +428,7 @@ model Project {
   modules_ProjectModules                   Module[]             @relation("ProjectModules")
   company                                  Company?             @relation(fields: [companyId], references: [id])
   tasks                                    Task[]
+  documents                                Document[]           @relation("ProjectDocuments")
   timeLogs_ProjectTimeLogs                 TimeLog[]            @relation("ProjectTimeLogs")
   workLogs_ProjectWorkLogs                 WorkLog[]            @relation("ProjectWorkLogs")
 
@@ -1117,29 +1120,79 @@ model ContentCalendar {
 }
 
 model Document {
-  id             String    @id @default(uuid())
-  name           String
-  fileUrl        String
-  fileId         String    @default("")
-  isLinkOnly     Boolean   @default(false)
-  storageType    String    @default("cloudinary")
-  fileType       String    @default("")
-  fileSize       Int       @default(0)
-  folder         String    @default("general")
-  category       String    @default("General")
-  tags           String[]  @default([])
-  isConfidential Boolean   @default(false)
-  uploadedById   String
-  relatedId      String?
-  relatedModel   String    @default("")
-  description    String    @default("")
-  taggedUsers    String[]  @default([])
-  deletedAt      DateTime?
-  companyId      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  company        Company?  @relation("CompanyDocuments", fields: [companyId], references: [id])
-  uploadedBy     User      @relation("UserDocuments", fields: [uploadedById], references: [id])
+  id               String            @id @default(uuid())
+  name             String            @default("Untitled Document")
+  title            String?
+  documentNumber   String?
+  documentType     String            @default("INVOICE") // INVOICE, QUOTATION, CONTRACT, OFFER_LETTER, POLICY, UPLOADED_FILE, etc.
+  status           String            @default("draft")   // draft, sent, viewed, signed, approved, paid, rejected, cancelled
+  fileUrl          String?
+  fileId           String            @default("")
+  isLinkOnly       Boolean           @default(false)
+  storageType      String            @default("cloudinary")
+  fileType         String            @default("")
+  fileSize         Int               @default(0)
+  folder           String            @default("general")
+  category         String            @default("General")
+  tags             String[]          @default([])
+  isConfidential   Boolean           @default(false)
+  uploadedById     String
+  relatedId        String?
+  relatedModel     String            @default("")
+  description      String            @default("")
+  taggedUsers      String[]          @default([])
+
+  // Visual Editor AST Data
+  contentBlocks    Json?             @default("[]")
+  headerBlocks     Json?             @default("[]")
+  footerBlocks     Json?             @default("[]")
+  variables        Json?             @default("{}")
+  designSettings   Json?             @default("{}")
+
+  // Financial & Ledger Index
+  subtotal         Float             @default(0)
+  taxPercent       Float             @default(0)
+  taxAmount        Float             @default(0)
+  discount         Float             @default(0)
+  grandTotal       Float             @default(0)
+  currency         String            @default("INR")
+
+  // Dates & Lifecycles
+  issueDate        DateTime          @default(now())
+  validUntil       DateTime?
+  dueDate          DateTime?
+  paidAt           DateTime?
+
+  // Digital Signature & Public Portal
+  shareToken       String?           @unique
+  signatureData    Json?
+  signerIp         String?
+  signerUserAgent  String?
+  signedAt         DateTime?
+
+  // Payment Gateway
+  gatewayOrderId   String?
+  gatewayPaymentId String?
+  paymentLink      String?
+
+  deletedAt        DateTime?
+  companyId        String?
+  clientId         String?
+  projectId        String?
+  dealId           String?
+  employeeId       String?
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  company          Company?          @relation("CompanyDocuments", fields: [companyId], references: [id])
+  uploadedBy       User              @relation("UserDocuments", fields: [uploadedById], references: [id])
+  client           Client?           @relation("ClientDocuments", fields: [clientId], references: [id], onDelete: SetNull)
+  project          Project?          @relation("ProjectDocuments", fields: [projectId], references: [id], onDelete: SetNull)
+  deal             Deal?             @relation("DealDocuments", fields: [dealId], references: [id], onDelete: SetNull)
+  employee         User?             @relation("EmployeeDocuments", fields: [employeeId], references: [id], onDelete: SetNull)
+
+  versions         DocumentVersion[]
 
   @@index([uploadedById])
   @@index([relatedId, relatedModel])
@@ -1147,6 +1200,20 @@ model Document {
   @@index([companyId])
   @@index([companyId, id])
   @@index([companyId, createdAt])
+  @@index([clientId])
+  @@index([dealId])
+}
+
+model DocumentVersion {
+  id            String   @id @default(uuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  contentBlocks Json
+  changeSummary String?
+  createdById   String
+  createdAt     DateTime @default(now())
+
+  @@index([documentId])
 }
 
 model DocumentPage {
@@ -2070,6 +2137,7 @@ model Deal {
 
   salesActivities SalesActivity[] @relation("ActivityLead")
   salesTasks      SalesTask[]     @relation("TaskLead")
+  documents       Document[]      @relation("DealDocuments")
 
   @@index([stage])
   @@index([ownerId])

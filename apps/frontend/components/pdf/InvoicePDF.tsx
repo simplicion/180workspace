@@ -221,7 +221,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, company, platfo
         <View style={styles.header}>
           <View style={styles.companyInfo}>
             {company?.companyLogo ? (
-              <Image src={company.companyLogo} style={styles.logo} alt="Company Logo" />
+              <Image src={company.companyLogo} style={styles.logo} />
             ) : (
               <Text style={{ ...styles.companyName, color: brandColor }}>
                 {company?.companyName || platform?.name || platform?.platformName || '180workspace'}

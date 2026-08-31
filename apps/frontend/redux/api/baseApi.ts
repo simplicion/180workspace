@@ -88,6 +88,8 @@ export const baseApi = createApi({
     "Owner",
     "Professional",
     "Support",
+    "ReleaseNotes",
+    "Client",
     "Company",
     "CompanyPrivate",
     "CompanyPublic",

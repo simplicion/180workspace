@@ -147,3 +147,27 @@ export const getPresignedUrl = async (req: Request, res: Response, next: NextFun
         next(err);
     }
 };
+
+export const getStorageStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { prisma } = require('@workspace/db');
+        const agg = await prisma.document.aggregate({
+            where: { deletedAt: null },
+            _sum: { fileSize: true },
+            _count: { id: true }
+        });
+        const articlesCount = await prisma.article.count({ where: { deletedAt: null } });
+        const usedBytes = Number(agg._sum.fileSize || 0) + (articlesCount * 24 * 1024); // ~24KB per AST doc
+        const totalQuotaBytes = 10 * 1024 * 1024 * 1024; // 10 GB
+        res.json({
+            usedBytes,
+            totalQuotaBytes,
+            totalFiles: (agg._count.id || 0) + articlesCount,
+            usagePercent: Math.min(100, Number(((usedBytes / totalQuotaBytes) * 100).toFixed(2))),
+            storageProvider: 'Cloudflare R2 & Edge Vault'
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+

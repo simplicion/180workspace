@@ -1,7 +1,8 @@
 import React from 'react';
-import { useDispatch } from 'react-redux';
-import { updateBlock, Block } from '../../../../../../redux/slices/documentSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { updateBlock, Block } from '@/redux/slices/documentSlice';
 import { Plus, Trash2 } from 'lucide-react';
+import { autoLinkUrls } from '../utils/autoLinkUrls';
 
 interface GridBlockProps {
   block: Block;
@@ -10,6 +11,7 @@ interface GridBlockProps {
 
 export function GridBlock({ block, isSelected }: GridBlockProps) {
   const dispatch = useDispatch();
+  const documentDetails = useSelector((state: any) => state.document?.documentDetails || {});
 
   // Initialize data if not present
   const data: string[][] = block.content?.data || [
@@ -18,6 +20,38 @@ export function GridBlock({ block, isSelected }: GridBlockProps) {
   ];
   const showTotals = block.content?.showTotals || false;
   const isCurrency = block.content?.isCurrency || false;
+  const hideBorders = block.content?.hideBorders || false;
+
+  const renderCellContent = (rawCell: string) => {
+    if (!rawCell) return '\u00A0';
+    let content = rawCell;
+
+    const fallbackPlaceholders: Record<string, string> = {
+      companyName: 'Company Name',
+      companyAddress: 'Company Address',
+      companyEmail: 'company@example.com',
+      companyPhone: '+9999999999',
+      companyWebsite: 'www.company.com',
+      companyGst: 'TAX-ID-0000',
+      authorizedSignatory: 'Authorized Signatory',
+    };
+
+    const mergedVars = {
+      ...fallbackPlaceholders,
+      ...(documentDetails || {})
+    };
+
+    Object.keys(mergedVars).forEach(key => {
+      const val = mergedVars[key] || fallbackPlaceholders[key] || '';
+      const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+      content = content.replace(regex, val);
+    });
+
+    content = content.replace(/{{\\s*[a-zA-Z0-9_]+\\s*}}/g, '');
+
+    const linkedHtml = autoLinkUrls(content);
+    return <div dangerouslySetInnerHTML={{ __html: linkedHtml }} className="[&_a]:text-blue-600 [&_a]:underline [&_a]:hover:text-blue-700" />;
+  };
 
   const updateCell = (rowIndex: number, colIndex: number, value: string) => {
     const newData = data.map((row, r) => 
@@ -170,8 +204,8 @@ export function GridBlock({ block, isSelected }: GridBlockProps) {
   };
 
   return (
-    <div className="w-full relative overflow-x-auto" style={customStyles}>
-      <table ref={tableRef} className="w-full border-collapse border border-gray-200" style={{ tableLayout: 'fixed' }}>
+    <div className="w-full relative overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={customStyles}>
+      <table ref={tableRef} className={`w-full border-collapse ${hideBorders ? 'border-transparent' : 'border border-gray-200'}`} style={{ tableLayout: 'fixed' }}>
         <tbody>
           {data.map((row, rowIndex) => (
             <tr key={rowIndex} className="group/row">
@@ -179,7 +213,7 @@ export function GridBlock({ block, isSelected }: GridBlockProps) {
                 <td 
                   key={colIndex} 
                   style={{ width: colWidths[colIndex] || 150 }}
-                  className={`border border-gray-200 p-0 relative ${rowIndex === 0 ? 'bg-gray-50 font-semibold' : 'bg-white'}`}
+                  className={`${hideBorders ? 'border-transparent' : 'border border-gray-200'} p-0 relative ${rowIndex === 0 && !hideBorders ? 'bg-gray-50 font-semibold' : 'bg-transparent'}`}
                 >
                   {isSelected ? (
                     <textarea
@@ -189,8 +223,8 @@ export function GridBlock({ block, isSelected }: GridBlockProps) {
                       rows={1}
                     />
                   ) : (
-                    <div className="p-2 min-h-[40px] break-words whitespace-pre-wrap">
-                      {cell || '\u00A0'}
+                    <div className="p-2 min-h-[40px] break-words">
+                      {renderCellContent(cell)}
                     </div>
                   )}
 
@@ -243,42 +277,6 @@ export function GridBlock({ block, isSelected }: GridBlockProps) {
           </tfoot>
         )}
       </table>
-
-      {isSelected && (
-        <div className="flex gap-2 mt-3 items-center">
-          <button 
-            onClick={addRow}
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100"
-          >
-            <Plus className="w-3 h-3" /> Add Row
-          </button>
-          <button 
-            onClick={addCol}
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100"
-          >
-            <Plus className="w-3 h-3" /> Add Column
-          </button>
-          <div className="w-px h-4 bg-gray-300 mx-2"></div>
-          <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={showTotals} 
-              onChange={toggleTotals}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            Show Totals
-          </label>
-          <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={isCurrency} 
-              onChange={toggleCurrency}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            Format as Currency
-          </label>
-        </div>
-      )}
     </div>
   );
 }

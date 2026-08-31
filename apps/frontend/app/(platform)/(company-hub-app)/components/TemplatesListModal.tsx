@@ -177,11 +177,16 @@ function TemplateEditor({
 
     useEffect(() => {
         setLoadingUsers(true);
-        api.get('/api/users?limit=200')
-            .then(({ data }) => setAllUsers(data.users || data || []))
+        api.get('/api/v1/identity/users')
+            .catch(() => api.get('/api/users'))
+            .then((res) => {
+                if (res?.data) {
+                    setAllUsers(res.data.users || res.data.data || res.data || []);
+                }
+            })
             .catch((err) => {
-                console.error('Failed to fetch users:', err);
-                toast.error('Could not load users for tagging');
+                console.warn('Optional users tagging fetch skipped:', err);
+                setAllUsers([]);
             })
             .finally(() => setLoadingUsers(false));
     }, []);

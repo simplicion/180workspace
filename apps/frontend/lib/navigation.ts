@@ -70,7 +70,6 @@ export const navigation = [
             { id: 'links', name: 'Smart Links', href: '/traffic-director/links', icon: Globe, roles: ['admin', 'employee'] },
             { id: 'simulator', name: 'Routing Simulator', href: '/traffic-director/simulator', icon: Sparkles, roles: ['admin', 'employee'] },
             { id: 'logs', name: 'Live Stream Logs', href: '/traffic-director/logs', icon: Activity, roles: ['admin', 'employee'] },
-            { id: 'analytics', name: 'Traffic Analytics', href: '/traffic-director/analytics', icon: BarChart3, roles: ['admin', 'employee'] },
         ]
     },
 

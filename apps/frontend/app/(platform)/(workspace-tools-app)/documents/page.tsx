@@ -1,30 +1,38 @@
 'use client';
 
-
-
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, ConfirmModal } from "@workspace/ui";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
-import { useGet180DocumentsQuery, useDeleteArticleMutation } from '@/redux/api/knowledgeApi';
+import { useGet180DocumentsQuery, useDeleteArticleMutation, useApproveDocumentMutation, useConvertToInvoiceMutation, useSendPaymentReminderMutation } from '@/redux/api/knowledgeApi';
 import { useGetContractsQuery } from '@/redux/api/contractApi';
 import { useRouter } from 'next/navigation';
-import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Eye, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert, FileEdit, Receipt } from 'lucide-react';
+import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert, FileEdit, Receipt, Sparkles, CheckCircle2, ArrowRightCircle, Share2, CheckSquare, Square, MinusSquare, Layers, LayoutGrid, Check, HardDrive, Cloud, Database } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
+import { useSubscription } from '@/lib/useSubscription';
 import TemplatesListDrawer from '@/app/(platform)/(workspace-tools-app)/_components/TemplatesListDrawer';
 import DocumentAIChatDrawer from '@/app/(platform)/(workspace-tools-app)/_components/DocumentAIChatDrawer';
+import CreateWithAIModal from '@/app/(platform)/(workspace-tools-app)/_components/CreateWithAIModal';
 import FileUploadModal from '@/components/shared/FileUploadModal';
 import QuoteModal from '@/app/(platform)/(workspace-tools-app)/_components/QuoteModal';
 import EmailQuoteModal from '@/app/(platform)/(workspace-tools-app)/_components/EmailQuoteModal';
 import DigitalSignatureModal from '@/app/(platform)/(workspace-tools-app)/_components/DigitalSignatureModal';
+import RecordPaymentModal from '@/app/(platform)/(workspace-tools-app)/_components/RecordPaymentModal';
+import ShareDocumentModal from '@/app/(platform)/(workspace-tools-app)/_components/ShareDocumentModal';
+import { DocumentCard } from './_components/DocumentCard';
 
-interface Document { id?: string;
+interface Document { 
+    id?: string;
     _id?: string;
     title?: string;
     name?: string;
+    documentNumber?: string;
+    documentType?: string;
+    status?: string;
     url?: string;
+    fileUrl?: string;
     type?: string;
     folder?: string;
     category?: string;
@@ -33,40 +41,54 @@ interface Document { id?: string;
     notes?: string;
     isArticle?: boolean;
     isContract?: boolean;
+    isInvoice?: boolean;
+    isQuote?: boolean;
+    clientName?: string;
+    clientEmail?: string;
+    grandTotal?: number;
+    currency?: string;
+    shareToken?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
-    { key: 'all', label: 'All Files' },
-    { key: 'HR', label: 'HR & Employee' },
-    { key: 'Finance', label: 'Finance' },
-    { key: 'Contract', label: 'Contracts' },
-    { key: 'Legal', label: 'Legal' },
-    { key: 'Project', label: 'Projects' },
-    { key: 'Marketing', label: 'Marketing' },
+    { key: 'all', label: 'All Documents' },
+    { key: 'Finance', label: 'Finance & Invoices' },
+    { key: 'Contract', label: 'Contracts & Proposals' },
+    { key: 'HR', label: 'HR & Letters' },
+    { key: 'Legal', label: 'Legal & NDAs' },
+    { key: 'Project', label: 'Project SOWs' },
     { key: 'General', label: 'General' },
 ];
 
+const STATUS_COLORS: Record<string, string> = {
+    draft: 'bg-slate-100 text-slate-700 border-slate-200',
+    Draft: 'bg-slate-100 text-slate-700 border-slate-200',
+    sent: 'bg-blue-50 text-blue-700 border-blue-200',
+    Sent: 'bg-blue-50 text-blue-700 border-blue-200',
+    viewed: 'bg-amber-50 text-amber-700 border-amber-200',
+    signed: 'bg-purple-50 text-purple-700 border-purple-200 font-semibold animate-pulse',
+    Signed: 'bg-purple-50 text-purple-700 border-purple-200 font-semibold animate-pulse',
+    approved: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold',
+    Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold',
+    paid: 'bg-green-50 text-green-700 border-green-200 font-semibold',
+    Paid: 'bg-green-50 text-green-700 border-green-200 font-semibold',
+};
+
 const TYPE_COLORS: Record<string, string> = {
     Contract: 'bg-blue-50 text-blue-700 border-blue-100',
-    'Joining Letter': 'bg-purple-50 text-purple-700 border-purple-100',
-    'Experience Letter': 'bg-purple-50 text-purple-700 border-purple-100',
-    'Appraisal Letter': 'bg-purple-50 text-purple-700 border-purple-100',
-    'ID Proof': 'bg-purple-50 text-purple-700 border-purple-100',
-    HR: 'bg-purple-50 text-purple-700 border-purple-100',
-    Payslip: 'bg-green-50 text-green-700 border-green-100',
+    INVOICE: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    QUOTATION: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    OFFER_LETTER: 'bg-purple-50 text-purple-700 border-purple-100',
+    WARNING_LETTER: 'bg-rose-50 text-rose-700 border-rose-100',
+    NDA: 'bg-amber-50 text-amber-700 border-amber-100',
+    COMPANY_POLICY: 'bg-cyan-50 text-cyan-700 border-cyan-100',
     Finance: 'bg-indigo-50 text-indigo-700 border-indigo-100',
     Legal: 'bg-amber-50 text-amber-700 border-amber-100',
     Project: 'bg-cyan-50 text-cyan-700 border-cyan-100',
-    Marketing: 'bg-pink-50 text-pink-700 border-pink-100',
     General: 'bg-gray-50 text-gray-600 border-gray-100',
-    Other: 'bg-gray-50 text-gray-600 border-gray-100',
 };
 
-const MAX_SIZE_MB = 20;
-const ACCEPTED = ['image/*', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.zip', '.html'];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function getFileIcon(name: string) {
     const ext = name?.split('.').pop()?.toLowerCase();
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) return Image;
@@ -88,6 +110,9 @@ function PreviewModal({ doc, onClose }: { doc: any; onClose: () => void }) {
     const ext = docUrl?.split('.').pop()?.split('?')[0]?.toLowerCase();
     const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
     const isPDF = ext === 'pdf';
+    const isDeclined = doc.status === 'declined';
+    const isApproved = doc.status === 'approved';
+    const decision = doc.decisionData;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
@@ -98,37 +123,68 @@ function PreviewModal({ doc, onClose }: { doc: any; onClose: () => void }) {
                             <FileText className="w-4 h-4 text-indigo-600" />
                         </div>
                         <div>
-                            <h2 className="text-base font-semibold text-gray-900 truncate max-w-[60vw]">{docTitle}</h2>
-                            <p className="text-xs text-gray-400">{new Date(doc.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                            <h3 className="text-sm font-bold text-gray-900 truncate max-w-md">{docTitle}</h3>
+                            <p className="text-xs text-gray-400">{doc.category || doc.documentType || 'General'}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {docUrl && (
-                            <a href={docUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors">
-                                <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
-                            </a>
+                        {doc.shareToken && (
+                            <Link href={`/f/document/${doc.shareToken}`} target="_blank" className="px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-semibold flex items-center gap-1">
+                                <ExternalLink className="w-3.5 h-3.5" /> Client Portal
+                            </Link>
                         )}
-                        <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">
-                            <X className="w-4 h-4 text-gray-500" />
+                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100">
+                            <X className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 overflow-auto p-4 bg-gray-50">
-                    {isImage ? (
-                        <img src={docUrl} alt={docTitle} className="max-w-full mx-auto rounded-xl shadow-lg" />
-                    ) : isPDF ? (
-                        <iframe src={docUrl} className="w-full h-[72vh] rounded-xl border border-gray-200" title={docTitle} />
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-24 text-center">
-                            <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center mb-5">
-                                <FileText className="w-9 h-9 text-indigo-300" />
+
+                <div className="p-6 flex-1 overflow-auto flex flex-col items-center bg-gray-50/50">
+                    {/* Status Banners */}
+                    {isDeclined && (
+                        <div className="w-full max-w-3xl mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900">
+                            <div className="flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-bold">Reviewer Declined / Requested Changes</h4>
+                                    <p className="text-xs text-rose-700 mt-0.5">
+                                        Reviewed by <b>{decision?.reviewerName || 'Reviewer'}</b> on {new Date(decision?.timestamp || Date.now()).toLocaleDateString()}
+                                    </p>
+                                    {decision?.reason && (
+                                        <div className="mt-2 p-2.5 rounded-lg bg-white/90 border border-rose-200 text-xs font-medium text-rose-900">
+                                            <b>Reason:</b> "{decision.reason}"
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <p className="text-gray-600 font-semibold text-lg mb-1">Preview unavailable</p>
-                            <p className="text-gray-400 text-sm mb-5">This file type cannot be previewed in-browser.</p>
+                        </div>
+                    )}
+
+                    {isApproved && (
+                        <div className="w-full max-w-3xl mb-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900">
+                            <div className="flex items-center gap-3">
+                                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                                <div>
+                                    <h4 className="text-sm font-bold">Document Approved & Accepted</h4>
+                                    <p className="text-xs text-emerald-700 mt-0.5">
+                                        Approved by <b>{decision?.reviewerName || 'Authorized Signatory'}</b> on {new Date(decision?.timestamp || Date.now()).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {isImage ? (
+                        <img src={docUrl} alt={docTitle} className="max-w-full max-h-[70vh] rounded-lg object-contain" />
+                    ) : isPDF ? (
+                        <iframe src={docUrl} className="w-full h-[70vh] rounded-lg border-0" title={docTitle} />
+                    ) : (
+                        <div className="text-center py-12">
+                            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+                            <p className="text-sm text-gray-600 font-medium mb-4">Preview not available directly in modal</p>
                             {docUrl && (
-                                <a href={docUrl} target="_blank" rel="noopener noreferrer" className="btn-primary">
-                                    <Download className="w-4 h-4" /> Download File
+                                <a href={docUrl} target="_blank" rel="noopener noreferrer" className="btn-primary inline-flex items-center gap-2">
+                                    <Download className="w-4 h-4" /> Open / Download File
                                 </a>
                             )}
                         </div>
@@ -139,41 +195,15 @@ function PreviewModal({ doc, onClose }: { doc: any; onClose: () => void }) {
     );
 }
 
-
-
-// ─── Confirm Delete Modal ─────────────────────────────────────────────────────
-function ConfirmDeleteModal({ doc, onCancel, onConfirm }: { doc: any; onCancel: () => void; onConfirm: () => void }) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-                <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-                    <Trash2 className="w-6 h-6 text-red-500" />
-                </div>
-                <h3 className="text-base font-bold text-gray-900 text-center mb-1">Delete Document?</h3>
-                <p className="text-sm text-gray-500 text-center mb-6">
-                    &quot;<span className="font-semibold">{doc.title}</span>&quot; will be permanently deleted. This action cannot be undone.
-                </p>
-                <div className="flex gap-3">
-                    <button onClick={onCancel} className="btn-secondary flex-1">Cancel</button>
-                    <button onClick={onConfirm} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors">
-                        <Trash2 className="w-4 h-4" /> Delete
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DocumentsPage() {
     const [docs, setDocs] = useState<Document[]>([]);
-    const [quotes, setQuotes] = useState<any[]>([]);
-    const [invoices, setInvoices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('all');
     const [showUpload, setShowUpload] = useState(false);
     const [showTemplates, setShowTemplates] = useState(false);
+    const [showCreateAI, setShowCreateAI] = useState(false);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
     const [showAiChat, setShowAiChat] = useState(false);
@@ -184,64 +214,86 @@ export default function DocumentsPage() {
     const [selectedEmailQuote, setSelectedEmailQuote] = useState<any | null>(null);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [storageStats, setStorageStats] = useState<{ used: number, total: number, usagePercent: number } | null>(null);
+    const [approvingId, setApprovingId] = useState<string | null>(null);
+    const [selectedPaymentDoc, setSelectedPaymentDoc] = useState<any | null>(null);
+    const [shareModalDoc, setShareModalDoc] = useState<any | null>(null);
+    
+    // Multi-select & Batch Operations State
+    const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+    const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+    const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
+    const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+
     const { user } = useAuth();
+    const subscription = useSubscription();
     const router = useRouter();
     const [deleteArticle] = useDeleteArticleMutation();
+    const [approveDocMutation] = useApproveDocumentMutation();
+    const [sendReminderMutation] = useSendPaymentReminderMutation();
+    const [convertInvoiceMutation] = useConvertToInvoiceMutation();
     const { data: unifiedData, isLoading: articlesLoading, refetch: refetchArticles } = useGet180DocumentsQuery({ search: search || undefined });
-    const { data: contractsData, isLoading: contractsLoading, refetch: refetchContracts } = useGetContractsQuery({});
 
     function loadDocs() {
         setLoading(true);
-        Promise.all([
-            api.get('/api/files', { params: { search } }),
-            api.get('/api/sales/quotes', { params: { search } }).catch(() => ({ data: { quotes: [] } })),
-            api.get('/api/invoices', { params: { search } }).catch(() => ({ data: { invoices: [] } }))
-        ]).then(([filesRes, quotesRes, invoicesRes]) => {
-            setDocs(filesRes.data.documents || filesRes.data.files || filesRes.data || []);
-            setQuotes(quotesRes.data.quotes || []);
-            setInvoices(invoicesRes.data.invoices || []);
-        }).catch(() => {
-            setDocs([]);
-            setQuotes([]);
-            setInvoices([]);
-        }).finally(() => setLoading(false));
-        
-        // Fetch storage stats from platform-billing
-        api.get('/api/v1/platform-billing').then(res => {
-            if (res.data) {
-                const config = res.data.companyConfig;
-                const plan = res.data.plan;
-                if (config && plan) {
-                    const maxStorage = plan.maxStorageBytes || 0;
-                    const totalStorage = maxStorage;
-                    const storageUsed = config.storageUsedBytes || 0;
-                    
-                    setStorageStats({
-                        used: storageUsed,
-                        total: totalStorage,
-                        usagePercent: totalStorage > 0 ? Math.min((storageUsed / totalStorage) * 100, 100) : 0
-                    });
-                }
-            }
-        }).catch(() => {});
-        
+        api.get('/api/files', { params: { search } })
+            .then(filesRes => {
+                setDocs(filesRes.data.documents || filesRes.data.files || filesRes.data || []);
+            })
+            .catch(() => setDocs([]))
+            .finally(() => setLoading(false));
+
+        api.get('/v1/workspace-tools/storage/stats')
+            .then(res => {
+                if (res.data) setStorageStats(res.data);
+            })
+            .catch(() => {});
+
         refetchArticles();
-        refetchContracts();
     }
 
     useEffect(() => { loadDocs(); }, [search]);
 
+    async function handleApprove(doc: any) {
+        try {
+            setApprovingId(doc.id || doc._id);
+            const res = await approveDocMutation(doc.id || doc._id).unwrap();
+            toast.success(res.message || 'Document approved & posted to financial records!');
+            loadDocs();
+        } catch (err: any) {
+            toast.error(err.data?.message || 'Failed to approve document');
+        } finally {
+            setApprovingId(null);
+        }
+    }
+
+    async function handleSendReminder(doc: any) {
+        try {
+            const res = await sendReminderMutation(doc.id || doc._id).unwrap();
+            toast.success(res.message || 'Payment reminder sent to client!');
+            loadDocs();
+        } catch (err: any) {
+            toast.error(err.data?.message || 'Failed to send reminder');
+        }
+    }
+
+    async function handleConvertToInvoice(doc: any) {
+        try {
+            const res = await convertInvoiceMutation(doc.id || doc._id).unwrap();
+            toast.success('Converted to Invoice successfully!');
+            loadDocs();
+            if (res.invoice?.id) {
+                router.push(`/document-editor?id=${res.invoice.id}`);
+            }
+        } catch (err: any) {
+            toast.error(err.data?.message || 'Failed to convert to invoice');
+        }
+    }
+
     async function handleDelete(doc: any) {
         try {
-            if (doc.isArticle) {
+            if (doc.isArticle || doc.blocks) {
                 await deleteArticle(doc.id || doc._id).unwrap();
-                toast.success('Article deleted');
-            } else if (doc.isQuote) {
-                await api.delete(`/api/sales/quotes/${doc.id || doc._id}`);
-                toast.success('Quote deleted');
-            } else if (doc.isInvoice) {
-                await api.delete(`/api/invoices/${doc.id || doc._id}`);
-                toast.success('Invoice deleted');
+                toast.success('Document deleted');
             } else {
                 await api.delete(`/api/files/${doc.id || doc._id}`);
                 toast.success('Document deleted');
@@ -249,339 +301,407 @@ export default function DocumentsPage() {
             setDocs(prev => prev.filter(d => (d.id || d._id) !== (doc.id || doc._id)));
             setDeleteDoc(null);
             refetchArticles();
-            if (doc.isQuote || doc.isInvoice) loadDocs();
         } catch { toast.error('Failed to delete'); }
     }
 
-    const handleDocumentClick = (doc: Document & { isQuote?: boolean; isInvoice?: boolean }) => {
-        if (doc.isArticle) {
-            router.push(`/documents/${doc.id || doc._id}`);
+    const handleDocumentClick = (doc: any) => {
+        // Direct to Universal Document Viewer for all documents
+        const docId = doc.id || doc._id;
+        if (docId) {
+            router.push(`/document-viewer?id=${docId}`);
             return;
         }
-        if (doc.isContract) {
-            router.push(`/documents/contract/${doc.id || doc._id}/edit`);
-            return;
-        }
-        if (doc.isQuote) {
-            router.push(`/documents/quote/${doc.id || doc._id}`);
-            return;
-        }
-        if (doc.isInvoice) {
-            router.push(`/documents/invoice/${doc.id || doc._id}`);
-            return;
-        }
-        const isLink = (doc as any).isLinkOnly || (doc as any).fileType === 'link' || doc.type === 'link';
-        const url = doc.url || (doc as any).fileUrl;
-        
+
+        const url = doc.url || doc.fileUrl;
         const ext = url?.split('.').pop()?.split('?')[0]?.toLowerCase();
         const isPreviewable = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext || '');
 
-        if (url && (isLink || !isPreviewable)) {
+        if (url && !isPreviewable) {
             window.open(url, '_blank', 'noopener,noreferrer');
         } else {
             setSelectedDoc(doc);
         }
     };
 
-    const HR_CATEGORIES = ['HR', 'ID Proof', 'Joining Letter', 'Experience Letter', 'Appraisal Letter'];
-    const FINANCE_CATEGORIES = ['Finance', 'Payslip'];
+    const HR_CATEGORIES = ['HR', 'ID Proof', 'Joining Letter', 'Experience Letter', 'Appraisal Letter', 'OFFER_LETTER', 'WARNING_LETTER'];
+    const FINANCE_CATEGORIES = ['Finance', 'Payslip', 'INVOICE', 'QUOTATION'];
 
+    // Combine newly unified documents and file vault
     const allDocs = [
-        ...docs.map(d => ({ ...d, isArticle: false, isQuote: false, isInvoice: false, isContract: false })),
-        ...(unifiedData?.documents?.filter((a: any) => a.isArticle) || []).map((a: any) => ({ ...a, isArticle: true, isQuote: false, isInvoice: false, isContract: false, folder: a.category || 'General', id: a._id, name: a.title })),
-        ...(unifiedData?.documents?.filter((c: any) => c.isContract) || []).map((c: any) => ({ ...c, isArticle: false, isQuote: false, isInvoice: false, isContract: true, folder: 'Contract', id: c._id, name: c.title || 'Untitled Contract' })),
-        ...quotes.map(q => ({ ...q, isArticle: false, isQuote: true, isInvoice: false, isContract: false, folder: 'Finance', id: q.id || q._id, name: q.quoteNumber ? `Quote ${q.quoteNumber}` : 'Quote' })),
-        ...invoices.map(i => ({ ...i, isArticle: false, isQuote: false, isInvoice: true, isContract: false, folder: 'Finance', id: i.id || i._id, name: i.invoiceNumber ? `Invoice ${i.invoiceNumber}` : 'Invoice' }))
+        ...(unifiedData?.documents || []).map((d: any) => ({
+            ...d,
+            id: d.id || d._id,
+            name: d.title || d.name,
+            folder: d.category || d.documentType || 'General'
+        })),
+        ...docs.map(d => ({ ...d, isArticle: false, isVault: true }))
     ];
+
+    const totalStorageBytes = (storageStats as any)?.usedBytes ?? (
+        docs.reduce((acc, d) => acc + ((d as any).fileSize || 0), 0) + ((unifiedData?.documents?.length || 0) * 24 * 1024)
+    );
+    // Use plan maxStorageBytes if available, else fallback to storageStats or 10GB
+    const storageQuotaBytes = ((subscription as any)?.plan?.maxStorageBytes) || (storageStats as any)?.totalQuotaBytes || 10 * 1024 * 1024 * 1024;
+    const storagePercentage = storageQuotaBytes > 0 ? Math.min(100, Number(((totalStorageBytes / storageQuotaBytes) * 100).toFixed(1))) : 0;
 
     const filtered = allDocs.filter(d => {
         const isVoiceNote = (d.title || d.name || '').toLowerCase().includes('voice-note') || (d.url || '').toLowerCase().endsWith('.webm');
         if (isVoiceNote) return false;
 
         if (activeCategory === 'all') return true;
-        const folder = (d as any).folder || (d as any).category;
+        const folder = (d as any).folder || (d as any).category || (d as any).documentType;
         if (activeCategory === 'HR') return HR_CATEGORIES.includes(folder);
         if (activeCategory === 'Finance') return FINANCE_CATEGORIES.includes(folder);
+        if (activeCategory === 'Contract') return ['Contract', 'CONTRACT', 'Proposal'].includes(folder);
         return folder === activeCategory;
     });
 
     const isAdminHrFinance = user?.roles?.some((r: string) => r === 'admin') || user?.role === 'admin' || (user?.permissions && (user.permissions.includes('can_manage_team') || user.permissions.includes('can_manage_hr')));
 
+    // Multi-select actions & batch deletion
+    const toggleSelectDoc = (id: string) => {
+        setSelectedDocIds(prev => 
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const isAllSelected = filtered.length > 0 && filtered.every(d => selectedDocIds.includes(d.id || d._id));
+    const isPartiallySelected = selectedDocIds.length > 0 && !isAllSelected;
+
+    const handleSelectAllToggle = () => {
+        if (isAllSelected) {
+            setSelectedDocIds([]);
+        } else {
+            setSelectedDocIds(filtered.map(d => d.id || d._id).filter(Boolean));
+        }
+    };
+
+    const handleClearSelection = () => {
+        setSelectedDocIds([]);
+    };
+
+    const handleBatchDeleteSelected = async () => {
+        if (selectedDocIds.length === 0) return;
+        setIsBatchDeleting(true);
+        const count = selectedDocIds.length;
+        try {
+            const deletePromises = selectedDocIds.map(async (id) => {
+                const docObj = allDocs.find(d => (d.id || d._id) === id);
+                if (docObj?.isArticle || docObj?.blocks) {
+                    return deleteArticle(id).unwrap();
+                } else {
+                    return api.delete(`/api/files/${id}`);
+                }
+            });
+
+            await Promise.allSettled(deletePromises);
+            toast.success(`Successfully deleted ${count} document${count > 1 ? 's' : ''}`);
+            setSelectedDocIds([]);
+            setBatchDeleteModalOpen(false);
+            loadDocs();
+        } catch (err) {
+            console.error('Error during batch delete:', err);
+            toast.error('Some documents could not be deleted');
+        } finally {
+            setIsBatchDeleting(false);
+        }
+    };
+
+    const handleDeleteAllFiltered = async () => {
+        if (filtered.length === 0) return;
+        setIsBatchDeleting(true);
+        const count = filtered.length;
+        try {
+            const deletePromises = filtered.map(async (doc) => {
+                const id = doc.id || doc._id;
+                if (!id) return;
+                if (doc.isArticle || doc.blocks) {
+                    return deleteArticle(id).unwrap();
+                } else {
+                    return api.delete(`/api/files/${id}`);
+                }
+            });
+
+            await Promise.allSettled(deletePromises);
+            toast.success(`Successfully deleted all ${count} document${count > 1 ? 's' : ''}`);
+            setSelectedDocIds([]);
+            setDeleteAllModalOpen(false);
+            loadDocs();
+        } catch (err) {
+            console.error('Error deleting all documents:', err);
+            toast.error('Failed to delete all documents');
+        } finally {
+            setIsBatchDeleting(false);
+        }
+    };
+
     return (
-        <div className="min-h-full">
-            {/* Modals */}
+        <div className="min-h-full pb-16 relative">
+            {/* Modals & Drawers */}
+            {showCreateAI && <CreateWithAIModal isOpen={showCreateAI} onClose={() => setShowCreateAI(false)} />}
             {showUpload && <FileUploadModal relatedModel="Vault" onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); loadDocs(); }} />}
             {showTemplates && <TemplatesListDrawer onClose={() => setShowTemplates(false)} onSuccess={() => { setShowTemplates(false); loadDocs(); }} />}
             {selectedDoc && <PreviewModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} />}
-            {deleteDoc && <ConfirmDeleteModal doc={deleteDoc} onCancel={() => setDeleteDoc(null)} onConfirm={() => handleDelete(deleteDoc)} />}
+            <ConfirmModal
+                isOpen={!!deleteDoc}
+                title="Delete Document?"
+                message={`Are you sure you want to delete "${deleteDoc?.title || deleteDoc?.name}"? This action cannot be undone.`}
+                confirmText="Delete"
+                variant="danger"
+                onConfirm={() => {
+                    if (deleteDoc) {
+                        handleDelete(deleteDoc);
+                        setDeleteDoc(null);
+                    }
+                }}
+                onCancel={() => setDeleteDoc(null)}
+            />
+            {/* Batch Delete Selected Confirmation */}
+            <ConfirmModal
+                isOpen={batchDeleteModalOpen}
+                title={`Delete ${selectedDocIds.length} Selected Document${selectedDocIds.length > 1 ? 's' : ''}?`}
+                message={`Are you sure you want to delete ${selectedDocIds.length} selected document${selectedDocIds.length > 1 ? 's' : ''}? This action cannot be undone.`}
+                confirmText={isBatchDeleting ? "Deleting..." : `Delete (${selectedDocIds.length})`}
+                variant="danger"
+                onConfirm={handleBatchDeleteSelected}
+                onCancel={() => setBatchDeleteModalOpen(false)}
+            />
+            {/* Delete All in View Confirmation */}
+            <ConfirmModal
+                isOpen={deleteAllModalOpen}
+                title={`Delete All ${filtered.length} Documents in View?`}
+                message={`Are you sure you want to delete ALL ${filtered.length} documents currently displayed in the "${CATEGORIES.find(c => c.key === activeCategory)?.label || 'All Documents'}" view? This action is permanent.`}
+                confirmText={isBatchDeleting ? "Deleting All..." : `Delete All (${filtered.length})`}
+                variant="danger"
+                onConfirm={handleDeleteAllFiltered}
+                onCancel={() => setDeleteAllModalOpen(false)}
+            />
             {showAiChat && selectedAiDoc && (
                 <DocumentAIChatDrawer
                     document={selectedAiDoc}
                     onClose={() => { setShowAiChat(false); setSelectedAiDoc(null); }}
                 />
             )}
-            <QuoteModal 
-                isOpen={showQuoteModal} 
-                onClose={() => { setShowQuoteModal(false); setEditingQuote(null); }} 
-                onSuccess={() => { setShowQuoteModal(false); setEditingQuote(null); loadDocs(); }}
-                editingQuote={editingQuote}
-            />
-            {selectedEmailQuote && (
-                <EmailQuoteModal
-                    isOpen={showEmailModal}
-                    onClose={() => { setShowEmailModal(false); setSelectedEmailQuote(null); }}
-                    quote={selectedEmailQuote}
-                />
-            )}
             <DigitalSignatureModal 
                 isOpen={showSignatureModal}
                 onClose={() => setShowSignatureModal(false)}
             />
+            {selectedPaymentDoc && (
+                <RecordPaymentModal
+                    isOpen={!!selectedPaymentDoc}
+                    document={selectedPaymentDoc}
+                    onClose={() => setSelectedPaymentDoc(null)}
+                    onSuccess={() => loadDocs()}
+                />
+            )}
+            {shareModalDoc && (
+                <ShareDocumentModal
+                    isOpen={!!shareModalDoc}
+                    onClose={() => setShareModalDoc(null)}
+                    documentId={shareModalDoc.id || shareModalDoc._id}
+                    documentTitle={shareModalDoc.title || shareModalDoc.name || 'Document'}
+                    initialShareToken={shareModalDoc.shareToken}
+                    initialAccessType={shareModalDoc.accessType || 'public'}
+                    clientName={shareModalDoc.clientName || shareModalDoc.documentDetails?.clientName}
+                    clientEmail={shareModalDoc.clientEmail || shareModalDoc.documentDetails?.clientEmail}
+                    onAccessTypeUpdated={() => loadDocs()}
+                />
+            )}
 
             {/* Page Header */}
             <div className="page-header">
                 <div className="flex items-start justify-between flex-wrap gap-4">
                     <div>
-                        <h1 className="page-title">180 Documents</h1>
-                        <p className="page-subtitle">Manage contracts, policies, payslips, and rich-text documents</p>
+                        <h1 className="page-title">180 Documents & Commercial Hub</h1>
+                        <p className="page-subtitle">Centralized document engine, e-signatures, automated ledger billing & AI generation</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <button onClick={() => setShowTemplates(true)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors">
-                            <LayoutTemplate className="w-4 h-4" /> Templates
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        {/* Prominent Create with AI button */}
+                        <button 
+                            onClick={() => router.push('/document-editor?ai=open')}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl shadow-md shadow-purple-500/20 transition-all hover:scale-[1.02] cursor-pointer"
+                        >
+                            <Sparkles className="w-4 h-4 animate-spin" />
+                            Create with AI
                         </button>
+
+                        <button 
+                            onClick={() => setShowTemplates(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors"
+                        >
+                            <LayoutTemplate className="w-4 h-4 text-indigo-600" /> Templates (20)
+                        </button>
+
                         <button onClick={() => setShowUpload(true)} className="btn-secondary">
-                            <Upload className="w-4 h-4" /> Upload Document
+                            <Upload className="w-4 h-4" /> Upload
                         </button>
-                        <button onClick={() => { setEditingQuote(null); setShowQuoteModal(true); }} className="btn-secondary">
-                            <Plus className="w-4 h-4" /> New Quote
-                        </button>
-                        <button onClick={() => setShowSignatureModal(true)} className="btn-secondary">
-                            <Plus className="w-4 h-4" /> Add Digital Signature
-                        </button>
-                        <button onClick={() => setShowTemplates(true)} className="btn-primary shadow-md shadow-indigo-600/20">
+
+                        <Link href="/document-editor" className="btn-primary shadow-md shadow-indigo-600/20">
                             <Plus className="w-4 h-4" /> New Document
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
-                {/* Stats bar */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                {/* KPI Header Bar */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-5">
                     {[
-                        { label: 'Total Documents', value: docs.length, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                        { label: 'HR / Employee', value: docs.filter(d => ['HR', 'ID Proof', 'Joining Letter', 'Experience Letter', 'Appraisal Letter'].includes((d as any).folder)).length, color: 'text-purple-600', bg: 'bg-purple-50' },
-                        { label: 'Financial', value: docs.filter(d => ['Finance', 'Payslip'].includes((d as any).folder)).length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                        { label: 'Contracts & Legal', value: docs.filter(d => ['Contract', 'Legal'].includes((d as any).folder)).length, color: 'text-rose-600', bg: 'bg-rose-50' },
+                        { label: 'Total Documents', value: allDocs.length, color: 'text-indigo-600', bg: 'bg-indigo-50/70', sub: 'Unified Documents' },
+                        { label: 'Invoices & Finance', value: allDocs.filter(d => FINANCE_CATEGORIES.includes((d as any).folder || (d as any).category)).length, color: 'text-emerald-600', bg: 'bg-emerald-50/70', sub: 'Ledgers & Totals' },
+                        { label: 'Contracts & Proposals', value: allDocs.filter(d => ['Contract', 'CONTRACT', 'Proposal'].includes((d as any).folder || (d as any).category)).length, color: 'text-blue-600', bg: 'bg-blue-50/70', sub: 'E-Signatures & NDAs' },
+                        { label: 'Pending Sign / Approval', value: allDocs.filter(d => ['signed', 'Signed', 'sent', 'Sent'].includes(d.status || '')).length, color: 'text-purple-600', bg: 'bg-purple-50/70', sub: 'Action Required' },
+                        { label: 'R2 Cloud Storage', value: formatBytes(totalStorageBytes), color: 'text-amber-600', bg: 'bg-amber-50/70', sub: `${storagePercentage}% of ${storageQuotaBytes < 0 ? 'Unlimited' : formatBytes(storageQuotaBytes)} quota` },
                     ].map(s => (
-                        <div key={s.label} className={clsx('rounded-xl p-4 flex items-center gap-3', s.bg)}>
+                        <div key={s.label} className={clsx('rounded-xl p-3.5 sm:p-4 flex flex-col justify-between border border-black/5 shadow-2xs transition-all hover:shadow-xs', s.bg)}>
                             <div>
-                                <p className={clsx('text-2xl font-bold', s.color)}>{s.value}</p>
-                                <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+                                <p className={clsx('text-xl sm:text-2xl font-black', s.color)}>{s.value}</p>
+                                <p className="text-xs text-gray-700 font-bold mt-0.5">{s.label}</p>
                             </div>
+                            {s.sub && (
+                                <p className="text-[10px] text-gray-500 font-medium mt-1 truncate">
+                                    {s.sub}
+                                </p>
+                            )}
                         </div>
                     ))}
                 </div>
+            </div>
 
-                {/* Storage Progress Bar */}
-                {storageStats && storageStats.total > 0 && (
-                    <div className="mt-5 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
-                                    <FileIcon className="w-4 h-4 text-indigo-600" />
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-900">Storage Usage</h3>
-                                    <p className="text-xs text-gray-500">
-                                        {formatBytes(storageStats.used)} used of {formatBytes(storageStats.total)}
-                                    </p>
-                                </div>
-                            </div>
-                            <Link href='/settings/platform-billing' className="btn-secondary text-xs px-3 py-1.5 shadow-sm">
-                                Add Storage
-                            </Link>
+            {/* Search + Categories + View Mode Switcher */}
+            <div className="flex flex-col gap-3 mb-5 mt-4">
+                <div className="flex flex-col sm:flex-row gap-3 items-center">
+                    <div className="relative flex-1 w-full">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder="Search by title, invoice #, client, or tags..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                        <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            {CATEGORIES.map(cat => (
+                                <button
+                                    key={cat.key}
+                                    onClick={() => { setActiveCategory(cat.key); setSelectedDocIds([]); }}
+                                    className={clsx(
+                                        'px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer',
+                                        activeCategory === cat.key
+                                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
+                                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                                    )}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                            <div 
-                                className={`h-2.5 rounded-full ${storageStats.usagePercent >= 90 ? 'bg-red-500' : 'bg-indigo-600'}`} 
-                                style={{ width: `${storageStats.usagePercent}%` }}
-                            ></div>
+                    </div>
+                </div>
+
+                {/* Sub-Header Selection Controls Bar */}
+                {filtered.length > 0 && (
+                    <div className="flex items-center justify-between px-2 py-1 bg-white/70 backdrop-blur-xs rounded-xl border border-gray-200/70 text-xs">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleSelectAllToggle}
+                                className="flex items-center gap-2 font-semibold text-gray-700 hover:text-indigo-600 transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-gray-100"
+                            >
+                                <span className={clsx(
+                                    "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
+                                    isAllSelected ? "bg-indigo-600 border-indigo-600 text-white" : isPartiallySelected ? "bg-indigo-100 border-indigo-500 text-indigo-700" : "border-gray-300 bg-white"
+                                )}>
+                                    {isAllSelected ? <Check className="w-3 h-3 stroke-[3]" /> : isPartiallySelected ? <span className="w-2 h-0.5 bg-indigo-600 rounded-full" /> : null}
+                                </span>
+                                <span>{isAllSelected ? 'Deselect All' : `Select All (${filtered.length})`}</span>
+                            </button>
+
+                            {selectedDocIds.length > 0 && (
+                                <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-bold px-2 py-0.5 rounded-full text-[11px]">
+                                    {selectedDocIds.length} selected
+                                </span>
+                            )}
                         </div>
-                        {storageStats.usagePercent >= 90 && (
-                            <p className="text-xs text-red-500 mt-2 font-medium flex items-center gap-1">
-                                <AlertCircle className="w-3 h-3" /> Storage is almost full. Upgrade to avoid interruptions.
-                            </p>
-                        )}
+
+                        <div className="flex items-center gap-2">
+                            {selectedDocIds.length > 0 && isAdminHrFinance && (
+                                <button
+                                    onClick={() => setBatchDeleteModalOpen(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Delete Selected ({selectedDocIds.length})
+                                </button>
+                            )}
+
+                            {isAdminHrFinance && (
+                                <button
+                                    onClick={() => setDeleteAllModalOpen(true)}
+                                    className="text-gray-500 hover:text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors text-xs font-medium cursor-pointer"
+                                    title="Delete all documents matching current filter"
+                                >
+                                    Delete All ({filtered.length})
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* Search + Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-5 mt-2">
-                <div className="relative max-w-xs w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        value={search} onChange={e => setSearch(e.target.value)}
-                        placeholder="Search documents..." className="input pl-9 w-full"
-                    />
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                    {CATEGORIES.map(cat => (
-                        <button key={cat.key} onClick={() => setActiveCategory(cat.key)}
-                            className={clsx('px-3 py-1.5 rounded-full text-xs font-semibold transition-all border',
-                                activeCategory === cat.key
-                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600')}>
-                            {cat.label}
-                            {cat.key !== 'all' && (
-                                <span className="ml-1.5 opacity-60 text-[10px]">
-                                    ({docs.filter(d => {
-                                        const folder = (d as any).folder;
-                                        if (cat.key === 'HR') return HR_CATEGORIES.includes(folder);
-                                        if (cat.key === 'Finance') return FINANCE_CATEGORIES.includes(folder);
-                                        return folder === cat.key;
-                                    }).length})
-                                </span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Content */}
+            {/* Document Cards Grid */}
             {(loading || articlesLoading) ? (
                 <div className="flex items-center justify-center py-28">
                     <div className="flex flex-col items-center gap-3">
-                        <LogoLoader className="w-9 h-9 animate-spin text-indigo-400" />
-                        <p className="text-sm text-gray-400">Loading documents...</p>
+                        <LogoLoader className="w-9 h-9 animate-spin text-indigo-500" />
+                        <p className="text-sm text-gray-400">Loading documents & ledgers...</p>
                     </div>
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-28 text-center">
-                    <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mb-4">
-                        <FolderOpen className="w-9 h-9 text-gray-200" />
+                <div className="flex flex-col items-center justify-center py-28 text-center bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                    <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4 text-indigo-600">
+                        <Sparkles className="w-8 h-8" />
                     </div>
-                    <p className="text-gray-500 font-semibold text-lg mb-1">No documents found</p>
-                    <p className="text-gray-400 text-sm mb-6">
-                        {activeCategory !== 'all'
-                            ? `No documents in "${activeCategory.replace('_', ' ')}" category`
-                            : 'Upload your first document or use a template to get started'}
+                    <p className="text-gray-800 font-bold text-lg mb-1">No documents in this view</p>
+                    <p className="text-gray-400 text-xs max-w-sm mb-6">
+                        Create invoices, proposals, contracts, or offer letters with auto-calculating totals and digital signatures.
                     </p>
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setShowTemplates(true)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors">
-                            <LayoutTemplate className="w-4 h-4" /> Browse Templates
+                    <div className="flex items-center gap-3 flex-wrap justify-center">
+                        <button onClick={() => router.push('/document-editor?ai=open')} className="btn-primary flex items-center gap-2">
+                            <Sparkles className="w-4 h-4" /> Create with AI
                         </button>
-                        <button onClick={() => setShowUpload(true)} className="btn-primary">
-                            <Upload className="w-4 h-4" /> Upload Document
+                        <button onClick={() => setShowTemplates(true)} className="btn-secondary flex items-center gap-2">
+                            <LayoutTemplate className="w-4 h-4" /> Browse 20 Templates
                         </button>
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                     {filtered.map((doc: any) => {
-                        const Icon = getFileIcon(doc.title || doc.url || '');
-                        const typeBadge = TYPE_COLORS[(doc as any).folder] || TYPE_COLORS.Other;
+                        const docId = doc.id || doc._id;
+                        const isSelected = selectedDocIds.includes(docId);
+
                         return (
-                            <div key={doc.id} className="card p-5 hover:shadow-lg hover:shadow-gray-100 transition-all duration-200 group flex flex-col">
-                                <div className="flex items-start gap-3 cursor-pointer" onClick={() => handleDocumentClick(doc)}>
-                                    <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-600 transition-colors duration-300">
-                                        {doc.isArticle ? (
-                                            <FileEdit className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
-                                        ) : doc.isQuote || doc.isInvoice ? (
-                                            <Receipt className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
-                                        ) : (
-                                            <Icon className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors duration-300" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-gray-900 truncate leading-snug group-hover:text-indigo-600 transition-colors">{doc.title || doc.name}</p>
-                                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                            <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border', typeBadge)}>
-                                                {((doc as any).folder || 'other').replace('_', ' ')}
-                                            </span>
-                                            {(doc as any).isConfidential && (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border bg-red-50 text-red-600 border-red-100 flex items-center gap-1">
-                                                    <ShieldAlert className="w-2.5 h-2.5" /> Confidential
-                                                </span>
-                                            )}
-                                            <span className="text-xs text-gray-400">
-                                                {new Date(doc.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Tags */}
-                                {((doc as any).tags && (doc as any).tags.length > 0) && (
-                                    <div className="flex flex-wrap gap-1 mt-3">
-                                        {(doc as any).tags.map((tag: string, i: number) => (
-                                            <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded-md font-medium">#{tag}</span>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Tagged users */}
-                                {doc.taggedUsers && doc.taggedUsers.length > 0 && (
-                                    <div className="flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-indigo-50/50 rounded-lg">
-                                        <Users className="w-3 h-3 text-indigo-400 flex-shrink-0" />
-                                        <p className="text-[10px] text-indigo-600 font-medium truncate">
-                                            {doc.taggedUsers.map((u: any) => u.name || u).join(', ')}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {doc.notes && (
-                                    <p className="text-xs text-gray-400 mt-2 line-clamp-2 leading-relaxed">{doc.notes}</p>
-                                )}
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-1 mt-4 pt-3 border-t border-gray-50">
-                                    <button onClick={() => handleDocumentClick(doc)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" title="Preview / Open">
-                                        {doc.isArticle ? <FileEdit className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                    {doc.url && (
-                                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" title="Open in New Tab">
-                                            <ExternalLink className="w-4 h-4" />
-                                        </a>
-                                    )}
-                                    <button
-                                        onClick={() => { setSelectedAiDoc(doc); setShowAiChat(true); }}
-                                        className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-indigo-100/50 hover:border-indigo-200"
-                                        title="Chat with AI"
-                                    >
-                                        <Bot className="w-4 h-4" />
-                                    </button>
-                                    {doc.isQuote && (
-                                        <>
-                                            <button
-                                                onClick={() => { setEditingQuote(doc); setShowQuoteModal(true); }}
-                                                className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
-                                                title="Edit Quote"
-                                            >
-                                                <FileEdit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => { setSelectedEmailQuote(doc); setShowEmailModal(true); }}
-                                                className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
-                                                title="Send Email"
-                                            >
-                                                <Mail className="w-4 h-4" />
-                                            </button>
-                                        </>
-                                    )}
-                                    {isAdminHrFinance && (
-                                        <button onClick={() => setDeleteDoc(doc)} className="ml-auto p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100" title="Delete">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                            <DocumentCard
+                                key={docId}
+                                doc={doc}
+                                isSelected={isSelected}
+                                isAdminHrFinance={isAdminHrFinance}
+                                onToggleSelect={toggleSelectDoc}
+                                onClick={handleDocumentClick}
+                                onEdit={(id) => router.push(`/document-editor?id=${id}`)}
+                                onShare={(d) => setShareModalDoc(d)}
+                                onDelete={(d) => setDeleteDoc(d)}
+                                onConvertToInvoice={handleConvertToInvoice}
+                                onAiChat={(d) => { setSelectedAiDoc(d); setShowAiChat(true); }}
+                                onPayment={(d) => setSelectedPaymentDoc(d)}
+                                onRemind={handleSendReminder}
+                            />
                         );
                     })}
                 </div>
             )}
+
+
         </div>
     );
 }
-

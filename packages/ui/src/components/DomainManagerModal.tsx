@@ -188,7 +188,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
 
   useEffect(() => {
     if (isOpen && initialDomain) {
-      if (initialDomain.includes(platformRoot)) {
+      if (platformRoot && initialDomain.includes(platformRoot)) {
         setDomainMode('subdomain');
         setSubdomainSlug(initialDomain.replace(`.${platformRoot}`, ''));
       } else {
@@ -525,7 +525,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  {!activeDomainData.domain.includes(platformRoot) && (
+                  {platformRoot && !activeDomainData.domain.includes(platformRoot) && (
                     <button
                       onClick={handleVerifyDns}
                       disabled={verifying}
@@ -565,7 +565,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
               </div>
 
               {/* DNS Records Table (Only for External Domains) */}
-              {!activeDomainData.domain.includes(platformRoot) && (
+              {platformRoot && !activeDomainData.domain.includes(platformRoot) && (
                 <div className="space-y-2">
                   <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                     Required DNS Configuration
