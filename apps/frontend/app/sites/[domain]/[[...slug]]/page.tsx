@@ -73,8 +73,17 @@ export default async function PublicWebsitePage({
                 const evalRes = await fetch(`${apiBase}/r/${linkSlug}${searchParamsStr}`, {
                     headers: {
                         'user-agent': userAgent,
-                        'x-forwarded-for': clientIp,
                         'referer': referer,
+                        'cf-connecting-ip': incomingHeaders.get('cf-connecting-ip') || '',
+                        'true-client-ip': incomingHeaders.get('true-client-ip') || '',
+                        'x-client-ip': incomingHeaders.get('x-client-ip') || '',
+                        'x-real-ip': incomingHeaders.get('x-real-ip') || incomingHeaders.get('cf-connecting-ip') || clientIp,
+                        'x-forwarded-for': forwardedFor || clientIp,
+                        'cf-ipcountry': incomingHeaders.get('cf-ipcountry') || '',
+                        'cf-ipcity': incomingHeaders.get('cf-ipcity') || '',
+                        'sec-ch-ua': incomingHeaders.get('sec-ch-ua') || '',
+                        'sec-ch-ua-mobile': incomingHeaders.get('sec-ch-ua-mobile') || '',
+                        'sec-ch-ua-platform': incomingHeaders.get('sec-ch-ua-platform') || '',
                         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
                     },
                     redirect: 'manual',
