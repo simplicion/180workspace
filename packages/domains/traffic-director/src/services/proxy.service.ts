@@ -179,10 +179,64 @@ export class ReverseProxyService {
         })
         .replace(/url\(\s*["']?\/(?!\/)([^"')]+)["']?\s*\)/gi, `url("${origin}/$1")`);
 
-      // 3. Inject base href, title broadcaster & animation fallback into <head>
-      const broadcasterScript = `<script>try{if(document.title){window.parent.postMessage({type:'__TD_TITLE__',title:document.title},'*');}}catch(e){}</script>`;
-      const animationFallback = `<style>@keyframes __td_reveal{to{opacity:1 !important; visibility:visible !important; transform:none !important;}} [style*="opacity: 0"], [style*="opacity:0"] { animation: __td_reveal 0.01s forwards 0.4s; }</style>`;
-      const injection = `\n  <base href="${baseHref}">\n  ${animationFallback}\n  ${broadcasterScript}`;
+      // 3. Inject base href, SPA path normalizer, network interceptor & animation fallback into <head>
+      const targetPath = parsedUrl.pathname || '/';
+      const compatScript = `<script id="__td_compat__">
+(function() {
+  try {
+    var targetOrigin = "${origin}";
+    var targetPath = "${targetPath}";
+
+    // SPA Router Path Normalizer (Next.js App Router, Vite, Nuxt, Remix, SvelteKit)
+    var curPath = window.location.pathname;
+    if (curPath.startsWith('/r/') || curPath.startsWith('/sites/') || (curPath !== targetPath && targetPath !== '/')) {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(window.history.state, '', targetPath + window.location.search + window.location.hash);
+      }
+    }
+
+    // Intercept window.fetch for RSC flight payloads (/?_rsc=...) and static chunks
+    var originalFetch = window.fetch;
+    if (originalFetch) {
+      window.fetch = function(resource, init) {
+        if (typeof resource === 'string') {
+          if (resource.startsWith('/_next/') || resource.startsWith('/_astro/') || resource.startsWith('/assets/') || resource.startsWith('/?_rsc=') || resource.includes('_rsc=')) {
+            resource = targetOrigin + (resource.startsWith('/') ? resource : '/' + resource);
+          }
+        } else if (resource && resource.url && typeof resource.url === 'string') {
+          var url = resource.url;
+          if (url.startsWith('/_next/') || url.startsWith('/_astro/') || url.startsWith('/assets/') || url.includes('_rsc=')) {
+            resource = new Request(targetOrigin + (url.startsWith('/') ? url : '/' + url), resource);
+          }
+        }
+        return originalFetch.call(this, resource, init);
+      };
+    }
+
+    // Intercept XMLHttpRequest for relative XHR calls
+    var OriginalXHR = window.XMLHttpRequest;
+    if (OriginalXHR) {
+      var origOpen = OriginalXHR.prototype.open;
+      OriginalXHR.prototype.open = function(method, url, async, user, password) {
+        if (typeof url === 'string') {
+          if (url.startsWith('/_next/') || url.startsWith('/_astro/') || url.startsWith('/assets/') || url.includes('_rsc=')) {
+            url = targetOrigin + (url.startsWith('/') ? url : '/' + url);
+          }
+        }
+        return origOpen.call(this, method, url, async !== false, user, password);
+      };
+    }
+
+    // Title broadcaster for parent container
+    if (document.title && window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: '__TD_TITLE__', title: document.title }, '*');
+    }
+  } catch (e) {}
+})();
+</script>`;
+
+      const animationFallback = `<style id="__td_anim_fix__">@keyframes __td_reveal{to{opacity:1 !important; visibility:visible !important; transform:none !important; filter:none !important;}} [style*="opacity: 0"], [style*="opacity:0"], [class*="opacity-0"] { animation: __td_reveal 0.01s forwards 0.35s !important; }</style>`;
+      const injection = `\n  <base href="${baseHref}">\n  ${animationFallback}\n  ${compatScript}`;
 
       if (!/<base\s+[^>]*href=/i.test(html)) {
         if (/<head[^>]*>/i.test(html)) {
@@ -194,7 +248,7 @@ export class ReverseProxyService {
         }
       } else {
         if (/<head[^>]*>/i.test(html)) {
-          html = html.replace(/(<head[^>]*>)/i, `$1\n  ${animationFallback}\n  ${broadcasterScript}`);
+          html = html.replace(/(<head[^>]*>)/i, `$1\n  ${animationFallback}\n  ${compatScript}`);
         }
       }
 

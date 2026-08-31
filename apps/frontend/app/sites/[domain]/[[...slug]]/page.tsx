@@ -99,12 +99,18 @@ export default async function PublicWebsitePage({
 
                 const contentType = evalRes.headers.get('content-type') || '';
                 if (contentType.includes('text/html')) {
-                    const html = await evalRes.text();
+                    const targetFallbackUrl = registryData.payload?.fallbackUrl || '';
+                    const streamUrl = `/r/_proxy/stream?url=${encodeURIComponent(targetFallbackUrl)}`;
                     return (
-                        <div 
-                            dangerouslySetInnerHTML={{ __html: html }}
-                            className="fixed inset-0 w-screen h-screen m-0 p-0 overflow-hidden bg-black z-[9999]"
-                        />
+                        <div className="fixed inset-0 w-screen h-screen m-0 p-0 overflow-hidden bg-black z-[9999]">
+                            <iframe
+                                id="viewport-frame"
+                                src={streamUrl}
+                                className="w-full h-full border-0 m-0 p-0 block bg-black"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                            />
+                        </div>
                     );
                 }
 
