@@ -563,18 +563,94 @@ export default function SmartLinkRuleCanvasPage() {
 
                     {/* Conditions Pill Bar */}
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-semibold text-gray-400 uppercase">IF:</span>
+                      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">IF:</span>
                       {conditions.length > 0 ? (
-                        conditions.map((c: any, cIdx: number) => (
-                          <div key={cIdx} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
-                            {c.type === 'geo_country' && <Globe className="w-3 h-3 text-indigo-500" />}
-                            {c.type === 'device_type' && <Smartphone className="w-3 h-3 text-purple-500" />}
-                            {c.type === 'bot_status' && <Bot className="w-3 h-3 text-amber-500" />}
-                            <span className="font-mono font-semibold">{c.type}</span>
-                            <span className="text-gray-400 text-[10px]">{c.operator}</span>
-                            <span className="font-bold text-indigo-600 dark:text-indigo-400">{c.value}</span>
-                          </div>
-                        ))
+                        conditions.map((c: any, cIdx: number) => {
+                          const configMap: Record<string, { label: string }> = {
+                            os: { label: 'OS' },
+                            device_type: { label: 'Device' },
+                            bot_status: { label: 'Bot Status' },
+                            sec_ch_ua: { label: 'Client Hints' },
+                            gpu_renderer: { label: 'GPU' },
+                            network_type: { label: 'Network' },
+                            asn_provider: { label: 'Cloud ASN' },
+                            geo_country: { label: 'Country' },
+                            geo_region: { label: 'Region' },
+                            geo_city: { label: 'City' },
+                            geo_postal_code: { label: 'Postal' },
+                            geo_timezone: { label: 'Timezone' },
+                            touch_support: { label: 'Touch Screen' },
+                            battery_valid: { label: 'Battery' },
+                            referrer: { label: 'Referrer' },
+                            language: { label: 'Language' },
+                            query_param: { label: 'Query' },
+                            header: { label: 'Header' },
+                          };
+
+                          const opMap: Record<string, { symbol: string; isNegation: boolean }> = {
+                            equals: { symbol: '=', isNegation: false },
+                            not_equals: { symbol: '≠', isNegation: true },
+                            in: { symbol: 'in', isNegation: false },
+                            not_in: { symbol: 'not in', isNegation: true },
+                            starts_with: { symbol: 'starts with', isNegation: false },
+                            contains: { symbol: 'contains', isNegation: false },
+                            not_contains: { symbol: 'excludes', isNegation: true },
+                            regex: { symbol: 'regex', isNegation: false },
+                          };
+
+                          const config = configMap[c.type] || { label: c.type };
+                          const opConfig = opMap[c.operator] || { symbol: c.operator, isNegation: false };
+                          const rawValues = String(c.value || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+
+                          return (
+                            <div
+                              key={cIdx}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border shadow-2xs transition ${
+                                opConfig.isNegation
+                                  ? 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-200/70 dark:border-rose-900/50 text-rose-900 dark:text-rose-200'
+                                  : 'bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200/70 dark:border-indigo-900/50 text-indigo-900 dark:text-indigo-200'
+                              }`}
+                            >
+                              <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                {c.key ? `${config.label}(${c.key})` : config.label}
+                              </span>
+                              <span className={`font-mono text-[11px] font-bold ${opConfig.isNegation ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                {opConfig.symbol}
+                              </span>
+
+                              {/* Value badges */}
+                              {rawValues.length <= 2 ? (
+                                <div className="flex items-center gap-1">
+                                  {rawValues.map((v: string, vIdx: number) => (
+                                    <span
+                                      key={vIdx}
+                                      className={`px-1.5 py-0.5 rounded font-mono font-bold text-[11px] ${
+                                        opConfig.isNegation
+                                          ? 'bg-rose-100/70 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200'
+                                          : 'bg-indigo-100/70 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200'
+                                      }`}
+                                    >
+                                      {v}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1" title={rawValues.join(', ')}>
+                                  <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-[11px] ${
+                                    opConfig.isNegation
+                                      ? 'bg-rose-100/70 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200'
+                                      : 'bg-indigo-100/70 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200'
+                                  }`}>
+                                    {rawValues.slice(0, 2).join(', ')}
+                                  </span>
+                                  <span className="px-1.5 py-0.5 rounded bg-gray-200/70 dark:bg-gray-700/70 text-[10px] font-bold text-gray-700 dark:text-gray-300">
+                                    +{rawValues.length - 2} more
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
                       ) : (
                         <span className="text-xs text-gray-400 italic">No conditions (Matches all traffic)</span>
                       )}
