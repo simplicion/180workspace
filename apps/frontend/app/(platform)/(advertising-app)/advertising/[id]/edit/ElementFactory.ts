@@ -9,8 +9,6 @@ export const createBox = (children: ElementNode[] = [], style: any = {}): Elemen
     style: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem',
-        padding: '1rem',
         borderWidth: '0px',
         borderColor: '#000000',
         borderStyle: 'solid',
@@ -28,8 +26,6 @@ export const createRow = (children: ElementNode[] = [], style: any = {}): Elemen
         display: 'flex',
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: '1rem',
-        padding: '1rem',
         ...style
     },
     children
@@ -42,8 +38,6 @@ export const createColumn = (children: ElementNode[] = [], style: any = {}): Ele
     style: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem',
-        padding: '1rem',
         ...style
     },
     children
@@ -84,10 +78,37 @@ export const createCode = (html: string = '', style: any = {}): ElementNode => (
     style
 });
 
+export const createFloating = (children: ElementNode[] = [], data: any = {}, style: any = {}): ElementNode => ({
+    id: generateId('floating'),
+    type: 'floating',
+    data: {
+        position: 'bottom-right',
+        ...data
+    },
+    style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '56px',
+        height: '56px',
+        borderRadius: '9999px',
+        backgroundColor: '#25D366',
+        color: '#ffffff',
+        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+        offsetX: '1.5rem',
+        offsetY: '1.5rem',
+        zIndex: 50,
+        ...style
+    },
+    children
+});
+
 export function getDefaultElementForType(type: ElementType | string, currencySymbol: string): ElementNode {
     const id = generateId('sec');
 
     switch (type) {
+        case 'floating':
+            return createFloating();
         case 'hero':
             return {
                 id,

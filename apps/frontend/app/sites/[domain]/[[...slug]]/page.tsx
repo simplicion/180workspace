@@ -1,9 +1,213 @@
+import type { Metadata } from 'next';
 import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { BuilderElement } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/BuilderElement';
 import { CompanyProfileUI } from '@/app/(platform)/(company-hub-app)/_components/CompanyProfileUI';
 
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
+
+function sanitizeVerificationToken(token?: string): string {
+    if (!token || typeof token !== 'string') return '';
+    let clean = token.trim();
+    const metaMatch = clean.match(/content=["']([^"']+)["']/i);
+    if (metaMatch && metaMatch[1]) {
+        return metaMatch[1].trim();
+    }
+    clean = clean.replace(/^google-site-verification\s*=\s*/i, '').trim();
+    clean = clean.replace(/^["']|["']$/g, '').trim();
+    return clean;
+}
+
+function sanitizeGaMeasurementId(id?: string): string {
+    if (!id || typeof id !== 'string') return '';
+    let clean = id.trim();
+    const gMatch = clean.match(/\b(G-[A-Za-z0-9]+)\b/);
+    if (gMatch && gMatch[1]) return gMatch[1].trim();
+    const uaMatch = clean.match(/\b(UA-\d+-\d+)\b/);
+    if (uaMatch && uaMatch[1]) return uaMatch[1].trim();
+    return clean.replace(/[^A-Za-z0-9-_]/g, '');
+}
+
+async function resolveDomainData(domain: string, slug?: string | string[]) {
+    const cleanDomain = decodeURIComponent(domain || '').split(':')[0].toLowerCase().trim();
+    try {
+        const candidateBases = [
+            process.env.NEXT_PUBLIC_API_URL,
+            process.env.NEXT_PUBLIC_BACKEND_URL,
+            process.env.BACKEND_INTERNAL_URL,
+            'http://localhost:4004',
+            'http://localhost:4002',
+            'http://127.0.0.1:4004',
+            'http://127.0.0.1:4002',
+            'https://api.180workspace.com'
+        ].filter(Boolean) as string[];
+
+        const uniqueBases = Array.from(new Set(candidateBases));
+        
+        const searchParams = new URLSearchParams();
+        searchParams.append('domain', cleanDomain);
+        if (slug) {
+            const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
+            searchParams.append('slug', slugStr);
+        }
+
+        for (const apiBase of uniqueBases) {
+            try {
+                const targetUrl = `${apiBase}/api/public/domains/resolve?${searchParams.toString()}`;
+                const res = await fetch(targetUrl, { cache: 'no-store' });
+                if (res.ok) {
+                    return await res.json();
+                }
+            } catch (e) {
+                // Try next base
+            }
+        }
+        return null;
+    } catch (err) {
+        console.error('Failed to resolve domain:', err);
+        return null;
+    }
+}
+
+export async function generateMetadata({ 
+    params 
+}: { 
+    params: Promise<{ domain: string; slug?: string | string[] }> 
+}): Promise<Metadata> {
+    const { domain, slug } = await params;
+    const cleanDomain = decodeURIComponent(domain || '').split(':')[0].toLowerCase().trim();
+    const data = await resolveDomainData(domain, slug);
+
+    if (!data) {
+        return {
+            title: { absolute: 'Page Not Found' },
+            description: 'The requested page was not found.',
+            openGraph: {
+                title: 'Page Not Found',
+                description: 'The requested page was not found.',
+                type: 'website'
+            },
+            robots: { index: false, follow: false }
+        };
+    }
+
+    if (data.type === 'COMPANY_PROFILE') {
+        const company = data.payload || {};
+        const title = company.name ? `${company.name} - Profile` : 'Company Profile';
+        return {
+            title: { absolute: title },
+            description: company.description || `Official profile of ${company.name || 'Company'}.`,
+            icons: company.logo ? { icon: company.logo, apple: company.logo } : undefined,
+            openGraph: {
+                title,
+                description: company.description,
+                images: company.logo ? [company.logo] : [],
+                type: 'website'
+            }
+        };
+    }
+
+    if (data.type === 'ADVERTISING_WEBSITE') {
+        const website = data.payload || {};
+        const config = website.config || {};
+        const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';
+        
+        let currentPage: any = null;
+        if (config.version !== 2) {
+            if (currentSlug === '/') {
+                currentPage = { name: 'Home', sections: config.sections || [] };
+            }
+        } else {
+            currentPage = config.pages?.find((p: any) => p.slug === currentSlug) || config.pages?.[0];
+        }
+
+        const brandName = config.brand?.companyName || config.header?.title || website.name || 'Website';
+        const seo = config.seo || {};
+        
+        // Page specific or fallback SEO
+        const pageTitle = currentPage?.metaTitle || 
+                         currentPage?.seo?.metaTitle || 
+                         (currentPage?.name && currentPage.name !== 'Home' ? `${currentPage.name} | ${brandName}` : (seo.metaTitle || brandName));
+        
+        const pageDesc = currentPage?.metaDescription || 
+                        currentPage?.seo?.metaDescription || 
+                        seo.metaDescription || 
+                        `Welcome to ${brandName}. Learn more about our products and services.`;
+
+        const keywords = currentPage?.keywords || seo.keywords || [];
+        const rawKeywords = Array.isArray(keywords) ? keywords : typeof keywords === 'string' ? keywords.split(',').map((k: string) => k.trim()) : [];
+
+        // Favicon resolution (never uses 180workspace favicon)
+        const faviconUrl = seo.favicon || config.brand?.favicon || config.header?.logo || '/favicon.ico';
+        
+        // OpenGraph Image resolution
+        const ogImage = currentPage?.ogImage || seo.ogImage || config.header?.logo;
+        const ogImages = ogImage ? [{ url: ogImage, width: 1200, height: 630, alt: pageTitle }] : [];
+
+        // Canonical URL
+        const canonicalUrl = `https://${cleanDomain}${currentSlug === '/' ? '' : currentSlug}`;
+
+        // Indexing permissions
+        const isIndexable = seo.allowIndexing !== false && currentPage?.isNoIndex !== true && currentPage?.isPublished !== false;
+
+        // Google Site Verification Token Sanitization
+        const cleanGoogleVerification = sanitizeVerificationToken(seo.googleVerification);
+
+        return {
+            title: { absolute: pageTitle }, // Completely removes any root SaaS layout template suffix
+            description: pageDesc,
+            keywords: rawKeywords.length > 0 ? rawKeywords : undefined,
+            applicationName: brandName,
+            icons: {
+                icon: faviconUrl,
+                shortcut: faviconUrl,
+                apple: faviconUrl,
+            },
+            openGraph: {
+                title: pageTitle,
+                description: pageDesc,
+                url: canonicalUrl,
+                siteName: brandName,
+                images: ogImages,
+                type: 'website',
+                locale: 'en_US',
+            },
+            twitter: {
+                card: 'summary_large_image',
+                title: pageTitle,
+                description: pageDesc,
+                images: ogImage ? [ogImage] : [],
+            },
+            alternates: {
+                canonical: canonicalUrl,
+            },
+            robots: {
+                index: isIndexable,
+                follow: isIndexable,
+                googleBot: {
+                    index: isIndexable,
+                    follow: isIndexable,
+                    'max-video-preview': -1,
+                    'max-image-preview': 'large',
+                    'max-snippet': -1,
+                }
+            },
+            verification: cleanGoogleVerification ? {
+                google: cleanGoogleVerification,
+                other: {
+                    'google-site-verification': cleanGoogleVerification,
+                }
+            } : undefined,
+            other: cleanGoogleVerification ? {
+                'google-site-verification': cleanGoogleVerification,
+            } : undefined
+        };
+    }
+
+    return {
+        title: { absolute: 'Website' },
+    };
+}
 
 export default async function PublicWebsitePage({ 
     params 
@@ -19,26 +223,11 @@ export default async function PublicWebsitePage({
     let error = '';
 
     try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 
-            process.env.NEXT_PUBLIC_BACKEND_URL || 
-            process.env.BACKEND_INTERNAL_URL || 
-            (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
-        
-        const searchParams = new URLSearchParams();
-        searchParams.append('domain', cleanDomain);
-        if (slug) {
-            const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
-            searchParams.append('slug', slugStr);
-        }
-        const targetUrl = `${apiBase}/api/public/domains/resolve?${searchParams.toString()}`;
-
-        const res = await fetch(targetUrl, { cache: 'no-store' });
-        
-        if (!res.ok) {
+        const data = await resolveDomainData(domain, slug);
+        if (!data) {
             throw new Error('Domain not found');
         }
 
-        const data = await res.json();
         registryData = data;
         
         if (data.type === 'ADVERTISING_WEBSITE') {
@@ -202,14 +391,92 @@ export default async function PublicWebsitePage({
 
     const hasDynamicSections = currentPage?.sections && currentPage.sections.length > 0;
 
+    const seo = config.seo || {};
+    const brandName = brand?.companyName || config.header?.title || website.name || 'Website';
+    const siteUrl = `https://${cleanDomain}`;
+    const pageUrl = `https://${cleanDomain}${currentSlug === '/' ? '' : currentSlug}`;
+
+    const websiteJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": brandName,
+        "url": siteUrl,
+        "description": currentPage?.metaDescription || seo.metaDescription || `Official website of ${brandName}.`
+    };
+
+    const organizationJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": brandName,
+        "url": siteUrl,
+        ...(config.header?.logo ? { "logo": config.header.logo } : {}),
+        ...(brand?.email ? { "email": brand.email } : {}),
+        ...(brand?.phone ? { "telephone": brand.phone } : {})
+    };
+
+    // Extract FAQs for FAQPage Schema if any FAQ element exists
+    let faqEntities: any[] = [];
+    let productEntities: any[] = [];
+    if (currentPage?.sections) {
+        const scanElements = (elements: any[]) => {
+            for (const el of elements || []) {
+                if (el.type === 'faq' && el.data?.items && Array.isArray(el.data.items)) {
+                    for (const item of el.data.items) {
+                        if (item.question && item.answer) {
+                            faqEntities.push({
+                                "@type": "Question",
+                                "name": item.question,
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": item.answer
+                                }
+                            });
+                        }
+                    }
+                }
+                if (el.type === 'grid' && el.data?.cards && Array.isArray(el.data.cards)) {
+                    for (const card of el.data.cards) {
+                        if (card.title) {
+                            productEntities.push({
+                                "@context": "https://schema.org",
+                                "@type": "Product",
+                                "name": card.title,
+                                "description": card.description || card.desc || card.title,
+                                ...(card.image ? { "image": card.image } : {}),
+                                ...(card.price ? {
+                                    "offers": {
+                                        "@type": "Offer",
+                                        "price": String(card.price).replace(/[^0-9.]/g, '') || "0",
+                                        "priceCurrency": "USD",
+                                        "availability": "https://schema.org/InStock"
+                                    }
+                                } : {})
+                            });
+                        }
+                    }
+                }
+                if (el.children && Array.isArray(el.children)) {
+                    scanElements(el.children);
+                }
+            }
+        };
+        scanElements(currentPage.sections);
+    }
+
+    const faqJsonLd = faqEntities.length > 0 ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faqEntities
+    } : null;
+
     return (
         <div 
-            className="min-h-screen w-full max-w-full overflow-x-hidden bg-white font-sans text-gray-900 selection:bg-indigo-100" 
+            className="min-h-screen w-full max-w-full overflow-x-hidden font-sans text-gray-900 selection:bg-indigo-100" 
             style={{ 
                 fontFamily: `"${config.typography?.body || brand?.fontFamily || 'Inter'}", sans-serif`,
                 color: brand?.textColor || '#111827',
                 backgroundColor: brand?.bgType === 'color' ? (brand.bgValue || colors.secondary || brand.secondaryColor) : (brand?.bgType === 'image' ? 'transparent' : colors.secondary),
-                backgroundImage: brand?.bgType === 'image` && brand?.bgValue ? `url(${brand.bgValue})` : `none',
+                backgroundImage: brand?.bgType === 'image' && brand?.bgValue ? `url(${brand.bgValue})` : 'none',
                 backgroundSize: 'cover',
                 backgroundAttachment: 'fixed',
                 backgroundPosition: 'center',
@@ -217,6 +484,58 @@ export default async function PublicWebsitePage({
                 '--heading-font': config.typography?.heading || 'Inter'
             } as any}
         >
+            {/* Site-Specific Schema.org JSON-LD */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+            />
+            {faqJsonLd && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+                />
+            )}
+            {productEntities.length > 0 && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(productEntities.length === 1 ? productEntities[0] : productEntities) }}
+                />
+            )}
+
+            {/* Search Engine Verification */}
+            {(() => {
+                const cleanToken = sanitizeVerificationToken(seo.googleVerification);
+                return cleanToken ? (
+                    <meta name="google-site-verification" content={cleanToken} />
+                ) : null;
+            })()}
+
+            {/* Google Analytics 4 (gtag.js) */}
+            {(() => {
+                const cleanGa = sanitizeGaMeasurementId(seo.gaMeasurementId);
+                return cleanGa ? (
+                    <>
+                        <script async src={`https://www.googletagmanager.com/gtag/js?id=${cleanGa}`} />
+                        <script
+                            dangerouslySetInnerHTML={{
+                                __html: `
+                                    window.dataLayer = window.dataLayer || [];
+                                    function gtag(){dataLayer.push(arguments);}
+                                    gtag('js', new Date());
+                                    gtag('config', '${cleanGa}', {
+                                        page_path: window.location.pathname,
+                                    });
+                                `
+                            }}
+                        />
+                    </>
+                ) : null;
+            })()}
+
             <div className="w-full max-w-full min-h-screen flex flex-col bg-transparent relative overflow-x-hidden">
                 <style dangerouslySetInnerHTML={{
                     __html: `
@@ -320,13 +639,13 @@ export default async function PublicWebsitePage({
 
                 {/* Dynamic Builder Content */}
                 {hasDynamicSections ? (
-                    <main className="flex-1 w-full max-w-full min-h-[50vh] bg-white flex flex-col overflow-x-hidden">
-                        {(currentPage?.sections || []).map((sec: any) => (
+                    <main className="flex-1 w-full max-w-full min-h-[50vh] flex flex-col overflow-x-hidden">
+                        {(currentPage?.sections || []).filter((s: any) => s.type !== 'floating').map((sec: any) => (
                             <BuilderElement key={sec.id} node={sec} brand={brand} isReadOnly={true} />
                         ))}
                     </main>
                 ) : (
-                    <div className="min-h-[50vh] flex items-center justify-center bg-white">
+                    <div className="min-h-[50vh] flex items-center justify-center">
                         <p className="text-gray-500">This page has no content yet.</p>
                     </div>
                 )}
@@ -412,6 +731,11 @@ export default async function PublicWebsitePage({
                         </div>
                     </footer>
                 )}
+
+                {/* Screen Sticky / Floating Elements Overlay */}
+                {(currentPage?.sections || []).filter((s: any) => s.type === 'floating').map((sec: any) => (
+                    <BuilderElement key={sec.id} node={sec} brand={brand} isReadOnly={true} />
+                ))}
 
                 {/* Global Body Scripts */}
                 {brand.bodyScript && <div dangerouslySetInnerHTML={{ __html: brand.bodyScript }} />}

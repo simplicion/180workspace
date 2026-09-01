@@ -12,6 +12,7 @@ import { TextElement } from './_components/elements/TextElement';
 import { MediaElement } from './_components/elements/MediaElement';
 import { ButtonElement } from './_components/elements/ButtonElement';
 import { LineElement } from './_components/elements/LineElement';
+import { FloatingElement } from './_components/elements/FloatingElement';
 import CodeElement from './_components/elements/CodeElement';
 import { motion } from 'framer-motion';
 
@@ -270,6 +271,8 @@ export function BuilderElement({
 }: BuilderElementProps) {
     const isMobileView = viewMode === 'mobile';
 
+    const isFloating = node.type === 'floating';
+
     const {
         attributes,
         listeners,
@@ -280,7 +283,7 @@ export function BuilderElement({
     } = useSortable({ 
         id: node.id, 
         data: { type: node.type, node },
-        disabled: isReadOnly 
+        disabled: isReadOnly || isFloating
     });
 
     let display = node.style?.display;
@@ -311,7 +314,7 @@ export function BuilderElement({
     const [localMargin, setLocalMargin] = useState<Record<string, string> | null>(null);
 
     const rawStyle = {
-        ...(isReadOnly ? {} : {
+        ...(isReadOnly || isFloating ? {} : {
             transform: CSS.Transform.toString(transform),
             transition,
             opacity: isDragging ? 0.5 : 1,
@@ -328,7 +331,7 @@ export function BuilderElement({
         rawStyle.maxWidth = '100%';
     }
 
-    const style = normalizeStyle(rawStyle, isMobileView);
+    const style = isFloating ? { ...node.style } : normalizeStyle(rawStyle, isMobileView);
     const isSelected = !isReadOnly && selectedElementId === node.id;
 
     const handleMarginDragStart = (e: React.MouseEvent, side: string) => {
@@ -634,7 +637,11 @@ export function BuilderElement({
     const [dragPosition, setDragPosition] = useState<'none' | 'left' | 'right' | 'top' | 'bottom' | 'inside'>('none');
 
     const handleDragOver = (e: React.DragEvent) => {
-        if (isReadOnly || !e.dataTransfer.types.includes('application/vnd.builder.element')) return;
+        const isElement = e.dataTransfer.types.includes('application/vnd.builder.element');
+        const isMedia = e.dataTransfer.types.includes('application/vnd.builder.media.url');
+        
+        if (isReadOnly || (!isElement && !isMedia)) return;
+        
         e.preventDefault();
         e.stopPropagation();
 
@@ -646,15 +653,19 @@ export function BuilderElement({
         const yThreshold = Math.min(24, rect.height * 0.25);
 
         let pos: 'left' | 'right' | 'top' | 'bottom' | 'inside' = 'inside';
-        const isContainer = ['box', 'section', 'row', 'column'].includes(node.type);
+        const isContainer = ['box', 'section', 'row', 'column', 'floating'].includes(node.type);
         
         if (x < xThreshold) pos = 'left';
         else if (x > rect.width - xThreshold) pos = 'right';
         else if (y < yThreshold) pos = 'top';
         else if (y > rect.height - yThreshold) pos = 'bottom';
         
-        if (pos === 'inside' && !isContainer) {
-            pos = 'bottom';
+        if (pos === 'inside') {
+            if (isMedia && node.type === 'media') {
+                // allow 'inside' for media drop onto media element
+            } else if (!isContainer) {
+                pos = 'bottom';
+            }
         }
 
         setDragPosition(pos);
@@ -665,13 +676,55 @@ export function BuilderElement({
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        if (isReadOnly || !e.dataTransfer.types.includes('application/vnd.builder.element')) return;
+        if (isReadOnly) return;
+        
+        const mediaUrl = e.dataTransfer.getData('application/vnd.builder.media.url');
+        
+        // 1. Handle media URL drop on an image/media element
+        if (mediaUrl && (node.type === 'media' || node.type === 'image')) {
+            if (updateElement) {
+                e.preventDefault();
+                e.stopPropagation();
+                updateElement(node.id, 'data.imageUrl', mediaUrl);
+                setDragPosition('none');
+                return;
+            }
+        }
+
+        // 2. Handle media URL drop on container elements
+        if (mediaUrl && ['box', 'section', 'row', 'column', 'floating'].includes(node.type)) {
+            if (dragPosition === 'inside' && insertElementRelative) {
+                e.preventDefault();
+                e.stopPropagation();
+                insertElementRelative(node.id, 'media', 'inside', { imageUrl: mediaUrl });
+                setDragPosition('none');
+                return;
+            } else if (['left', 'right', 'top', 'bottom'].includes(dragPosition) && insertElementRelative) {
+                e.preventDefault();
+                e.stopPropagation();
+                insertElementRelative(node.id, 'media', dragPosition, { imageUrl: mediaUrl });
+                setDragPosition('none');
+                return;
+            }
+        }
+
+        if (!e.dataTransfer.types.includes('application/vnd.builder.element')) return;
         if (dragPosition === 'none') return;
 
         e.preventDefault();
         e.stopPropagation();
         
         const newType = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('newsectiontype') || e.dataTransfer.getData('text/plain');
+        if (newType === 'floating') {
+            // Floating element can never be nested inside or relative to any element
+            // Redirect it directly to the root screen layer
+            if (insertElementRelative) {
+                insertElementRelative(node.id, 'floating', 'inside');
+            }
+            setDragPosition('none');
+            return;
+        }
+
         if (newType && insertElementRelative) {
             insertElementRelative(node.id, newType, dragPosition);
         }
@@ -755,6 +808,7 @@ export function BuilderElement({
     const renderElementComponent = () => {
         switch (node.type) {
             case 'box': return <BoxElement {...props} />;
+            case 'floating': return <FloatingElement {...props} />;
             case 'row': return <RowElement {...props} />;
             case 'column': return <ColumnElement {...props} />;
             case 'text': return <TextElement {...props} />;

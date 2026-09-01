@@ -43,7 +43,19 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
     const { getServerSession } = await import('next-auth');
     const { authOptions } = await import('@/lib/authOptions');
+    const { headers } = await import('next/headers');
     const session = await getServerSession(authOptions);
+
+    const headersList = await headers();
+    const host = (headersList.get('host') || '').toLowerCase();
+    const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '').toLowerCase();
+    const mainDomains = [
+        '180workspace.com', 'www.180workspace.com', 'app.180workspace.com',
+        rootDomain, `www.${rootDomain}`, `app.${rootDomain}`,
+        'localhost', 'localhost:3000', 'localhost:3002'
+    ].filter(Boolean);
+    
+    const isPlatformDomain = mainDomains.includes(host) || host.startsWith('app.') || host.startsWith('api.') || host === 'localhost:3000' || host === 'localhost:3002';
 
     return (
         <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
@@ -52,30 +64,34 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,300,400&display=swap"
                     rel="stylesheet"
                 />
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{
-                        __html: JSON.stringify({
-                            "@context": "https://schema.org",
-                            "@type": "WebSite",
-                            name: "180workspace",
-                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`,
-                            description: "The ultimate business operating system for modern teams.",
-                        })
-                    }}
-                />
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{
-                        __html: JSON.stringify({
-                            "@context": "https://schema.org",
-                            "@type": "Organization",
-                            name: "180workspace",
-                            url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`,
-                            logo: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}/black icon.svg`,
-                        })
-                    }}
-                />
+                {isPlatformDomain && (
+                    <>
+                        <script
+                            type="application/ld+json"
+                            dangerouslySetInnerHTML={{
+                                __html: JSON.stringify({
+                                    "@context": "https://schema.org",
+                                    "@type": "WebSite",
+                                    name: "180workspace",
+                                    url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`,
+                                    description: "The ultimate business operating system for modern teams.",
+                                })
+                            }}
+                        />
+                        <script
+                            type="application/ld+json"
+                            dangerouslySetInnerHTML={{
+                                __html: JSON.stringify({
+                                    "@context": "https://schema.org",
+                                    "@type": "Organization",
+                                    name: "180workspace",
+                                    url: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}`,
+                                    logo: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || ''}/black icon.svg`,
+                                })
+                            }}
+                        />
+                    </>
+                )}
                 <script
                     dangerouslySetInnerHTML={{
                         __html: `

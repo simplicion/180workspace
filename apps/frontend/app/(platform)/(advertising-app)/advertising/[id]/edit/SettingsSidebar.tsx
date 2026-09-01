@@ -1,13 +1,14 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { ArrowLeft, Monitor, Smartphone, Tablet, Save, GripVertical, Settings2, Undo2, Redo2, Palette, Search, Plus, Trash2, Edit3, Image as ImageIcon, Link as LinkIcon, Type, MousePointer2, Settings, BoxSelect, Maximize, RotateCcw, ChevronDown, Check, Code2, FileCode2 } from 'lucide-react';
+import { ArrowLeft, Monitor, Smartphone, Tablet, Save, GripVertical, Settings2, Undo2, Redo2, Palette, Search, Plus, Trash2, Edit3, Image as ImageIcon, Link as LinkIcon, Type, MousePointer2, Settings, BoxSelect, Maximize, RotateCcw, ChevronDown, Check, Code2, FileCode2, Anchor, Globe, Upload, ShieldCheck, Sparkles } from 'lucide-react';
 import { ElementType, ElementNode } from './types';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 import PageSettingsModal, { PageModalConfigType } from './PageSettingsModal';
 import GlobalScriptsModal from './GlobalScriptsModal';
+import MediaLibrary from './_components/MediaLibrary';
 
 
 // Common Google Fonts
@@ -24,6 +25,7 @@ interface SettingsSidebarProps {
     activePageId: string;
     changeActivePage: (id: string) => void;
     sections: any[];
+    website?: any;
 }
 
 export default function SettingsSidebar({
@@ -33,15 +35,89 @@ export default function SettingsSidebar({
     commitConfig,
     activePageId,
     changeActivePage,
-    sections
+    sections,
+    website
 }: SettingsSidebarProps) {
-    const [sidebarTab, setSidebarTab] = useState<'styles' | 'sections' | 'pages'>('sections');
+    const [sidebarTab, setSidebarTab] = useState<'styles' | 'sections' | 'pages' | 'seo' | 'media'>('sections');
     const [uploadingBg, setUploadingBg] = useState(false);
+    const [uploadingFavicon, setUploadingFavicon] = useState(false);
+    const [uploadingOgImage, setUploadingOgImage] = useState(false);
     const [showScriptsModal, setShowScriptsModal] = useState(false);
     const [pageModalConfig, setPageModalConfig] = useState<PageModalConfigType>(null);
     const [availableFonts, setAvailableFonts] = useState<string[]>([
         'Inter', 'Roboto', 'Playfair Display', 'Montserrat', 'Open Sans', 'Outfit', 'Poppins', 'Lato', 'Arial'
     ]);
+
+    const seo = config.seo || {};
+
+    const updateSeo = (key: string, value: any) => {
+        const newConfig = JSON.parse(JSON.stringify(config));
+        newConfig.seo = { ...(newConfig.seo || {}), [key]: value };
+        commitConfig(newConfig);
+    };
+
+    const handleFaviconUpload = async (e: any) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setUploadingFavicon(true);
+            const formData = new FormData();
+            formData.append('file', file);
+            if (website?.id) {
+                formData.append('relatedId', website.id);
+                formData.append('relatedModel', 'Website');
+            }
+
+            const res = await api.post('/api/files/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            if (res.data?.url) {
+                updateSeo('favicon', res.data.url);
+                updateBrand('favicon', res.data.url);
+                toast.success('Favicon updated successfully');
+            } else {
+                toast.error('Upload failed');
+            }
+        } catch (err) {
+            console.error('Favicon upload error:', err);
+            toast.error('Failed to upload favicon');
+        } finally {
+            setUploadingFavicon(false);
+        }
+    };
+
+    const handleOgUpload = async (e: any) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setUploadingOgImage(true);
+            const formData = new FormData();
+            formData.append('file', file);
+            if (website?.id) {
+                formData.append('relatedId', website.id);
+                formData.append('relatedModel', 'Website');
+            }
+
+            const res = await api.post('/api/files/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            if (res.data?.url) {
+                updateSeo('ogImage', res.data.url);
+                toast.success('Social share image updated');
+            } else {
+                toast.error('Upload failed');
+            }
+        } catch (err) {
+            console.error('OG image upload error:', err);
+            toast.error('Failed to upload share image');
+        } finally {
+            setUploadingOgImage(false);
+        }
+    };
 
     const handleBgUpload = async (e: any) => {
         const file = e.target.files?.[0];
@@ -51,6 +127,10 @@ export default function SettingsSidebar({
             setUploadingBg(true);
             const formData = new FormData();
             formData.append('file', file);
+            if (website?.id) {
+                formData.append('relatedId', website.id);
+                formData.append('relatedModel', 'Website');
+            }
             
             const res = await api.post('/api/files/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
@@ -85,10 +165,12 @@ export default function SettingsSidebar({
     return (
         <>
             {/* Tab Bar */}
-            <div className="flex border-b border-gray-200">
-                <button onClick={() => setSidebarTab('sections')} className={`flex-1 p-4 text-sm font-bold border-b-2 ${sidebarTab === 'sections' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:bg-gray-50'}`}>Sections</button>
-                <button onClick={() => setSidebarTab('pages')} className={`flex-1 p-4 text-sm font-bold border-b-2 ${sidebarTab === 'pages' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:bg-gray-50'}`}>Pages</button>
-                <button onClick={() => setSidebarTab('styles')} className={`flex-1 p-4 text-sm font-bold border-b-2 ${sidebarTab === 'styles' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:bg-gray-50'}`}>Theme</button>
+            <div className="flex border-b border-gray-200 bg-gray-50/50">
+                <button onClick={() => setSidebarTab('sections')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'sections' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Sections</button>
+                <button onClick={() => setSidebarTab('pages')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'pages' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Pages</button>
+                <button onClick={() => setSidebarTab('styles')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'styles' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Theme</button>
+                <button onClick={() => setSidebarTab('seo')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'seo' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>SEO</button>
+                <button onClick={() => setSidebarTab('media')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'media' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Media</button>
             </div>
 
             {/* Tab Content */}
@@ -222,59 +304,7 @@ export default function SettingsSidebar({
                         )}
                     </div>
                     
-                    <div className="space-y-3">
-                        <label className="text-xs font-bold text-gray-500 uppercase">WhatsApp Widget</label>
-                        <div className="flex items-center gap-2">
-                            <input 
-                                type="checkbox" 
-                                checked={config.whatsapp?.enabled || false}
-                                onChange={(e) => {
-                                    const newConfig = JSON.parse(JSON.stringify(config));
-                                    if (!newConfig.whatsapp) newConfig.whatsapp = {};
-                                    newConfig.whatsapp.enabled = e.target.checked;
-                                    // Default values if not set
-                                    if (!newConfig.whatsapp.position) newConfig.whatsapp.position = 'bottom-right';
-                                    if (!newConfig.whatsapp.phone) newConfig.whatsapp.phone = '';
-                                    commitConfig(newConfig);
-                                }}
-                            />
-                            <span className="text-sm font-medium">Enable WhatsApp Button</span>
-                        </div>
-                        {config.whatsapp?.enabled && (
-                            <div className="space-y-3 mt-2 pl-6">
-                                <div>
-                                    <label className="text-xs text-gray-500 block mb-1">Phone Number</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="e.g. 1234567890" 
-                                        value={config.whatsapp?.phone || ''}
-                                        onChange={(e) => {
-                                            const newConfig = JSON.parse(JSON.stringify(config));
-                                            newConfig.whatsapp.phone = e.target.value;
-                                            commitConfig(newConfig);
-                                        }}
-                                        className="w-full text-xs p-2 border border-gray-200 rounded-lg outline-none focus:border-indigo-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs text-gray-500 block mb-1">Position & Style</label>
-                                    <CustomSelect
-                                        value={config.whatsapp?.position || 'bottom-right'}
-                                        onChange={(e) => {
-                                            const newConfig = JSON.parse(JSON.stringify(config));
-                                            newConfig.whatsapp.position = e.target.value;
-                                            commitConfig(newConfig);
-                                        }}
-                                        className="w-full text-xs p-2 border border-gray-200 rounded-lg outline-none focus:border-indigo-500"
-                                    >
-                                        <option value="bottom-right">Bottom Right (Floating Circle)</option>
-                                        <option value="middle-right">Middle Right (Rectangular Stick)</option>
-                                        <option value="middle-left">Middle Left (Rectangular Stick)</option>
-                                    </CustomSelect>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+
 
                     <div className="space-y-3 pt-6 border-t border-gray-200">
                         <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><FileCode2 className="w-4 h-4" /> Global Scripts</label>
@@ -327,9 +357,12 @@ export default function SettingsSidebar({
                                                 mode: 'edit',
                                                 pageId: p.id,
                                                 name: p.name,
+                                                slug: p.slug || (p.id === 'home' ? '/' : `/${p.id}`),
                                                 metaTitle: p.metaTitle || '',
                                                 metaDescription: p.metaDescription || '',
+                                                keywords: p.keywords || '',
                                                 isPublished: p.isPublished !== false && p.isEnabled !== false,
+                                                isNoIndex: p.isNoIndex === true,
                                                 navVisibility: p.navVisibility || 'both'
                                             });
                                         }}
@@ -359,6 +392,276 @@ export default function SettingsSidebar({
                         </div>
                     ))}
                 </div>
+            ) : sidebarTab === 'seo' ? (
+                <div className="p-4 space-y-6">
+                    {/* Favicon & Browser Tab Identity */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1.5">
+                                <Globe className="w-4 h-4 text-indigo-600" />
+                                Browser Tab & Favicon
+                            </label>
+                            <span className="text-[10px] text-gray-400 font-medium">Tab Identity</span>
+                        </div>
+
+                        {/* Live Browser Tab Mockup */}
+                        <div className="bg-gray-100 p-2.5 rounded-xl border border-gray-200">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Live Tab Preview</div>
+                            <div className="bg-white rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm border border-gray-200">
+                                {seo.favicon ? (
+                                    <img src={seo.favicon} alt="Favicon" className="w-4 h-4 rounded object-contain shrink-0" />
+                                ) : (
+                                    <div className="w-4 h-4 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                        <Globe className="w-3 h-3" />
+                                    </div>
+                                )}
+                                <span className="text-xs font-bold text-gray-800 truncate flex-1">
+                                    {seo.metaTitle || brand?.companyName || website?.name || 'My Website Title'}
+                                </span>
+                                <span className="text-gray-300 text-xs font-mono">×</span>
+                            </div>
+                        </div>
+
+                        {/* Upload Favicon Button */}
+                        <div className="flex items-center gap-2">
+                            <label className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-indigo-500 text-gray-700 flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm ${uploadingFavicon ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <input 
+                                    type="file" 
+                                    accept="image/x-icon,image/png,image/svg+xml,image/jpeg,image/webp" 
+                                    className="hidden" 
+                                    onChange={handleFaviconUpload}
+                                />
+                                <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                                {uploadingFavicon ? 'Uploading Favicon...' : seo.favicon ? 'Change Favicon' : 'Upload Favicon (.ico, .png)'}
+                            </label>
+                            {seo.favicon && (
+                                <button 
+                                    onClick={() => {
+                                        updateSeo('favicon', '');
+                                        updateBrand('favicon', '');
+                                    }}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-gray-200 transition-colors"
+                                    title="Remove Favicon"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-gray-400 leading-tight">Upload a 32×32 or 64×64 PNG/ICO to replace the default icon in browser tabs.</p>
+                    </div>
+
+                    {/* Google SERP Preview & Meta Settings */}
+                    <div className="space-y-3 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1.5">
+                                <Search className="w-4 h-4 text-indigo-600" />
+                                Search Engine Snippet
+                            </label>
+                            <span className="text-[10px] text-gray-400 font-medium">Google SERP</span>
+                        </div>
+
+                        {/* Live Google Search Result Preview Card */}
+                        <div className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-sm space-y-1">
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                Google Search Result
+                            </div>
+                            <div className="pt-1.5 border-t border-gray-100">
+                                <div className="text-[11px] text-gray-500 truncate">
+                                    <span className="text-gray-800 font-semibold">https://{website?.domain || 'yourdomain.com'}</span>
+                                </div>
+                                <div className="text-sm text-blue-700 font-semibold hover:underline cursor-pointer truncate leading-tight mt-0.5">
+                                    {seo.metaTitle || brand?.companyName || website?.name || 'Website Title'}
+                                </div>
+                                <div className="text-xs text-gray-600 line-clamp-2 mt-1 leading-relaxed">
+                                    {seo.metaDescription || 'Add a compelling search description to attract visitors from Google and Bing searches.'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Meta Title */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-gray-700">Default Meta Title</span>
+                                <span className={`text-[10px] font-medium ${(seo.metaTitle || '').length > 60 ? 'text-amber-600 font-bold' : (seo.metaTitle || '').length > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    {(seo.metaTitle || '').length}/60 chars
+                                </span>
+                            </div>
+                            <input 
+                                type="text" 
+                                value={seo.metaTitle || ''} 
+                                onChange={e => updateSeo('metaTitle', e.target.value)} 
+                                placeholder="e.g. Acme Corp - Modern Solutions & Professional Services" 
+                                className="w-full text-xs p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                            />
+                        </div>
+
+                        {/* Meta Description */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-gray-700">Default Meta Description</span>
+                                <span className={`text-[10px] font-medium ${(seo.metaDescription || '').length > 160 ? 'text-amber-600 font-bold' : (seo.metaDescription || '').length > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    {(seo.metaDescription || '').length}/160 chars
+                                </span>
+                            </div>
+                            <textarea 
+                                value={seo.metaDescription || ''} 
+                                onChange={e => updateSeo('metaDescription', e.target.value)} 
+                                placeholder="Discover high-quality products and professional services tailored to your needs. Fast delivery, dedicated support, and reliable results." 
+                                rows={3} 
+                                className="w-full text-xs p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white resize-none transition-all"
+                            />
+                        </div>
+
+                        {/* Target Keywords */}
+                        <div>
+                            <span className="text-xs font-bold text-gray-700 block mb-1">SEO Target Keywords</span>
+                            <input 
+                                type="text" 
+                                value={seo.keywords || ''} 
+                                onChange={e => updateSeo('keywords', e.target.value)} 
+                                placeholder="e.g. software, consulting, business tools, professional services" 
+                                className="w-full text-xs p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                            />
+                            <p className="text-[10px] text-gray-400 mt-1">Separate keywords with commas.</p>
+                        </div>
+                    </div>
+
+                    {/* Social Share & WhatsApp (OpenGraph) */}
+                    <div className="space-y-3 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1.5">
+                                <ImageIcon className="w-4 h-4 text-indigo-600" />
+                                Social Share & WhatsApp Card
+                            </label>
+                            <span className="text-[10px] text-gray-400 font-medium">OpenGraph</span>
+                        </div>
+
+                        {/* Live WhatsApp / Social Card Preview */}
+                        <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm">
+                            {seo.ogImage ? (
+                                <div className="h-32 w-full bg-cover bg-center border-b border-gray-200 relative group" style={{ backgroundImage: `url(${seo.ogImage})` }}>
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <span className="text-white text-xs font-bold">1200 × 630 Preview</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-28 w-full bg-indigo-50/40 flex flex-col items-center justify-center text-indigo-400 border-b border-gray-200">
+                                    <ImageIcon className="w-7 h-7 mb-1 opacity-60" />
+                                    <span className="text-[10px] font-medium text-gray-400">No share image uploaded</span>
+                                </div>
+                            )}
+                            <div className="p-3 bg-white">
+                                <div className="text-[10px] font-mono uppercase text-gray-400 truncate">{website?.domain || 'YOURDOMAIN.COM'}</div>
+                                <div className="text-xs font-bold text-gray-800 truncate mt-0.5">{seo.metaTitle || brand?.companyName || website?.name || 'Website Title'}</div>
+                                <div className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{seo.metaDescription || 'Website description will appear here when shared on WhatsApp or Facebook.'}</div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <label className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-indigo-500 text-gray-700 flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm ${uploadingOgImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    onChange={handleOgUpload}
+                                />
+                                <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                                {uploadingOgImage ? 'Uploading Image...' : seo.ogImage ? 'Change Social Image' : 'Upload Social Image (1200×630)'}
+                            </label>
+                            {seo.ogImage && (
+                                <button 
+                                    onClick={() => updateSeo('ogImage', '')}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-gray-200 transition-colors"
+                                    title="Remove Social Image"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Search Engine Indexing & Analytics */}
+                    <div className="space-y-3 pt-4 border-t border-gray-100">
+                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1.5">
+                            <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                            Indexing & Tracking
+                        </label>
+
+                        {/* Indexing Toggle */}
+                        <label className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/50 cursor-pointer hover:border-indigo-300 transition-colors">
+                            <div>
+                                <div className="text-xs font-bold text-gray-800">Search Engine Indexing</div>
+                                <div className="text-[10px] text-gray-500">Allow Google and Bing to crawl and index this website</div>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                checked={seo.allowIndexing !== false} 
+                                onChange={e => updateSeo('allowIndexing', e.target.checked)} 
+                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                            />
+                        </label>
+                        {seo.allowIndexing === false && (
+                            <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-medium flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                                Website is currently hidden from search engines (<code className="font-mono text-[10px] bg-amber-100 px-1 rounded">noindex, nofollow</code>).
+                            </div>
+                        )}
+
+                        {/* Google Site Verification */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-gray-700">Google Site Verification Token</span>
+                                {seo.googleVerification && (
+                                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <CheckCircle2 className="w-3 h-3" /> Token Active
+                                    </span>
+                                )}
+                            </div>
+                            <input 
+                                type="text" 
+                                value={seo.googleVerification || ''} 
+                                onChange={e => {
+                                    let val = e.target.value;
+                                    // Auto-sanitize on paste if full tag or prefix is entered
+                                    const metaMatch = val.match(/content=["']([^"']+)["']/i);
+                                    if (metaMatch && metaMatch[1]) val = metaMatch[1].trim();
+                                    val = val.replace(/^google-site-verification\s*=\s*/i, '').trim();
+                                    updateSeo('googleVerification', val);
+                                }} 
+                                placeholder="e.g. google-site-verification=abc123xyz or abc123xyz" 
+                                className="w-full text-xs p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white font-mono transition-all"
+                            />
+                            <p className="text-[10px] text-gray-400 mt-1">Paste your HTML tag or token from Google Search Console.</p>
+                        </div>
+
+                        {/* Google Analytics 4 */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-gray-700">Google Analytics 4 Measurement ID</span>
+                                {seo.gaMeasurementId && (
+                                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <CheckCircle2 className="w-3 h-3" /> GA4 Connected
+                                    </span>
+                                )}
+                            </div>
+                            <input 
+                                type="text" 
+                                value={seo.gaMeasurementId || ''} 
+                                onChange={e => {
+                                    let val = e.target.value.trim();
+                                    const gMatch = val.match(/\b(G-[A-Za-z0-9]+)\b/);
+                                    if (gMatch && gMatch[1]) val = gMatch[1].trim();
+                                    updateSeo('gaMeasurementId', val);
+                                }} 
+                                placeholder="G-XXXXXXXXXX" 
+                                className="w-full text-xs p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white font-mono transition-all"
+                            />
+                            <p className="text-[10px] text-gray-400 mt-1">Automatically injects the official Google <code className="font-mono text-[10px]">gtag.js</code> tracking script.</p>
+                        </div>
+                    </div>
+                </div>
+            ) : sidebarTab === 'media' ? (
+                <MediaLibrary websiteId={website?.id} config={config} />
             ) : (
                 <div className="p-4 space-y-6">
                     <div>
@@ -404,6 +707,11 @@ export default function SettingsSidebar({
                                     type: 'line',
                                     label: 'Line Divider',
                                     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                },
+                                {
+                                    type: 'floating',
+                                    label: 'Floating Bar',
+                                    icon: <Anchor className="w-6 h-6 mb-2 text-current" />
                                 }
                             ].map(({type, label, icon}) => (
                                 <div 
@@ -414,10 +722,10 @@ export default function SettingsSidebar({
                                         e.dataTransfer.setData('application/vnd.builder.element', type);
                                         e.dataTransfer.setData('text/plain', type);
                                     }}
-                                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl bg-white text-gray-700 cursor-grab active:cursor-grabbing hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all aspect-square shadow-sm"
+                                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl bg-white text-gray-700 cursor-grab active:cursor-grabbing hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm text-center min-h-[90px]"
                                 >
                                     {icon}
-                                    <span className="font-medium text-[11px] text-center">{label}</span>
+                                    <span className="font-medium text-[11px] leading-tight mt-1">{label}</span>
                                 </div>
                             ))}
                         </div>
@@ -542,6 +850,7 @@ export default function SettingsSidebar({
             <PageSettingsModal 
                 config={pageModalConfig} 
                 setConfig={setPageModalConfig} 
+                domain={website?.domain || 'yourdomain.com'}
                 onSave={(newConfigData) => {
                     const newConfig = JSON.parse(JSON.stringify(config));
                     
@@ -554,9 +863,11 @@ export default function SettingsSidebar({
                         newConfig.pages.push({
                             id,
                             name: newConfigData.name,
-                            slug: `/${id}`,
+                            slug: newConfigData.slug || `/${id}`,
                             isEnabled: newConfigData.isPublished,
                             isPublished: newConfigData.isPublished,
+                            isNoIndex: newConfigData.isNoIndex,
+                            keywords: newConfigData.keywords,
                             navVisibility: newConfigData.navVisibility,
                             metaTitle: newConfigData.metaTitle,
                             metaDescription: newConfigData.metaDescription,
@@ -568,8 +879,11 @@ export default function SettingsSidebar({
                         const pageIndex = newConfig.pages.findIndex((p: any) => p.id === newConfigData.pageId);
                         if (pageIndex !== -1) {
                             newConfig.pages[pageIndex].name = newConfigData.name;
+                            if (newConfigData.slug) newConfig.pages[pageIndex].slug = newConfigData.slug;
                             newConfig.pages[pageIndex].isEnabled = newConfigData.isPublished;
                             newConfig.pages[pageIndex].isPublished = newConfigData.isPublished;
+                            newConfig.pages[pageIndex].isNoIndex = newConfigData.isNoIndex;
+                            newConfig.pages[pageIndex].keywords = newConfigData.keywords;
                             newConfig.pages[pageIndex].navVisibility = newConfigData.navVisibility;
                             newConfig.pages[pageIndex].metaTitle = newConfigData.metaTitle;
                             newConfig.pages[pageIndex].metaDescription = newConfigData.metaDescription;

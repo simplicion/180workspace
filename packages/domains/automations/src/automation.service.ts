@@ -108,8 +108,7 @@ export class AutomationService {
                 await AutomationLog.update({
                     where: { id: logId },
                     data: {
-                        status: 'success',
-                        processedAt: new Date()
+                        status: 'success'
                     }
                 });
             }

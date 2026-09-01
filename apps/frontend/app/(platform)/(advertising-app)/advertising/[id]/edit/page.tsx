@@ -14,7 +14,7 @@ import {
     Search, RefreshCw, X, ChevronDown, Check, MousePointer2, Image as ImageIcon,
     Type, Layout, Palette, MapPin, Phone, Mail, Sparkles, ShieldCheck, User,
     CheckCircle2, Plus, Trash2, ArrowUp, ArrowDown, MessageSquare, List,
-    GripVertical, Undo2, Redo2, RotateCcw, Video, Upload
+    GripVertical, Undo2, Redo2, RotateCcw, Video, Upload, AlertCircle
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -144,7 +144,7 @@ function MediaCarousel({ images = [], videoUrl = '', muted = true, className = '
     );
 }
 
-function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, primaryColor = '#4f46e5', style = {} }: any) {
+function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, primaryColor = '#4f46e5', style = {}, websiteId = '' }: any) {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -156,6 +156,10 @@ function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, pri
             setUploading(true);
             const formData = new FormData();
             formData.append('file', file);
+            if (websiteId) {
+                formData.append('relatedId', websiteId);
+                formData.append('relatedModel', 'Website');
+            }
             const res = await api.post('/api/files/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
@@ -176,7 +180,24 @@ function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, pri
     };
 
     return (
-        <div className={`relative group/img overflow-hidden ${className}`} style={style}>
+        <div 
+            className={`relative group/img overflow-hidden ${className}`} 
+            style={style}
+            onDragOver={(e) => {
+                if (e.dataTransfer.types.includes('application/vnd.builder.media.url')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }}
+            onDrop={(e) => {
+                const mediaUrl = e.dataTransfer.getData('application/vnd.builder.media.url');
+                if (mediaUrl) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onChange(mediaUrl);
+                }
+            }}
+        >
             <input
                 type="file"
                 ref={fileInputRef}
@@ -199,7 +220,7 @@ function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, pri
                     ) : (
                         <>
                             <ImageIcon className="w-12 h-12 opacity-20" />
-                            <span className="text-sm font-medium opacity-40">Click to add image</span>
+                            <span className="text-sm font-medium opacity-40">Click or drop image</span>
                         </>
                     )}
                 </div>
@@ -218,7 +239,7 @@ function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, pri
     );
 }
 
-function VideoEditor({ sectionData, onChange, className = '' }: any) {
+function VideoEditor({ sectionData, onChange, className = '', websiteId = '' }: any) {
     const { sourceType = 'youtube', videoUrl = '', autoplay = false, muted = true } = sectionData;
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -231,6 +252,10 @@ function VideoEditor({ sectionData, onChange, className = '' }: any) {
             setUploading(true);
             const formData = new FormData();
             formData.append('file', file);
+            if (websiteId) {
+                formData.append('relatedId', websiteId);
+                formData.append('relatedModel', 'Website');
+            }
             const res = await api.post('/api/v1/workspace-tools/storage/upload?streaming=true', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
@@ -332,7 +357,17 @@ export default function WebsiteEditorPage() {
     const [website, setWebsite] = useState<any>(null);
     const [config, setConfig] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    
+    // Auto-save State & Refs
+    const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+    const lastSavedConfigRef = useRef<string>('');
+    const lastSavedNameRef = useRef<string>('');
+    const autoSaveTimeoutRef = useRef<any>(null);
+    const maxWaitTimeoutRef = useRef<any>(null);
+    const isInitialLoadRef = useRef<boolean>(true);
+    const inFlightSaveRef = useRef<boolean>(false);
+    const pendingSaveRef = useRef<boolean>(false);
+
     const [showSettings, setShowSettings] = useState(true);
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const logoInputRef = useRef<HTMLInputElement>(null);
@@ -355,6 +390,8 @@ export default function WebsiteEditorPage() {
     // Undo / Redo
     const [history, setHistory] = useState<any[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
+    const historyIndexRef = useRef(historyIndex);
+    useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
     const historyTimeoutRef = useRef<any>(null);
 
     // Drag and Drop
@@ -366,8 +403,6 @@ export default function WebsiteEditorPage() {
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
     const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
 
-    // Confirmation Modals
-    const [showDiscardModal, setShowDiscardModal] = useState(false);
 
     // Hover and Padding Drag for Sections/Images
     const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
@@ -459,6 +494,10 @@ export default function WebsiteEditorPage() {
             setUploadingLogo(true);
             const formData = new FormData();
             formData.append('file', file);
+            if (website?.id) {
+                formData.append('relatedId', website.id);
+                formData.append('relatedModel', 'Website');
+            }
             const res = await api.post('/api/v1/workspace-tools/storage/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
@@ -511,9 +550,23 @@ export default function WebsiteEditorPage() {
                 };
             }
 
+            if (loadedConfig?.pages) {
+                loadedConfig.pages.forEach((p: any) => {
+                    if (p.sections) {
+                        p.sections = hoistFloatingNodes(p.sections);
+                    }
+                });
+            }
+
             setConfig(loadedConfig);
+            lastSavedConfigRef.current = JSON.stringify(loadedConfig);
+            lastSavedNameRef.current = res.data.website?.name || '';
             setHistory([JSON.parse(JSON.stringify(loadedConfig))]);
             setHistoryIndex(0);
+            setSaveStatus('saved');
+            setTimeout(() => {
+                isInitialLoadRef.current = false;
+            }, 300);
         } catch (err) {
             console.error('Failed to load website:', err);
             toast.error('Failed to load website');
@@ -523,32 +576,162 @@ export default function WebsiteEditorPage() {
         }
     };
 
-    const handleSave = async () => {
+    const performAutoSave = async (targetConfig?: any, targetName?: string) => {
+        const currentConfig = targetConfig !== undefined ? targetConfig : config;
+        const currentName = targetName !== undefined ? targetName : (website?.name || '');
+
+        if (!currentConfig || isInitialLoadRef.current || !id) return;
+
+        const currentConfigStr = JSON.stringify(currentConfig);
+        if (currentConfigStr === lastSavedConfigRef.current && currentName === lastSavedNameRef.current) {
+            setSaveStatus('saved');
+            return;
+        }
+
+        if (inFlightSaveRef.current) {
+            pendingSaveRef.current = true;
+            return;
+        }
+
         try {
-            setSaving(true);
-            await api.patch(`/api/websites/${id}`, { name: website?.name, config });
-            toast.success('Website saved successfully!');
-            setShowSettings(false);
-            setSelectedElementId(null);
+            inFlightSaveRef.current = true;
+            setSaveStatus('saving');
+            await api.patch(`/api/websites/${id}`, { name: currentName, config: currentConfig });
+            lastSavedConfigRef.current = currentConfigStr;
+            lastSavedNameRef.current = currentName;
+            setSaveStatus('saved');
         } catch (err) {
-            console.error('Failed to save:', err);
-            toast.error('Failed to save website');
+            console.error('Autosave error:', err);
+            setSaveStatus('error');
         } finally {
-            setSaving(false);
+            inFlightSaveRef.current = false;
+            if (pendingSaveRef.current) {
+                pendingSaveRef.current = false;
+                performAutoSave();
+            }
         }
     };
 
-    const handleDiscard = () => {
-        setShowDiscardModal(true);
+    // Auto-save debounce effect
+    useEffect(() => {
+        if (isInitialLoadRef.current || !config || loading) return;
+
+        const currentConfigStr = JSON.stringify(config);
+        const currentName = website?.name || '';
+
+        // If no changes compared to last saved state, keep saved
+        if (currentConfigStr === lastSavedConfigRef.current && currentName === lastSavedNameRef.current) {
+            if (saveStatus === 'unsaved') setSaveStatus('saved');
+            return;
+        }
+
+        setSaveStatus('unsaved');
+
+        // Debounce timer (1200ms)
+        if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = setTimeout(() => {
+            if (maxWaitTimeoutRef.current) {
+                clearTimeout(maxWaitTimeoutRef.current);
+                maxWaitTimeoutRef.current = null;
+            }
+            performAutoSave(config, currentName);
+        }, 1200);
+
+        // Max throttle ceiling (forces a save if continuous typing exceeds 4s)
+        if (!maxWaitTimeoutRef.current) {
+            maxWaitTimeoutRef.current = setTimeout(() => {
+                maxWaitTimeoutRef.current = null;
+                performAutoSave(config, currentName);
+            }, 4000);
+        }
+
+        return () => {
+            if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+        };
+    }, [config, website?.name]);
+
+    // Keepalive emergency flush on window unload/tab close
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (!config || !id) return;
+            const currentConfigStr = JSON.stringify(config);
+            const currentName = website?.name || '';
+            if (currentConfigStr !== lastSavedConfigRef.current || currentName !== lastSavedNameRef.current) {
+                try {
+                    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null;
+                    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002';
+                    fetch(`${apiBase}/api/websites/${id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                        },
+                        body: JSON.stringify({ name: currentName, config }),
+                        keepalive: true
+                    });
+                } catch (err) {
+                    console.error('Keepalive save error:', err);
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [config, website?.name, id]);
+
+    const handleClose = async () => {
+        if (saveStatus === 'unsaved' || inFlightSaveRef.current) {
+            await performAutoSave();
+        }
+        router.push(`/advertising/${id}`);
     };
 
-    const commitConfig = (newConfig: any) => {
-        setConfig(newConfig);
+    const hoistFloatingNodes = (sections: any[]): any[] => {
+        if (!sections || !Array.isArray(sections)) return [];
+        const hoisted: any[] = [];
+        const cleanChildren = (nodes: any[]): any[] => {
+            if (!nodes || !Array.isArray(nodes)) return [];
+            const res: any[] = [];
+            for (const n of nodes) {
+                if (!n) continue;
+                if (n.type === 'floating') {
+                    hoisted.push(n);
+                } else {
+                    const cloned = { ...n };
+                    if (cloned.children && Array.isArray(cloned.children)) {
+                        cloned.children = cleanChildren(cloned.children);
+                    }
+                    res.push(cloned);
+                }
+            }
+            return res;
+        };
+
+        const inFlow = cleanChildren(sections.filter((s: any) => s && s.type !== 'floating'));
+        const existingRootFloating = sections.filter((s: any) => s && s.type === 'floating');
+        return [...inFlow, ...existingRootFloating, ...hoisted];
+    };
+
+    const commitConfig = (newConfigOrUpdater: any) => {
+        let computedConfig: any = null;
+        setConfig((prevConfig: any) => {
+            computedConfig = typeof newConfigOrUpdater === 'function' ? newConfigOrUpdater(JSON.parse(JSON.stringify(prevConfig))) : newConfigOrUpdater;
+            if (computedConfig?.pages) {
+                computedConfig.pages.forEach((p: any) => {
+                    if (p.sections) {
+                        p.sections = hoistFloatingNodes(p.sections);
+                    }
+                });
+            }
+            return computedConfig;
+        });
+
         if (historyTimeoutRef.current) clearTimeout(historyTimeoutRef.current);
         historyTimeoutRef.current = setTimeout(() => {
             setHistory(prevHistory => {
-                const nextHistory = prevHistory.slice(0, historyIndex + 1);
-                nextHistory.push(JSON.parse(JSON.stringify(newConfig)));
+                const hIndex = historyIndexRef.current;
+                const nextHistory = prevHistory.slice(0, hIndex + 1);
+                nextHistory.push(JSON.parse(JSON.stringify(computedConfig)));
                 setHistoryIndex(nextHistory.length - 1);
                 return nextHistory;
             });
@@ -594,9 +777,10 @@ export default function WebsiteEditorPage() {
     };
 
     const updateElement = (id: string, path: string, value: any) => {
-        const newConfig = JSON.parse(JSON.stringify(config));
-        const pIndex = getActivePageIndex(newConfig);
-        if (pIndex === -1) return;
+        commitConfig((newConfig: any) => {
+            if (!newConfig) return newConfig;
+            const pIndex = getActivePageIndex(newConfig);
+            if (pIndex === -1) return newConfig;
 
         const updateRecursive = (nodes: any[]): boolean => {
             if (!nodes) return false;
@@ -661,8 +845,7 @@ export default function WebsiteEditorPage() {
                 }
                 current[keys[keys.length - 1]] = value;
             }
-            commitConfig(newConfig);
-            return;
+            return newConfig;
         }
 
         if (id === 'footer') {
@@ -690,21 +873,19 @@ export default function WebsiteEditorPage() {
                 }
                 current[keys[keys.length - 1]] = value;
             }
-            commitConfig(newConfig);
-            return;
+            return newConfig;
         }
 
         if (newConfig.header && updateRecursive([newConfig.header])) {
-            commitConfig(newConfig);
-            return;
+            return newConfig;
         }
         if (newConfig.footer && updateRecursive([newConfig.footer])) {
-            commitConfig(newConfig);
-            return;
+            return newConfig;
         }
         
         updateRecursive(newConfig.pages[pIndex].sections);
-        commitConfig(newConfig);
+        return newConfig;
+        });
     };
 
     const removeElement = (id: string) => {
@@ -980,7 +1161,7 @@ export default function WebsiteEditorPage() {
         setSectionToDelete(null);
     };
 
-    const addSection = (type: string, index: number) => {
+    const addSection = (type: string, index: number, initialData?: any) => {
         const newConfig = JSON.parse(JSON.stringify(config));
         const pIndex = getActivePageIndex(newConfig);
         if (pIndex > -1) {
@@ -998,23 +1179,37 @@ export default function WebsiteEditorPage() {
 
             // Give it a fresh root-level ID to be safe
             generatedNode.id = 'sec-' + Date.now();
+            if (initialData) {
+                generatedNode.data = { ...generatedNode.data, ...initialData };
+            }
 
             newConfig.pages[pIndex].sections.splice(index, 0, generatedNode);
             commitConfig(newConfig);
+            if (type === 'floating') {
+                setSelectedElementId(generatedNode.id);
+            }
         }
     };
 
-    const insertElementRelative = (targetId: string, elementType: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => {
+    const insertElementRelative = (targetId: string, elementType: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside', initialData?: any) => {
+        // Floating elements can never be inserted inside or relative to sections/boxes!
+        if (elementType === 'floating') {
+            addSection('floating', 0, initialData);
+            return;
+        }
+
         const newConfig = JSON.parse(JSON.stringify(config));
         const pIndex = getActivePageIndex(newConfig);
         if (pIndex === -1) return;
-
 
         const insertTarget = (nodes: any[]): boolean => {
             for (let i = 0; i < nodes.length; i++) {
                 if (nodes[i].id === targetId) {
                     const newNode = getDefaultElementForType(elementType, currencySymbol);
                     newNode.id = 'el-' + Date.now(); // Generate unique ID
+                    if (initialData) {
+                        newNode.data = { ...newNode.data, ...initialData };
+                    }
                     
                     if (position === 'inside') {
                         if (!nodes[i].children) nodes[i].children = [];
@@ -1118,65 +1313,95 @@ export default function WebsiteEditorPage() {
 
     return (
         <div className="fixed inset-0 z-[9999] bg-gray-100 flex flex-col overflow-hidden">
-            {/* Editor Toolbar - Hidden when sidebar is open */}
-            {!(showSettings || selectedElementId) && (
-                <div className="flex-none sticky top-0 z-50 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => router.push(`/advertising/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <div>
-                            <div className="flex items-center gap-1">
-                                <span className="text-sm font-bold text-gray-900">Editing: </span>
-                                <EditableText 
-                                    tagName="h1" 
-                                    className="text-sm font-bold text-gray-900 inline" 
-                                    value={website?.name} 
-                                    onChange={(v: string) => {
-                                        if (website) setWebsite({ ...website, name: v });
-                                    }} 
-                                />
-                            </div>
-                            <p className="text-xs text-gray-500">Click any text on the page to edit</p>
+            {/* Editor Top Head Toolbar - Smooth Slide Down/Up Animation */}
+            <div 
+                className={`fixed top-0 inset-x-0 z-50 h-14 bg-white/95 backdrop-blur-md border-b border-gray-200 px-6 flex items-center justify-between shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    !(showSettings || selectedElementId)
+                        ? 'translate-y-0 opacity-100 pointer-events-auto'
+                        : '-translate-y-full opacity-0 pointer-events-none'
+                }`}
+            >
+                <div className="flex items-center gap-4">
+                    <button onClick={() => router.push(`/advertising/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-sm font-bold text-gray-900">Editing: </span>
+                            <EditableText 
+                                tagName="h1" 
+                                className="text-sm font-bold text-gray-900 inline" 
+                                value={website?.name} 
+                                onChange={(v: string) => {
+                                    if (website) setWebsite({ ...website, name: v });
+                                }} 
+                            />
                         </div>
-
-                        <div className="w-px h-8 bg-gray-200 mx-2 hidden md:block"></div>
-
-                        <div className="hidden md:flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-                            {viewMode === 'desktop' ? (
-                                <button onClick={() => setViewMode('mobile')} className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors bg-white shadow-sm text-indigo-600">
-                                    <Smartphone className="w-4 h-4" />
-                                    <span className="text-sm font-medium">Mobile Preview</span>
-                                </button>
-                            ) : (
-                                <button onClick={() => setViewMode('desktop')} className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors bg-white shadow-sm text-indigo-600">
-                                    <Monitor className="w-4 h-4" />
-                                    <span className="text-sm font-medium">PC View</span>
-                                </button>
-                            )}
-                        </div>
+                        <p className="text-xs text-gray-500">Click any text on the page to edit</p>
                     </div>
 
-                    <div className="flex-1 flex justify-center items-center" id="text-editor-container">
-                    </div>
+                    <div className="w-px h-8 bg-gray-200 mx-2 hidden md:block"></div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 border-r border-gray-200 pr-3 mr-1">
-                            <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"><Undo2 className="w-4 h-4" /></button>
-                            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"><Redo2 className="w-4 h-4" /></button>
-                        </div>
-                        <button
-                            onClick={() => setShowSettings(!showSettings)}
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-colors border ${showSettings ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'text-gray-700 bg-white hover:bg-gray-50 border-gray-200'}`}
-                        >
-                            <Palette className="w-4 h-4" />
-                            Edit Design
-                        </button>
+                    <div className="hidden md:flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                        {viewMode === 'desktop' ? (
+                            <button onClick={() => setViewMode('mobile')} className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors bg-white shadow-sm text-indigo-600">
+                                <Smartphone className="w-4 h-4" />
+                                <span className="text-sm font-medium">Mobile Preview</span>
+                            </button>
+                        ) : (
+                            <button onClick={() => setViewMode('desktop')} className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors bg-white shadow-sm text-indigo-600">
+                                <Monitor className="w-4 h-4" />
+                                <span className="text-sm font-medium">PC View</span>
+                            </button>
+                        )}
                     </div>
                 </div>
-            )}
 
-            <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 flex justify-center items-center" id="text-editor-container">
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {/* Auto-save status icon */}
+                    {saveStatus === 'saving' && (
+                        <div title="Saving..." className="p-2 text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg animate-pulse flex items-center justify-center shadow-xs">
+                            <LogoLoader className="w-4 h-4 animate-spin text-indigo-600" />
+                        </div>
+                    )}
+                    {saveStatus === 'saved' && (
+                        <div title="Saved" className="p-2 text-emerald-600 bg-emerald-50/80 border border-emerald-100/80 rounded-lg flex items-center justify-center shadow-xs">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        </div>
+                    )}
+                    {saveStatus === 'unsaved' && (
+                        <div title="Unsaved changes" className="p-2 text-amber-600 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center shadow-xs">
+                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                        </div>
+                    )}
+                    {saveStatus === 'error' && (
+                        <button 
+                            onClick={() => performAutoSave()}
+                            className="p-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center justify-center shadow-xs"
+                            title="Retry Save"
+                        >
+                            <AlertCircle className="w-4 h-4" />
+                        </button>
+                    )}
+
+                    <div className="flex items-center gap-1 border-r border-gray-200 pr-3 mr-1">
+                        <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30 transition-colors"><Undo2 className="w-4 h-4" /></button>
+                        <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30 transition-colors"><Redo2 className="w-4 h-4" /></button>
+                    </div>
+                    <button
+                        onClick={() => setShowSettings(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all duration-200 border bg-white hover:bg-indigo-50/70 hover:border-indigo-200 hover:text-indigo-600 text-gray-700 border-gray-200 shadow-xs active:scale-95"
+                    >
+                        <Palette className="w-4 h-4 text-indigo-600" />
+                        Edit Design
+                    </button>
+                </div>
+            </div>
+
+            <div className={`flex-1 flex overflow-hidden transition-all duration-300 ${!(showSettings || selectedElementId) ? 'pt-14' : 'pt-0'}`}>
                 {/* Dynamically load Google Font */}
                 <style dangerouslySetInnerHTML={{
                     __html: `@import url('https://fonts.googleapis.com/css2?family=${(brand.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');`
@@ -1184,36 +1409,102 @@ export default function WebsiteEditorPage() {
 
                 {/* Live Website Canvas */}
                 <div
-                    className={`flex-1 overflow-hidden flex justify-center items-center transition-colors ${viewMode !== 'desktop' ? 'bg-[#2A303C] py-8 px-4' : 'bg-gray-100'} ${isCanvasDragOver ? 'bg-indigo-50/50' : ''}`}
+                    className={`flex-1 overflow-hidden flex flex-col justify-center items-center transition-colors relative ${viewMode !== 'desktop' ? 'bg-[#0b0c10] bg-[radial-gradient(#1e2230_1px,transparent_1px)] [background-size:20px_20px] py-6 px-4' : 'bg-gray-100'} ${isCanvasDragOver ? 'bg-indigo-50/50' : ''}`}
                     onClick={() => setSelectedElementId(null)}
                     onDragOver={(e) => handleDragOver(e)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, sections.length - 1)}
                 >
-                    {/* Device Frame Wrapper */}
+                    {/* Floating Device Info Badge */}
+                    {viewMode === 'mobile' && (
+                        <div className="mb-3 flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[11px] font-medium text-gray-300 shadow-sm pointer-events-none select-none">
+                            <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>iPhone 16 Pro</span>
+                            <span className="text-white/20">•</span>
+                            <span className="text-gray-400 font-mono text-[10px]">393 × 852</span>
+                        </div>
+                    )}
+                    {viewMode === 'tablet' && (
+                        <div className="mb-3 flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[11px] font-medium text-gray-300 shadow-sm pointer-events-none select-none">
+                            <Tablet className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>iPad Pro 11"</span>
+                            <span className="text-white/20">•</span>
+                            <span className="text-gray-400 font-mono text-[10px]">768 × 1024</span>
+                        </div>
+                    )}
+
+                    {/* Device Frame Wrapper (Chassis) */}
                     <div className={`relative transition-all duration-300 flex-shrink-0 ${
                         viewMode === 'mobile' 
-                            ? 'w-[375px] h-[812px] max-h-full bg-white rounded-[3rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2 flex flex-col' 
+                            ? 'w-[393px] h-[835px] max-h-[calc(100vh-120px)] bg-[#16171b] rounded-[54px] p-[10px] shadow-[0_30px_90px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.15),inset_0_0_0_2px_rgba(0,0,0,0.85)] border-[2.5px] border-[#292b34] flex flex-col' 
                             : viewMode === 'tablet' 
-                            ? 'w-[768px] h-[1024px] max-h-full bg-white rounded-[2rem] shadow-[0_0_0_12px_white,0_0_0_14px_#e5e7eb,0_25px_50px_-12px_rgba(0,0,0,0.5)] p-2 flex flex-col' 
+                            ? 'w-[768px] h-[980px] max-h-[calc(100vh-120px)] bg-[#16171b] rounded-[36px] p-3 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.15)] border-[2.5px] border-[#292b34] flex flex-col' 
                             : 'w-full h-full flex flex-col'
                     } ${isCanvasDragOver ? 'ring-4 ring-indigo-500 scale-[0.99] shadow-2xl' : ''}`}>
                         
-                        {/* Mobile/Tablet Notch & Sensors */}
-                        {(viewMode === 'mobile' || viewMode === 'tablet') && (
-                            <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-white rounded-b-2xl flex items-center justify-center gap-2 z-[999]">
-                                <div className="w-2 h-2 rounded-full bg-gray-200"></div>
-                                <div className="w-12 h-2 rounded-full bg-gray-200"></div>
-                            </div>
+                        {/* Physical Hardware Buttons on Phone Chassis */}
+                        {viewMode === 'mobile' && (
+                            <>
+                                {/* Action Button */}
+                                <div className="absolute -left-[4px] top-[110px] w-[4px] h-[28px] bg-[#343744] rounded-l-xs shadow-xs" />
+                                {/* Volume Up */}
+                                <div className="absolute -left-[4px] top-[152px] w-[4px] h-[52px] bg-[#343744] rounded-l-xs shadow-xs" />
+                                {/* Volume Down */}
+                                <div className="absolute -left-[4px] top-[214px] w-[4px] h-[52px] bg-[#343744] rounded-l-xs shadow-xs" />
+                                {/* Power / Side Button */}
+                                <div className="absolute -right-[4px] top-[165px] w-[4px] h-[76px] bg-[#343744] rounded-r-xs shadow-xs" />
+                            </>
+                        )}
+
+                        {/* Tablet Camera dot */}
+                        {viewMode === 'tablet' && (
+                            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-black rounded-full ring-1 ring-white/10 z-50"></div>
+                        )}
+
+                        {/* Mobile Status Bar & Dynamic Island */}
+                        {viewMode === 'mobile' && (
+                            <>
+                                {/* iOS Dynamic Island */}
+                                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[116px] h-[28px] bg-black rounded-full z-50 flex items-center justify-between px-3 pointer-events-none shadow-md shadow-black/60 ring-1 ring-white/10">
+                                    <div className="w-3 h-3 rounded-full bg-[#0a0a0d] ring-1 ring-[#222530] flex items-center justify-center relative overflow-hidden">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#1e293b]/70" />
+                                        <div className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-blue-400/50" />
+                                    </div>
+                                    <div className="w-2.5 h-2.5 rounded-full bg-[#0d0f14]" />
+                                </div>
+
+                                {/* iOS Live Status Bar Overlay */}
+                                <div className="absolute top-0 inset-x-0 h-10 px-7 flex items-center justify-between z-40 pointer-events-none select-none text-[12px] font-semibold text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">
+                                    <span>9:41</span>
+                                    <div className="flex items-center gap-1.5 text-gray-900">
+                                        <div className="flex items-end gap-[1.5px] h-3">
+                                            <div className="w-[3px] h-1.5 bg-current rounded-[0.5px]" />
+                                            <div className="w-[3px] h-2 bg-current rounded-[0.5px]" />
+                                            <div className="w-[3px] h-2.5 bg-current rounded-[0.5px]" />
+                                            <div className="w-[3px] h-3 bg-current rounded-[0.5px]" />
+                                        </div>
+                                        <span className="text-[10px] font-black tracking-tighter">5G</span>
+                                        <div className="flex items-center">
+                                            <div className="w-5 h-2.5 border border-current rounded-[3px] p-[1px] flex items-center">
+                                                <div className="w-3 h-full bg-current rounded-[1px]" />
+                                            </div>
+                                            <div className="w-[1.5px] h-1 bg-current rounded-r-xs" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* iOS Bottom Gesture Home Indicator */}
+                                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-36 h-1 bg-black/40 backdrop-blur-md rounded-full pointer-events-none z-50 shadow-xs" />
+                            </>
                         )}
 
                         <div
-                            className={`bg-white relative overflow-y-auto overflow-x-hidden flex-1 scrollbar-hide ${viewMode !== 'desktop' ? 'rounded-[2.5rem]' : ''}`}
+                            className={`bg-white relative overflow-y-auto overflow-x-hidden flex-1 scrollbar-hide ${viewMode === 'mobile' ? 'rounded-[44px] pt-7' : viewMode === 'tablet' ? 'rounded-[26px]' : ''}`}
                             style={{
                                 fontFamily: `"${brand.fontFamily || 'Inter'}", sans-serif`,
                                 color: brand.textColor || '#111827',
                                 backgroundColor: brand.bgType === 'color' ? (brand.bgValue || brand.secondaryColor) : 'transparent',
-                                backgroundImage: brand.bgType === 'image` && brand.bgValue ? `url(${brand.bgValue})` : `none',
+                                backgroundImage: brand.bgType === 'image' && brand.bgValue ? `url(${brand.bgValue})` : 'none',
                                 backgroundSize: 'cover',
                                 backgroundAttachment: 'fixed',
                                 backgroundPosition: 'center',
@@ -1297,96 +1588,118 @@ export default function WebsiteEditorPage() {
                         </header>
                         )}
 
-                        <main 
-                            className={`w-full flex-1 flex flex-col ${isCanvasDragOver && sections.length > 0 ? 'bg-indigo-50/10' : ''}`}
-                            onDragOver={(e) => { 
-                                e.preventDefault(); 
-                                if (sections.length > 0) setIsCanvasDragOver(true);
-                            }}
-                            onDragLeave={(e) => { 
-                                e.preventDefault(); 
-                                setIsCanvasDragOver(false);
-                            }}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                setIsCanvasDragOver(false);
-                                // Only handle drop on main if we didn't drop on a specific dropzone
-                                if (nativeDragOverIndex === null && sections.length > 0) {
-                                    const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('text/plain');
-                                    if (type) addSection(type, sections.length);
-                                }
-                            }}
-                        >
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndDnd}>
-                            <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
-                                {/* Empty State / First Dropzone */}
-                                {sections.length === 0 ? (
-                                    <div
-                                        className={`w-full min-h-[200px] py-12 transition-all duration-200 flex flex-col items-center justify-center px-4 relative z-50 ${nativeDragOverIndex === 0 || isCanvasDragOver ? 'bg-indigo-50 border-2 border-indigo-400 border-dashed' : 'bg-gray-50/90 border-2 border-dashed border-gray-200 hover:bg-gray-50'}`}
-                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
-                                        onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
-                                        onDrop={(e) => {
-                                            e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(null); setIsCanvasDragOver(false);
-                                            const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('newsectiontype') || e.dataTransfer.getData('text/plain');
-                                            if (type) addSection(type, 0);
-                                        }}
-                                    >
-                                        <div className="w-16 h-16 mb-4 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 shadow-inner">
-                                            <Plus className="w-8 h-8" />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2">Start Building Your Page</h3>
-                                        <p className="text-gray-500 text-center max-w-sm mb-4">
-                                            Drag and drop a section from the sidebar to add your first content block.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div
-                                        className={`w-full transition-all duration-200 flex items-center justify-center -mb-2 relative z-50 ${nativeDragOverIndex === 0 ? 'h-20 bg-indigo-50 border-2 border-indigo-400 border-dashed rounded-lg mb-2 mt-4' : 'h-8 opacity-0 hover:h-8'}`}
-                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
-                                        onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
-                                        onDrop={(e) => {
-                                            e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(null); setIsCanvasDragOver(false);
-                                            const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('newsectiontype') || e.dataTransfer.getData('text/plain');
-                                            if (type) addSection(type, 0);
-                                        }}
-                                    >
-                                        {nativeDragOverIndex === 0 && <span className="text-indigo-400 text-sm font-bold">Drop Section Here</span>}
-                                    </div>
-                                )}
+                        {(() => {
+                            const inFlowSections = sections.filter((s: any) => s.type !== 'floating');
+                            return (
+                                <main 
+                                    className={`w-full flex-1 flex flex-col ${isCanvasDragOver && inFlowSections.length > 0 ? 'bg-indigo-50/10' : ''}`}
+                                    onDragOver={(e) => { 
+                                        e.preventDefault(); 
+                                        if (inFlowSections.length > 0) setIsCanvasDragOver(true);
+                                    }}
+                                    onDragLeave={(e) => { 
+                                        e.preventDefault(); 
+                                        setIsCanvasDragOver(false);
+                                    }}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        setIsCanvasDragOver(false);
+                                        // Only handle drop on main if we didn't drop on a specific dropzone
+                                        if (nativeDragOverIndex === null && inFlowSections.length > 0) {
+                                            const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('text/plain');
+                                            if (type) addSection(type, sections.length);
+                                        }
+                                    }}
+                                >
+                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndDnd}>
+                                    <SortableContext items={inFlowSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+                                        {/* Empty State / First Dropzone */}
+                                        {inFlowSections.length === 0 ? (
+                                            <div
+                                                className={`w-full min-h-[200px] py-12 transition-all duration-200 flex flex-col items-center justify-center px-4 relative z-50 ${nativeDragOverIndex === 0 || isCanvasDragOver ? 'bg-indigo-50 border-2 border-indigo-400 border-dashed' : 'bg-gray-50/90 border-2 border-dashed border-gray-200 hover:bg-gray-50'}`}
+                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
+                                                onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(null); setIsCanvasDragOver(false);
+                                                    const mediaUrl = e.dataTransfer.getData('application/vnd.builder.media.url');
+                                                    const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('newsectiontype') || e.dataTransfer.getData('text/plain');
+                                                    if (mediaUrl) {
+                                                        addSection('media', 0, { imageUrl: mediaUrl });
+                                                    } else if (type) {
+                                                        addSection(type, 0);
+                                                    }
+                                                }}
+                                            >
+                                                <div className="w-16 h-16 mb-4 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 shadow-inner">
+                                                    <Plus className="w-8 h-8" />
+                                                </div>
+                                                <h3 className="text-xl font-bold text-gray-900 mb-2">Start Building Your Page</h3>
+                                                <p className="text-gray-500 text-center max-w-sm mb-4">
+                                                    Drag and drop a section or image from the sidebar to add your first content block.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className={`w-full transition-all duration-200 flex items-center justify-center -mb-2 relative z-50 ${nativeDragOverIndex === 0 ? 'h-20 bg-indigo-50 border-2 border-indigo-400 border-dashed rounded-lg mb-2 mt-4' : 'h-8 opacity-0 hover:h-8'}`}
+                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(0); }}
+                                                onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === 0) setNativeDragOverIndex(null); }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(null); setIsCanvasDragOver(false);
+                                                    const mediaUrl = e.dataTransfer.getData('application/vnd.builder.media.url');
+                                                    const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('newsectiontype') || e.dataTransfer.getData('text/plain');
+                                                    if (mediaUrl) {
+                                                        addSection('media', 0, { imageUrl: mediaUrl });
+                                                    } else if (type) {
+                                                        addSection(type, 0);
+                                                    }
+                                                }}
+                                            >
+                                                {nativeDragOverIndex === 0 && <span className="text-indigo-400 text-sm font-bold">Drop Section or Media Here</span>}
+                                            </div>
+                                        )}
 
-                                {sections.map((section: any, idx: number) => (
-                                    <React.Fragment key={section.id}>
-                                        <BuilderElement
-                                            node={section}
-                                            brand={brand}
-                                            selectedElementId={selectedElementId}
-                                            setSelectedElementId={setSelectedElementId}
-                                            updateElement={updateElement}
-                                            removeElement={removeElement}
-                                            duplicateElement={duplicateElement}
-                                            moveElementUp={moveElementUp}
-                                            moveElementDown={moveElementDown}
-                                            insertElementRelative={insertElementRelative}
-                                            viewMode={viewMode}
-                                        />
-                                        {/* Dropzone after this section */}
-                                        <div
-                                            className={`w-full transition-all duration-200 flex items-center justify-center -my-2 relative z-50 ${nativeDragOverIndex === idx + 1 ? 'h-20 bg-indigo-50 border-2 border-indigo-400 border-dashed rounded-lg my-2' : 'h-8 opacity-0 hover:h-8'}`}
-                                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(idx + 1); }}
-                                            onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === idx + 1) setNativeDragOverIndex(null); }}
-                                            onDrop={(e) => {
-                                                e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(null);
-                                                const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('text/plain');
-                                                if (type) addSection(type, idx + 1);
-                                            }}
-                                        >
-                                            {nativeDragOverIndex === idx + 1 && <span className="text-indigo-400 text-sm font-bold">Drop Section Here</span>}
-                                        </div>
-                                    </React.Fragment>
-                                ))}
-                            </SortableContext>
-                        </DndContext>
-                        </main>
+                                        {inFlowSections.map((section: any, idx: number) => (
+                                            <React.Fragment key={section.id}>
+                                                <BuilderElement
+                                                    node={section}
+                                                    brand={brand}
+                                                    selectedElementId={selectedElementId}
+                                                    setSelectedElementId={setSelectedElementId}
+                                                    updateElement={updateElement}
+                                                    removeElement={removeElement}
+                                                    duplicateElement={duplicateElement}
+                                                    moveElementUp={moveElementUp}
+                                                    moveElementDown={moveElementDown}
+                                                    insertElementRelative={insertElementRelative}
+                                                    viewMode={viewMode}
+                                                />
+                                                {/* Dropzone after this section */}
+                                                <div
+                                                    className={`w-full transition-all duration-200 flex items-center justify-center -my-2 relative z-50 ${nativeDragOverIndex === idx + 1 ? 'h-20 bg-indigo-50 border-2 border-indigo-400 border-dashed rounded-lg my-2' : 'h-8 opacity-0 hover:h-8'}`}
+                                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(idx + 1); }}
+                                                    onDragLeave={(e) => { e.preventDefault(); if (nativeDragOverIndex === idx + 1) setNativeDragOverIndex(null); }}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault(); e.stopPropagation(); setNativeDragOverIndex(null);
+                                                        const mediaUrl = e.dataTransfer.getData('application/vnd.builder.media.url');
+                                                        const type = e.dataTransfer.getData('newSectionType') || e.dataTransfer.getData('text/plain');
+                                                        if (mediaUrl) {
+                                                            addSection('media', idx + 1, { imageUrl: mediaUrl });
+                                                        } else if (type === 'floating') {
+                                                            addSection('floating');
+                                                        } else if (type) {
+                                                            addSection(type, idx + 1);
+                                                        }
+                                                    }}
+                                                >
+                                                    {nativeDragOverIndex === idx + 1 && <span className="text-indigo-400 text-sm font-bold">Drop Section or Media Here</span>}
+                                                </div>
+                                            </React.Fragment>
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
+                                </main>
+                            );
+                        })()}
 
                         {config.footer?.enabled !== false && activePage.showFooter !== false && (
                         <footer
@@ -1468,29 +1781,40 @@ export default function WebsiteEditorPage() {
                         </footer>
                         )}
 
-                        {/* WhatsApp Floating Button */}
-                        {config.whatsapp?.enabled && (
-                            <a
-                                href={config.whatsapp.phone ? `https://wa.me/${config.whatsapp.phone}` : '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`absolute z-50 flex items-center gap-2 shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-transform hover:scale-105 cursor-pointer 
-                                    ${config.whatsapp.position === 'bottom-right' ? 'bottom-6 right-6 w-14 h-14 rounded-full bg-[#25D366] text-white justify-center' :
-                                        config.whatsapp.position === 'middle-right' ? 'top-1/2 -translate-y-1/2 right-0 rounded-l-xl bg-[#25D366] text-white px-4 py-3' :
-                                            'top-1/2 -translate-y-1/2 left-0 rounded-r-xl bg-[#25D366] text-white px-4 py-3'}`}
-                            >
-                                <MessageSquare className={config.whatsapp.position === 'bottom-right' ? "w-7 h-7 fill-current" : "w-6 h-6 fill-current"} />
-                                {config.whatsapp.position !== 'bottom-right' && <span className="font-bold text-sm tracking-wide">WhatsApp</span>}
-                            </a>
-                        )}
                     </div>
+                    {/* End of Scrollable Content Container */}
+
+                    {/* Floating Screen Elements Overlay (Anchored directly to Device Frame / Viewport Screen) */}
+                    {sections.filter((s: any) => s.type === 'floating').map((floatingSec: any) => (
+                        <BuilderElement
+                            key={floatingSec.id}
+                            node={floatingSec}
+                            brand={brand}
+                            selectedElementId={selectedElementId}
+                            setSelectedElementId={setSelectedElementId}
+                            updateElement={updateElement}
+                            removeElement={removeElement}
+                            duplicateElement={duplicateElement}
+                            moveElementUp={moveElementUp}
+                            moveElementDown={moveElementDown}
+                            insertElementRelative={insertElementRelative}
+                            viewMode={viewMode}
+                        />
+                    ))}
+
                     {/* End of Device Frame Wrapper */}
                     </div>
                 </div>
 
-                {/* Right Side Panel – one panel at a time */}
-                {(selectedElementId || showSettings) && (
-                    <div className="w-80 bg-white border-l border-gray-200 flex flex-col overflow-y-auto scrollbar-hide shadow-[-10px_0_30px_rgba(0,0,0,0.05)] z-40 relative">
+                {/* Right Side Panel – Smooth Slide-In / Slide-Out Animation */}
+                <div 
+                    className={`bg-white border-l border-gray-200 flex flex-col overflow-y-auto scrollbar-hide z-40 relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                        (selectedElementId || showSettings)
+                            ? 'w-80 opacity-100 translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.06)]'
+                            : 'w-0 opacity-0 translate-x-12 pointer-events-none border-l-0 overflow-hidden shadow-none'
+                    }`}
+                >
+                    <div className="w-80 min-w-[20rem] flex flex-col h-full">
                         {/* SIDEBAR HEADER ACTIONS */}
                         <div className="flex flex-col gap-2 p-3 border-b border-gray-200 bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
                             <div className="flex items-center justify-between">
@@ -1523,18 +1847,51 @@ export default function WebsiteEditorPage() {
                                          }
                                      }} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors" title="Preview"><Eye className="w-4 h-4" /></button>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={handleDiscard} className="px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">Discard</button>
-                                    <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-md text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5">
-                                        {saving ? <LogoLoader className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                        Save
-                                    </button>
+                                <div className="flex items-center gap-1.5">
+                                     {/* Auto-save status icon */}
+                                     {saveStatus === 'saving' && (
+                                         <div title="Saving..." className="p-1.5 text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg animate-pulse flex items-center justify-center">
+                                             <LogoLoader className="w-4 h-4 animate-spin text-indigo-600" />
+                                         </div>
+                                     )}
+                                     {saveStatus === 'saved' && (
+                                         <div title="Saved" className="p-1.5 text-emerald-600 bg-emerald-50/80 border border-emerald-100/80 rounded-lg flex items-center justify-center">
+                                             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                         </div>
+                                     )}
+                                     {saveStatus === 'unsaved' && (
+                                         <div title="Unsaved changes" className="p-1.5 text-amber-600 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center">
+                                             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                                         </div>
+                                     )}
+                                     {saveStatus === 'error' && (
+                                         <button 
+                                             onClick={() => performAutoSave()}
+                                             className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center justify-center"
+                                             title="Retry Save"
+                                         >
+                                             <AlertCircle className="w-4 h-4" />
+                                         </button>
+                                     )}
+
+                                     <button 
+                                         onClick={() => {
+                                             setSelectedElementId(null);
+                                             setShowSettings(false);
+                                         }} 
+                                         className="group px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-200 hover:border-gray-300 shadow-xs flex items-center gap-1.5 active:scale-95"
+                                         title="Close panel to view full website"
+                                     >
+                                         <X className="w-3.5 h-3.5 text-gray-500 group-hover:rotate-90 transition-transform duration-200" />
+                                         <span>Close</span>
+                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         {selectedElementId ? (
                             <PropertyPanel
+                                website={website}
                                 selectedElement={
                                     selectedElementId === 'header' ? { 
                                         id: 'header', 
@@ -1592,6 +1949,7 @@ export default function WebsiteEditorPage() {
                             />
                         ) : (
                             <SettingsSidebar
+                                website={website}
                                 brand={brand}
                                 updateBrand={updateBrand}
                                 config={config}
@@ -1602,7 +1960,7 @@ export default function WebsiteEditorPage() {
                             />
                         )}
                     </div>
-                )}
+                </div>
             </div>
 
             {/* Custom Delete Modal */}
@@ -1633,19 +1991,6 @@ export default function WebsiteEditorPage() {
                     </div>
                 </div>
             )}
-
-            <ConfirmModal 
-                isOpen={showDiscardModal}
-                title="Discard Changes"
-                message="Are you sure you want to discard your changes? All unsaved work will be lost."
-                confirmText="Discard Changes"
-                cancelText="Cancel"
-                onConfirm={() => {
-                    window.location.reload();
-                }}
-                onCancel={() => setShowDiscardModal(false)}
-                variant="danger"
-            />
 
         </div>
     );

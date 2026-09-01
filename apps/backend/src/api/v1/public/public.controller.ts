@@ -187,8 +187,10 @@ export const resolveDomain = async (req: Request, res: Response, next: NextFunct
         
         const result = await PublicService.resolveDomain(domain);
         res.json(result);
-    } catch (err) {
-        if (err.message === 'Domain not found') return res.status(404).json({ error: err.message });
+    } catch (err: any) {
+        if (err?.message?.includes('Domain not found') || err?.message?.includes('Target resource not found')) {
+            return res.status(404).json({ error: err.message });
+        }
         next(err);
     }
 };
