@@ -6,9 +6,10 @@ import toast from 'react-hot-toast';
 interface Props {
     selectedElement: any;
     onUpdate: (key: string, value: any) => void;
+    website?: any;
 }
 
-export default function ImageProperties({ selectedElement, onUpdate }: Props) {
+export default function ImageProperties({ selectedElement, onUpdate, website }: Props) {
     if (selectedElement.type !== 'media' && selectedElement.type !== 'image') return null;
 
     return (
@@ -21,9 +22,33 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                     <span className="text-[10px] text-gray-400 font-normal">Img max 5MB / Vid max 50MB</span>
                 </label>
                 
-                <label className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:text-indigo-600 hover:border-indigo-500 cursor-pointer transition-colors">
+                <label 
+                    onDragOver={(e) => {
+                        if (e.dataTransfer.types.includes('application/vnd.builder.media.url')) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }}
+                    onDrop={(e) => {
+                        const mediaUrl = e.dataTransfer.getData('application/vnd.builder.media.url');
+                        if (mediaUrl) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const isVid = mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.m3u8') || mediaUrl.endsWith('.webm');
+                            if (isVid) {
+                                onUpdate('data.videoUrl', mediaUrl);
+                                onUpdate('data.imageUrl', '');
+                            } else {
+                                onUpdate('data.imageUrl', mediaUrl);
+                                onUpdate('data.videoUrl', '');
+                            }
+                            toast.success('Media applied');
+                        }
+                    }}
+                    className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:text-indigo-600 hover:border-indigo-500 cursor-pointer transition-colors"
+                >
                     <Upload className="w-6 h-6 mb-2" />
-                    <span className="text-xs font-medium">Click to upload Media</span>
+                    <span className="text-xs font-medium">Click or Drop Media Here</span>
                     <input 
                         type="file" 
                         className="hidden" 
@@ -37,8 +62,8 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                             if (isVideo && file.size > 50 * 1024 * 1024) {
                                 toast.error('Video size must be less than 50MB');
                                 return;
-                            } else if (!isVideo && file.size > 5 * 1024 * 1024) {
-                                toast.error('Image size must be less than 5MB');
+                            } else if (!isVideo && file.size > 10 * 1024 * 1024) {
+                                toast.error('Image size must be less than 10MB');
                                 return;
                             }
 
@@ -59,6 +84,10 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                             try {
                                 const formData = new FormData();
                                 formData.append('file', file);
+                                if (website?.id) {
+                                    formData.append('relatedId', website.id);
+                                    formData.append('relatedModel', 'Website');
+                                }
                                 
                                 if (existingUrl && !existingUrl.startsWith('blob:')) {
                                     formData.append('replaceUrl', existingUrl);
@@ -96,6 +125,27 @@ export default function ImageProperties({ selectedElement, onUpdate }: Props) {
                         }}
                     />
                 </label>
+            </div>
+
+            <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Media URL</label>
+                <input 
+                    type="text" 
+                    value={selectedElement.data?.imageUrl || selectedElement.data?.videoUrl || ''} 
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        const isVid = val.endsWith('.mp4') || val.endsWith('.m3u8') || val.endsWith('.webm');
+                        if (isVid) {
+                            onUpdate('data.videoUrl', val);
+                            onUpdate('data.imageUrl', '');
+                        } else {
+                            onUpdate('data.imageUrl', val);
+                            onUpdate('data.videoUrl', '');
+                        }
+                    }}
+                    placeholder="https://..."
+                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
             </div>
             
 

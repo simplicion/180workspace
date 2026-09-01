@@ -211,7 +211,6 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
         const config = {
             brand: { primaryColor, fontFamily, textColor: '#111827', accentColor: '#10b981', headerFooterTheme: 'light' },
             pages,
-            whatsapp: { enabled: false, phone: '', position: 'bottom-right' },
         };
 
         try {

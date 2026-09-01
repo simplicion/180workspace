@@ -88,6 +88,15 @@ function errorHandler(err: any, req: any, res: Response, next: NextFunction) {
         });
     }
 
+    // Domain or Resource Not Found
+    if (err.message && (err.message.includes('Domain not found') || err.message.includes('Target resource not found'))) {
+        return res.status(404).json({
+            error: err.message,
+            statusCode: 404,
+            correlationId
+        });
+    }
+
     // --- Generic error response ---
     const status = err.status || err.statusCode || 500;
 

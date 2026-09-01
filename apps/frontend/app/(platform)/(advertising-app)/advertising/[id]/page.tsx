@@ -35,7 +35,6 @@ function WebsiteDashboardInner() {
     const [leads, setLeads] = useState<any[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'overview');
     const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
 
     useEffect(() => {
@@ -126,7 +125,8 @@ function WebsiteDashboardInner() {
                             if (website.customDomain) {
                                 return `https://${website.customDomain}`;
                             }
-                            return `http${isLocal ? '' : 's'}://${website.slug}.${rootDomain}`;
+                            const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
+                            return `http${isLocal ? '' : 's'}://${website.slug}.${rootDomain}${isLocal ? port : ''}`;
                         })()}
                         target="_blank"
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all"
@@ -139,44 +139,17 @@ function WebsiteDashboardInner() {
 
             {/* Tabs */}
             <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-2xl w-fit">
-                {['overview', 'leads', 'tools', 'tracking', 'settings'].map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => {
-                            setActiveTab(tab);
-                            // Update URL search param without full reload
-                            const url = new URL(window.location.href);
-                            url.searchParams.set('tab', tab);
-                            window.history.pushState({}, '', url.toString());
-                        }}
-                        className={clsx(
-                            "px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all",
-                            activeTab === tab 
-                                ? "bg-white text-indigo-600 shadow-sm" 
-                                : "text-gray-500 hover:text-gray-700"
-                        )}
-                    >
-                        {tab}
-                    </button>
-                ))}
+                <button
+                    className="px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all bg-white text-indigo-600 shadow-sm"
+                >
+                    overview
+                </button>
             </div>
 
             {/* Tab Content */}
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                >
-                    {activeTab === 'overview' && <OverviewTab website={website} leads={leads} stats={stats} />}
-                    {activeTab === 'leads' && <LeadsTab leads={leads} />}
-                    {activeTab === 'tracking' && <TrackingTab website={website} onUpdate={fetchWebsiteData} />}
-                    {activeTab === 'tools' && <ToolsTab website={website} />}
-                    {activeTab === 'settings' && <SettingsTab website={website} onUpdate={fetchWebsiteData} />}
-                </motion.div>
-            </AnimatePresence>
+            <div className="mt-6">
+                <OverviewTab website={website} leads={leads} stats={stats} />
+            </div>
             
             {website && (
                 <DomainManagerModal 
@@ -230,6 +203,9 @@ function OverviewTab({ website, leads, stats }: { website: any, leads: any[], st
                 </div>
                 <WebsiteCharts chartData={chartData} />
             </div>
+
+            {/* Leads Table */}
+            <LeadsTab leads={leads} />
         </div>
     );
 }

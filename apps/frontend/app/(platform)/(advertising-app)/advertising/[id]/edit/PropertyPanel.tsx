@@ -11,6 +11,7 @@ import ContainerProperties from './_components/properties/ContainerProperties';
 import DividerProperties from './_components/properties/DividerProperties';
 import PaddingControl from './_components/properties/PaddingControl';
 import CodeProperties from './_components/properties/CodeProperties';
+import FloatingProperties from './_components/properties/FloatingProperties';
 
 interface PropertyPanelProps {
     selectedElement: any;
@@ -18,9 +19,10 @@ interface PropertyPanelProps {
     onUpdateBrand?: (key: string, value: any) => void;
     onUpdate: (key: string, value: any) => void;
     onClose: () => void;
+    website?: any;
 }
 
-export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, onUpdate, onClose }: PropertyPanelProps) {
+export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, onUpdate, onClose, website }: PropertyPanelProps) {
     if (!selectedElement) return null;
 
     const isHeader = selectedElement.type === 'header';
@@ -202,10 +204,11 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                 )}
                 
                 {/* Dedicated Property Panels */}
+                <FloatingProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <ContainerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <ButtonProperties selectedElement={selectedElement} onUpdate={onUpdate} brand={brand} />
                 <TextProperties selectedElement={selectedElement} onUpdate={onUpdate} brand={brand} />
-                <ImageProperties selectedElement={selectedElement} onUpdate={onUpdate} />
+                <ImageProperties selectedElement={selectedElement} onUpdate={onUpdate} website={website} />
                 <DividerProperties selectedElement={selectedElement} onUpdate={onUpdate} />
                 <CodeProperties selectedElement={selectedElement} onUpdate={onUpdate} />
 
@@ -268,6 +271,10 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                                         try {
                                             const formData = new FormData();
                                             formData.append('file', file);
+                                            if (website?.id) {
+                                                formData.append('relatedId', website.id);
+                                                formData.append('relatedModel', 'Website');
+                                            }
                                             
                                             const res = await api.post('/api/files/upload', formData, {
                                                 headers: { 'Content-Type': 'multipart/form-data' }

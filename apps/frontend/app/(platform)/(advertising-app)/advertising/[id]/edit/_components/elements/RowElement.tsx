@@ -3,7 +3,7 @@ import { ElementProps } from './BoxElement';
 
 export function RowElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly, viewMode }: ElementProps) {
     const isMobileView = viewMode === 'mobile';
-    const responsiveClass = `w-full max-w-full flex ${isMobileView ? 'flex-col' : 'flex-col md:flex-row'} flex-wrap items-stretch gap-4 md:gap-6 ${wrapperClass}`;
+    const responsiveClass = `w-full max-w-full flex ${isMobileView ? 'flex-col' : 'flex-col md:flex-row'} flex-wrap items-stretch ${wrapperClass}`;
 
     return (
         <div 
