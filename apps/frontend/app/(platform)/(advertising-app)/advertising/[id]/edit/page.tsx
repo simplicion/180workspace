@@ -23,7 +23,6 @@ import { useSettings } from '@/lib/settings-context';
 import PropertyPanel from './PropertyPanel';
 import SettingsSidebar from './SettingsSidebar';
 import TextEditor from './TextEditor';
-
 function EditableText({ tagName: Tag = 'div', value, onChange, placeholder, className, style }: any) {
     const [showToolbar, setShowToolbar] = useState(false);
     const editorRef = useRef<any>(null);
@@ -402,6 +401,11 @@ export default function WebsiteEditorPage() {
 
     // Selected Element & Delete Modal
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+    useEffect(() => {
+        if (selectedElementId) {
+            setIsPanelCollapsed(false);
+        }
+    }, [selectedElementId]);
     const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
 
 
@@ -1338,11 +1342,7 @@ export default function WebsiteEditorPage() {
         <div className="fixed inset-0 z-[9999] bg-gray-100 flex flex-col overflow-hidden">
             {/* Editor Top Head Toolbar - Smooth Slide Down/Up Animation */}
             <div 
-                className={`fixed top-0 inset-x-0 z-50 h-14 bg-white/95 backdrop-blur-md border-b border-gray-200 px-6 flex items-center justify-between shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    !(showSettings || selectedElementId)
-                        ? 'translate-y-0 opacity-100 pointer-events-auto'
-                        : '-translate-y-full opacity-0 pointer-events-none'
-                }`}
+                className={`fixed top-0 inset-x-0 z-50 h-14 bg-white/95 backdrop-blur-md border-b border-gray-200 px-6 flex items-center justify-between shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${((selectedElementId || showSettings) && !isPanelCollapsed) ? '-translate-y-full' : 'translate-y-0'}`}
             >
                 <div className="flex items-center gap-4">
                     <button onClick={() => router.push(`/advertising/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
@@ -1377,6 +1377,25 @@ export default function WebsiteEditorPage() {
                                 <span className="text-sm font-medium">PC View</span>
                             </button>
                         )}
+                        
+                        <button onClick={() => {
+                            let url = '';
+                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
+                            const isLocal = rootDomain.includes('localhost') || !rootDomain;
+                            if (website?.customDomain) {
+                                url = `https://${website.customDomain}`;
+                            } else if (website?.slug) {
+                                const port = isLocal && typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
+                                const domainWithPort = rootDomain ? (rootDomain.includes(':') ? rootDomain : `${rootDomain}${port}`) : `localhost${port || ':3000'}`;
+                                url = `http${isLocal ? '' : 's'}://${website.slug}.${domainWithPort}`;
+                            }
+                            if (url) {
+                                window.open(url, '_blank');
+                            }
+                        }} className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors hover:bg-white hover:shadow-sm text-gray-600 hover:text-indigo-600" title="Preview Live Site">
+                            <Eye className="w-4 h-4" />
+                            <span className="text-sm font-medium">Preview</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1415,11 +1434,24 @@ export default function WebsiteEditorPage() {
                         <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30 transition-colors"><Redo2 className="w-4 h-4" /></button>
                     </div>
                     <button
-                        onClick={() => setShowSettings(true)}
+                        onClick={() => { setShowSettings(true); setIsPanelCollapsed(false); }}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all duration-200 border bg-white hover:bg-indigo-50/70 hover:border-indigo-200 hover:text-indigo-600 text-gray-700 border-gray-200 shadow-xs active:scale-95"
                     >
                         <Palette className="w-4 h-4 text-indigo-600" />
                         Edit Design
+                    </button>
+                    <button 
+                        onClick={performPublish}
+                        disabled={isPublishing}
+                        className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-xs flex items-center gap-2 active:scale-95"
+                        title="Publish current changes to the live website"
+                    >
+                        {isPublishing ? (
+                            <LogoLoader className="w-4 h-4 animate-spin text-white" />
+                        ) : (
+                            <Upload className="w-4 h-4" />
+                        )}
+                        <span>Publish</span>
                     </button>
                 </div>
             </div>
@@ -1922,7 +1954,6 @@ export default function WebsiteEditorPage() {
                                 </div>
                             </div>
                         </div>
-
                         {selectedElementId ? (
                             <PropertyPanel
                                 website={website}
@@ -1982,7 +2013,8 @@ export default function WebsiteEditorPage() {
                                 onClose={() => setSelectedElementId(null)}
                             />
                         ) : (
-                            <SettingsSidebar
+                            <div className="flex-1 flex flex-col min-h-0 bg-white overflow-y-auto overflow-x-hidden pb-12">
+                                <SettingsSidebar
                                 website={website}
                                 brand={brand}
                                 updateBrand={updateBrand}
@@ -1992,6 +2024,7 @@ export default function WebsiteEditorPage() {
                                 changeActivePage={changeActivePage}
                                 sections={sections}
                             />
+                            </div>
                         )}
                     </div>
                 </div>

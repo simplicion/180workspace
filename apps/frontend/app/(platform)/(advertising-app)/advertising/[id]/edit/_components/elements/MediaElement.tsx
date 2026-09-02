@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { ElementProps } from './BoxElement';
 import Hls from 'hls.js';
+import { motion } from 'framer-motion';
 
-export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, viewMode }: ElementProps) {
+export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, viewMode, animationProps, animKey }: ElementProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const mediaUrl = node.data?.imageUrl || node.data?.videoUrl;
     const isVideo = mediaUrl && (mediaUrl.endsWith('.m3u8') || mediaUrl.endsWith('.mp4'));
@@ -22,13 +23,18 @@ export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClic
         }
     }, [mediaUrl, isVideo]);
 
+    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
+    const MediaContainerTag = hasAnimation ? motion.div : 'div';
+
     return (
-        <div 
-            ref={setNodeRef} 
+        <MediaContainerTag 
+            key={animKey}
+            ref={setNodeRef as any} 
             data-element-type="media"
             style={style} 
             onClick={isReadOnly ? undefined : handleClick} 
             className={`w-full max-w-full overflow-hidden ${wrapperClass}`}
+            {...(hasAnimation ? animationProps : {})}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
@@ -51,6 +57,6 @@ export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClic
                     <span className="text-gray-400 text-sm font-bold">Media (Upload Image/Video)</span>
                 </div>
             )}
-        </div>
+        </MediaContainerTag>
     );
 }

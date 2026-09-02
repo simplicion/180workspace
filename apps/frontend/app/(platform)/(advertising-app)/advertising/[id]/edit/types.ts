@@ -6,6 +6,11 @@ export interface ElementNode {
     data: any;
     style: any;
     animation?: string;
+    animationConfig?: {
+        entrance?: { preset: string; duration?: number; delay?: number; easing?: string };
+        hover?: { preset: string; duration?: number; delay?: number; easing?: string };
+        loop?: { preset: string; duration?: number; delay?: number; easing?: string };
+    };
     children?: ElementNode[];
     name?: string;
 }

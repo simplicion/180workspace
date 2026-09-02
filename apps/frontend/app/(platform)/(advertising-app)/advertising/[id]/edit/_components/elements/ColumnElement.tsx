@@ -1,18 +1,22 @@
 import React from 'react';
 import { ElementProps } from './BoxElement';
+import { motion } from 'framer-motion';
 
-export function ColumnElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly, viewMode }: ElementProps) {
+export function ColumnElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly, viewMode, animationProps, animKey }: ElementProps) {
     const isMobileView = viewMode === 'mobile';
-    const responsiveClass = `w-full ${isMobileView ? 'w-full' : 'md:flex-1'} max-w-full flex flex-col box-border ${wrapperClass}`;
-
+    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
+    const ColTag = hasAnimation ? motion.div : 'div';
+    
     return (
-        <div 
-            ref={setNodeRef} 
+        <ColTag 
+            key={animKey}
+            ref={setNodeRef as any} 
             data-element-type="column"
             style={style} 
             onClick={isReadOnly ? undefined : handleClick} 
-            className={responsiveClass} 
+            className={`flex-1 flex flex-col ${isMobileView ? 'w-full !max-w-full' : ''} ${wrapperClass}`} 
             {...(isReadOnly ? {} : dragHandlers)}
+            {...(hasAnimation ? animationProps : {})}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
@@ -23,6 +27,6 @@ export function ColumnElement({ node, setNodeRef, style, wrapperClass, handleCli
                     Empty Column - Drop items here
                 </div>
             )}
-        </div>
+        </ColTag>
     );
 }

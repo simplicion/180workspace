@@ -2,6 +2,7 @@
 import React from 'react';
 import { ElementProps } from './BoxElement';
 import { Anchor, MessageSquare, ExternalLink } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function FloatingElement({
     node,
@@ -14,9 +15,13 @@ export function FloatingElement({
     renderChildren,
     dragHandlers = {},
     isReadOnly,
-    viewMode
+    viewMode,
+    animationProps,
+    animKey
 }: ElementProps) {
     const isMobileView = viewMode === 'mobile';
+    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
+    const FloatingTag = hasAnimation ? motion.div : 'div';
     
     // Position type preset (default: 'bottom-right')
     const position = node.data?.position || 'bottom-right';
@@ -125,11 +130,12 @@ export function FloatingElement({
         : 'shadow-xl';
 
     const content = (
-        <div
-            ref={setNodeRef}
+        <FloatingTag
+            key={animKey}
+            ref={setNodeRef as any}
             data-element-type="floating"
             style={combinedStyle}
-            onClick={isReadOnly ? (e) => {
+            onClick={isReadOnly ? (e: any) => {
                 if (linkUrl) {
                     // Navigate or trigger link
                     if (openInNewTab) {
@@ -141,6 +147,7 @@ export function FloatingElement({
             } : handleClick}
             className={`transition-all duration-200 ${editorGuideClass} ${linkUrl && isReadOnly ? 'cursor-pointer hover:scale-105 active:scale-95' : ''} ${wrapperClass}`}
             {...(isReadOnly ? {} : dragHandlers)}
+            {...(hasAnimation ? animationProps : {})}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
@@ -161,7 +168,7 @@ export function FloatingElement({
                     <span>Drop content here</span>
                 </div>
             )}
-        </div>
+        </FloatingTag>
     );
 
     return content;

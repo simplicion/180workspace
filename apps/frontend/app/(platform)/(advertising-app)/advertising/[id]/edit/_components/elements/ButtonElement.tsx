@@ -1,7 +1,8 @@
 import React from 'react';
 import { ElementProps } from './BoxElement';
+import { motion } from 'framer-motion';
 
-export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, viewMode }: ElementProps) {
+export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, viewMode, animationProps, animKey }: ElementProps) {
     const wrapperStyle = {
         transform: style.transform,
         transition: style.transition,
@@ -16,13 +17,18 @@ export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, ha
         maxWidth: '100%'
     };
 
+    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
+    const ButtonContainerTag = hasAnimation ? motion.div : 'div';
+
     return (
-        <div 
-            ref={setNodeRef} 
+        <ButtonContainerTag 
+            key={animKey}
+            ref={setNodeRef as any} 
             data-element-type="button"
             style={wrapperStyle} 
             onClick={isReadOnly ? undefined : handleClick} 
             className={`relative max-w-full ${wrapperClass} text-center`}
+            {...(hasAnimation ? animationProps : {})}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
@@ -58,6 +64,6 @@ export function ButtonElement({ node, brand, setNodeRef, style, wrapperClass, ha
             >
                 {node.data?.content || 'Click Me'}
             </a>
-        </div>
+        </ButtonContainerTag>
     );
 }
