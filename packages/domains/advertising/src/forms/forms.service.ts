@@ -467,6 +467,99 @@ export class FormsService {
     return true;
   }
 
+  /**
+   * Delete specific submissions by ID (or single submission), cascading deletion to linked CRM Leads, SalesActivity, and Client prospects.
+   */
+  static async deleteSubmissions(submissionIds: string[]) {
+    if (!submissionIds || submissionIds.length === 0) return { deletedCount: 0, deletedLeadsCount: 0 };
+
+    // 1. Fetch target submissions to find linked leadId and clientId
+    const submissions = await prisma.formSubmission.findMany({
+      where: { id: { in: submissionIds } },
+      select: { id: true, leadId: true, clientId: true, formId: true }
+    });
+
+    if (submissions.length === 0) return { deletedCount: 0, deletedLeadsCount: 0 };
+
+    const leadIds = submissions.map(s => s.leadId).filter((id): id is string => Boolean(id));
+    const clientIds = submissions.map(s => s.clientId).filter((id): id is string => Boolean(id));
+    const subIds = submissions.map(s => s.id);
+
+    let deletedLeadsCount = 0;
+
+    // 2. Delete linked CRM Leads & Sales Activities
+    if (leadIds.length > 0) {
+      // Delete SalesActivity entries linked to these leads or prospects
+      await prisma.salesActivity.deleteMany({
+        where: {
+          OR: [
+            { leadId: { in: leadIds } },
+            { relatedClientId: { in: clientIds } }
+          ]
+        }
+      });
+
+      // Delete Lead entries from Lead Pipeline / CRM
+      const leadDeleteResult = await prisma.lead.deleteMany({
+        where: { id: { in: leadIds } }
+      });
+      deletedLeadsCount = leadDeleteResult.count;
+    }
+
+    // 3. Delete orphaned Prospect Clients (if any were created solely for these leads/submissions)
+    if (clientIds.length > 0) {
+      for (const clientId of clientIds) {
+        const remainingSubs = await prisma.formSubmission.count({ where: { clientId, id: { notIn: subIds } } });
+        if (remainingSubs === 0) {
+          await prisma.client.deleteMany({
+            where: { id: clientId, clientType: 'PROSPECT' }
+          }).catch(() => {});
+        }
+      }
+    }
+
+    // 4. Delete FormSubmissions and their values
+    await prisma.formSubmissionValue.deleteMany({
+      where: { submissionId: { in: subIds } }
+    });
+
+    const subDeleteResult = await prisma.formSubmission.deleteMany({
+      where: { id: { in: subIds } }
+    });
+
+    return {
+      deletedCount: subDeleteResult.count,
+      deletedLeadsCount
+    };
+  }
+
+  static async deleteSubmission(submissionId: string) {
+    const res = await this.deleteSubmissions([submissionId]);
+    if (res.deletedCount === 0) {
+      throw new Error('Submission not found');
+    }
+    return res;
+  }
+
+  static async deleteAllSubmissions(formId: string) {
+    const form = await prisma.form.findFirst({
+      where: { id: formId }
+    });
+
+    if (!form) {
+      throw new Error('No form found with that ID');
+    }
+
+    const allSubs = await prisma.formSubmission.findMany({
+      where: { formId: form.id },
+      select: { id: true }
+    });
+
+    if (allSubs.length === 0) return { deletedCount: 0, deletedLeadsCount: 0 };
+
+    return await this.deleteSubmissions(allSubs.map(s => s.id));
+  }
+
   static async getFormSubmissions(id: string) {
     const form = await prisma.form.findFirst({
       where: { id }
