@@ -835,7 +835,7 @@ export class FormsService {
             value: Number(dealValue) || 0,
             assignedSalesRepId: ownerId || null,
             notes: `Auto-created from Form: ${form.title} (${form.formCode || form.id})\n\nSubmitted Data:\n${formattedSummaryLines.join('\n')}`,
-            followUpDate: new Date(Date.now() + 24 * 60 * 60 * 1000)
+            followUpDate: new Date()
           }
         });
 

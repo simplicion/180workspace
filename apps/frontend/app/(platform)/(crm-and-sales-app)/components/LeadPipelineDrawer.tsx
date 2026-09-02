@@ -70,6 +70,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         if (existingClient) {
             setFormData(prev => ({
                 ...prev,
+                title: (!prev.title || prev.title === prev.contactName) && !isDealContext ? value : prev.title,
                 contactName: value,
                 contactEmail: existingClient.email || prev.contactEmail,
                 contactPhone: existingClient.phone || prev.contactPhone,
@@ -78,7 +79,12 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 accountId: existingClient.id
             }));
         } else {
-            setFormData(prev => ({ ...prev, contactName: value, accountId: '' }));
+            setFormData(prev => ({ 
+                ...prev, 
+                title: (!prev.title || prev.title === prev.contactName) && !isDealContext ? value : prev.title,
+                contactName: value, 
+                accountId: '' 
+            }));
         }
     };
 
@@ -110,7 +116,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     contactPhone: editingLeadPipeline.client?.phone || editingLeadPipeline.contactPhone || editingLeadPipeline.phone || '',
                     companyName: editingLeadPipeline.client?.companyName || editingLeadPipeline.companyName || editingLeadPipeline.company || '',
                     industry: editingLeadPipeline.client?.industry || editingLeadPipeline.industry || '',
-                    source: editingLeadPipeline.source || '',
+                    source: editingLeadPipeline.source || 'Outbound',
                     currency: editingLeadPipeline.currency || company?.currency || 'USD',
                     owner: editingLeadPipeline.ownerId || editingLeadPipeline.assignedSalesRepId || '',
                     followUpDate: editingLeadPipeline.followUpDate ? format(parseISO(editingLeadPipeline.followUpDate), "yyyy-MM-dd'T'HH:mm") : currentDatetime,
@@ -132,7 +138,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     contactPhone: '',
                     companyName: '',
                     industry: '',
-                    source: '',
+                    source: 'Outbound',
                     currency: company?.currency || 'USD',
                     owner: '',
                     followUpDate: currentDatetime,
@@ -176,13 +182,28 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         e.preventDefault();
         
         // Mandatory fields validation
-        if (!formData.title || !formData.contactName || !formData.source || !formData.industry || !formData.owner || !formData.followUpDate) {
-            return toast.error('Please fill in all required fields');
+        if (isDealContext) {
+            if (!formData.title || !formData.contactName || !formData.source || !formData.owner || !formData.followUpDate) {
+                return toast.error('Please fill in all required fields');
+            }
+        } else {
+            if (!formData.contactName) {
+                return toast.error('Client Name is required');
+            }
+            if (!formData.source) {
+                return toast.error('Source is required');
+            }
+            if (!formData.owner) {
+                return toast.error('Assign To is required');
+            }
+            if (!formData.followUpDate) {
+                return toast.error('Follow-up Date & Time is required');
+            }
         }
 
         // Contact info validation (either email or phone)
         if (!formData.contactEmail && !formData.contactPhone) {
-            return toast.error('Either Email or Phone Number is required');
+            return toast.error('Either Phone Number or Email Address is required');
         }
 
         if (formData.type === 'lead pipeline' && !formData.accountId) {
@@ -190,7 +211,8 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
 
         const tags = formData.type === 'Lead' ? ['Lead'] : ['lead pipeline'];
-        const submissionData: any = { ...formData, tags, pipelineType: pipelineType || 'DEAL' };
+        const resolvedTitle = formData.title || formData.contactName || 'New Lead';
+        const submissionData: any = { ...formData, title: resolvedTitle, tags, pipelineType: pipelineType || 'DEAL' };
         if (submissionData.accountId) {
             submissionData.clientId = submissionData.accountId;
         }
@@ -201,7 +223,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         const isDeal = submissionData.pipelineType === 'DEAL';
         if (!isDeal) {
             // Map title/contactName to 'name' for Prisma Lead model
-            submissionData.name = formData.title || formData.contactName;
+            submissionData.name = resolvedTitle;
         }
         
         setSaving(true);
@@ -311,13 +333,13 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             }
         >
             <div>
-                <label htmlFor="dealTitle" className="label">{isDealContext ? 'Deal Title *' : 'Lead Name *'}</label>
+                <label htmlFor="dealTitle" className="label">{isDealContext ? 'Deal Title *' : 'Lead Name (Auto-filled from Client Name)'}</label>
                 <div className="relative">
                     <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
                     <input
                         id="dealTitle"
-                        type="text" required
-                        placeholder="e.g., Enterprise Software License"
+                        type="text"
+                        placeholder={isDealContext ? "e.g., Enterprise Software License" : (formData.contactName || "e.g., John Doe")}
                         className="input pl-9"
                         value={formData.title}
                         onChange={e => setFormData({ ...formData, title: e.target.value })}
@@ -343,10 +365,6 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 <div>
                     <label htmlFor="companyName" className="label">Company Name</label>
                     <input id="companyName" type="text" placeholder="Acme Corp" className="input" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
-                </div>
-                <div>
-                    <label htmlFor="contactEmail" className="label">Email Address {formData.contactPhone ? '' : '*'}</label>
-                    <input id="contactEmail" type="email" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address" placeholder="john@example.com" className="input" value={formData.contactEmail} onChange={e => setFormData({ ...formData, contactEmail: e.target.value })} />
                 </div>
                 <div>
                     <label htmlFor="contactPhone" className="label">Phone Number {formData.contactEmail ? '' : '*'}</label>
@@ -375,6 +393,10 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     )}
                 </div>
                 <div>
+                    <label htmlFor="contactEmail" className="label">Email Address {formData.contactPhone ? '' : '*'}</label>
+                    <input id="contactEmail" type="email" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address" placeholder="john@example.com" className="input" value={formData.contactEmail} onChange={e => setFormData({ ...formData, contactEmail: e.target.value })} />
+                </div>
+                <div>
                     <label htmlFor="source" className="label">Source *</label>
                     <CustomSelect 
                         id="source" 
@@ -382,16 +404,16 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         required 
                         value={formData.source} 
                         onChange={(e: any) => setFormData({ ...formData, source: e.target.value })}
-                        options={['Inbound', 'Outbound', 'Referral', 'Event']}
+                        options={['Outbound', 'Inbound', 'Referral', 'Event']}
                         creatable={true}
                     />
                 </div>
                 <div>
-                    <label htmlFor="industry" className="label">Industry *</label>
+                    <label htmlFor="industry" className="label">Industry</label>
                     <CustomSelect 
                         id="industry" 
                         className="select" 
-                        required 
+                        placeholder="Select Industry (Optional)"
                         value={formData.industry} 
                         onChange={(e: any) => setFormData({ ...formData, industry: e.target.value })}
                         options={industriesList || []}

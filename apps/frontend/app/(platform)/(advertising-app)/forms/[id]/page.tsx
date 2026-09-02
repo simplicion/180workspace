@@ -266,16 +266,22 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
     const label = (field.label || '').toLowerCase().trim();
     const type = field.type;
 
-    return (
-      mapping === 'name' ||
-      mapping === 'phone' ||
-      mapping === 'email' ||
-      type === 'PHONE' ||
-      type === 'EMAIL' ||
-      /^(full\s*name|name|client\s*name)$/i.test(label) ||
-      /^(phone|phone\s*number|mobile)$/i.test(label) ||
-      /^(email|email\s*address|work\s*email)$/i.test(label)
-    );
+    // Full Name / Client Name is always mandatory
+    if (mapping === 'name' || /^(full\s*name|name|client\s*name)$/i.test(label)) {
+      return true;
+    }
+
+    const hasPhoneField = fields.some(f => (f.mapping || '').toLowerCase() === 'phone' || f.type === 'PHONE' || /^(phone|phone\s*number|mobile)$/i.test((f.label || '').trim()));
+    const isPhone = mapping === 'phone' || type === 'PHONE' || /^(phone|phone\s*number|mobile)$/i.test(label);
+    const isEmail = mapping === 'email' || type === 'EMAIL' || /^(email|email\s*address|work\s*email)$/i.test(label);
+
+    // Phone is the default mandatory contact field
+    if (isPhone) return true;
+
+    // If form has no Phone field, Email becomes mandatory
+    if (isEmail && !hasPhoneField) return true;
+
+    return false;
   };
 
   const handleToggleSalesActivity = (checked: boolean) => {
@@ -306,7 +312,6 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
         let updated = [...prev];
         const hasName = updated.some(f => (f.mapping || '').toLowerCase() === 'name' || (f.type === 'TEXT' && /^(full\s*name|name|client\s*name)$/i.test((f.label || '').trim())));
         const hasPhone = updated.some(f => (f.mapping || '').toLowerCase() === 'phone' || f.type === 'PHONE' || /^(phone|phone\s*number|mobile)$/i.test((f.label || '').trim()));
-        const hasEmail = updated.some(f => (f.mapping || '').toLowerCase() === 'email' || f.type === 'EMAIL' || /^(email|email\s*address|work\s*email)$/i.test((f.label || '').trim()));
 
         const firstPageId = pages[0]?.id || 'page_1';
 
@@ -338,41 +343,18 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
           });
         }
 
-        if (!hasEmail) {
-          const phoneIdx = updated.findIndex(f => (f.mapping || '').toLowerCase() === 'phone' || f.type === 'PHONE' || /phone/i.test(f.label || ''));
-          const insertIdx = phoneIdx >= 0 ? phoneIdx + 1 : updated.length;
-          updated.splice(insertIdx, 0, {
-            name: 'email',
-            label: 'Email Address',
-            type: 'EMAIL',
-            required: true,
-            placeholder: 'you@company.com',
-            order: insertIdx,
-            mapping: 'email',
-            pageId: firstPageId
-          });
-        }
-
         return updated.map((f, idx) => {
-          const isMandatory = (
-            (f.mapping || '').toLowerCase() === 'name' ||
-            (f.mapping || '').toLowerCase() === 'phone' ||
-            (f.mapping || '').toLowerCase() === 'email' ||
-            f.type === 'PHONE' ||
-            f.type === 'EMAIL' ||
-            /^(full\s*name|name|client\s*name)$/i.test((f.label || '').trim()) ||
-            /^(phone|phone\s*number|mobile)$/i.test((f.label || '').trim()) ||
-            /^(email|email\s*address|work\s*email)$/i.test((f.label || '').trim())
-          );
+          const isName = (f.mapping || '').toLowerCase() === 'name' || /^(full\s*name|name|client\s*name)$/i.test((f.label || '').trim());
+          const isPhone = (f.mapping || '').toLowerCase() === 'phone' || f.type === 'PHONE' || /^(phone|phone\s*number|mobile)$/i.test((f.label || '').trim());
           return {
             ...f,
             order: idx,
-            required: isMandatory ? true : f.required
+            required: (isName || isPhone) ? true : f.required
           };
         });
       });
 
-      toast.success('Lead Pipeline Engine enabled! Mandatory fields (Full Name, Phone Number, Email) have been added and locked.');
+      toast.success('Lead Pipeline Engine enabled! Contact fields (Full Name, Phone Number) are configured.');
     } else {
       toast('Lead Pipeline sync disabled');
     }
