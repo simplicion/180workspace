@@ -66,9 +66,17 @@ const nextConfig = {
     async headers() {
         return [
             {
-                source: '/((?!r/|shield/|tag/|evaluate/).*)',
+                source: '/((?!r/|shield/|tag/|evaluate/|f/).*)',
                 headers: [
                     { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+                    { key: 'X-Content-Type-Options', value: 'nosniff' },
+                    { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+                ],
+            },
+            {
+                source: '/f/:slug*',
+                headers: [
+                    { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
                     { key: 'X-Content-Type-Options', value: 'nosniff' },
                     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
                 ],

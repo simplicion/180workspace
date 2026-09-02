@@ -826,7 +826,7 @@ export function BuilderElement({
                         {...dragHandlers}
                     >
                         {!isReadOnly && renderControls()}
-                        <CodeElement element={node} />
+                        <CodeElement element={node} isReadOnly={isReadOnly} />
                     </div>
                 );
             default: return null;

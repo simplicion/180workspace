@@ -2,7 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
-import { Plus, Globe, MousePointer2, Users, Search, Filter, Settings } from 'lucide-react';
+import { Plus, Globe, Search, Filter, Settings } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -34,9 +34,6 @@ export default function AdvertisingPage() {
         }
     };
 
-    const totalLeads = websites.reduce((acc, w) => acc + (w.stats?.leads || 0), 0);
-    const totalVisits = websites.reduce((acc, w) => acc + (w.stats?.views || 0), 0);
-
     const filteredWebsites = websites.filter(w => 
         w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         w.slug.toLowerCase().includes(searchQuery.toLowerCase())
@@ -54,7 +51,10 @@ export default function AdvertisingPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Ad Websites</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        Ad Websites 
+                        <span className="text-sm font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">{websites.length}</span>
+                    </h1>
                     <p className="text-sm text-gray-500 mt-1">Manage your marketing landing pages and track performance.</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -66,37 +66,6 @@ export default function AdvertisingPage() {
                         <Plus className="w-4 h-4" />
                         Create Website
                     </button>
-                </div>
-            </div>
-
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
-                        <Globe className="w-6 h-6 text-indigo-600" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Active Sites</p>
-                        <p className="text-2xl font-bold text-gray-900">{websites.filter(w => w.status === 'active').length}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
-                        <Users className="w-6 h-6 text-emerald-600" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Leads</p>
-                        <p className="text-2xl font-bold text-gray-900">{totalLeads}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
-                        <MousePointer2 className="w-6 h-6 text-amber-600" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Visits</p>
-                        <p className="text-2xl font-bold text-gray-900">{totalVisits}</p>
-                    </div>
                 </div>
             </div>
 

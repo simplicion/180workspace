@@ -11,7 +11,7 @@ import { getDefaultElementForType } from './ElementFactory';
 
 import {
     LayoutTemplate, Settings, Save, Eye, ArrowLeft, Monitor, Tablet, Smartphone,
-    Search, RefreshCw, X, ChevronDown, Check, MousePointer2, Image as ImageIcon,
+    Search, RefreshCw, X, ChevronDown, ChevronLeft, ChevronRight, Check, MousePointer2, Image as ImageIcon,
     Type, Layout, Palette, MapPin, Phone, Mail, Sparkles, ShieldCheck, User,
     CheckCircle2, Plus, Trash2, ArrowUp, ArrowDown, MessageSquare, List,
     GripVertical, Undo2, Redo2, RotateCcw, Video, Upload, AlertCircle
@@ -164,8 +164,8 @@ function ImageEditor({ imageUrl, onChange, className = '', iconOnly = false, pri
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            if (res.data.url || res.data.fileUrl) {
-                const url = res.data.url || res.data.fileUrl;
+            const url = res.data?.url || res.data?.fileUrl || res.data?.data?.url || res.data?.data?.fileUrl;
+            if (url) {
                 onChange(url);
             } else {
                 toast.error('Upload failed');
@@ -360,6 +360,7 @@ export default function WebsiteEditorPage() {
     
     // Auto-save State & Refs
     const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+    const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
     const lastSavedConfigRef = useRef<string>('');
     const lastSavedNameRef = useRef<string>('');
     const autoSaveTimeoutRef = useRef<any>(null);
@@ -471,6 +472,8 @@ export default function WebsiteEditorPage() {
         setDraggedIdx(null);
         setDragOverIdx(null);
     };
+
+
 
     useEffect(() => {
         fetchWebsite();
@@ -609,6 +612,26 @@ export default function WebsiteEditorPage() {
                 pendingSaveRef.current = false;
                 performAutoSave();
             }
+        }
+    };
+
+    const [isPublishing, setIsPublishing] = useState(false);
+    const performPublish = async () => {
+        if (!config || !id) return;
+        setIsPublishing(true);
+        try {
+            await api.patch(`/api/websites/${id}`, { 
+                name: website?.name || '', 
+                config: config,
+                publishedConfig: config,
+                isPublished: true
+            });
+            toast.success('Website published successfully!');
+        } catch (err) {
+            console.error('Publish error:', err);
+            toast.error('Failed to publish website');
+        } finally {
+            setIsPublishing(false);
         }
     };
 
@@ -1503,8 +1526,8 @@ export default function WebsiteEditorPage() {
                             style={{
                                 fontFamily: `"${brand.fontFamily || 'Inter'}", sans-serif`,
                                 color: brand.textColor || '#111827',
-                                backgroundColor: brand.bgType === 'color' ? (brand.bgValue || brand.secondaryColor) : 'transparent',
-                                backgroundImage: brand.bgType === 'image' && brand.bgValue ? `url(${brand.bgValue})` : 'none',
+                                backgroundColor: (activePage?.bgType === 'image' ? 'transparent' : (activePage?.bgValue || brand.bgValue || '#ffffff')),
+                                backgroundImage: (activePage?.bgType === 'image' && activePage?.bgValue) ? `url(${activePage.bgValue})` : (brand.bgType === 'image' && brand.bgValue ? `url(${brand.bgValue})` : 'none'),
                                 backgroundSize: 'cover',
                                 backgroundAttachment: 'fixed',
                                 backgroundPosition: 'center',
@@ -1808,13 +1831,22 @@ export default function WebsiteEditorPage() {
 
                 {/* Right Side Panel – Smooth Slide-In / Slide-Out Animation */}
                 <div 
-                    className={`bg-white border-l border-gray-200 flex flex-col overflow-y-auto scrollbar-hide z-40 relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    className={`bg-white border-l border-gray-200 flex flex-col overflow-visible z-40 relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                         (selectedElementId || showSettings)
-                            ? 'w-80 opacity-100 translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.06)]'
+                            ? (isPanelCollapsed ? 'w-0 border-l-0 translate-x-0' : 'w-80 translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.06)]')
                             : 'w-0 opacity-0 translate-x-12 pointer-events-none border-l-0 overflow-hidden shadow-none'
                     }`}
                 >
-                    <div className="w-80 min-w-[20rem] flex flex-col h-full">
+                    {(selectedElementId || showSettings) && (
+                        <button
+                            onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
+                            className={`absolute top-1/2 -translate-y-1/2 w-5 h-16 bg-white border border-gray-200 rounded-l-md flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 shadow-[-2px_0_8px_rgba(0,0,0,0.05)] z-50 transition-all duration-300 ${isPanelCollapsed ? '-left-5 border-r-0' : '-left-5 border-r-0'}`}
+                            title={isPanelCollapsed ? "Expand panel" : "Collapse panel"}
+                        >
+                            {isPanelCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </button>
+                    )}
+                    <div className="w-80 min-w-[20rem] flex flex-col h-full overflow-hidden">
                         {/* SIDEBAR HEADER ACTIONS */}
                         <div className="flex flex-col gap-2 p-3 border-b border-gray-200 bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
                             <div className="flex items-center justify-between">
@@ -1850,12 +1882,12 @@ export default function WebsiteEditorPage() {
                                 <div className="flex items-center gap-1.5">
                                      {/* Auto-save status icon */}
                                      {saveStatus === 'saving' && (
-                                         <div title="Saving..." className="p-1.5 text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg animate-pulse flex items-center justify-center">
+                                         <div title="Saving draft..." className="p-1.5 text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg animate-pulse flex items-center justify-center">
                                              <LogoLoader className="w-4 h-4 animate-spin text-indigo-600" />
                                          </div>
                                      )}
                                      {saveStatus === 'saved' && (
-                                         <div title="Saved" className="p-1.5 text-emerald-600 bg-emerald-50/80 border border-emerald-100/80 rounded-lg flex items-center justify-center">
+                                         <div title="Draft saved" className="p-1.5 text-emerald-600 bg-emerald-50/80 border border-emerald-100/80 rounded-lg flex items-center justify-center">
                                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                                          </div>
                                      )}
@@ -1875,15 +1907,17 @@ export default function WebsiteEditorPage() {
                                      )}
 
                                      <button 
-                                         onClick={() => {
-                                             setSelectedElementId(null);
-                                             setShowSettings(false);
-                                         }} 
-                                         className="group px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-200 hover:border-gray-300 shadow-xs flex items-center gap-1.5 active:scale-95"
-                                         title="Close panel to view full website"
+                                         onClick={performPublish}
+                                         disabled={isPublishing}
+                                         className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-xs flex items-center gap-1.5 active:scale-95"
+                                         title="Publish current changes to the live website"
                                      >
-                                         <X className="w-3.5 h-3.5 text-gray-500 group-hover:rotate-90 transition-transform duration-200" />
-                                         <span>Close</span>
+                                         {isPublishing ? (
+                                             <LogoLoader className="w-3.5 h-3.5 animate-spin text-white" />
+                                         ) : (
+                                             <Upload className="w-3.5 h-3.5" />
+                                         )}
+                                         <span>Publish</span>
                                      </button>
                                 </div>
                             </div>

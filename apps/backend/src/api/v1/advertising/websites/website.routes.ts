@@ -11,7 +11,7 @@ router.patch('/:id', websiteController.updateWebsite);
 router.delete('/:id', websiteController.deleteWebsite);
 
 router.get('/:id/stats', websiteController.getWebsiteStats);
-router.get('/:id/leads', websiteController.getWebsiteLeads);
+
 router.get('/:id/pixels', websiteController.getWebsitePixels);
 router.post('/:id/pixels', websiteController.createWebsitePixel);
 

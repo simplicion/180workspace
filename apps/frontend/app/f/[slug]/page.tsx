@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import axios from 'axios';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Upload, Star, Calendar, Hash, FileText, ArrowRight, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { LogoLoader } from "@workspace/ui";
 
 export default function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -13,8 +14,21 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
   const [error, setError] = useState('');
   
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [fileData, setFileData] = useState<Record<string, { name: string; url: string; size?: number }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [successInfo, setSuccessInfo] = useState<{ message?: string; redirectUrl?: string }>({});
+  
+  // Multi-step wizard state
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // ─── Bulletproof iframe auto-resize engine ───────────────────────────────
+  // Ensures the iframe always expands to the full form height, never scrolls internally.
+  // Key: measure containerRef (stable content) — NOT document.body (grows with iframe).
+  const lastSentHeight = useRef(0);
+  const resizeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -27,9 +41,116 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
         setIsLoading(false);
       }
     };
-    
     fetchForm();
   }, [slug]);
+
+  const sendResizeMessage = () => {
+    if (typeof window === 'undefined' || !window.parent || window.parent === window) return;
+    
+    // Measure the true document height to ensure no scrollbars
+    // We removed the +16 padding from the parent listeners so this is now safe from loops
+    const height = Math.max(
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight,
+      containerRef.current?.scrollHeight || 0
+    );
+
+    // Only send if height actually changed (avoid feedback loops)
+    if (Math.abs(height - lastSentHeight.current) < 2) return;
+    lastSentHeight.current = height;
+
+    // 1. postMessage to parent (works cross-origin)
+    window.parent.postMessage({
+      type: '180workspace:form:resize',
+      slug,
+      height
+    }, '*');
+
+    // 2. Direct frameElement resize (works same-origin only)
+    try {
+      const frame = window.frameElement as HTMLIFrameElement | null;
+      if (frame) {
+        frame.style.height = `${height}px`;
+        frame.style.overflow = 'visible';
+        frame.setAttribute('scrolling', 'no');
+      }
+    } catch (_) {
+      // Cross-origin: frameElement access throws — this is expected
+    }
+  };
+
+  const debouncedResize = () => {
+    if (resizeDebounce.current) clearTimeout(resizeDebounce.current);
+    resizeDebounce.current = setTimeout(sendResizeMessage, 50);
+  };
+
+  // Inject a universal resize listener into the parent document
+  // This handles manual iframe pastes, CodeElement iframes, and SDK iframes
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.parent || window.parent === window) return;
+
+    try {
+      // Try to inject the listener directly (same-origin only)
+      const parentDoc = window.parent.document;
+      if (parentDoc && !parentDoc.querySelector('[data-180-form-resize-listener]')) {
+        const script = parentDoc.createElement('script');
+        script.setAttribute('data-180-form-resize-listener', 'true');
+        script.textContent = `
+          window.addEventListener('message', function(e) {
+            if (!e.data || e.data.type !== '180workspace:form:resize' || !e.data.height) return;
+            var iframes = document.querySelectorAll('iframe');
+            for (var i = 0; i < iframes.length; i++) {
+              try {
+                if (iframes[i].contentWindow === e.source) {
+                  iframes[i].style.height = e.data.height + 'px';
+                  iframes[i].style.overflow = 'visible';
+                  iframes[i].setAttribute('scrolling', 'no');
+                  break;
+                }
+              } catch(ex) {}
+            }
+          });
+        `;
+        parentDoc.head.appendChild(script);
+      }
+    } catch (_) {
+      // Cross-origin: can't inject script, rely on postMessage only
+    }
+  }, []);
+
+  // ResizeObserver + MutationObserver for continuous height tracking
+  useEffect(() => {
+    if (!isLoading && form && containerRef.current) {
+      // Initial burst of resize messages to catch layout shifts
+      sendResizeMessage();
+      const t1 = setTimeout(sendResizeMessage, 150);
+      const t2 = setTimeout(sendResizeMessage, 500);
+      const t3 = setTimeout(sendResizeMessage, 1500);
+
+      // ResizeObserver on the CONTAINER (not body) — stable, no feedback loop
+      let resizeObserver: ResizeObserver | null = null;
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => debouncedResize());
+        resizeObserver.observe(containerRef.current);
+      }
+
+      // MutationObserver for DOM changes (fields, validation) — NO attributes to avoid loop
+      let mutationObserver: MutationObserver | null = null;
+      if (typeof MutationObserver !== 'undefined') {
+        mutationObserver = new MutationObserver(() => debouncedResize());
+        mutationObserver.observe(containerRef.current, { childList: true, subtree: true });
+      }
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        resizeObserver?.disconnect();
+        mutationObserver?.disconnect();
+        if (resizeDebounce.current) clearTimeout(resizeDebounce.current);
+      };
+    }
+  }, [isLoading, form, formData, isSuccess, currentPageIndex]);
 
   const handleInputChange = (fieldId: string, value: any) => {
     setFormData(prev => ({
@@ -49,26 +170,166 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
     });
   };
 
+  const handleFileUpload = async (fieldId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('File size exceeds maximum 15MB limit');
+      return;
+    }
+
+    const uploadPromise = new Promise<{ url: string; name: string }>(async (resolve, reject) => {
+      try {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // For demo / lightweight attachments, store data-url or mock url
+          const resultUrl = reader.result as string;
+          resolve({ url: resultUrl, name: file.name });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    toast.promise(uploadPromise, {
+      loading: `Uploading ${file.name}...`,
+      success: (data) => {
+        setFileData(prev => ({ ...prev, [fieldId]: { name: file.name, url: data.url, size: file.size } }));
+        setFormData(prev => ({ ...prev, [fieldId]: { url: data.url, name: file.name } }));
+        return `${file.name} attached!`;
+      },
+      error: 'Upload failed. Please try again.'
+    });
+  };
+
+  const settings = form?.settings || {};
+  const pages: any[] = Array.isArray(settings.pages) && settings.pages.length > 0 
+    ? settings.pages 
+    : [{ id: 'page_1', title: 'Page 1', description: '', order: 0 }];
+  const isMultiPage = pages.length > 1;
+  const currentPage = pages[currentPageIndex] || pages[0];
+  const isLastPage = currentPageIndex === pages.length - 1;
+  const isFirstPage = currentPageIndex === 0;
+
+  // Filter fields belonging to current step (or fallback for single page)
+  const currentStepFields = isMultiPage 
+    ? (form?.fields || []).filter((f: any) => (f.pageId || (f.validation as any)?.pageId || (f.options as any)?.pageId || 'page_1') === currentPage.id)
+    : (form?.fields || []);
+
+  const validateCurrentStep = () => {
+    for (const field of currentStepFields) {
+      if (['HEADING', 'DIVIDER', 'PARAGRAPH'].includes(field.type)) continue;
+      if (field.required) {
+        const val = formData[field.id];
+        if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
+          toast.error(`Please answer required question: "${field.label || 'Question'}"`);
+          const el = document.getElementById(field.id);
+          if (el) {
+            el.focus();
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  const handleNextStep = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (validateCurrentStep()) {
+      setCurrentPageIndex(prev => Math.min(pages.length - 1, prev + 1));
+      if (containerRef.current) {
+        containerRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+      setTimeout(sendResizeMessage, 150);
+    }
+  };
+
+  const handlePrevStep = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setCurrentPageIndex(prev => Math.max(0, prev - 1));
+    if (containerRef.current) {
+      containerRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+    setTimeout(sendResizeMessage, 150);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isMultiPage && !validateCurrentStep()) {
+      return;
+    }
     setIsSubmitting(true);
     
     try {
-      // Process checkbox arrays to strings if needed by backend
       const processedData = { ...formData };
-      Object.keys(processedData).forEach(key => {
-        if (Array.isArray(processedData[key])) {
-          processedData[key] = processedData[key].join(', ');
-        }
+      
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/public/forms/${slug}/submit`, {
+        values: processedData,
+        referrer: typeof document !== 'undefined' ? document.referrer : ''
       });
 
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/public/forms/${slug}/submit`, {
-        values: processedData
-      });
-      
+      const resData = response.data.data;
       setIsSuccess(true);
+      setSuccessInfo({
+        message: resData.message,
+        redirectUrl: resData.redirectUrl
+      });
+
+      // 1. Meta Pixel Lead Tracking
+      if (typeof window !== 'undefined' && (window as any).fbq) {
+        try {
+          (window as any).fbq('track', resData.pixelEventName || 'Lead', {
+            form_slug: slug,
+            form_title: form.title
+          });
+        } catch (e) {
+          console.log('Pixel track event skipped:', e);
+        }
+      }
+
+      // 2. Google Analytics / GTag Event Tracking
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        try {
+          (window as any).gtag('event', 'generate_lead', {
+            event_category: 'form',
+            event_label: form.title
+          });
+        } catch (e) {
+          console.log('Gtag event skipped:', e);
+        }
+      }
+
+      // 3. Post message to parent iframe if embedded
+      if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: '180workspace:form:submitted',
+          slug,
+          submissionId: resData.submissionId,
+          redirectUrl: resData.redirectUrl,
+          target: '_top'
+        }, '*');
+      }
+
+      // 4. Custom Redirect URL if specified
+      if (resData.redirectUrl) {
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            if (window.top && window.top !== window) {
+              window.top.location.href = resData.redirectUrl;
+            } else {
+              window.location.href = resData.redirectUrl;
+            }
+          }
+        }, 1200);
+      }
+
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to submit form. Please try again.');
+      toast.error(err.response?.data?.error || 'Failed to submit form. Please check your answers.');
     } finally {
       setIsSubmitting(false);
     }
@@ -76,186 +337,434 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div className="flex justify-center items-center min-h-[350px] bg-transparent">
+        <LogoLoader size={36} className="w-9 h-9 text-indigo-600 animate-spin" />
       </div>
     );
   }
 
   if (error || !form) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
-        <div className="w-full max-w-md backdrop-blur-md bg-white/60 dark:bg-black/60 border border-white/20 dark:border-white/10 p-12 rounded-2xl shadow-lg shadow-black/5 dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] text-center">
-          <div className="inline-flex bg-red-100 text-red-600 p-3 rounded-full mb-4">
+      <div className="min-h-[350px] flex items-center justify-center p-4 bg-transparent">
+        <div className="w-full max-w-md backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 p-8 rounded-2xl shadow-xl text-center">
+          <div className="inline-flex bg-red-100 dark:bg-red-950/50 text-red-600 p-3 rounded-full mb-4">
             <AlertCircle className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">Form Unavailable</h2>
-          <p className="text-gray-500 dark:text-gray-400">{error}</p>
+          <h2 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Form Unavailable</h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{error}</p>
         </div>
       </div>
     );
   }
 
+  const isEmbed = typeof window !== 'undefined' && window.location.search.includes('embed=true');
+  const primaryButtonColor = settings.buttonColor || form.company?.primaryColor || '#4f46e5';
+  const primaryTextColor = settings.buttonTextColor || '#ffffff';
+  const submitText = settings.submitButtonText || 'Submit Form';
+  const progressPercent = Math.round(((currentPageIndex + 1) / pages.length) * 100);
+
+  const headerImageUrl = settings.headerImage || (form as any)?.headerImage || '';
+  const footerImageUrl = settings.footerImage || (form as any)?.footerImage || '';
+  const footerText = settings.footerText || (form as any)?.footerText || '';
+  const bgImageUrl = settings.backgroundImage || (form as any)?.backgroundImage || '';
+
+  const backgroundStyle: React.CSSProperties = {};
+  if (!isEmbed) {
+    if (settings.backgroundType === 'image' && bgImageUrl) {
+      backgroundStyle.backgroundImage = `url(${bgImageUrl})`;
+      backgroundStyle.backgroundSize = 'cover';
+      backgroundStyle.backgroundPosition = 'center';
+      backgroundStyle.backgroundAttachment = 'fixed';
+    } else if (settings.backgroundType === 'color' && settings.backgroundColor) {
+      backgroundStyle.backgroundColor = settings.backgroundColor;
+    }
+  }
+
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
-        <div className="w-full max-w-md backdrop-blur-md bg-white/60 dark:bg-black/60 border border-green-200/50 p-12 rounded-2xl shadow-lg shadow-black/5 dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] text-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500 mb-4 mx-auto" />
-          <h2 className="text-2xl font-bold mb-2 text-green-800 dark:text-green-400 tracking-tight">Thank You!</h2>
-          <p className="text-gray-500 dark:text-gray-400">Your submission has been received successfully.</p>
+      <div className={`flex items-center justify-center p-4 ${isEmbed ? 'bg-transparent' : 'min-h-screen bg-zinc-50/50 dark:bg-zinc-950'}`} style={backgroundStyle}>
+        {settings.customCss && <style dangerouslySetInnerHTML={{ __html: settings.customCss }} />}
+        <div className="w-full max-w-lg backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border border-emerald-500/30 p-10 rounded-2xl shadow-2xl text-center animate-in fade-in zoom-in-95 duration-300">
+          <div className="h-16 w-16 bg-emerald-100 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+            <CheckCircle2 className="h-9 w-9 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">Thank You!</h2>
+          <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
+            {successInfo.message || settings.successMessage || 'Your submission has been received successfully.'}
+          </p>
+          {successInfo.redirectUrl && (
+            <div className="mt-6 flex items-center justify-center text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+              <span>Redirecting you shortly</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1 animate-pulse" />
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
+    <div 
+      ref={containerRef}
+      className={`px-4 sm:px-6 lg:px-8 ${isEmbed ? 'py-4 bg-transparent' : 'min-h-screen py-10 bg-zinc-50 dark:bg-zinc-950'}`}
+      style={backgroundStyle}
+    >
+      {settings.customCss && <style dangerouslySetInnerHTML={{ __html: settings.customCss }} />}
+      
       <div 
-        className="max-w-2xl mx-auto backdrop-blur-md bg-white/60 dark:bg-black/60 border border-white/20 dark:border-white/10 rounded-2xl overflow-hidden shadow-lg shadow-black/5 dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] border-t-4"
-        style={{ borderTopColor: form.company?.primaryColor || 'hsl(var(--primary))' }}
+        className="max-w-2xl mx-auto backdrop-blur-md bg-white/95 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden shadow-xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] border-t-[5px]"
+        style={{ borderTopColor: primaryButtonColor }}
       >
-        <div className="px-8 py-10 text-center border-b border-gray-100 dark:border-gray-800">
-          {form.company?.logo && (
-            <div className="flex justify-center mb-6">
-              <img src={form.company.logo} alt={form.company.name || "Company Logo"} className="h-12 object-contain" />
+        {/* Optional Header Banner Image */}
+        {headerImageUrl && (
+          <div className="w-full max-h-72 overflow-hidden border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800">
+            <img 
+              src={headerImageUrl} 
+              alt="Header banner" 
+              className="w-full h-auto max-h-72 object-cover" 
+            />
+          </div>
+        )}
+
+        {/* Form Global Header */}
+        <div className="px-8 py-8 text-center border-b border-zinc-100 dark:border-zinc-800">
+          {settings.showCompanyLogo !== false && form.company?.logoUrl && (
+            <div className="flex justify-center mb-5">
+              <img src={form.company.logoUrl} alt={form.company.name || "Company Logo"} className="h-10 object-contain max-w-[200px]" />
             </div>
           )}
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">{form.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">{form.title}</h1>
           {form.description && (
-            <p className="mt-3 text-base text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{form.description}</p>
+            <p className="mt-2.5 text-sm sm:text-base text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed">{form.description}</p>
+          )}
+
+          {/* Multi-Step Wizard Progress Bar */}
+          {isMultiPage && (
+            <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800/80 space-y-3">
+              <div className="flex items-center justify-between text-xs font-semibold text-zinc-500">
+                <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-bold">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Step {currentPageIndex + 1} of {pages.length}
+                </span>
+                <span>{progressPercent}% Complete</span>
+              </div>
+
+              {/* Progress track */}
+              <div className="w-full h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-300 rounded-full"
+                  style={{ width: `${progressPercent}%`, backgroundColor: primaryButtonColor }}
+                />
+              </div>
+
+              {/* Step Title Indicator */}
+              <div className="flex items-center justify-between pt-1">
+                <h2 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                  {currentPage.title || `Step ${currentPageIndex + 1}`}
+                </h2>
+                {currentPage.description && (
+                  <span className="text-xs text-zinc-400 truncate max-w-[240px]">{currentPage.description}</span>
+                )}
+              </div>
+            </div>
           )}
         </div>
         
-        <form onSubmit={handleSubmit} className="px-8 py-8 space-y-8">
-          {form.fields.map((field: any) => (
-            <div key={field.id} className="space-y-3">
-              <label htmlFor={field.id} className="block text-sm font-medium text-gray-900 dark:text-gray-200">
-                {field.label} {field.required && <span className="text-red-500">*</span>}
-              </label>
-              
-              {field.type === 'TEXT' && (
-                <input 
-                  id={field.id}
-                  type="text"
-                  required={field.required}
-                  value={formData[field.id] || ''}
-                  onChange={(e) => handleInputChange(field.id, e.target.value)}
-                  className="w-full px-4 py-3 bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-                />
-              )}
-              
-              {field.type === 'EMAIL' && (
-                <input 
-                  id={field.id}
-                  type="email"
-                  required={field.required}
-                  value={formData[field.id] || ''}
-                  onChange={(e) => handleInputChange(field.id, e.target.value)}
-                  className="w-full px-4 py-3 bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-                />
-              )}
-              
-              {field.type === 'PHONE' && (
-                <input 
-                  id={field.id}
-                  type="tel"
-                  required={field.required}
-                  value={formData[field.id] || ''}
-                  onChange={(e) => handleInputChange(field.id, e.target.value)}
-                  className="w-full px-4 py-3 bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-                />
-              )}
-              
-              {field.type === 'TEXTAREA' && (
-                <textarea 
-                  id={field.id}
-                  required={field.required}
-                  value={formData[field.id] || ''}
-                  onChange={(e) => handleInputChange(field.id, e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-3 bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-y"
-                />
-              )}
-              
-              {field.type === 'SELECT' && (
-                <div className="relative">
-                  <CustomSelect
-                    id={field.id}
-                    required={field.required}
-                    value={formData[field.id] || ''}
-                    onChange={(e) => handleInputChange(field.id, e.target.value)}
-                    className="w-full px-4 py-3 appearance-none bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors text-gray-900 dark:text-gray-100"
-                  >
-                    <option value="" disabled>Select an option</option>
-                    {field.options?.map((option: string, i: number) => (
-                      <option key={i} value={option}>{option}</option>
-                    ))}
-                  </CustomSelect>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+        <form onSubmit={handleSubmit} className="px-8 py-8 space-y-6">
+          {currentStepFields.length === 0 ? (
+            <div className="py-10 text-center text-zinc-400 text-sm">
+              No questions found on this step.
+            </div>
+          ) : (
+            currentStepFields.map((field: any) => {
+              // Layout fields
+              if (field.type === 'HEADING') {
+                return (
+                  <div key={field.id} className="pt-4 pb-1 border-b border-zinc-200/60 dark:border-zinc-800">
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{field.label}</h3>
+                    {field.description && <p className="text-xs text-zinc-500 mt-1">{field.description}</p>}
                   </div>
-                </div>
-              )}
-              
-              {field.type === 'RADIO' && (
-                <div className="space-y-3 pt-1">
-                  {field.options?.map((option: string, i: number) => (
-                    <div key={i} className="flex items-center">
-                      <input
-                        type="radio"
-                        id={`${field.id}-${i}`}
-                        name={field.id}
-                        value={option}
-                        checked={formData[field.id] === option}
-                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                );
+              }
+
+              if (field.type === 'PARAGRAPH') {
+                return (
+                  <div key={field.id} className="py-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    {field.description || field.label}
+                  </div>
+                );
+              }
+
+              if (field.type === 'DIVIDER') {
+                return <hr key={field.id} className="my-6 border-zinc-200 dark:border-zinc-800" />;
+              }
+
+              return (
+                <div key={field.id} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor={field.id} className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                      {field.label} {field.required && <span className="text-red-500 font-bold">*</span>}
+                    </label>
+                    {field.type === 'FILE_UPLOAD' && (
+                      <span className="text-[11px] text-zinc-400">Max 15MB</span>
+                    )}
+                  </div>
+
+                  {field.description && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{field.description}</p>
+                  )}
+                  
+                  {field.type === 'TEXT' && (
+                    <input 
+                      id={field.id}
+                      type="text"
+                      required={field.required}
+                      placeholder={field.placeholder || ''}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => handleInputChange(field.id, e.target.value)}
+                      className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+                    />
+                  )}
+                  
+                  {field.type === 'EMAIL' && (
+                    <input 
+                      id={field.id}
+                      type="email"
+                      required={field.required}
+                      placeholder={field.placeholder || 'you@company.com'}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => handleInputChange(field.id, e.target.value)}
+                      className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+                    />
+                  )}
+                  
+                  {field.type === 'PHONE' && (
+                    <input 
+                      id={field.id}
+                      type="tel"
+                      required={field.required}
+                      placeholder={field.placeholder || '+1 (555) 000-0000'}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => handleInputChange(field.id, e.target.value)}
+                      className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+                    />
+                  )}
+
+                  {field.type === 'NUMBER' && (
+                    <div className="relative">
+                      <input 
+                        id={field.id}
+                        type="number"
                         required={field.required}
-                        className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                        placeholder={field.placeholder || '0'}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
                       />
-                      <label htmlFor={`${field.id}-${i}`} className="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {option}
+                      <Hash className="w-4 h-4 text-zinc-400 absolute left-3 top-3 pointer-events-none" />
+                    </div>
+                  )}
+
+                  {(field.type === 'DATE' || field.type === 'DATETIME') && (
+                    <div className="relative">
+                      <input 
+                        id={field.id}
+                        type={field.type === 'DATETIME' ? 'datetime-local' : 'date'}
+                        required={field.required}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+                      />
+                      <Calendar className="w-4 h-4 text-zinc-400 absolute left-3 top-3 pointer-events-none" />
+                    </div>
+                  )}
+                  
+                  {field.type === 'TEXTAREA' && (
+                    <textarea 
+                      id={field.id}
+                      required={field.required}
+                      placeholder={field.placeholder || ''}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => handleInputChange(field.id, e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all resize-y"
+                    />
+                  )}
+                  
+                  {field.type === 'SELECT' && (
+                    <div className="relative">
+                      <CustomSelect
+                        id={field.id}
+                        required={field.required}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                        className="w-full px-4 py-2.5 appearance-none bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-zinc-900 dark:text-zinc-100 transition-all"
+                      >
+                        <option value="" disabled>Select an option...</option>
+                        {field.options?.map((option: string, i: number) => (
+                          <option key={i} value={option}>{option}</option>
+                        ))}
+                      </CustomSelect>
+                    </div>
+                  )}
+                  
+                  {field.type === 'RADIO' && (
+                    <div className="space-y-2.5 pt-1">
+                      {field.options?.map((option: string, i: number) => (
+                        <label key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer transition-colors">
+                          <input
+                            type="radio"
+                            id={`${field.id}-${i}`}
+                            name={field.id}
+                            value={option}
+                            checked={formData[field.id] === option}
+                            onChange={(e) => handleInputChange(field.id, e.target.value)}
+                            required={field.required}
+                            className="h-4 w-4 text-indigo-600 border-zinc-300 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            {option}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {field.type === 'CHECKBOX' && (
+                    <div className="space-y-2.5 pt-1">
+                      {field.options?.map((option: string, i: number) => {
+                        const isChecked = (formData[field.id] || []).includes(option);
+                        return (
+                          <label key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              id={`${field.id}-${i}`}
+                              checked={isChecked}
+                              onChange={(e) => handleCheckboxChange(field.id, option, e.target.checked)}
+                              className="h-4 w-4 text-indigo-600 rounded border-zinc-300 focus:ring-indigo-500"
+                            />
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                              {option}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {field.type === 'RATING' && (
+                    <div className="flex items-center gap-2 py-2">
+                      {[1, 2, 3, 4, 5].map((star) => {
+                        const active = (formData[field.id] || 0) >= star;
+                        return (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => handleInputChange(field.id, star)}
+                            className="p-1 rounded-lg hover:scale-110 transition-transform focus:outline-none"
+                          >
+                            <Star 
+                              className={`w-7 h-7 ${active ? 'fill-amber-400 text-amber-400' : 'text-zinc-300 dark:text-zinc-700'}`} 
+                            />
+                          </button>
+                        );
+                      })}
+                      <span className="ml-2 text-xs text-zinc-400">
+                        {formData[field.id] ? `${formData[field.id]} / 5 stars` : 'Select rating'}
+                      </span>
+                    </div>
+                  )}
+
+                  {field.type === 'FILE_UPLOAD' && (
+                    <div className="mt-1">
+                      <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl cursor-pointer bg-zinc-50/50 dark:bg-zinc-800/30 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-6 h-6 text-zinc-400 mb-1.5" />
+                          <p className="text-xs text-zinc-600 dark:text-zinc-300 font-medium">
+                            {fileData[field.id]?.name ? (
+                              <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{fileData[field.id].name}</span>
+                            ) : (
+                              <span>Click or drag to upload attachment</span>
+                            )}
+                          </p>
+                        </div>
+                        <input 
+                          type="file" 
+                          required={field.required && !fileData[field.id]}
+                          onChange={(e) => handleFileUpload(field.id, e)}
+                          className="hidden" 
+                        />
                       </label>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-              
-              {field.type === 'CHECKBOX' && (
-                <div className="space-y-3 pt-1">
-                  {field.options?.map((option: string, i: number) => {
-                    const isChecked = (formData[field.id] || []).includes(option);
-                    return (
-                      <div key={i} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={`${field.id}-${i}`}
-                          checked={isChecked}
-                          onChange={(e) => handleCheckboxChange(field.id, option, e.target.checked)}
-                          className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                        />
-                        <label htmlFor={`${field.id}-${i}`} className="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {option}
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+              );
+            })
+          )}
           
-          <div className="pt-6">
-            <button 
-              type="submit" 
-              className="btn-primary w-full py-3"
-              disabled={isSubmitting}
-              style={form.company?.primaryColor ? { backgroundColor: form.company.primaryColor, color: '#ffffff' } : { backgroundColor: '#4f46e5', color: '#ffffff' }}
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit'}
-            </button>
+          {/* Navigation Controls (Back, Next, Submit) */}
+          <div className="pt-4 flex items-center justify-between gap-4">
+            {isMultiPage && !isFirstPage ? (
+              <button
+                type="button"
+                onClick={handlePrevStep}
+                className="px-5 py-3 rounded-xl font-semibold text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all flex items-center gap-1.5"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Previous</span>
+              </button>
+            ) : <div />}
+
+            {isMultiPage && !isLastPage ? (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="px-7 py-3 rounded-xl font-semibold text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-[0.99] transition-all flex items-center gap-2 ml-auto"
+                style={{ backgroundColor: primaryButtonColor, color: primaryTextColor }}
+              >
+                <span>Continue to Step {currentPageIndex + 2}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button 
+                type="submit" 
+                className="px-8 py-3.5 rounded-xl font-semibold text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 ml-auto"
+                disabled={isSubmitting}
+                style={{ backgroundColor: primaryButtonColor, color: primaryTextColor }}
+              >
+                {isSubmitting ? (
+                  <>
+                    <LogoLoader size={16} className="w-4 h-4 animate-spin text-current" />
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  <span>{submitText}</span>
+                )}
+              </button>
+            )}
           </div>
         </form>
+
+        {/* Optional Footer Banner Image */}
+        {footerImageUrl && (
+          <div className="w-full max-h-56 overflow-hidden border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800">
+            <img 
+              src={footerImageUrl} 
+              alt="Footer banner" 
+              className="w-full h-auto max-h-56 object-cover" 
+            />
+          </div>
+        )}
+
+        {/* Optional Footer Note / Disclaimer / Privacy Note */}
+        {footerText && (
+          <div className="px-8 py-4 bg-zinc-50/70 dark:bg-zinc-850/50 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed">
+              {footerText}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

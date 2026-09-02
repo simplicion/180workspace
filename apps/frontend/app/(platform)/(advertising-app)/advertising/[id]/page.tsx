@@ -12,10 +12,6 @@ import clsx from 'clsx';
 
 // Dynamically import charts to improve build performance
 import CustomSelect from '@/components/ui/CustomSelect';
-const WebsiteCharts = nextDynamic(() => import('./WebsiteCharts'), { 
-    ssr: false,
-    loading: () => <div className="h-[350px] w-full bg-gray-50 animate-pulse rounded-[2.5rem]" />
-});
 
 
 export default function WebsiteDashboardPage() {
@@ -32,7 +28,6 @@ function WebsiteDashboardInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [website, setWebsite] = useState<any>(null);
-    const [leads, setLeads] = useState<any[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
@@ -44,9 +39,8 @@ function WebsiteDashboardInner() {
     const fetchWebsiteData = async () => {
         try {
             setLoading(true);
-            const [webRes, leadsRes, statsRes] = await Promise.all([
+            const [webRes, statsRes] = await Promise.all([
                 api.get(`/api/websites/${id}`),
-                api.get(`/api/websites/${id}/leads`),
                 api.get(`/api/websites/${id}/stats`)
             ]);
             
@@ -57,7 +51,6 @@ function WebsiteDashboardInner() {
                 ...webRes.data.website, 
                 pixels: pixelsRes.data.pixels || [] 
             });
-            setLeads(leadsRes.data.leads || []);
             setStats(statsRes.data);
         } catch (error) {
             console.error('Failed to fetch data:', error);
@@ -148,7 +141,7 @@ function WebsiteDashboardInner() {
 
             {/* Tab Content */}
             <div className="mt-6">
-                <OverviewTab website={website} leads={leads} stats={stats} />
+                <OverviewTab website={website} stats={stats} />
             </div>
             
             {website && (
@@ -158,7 +151,7 @@ function WebsiteDashboardInner() {
                     targetType="ADVERTISING_WEBSITE"
                     targetId={website.id}
                     targetName={website.name}
-                    initialDomain={website.customDomain}
+                    initialDomain={website.customDomain || (website.slug ? `${website.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'localhost'}` : null)}
                     onDomainSaved={() => fetchWebsiteData()}
                     onDomainRemoved={() => fetchWebsiteData()}
                 />
@@ -169,43 +162,14 @@ function WebsiteDashboardInner() {
 
 // --- Tab Components ---
 
-function OverviewTab({ website, leads, stats }: { website: any, leads: any[], stats: any }) {
-    const chartData = stats?.leadsOverTime?.map((d: any) => ({
-        name: (d.id || d._id || d.date || '').split('-').slice(1).join('/') || 'Unknown',
-        leads: d.count
-    })) || [
-        { name: 'Mon', leads: 0 },
-        { name: 'Tue', leads: 0 },
-        { name: 'Wed', leads: 0 },
-        { name: 'Thu', leads: 0 },
-        { name: 'Fri', leads: 0 },
-        { name: 'Sat', leads: 0 },
-        { name: 'Sun', leads: 0 },
-    ];
-
+function OverviewTab({ website, stats }: { website: any, stats: any }) {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <StatCard icon={Globe} label="Total Views" value={stats?.views || 0} color="indigo" />
-                <StatCard icon={Users} label="Total Leads" value={leads.length} color="emerald" />
-                <StatCard icon={MousePointer2} label="Conv. Rate" value={`${website.stats?.views > 0 ? ((leads.length / website.stats.views) * 100).toFixed(1) : 0}%`} color="amber" />
                 <StatCard icon={Clock} label="Avg. Time" value="2m 45s" color="gray" />
             </div>
-
-            {/* Main Chart */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h3 className="text-xl font-black text-gray-900">Lead Generation</h3>
-                        <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-bold">Performance Over Time</p>
-                    </div>
-                </div>
-                <WebsiteCharts chartData={chartData} />
-            </div>
-
-            {/* Leads Table */}
-            <LeadsTab leads={leads} />
         </div>
     );
 }
@@ -324,85 +288,7 @@ function CustomizeTab({ website, onUpdate }: { website: any, onUpdate: () => voi
     );
 }
 
-function LeadsTab({ leads }: { leads: any[] }) {
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        toast.success('Copied to clipboard');
-    };
 
-    return (
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
-                <h3 className="text-xl font-black text-gray-900">Captured Leads</h3>
-                <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold uppercase tracking-wider">
-                    {leads.length} Total
-                </span>
-            </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 bg-gray-50/30">
-                            <th className="px-8 py-4">Contact Info</th>
-                            <th className="px-8 py-4">Campaign Info</th>
-                            <th className="px-8 py-4">Status</th>
-                            <th className="px-8 py-4">Date</th>
-                            <th className="px-8 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {leads.map((lead: any) => (
-                            <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-8 py-5">
-                                    <p className="font-bold text-gray-900">{lead.name}</p>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                                        <button onClick={() => copyToClipboard(lead.email)} className="hover:text-indigo-600 transition-colors underline decoration-indigo-200">{lead.email}</button>
-                                        <span className="w-1 h-1 rounded-full bg-gray-200" />
-                                        <span>{lead.phone}</span>
-                                    </div>
-                                </td>
-                                <td className="px-8 py-5">
-                                    {lead.utm_source ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase">{lead.utm_source}</span>
-                                            <span className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded text-[10px] font-bold uppercase">{lead.utm_medium}</span>
-                                        </div>
-                                    ) : (
-                                        <span className="text-xs text-gray-300 italic font-medium">Direct Traffic</span>
-                                    )}
-                                </td>
-                                <td className="px-8 py-5">
-                                    <span className={clsx(
-                                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                                        lead.status === 'new' ? "bg-blue-50 text-blue-600" :
-                                        lead.status === 'contacted' ? "bg-amber-50 text-amber-600" :
-                                        "bg-emerald-50 text-emerald-600"
-                                    )}>
-                                        {lead.status || 'New'}
-                                    </span>
-                                </td>
-                                <td className="px-8 py-5 text-xs text-gray-500 font-medium">
-                                    {new Date(lead.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </td>
-                                <td className="px-8 py-5 text-right">
-                                    <button className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-                                        <ExternalLink className="w-4 h-4" />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {leads.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="px-8 py-20 text-center text-gray-400 font-medium">
-                                    No leads captured yet. Start driving traffic to your landing page!
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-}
 
 function TrackingTab({ website, onUpdate }: { website: any, onUpdate: () => void }) {
     const [pixels, setPixels] = useState(website.pixels || []);
@@ -516,26 +402,6 @@ function ToolsTab({ website }: { website: any }) {
             <div className="space-y-6">
                 <h3 className="text-xl font-black text-gray-900">Campaign Management</h3>
                 <UTMBuilder website={website} />
-            </div>
-            <div className="space-y-6">
-                <h3 className="text-xl font-black text-gray-900">Data & Exports</h3>
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                            <Code className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <p className="font-bold text-gray-900">Developer API</p>
-                            <p className="text-xs text-gray-500">Access your leads via REST API</p>
-                        </div>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 font-mono text-[10px] text-gray-500 break-all">
-                        GET /api/external/leads?site_id={website.id}
-                    </div>
-                    <button className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:opacity-90 transition-all">
-                        Generate API Key
-                    </button>
-                </div>
             </div>
         </div>
     );

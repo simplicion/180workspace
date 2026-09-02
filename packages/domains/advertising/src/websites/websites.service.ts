@@ -107,7 +107,7 @@ export class WebsitesService {
   }
 
   static async updateWebsite(id: string, data: any) {
-    const { name, slug, template, config, status, customDomain } = data;
+    const { name, slug, template, config, publishedConfig, isPublished, status, customDomain } = data;
 
     const currentWebsite = await prisma.website.findUnique({ where: { id } });
     if (!currentWebsite) {
@@ -119,6 +119,8 @@ export class WebsitesService {
     if (slug !== undefined) updateData.slug = slug;
     if (template !== undefined) updateData.template = template;
     if (config !== undefined) updateData.config = config;
+    if (publishedConfig !== undefined) updateData.publishedConfig = publishedConfig;
+    if (isPublished !== undefined) updateData.isPublished = isPublished;
     if (status !== undefined) updateData.status = status;
     
     if (customDomain !== undefined) {
@@ -174,19 +176,7 @@ export class WebsitesService {
     return true;
   }
 
-  static async getWebsiteLeads(websiteId: string) {
-    const currentWebsite = await prisma.website.findUnique({ where: { id: websiteId } });
-    if (!currentWebsite) {
-      throw new Error('Website not found');
-    }
 
-    const leads = await prisma.websiteFormSubmission.findMany({
-      where: { websiteId },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    return leads;
-  }
 
   static async getWebsitePixels(websiteId: string) {
     const currentWebsite = await prisma.website.findUnique({ where: { id: websiteId } });
@@ -220,42 +210,8 @@ export class WebsitesService {
       throw new Error('Website not found');
     }
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentLeads = await prisma.websiteFormSubmission.findMany({
-      where: { websiteId: website.id, createdAt: { gte: thirtyDaysAgo } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' }
-    });
-
-    const leadsMap: Record<string, number> = {};
-    for (const lead of recentLeads) {
-      const dateStr = lead.createdAt.toISOString().slice(0, 10);
-      leadsMap[dateStr] = (leadsMap[dateStr] || 0) + 1;
-    }
-
-    const leadsOverTime = Object.keys(leadsMap).sort().map(date => ({
-      _id: date,
-      count: leadsMap[date]
-    }));
-
-    const groupedStatus = await prisma.websiteFormSubmission.groupBy({
-      by: ['status'],
-      where: { websiteId: website.id },
-      _count: { _all: true }
-    });
-
-    const statusBreakdown = groupedStatus.map(item => ({
-      _id: item.status,
-      count: item._count._all
-    }));
-
     return {
       views: (website.stats as any)?.views || 0,
-      leads: (website.stats as any)?.leads || 0,
-      leadsOverTime,
-      statusBreakdown
     };
   }
 
@@ -295,8 +251,13 @@ export class WebsitesService {
     // Fire and forget view count update
     Promise.resolve().then(async () => {
       try {
-        const stats: any = website.stats || { views: 0, leads: 0 };
+        const stats: any = website.stats || { views: 0 };
         stats.views = (stats.views || 0) + 1;
+
+        const today = new Date().toISOString().slice(0, 10);
+        stats.viewsByDate = stats.viewsByDate || {};
+        stats.viewsByDate[today] = (stats.viewsByDate[today] || 0) + 1;
+
         await prisma.website.update({ where: { id: website.id }, data: { stats } });
       } catch(e) {}
     });
@@ -305,52 +266,13 @@ export class WebsitesService {
       where: { websiteId: website.id, status: 'active' }
     });
 
+    if (website.isPublished && website.publishedConfig) {
+       website.config = website.publishedConfig;
+    }
+
     return { website, pixels };
   }
 
-  static async publicSubmitLead(domain: string, slug: string | undefined, data: any, ip: string, userAgent: string) {
-    if (!domain) throw new Error('Domain is required');
 
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
-    const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
-    const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
-
-    let website = await prisma.website.findFirst({
-      where: {
-        OR: [
-          { customDomain: domain },
-          ...(subdomainSlug ? [{ slug: subdomainSlug }] : [])
-        ],
-        status: 'active'
-      }
-    });
-
-    if (!website && !isSubdomain) {
-      const parts = domain.split('.');
-      if (parts.length > 2 && parts[0] === 'www') {
-        const baseDomain = parts.slice(1).join('.');
-        website = await prisma.website.findFirst({ where: { customDomain: baseDomain, status: 'active' }});
-      }
-    }
-
-    if (!website) throw new Error('Website not found');
-
-    const lead = await prisma.websiteFormSubmission.create({
-      data: {
-        ...data,
-        websiteId: website.id,
-        ipAddress: ip,
-        userAgent: userAgent
-      }
-    });
-
-    const stats: any = website.stats || { views: 0, leads: 0 };
-    stats.leads = (stats.leads || 0) + 1;
-    await prisma.website.update({ where: { id: website.id }, data: { stats } });
-
-    eventBus.emit('website.lead.captured', { lead, website });
-
-    return { lead, website };
-  }
 }
 

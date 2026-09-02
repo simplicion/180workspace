@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { BuilderElement } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/BuilderElement';
 import { CompanyProfileUI } from '@/app/(platform)/(company-hub-app)/_components/CompanyProfileUI';
+import { ScriptInjector } from './_components/ScriptInjector';
 
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -475,8 +476,8 @@ export default async function PublicWebsitePage({
             style={{ 
                 fontFamily: `"${config.typography?.body || brand?.fontFamily || 'Inter'}", sans-serif`,
                 color: brand?.textColor || '#111827',
-                backgroundColor: brand?.bgType === 'color' ? (brand.bgValue || colors.secondary || brand.secondaryColor) : (brand?.bgType === 'image' ? 'transparent' : colors.secondary),
-                backgroundImage: brand?.bgType === 'image' && brand?.bgValue ? `url(${brand.bgValue})` : 'none',
+                backgroundColor: (currentPage?.bgType === 'image' ? 'transparent' : (currentPage?.bgValue || brand?.bgValue || '#ffffff')),
+                backgroundImage: (currentPage?.bgType === 'image' && currentPage?.bgValue) ? `url(${currentPage.bgValue})` : (brand?.bgType === 'image' && brand?.bgValue ? `url(${brand.bgValue})` : 'none'),
                 backgroundSize: 'cover',
                 backgroundAttachment: 'fixed',
                 backgroundPosition: 'center',
@@ -595,7 +596,25 @@ export default async function PublicWebsitePage({
                     `
                 }} />
                 {/* Global Head Scripts */}
-                {brand.headScript && <div dangerouslySetInnerHTML={{ __html: brand.headScript }} />}
+                {brand.headScript && <ScriptInjector html={brand.headScript} position="head" />}
+
+                {/* Universal Form Iframe Auto-Resize Listener */}
+                <script dangerouslySetInnerHTML={{ __html: `
+                    window.addEventListener('message', function(e) {
+                        if (!e.data || e.data.type !== '180workspace:form:resize' || !e.data.height) return;
+                        var iframes = document.querySelectorAll('iframe');
+                        for (var i = 0; i < iframes.length; i++) {
+                            try {
+                                if (iframes[i].contentWindow === e.source) {
+                                    iframes[i].style.height = e.data.height + 'px';
+                                    iframes[i].style.overflow = 'visible';
+                                    iframes[i].setAttribute('scrolling', 'no');
+                                    break;
+                                }
+                            } catch(ex) {}
+                        }
+                    });
+                `}} />
 
                 {/* Header */}
                 {config.header?.enabled !== false && currentPage?.showHeader !== false && (
@@ -738,7 +757,7 @@ export default async function PublicWebsitePage({
                 ))}
 
                 {/* Global Body Scripts */}
-                {brand.bodyScript && <div dangerouslySetInnerHTML={{ __html: brand.bodyScript }} />}
+                {brand.bodyScript && <ScriptInjector html={brand.bodyScript} position="body" />}
             </div>
         </div>
     );

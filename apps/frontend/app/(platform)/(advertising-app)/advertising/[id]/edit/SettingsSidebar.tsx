@@ -39,7 +39,6 @@ export default function SettingsSidebar({
     website
 }: SettingsSidebarProps) {
     const [sidebarTab, setSidebarTab] = useState<'styles' | 'sections' | 'pages' | 'seo' | 'media'>('sections');
-    const [uploadingBg, setUploadingBg] = useState(false);
     const [uploadingFavicon, setUploadingFavicon] = useState(false);
     const [uploadingOgImage, setUploadingOgImage] = useState(false);
     const [showScriptsModal, setShowScriptsModal] = useState(false);
@@ -119,35 +118,6 @@ export default function SettingsSidebar({
         }
     };
 
-    const handleBgUpload = async (e: any) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
-            setUploadingBg(true);
-            const formData = new FormData();
-            formData.append('file', file);
-            if (website?.id) {
-                formData.append('relatedId', website.id);
-                formData.append('relatedModel', 'Website');
-            }
-            
-            const res = await api.post('/api/files/upload', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            
-            if (res.data.url) {
-                updateBrand('bgValue', res.data.url);
-            } else {
-                toast.error('Upload failed');
-            }
-        } catch (err) {
-            console.error('Upload error:', err);
-            toast.error('Failed to upload image');
-        } finally {
-            setUploadingBg(false);
-        }
-    };
 
     useEffect(() => {
         fetch('https://api.fontsource.org/v1/fonts')
@@ -262,47 +232,7 @@ export default function SettingsSidebar({
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <label className="text-xs font-bold text-gray-500 uppercase">Background</label>
-                        <div className="flex gap-2">
-                            <button onClick={() => updateBrand('bgType', 'color')} className={`flex-1 py-1.5 text-xs font-bold rounded ${brand.bgType === 'color' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Color</button>
-                            <button onClick={() => updateBrand('bgType', 'image')} className={`flex-1 py-1.5 text-xs font-bold rounded ${brand.bgType === 'image' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Image</button>
-                        </div>
-                        {brand.bgType === 'color' ? (
-                            <div className="flex items-center justify-between mt-2">
-                                <span className="text-sm">Bg Color</span>
-                                <input type="color" value={brand.bgValue || '#ffffff'} onChange={e => updateBrand('bgValue', e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                            </div>
-                        ) : (
-                            <div className="mt-2 space-y-2">
-                                {brand.bgValue ? (
-                                    <div className="relative rounded-lg overflow-hidden border border-gray-200">
-                                        <img src={brand.bgValue} alt="Background" className="w-full h-24 object-cover" />
-                                        <button 
-                                            onClick={() => updateBrand('bgValue', '')}
-                                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-md shadow-sm hover:bg-red-600 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            {uploadingBg ? (
-                                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                                            ) : (
-                                                <>
-                                                    <ImageIcon className="w-6 h-6 text-gray-400 mb-2" />
-                                                    <p className="text-xs text-gray-500">Click to upload image</p>
-                                                </>
-                                            )}
-                                        </div>
-                                        <input type="file" className="hidden" accept="image/*" onChange={handleBgUpload} disabled={uploadingBg} />
-                                    </label>
-                                )}
-                            </div>
-                        )}
-                    </div>
+
                     
 
 
@@ -331,7 +261,9 @@ export default function SettingsSidebar({
                                     metaTitle: '',
                                     metaDescription: '',
                                     isPublished: true,
-                                    navVisibility: 'both'
+                                    navVisibility: 'both',
+                                    bgType: 'color',
+                                    bgValue: '#ffffff'
                                 });
                             }}
                             className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100"
@@ -346,6 +278,13 @@ export default function SettingsSidebar({
                                 <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => changeActivePage(p.id)}>
                                     <div className={`w-2 h-2 rounded-full ${p.isEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`} />
                                     <span className="font-bold text-sm text-gray-800">{p.name}</span>
+                                    {p.bgValue && p.bgType === 'color' && (
+                                        <span 
+                                            className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-2xs" 
+                                            style={{ backgroundColor: p.bgValue }} 
+                                            title={`Page Bg: ${p.bgValue}`}
+                                        />
+                                    )}
                                     {activePageId === p.id && <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded ml-2">ACTIVE</span>}
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -363,7 +302,9 @@ export default function SettingsSidebar({
                                                 keywords: p.keywords || '',
                                                 isPublished: p.isPublished !== false && p.isEnabled !== false,
                                                 isNoIndex: p.isNoIndex === true,
-                                                navVisibility: p.navVisibility || 'both'
+                                                navVisibility: p.navVisibility || 'both',
+                                                bgType: p.bgType || 'color',
+                                                bgValue: p.bgValue || '#ffffff'
                                             });
                                         }}
                                         className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
@@ -851,6 +792,7 @@ export default function SettingsSidebar({
                 config={pageModalConfig} 
                 setConfig={setPageModalConfig} 
                 domain={website?.domain || 'yourdomain.com'}
+                websiteId={website?.id}
                 onSave={(newConfigData) => {
                     const newConfig = JSON.parse(JSON.stringify(config));
                     
@@ -871,6 +813,8 @@ export default function SettingsSidebar({
                             navVisibility: newConfigData.navVisibility,
                             metaTitle: newConfigData.metaTitle,
                             metaDescription: newConfigData.metaDescription,
+                            bgType: newConfigData.bgType || 'color',
+                            bgValue: newConfigData.bgValue || '#ffffff',
                             sections: []
                         });
                         commitConfig(newConfig);
@@ -887,6 +831,8 @@ export default function SettingsSidebar({
                             newConfig.pages[pageIndex].navVisibility = newConfigData.navVisibility;
                             newConfig.pages[pageIndex].metaTitle = newConfigData.metaTitle;
                             newConfig.pages[pageIndex].metaDescription = newConfigData.metaDescription;
+                            newConfig.pages[pageIndex].bgType = newConfigData.bgType || 'color';
+                            newConfig.pages[pageIndex].bgValue = newConfigData.bgValue || '#ffffff';
                             commitConfig(newConfig);
                         }
                     }

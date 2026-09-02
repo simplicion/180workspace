@@ -347,3 +347,5 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
         </div>
     );
 }
+
+export { CreateWebsiteModal };
