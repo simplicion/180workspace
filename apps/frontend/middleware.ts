@@ -12,7 +12,8 @@ export default withAuth(
       req.nextUrl.pathname.startsWith('/r/') ||
       req.nextUrl.pathname.startsWith('/shield/') ||
       req.nextUrl.pathname.startsWith('/tag/') ||
-      req.nextUrl.pathname.startsWith('/evaluate/')
+      req.nextUrl.pathname.startsWith('/evaluate/') ||
+      req.nextUrl.pathname.startsWith('/f/')
     ) {
       return NextResponse.next();
     }
@@ -35,11 +36,12 @@ export default withAuth(
       const path = req.nextUrl.pathname;
       const search = req.nextUrl.search;
 
-      // Allow internal Next.js assets, API routes, and well-known paths to pass through
+      // Allow internal Next.js assets, API routes, well-known paths, and public forms to pass through
       if (
         path.startsWith('/_next') ||
         path.startsWith('/api') ||
-        path.startsWith('/.well-known')
+        path.startsWith('/.well-known') ||
+        path.startsWith('/f/')
       ) {
         return NextResponse.next();
       }

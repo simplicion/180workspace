@@ -23,19 +23,21 @@ export class StorageService {
             }
         }
 
+        const safeTags = Array.isArray(tags) ? tags : (typeof tags === 'string' && tags ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []);
+
         const doc = await prisma.document.create({ data: {
-            name: name || file?.originalname,
+            name: name || file?.originalname || 'Untitled File',
             fileUrl: storageResult.fileUrl,
-            fileId: storageResult.fileId,
-            storageType: storageResult.storageType,
-            fileType: file?.mimetype,
-            fileSize: file?.size,
+            fileId: storageResult.fileId || '',
+            storageType: storageResult.storageType || 'r2',
+            fileType: file?.mimetype || '',
+            fileSize: file?.size || 0,
             folder: hierarchicalFolder,
             uploadedById: userId,
             relatedId: relatedId || null,
             relatedModel: relatedModel || '',
             description: description || '',
-            tags: tags,
+            tags: safeTags,
             isConfidential: isConfidential === 'true' || isConfidential === true,
             isLinkOnly: false
         } });

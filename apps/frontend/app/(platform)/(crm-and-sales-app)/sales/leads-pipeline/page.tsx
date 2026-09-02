@@ -504,16 +504,39 @@ function DealCard({ opp, dragHandleProps, isDragging, onEdit, onDelete, onConver
                 )}
             </div>
 
-            {/* Added By & Tags (mocked for now, if no tags exist) */}
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
-                <div className="flex items-center gap-1.5">
-                    <User className="w-3 h-3 text-gray-300" />
-                    <span className="text-[10px] font-medium text-gray-400">Added by {opp.owner?.name?.split(' ')[0] || 'System'}</span>
-                </div>
-                <div className="bg-gray-100 text-gray-600 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                    {opp.source || 'Other'}
-                </div>
-            </div>
+            {/* Form Attribution & Tags */}
+            {(() => {
+                const isFormLead = opp.source?.toLowerCase().includes('form') || (Array.isArray(opp.tags) && opp.tags.some((t: any) => t?.type === 'form_submission' || t?.formId));
+                const formTag = Array.isArray(opp.tags) ? opp.tags.find((t: any) => t?.type === 'form_submission' || t?.formId) : null;
+                const formCode = formTag?.formCode || (opp.source?.includes('FORM-') ? opp.source.match(/FORM-[A-Z0-9_-]+/i)?.[0] : null);
+
+                return (
+                    <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-gray-100">
+                        {isFormLead && (
+                            <div className="flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-tight">
+                                <span>📋</span>
+                                <span className="truncate">{opp.source || 'Web Form Submission'}</span>
+                                {formCode && (
+                                    <span className="ml-auto bg-emerald-200/70 text-emerald-900 px-1 rounded text-[9px] font-mono">
+                                        {formCode}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                                <User className="w-3 h-3 text-gray-300" />
+                                <span className="text-[10px] font-medium text-gray-400">Added by {opp.owner?.name?.split(' ')[0] || (isFormLead ? 'Form Engine' : 'System')}</span>
+                            </div>
+                            {!isFormLead && (
+                                <div className="bg-gray-100 text-gray-600 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                    {opp.source || 'Other'}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
 
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
                 <div className="flex items-center gap-2">

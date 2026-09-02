@@ -1,6 +1,6 @@
 generator client {
   provider        = "prisma-client-js"
-  engineType      = "binary"
+  engineType      = "library"
   binaryTargets   = ["native", "rhel-openssl-3.0.x"]
   previewFeatures = ["fullTextSearch"]
 }
@@ -2230,6 +2230,11 @@ model Form {
   description String?
   slug        String   @unique
   isActive    Boolean  @default(true)
+  formType    String   @default("GENERAL_SURVEY") // "GENERAL_SURVEY" | "SALES_ACTIVITY"
+  formCode    String?
+  apiKey      String?  @unique
+  settings    Json?    @default("{}")
+  viewsCount  Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -2241,17 +2246,22 @@ model Form {
   @@index([companyId])
   @@index([companyId, id])
   @@index([companyId, createdAt])
+  @@index([apiKey])
+  @@index([formType])
 }
 
 model FormField {
-  id       String  @id @default(uuid())
-  formId   String
-  label    String
-  type     String // TEXT, EMAIL, PHONE, NUMBER, TEXTAREA, RADIO, SELECT, CHECKBOX
-  required Boolean @default(false)
-  options  Json? // For SELECT, RADIO, CHECKBOX
-  order    Int     @default(0)
-  mapping  String? // e.g. "contactName", "contactEmail", "companyName", "industry", "source", "phone"
+  id          String  @id @default(uuid())
+  formId      String
+  label       String
+  type        String // TEXT, EMAIL, PHONE, NUMBER, TEXTAREA, RADIO, SELECT, CHECKBOX, FILE_UPLOAD, DATE, DATETIME, RATING, HEADING, PARAGRAPH, DIVIDER
+  required    Boolean @default(false)
+  placeholder String?
+  description String?
+  options     Json? // For SELECT, RADIO, CHECKBOX, RATING
+  validation  Json? // For min, max, fileTypes, maxSizeMB
+  order       Int     @default(0)
+  mapping     String? // e.g. "contactName", "contactEmail", "companyName", "industry", "source", "phone"
 
   form   Form                  @relation(fields: [formId], references: [id], onDelete: Cascade)
   values FormSubmissionValue[]
@@ -2264,6 +2274,9 @@ model FormSubmission {
   formId      String
   companyId   String
   submittedAt DateTime @default(now())
+  ipAddress   String?
+  userAgent   String?
+  referrer    String?
 
   leadId   String? // Reference to the created Lead
   clientId String? // Reference to the created Client
@@ -2281,6 +2294,8 @@ model FormSubmissionValue {
   submissionId String
   fieldId      String
   value        String? @db.Text
+  fileUrl      String?
+  fileName     String?
 
   submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   field      FormField      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
@@ -2302,6 +2317,8 @@ model Website {
   customDomain String?  @unique
   template     String?
   config       Json?    @default("{}") // Stores hero, colors, etc.
+  publishedConfig Json?
+  isPublished  Boolean  @default(false)
   owner        String
   status       String   @default("active")
   stats        Json?    @default("{}") // { views: number, leads: number }

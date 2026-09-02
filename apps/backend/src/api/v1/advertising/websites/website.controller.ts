@@ -91,17 +91,7 @@ export const deleteWebsite = async (req: Request, res: Response, next: NextFunct
     }
 };
 
-export const getWebsiteLeads = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const leads = await WebsitesService.getWebsiteLeads(req.params.id);
-        res.json({ leads });
-    } catch (err: any) {
-        if (err.message === 'Website not found') {
-            return res.status(404).json({ error: err.message });
-        }
-        next(err);
-    }
-};
+
 
 export const getWebsitePixels = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -158,40 +148,4 @@ export const publicGetWebsite = async (req: Request, res: Response, next: NextFu
     }
 };
 
-const rateLimitCache = new Map();
-
-export const publicSubmitLead = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const ip = req.ip || req.socket?.remoteAddress || 'unknown';
-        const now = Date.now();
-        const limitInfo = rateLimitCache.get(ip) || { count: 0, firstRequest: now };
-
-        if (now - limitInfo.firstRequest > 60000) {
-            limitInfo.count = 0;
-            limitInfo.firstRequest = now;
-        }
-
-        if (limitInfo.count >= 10) {
-            return res.status(429).json({ error: 'Too many submissions. Please try again later.' });
-        }
-
-        limitInfo.count++;
-        rateLimitCache.set(ip, limitInfo);
-
-        const { domain } = req.query;
-        const userAgent = req.headers['user-agent'] || 'unknown';
-        
-        const { lead, website } = await WebsitesService.publicSubmitLead(domain as string, undefined, req.body, ip, userAgent);
-
-        res.status(201).json({ success: true, leadId: lead.id });
-    } catch (err: any) {
-        if (err.message === 'Domain is required') {
-            return res.status(400).json({ error: err.message });
-        }
-        if (err.message === 'Company not found for this domain' || err.message === 'Website not found') {
-            return res.status(404).json({ error: err.message });
-        }
-        next(err);
-    }
-};
 

@@ -3,7 +3,11 @@ import { FormsService } from '@workspace/advertising';
 
 export const createForm = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const form = await FormsService.createForm(req.body);
+    const companyId = (req as any).user?.companyId || req.body.companyId;
+    const form = await FormsService.createForm({
+      ...req.body,
+      companyId
+    });
 
     res.status(201).json({
       status: 'success',
@@ -14,7 +18,8 @@ export const createForm = async (req: Request, res: Response, next: NextFunction
 
 export const getForms = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const forms = await FormsService.getForms();
+    const companyId = (req as any).user?.companyId;
+    const forms = await FormsService.getForms(companyId);
 
     res.status(200).json({
       status: 'success',
@@ -56,6 +61,22 @@ export const updateForm = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+export const regenerateApiKey = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const apiKey = await FormsService.regenerateApiKey(req.params.id);
+
+    res.status(200).json({
+      status: 'success',
+      data: { apiKey }
+    });
+  } catch (error: any) {
+    if (error.message === 'No form found with that ID') {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+};
+
 export const deleteForm = async (req: Request, res: Response, next: NextFunction) => {
   try {
     await FormsService.deleteForm(req.params.id);
@@ -81,6 +102,21 @@ export const getFormSubmissions = async (req: Request, res: Response, next: Next
       results: submissions.length,
       data: { submissions }
     });
+  } catch (error: any) {
+    if (error.message === 'No form found with that ID') {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+};
+
+export const exportSubmissionsCsv = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { filename, csv } = await FormsService.exportSubmissionsCsv(req.params.id);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csv);
   } catch (error: any) {
     if (error.message === 'No form found with that ID') {
       return res.status(404).json({ error: error.message });
