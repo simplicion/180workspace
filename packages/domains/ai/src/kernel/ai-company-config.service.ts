@@ -39,14 +39,29 @@ export class AICompanyConfigService {
 
         const companyName = companyRecord?.name || '180 Workspace Enterprise';
 
+        const geminiKey = metadata.geminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+        const openaiKey = metadata.openaiKey || metadata.apiKey || process.env.OPENAI_API_KEY || '';
+        const claudeKey = metadata.claudeKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '';
+        const customAiKey = metadata.customAiKey || process.env.CUSTOM_AI_KEY || '';
+        const customAiUrl = metadata.customAiUrl || process.env.CUSTOM_AI_URL || '';
+        const customAiModel = metadata.customAiModel || process.env.CUSTOM_AI_MODEL || '';
+
+        const aiProvider = metadata.aiProvider || metadata.provider || (
+            geminiKey ? 'gemini' :
+            openaiKey ? 'openai' :
+            claudeKey ? 'claude' :
+            (customAiKey && customAiUrl) ? 'custom' :
+            'none'
+        );
+
         const settings: AISettings = {
-            aiProvider: metadata.aiProvider || metadata.provider || (metadata.openaiKey ? 'openai' : metadata.geminiKey ? 'gemini' : metadata.claudeKey ? 'claude' : 'none'),
-            geminiKey: metadata.geminiKey,
-            openaiKey: metadata.openaiKey || metadata.apiKey,
-            claudeKey: metadata.claudeKey,
-            customAiKey: metadata.customAiKey,
-            customAiUrl: metadata.customAiUrl,
-            customAiModel: metadata.customAiModel
+            aiProvider,
+            geminiKey,
+            openaiKey,
+            claudeKey,
+            customAiKey,
+            customAiUrl,
+            customAiModel
         };
 
         return { settings, companyName, metadata };

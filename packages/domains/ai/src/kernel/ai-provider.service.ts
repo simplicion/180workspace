@@ -353,3 +353,5 @@ export class AIProviderService {
 }
 
 export const aiProviderService = AIProviderService.getInstance();
+export const AiService = AIProviderService;
+export const aiService = aiProviderService;

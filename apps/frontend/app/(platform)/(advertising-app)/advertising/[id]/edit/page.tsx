@@ -23,6 +23,7 @@ import { useSettings } from '@/lib/settings-context';
 import PropertyPanel from './PropertyPanel';
 import SettingsSidebar from './SettingsSidebar';
 import TextEditor from './TextEditor';
+import { AIWebsiteDrawer } from './_components/AIWebsiteDrawer';
 function EditableText({ tagName: Tag = 'div', value, onChange, placeholder, className, style }: any) {
     const [showToolbar, setShowToolbar] = useState(false);
     const editorRef = useRef<any>(null);
@@ -413,6 +414,7 @@ export default function WebsiteEditorPage() {
     const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
     const [paddingDrag, setPaddingDrag] = useState<any>(null);
     const [isCanvasDragOver, setIsCanvasDragOver] = useState(false);
+    const [showAIDrawer, setShowAIDrawer] = useState(false);
 
     const handleDragStart = (e: React.DragEvent, index: number) => {
         setDraggedIdx(index);
@@ -1434,6 +1436,14 @@ export default function WebsiteEditorPage() {
                         <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30 transition-colors"><Redo2 className="w-4 h-4" /></button>
                     </div>
                     <button
+                        onClick={() => setShowAIDrawer(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-lg transition-all shadow-xs shadow-indigo-600/20 active:scale-95 cursor-pointer border border-indigo-500/30"
+                        title="Open AI Website Builder & Live Synthesis"
+                    >
+                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                        <span>AI Builder</span>
+                    </button>
+                    <button
                         onClick={() => { setShowSettings(true); setIsPanelCollapsed(false); }}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all duration-200 border bg-white hover:bg-indigo-50/70 hover:border-indigo-200 hover:text-indigo-600 text-gray-700 border-gray-200 shadow-xs active:scale-95"
                     >
@@ -1937,11 +1947,10 @@ export default function WebsiteEditorPage() {
                                              <AlertCircle className="w-4 h-4" />
                                          </button>
                                      )}
-
                                      <button 
                                          onClick={performPublish}
                                          disabled={isPublishing}
-                                         className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-xs flex items-center gap-1.5 active:scale-95"
+                                         className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
                                          title="Publish current changes to the live website"
                                      >
                                          {isPublishing ? (
@@ -2023,6 +2032,7 @@ export default function WebsiteEditorPage() {
                                 activePageId={activePageId}
                                 changeActivePage={changeActivePage}
                                 sections={sections}
+                                onOpenAIDrawer={() => setShowAIDrawer(true)}
                             />
                             </div>
                         )}
@@ -2058,6 +2068,33 @@ export default function WebsiteEditorPage() {
                     </div>
                 </div>
             )}
+
+            {/* Floating AI Builder Trigger (Bottom-Left Canvas) */}
+            <div className="fixed bottom-6 left-6 z-40">
+                <button
+                    type="button"
+                    onClick={() => setShowAIDrawer(true)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-indigo-600/30 border border-white/20 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+                    title="Ask AI Copilot to build sections, pages, or themes live"
+                >
+                    <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center group-hover:rotate-12 transition-transform">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                    </div>
+                    <span className="text-sm font-bold tracking-tight">AI Builder</span>
+                    <span className="text-[10px] uppercase font-black px-1.5 py-0.5 bg-white/20 rounded-full text-indigo-100">Live</span>
+                </button>
+            </div>
+
+            {/* AI Live Website Builder Side Drawer */}
+            <AIWebsiteDrawer
+                isOpen={showAIDrawer}
+                onClose={() => setShowAIDrawer(false)}
+                website={website}
+                config={config}
+                onApplyConfig={(newConfig) => {
+                    commitConfig(newConfig);
+                }}
+            />
 
         </div>
     );
