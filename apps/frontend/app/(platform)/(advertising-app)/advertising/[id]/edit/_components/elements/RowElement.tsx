@@ -1,18 +1,23 @@
 import React from 'react';
 import { ElementProps } from './BoxElement';
+import { motion } from 'framer-motion';
 
-export function RowElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly, viewMode }: ElementProps) {
+export function RowElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, renderChildren, dragHandlers = {}, isReadOnly, viewMode, animationProps, animKey }: ElementProps) {
     const isMobileView = viewMode === 'mobile';
     const responsiveClass = `w-full max-w-full flex ${isMobileView ? 'flex-col' : 'flex-col md:flex-row'} flex-wrap items-stretch ${wrapperClass}`;
+    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
+    const RowTag = hasAnimation ? motion.div : 'div';
 
     return (
-        <div 
-            ref={setNodeRef} 
+        <RowTag 
+            key={animKey}
+            ref={setNodeRef as any} 
             data-element-type="row"
             style={style} 
             onClick={isReadOnly ? undefined : handleClick} 
             className={responsiveClass} 
             {...(isReadOnly ? {} : dragHandlers)}
+            {...(hasAnimation ? animationProps : {})}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
@@ -23,6 +28,6 @@ export function RowElement({ node, setNodeRef, style, wrapperClass, handleClick,
                     Empty Row - Drop items here
                 </div>
             )}
-        </div>
+        </RowTag>
     );
 }

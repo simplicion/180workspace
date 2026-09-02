@@ -12,6 +12,7 @@ import DividerProperties from './_components/properties/DividerProperties';
 import PaddingControl from './_components/properties/PaddingControl';
 import CodeProperties from './_components/properties/CodeProperties';
 import FloatingProperties from './_components/properties/FloatingProperties';
+import AnimationProperties from './_components/AnimationProperties';
 
 interface PropertyPanelProps {
     selectedElement: any;
@@ -40,7 +41,7 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                 </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-6">
                 
                 {/* Company Information (Header/Footer Only) */}
                 {(isHeader || isFooter) && (
@@ -346,26 +347,10 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                 </div>
                 
                 {/* Animation Section */}
-                {!isHeader && !isFooter && (
-                    <div className="space-y-3">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Animation</h4>
-                        <div>
-                            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Entrance Animation</label>
-                            <CustomSelect 
-                                value={selectedElement.animation || 'none'} 
-                                onChange={(e) => onUpdate('animation', e.target.value)}
-                                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                            >
-                                <option value="none">None</option>
-                                <option value="fade-in">Fade In</option>
-                                <option value="fade-up">Fade Up</option>
-                                <option value="fade-left">Fade Left</option>
-                                <option value="fade-right">Fade Right</option>
-                                <option value="scale-up">Scale Up</option>
-                            </CustomSelect>
-                        </div>
-                    </div>
-                )}
+                <div className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Animations</h4>
+                    <AnimationProperties element={selectedElement} onUpdate={onUpdate} />
+                </div>
             </div>
         </div>
     );

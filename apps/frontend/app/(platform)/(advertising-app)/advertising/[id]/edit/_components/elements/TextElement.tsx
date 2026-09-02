@@ -1,7 +1,8 @@
 import React from 'react';
 import { ElementProps } from './BoxElement';
+import { motion } from 'framer-motion';
 
-export function TextElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement, isReadOnly, viewMode }: ElementProps) {
+export function TextElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement, isReadOnly, viewMode, animationProps, animKey }: ElementProps) {
     const Tag = (node.style?.tagName || 'div') as React.ElementType;
     const isMobileView = viewMode === 'mobile';
     
@@ -49,13 +50,18 @@ export function TextElement({ node, brand, setNodeRef, style, wrapperClass, hand
         />
     );
 
+    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
+    const TextContainerTag = hasAnimation ? motion.div : 'div';
+
     return (
-        <div 
-            ref={setNodeRef} 
+        <TextContainerTag 
+            key={animKey}
+            ref={setNodeRef as any} 
             data-element-type="text"
             style={style} 
             onClick={isReadOnly ? undefined : handleClick} 
             className={`w-full max-w-full ${wrapperClass}`}
+            {...(hasAnimation ? animationProps : {})}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
@@ -71,6 +77,6 @@ export function TextElement({ node, brand, setNodeRef, style, wrapperClass, hand
             ) : (
                 textElement
             )}
-        </div>
+        </TextContainerTag>
     );
 }
