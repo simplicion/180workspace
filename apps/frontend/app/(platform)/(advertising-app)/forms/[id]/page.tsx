@@ -195,6 +195,16 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState<any | null>(null);
   const [codeLang, setCodeLang] = useState<'curl' | 'javascript' | 'python'>('curl');
+  
+  // Submissions Selection & Delete State
+  const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
+  const [deletingSubmissions, setDeletingSubmissions] = useState(false);
+  const [confirmDeleteModal, setConfirmDeleteModal] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    idsToDelete: string[];
+  }>({ open: false, title: '', description: '', idsToDelete: [] });
 
   // Auto-save State & Refs
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
@@ -798,6 +808,67 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
     const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL || ''}/api/forms/${formId}/export/csv`;
     window.open(downloadUrl, '_blank');
     toast.success('Downloading submissions CSV...');
+  };
+
+  const handleSelectAllSubmissions = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedSubIds(filteredSubmissions.map(s => s.id));
+    } else {
+      setSelectedSubIds([]);
+    }
+  };
+
+  const handleToggleSubSelection = (id: string) => {
+    setSelectedSubIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const promptDeleteSubmissions = (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const isSingle = ids.length === 1;
+    const linkedLeadsCount = submissions.filter(s => ids.includes(s.id) && Boolean(s.leadId)).length;
+    
+    let leadWarning = '';
+    if (linkedLeadsCount > 0) {
+      leadWarning = ` (${linkedLeadsCount} of these submissions are synced to the CRM Lead Pipeline. The linked Lead and Sales Activity logs will also be permanently deleted from the pipeline).`;
+    }
+
+    setConfirmDeleteModal({
+      open: true,
+      title: isSingle ? 'Delete Form Submission' : `Delete ${ids.length} Selected Submissions`,
+      description: isSingle
+        ? `Are you sure you want to delete this submission?${leadWarning} This action cannot be undone.`
+        : `Are you sure you want to delete ${ids.length} selected submissions?${leadWarning} This action cannot be undone.`,
+      idsToDelete: ids
+    });
+  };
+
+  const executeDeleteSubmissions = async () => {
+    const ids = confirmDeleteModal.idsToDelete;
+    if (!ids || ids.length === 0) return;
+
+    setDeletingSubmissions(true);
+    try {
+      if (ids.length === 1) {
+        await api.delete(`/api/forms/submissions/${ids[0]}`);
+      } else {
+        await api.post(`/api/forms/${effectiveId}/submissions/bulk-delete`, { submissionIds: ids });
+      }
+
+      toast.success(`Deleted ${ids.length} submission(s) and synced CRM lead pipeline records.`);
+      
+      setSubmissions(prev => prev.filter(s => !ids.includes(s.id)));
+      setSelectedSubIds(prev => prev.filter(id => !ids.includes(id)));
+      if (selectedSubmission && ids.includes(selectedSubmission.id)) {
+        setSelectedSubmission(null);
+      }
+      setConfirmDeleteModal({ open: false, title: '', description: '', idsToDelete: [] });
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete submissions');
+    } finally {
+      setDeletingSubmissions(false);
+    }
   };
 
   const handleImageUpload = async (file: File, target: 'header' | 'footer' | 'background') => {
@@ -2591,47 +2662,146 @@ print(response.json())`}
       {activeTab === 'submissions' && (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between flex-wrap gap-3">
-            <div className="relative"><Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" /><input type="text" placeholder="Search submissions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 pr-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" /></div>
-            <button onClick={handleExportCsv} className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-xl text-xs font-semibold transition-colors"><Download className="w-3.5 h-3.5" /> Export CSV</button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search submissions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
+                />
+              </div>
+              {selectedSubIds.length > 0 && (
+                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1 rounded-xl border border-indigo-200 dark:border-indigo-900/50">
+                  {selectedSubIds.length} selected
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {selectedSubIds.length > 0 ? (
+                <>
+                  <button
+                    onClick={() => setSelectedSubIds([])}
+                    className="px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+                  >
+                    Deselect All
+                  </button>
+                  <button
+                    onClick={() => promptDeleteSubmissions(selectedSubIds)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedSubIds.length})
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleExportCsv}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-xl text-xs font-semibold transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Export CSV
+                  </button>
+                  {filteredSubmissions.length > 0 && (
+                    <button
+                      onClick={() => promptDeleteSubmissions(filteredSubmissions.map(s => s.id))}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-xl text-xs font-semibold transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete All
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           {filteredSubmissions.length === 0 ? (
-            <div className="p-12 text-center space-y-2"><p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No submissions yet</p><p className="text-xs text-zinc-400">Responses will appear here.</p></div>
+            <div className="p-12 text-center space-y-2">
+              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No submissions yet</p>
+              <p className="text-xs text-zinc-400">Responses will appear here.</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 uppercase tracking-wider text-[10px] border-b border-zinc-100 dark:border-zinc-800"><tr><th className="px-5 py-3">Date</th><th className="px-5 py-3">Lead Summary</th><th className="px-5 py-3">CRM Sync</th><th className="px-5 py-3">IP</th><th className="px-5 py-3 text-right">Action</th></tr></thead>
+                <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 uppercase tracking-wider text-[10px] border-b border-zinc-100 dark:border-zinc-800">
+                  <tr>
+                    <th className="px-4 py-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={filteredSubmissions.length > 0 && selectedSubIds.length === filteredSubmissions.length}
+                        onChange={handleSelectAllSubmissions}
+                        className="rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </th>
+                    <th className="px-5 py-3">Date</th>
+                    <th className="px-5 py-3">Lead Summary</th>
+                    <th className="px-5 py-3">CRM Sync</th>
+                    <th className="px-5 py-3">IP</th>
+                    <th className="px-5 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {filteredSubmissions.map(sub => (
-                    <tr key={sub.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors">
-                      <td className="px-5 py-3.5 text-zinc-600 dark:text-zinc-300 whitespace-nowrap">{new Date(sub.submittedAt).toLocaleDateString()} {new Date(sub.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex flex-col gap-0.5">
-                          {(() => {
-                            const validValues = (sub.values || []).filter((v: any) => Boolean(v.value && String(v.value).trim()) || Boolean(v.fileUrl));
-                            if (validValues.length > 0) {
-                              return validValues.slice(0, 3).map((v: any, i: number) => (
-                                <span key={i} className="text-xs text-zinc-800 dark:text-zinc-200 font-medium truncate max-w-xs">
-                                  {v.label || v.field?.label || `Field ${i + 1}`}: {v.value || (v.fileUrl ? 'Attachment' : '—')}
-                                </span>
-                              ));
-                            }
-                            return <span className="text-zinc-400 text-[11px] italic">No response data</span>;
-                          })()}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 whitespace-nowrap">
-                        {sub.leadId ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20">
-                            <Zap className="w-3 h-3 text-emerald-500" /> Pipeline Lead
-                          </span>
-                        ) : (
-                          <span className="text-zinc-400 text-[11px]">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-zinc-500 font-mono text-[11px] whitespace-nowrap">{sub.ipAddress || '—'}</td>
-                      <td className="px-5 py-3.5 text-right"><button onClick={() => setSelectedSubmission(sub)} className="px-2.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors">View</button></td>
-                    </tr>
-                  ))}
+                  {filteredSubmissions.map(sub => {
+                    const isSelected = selectedSubIds.includes(sub.id);
+                    return (
+                      <tr key={sub.id} className={`hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''}`}>
+                        <td className="px-4 py-3.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSubSelection(sub.id)}
+                            className="rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-5 py-3.5 text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
+                          {new Date(sub.submittedAt).toLocaleDateString()} {new Date(sub.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex flex-col gap-0.5">
+                            {(() => {
+                              const validValues = (sub.values || []).filter((v: any) => Boolean(v.value && String(v.value).trim()) || Boolean(v.fileUrl));
+                              if (validValues.length > 0) {
+                                return validValues.slice(0, 3).map((v: any, i: number) => (
+                                  <span key={i} className="text-xs text-zinc-800 dark:text-zinc-200 font-medium truncate max-w-xs">
+                                    {v.label || v.field?.label || `Field ${i + 1}`}: {v.value || (v.fileUrl ? 'Attachment' : '—')}
+                                  </span>
+                                ));
+                              }
+                              return <span className="text-zinc-400 text-[11px] italic">No response data</span>;
+                            })()}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          {sub.leadId ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20">
+                              <Zap className="w-3 h-3 text-emerald-500" /> Pipeline Lead
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400 text-[11px]">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-zinc-500 font-mono text-[11px] whitespace-nowrap">{sub.ipAddress || '—'}</td>
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setSelectedSubmission(sub)}
+                              className="px-2.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => promptDeleteSubmissions([sub.id])}
+                              title="Delete submission and linked CRM lead"
+                              className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2644,14 +2814,30 @@ print(response.json())`}
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
-              <div><h3 className="text-base font-bold text-zinc-900 dark:text-white">Submission Details</h3><p className="text-xs text-zinc-400">ID: {selectedSubmission.id}</p></div>
-              <button onClick={() => setSelectedSubmission(null)} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400"><X className="w-5 h-5" /></button>
+              <div>
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">Submission Details</h3>
+                <p className="text-xs text-zinc-400">ID: {selectedSubmission.id}</p>
+              </div>
+              <button onClick={() => setSelectedSubmission(null)} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400">
+                <X className="w-5 h-5" />
+              </button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-2 text-xs bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl">
-                <div><span className="text-zinc-400 block text-[10px] uppercase">Submitted At</span><strong className="text-zinc-700 dark:text-zinc-300">{new Date(selectedSubmission.submittedAt).toLocaleString()}</strong></div>
-                <div><span className="text-zinc-400 block text-[10px] uppercase">Pipeline Status</span><strong className="text-zinc-700 dark:text-zinc-300 flex items-center gap-1">{selectedSubmission.leadId ? <><Zap className="w-3 h-3 text-emerald-500" /> Synced Lead</> : 'Standard'}</strong></div>
-                <div><span className="text-zinc-400 block text-[10px] uppercase">IP Address</span><strong className="text-zinc-700 dark:text-zinc-300 font-mono">{selectedSubmission.ipAddress || 'N/A'}</strong></div>
+                <div>
+                  <span className="text-zinc-400 block text-[10px] uppercase">Submitted At</span>
+                  <strong className="text-zinc-700 dark:text-zinc-300">{new Date(selectedSubmission.submittedAt).toLocaleString()}</strong>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block text-[10px] uppercase">Pipeline Status</span>
+                  <strong className="text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
+                    {selectedSubmission.leadId ? <><Zap className="w-3 h-3 text-emerald-500" /> Synced Lead</> : 'Standard'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block text-[10px] uppercase">IP Address</span>
+                  <strong className="text-zinc-700 dark:text-zinc-300 font-mono">{selectedSubmission.ipAddress || 'N/A'}</strong>
+                </div>
               </div>
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Submitted Values</h4>
@@ -2661,7 +2847,13 @@ print(response.json())`}
                     return validModalValues.map((val: any, idx: number) => (
                       <div key={idx} className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800 space-y-1">
                         <span className="text-[11px] font-semibold text-zinc-500 uppercase">{val.label || val.field?.label || `Field ${idx + 1}`}</span>
-                        {val.fileUrl ? <a href={val.fileUrl} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-indigo-600 hover:underline">📎 {val.fileName || 'Download'}</a> : <p className="text-xs text-zinc-800 dark:text-zinc-200 font-medium whitespace-pre-wrap">{val.value || '—'}</p>}
+                        {val.fileUrl ? (
+                          <a href={val.fileUrl} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-indigo-600 hover:underline">
+                            📎 {val.fileName || 'Download'}
+                          </a>
+                        ) : (
+                          <p className="text-xs text-zinc-800 dark:text-zinc-200 font-medium whitespace-pre-wrap">{val.value || '—'}</p>
+                        )}
                       </div>
                     ));
                   }
@@ -2669,10 +2861,36 @@ print(response.json())`}
                 })()}
               </div>
             </div>
-            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end"><button onClick={() => setSelectedSubmission(null)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold rounded-xl text-zinc-700 dark:text-zinc-200">Close</button></div>
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+              <button
+                onClick={() => promptDeleteSubmissions([selectedSubmission.id])}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 rounded-xl text-xs font-semibold transition-colors border border-rose-200 dark:border-rose-900/50"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete Submission
+              </button>
+              <button
+                onClick={() => setSelectedSubmission(null)}
+                className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold rounded-xl text-zinc-700 dark:text-zinc-200"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Confirm Modal for Submissions Deletion */}
+      <ConfirmModal
+        isOpen={confirmDeleteModal.open}
+        title={confirmDeleteModal.title}
+        message={confirmDeleteModal.description}
+        confirmText={deletingSubmissions ? "Deleting..." : "Delete Permanently"}
+        cancelText="Cancel"
+        loading={deletingSubmissions}
+        variant="danger"
+        onConfirm={executeDeleteSubmissions}
+        onCancel={() => setConfirmDeleteModal({ open: false, title: '', description: '', idsToDelete: [] })}
+      />
 
       {/* Confirm Modal */}
       <ConfirmModal

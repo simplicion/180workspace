@@ -124,3 +124,53 @@ export const exportSubmissionsCsv = async (req: Request, res: Response, next: Ne
     next(error);
   }
 };
+
+export const deleteSubmission = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await FormsService.deleteSubmission(req.params.submissionId);
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  } catch (error: any) {
+    if (error.message === 'Submission not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+};
+
+export const bulkDeleteSubmissions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { submissionIds } = req.body;
+    if (!Array.isArray(submissionIds) || submissionIds.length === 0) {
+      return res.status(400).json({ error: 'Please provide an array of submissionIds to delete' });
+    }
+
+    const result = await FormsService.deleteSubmissions(submissionIds);
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const deleteAllSubmissions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await FormsService.deleteAllSubmissions(req.params.id);
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  } catch (error: any) {
+    if (error.message === 'No form found with that ID') {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+};

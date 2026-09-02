@@ -16,7 +16,14 @@ router.route('/:id/api-key/regenerate')
   .post(formBuilderController.regenerateApiKey);
 
 router.route('/:id/submissions')
-  .get(formBuilderController.getFormSubmissions);
+  .get(formBuilderController.getFormSubmissions)
+  .delete(formBuilderController.deleteAllSubmissions);
+
+router.route('/:id/submissions/bulk-delete')
+  .post(formBuilderController.bulkDeleteSubmissions);
+
+router.route('/submissions/:submissionId')
+  .delete(formBuilderController.deleteSubmission);
 
 router.route('/:id/export/csv')
   .get(formBuilderController.exportSubmissionsCsv);
