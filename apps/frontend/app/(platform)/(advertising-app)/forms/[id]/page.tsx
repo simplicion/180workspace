@@ -10,7 +10,7 @@ import {
   Sparkles, ShieldCheck, HelpCircle, ArrowUpRight,
   Zap, UserCheck, DollarSign, Layers, Tag, ChevronDown,
   Image as ImageIcon, Type, AlignLeft, ToggleLeft,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
@@ -91,13 +91,15 @@ const PRESET_COLORS = [
   '#4f46e5', '#059669', '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#18181b',
 ];
 
-const STAGES = [
+const LEAD_PIPELINE_STAGES = [
   { value: 'Lead', label: 'New Leads (Default)' },
   { value: 'Contacted', label: 'Contacted' },
   { value: 'Qualified', label: 'Qualified' },
   { value: 'Demo', label: 'Demo / Meeting' },
   { value: 'Proposal', label: 'Proposal' },
-  { value: 'Negotiation', label: 'Negotiating' }
+  { value: 'Negotiation', label: 'Negotiating' },
+  { value: 'ClosedWon', label: 'Won (Closed Won)' },
+  { value: 'ClosedLost', label: 'Lost (Closed Lost)' }
 ];
 
 const FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
@@ -254,6 +256,128 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
     setPages(updated.map((p, idx) => ({ ...p, order: idx })));
   };
 
+  const isSalesActivityActive = (formType === 'HEADLESS_ENDPOINT' || settings.isHeadless)
+    ? (settings.isSalesActivity !== false && settings.salesSettings?.isSalesActivity !== false)
+    : (formType === 'SALES_ACTIVITY' || settings.isSalesActivity === true || settings.salesSettings?.isSalesActivity === true);
+
+  const isMandatoryLeadField = (field: FormField) => {
+    if (!isSalesActivityActive) return false;
+    const mapping = (field.mapping || '').toLowerCase();
+    const label = (field.label || '').toLowerCase().trim();
+    const type = field.type;
+
+    return (
+      mapping === 'name' ||
+      mapping === 'phone' ||
+      mapping === 'email' ||
+      type === 'PHONE' ||
+      type === 'EMAIL' ||
+      /^(full\s*name|name|client\s*name)$/i.test(label) ||
+      /^(phone|phone\s*number|mobile)$/i.test(label) ||
+      /^(email|email\s*address|work\s*email)$/i.test(label)
+    );
+  };
+
+  const handleToggleSalesActivity = (checked: boolean) => {
+    const isHeadlessMode = formType === 'HEADLESS_ENDPOINT' || settings.isHeadless;
+    if (isHeadlessMode) {
+      setSettings(prev => ({
+        ...prev,
+        isSalesActivity: checked,
+        salesSettings: {
+          ...(prev.salesSettings || {}),
+          isSalesActivity: checked
+        }
+      }));
+    } else {
+      setFormType(checked ? 'SALES_ACTIVITY' : 'GENERAL_SURVEY');
+      setSettings(prev => ({
+        ...prev,
+        isSalesActivity: checked,
+        salesSettings: {
+          ...(prev.salesSettings || {}),
+          isSalesActivity: checked
+        }
+      }));
+    }
+
+    if (checked) {
+      setFields(prev => {
+        let updated = [...prev];
+        const hasName = updated.some(f => (f.mapping || '').toLowerCase() === 'name' || (f.type === 'TEXT' && /^(full\s*name|name|client\s*name)$/i.test((f.label || '').trim())));
+        const hasPhone = updated.some(f => (f.mapping || '').toLowerCase() === 'phone' || f.type === 'PHONE' || /^(phone|phone\s*number|mobile)$/i.test((f.label || '').trim()));
+        const hasEmail = updated.some(f => (f.mapping || '').toLowerCase() === 'email' || f.type === 'EMAIL' || /^(email|email\s*address|work\s*email)$/i.test((f.label || '').trim()));
+
+        const firstPageId = pages[0]?.id || 'page_1';
+
+        if (!hasName) {
+          updated.unshift({
+            name: 'name',
+            label: 'Full Name',
+            type: 'TEXT',
+            required: true,
+            placeholder: 'Jane Doe',
+            order: 0,
+            mapping: 'name',
+            pageId: firstPageId
+          });
+        }
+
+        if (!hasPhone) {
+          const nameIdx = updated.findIndex(f => (f.mapping || '').toLowerCase() === 'name' || /name/i.test(f.label || ''));
+          const insertIdx = nameIdx >= 0 ? nameIdx + 1 : 0;
+          updated.splice(insertIdx, 0, {
+            name: 'phone',
+            label: 'Phone Number',
+            type: 'PHONE',
+            required: true,
+            placeholder: '+1 (555) 000-0000',
+            order: insertIdx,
+            mapping: 'phone',
+            pageId: firstPageId
+          });
+        }
+
+        if (!hasEmail) {
+          const phoneIdx = updated.findIndex(f => (f.mapping || '').toLowerCase() === 'phone' || f.type === 'PHONE' || /phone/i.test(f.label || ''));
+          const insertIdx = phoneIdx >= 0 ? phoneIdx + 1 : updated.length;
+          updated.splice(insertIdx, 0, {
+            name: 'email',
+            label: 'Email Address',
+            type: 'EMAIL',
+            required: true,
+            placeholder: 'you@company.com',
+            order: insertIdx,
+            mapping: 'email',
+            pageId: firstPageId
+          });
+        }
+
+        return updated.map((f, idx) => {
+          const isMandatory = (
+            (f.mapping || '').toLowerCase() === 'name' ||
+            (f.mapping || '').toLowerCase() === 'phone' ||
+            (f.mapping || '').toLowerCase() === 'email' ||
+            f.type === 'PHONE' ||
+            f.type === 'EMAIL' ||
+            /^(full\s*name|name|client\s*name)$/i.test((f.label || '').trim()) ||
+            /^(phone|phone\s*number|mobile)$/i.test((f.label || '').trim()) ||
+            /^(email|email\s*address|work\s*email)$/i.test((f.label || '').trim())
+          );
+          return {
+            ...f,
+            order: idx,
+            required: isMandatory ? true : f.required
+          };
+        });
+      });
+
+      toast.success('Lead Pipeline Engine enabled! Mandatory fields (Full Name, Phone Number, Email) have been added and locked.');
+    } else {
+      toast('Lead Pipeline sync disabled');
+    }
+  };
+
   const serializeFormState = (t: string, d: string, act: boolean, ft: any, fc: string, s: any, f: any[], pgs: FormPage[]) => {
     return JSON.stringify({
       title: t,
@@ -326,11 +450,29 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
       setPages(loadedPages);
       setActivePageId(loadedPages[0].id);
 
-      const mappedLoadedFields: FormField[] = (form.fields || []).map((field: any, idx: number) => ({
-        ...field,
-        order: field.order !== undefined ? field.order : idx,
-        pageId: field.pageId || (field.validation as any)?.pageId || (field.options as any)?.pageId || 'page_1'
-      }));
+      const isSalesActiveOnLoad = (resolvedFormType === 'SALES_ACTIVITY') || form.settings?.isSalesActivity === true || form.settings?.salesSettings?.isSalesActivity === true;
+
+      const mappedLoadedFields: FormField[] = (form.fields || []).map((field: any, idx: number) => {
+        const mapping = (field.mapping || '').toLowerCase();
+        const label = (field.label || '').toLowerCase().trim();
+        const isMandatory = isSalesActiveOnLoad && (
+          mapping === 'name' ||
+          mapping === 'phone' ||
+          mapping === 'email' ||
+          field.type === 'PHONE' ||
+          field.type === 'EMAIL' ||
+          /^(full\s*name|name|client\s*name)$/i.test(label) ||
+          /^(phone|phone\s*number|mobile)$/i.test(label) ||
+          /^(email|email\s*address|work\s*email)$/i.test(label)
+        );
+
+        return {
+          ...field,
+          required: isMandatory ? true : Boolean(field.required),
+          order: field.order !== undefined ? field.order : idx,
+          pageId: field.pageId || (field.validation as any)?.pageId || (field.options as any)?.pageId || 'page_1'
+        };
+      });
       setFields(mappedLoadedFields);
 
       if (resolvedFormType === 'HEADLESS_ENDPOINT' || form.settings?.isHeadless) {
@@ -739,11 +881,21 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
   };
 
   const removeField = (index: number) => {
+    const field = fields[index];
+    if (field && isMandatoryLeadField(field)) {
+      toast.error('This field is mandatory for Lead Pipeline sync and cannot be removed.');
+      return;
+    }
     setFields(fields.filter((_, i) => i !== index));
     if (activeFieldIndex === index) setActiveFieldIndex(null);
   };
 
   const updateField = (index: number, key: keyof FormField, value: any) => {
+    const field = fields[index];
+    if (key === 'required' && !value && field && isMandatoryLeadField(field)) {
+      toast.error('This field must remain required for Lead Pipeline sync.');
+      return;
+    }
     const newFields = [...fields];
     if (key === 'label') {
       const sanitizedKey = value.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -1837,18 +1989,32 @@ print(response.json())`}
                         <div className="space-y-3">
                           {/* Field label – inline editable on click, nice label preview on hover */}
                           {isActive ? (
-                            <input
-                              value={field.label}
-                              onChange={(e) => updateField(originalIndex, 'label', e.target.value)}
-                              placeholder="Question"
-                              className="w-full text-sm font-semibold text-zinc-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none pb-1 placeholder:text-zinc-300"
-                              autoFocus
-                            />
+                            <div className="space-y-1">
+                              <input
+                                value={field.label}
+                                onChange={(e) => updateField(originalIndex, 'label', e.target.value)}
+                                placeholder="Question"
+                                className="w-full text-sm font-semibold text-zinc-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none pb-1 placeholder:text-zinc-300"
+                                autoFocus
+                              />
+                              {isMandatoryLeadField(field) && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                                  <Lock className="w-3 h-3" /> Mandatory for Lead Pipeline
+                                </span>
+                              )}
+                            </div>
                           ) : (
-                            <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                              {field.label || <span className="text-zinc-300">Question</span>}
-                              {field.required && <span className="text-red-500 ml-0.5">*</span>}
-                            </label>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                {field.label || <span className="text-zinc-300">Question</span>}
+                                {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                              </label>
+                              {isMandatoryLeadField(field) && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                                  <Lock className="w-3 h-3" /> Mandatory for Lead Pipeline
+                                </span>
+                              )}
+                            </div>
                           )}
 
                           {/* Field description / guidance */}
@@ -1913,10 +2079,16 @@ print(response.json())`}
                           <div className="flex items-center gap-3">
                             {/* Required toggle */}
                             {!isStructural && (
-                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <label className={`flex items-center gap-2 select-none ${isMandatoryLeadField(field) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`} title={isMandatoryLeadField(field) ? 'Mandatory for Lead Pipeline sync' : undefined}>
                                 <span className="text-xs font-medium text-zinc-500">Required</span>
                                 <div className="relative">
-                                  <input type="checkbox" className="sr-only peer" checked={field.required} onChange={(e) => updateField(originalIndex, 'required', e.target.checked)} />
+                                  <input 
+                                    type="checkbox" 
+                                    className="sr-only peer" 
+                                    checked={isMandatoryLeadField(field) ? true : field.required} 
+                                    disabled={isMandatoryLeadField(field)}
+                                    onChange={(e) => updateField(originalIndex, 'required', e.target.checked)} 
+                                  />
                                   <div className="w-8 h-[18px] bg-gray-200 dark:bg-zinc-700 rounded-full peer-checked:bg-indigo-600 transition-colors" />
                                   <div className="absolute top-[2px] left-[2px] w-[14px] h-[14px] bg-white rounded-full shadow transition-transform peer-checked:translate-x-[14px]" />
                                 </div>
@@ -1924,9 +2096,23 @@ print(response.json())`}
                             )}
 
                             {/* Delete */}
-                            <button onClick={(e) => { e.stopPropagation(); removeField(originalIndex); }} className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors" title="Delete field">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {isMandatoryLeadField(field) ? (
+                              <button 
+                                type="button"
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  toast.error('This field is mandatory for Lead Pipeline sync and cannot be removed.'); 
+                                }} 
+                                className="p-1.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors cursor-not-allowed" 
+                                title="Mandatory Lead Pipeline field (Cannot be removed)"
+                              >
+                                <Lock className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button onClick={(e) => { e.stopPropagation(); removeField(originalIndex); }} className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors" title="Delete field">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -2272,105 +2458,85 @@ print(response.json())`}
           ══════════════════════════════════════════════════════════════════════════ */}
       {!isHeadless && activeTab === 'integrations' && (
         <div className="space-y-6">
-          {/* Sales Activity CRM Card */}
+          {/* Lead Pipeline & Sales Activity Engine Card */}
           <div className="bg-gradient-to-br from-amber-500/5 via-transparent to-transparent bg-white dark:bg-zinc-900 rounded-2xl border border-amber-500/30 dark:border-amber-500/20 shadow-sm p-6 space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-2 pb-4 border-b border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 rounded-xl"><Zap className="w-5 h-5" /></div>
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">Sales Activity & CRM Pipeline Engine <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200">Live Kanban Sync</span></h3>
-                  <p className="text-xs text-zinc-500">Automatically push form respondents into Deals, tag with Form ID, and assign sales reps.</p>
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">Lead Pipeline & Sales Activity Engine <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200">Live Kanban Sync</span></h3>
+                  <p className="text-xs text-zinc-500">Automatically push form respondents into your Lead Pipeline, tag with Form ID, and assign sales reps.</p>
                 </div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
                 <input
                   type="checkbox"
                   checked={isHeadless ? (settings.isSalesActivity !== false && settings.salesSettings?.isSalesActivity !== false) : (formType === 'SALES_ACTIVITY')}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    if (isHeadless) {
-                      setSettings(prev => ({
-                        ...prev,
-                        isSalesActivity: checked,
-                        salesSettings: {
-                          ...(prev.salesSettings || {}),
-                          isSalesActivity: checked
-                        }
-                      }));
-                    } else {
-                      setFormType(checked ? 'SALES_ACTIVITY' : 'GENERAL_SURVEY');
-                      setSettings(prev => ({
-                        ...prev,
-                        isSalesActivity: checked,
-                        salesSettings: {
-                          ...(prev.salesSettings || {}),
-                          isSalesActivity: checked
-                        }
-                      }));
-                    }
-                  }}
+                  onChange={(e) => handleToggleSalesActivity(e.target.checked)}
                   className="w-4 h-4 text-amber-600 rounded border-zinc-300 focus:ring-amber-500"
                 />
-                <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Enable Sales Activity Engine</span>
+                <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Enable Lead Pipeline Engine</span>
               </label>
             </div>
             {(isHeadless ? (settings.isSalesActivity !== false && settings.salesSettings?.isSalesActivity !== false) : (formType === 'SALES_ACTIVITY')) ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
+              <div className="space-y-4 max-w-2xl">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Target Lead Pipeline Stage</label>
+                  <CustomSelect
+                    searchable={false}
+                    className="w-full text-xs"
+                    value={settings.salesSettings?.targetStage || 'Lead'}
+                    onChange={(val: any) => {
+                      const actual = val?.target?.value ?? String(val);
+                      setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), targetStage: actual } }));
+                    }}
+                    options={LEAD_PIPELINE_STAGES}
+                  />
+                  <p className="text-[11px] text-zinc-400 mt-1">New submissions will automatically enter your Lead Pipeline in this chosen stage.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Target CRM Pipeline Stage</label>
-                    <CustomSelect
-                      searchable={false}
-                      className="w-full text-xs"
-                      value={settings.salesSettings?.targetStage || 'Lead'}
-                      onChange={(val: any) => {
-                        const actual = val?.target?.value ?? String(val);
-                        setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), targetStage: actual } }));
-                      }}
-                      options={STAGES}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Default Deal Value ($)</label>
-                      <div className="relative">
-                        <DollarSign className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-3 pointer-events-none" />
-                        <input type="number" value={settings.salesSettings?.defaultDealValue ?? ''} onChange={(e) => setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), defaultDealValue: Number(e.target.value) || 0 } }))} placeholder="e.g. 2500" className="w-full pl-8 pr-3 py-2 bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Assign Sales Rep</label>
-                      <CustomSelect
-                        searchable={true}
-                        className="w-full text-xs"
-                        value={settings.salesSettings?.assignedSalesRepId || ''}
-                        onChange={(val: any) => {
-                          const actual = val?.target?.value ?? String(val);
-                          setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), assignedSalesRepId: actual } }));
-                        }}
-                        options={[
-                          { label: 'Unassigned (Team Pool)', value: '' },
-                          ...users.map(u => ({ label: u.name || u.email, value: u.id }))
-                        ]}
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Default Lead Value ($)</label>
+                    <div className="relative">
+                      <DollarSign className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-3 pointer-events-none" />
+                      <input 
+                        type="number" 
+                        value={settings.salesSettings?.defaultDealValue ?? ''} 
+                        onChange={(e) => setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), defaultDealValue: Number(e.target.value) || 0 } }))} 
+                        placeholder="e.g. 2500" 
+                        className="w-full pl-8 pr-3 py-2 bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs" 
                       />
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer pt-1">
-                    <input type="checkbox" checked={settings.salesSettings?.autoCreateActivity !== false} onChange={(e) => setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), autoCreateActivity: e.target.checked } }))} className="w-4 h-4 text-indigo-600 rounded border-zinc-300" />
-                    <span className="text-xs text-zinc-700 dark:text-zinc-300">Auto-create <strong>SalesActivity</strong> note in CRM timeline</span>
-                  </label>
-                </div>
-                <div className="bg-zinc-50 dark:bg-zinc-800/40 rounded-xl p-4 border border-zinc-200/80 dark:border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between"><span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">CRM Kanban Lead Card Preview</span><span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Live Tagging</span></div>
-                  <div className="p-3.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-2">
-                    <div className="flex items-center justify-between"><div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" /><span className="text-xs font-bold text-zinc-900 dark:text-white">Alex Morgan - Inbound Lead</span></div><span className="text-xs font-black text-zinc-700 dark:text-zinc-300">${settings.salesSettings?.defaultDealValue?.toLocaleString() || '2,500'}</span></div>
-                    <div className="text-[11px] text-zinc-500">Acme Corporation • alex@acme.com</div>
-                    <div className="flex items-center gap-1 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/60 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-tight"><span>📋</span><span className="truncate">Web Form: {title || 'Inquiry Form'}</span><span className="ml-auto bg-emerald-200/70 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 px-1 rounded text-[9px] font-mono">#{effectiveId}</span></div>
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Assign Sales Rep</label>
+                    <CustomSelect
+                      searchable={true}
+                      className="w-full text-xs"
+                      value={settings.salesSettings?.assignedSalesRepId || ''}
+                      onChange={(val: any) => {
+                        const actual = val?.target?.value ?? String(val);
+                        setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), assignedSalesRepId: actual } }));
+                      }}
+                      options={[
+                        { label: 'Unassigned (Team Pool)', value: '' },
+                        ...users.map(u => ({ label: u.name || u.email, value: u.id }))
+                      ]}
+                    />
                   </div>
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <input 
+                    type="checkbox" 
+                    checked={settings.salesSettings?.autoCreateActivity !== false} 
+                    onChange={(e) => setSettings(prev => ({ ...prev, salesSettings: { ...(prev.salesSettings || {}), autoCreateActivity: e.target.checked } }))} 
+                    className="w-4 h-4 text-indigo-600 rounded border-zinc-300" 
+                  />
+                  <span className="text-xs text-zinc-700 dark:text-zinc-300">Auto-create <strong>SalesActivity</strong> note in Lead timeline</span>
+                </label>
               </div>
             ) : (
-              <p className="text-xs text-zinc-500 italic py-2">Sales Activity engine is disabled. Submissions are stored as survey responses.</p>
+              <p className="text-xs text-zinc-500 italic py-2">Lead Pipeline engine is disabled. Submissions are stored as survey responses.</p>
             )}
           </div>
 
@@ -2456,8 +2622,28 @@ print(response.json())`}
                   {filteredSubmissions.map(sub => (
                     <tr key={sub.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors">
                       <td className="px-5 py-3.5 text-zinc-600 dark:text-zinc-300 whitespace-nowrap">{new Date(sub.submittedAt).toLocaleDateString()} {new Date(sub.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="px-5 py-3.5"><div className="flex flex-col gap-0.5">{sub.values?.slice(0, 2).map((v: any, i: number) => (<span key={i} className="text-xs text-zinc-800 dark:text-zinc-200 font-medium truncate max-w-xs">{v.label || v.field?.label}: {v.value}</span>))}</div></td>
-                      <td className="px-5 py-3.5 whitespace-nowrap">{sub.leadId ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20"><Zap className="w-3 h-3 text-emerald-500" /> Pipeline Deal</span> : <span className="text-zinc-400 text-[11px]">—</span>}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex flex-col gap-0.5">
+                          {sub.values && sub.values.length > 0 ? (
+                            sub.values.slice(0, 2).map((v: any, i: number) => (
+                              <span key={i} className="text-xs text-zinc-800 dark:text-zinc-200 font-medium truncate max-w-xs">
+                                {v.label || v.field?.label || 'Field'}: {v.value || '—'}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-zinc-400 text-[11px] italic">No response data</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        {sub.leadId ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20">
+                            <Zap className="w-3 h-3 text-emerald-500" /> Pipeline Lead
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 text-[11px]">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5 text-zinc-500 font-mono text-[11px] whitespace-nowrap">{sub.ipAddress || '—'}</td>
                       <td className="px-5 py-3.5 text-right"><button onClick={() => setSelectedSubmission(sub)} className="px-2.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors">View</button></td>
                     </tr>
@@ -2478,18 +2664,23 @@ print(response.json())`}
               <button onClick={() => setSelectedSubmission(null)} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-xs bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl">
+              <div className="grid grid-cols-3 gap-2 text-xs bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl">
                 <div><span className="text-zinc-400 block text-[10px] uppercase">Submitted At</span><strong className="text-zinc-700 dark:text-zinc-300">{new Date(selectedSubmission.submittedAt).toLocaleString()}</strong></div>
+                <div><span className="text-zinc-400 block text-[10px] uppercase">Pipeline Status</span><strong className="text-zinc-700 dark:text-zinc-300 flex items-center gap-1">{selectedSubmission.leadId ? <><Zap className="w-3 h-3 text-emerald-500" /> Synced Lead</> : 'Standard'}</strong></div>
                 <div><span className="text-zinc-400 block text-[10px] uppercase">IP Address</span><strong className="text-zinc-700 dark:text-zinc-300 font-mono">{selectedSubmission.ipAddress || 'N/A'}</strong></div>
               </div>
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Submitted Values</h4>
-                {selectedSubmission.values?.map((val: any, idx: number) => (
-                  <div key={idx} className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800 space-y-1">
-                    <span className="text-[11px] font-semibold text-zinc-500 uppercase">{val.label || val.field?.label || `Field ${idx + 1}`}</span>
-                    {val.fileUrl ? <a href={val.fileUrl} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-indigo-600 hover:underline">📎 {val.fileName || 'Download'}</a> : <p className="text-xs text-zinc-800 dark:text-zinc-200 font-medium whitespace-pre-wrap">{val.value || '—'}</p>}
-                  </div>
-                ))}
+                {selectedSubmission.values && selectedSubmission.values.length > 0 ? (
+                  selectedSubmission.values.map((val: any, idx: number) => (
+                    <div key={idx} className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800 space-y-1">
+                      <span className="text-[11px] font-semibold text-zinc-500 uppercase">{val.label || val.field?.label || `Field ${idx + 1}`}</span>
+                      {val.fileUrl ? <a href={val.fileUrl} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-indigo-600 hover:underline">📎 {val.fileName || 'Download'}</a> : <p className="text-xs text-zinc-800 dark:text-zinc-200 font-medium whitespace-pre-wrap">{val.value || '—'}</p>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-zinc-400 italic p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800">No field responses recorded for this submission.</p>
+                )}
               </div>
             </div>
             <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end"><button onClick={() => setSelectedSubmission(null)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold rounded-xl text-zinc-700 dark:text-zinc-200">Close</button></div>

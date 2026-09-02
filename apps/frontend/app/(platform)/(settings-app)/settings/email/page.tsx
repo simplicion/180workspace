@@ -7,9 +7,9 @@ import { FeatureLock, LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 
 export default function EmailSettingsPage() {
-    const { companyConfig, loading } = useSubscription();
+    const { companyConfig, isPaidPlan, hasApp: checkHasApp, loading } = useSubscription();
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
-    const hasApp = enabledApps.includes('communications');
+    const hasApp = isPaidPlan || enabledApps.includes('communications') || enabledApps.includes('email') || (checkHasApp && checkHasApp('communications'));
 
     return (
         <div className="max-w-5xl space-y-6">

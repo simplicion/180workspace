@@ -10,9 +10,11 @@ import clsx from 'clsx';
 import MigrationProgressBar from './MigrationProgressBar';
 import MongoSetupGuide from './MongoSetupGuide';
 import { ConfirmModal , LogoLoader, FeatureLock } from "@workspace/ui";
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function DatabaseTab() {
     const { settings: globalSettings, refreshSettings: refreshGlobalSettings, platform } = useSettings();
+    const { isPaidPlan } = useSubscription();
     const [saving, setSaving] = useState(false);
     const [showGuide, setShowGuide] = useState(false);
     
@@ -288,7 +290,7 @@ export default function DatabaseTab() {
                 <div className="bg-white rounded-[20px] shadow-sm border border-slate-200 p-8 flex items-center justify-center min-h-[400px]">
                     <LogoLoader className="w-8 h-8 animate-spin" />
                 </div>
-            ) : (globalSettings as any).planLocked ? (
+            ) : (!isPaidPlan && (globalSettings as any).planLocked) ? (
                 <FeatureLock 
                     title="Premium Feature Locked"
                     description="Advanced configuration requires an active subscription. Upgrade your workspace to unlock this capability."

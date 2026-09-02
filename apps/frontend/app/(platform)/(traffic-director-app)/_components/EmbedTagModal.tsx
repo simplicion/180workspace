@@ -300,7 +300,7 @@ add_action('template_redirect', function() {
   .then(function(res){ return res.json(); })
   .then(function(payload){
     // 3. Routing with Loop-Guard Protection
-    if (payload && payload.success && payload.route === 'target' && payload.destinationUrl) {
+    if (payload && payload.success && payload.destinationUrl) {
       var currentPath = w.location.href.split('#')[0].replace(/\/+$/, '');
       var targetPath = payload.destinationUrl.split('#')[0].replace(/\/+$/, '');
       if (currentPath === targetPath || w.location.pathname === targetPath || currentPath.indexOf(targetPath) === 0) return;

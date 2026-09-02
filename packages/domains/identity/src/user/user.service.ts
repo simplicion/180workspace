@@ -64,6 +64,24 @@ export class UserService {
         const existingUser = await User.findUnique({ where: { id } });
         if (!existingUser) throw new Error('User not found');
 
+        if (body.employeeId !== undefined && body.employeeId !== null && body.employeeId !== '') {
+            const trimmedEmpId = String(body.employeeId).trim();
+            const companyId = existingUser.companyId || (requestContext.getStore()?.companyId as string);
+            if (companyId) {
+                const duplicate = await User.findFirst({
+                    where: {
+                        companyId,
+                        employeeId: trimmedEmpId,
+                        id: { not: id }
+                    }
+                });
+                if (duplicate) {
+                    throw new Error(`Employee ID "${trimmedEmpId}" is already assigned to another team member in this workspace.`);
+                }
+            }
+            body.employeeId = trimmedEmpId;
+        }
+
         if (body.designationId === "") body.designationId = null;
         if (body.managerId === "") body.managerId = null;
         if (body.salary !== undefined) body.salary = parseFloat(body.salary) || 0;

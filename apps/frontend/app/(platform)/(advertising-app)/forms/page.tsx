@@ -60,7 +60,7 @@ export default function FormsListPage() {
       const starterFields = isHeadless ? [] : [
         { label: 'Full Name', type: 'TEXT', required: true, placeholder: 'Jane Doe', mapping: 'name' },
         { label: 'Work Email', type: 'EMAIL', required: true, placeholder: 'jane@company.com', mapping: 'email' },
-        { label: 'Phone Number', type: 'PHONE', required: false, placeholder: '+1 (555) 000-0000', mapping: 'phone' },
+        { label: 'Phone Number', type: 'PHONE', required: isSales ? true : false, placeholder: '+1 (555) 000-0000', mapping: 'phone' },
         { label: 'Company Name', type: 'TEXT', required: false, placeholder: 'Acme Inc.', mapping: 'company' },
         { label: 'Estimated Budget ($)', type: 'NUMBER', required: false, placeholder: '5000', mapping: 'budget' },
         { label: 'Project Details / Inquiry', type: 'TEXTAREA', required: false, placeholder: 'How can we help your business?' }

@@ -78,9 +78,9 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
     const [form, setForm] = useState({
         name: editUser?.name || '',
         email: editUser?.email || '',
-        photo: editUser?.photo || '',
+        photo: editUser?.photo || editUser?.photoUrl || '',
         password: '',
-        employeeId: editUser?.employeeId || nextId || Math.floor(1000000000 + Math.random() * 9000000000).toString(),
+        employeeId: editUser?.employeeId || nextId || 'EMP-0001',
         role: initialRole,
         permissions: initialPermissions as string[],
         designationId: editUser?.designation?.name || editUser?.designationId || '',
@@ -92,10 +92,61 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
         emergencyContact: editUser?.emergencyContact || '',
         leaveBalance: editUser?.leaveBalance || 20,
         joinDate: editUser?.joinDate ? new Date(editUser.joinDate).toISOString().slice(0, 10) : editUser?.joiningDate ? editUser.joiningDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
-        employmentType: editUser?.employmentType || '',
-        workLocation: editUser?.workLocation || '',
+        employmentType: editUser?.employmentType || 'Full-time',
+        workLocation: editUser?.workLocation || 'Remote',
         managerId: editUser?.managerId || '',
     });
+
+    useEffect(() => {
+        if (!open) return;
+        if (editUser) {
+            setForm({
+                name: editUser.name || '',
+                email: editUser.email || '',
+                photo: editUser.photo || editUser.photoUrl || '',
+                password: '',
+                employeeId: editUser.employeeId || '',
+                role: editUser.role || 'employee',
+                permissions: editUser.permissions || [],
+                designationId: editUser.designation?.name || editUser.designationId || '',
+                department: editUser.department || '',
+                position: editUser.position || '',
+                salary: editUser.salary || '',
+                phone: editUser.phone || '',
+                address: editUser.address || '',
+                emergencyContact: editUser.emergencyContact || '',
+                leaveBalance: editUser.leaveBalance ?? 20,
+                joinDate: editUser.joinDate ? new Date(editUser.joinDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+                employmentType: editUser.employmentType || 'Full-time',
+                workLocation: editUser.workLocation || 'Remote',
+                managerId: editUser.managerId || '',
+            });
+            setPhotoPreview(editUser.photo || editUser.photoUrl || null);
+        } else {
+            setForm({
+                name: '',
+                email: '',
+                photo: '',
+                password: '',
+                employeeId: nextId || 'EMP-0001',
+                role: 'employee',
+                permissions: [],
+                designationId: '',
+                department: '',
+                position: '',
+                salary: '',
+                phone: '',
+                address: '',
+                emergencyContact: '',
+                leaveBalance: 20,
+                joinDate: new Date().toISOString().slice(0, 10),
+                employmentType: 'Full-time',
+                workLocation: 'Remote',
+                managerId: '',
+            });
+            setPhotoPreview(null);
+        }
+    }, [open, editUser, nextId]);
 
     const togglePermission = (p: string) => {
         setForm(prev => {

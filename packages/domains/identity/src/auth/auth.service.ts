@@ -102,7 +102,11 @@ export class AuthService {
             throw AppError.forbidden('This email is registered as an administrator of another workspace and cannot be added to this one.');
         }
 
-        const adminExists = await CompanyUser.findFirst({ where: { role: 'admin' }, select: { id: true } });
+        const targetCompanyId = company?.id;
+        const adminExists = targetCompanyId
+            ? await globalPrisma.user.findFirst({ where: { companyId: targetCompanyId, role: 'admin' }, select: { id: true } })
+            : await CompanyUser.findFirst({ where: { role: 'admin' }, select: { id: true } });
+
         let safeRoles = (roles && Array.isArray(roles)) ? roles : [(role || 'employee')];
         const validRoles = ['admin', 'manager', 'hr', 'employee', 'client'];
         safeRoles = [...new Set(safeRoles.filter((r: string) => validRoles.includes(r)))];
@@ -116,10 +120,31 @@ export class AuthService {
             safeRoles = ['employee'];
         }
 
-        let employeeId = body.employeeId;
-        if (!employeeId) {
-            const count = await CompanyUser.count();
-            employeeId = `EMP-${String(count + 1).padStart(4, '0')}`;
+        let employeeId = body.employeeId?.toString().trim();
+        
+        // If employeeId is explicitly provided, verify uniqueness strictly WITHIN this workspace
+        if (employeeId && targetCompanyId) {
+            const existingEmp = await globalPrisma.user.findFirst({
+                where: {
+                    companyId: targetCompanyId,
+                    employeeId
+                }
+            });
+            if (existingEmp) {
+                throw AppError.conflict(`Employee ID "${employeeId}" already exists in this workspace. Please use another Employee ID.`);
+            }
+        }
+
+        // If no employeeId is provided, generate next sequential ID strictly WITHIN this company workspace
+        if (!employeeId && targetCompanyId) {
+            const count = await globalPrisma.user.count({ where: { companyId: targetCompanyId } });
+            let candidateId = `EMP-${String(count + 1).padStart(4, '0')}`;
+            let suffix = count + 1;
+            while (await globalPrisma.user.findFirst({ where: { companyId: targetCompanyId, employeeId: candidateId } })) {
+                suffix++;
+                candidateId = `EMP-${String(suffix).padStart(4, '0')}`;
+            }
+            employeeId = candidateId;
         }
 
         if (adminExists) {
@@ -165,6 +190,7 @@ export class AuthService {
                 name,
                 email: email.toLowerCase(),
                 password: isSelfAdmin ? undefined : finalPassword,
+                companyId: targetCompanyId || undefined,
                 role: safeRoles[0] || 'employee',
                 employeeId,
                 department,

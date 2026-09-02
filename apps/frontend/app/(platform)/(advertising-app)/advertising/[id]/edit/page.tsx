@@ -710,7 +710,7 @@ export default function WebsiteEditorPage() {
         if (saveStatus === 'unsaved' || inFlightSaveRef.current) {
             await performAutoSave();
         }
-        router.push(`/advertising/${id}`);
+        router.push('/advertising');
     };
 
     const hoistFloatingNodes = (sections: any[]): any[] => {
@@ -1345,7 +1345,7 @@ export default function WebsiteEditorPage() {
                 className={`fixed top-0 inset-x-0 z-50 h-14 bg-white/95 backdrop-blur-md border-b border-gray-200 px-6 flex items-center justify-between shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${((selectedElementId || showSettings) && !isPanelCollapsed) ? '-translate-y-full' : 'translate-y-0'}`}
             >
                 <div className="flex items-center gap-4">
-                    <button onClick={() => router.push(`/advertising/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
+                    <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors" title="Back to Websites">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
