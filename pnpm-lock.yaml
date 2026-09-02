@@ -1169,6 +1169,9 @@ importers:
 
   packages/domains/social-media:
     dependencies:
+      '@workspace/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@workspace/db':
         specifier: workspace:*
         version: link:../../db

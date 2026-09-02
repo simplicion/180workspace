@@ -47,7 +47,12 @@ export class UniversalBuilderRegistry {
     }
 }
 
+// Singleton builder instances
+export const documentAIBuilderService = new DocumentAIBuilderService();
+export const formAIBuilderService = new FormAIBuilderService();
+export const websiteAIBuilderService = new WebsiteAIBuilderService();
+
 // Automatically register core domain builders
-UniversalBuilderRegistry.register(new DocumentAIBuilderService());
-UniversalBuilderRegistry.register(new FormAIBuilderService());
-UniversalBuilderRegistry.register(new WebsiteAIBuilderService());
+UniversalBuilderRegistry.register(documentAIBuilderService);
+UniversalBuilderRegistry.register(formAIBuilderService);
+UniversalBuilderRegistry.register(websiteAIBuilderService);

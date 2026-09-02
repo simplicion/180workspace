@@ -2069,30 +2069,17 @@ export default function WebsiteEditorPage() {
                 </div>
             )}
 
-            {/* Floating AI Builder Trigger (Bottom-Left Canvas) */}
-            <div className="fixed bottom-6 left-6 z-40">
-                <button
-                    type="button"
-                    onClick={() => setShowAIDrawer(true)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-indigo-600/30 border border-white/20 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
-                    title="Ask AI Copilot to build sections, pages, or themes live"
-                >
-                    <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center group-hover:rotate-12 transition-transform">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                    </div>
-                    <span className="text-sm font-bold tracking-tight">AI Builder</span>
-                    <span className="text-[10px] uppercase font-black px-1.5 py-0.5 bg-white/20 rounded-full text-indigo-100">Live</span>
-                </button>
-            </div>
-
             {/* AI Live Website Builder Side Drawer */}
             <AIWebsiteDrawer
                 isOpen={showAIDrawer}
                 onClose={() => setShowAIDrawer(false)}
                 website={website}
-                config={config}
+                config={{ ...config, activePageId }}
                 onApplyConfig={(newConfig) => {
                     commitConfig(newConfig);
+                    if (newConfig?.activePageId && newConfig.activePageId !== activePageId) {
+                        setActivePageId(newConfig.activePageId);
+                    }
                 }}
             />
 

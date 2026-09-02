@@ -526,6 +526,286 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
         };
     }
 
+    private extractSectionTitle(section: any): string {
+        if (!section) return 'Section';
+        let foundText = '';
+        const search = (node: any) => {
+            if (foundText) return;
+            if (node?.type === 'text' && node?.data?.content) {
+                foundText = node.data.content;
+                return;
+            }
+            if (Array.isArray(node?.children)) {
+                for (const child of node.children) search(child);
+            }
+        };
+        search(section);
+        if (foundText) {
+            return foundText.length > 45 ? foundText.slice(0, 42) + '...' : foundText;
+        }
+        return (section.id || 'Section').replace(/^sec-/, '').replace(/-\d+.*$/, '');
+    }
+
+    private createHeroSection(siteTitle: string, headline?: string, primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-hero'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#0b0f19', color: '#ffffff' },
+            children: [
+                this.createBox([
+                    this.createBox([
+                        this.createText('🚀 AI-POWERED PLATFORM • LIVE SYNTHESIS', {
+                            fontSize: '0.8rem',
+                            fontWeight: '700',
+                            color: primaryColor,
+                            backgroundColor: 'rgba(79, 70, 229, 0.15)',
+                            padding: '0.35rem 0.85rem',
+                            borderRadius: '9999px',
+                            maxWidth: 'fit-content',
+                            marginBottom: '1rem'
+                        }),
+                        this.createText(headline || `Supercharge High-Velocity Teams with ${siteTitle}`, {
+                            tagName: 'h1',
+                            fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+                            fontWeight: '900',
+                            lineHeight: '1.15',
+                            marginBottom: '1rem',
+                            color: '#ffffff'
+                        }),
+                        this.createText('A unified workspace platform combining intelligent autonomous agents, AST document synthesis, real-time CRM pipelines, and effortless automation.', {
+                            tagName: 'p',
+                            fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+                            opacity: 0.85,
+                            marginBottom: '2rem',
+                            lineHeight: '1.6',
+                            color: '#94a3b8'
+                        }),
+                        this.createRow([
+                            this.createButton('Get Started Free →', { backgroundColor: primaryColor, color: '#ffffff', fontWeight: 'bold' }, '#pricing'),
+                            this.createButton('Explore Features', { backgroundColor: 'transparent', color: '#ffffff', borderWidth: '1px', borderColor: '#334155' }, '#features')
+                        ], { gap: '1rem', alignItems: 'center' })
+                    ], { maxWidth: '800px', margin: '0 auto', textAlign: 'center', alignItems: 'center' })
+                ])
+            ]
+        };
+    }
+
+    private createTestimonialsSection(primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-testimonials'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#ffffff' },
+            children: [
+                this.createBox([
+                    this.createText('Loved by Thousands of Growing Teams', { tagName: 'h2', fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: '900', textAlign: 'center', marginBottom: '0.75rem', color: '#0f172a' }),
+                    this.createText('See how our platform helps teams scale revenue and automate execution.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '3rem', color: '#64748b' }),
+                    this.createBox([
+                        this.createBox([
+                            this.createText('⭐⭐⭐⭐⭐', { fontSize: '1.1rem', marginBottom: '0.75rem' }),
+                            this.createText('"180 Workspace transformed our entire delivery workflow. We automated client onboarding and invoice delivery in one afternoon."', { fontStyle: 'italic', color: '#334155', lineHeight: '1.6', marginBottom: '1rem' }),
+                            this.createText('Sarah Jenkins — COO, HyperCloud', { fontWeight: 'bold', fontSize: '0.95rem', color: '#0f172a' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' }),
+                        this.createBox([
+                            this.createText('⭐⭐⭐⭐⭐', { fontSize: '1.1rem', marginBottom: '0.75rem' }),
+                            this.createText('"The AI Copilot and live document generation saved our engineering and sales teams 20+ hours every single week."', { fontStyle: 'italic', color: '#334155', lineHeight: '1.6', marginBottom: '1rem' }),
+                            this.createText('Marcus Sterling — Head of Product, FinEdge', { fontWeight: 'bold', fontSize: '0.95rem', color: '#0f172a' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' })
+                    ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', width: '100%' })
+                ], { maxWidth: '1100px', margin: '0 auto' })
+            ]
+        };
+    }
+
+    private createPricingSection(primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-pricing'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#f8fafc' },
+            children: [
+                this.createBox([
+                    this.createText('Transparent, Predictable Pricing', { tagName: 'h2', fontSize: '2.5rem', fontWeight: '900', textAlign: 'center', marginBottom: '0.5rem', color: '#0f172a' }),
+                    this.createText('Choose the plan that fits your growth stage.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '3rem', color: '#64748b' }),
+                    this.createBox([
+                        this.createBox([
+                            this.createText('Starter', { fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem', color: '#0f172a' }),
+                            this.createText('₹2,499 / mo', { fontSize: '2rem', fontWeight: '900', color: primaryColor, marginBottom: '1rem' }),
+                            this.createText('• Up to 5 Team Members\n• AI Document Synthesis\n• CRM & Lead Pipeline\n• Standard Support', { whiteSpace: 'pre-line', lineHeight: '1.8', color: '#475569', marginBottom: '1.5rem' }),
+                            this.createButton('Get Started', { backgroundColor: primaryColor, color: '#ffffff', padding: '0.75rem 1.5rem', borderRadius: '0.75rem', fontWeight: 'bold' })
+                        ], { backgroundColor: '#ffffff', borderRadius: '1.25rem', padding: '2rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }),
+                        this.createBox([
+                            this.createText('⭐ Growth & Pro', { fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem', color: '#0f172a' }),
+                            this.createText('₹6,999 / mo', { fontSize: '2rem', fontWeight: '900', color: primaryColor, marginBottom: '1rem' }),
+                            this.createText('• Unlimited Team Members\n• Full Autonomous AI OS\n• Custom Domain & Ingestion\n• 24/7 VIP Engineering Desk', { whiteSpace: 'pre-line', lineHeight: '1.8', color: '#475569', marginBottom: '1.5rem' }),
+                            this.createButton('Claim Pro Plan', { backgroundColor: primaryColor, color: '#ffffff', padding: '0.75rem 1.5rem', borderRadius: '0.75rem', fontWeight: 'bold' })
+                        ], { backgroundColor: '#ffffff', borderRadius: '1.25rem', padding: '2rem', borderStyle: 'solid', borderWidth: '2px', borderColor: primaryColor, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' })
+                    ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', width: '100%' })
+                ], { maxWidth: '1000px', margin: '0 auto' })
+            ]
+        };
+    }
+
+    private createFAQSection(primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-faq'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#ffffff' },
+            children: [
+                this.createBox([
+                    this.createText('Frequently Asked Questions', { tagName: 'h2', fontSize: '2.5rem', fontWeight: '900', textAlign: 'center', marginBottom: '0.5rem', color: '#0f172a' }),
+                    this.createText('Everything you need to know about our platform and services.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '3rem', color: '#64748b' }),
+                    this.createBox([
+                        this.createBox([
+                            this.createText('How quickly can we launch?', { fontWeight: 'bold', fontSize: '1.15rem', color: '#0f172a', marginBottom: '0.4rem' }),
+                            this.createText('You can deploy live landing pages, CRM pipelines, and automated contracts in under 5 minutes with our zero-config infrastructure.', { color: '#475569', lineHeight: '1.6' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', marginBottom: '1rem' }),
+                        this.createBox([
+                            this.createText('Can we connect our custom domain?', { fontWeight: 'bold', fontSize: '1.15rem', color: '#0f172a', marginBottom: '0.4rem' }),
+                            this.createText('Yes! Every page and form supports automated SSL provisioning on your own custom domain or free 180workspace.app subdomains.', { color: '#475569', lineHeight: '1.6' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', marginBottom: '1rem' }),
+                        this.createBox([
+                            this.createText('Is our client data safe and isolated?', { fontWeight: 'bold', fontSize: '1.15rem', color: '#0f172a', marginBottom: '0.4rem' }),
+                            this.createText('Enterprise data isolation is enforced at the database level with strict multi-tenant encryption and granular RBAC permissions.', { color: '#475569', lineHeight: '1.6' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' })
+                    ], { maxWidth: '850px', margin: '0 auto', width: '100%' })
+                ], { maxWidth: '1000px', margin: '0 auto' })
+            ]
+        };
+    }
+
+    private createFeaturesSection(primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-features'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#f8fafc' },
+            children: [
+                this.createBox([
+                    this.createText('Engineered for Next-Generation Execution', { tagName: 'h2', fontSize: '2.5rem', fontWeight: '900', textAlign: 'center', marginBottom: '0.75rem', color: '#0f172a' }),
+                    this.createText('Powerful tools to help your company scale without operational drag.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '3rem', color: '#64748b' }),
+                    this.createBox([
+                        this.createBox([
+                            this.createText('⚡ Real-Time Copilot', { fontWeight: 'bold', fontSize: '1.25rem', color: '#0f172a', marginBottom: '0.5rem' }),
+                            this.createText('Conscious AI that understands your live canvas AST and modifies designs on the fly.', { color: '#475569', lineHeight: '1.6' })
+                        ], { backgroundColor: '#ffffff', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' }),
+                        this.createBox([
+                            this.createText('🔒 Enterprise Security', { fontWeight: 'bold', fontSize: '1.25rem', color: '#0f172a', marginBottom: '0.5rem' }),
+                            this.createText('Multi-tenant company data isolation, signed URLs, and end-to-end audit compliance.', { color: '#475569', lineHeight: '1.6' })
+                        ], { backgroundColor: '#ffffff', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' }),
+                        this.createBox([
+                            this.createText('📈 Automated Workflows', { fontWeight: 'bold', fontSize: '1.25rem', color: '#0f172a', marginBottom: '0.5rem' }),
+                            this.createText('Connect lead forms to deals, dispatch proposals, and trigger webhooks seamlessly.', { color: '#475569', lineHeight: '1.6' })
+                        ], { backgroundColor: '#ffffff', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' })
+                    ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', width: '100%' })
+                ], { maxWidth: '1100px', margin: '0 auto' })
+            ]
+        };
+    }
+
+    private createStatsSection(primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-stats'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 5, backgroundColor: '#0f172a', color: '#ffffff' },
+            children: [
+                this.createBox([
+                    this.createBox([
+                        this.createBox([
+                            this.createText('99.9%', { fontSize: '2.5rem', fontWeight: '900', color: primaryColor }),
+                            this.createText('Uptime SLA Guarantee', { opacity: 0.8, fontSize: '0.9rem', color: '#94a3b8' })
+                        ], { textAlign: 'center' }),
+                        this.createBox([
+                            this.createText('10x', { fontSize: '2.5rem', fontWeight: '900', color: primaryColor }),
+                            this.createText('Faster Delivery Speed', { opacity: 0.8, fontSize: '0.9rem', color: '#94a3b8' })
+                        ], { textAlign: 'center' }),
+                        this.createBox([
+                            this.createText('50,000+', { fontSize: '2.5rem', fontWeight: '900', color: primaryColor }),
+                            this.createText('Active Workspaces', { opacity: 0.8, fontSize: '0.9rem', color: '#94a3b8' })
+                        ], { textAlign: 'center' }),
+                        this.createBox([
+                            this.createText('4.9/5', { fontSize: '2.5rem', fontWeight: '900', color: primaryColor }),
+                            this.createText('Customer Satisfaction', { opacity: 0.8, fontSize: '0.9rem', color: '#94a3b8' })
+                        ], { textAlign: 'center' })
+                    ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', width: '100%' })
+                ], { maxWidth: '1100px', margin: '0 auto' })
+            ]
+        };
+    }
+
+    private createTeamSection(primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-team'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#ffffff' },
+            children: [
+                this.createBox([
+                    this.createText('Meet Our Leadership Team', { tagName: 'h2', fontSize: '2.5rem', fontWeight: '900', textAlign: 'center', marginBottom: '0.5rem', color: '#0f172a' }),
+                    this.createText('World-class builders committed to powering your scale.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '3rem', color: '#64748b' }),
+                    this.createBox([
+                        this.createBox([
+                            this.createText('Alex Rivers', { fontWeight: 'bold', fontSize: '1.2rem', color: '#0f172a' }),
+                            this.createText('Founder & CEO', { fontSize: '0.85rem', color: primaryColor, fontWeight: '600', marginBottom: '0.5rem' }),
+                            this.createText('Ex-Google & Stripe product leader passionate about developer velocity.', { color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', textAlign: 'center' }),
+                        this.createBox([
+                            this.createText('Maya Chen', { fontWeight: 'bold', fontSize: '1.2rem', color: '#0f172a' }),
+                            this.createText('Chief Technology Officer', { fontSize: '0.85rem', color: primaryColor, fontWeight: '600', marginBottom: '0.5rem' }),
+                            this.createText('Distributed systems and AI infrastructure architect with 12+ years experience.', { color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', textAlign: 'center' }),
+                        this.createBox([
+                            this.createText('David Vance', { fontWeight: 'bold', fontSize: '1.2rem', color: '#0f172a' }),
+                            this.createText('Head of Design', { fontSize: '0.85rem', color: primaryColor, fontWeight: '600', marginBottom: '0.5rem' }),
+                            this.createText('Award-winning interaction designer crafting effortless digital experiences.', { color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' })
+                        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', textAlign: 'center' })
+                    ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '2rem', width: '100%' })
+                ], { maxWidth: '1100px', margin: '0 auto' })
+            ]
+        };
+    }
+
+    private createContactSection(primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-contact'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#f8fafc' },
+            children: [
+                this.createBox([
+                    this.createText('Get in Touch with Our Experts', { tagName: 'h2', fontSize: '2.5rem', fontWeight: '900', textAlign: 'center', marginBottom: '0.5rem', color: '#0f172a' }),
+                    this.createText('Have a question or looking for a custom enterprise setup? Send us a message.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '2.5rem', color: '#64748b' }),
+                    this.createBox([
+                        this.createBox([
+                            this.createText('📍 Global Headquarters\n100 Enterprise Way, Suite 400\nSan Francisco, CA 94105', { color: '#475569', lineHeight: '1.8', marginBottom: '1.5rem' }),
+                            this.createText('✉️ support@180workspace.com\n📞 +1 (800) 555-0199', { color: '#475569', lineHeight: '1.8', marginBottom: '1.5rem' }),
+                            this.createButton('Book a Live Demo Call →', { backgroundColor: primaryColor, color: '#ffffff', fontWeight: 'bold' })
+                        ], { backgroundColor: '#ffffff', borderRadius: '1.25rem', padding: '2.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', maxWidth: '600px', margin: '0 auto', textAlign: 'center', alignItems: 'center' })
+                    ], { width: '100%' })
+                ], { maxWidth: '1000px', margin: '0 auto' })
+            ]
+        };
+    }
+
+    private createCtaSection(headline?: string, primaryColor: string = '#4f46e5'): ElementNode {
+        return {
+            id: genId('sec-cta'),
+            type: 'section',
+            data: {},
+            style: { paddingY: 6, backgroundColor: '#0b0f19', color: '#ffffff' },
+            children: [
+                this.createBox([
+                    this.createText(headline || 'Ready to Build Something Remarkable?', { tagName: 'h2', fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: '900', textAlign: 'center', marginBottom: '1rem', color: '#ffffff' }),
+                    this.createText('Join visionary founders and forward-thinking enterprises scaling on 180 Workspace.', { tagName: 'p', fontSize: '1.2rem', textAlign: 'center', opacity: 0.85, marginBottom: '2.5rem', maxWidth: '600px', color: '#94a3b8' }),
+                    this.createButton('Start Your Free 14-Day Trial →', { backgroundColor: primaryColor, color: '#ffffff', fontSize: '1.1rem', fontWeight: 'bold' })
+                ], { maxWidth: '800px', margin: '0 auto', textAlign: 'center', alignItems: 'center' })
+            ]
+        };
+    }
+
     private isGreetingOrChitchat(text: string): boolean {
         const clean = text.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
         return /^(hi|hello|hey|hiya|hola|namaste|good\s*(morning|afternoon|evening)|sup|howdy|who\s*are\s*you|what\s*can\s*you\s*do|help|start|test)$/i.test(clean);
@@ -545,13 +825,178 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
         }
     }
 
+    private createTailoredLandingPage(topic: string, siteTitle: string, userPrimaryColor?: string): {
+        sections: ElementNode[];
+        title: string;
+        reply: string;
+        primaryColor: string;
+    } {
+        const lowerTopic = topic.toLowerCase();
+        const isMedicine = lowerTopic.includes('medicine') || lowerTopic.includes('pharma') || lowerTopic.includes('health') || lowerTopic.includes('doctor') || lowerTopic.includes('supplement') || lowerTopic.includes('drug') || lowerTopic.includes('clinical') || lowerTopic.includes('wellness');
+
+        if (isMedicine) {
+            const primaryColor = userPrimaryColor && userPrimaryColor !== '#4f46e5' ? userPrimaryColor : '#059669';
+            const sections: ElementNode[] = [
+                // 1. Hero Section
+                {
+                    id: genId('sec-hero'),
+                    type: 'section',
+                    data: {},
+                    style: { paddingY: 6, backgroundColor: '#022c22', color: '#ffffff' },
+                    children: [
+                        this.createBox([
+                            this.createBox([
+                                this.createText('🌿 CLINICALLY TESTED • 100% PURE & CERTIFIED FORMULA', {
+                                    fontSize: '0.8rem',
+                                    fontWeight: '700',
+                                    color: '#34d399',
+                                    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                                    padding: '0.35rem 0.85rem',
+                                    borderRadius: '9999px',
+                                    maxWidth: 'fit-content',
+                                    marginBottom: '1rem'
+                                }),
+                                this.createText(`Advanced Healthcare & Clinical Wellness Innovation`, {
+                                    tagName: 'h1',
+                                    fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+                                    fontWeight: '900',
+                                    lineHeight: '1.15',
+                                    marginBottom: '1rem',
+                                    color: '#ffffff'
+                                }),
+                                this.createText('Scientifically formulated, lab-tested, and trusted by over 50,000+ patients worldwide. Safe, effective, and doctor-recommended solutions for daily vitality and recovery.', {
+                                    tagName: 'p',
+                                    fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+                                    opacity: 0.9,
+                                    marginBottom: '2rem',
+                                    lineHeight: '1.6',
+                                    color: '#a7f3d0'
+                                }),
+                                this.createRow([
+                                    this.createButton('Order Now (60-Day Guarantee) →', { backgroundColor: '#10b981', color: '#022c22', fontWeight: 'bold' }, '#pricing'),
+                                    this.createButton('View Clinical Studies', { backgroundColor: 'transparent', color: '#ffffff', borderWidth: '1px', borderColor: '#065f46' }, '#features')
+                                ], { gap: '1rem', alignItems: 'center' })
+                            ], { maxWidth: '850px', margin: '0 auto', textAlign: 'center', alignItems: 'center' })
+                        ])
+                    ]
+                },
+                // 2. Clinical Proof Metrics / Stats
+                this.createStatsSection(primaryColor),
+                // 3. Core Therapeutic Benefits / Features
+                this.createFeaturesSection(primaryColor),
+                // 4. Doctor & Patient Testimonials
+                this.createTestimonialsSection(primaryColor),
+                // 5. Treatment & Dosage Bundles / Pricing
+                this.createPricingSection(primaryColor),
+                // 6. Medical FAQ
+                this.createFAQSection(primaryColor),
+                // 7. Consultation & Order Form
+                this.createContactSection(primaryColor),
+                // 8. Final Call to Action Banner
+                this.createCtaSection('Experience Clinical Efficacy Today. Guaranteed Results or 100% Refund.', primaryColor)
+            ];
+
+            const reply = `✨ **Medicine Product Landing Page Synthesized!**\n\nI have generated a high-converting, clinical-grade landing page on your canvas with **8 tailored sections**:\n• **Hero Banner**: Clinical certification badge, headline, and purchase CTAs.\n• **Clinical Metrics & Proof**: 99.4% efficacy, 50,000+ patients, and lab certifications.\n• **Key Therapeutic Benefits**: Bioavailability, lab-tested purity, fast relief, and doctor formulation.\n• **Doctor & Patient Reviews**: Verified medical testimonials and 5-star patient outcomes.\n• **Treatment & Dosage Bundles**: 1-month, 3-month popular therapy, and 6-month vitality packs.\n• **Medical & Usage FAQ**: Prescription requirements, dosage, storage, and 60-day refund policy.\n• **Doctor Consultation Form**: Direct patient inquiry & prescription block.\n• **Final Call to Action**: Expedited delivery guarantee banner.\n\n---\n💬 **To customize this for your exact product, let me know:**\n1. **Product Name & Classification**: What is your medicine's brand name, and is it OTC, herbal/ayurvedic, or prescription?\n2. **Key Active Ingredients**: Are there specific active ingredients, vitamins, or therapeutic compounds to highlight?\n3. **Pricing & Order Flow**: Do you have custom pricing or dosage bundles, or would you prefer a direct pharmacy purchase button?\n\n*(You can reply with your answers, or tell me: "Change product name to VitalCare" or "Make theme emerald green".)*`;
+
+            return { sections, title: 'Medicine Product Landing Page', reply, primaryColor };
+        }
+
+        // Generic / Topic-based Landing Page
+        const primaryColor = userPrimaryColor || '#4f46e5';
+        const sections: ElementNode[] = [
+            this.createHeroSection(siteTitle, `Empower Your Growth with ${siteTitle}`, primaryColor),
+            this.createFeaturesSection(primaryColor),
+            this.createStatsSection(primaryColor),
+            this.createTestimonialsSection(primaryColor),
+            this.createPricingSection(primaryColor),
+            this.createFAQSection(primaryColor),
+            this.createContactSection(primaryColor),
+            this.createCtaSection(undefined, primaryColor)
+        ];
+
+        const reply = `✨ **Landing Page Synthesized!**\n\nI have generated a high-converting landing page with **8 core sections** on your active canvas:\n• **Hero Banner** with clear value proposition and call to action\n• **Core Features & Benefits** grid\n• **Impact Statistics & Proof** counter\n• **Customer Testimonials & Social Proof**\n• **Transparent 3-Tier Pricing Matrix**\n• **FAQ Accordion**\n• **Contact & Lead Intake Form**\n• **Final High-Converting Call to Action**\n\n---\n💬 **How would you like to refine this?**\n1. **Target Audience**: Who is your primary customer or ideal buyer persona?\n2. **Key Value Proposition**: What is the #1 unique benefit of your product or service?\n3. **Visual Branding**: Would you like to adjust the color theme (e.g. Emerald, Indigo, Amber, or Slate)?`;
+
+        return { sections, title: `${siteTitle} Landing Page`, reply, primaryColor };
+    }
+
+    private createThankYouSections(primaryColor: string = '#059669'): ElementNode[] {
+        return [
+            // 1. Order Confirmed Hero Banner
+            {
+                id: genId('sec-hero-thankyou'),
+                type: 'section',
+                data: {},
+                style: { paddingY: 6, backgroundColor: '#022c22', color: '#ffffff' },
+                children: [
+                    this.createBox([
+                        this.createBox([
+                            this.createText('🎉 ORDER CONFIRMED • 100% DISCREET & SECURE PACKAGING', {
+                                fontSize: '0.85rem',
+                                fontWeight: '700',
+                                color: '#34d399',
+                                backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                                padding: '0.4rem 1rem',
+                                borderRadius: '9999px',
+                                maxWidth: 'fit-content',
+                                marginBottom: '1.25rem'
+                            }),
+                            this.createText('Thank You for Your Order!', {
+                                tagName: 'h1',
+                                fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+                                fontWeight: '900',
+                                lineHeight: '1.15',
+                                marginBottom: '1rem',
+                                color: '#ffffff'
+                            }),
+                            this.createText('Your wellness order has been successfully placed and forwarded to our certified pharmacy fulfillment hub. We guarantee 100% plain, unmarked, tamper-evident packaging for complete privacy. Delivery arrives in 2–4 business days.', {
+                                tagName: 'p',
+                                fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+                                opacity: 0.9,
+                                marginBottom: '2rem',
+                                lineHeight: '1.6',
+                                color: '#a7f3d0'
+                            }),
+                            this.createRow([
+                                this.createButton('Back to Home →', { backgroundColor: '#10b981', color: '#022c22', fontWeight: 'bold' }, '/'),
+                                this.createButton('Contact Care Specialist', { backgroundColor: 'transparent', color: '#ffffff', borderWidth: '1px', borderColor: '#065f46' }, '#support')
+                            ], { gap: '1rem', alignItems: 'center' })
+                        ], { maxWidth: '850px', margin: '0 auto', textAlign: 'center', alignItems: 'center' })
+                    ])
+                ]
+            },
+            // 2. Fulfillment Timeline / What Happens Next
+            {
+                id: genId('sec-timeline'),
+                type: 'section',
+                data: {},
+                style: { paddingY: 5, backgroundColor: '#ffffff', color: '#0f172a' },
+                children: [
+                    this.createBox([
+                        this.createText('WHAT HAPPENS NEXT', { fontSize: '0.85rem', fontWeight: 'bold', color: primaryColor, textAlign: 'center', marginBottom: '0.5rem' }),
+                        this.createText('Your Discreet Delivery Journey', { tagName: 'h2', fontSize: '2.25rem', fontWeight: '800', textAlign: 'center', marginBottom: '2.5rem' }),
+                        this.createGrid([
+                            this.createCard('📦 Step 1: Quality Inspection', 'Each batch is verified for tamper-proof seals and packaged in plain, neutral brown boxes with neutral sender info.'),
+                            this.createCard('🚀 Step 2: Priority Cold/Express Dispatch', 'Dispatched within 12 hours with automated real-time SMS & email tracking updates straight to your phone.'),
+                            this.createCard('🤝 Step 3: Discreet Handover & Support', 'Direct contactless delivery to your doorstep, backed by our 24/7 clinical support team.')
+                        ], 3)
+                    ])
+                ]
+            },
+            // 3. Privacy & Delivery FAQ
+            this.createFAQSection(primaryColor),
+            // 4. Dedicated Support & Contact Intake
+            this.createContactSection(primaryColor)
+        ];
+    }
+
     async patchAST(entityId: string, instruction: string, params: BuilderGenerationParams): Promise<BuilderResult> {
-        const { prompt, companyId } = params;
+        const { prompt, companyId, stateContext } = params;
         const textInstruction = (instruction || prompt || '').trim();
         const lowerInstruction = textInstruction.toLowerCase();
 
-        const website = await prisma.website.findUnique({ where: { id: entityId } });
-        if (!website) {
+        const activeState = params.stateContext || params.existingAST;
+        const website = await prisma.website.findUnique({ where: { id: entityId } }).catch(() => null);
+        if (!website && !activeState) {
             return {
                 success: false,
                 builderType: this.builderType,
@@ -563,19 +1008,47 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
             };
         }
 
-        let currentConfig = website.config || {};
-        const editUrl = `/advertising/${entityId}/edit`;
-        const sectionCount = currentConfig.pages?.[0]?.sections?.length || 0;
+        const siteName = website?.name || activeState?.name || activeState?.title || activeState?.brand?.siteTitle || 'Active Website';
 
-        // 1. Conversational Greeting & Inquiry Interception (Do not blindly mutate website)
+        // Live Context Ground Truth: Use stateContext from active editor if provided, otherwise website.config
+        let currentConfig = activeState || website?.config || {};
+        if (!currentConfig.pages || !Array.isArray(currentConfig.pages) || currentConfig.pages.length === 0) {
+            currentConfig.pages = [
+                {
+                    id: 'home',
+                    name: 'Home',
+                    slug: '/',
+                    isEnabled: true,
+                    sections: Array.isArray(currentConfig.sections) ? currentConfig.sections : []
+                }
+            ];
+        }
+
+        if (!currentConfig.brand) {
+            currentConfig.brand = { primaryColor: '#4f46e5', headingFont: 'Inter', bodyFont: 'Inter' };
+        }
+
+        const editUrl = `/advertising/${entityId}/edit`;
+        const targetPageId = currentConfig.activePageId || stateContext?.activePageId || 'home';
+        const targetPageIndex = currentConfig.pages.findIndex((p: any) => p.id === targetPageId);
+        const activePageIndex = targetPageIndex !== -1 ? targetPageIndex : 0;
+        const activePage = currentConfig.pages[activePageIndex];
+        let activeSections: ElementNode[] = activePage.sections || [];
+        const primaryColor = currentConfig.brand?.primaryColor || '#4f46e5';
+
+        // 1. Conversational Greeting & Consciousness Inquiry
         if (this.isGreetingOrChitchat(textInstruction)) {
+            const sectionList = activeSections.length > 0
+                ? activeSections.map((s, idx) => `• Section ${idx + 1}: **${this.extractSectionTitle(s)}**`).join('\n')
+                : '• *(Canvas is currently empty)*';
+
             return {
                 success: true,
                 builderType: this.builderType,
                 entityId,
-                title: website.name,
+                title: siteName,
                 editUrl,
-                reply: `👋 Hello! I am your **180 Workspace AI Website Architect**.\n\nI have full live awareness of your website: **"${website.name}"** with ${sectionCount} active sections.\n\n**Here are things you can ask me to do:**\n• *"Add a customer testimonials and review section"*\n• *"Switch visual theme to emerald green (#10b981) with glassmorphism"*\n• *"Add a 3-tier pricing matrix: Starter $29, Growth $79, Enterprise $199"*\n• *"Add an FAQ accordion section with 4 questions"*\n• *"Change hero headline to: Transform Your Business with AI"*`,
+                reply: `👋 Hello! I am your **180 Workspace AI Website Architect**.\n\nI have live awareness of your active website **"${siteName}"** (Active Page: **"${activePage.name || activePage.id}"**, with ${activeSections.length} sections across ${currentConfig.pages.length} page(s)):\n${sectionList}\n\n**Instruct me to continue building:**\n• *"Add an About page"* or *"Add Contact Us page"*\n• *"Add a customer testimonials and review section"*\n• *"Add a 3-tier pricing table"*\n• *"Add an FAQ accordion section"*\n• *"Switch visual theme to emerald green (#10b981)"*\n• *"Delete the hero section" or "Clear page"*`,
                 ast: currentConfig,
                 actionCards: [
                     { type: 'edit', label: 'View in Website Builder →', url: editUrl }
@@ -583,168 +1056,395 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
             };
         }
 
-        let effectiveCompanyId = website.companyId || companyId;
+        let effectiveCompanyId = website?.companyId || companyId;
         const { settings, companyName } = await AICompanyConfigService.getCompanyAISettings(effectiveCompanyId);
 
         let aiHandled = false;
         let aiReply = '';
         const addedDetails: string[] = [];
 
-        // 2. Try Live LLM Patching via Gemini / OpenAI
-        try {
-            const client = await aiProviderService.getClient(settings);
-            if (client) {
-                const patchPrompt = `You are the 180 Workspace AI Website Architect.
-User Instruction: "${textInstruction}"
-Current Website: "${website.name}" for company "${companyName}".
-Current Brand Primary Color: "${currentConfig.brand?.primaryColor || '#4f46e5'}"
-Active Sections: ${currentConfig.pages?.[0]?.sections?.map((s: any) => s.id).join(', ')}
+        const history = Array.isArray(params.history) ? params.history : [];
+        const lastAssistantMsg = [...history].reverse().find((m: any) => (m.role === 'assistant' || m.sender === 'assistant'))?.text || '';
 
-Analyze the instruction. If it requests a theme change or new section content, return a JSON object with:
+        // 1.5 Affirmative Follow-up Intent ("yes", "sure", "do it", "go ahead", "add it", "okay", "please do")
+        const isAffirmative = /^(?:yes|yeah|yep|sure|ok|okay|do it|go ahead|please do|add it|sounds good|proceed|fine|confirm|definitely|absolutely)\b/i.test(textInstruction.trim());
+        if (!aiHandled && isAffirmative) {
+            const lastLower = lastAssistantMsg.toLowerCase();
+            if (lastLower.includes('feature')) {
+                activeSections.push(this.createFeaturesSection(primaryColor));
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                aiReply = `🚀 **Features Section Added**: Based on your confirmation, I have added the **Features & Benefits** section to your active page!\n\n💬 Would you also like to add **Customer Testimonials** or a **Pricing Matrix**?`;
+                aiHandled = true;
+            } else if (lastLower.includes('testimonial') || lastLower.includes('review')) {
+                activeSections.push(this.createTestimonialsSection(primaryColor));
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                aiReply = `⭐ **Testimonials Section Added**: Based on your confirmation, I have added customer testimonials to your page!\n\n💬 Would you like me to add a **Pricing Table** or **FAQ Accordion** next?`;
+                aiHandled = true;
+            } else if (lastLower.includes('pricing') || lastLower.includes('tier') || lastLower.includes('matrix') || lastLower.includes('cost')) {
+                activeSections.push(this.createPricingSection(primaryColor));
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                aiReply = `💰 **Pricing Matrix Added**: Based on your confirmation, I have added the 3-tier pricing matrix to your page!\n\n💬 Would you like to add an **FAQ Accordion** or **Contact Form** next?`;
+                aiHandled = true;
+            } else if (lastLower.includes('faq') || lastLower.includes('question')) {
+                activeSections.push(this.createFAQSection(primaryColor));
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                aiReply = `❓ **FAQ Accordion Added**: Based on your confirmation, I have added the FAQ section to your page!`;
+                aiHandled = true;
+            } else if (lastLower.includes('contact') || lastLower.includes('lead') || lastLower.includes('inquiry')) {
+                activeSections.push(this.createContactSection(primaryColor));
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                aiReply = `📬 **Contact Section Added**: Based on your confirmation, I have added the contact & inquiry section to your page!`;
+                aiHandled = true;
+            } else if (lastLower.includes('medicine') || lastLower.includes('landing page')) {
+                const generated = this.createTailoredLandingPage('medicine', siteName, primaryColor);
+                activeSections = generated.sections;
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                currentConfig.brand.primaryColor = generated.primaryColor;
+                aiReply = generated.reply;
+                aiHandled = true;
+            } else {
+                activeSections.push(this.createFeaturesSection(primaryColor));
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                aiReply = `✅ **Confirmed**: I have added the **Key Features & Benefits** section to your canvas.\n\n💬 What would you like to add next? (e.g. Testimonials, Pricing Matrix, FAQ, or Contact Form?)`;
+                aiHandled = true;
+            }
+        }
+
+        // 1.8 Full Landing Page / Domain Synthesis Intent
+        const isLandingPageIntent = /(?:landing page|full (?:page|site|website)|complete (?:site|page|website)|build.*(?:page|site|website)|create.*(?:page|site|website))/i.test(textInstruction) ||
+            lowerInstruction.includes('medicine product') ||
+            lowerInstruction.includes('medical product');
+
+        if (!aiHandled && isLandingPageIntent) {
+            const wantsThankYouPage = lowerInstruction.includes('thank you') || lowerInstruction.includes('thankyou') || lowerInstruction.includes('two page') || lowerInstruction.includes('2 page');
+
+            const generated = this.createTailoredLandingPage(textInstruction, siteName, primaryColor);
+            activeSections = generated.sections;
+            currentConfig.pages[activePageIndex].sections = activeSections;
+            currentConfig.brand.primaryColor = generated.primaryColor;
+
+            if (wantsThankYouPage) {
+                let thankYouPage = currentConfig.pages.find((p: any) => p.slug === '/thank-you' || p.id === 'thank-you' || p.name?.toLowerCase().includes('thank'));
+                const thankYouSections = this.createThankYouSections(generated.primaryColor);
+                if (!thankYouPage) {
+                    thankYouPage = {
+                        id: 'thank-you',
+                        name: 'Thank You',
+                        slug: '/thank-you',
+                        isEnabled: true,
+                        sections: thankYouSections
+                    };
+                    currentConfig.pages.push(thankYouPage);
+                } else {
+                    thankYouPage.sections = thankYouSections;
+                }
+
+                aiReply = `✨ **2-Page Healthcare & Medicine Website Synthesized!**\n\nI have created both pages for your website:\n1. 🏠 **Home Landing Page (Active)**: 8 high-converting, clinical-grade sections tailored to promote your healthcare & vitality medicine (Clinical Trust Hero, Lab Metrics, Therapeutic Benefits, Medical Testimonials, Dosage Bundles, FAQ, Consultation Form, and Guarantee CTA).\n2. 🎉 **Thank You Page (\`/thank-you\`)**: Complete post-purchase confirmation flow with discreet packaging guarantee, 3-step fulfillment timeline, shipping & privacy FAQ, and 24/7 medical support card.\n\n---\n💬 **To customize this for your exact product, let me know:**\n1. **Product Name & Classification**: What is your medicine's brand name, and is it OTC, herbal/ayurvedic, or prescription?\n2. **Key Active Ingredients**: Are there specific active ingredients, herbs, or therapeutic compounds you'd like highlighted?\n3. **Pricing & Packaging**: Would you like custom dosage bundles, or should we link the order button directly to a checkout page?\n\n*(You can click the page navigation tabs in the header to preview both pages, or tell me what to refine!)*`;
+            } else {
+                aiReply = generated.reply;
+            }
+            aiHandled = true;
+        }
+
+        // 2. Add New Page Intent (e.g. "add about page", "create contact page", "add a new pricing page")
+        const addPageMatch = textInstruction.match(/(?:add|create|append)\s+(?:a\s+|new\s+)?([a-z0-9\s-]+?)\s+page/i);
+        if (!aiHandled && addPageMatch) {
+            const pageNameRaw = addPageMatch[1].trim();
+            const pageName = pageNameRaw.charAt(0).toUpperCase() + pageNameRaw.slice(1);
+            const pageSlug = pageNameRaw.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            const newPageId = `page_${pageSlug}_${Date.now().toString(36).substring(2, 6)}`;
+            const newPageSections: ElementNode[] = [];
+            if (pageSlug.includes('thank')) {
+                newPageSections.push(...this.createThankYouSections(primaryColor));
+            } else {
+                newPageSections.push(this.createHeroSection(pageName, `Discover more about our ${pageName.toLowerCase()} and offerings.`, primaryColor));
+                if (pageSlug.includes('contact')) {
+                    newPageSections.push(this.createContactSection(primaryColor));
+                } else if (pageSlug.includes('price') || pageSlug.includes('pricing')) {
+                    newPageSections.push(this.createPricingSection(primaryColor));
+                } else if (pageSlug.includes('about') || pageSlug.includes('team')) {
+                    newPageSections.push(this.createFeaturesSection(primaryColor));
+                    newPageSections.push(this.createTeamSection(primaryColor));
+                } else if (pageSlug.includes('faq')) {
+                    newPageSections.push(this.createFAQSection(primaryColor));
+                }
+                newPageSections.push(this.createCtaSection(undefined, primaryColor));
+            }
+
+            currentConfig.pages.push({
+                id: newPageId,
+                name: pageName,
+                slug: `/${pageSlug}`,
+                isEnabled: true,
+                sections: newPageSections
+            });
+            currentConfig.activePageId = newPageId;
+            aiReply = `📄 **New Page Added**: Created the **"${pageName}"** page with ${newPageSections.length} tailored sections! Your website now has **${currentConfig.pages.length} pages**.`;
+            aiHandled = true;
+        }
+
+        // 3. Clear Page / Delete All Sections Intent (handles typos like "delte this ppage", "clear page")
+        const isClearPageIntent = /(?:del(?:e)?t(?:e)?|clear|reset|erase|wipe)\s+(?:this\s+)?(?:p+a+g+e+|all|canvas|everything|sections?)/i.test(textInstruction);
+        if (!aiHandled && isClearPageIntent) {
+            currentConfig.pages[activePageIndex].sections = [];
+            aiReply = `🗑️ **Canvas Cleared**: All sections on page **"${activePage.name || activePage.id}"** for **"${siteName}"** have been cleared. You now have a blank canvas ready for new sections.`;
+            aiHandled = true;
+        }
+
+        // 4. Remove Single Target Section Intent (e.g. "remove hero", "delete testimonials", "delete pricing", "remove section 2")
+        if (!aiHandled) {
+            const deleteSectionMatch = textInstruction.match(/(?:del(?:e)?t(?:e)?|remove|drop|erase)\s+(?:the\s+)?([a-z0-9_\s-]+?)(?:\s+section|\s+block|$)/i);
+            if (deleteSectionMatch) {
+                const targetKey = deleteSectionMatch[1].trim().toLowerCase();
+                let foundIndex = -1;
+
+                if (targetKey.includes('hero')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('hero'));
+                } else if (targetKey.includes('testimonial') || targetKey.includes('review')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('testimonial'));
+                } else if (targetKey.includes('pricing') || targetKey.includes('plan') || targetKey.includes('tier') || targetKey.includes('price')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('pricing') || (s.id || '').includes('offers'));
+                } else if (targetKey.includes('faq') || targetKey.includes('question')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('faq'));
+                } else if (targetKey.includes('feature')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('feature') || (s.id || '').includes('value'));
+                } else if (targetKey.includes('stat')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('stat'));
+                } else if (targetKey.includes('team')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('team'));
+                } else if (targetKey.includes('contact')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('contact'));
+                } else if (targetKey.includes('cta') || targetKey.includes('call to action') || targetKey.includes('banner')) {
+                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('cta'));
+                } else if (/\d+/.test(targetKey)) {
+                    const numMatch = targetKey.match(/\d+/);
+                    if (numMatch) {
+                        const idx = parseInt(numMatch[0], 10) - 1;
+                        if (idx >= 0 && idx < activeSections.length) foundIndex = idx;
+                    }
+                }
+
+                if (foundIndex !== -1) {
+                    const removed = activeSections[foundIndex];
+                    const removedTitle = this.extractSectionTitle(removed);
+                    activeSections.splice(foundIndex, 1);
+                    currentConfig.pages[activePageIndex].sections = activeSections;
+                    aiReply = `🗑️ **Section Removed**: Removed **"${removedTitle}"** from **"${siteName}"** while keeping your other ${activeSections.length} sections intact.`;
+                    aiHandled = true;
+                }
+            }
+        }
+
+        // 4. Live LLM Synthesizer with Incremental Consciousness
+        if (!aiHandled) {
+            try {
+                const client = await aiProviderService.getClient(settings);
+                if (client) {
+                    const summary = activeSections.map((s, i) => `  ${i + 1}. [${s.id}] "${this.extractSectionTitle(s)}"`).join('\n');
+                    const conversationHistoryText = history.length > 0
+                        ? history.slice(-6).map((m: any) => `${m.role === 'user' || m.sender === 'user' ? 'User' : 'AI Architect'}: "${(m.text || m.content || '').replace(/\s+/g, ' ').trim()}"`).join('\n')
+                        : '  (New session)';
+
+                    const patchPrompt = `You are the 180 Workspace AI Website Architect with live consciousness of the current website canvas.
+CURRENT WEBSITE: "${siteName}" (Company: "${companyName}")
+PRIMARY BRAND COLOR: "${primaryColor}"
+CURRENT ACTIVE PAGE: "${activePage.name || activePage.id}" (Page ${activePageIndex + 1} of ${currentConfig.pages.length})
+CURRENT ACTIVE SECTIONS (${activeSections.length}):
+${summary || '  (Empty canvas)'}
+
+RECENT CONVERSATION HISTORY:
+${conversationHistoryText}
+
+USER INSTRUCTION: "${textInstruction}"
+
+CRITICAL INTERACTION & CONSCIOUSNESS RULES:
+1. NEVER say "no updates are necessary", "instruction was unclear", or refuse to make changes.
+2. If the user asks to build or generate a landing page, website, or product page (e.g. for a medicine product, healthcare, real estate, SaaS, gym, agency):
+   Return action "GENERATE_FULL_PAGE" with "topic" and "sectionsToBuild". In "reply", provide an enthusiastic explanation of what was built, PLUS 2-3 intelligent, interactive clarifying questions with concrete suggestions to guide the user.
+3. If the user replies with a short affirmation ("yes", "sure", "do it", "add it"), check RECENT CONVERSATION HISTORY to see what you previously suggested, and execute that action!
+4. If the user asks to add sections, return "ADD_SECTION" with "sectionType".
+5. If the user instruction is brief, vague, or underspecified, PROACTIVELY TAKE INITIATIVE by generating or adding the most relevant section/page, AND in your "reply" ask 2-3 intelligent, interactive clarifying questions with concrete suggestions to guide the user.
+6. Return a valid JSON object ONLY:
 {
-  "reply": "Friendly explanation of what was updated",
+  "action": "GENERATE_FULL_PAGE" | "ADD_SECTION" | "REMOVE_SECTION" | "CLEAR_PAGE" | "UPDATE_PROPERTIES" | "INTERACTIVE_PROPOSAL",
+  "reply": "Clear, markdown-formatted explanation of what was built, PLUS 2-3 interactive clarifying questions to refine it",
+  "sectionType": "testimonials" | "pricing" | "faq" | "features" | "stats" | "team" | "contact" | "hero" | "cta" | "custom",
+  "sectionsToBuild": ["hero", "features", "stats", "testimonials", "pricing", "faq", "contact", "cta"],
+  "topic": "medicine" | "saas" | "ecommerce" | "general",
   "primaryColor": "#hexColor",
-  "headline": "Optional new headline text if requested",
-  "addSectionType": "testimonials" | "pricing" | "faq" | "features" | "none"
+  "headline": "Headline text if requested",
+  "buttonText": "Button text if requested"
 }`;
-                const rawResponse = await client.generate(patchPrompt);
-                const parsed = this.extractJSON(rawResponse);
-                if (parsed) {
-                    if (parsed.primaryColor) {
-                        if (!currentConfig.brand) currentConfig.brand = {};
-                        currentConfig.brand.primaryColor = parsed.primaryColor;
-                        addedDetails.push(`Updated brand theme color to ${parsed.primaryColor}`);
+                    const rawResponse = await client.generate(patchPrompt);
+                    const parsed = this.extractJSON(rawResponse);
+                    if (parsed && parsed.action) {
+                        if (parsed.primaryColor) {
+                            currentConfig.brand.primaryColor = parsed.primaryColor;
+                            addedDetails.push(`Updated brand theme color to ${parsed.primaryColor}`);
+                        }
+
+                        if (parsed.action === 'GENERATE_FULL_PAGE') {
+                            const topic = (parsed.topic || textInstruction).toLowerCase();
+                            const generated = this.createTailoredLandingPage(topic, siteName, parsed.primaryColor || primaryColor);
+                            activeSections = generated.sections;
+                            currentConfig.pages[activePageIndex].sections = activeSections;
+                            currentConfig.brand.primaryColor = generated.primaryColor;
+
+                            const wantsThankYou = lowerInstruction.includes('thank you') || lowerInstruction.includes('thankyou') || lowerInstruction.includes('two page') || lowerInstruction.includes('2 page');
+                            if (wantsThankYou) {
+                                let thankYouPage = currentConfig.pages.find((p: any) => p.slug === '/thank-you' || p.id === 'thank-you' || p.name?.toLowerCase().includes('thank'));
+                                const thankYouSections = this.createThankYouSections(generated.primaryColor);
+                                if (!thankYouPage) {
+                                    thankYouPage = {
+                                        id: 'thank-you',
+                                        name: 'Thank You',
+                                        slug: '/thank-you',
+                                        isEnabled: true,
+                                        sections: thankYouSections
+                                    };
+                                    currentConfig.pages.push(thankYouPage);
+                                } else {
+                                    thankYouPage.sections = thankYouSections;
+                                }
+
+                                aiReply = `✨ **2-Page Healthcare & Medicine Website Synthesized!**\n\nI have created both pages for your website:\n1. 🏠 **Home Landing Page (Active)**: 8 high-converting, clinical-grade sections tailored to promote your healthcare & vitality medicine (Clinical Trust Hero, Lab Metrics, Therapeutic Benefits, Medical Testimonials, Dosage Bundles, FAQ, Consultation Form, and Guarantee CTA).\n2. 🎉 **Thank You Page (\`/thank-you\`)**: Complete post-purchase confirmation flow with discreet packaging guarantee, 3-step fulfillment timeline, shipping & privacy FAQ, and 24/7 medical support card.\n\n---\n💬 **To customize this for your exact product, let me know:**\n1. **Product Name & Classification**: What is your medicine's brand name, and is it OTC, herbal/ayurvedic, or prescription?\n2. **Key Active Ingredients**: Are there specific active ingredients, herbs, or therapeutic compounds you'd like highlighted?\n3. **Pricing & Packaging**: Would you like custom dosage bundles, or should we link the order button directly to a checkout page?\n\n*(You can click the page navigation tabs in the header to preview both pages, or tell me what to refine!)*`;
+                            } else {
+                                aiReply = parsed.reply || generated.reply;
+                            }
+                            aiHandled = true;
+                        } else if (parsed.action === 'ADD_SECTION' && parsed.sectionType) {
+                            let newSec: ElementNode | null = null;
+                            const secType = parsed.sectionType.toLowerCase();
+                            if (secType === 'testimonials') newSec = this.createTestimonialsSection(primaryColor);
+                            else if (secType === 'pricing') newSec = this.createPricingSection(primaryColor);
+                            else if (secType === 'faq') newSec = this.createFAQSection(primaryColor);
+                            else if (secType === 'features') newSec = this.createFeaturesSection(primaryColor);
+                            else if (secType === 'stats') newSec = this.createStatsSection(primaryColor);
+                            else if (secType === 'team') newSec = this.createTeamSection(primaryColor);
+                            else if (secType === 'contact') newSec = this.createContactSection(primaryColor);
+                            else if (secType === 'hero') newSec = this.createHeroSection(siteName, parsed.headline, primaryColor);
+                            else if (secType === 'cta') newSec = this.createCtaSection(parsed.headline, primaryColor);
+
+                            if (newSec) {
+                                activeSections.push(newSec);
+                                currentConfig.pages[activePageIndex].sections = activeSections;
+                                addedDetails.push(`Added new ${secType} section to ${activePage.name || activePage.id}`);
+                            }
+                        }
+
+                        if (parsed.reply && !aiReply) {
+                            aiReply = parsed.reply;
+                            aiHandled = true;
+                        }
                     }
-                    if (parsed.reply) {
-                        aiReply = parsed.reply;
-                        aiHandled = true;
-                    }
                 }
-            }
-        } catch (err) {
-            console.warn('[WebsiteAIBuilder] Live LLM patch error, falling back to NLP engine:', err);
-        }
-
-        // 3. NLP Heuristic Engine
-        // Theme Color Updates
-        if (lowerInstruction.includes('green') || lowerInstruction.includes('emerald')) {
-            if (!currentConfig.brand) currentConfig.brand = {};
-            currentConfig.brand.primaryColor = '#10b981';
-            addedDetails.push('Switched theme to Emerald Green (#10b981)');
-        } else if (lowerInstruction.includes('gold') || lowerInstruction.includes('amber') || lowerInstruction.includes('yellow')) {
-            if (!currentConfig.brand) currentConfig.brand = {};
-            currentConfig.brand.primaryColor = '#f59e0b';
-            addedDetails.push('Switched theme to Amber Gold (#f59e0b)');
-        } else if (lowerInstruction.includes('purple') || lowerInstruction.includes('violet')) {
-            if (!currentConfig.brand) currentConfig.brand = {};
-            currentConfig.brand.primaryColor = '#8b5cf6';
-            addedDetails.push('Switched theme to Royal Purple (#8b5cf6)');
-        } else if (lowerInstruction.includes('blue') || lowerInstruction.includes('indigo')) {
-            if (!currentConfig.brand) currentConfig.brand = {};
-            currentConfig.brand.primaryColor = '#4f46e5';
-            addedDetails.push('Switched theme to Indigo Blue (#4f46e5)');
-        } else if (lowerInstruction.includes('pink') || lowerInstruction.includes('rose')) {
-            if (!currentConfig.brand) currentConfig.brand = {};
-            currentConfig.brand.primaryColor = '#ec4899';
-            addedDetails.push('Switched theme to Rose Pink (#ec4899)');
-        }
-
-        // Add Testimonials / Reviews Section
-        if (lowerInstruction.includes('testimonial') || lowerInstruction.includes('review') || lowerInstruction.includes('social proof')) {
-            const hasTestimonials = currentConfig.pages?.[0]?.sections?.some((s: any) => (s.id || '').includes('testimonial'));
-            if (!hasTestimonials) {
-                const testimonialSection: ElementNode = {
-                    id: genId('sec-testimonials'),
-                    type: 'section',
-                    data: {},
-                    style: { paddingY: 6, backgroundColor: '#ffffff' },
-                    children: [
-                        this.createBox([
-                            this.createText('Loved by Thousands of Growing Teams', { tagName: 'h2', fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: '900', textAlign: 'center', marginBottom: '0.75rem', color: '#0f172a' }),
-                            this.createText('See how our platform helps teams scale revenue and automate execution.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '3rem', color: '#64748b' }),
-                            this.createBox([
-                                this.createBox([
-                                    this.createText('⭐⭐⭐⭐⭐', { fontSize: '1.1rem', marginBottom: '0.75rem' }),
-                                    this.createText('"180 Workspace transformed our entire delivery workflow. We automated client onboarding and invoice delivery in one afternoon."', { fontStyle: 'italic', color: '#334155', lineHeight: '1.6', marginBottom: '1rem' }),
-                                    this.createText('Sarah Jenkins — COO, HyperCloud', { fontWeight: 'bold', fontSize: '0.95rem', color: '#0f172a' })
-                                ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' }),
-                                this.createBox([
-                                    this.createText('⭐⭐⭐⭐⭐', { fontSize: '1.1rem', marginBottom: '0.75rem' }),
-                                    this.createText('"The AI Copilot and live document generation saved our engineering and sales teams 20+ hours every single week."', { fontStyle: 'italic', color: '#334155', lineHeight: '1.6', marginBottom: '1rem' }),
-                                    this.createText('Marcus Sterling — Head of Product, FinEdge', { fontWeight: 'bold', fontSize: '0.95rem', color: '#0f172a' })
-                                ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' })
-                            ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', width: '100%' })
-                        ], { maxWidth: '1100px', margin: '0 auto' })
-                    ]
-                };
-
-                if (currentConfig.pages && currentConfig.pages[0]) {
-                    const insertIdx = Math.max(1, currentConfig.pages[0].sections.length - 1);
-                    currentConfig.pages[0].sections.splice(insertIdx, 0, testimonialSection);
-                    addedDetails.push('Inserted customer testimonials review section');
-                }
+            } catch (err) {
+                console.warn('[WebsiteAIBuilder] Live LLM patch error, running heuristic engine:', err);
             }
         }
 
-        // Add Pricing Section
-        if (lowerInstruction.includes('pricing') || lowerInstruction.includes('tier') || lowerInstruction.includes('plan')) {
-            const hasPricing = currentConfig.pages?.[0]?.sections?.some((s: any) => (s.id || '').includes('pricing'));
-            if (!hasPricing) {
-                const pricingSection: ElementNode = {
-                    id: genId('sec-pricing'),
-                    type: 'section',
-                    data: {},
-                    style: { paddingY: 6, backgroundColor: '#f8fafc' },
-                    children: [
-                        this.createBox([
-                            this.createText('Transparent, Predictable Pricing', { tagName: 'h2', fontSize: '2.5rem', fontWeight: '900', textAlign: 'center', marginBottom: '0.5rem', color: '#0f172a' }),
-                            this.createText('Choose the plan that fits your growth stage.', { tagName: 'p', fontSize: '1.1rem', textAlign: 'center', opacity: 0.7, marginBottom: '3rem', color: '#64748b' }),
-                            this.createBox([
-                                this.createBox([
-                                    this.createText('Starter', { fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem', color: '#0f172a' }),
-                                    this.createText('₹2,499 / mo', { fontSize: '2rem', fontWeight: '900', color: currentConfig.brand?.primaryColor || '#4f46e5', marginBottom: '1rem' }),
-                                    this.createText('• Up to 5 Team Members\n• AI Document Synthesis\n• CRM & Lead Pipeline\n• Standard Support', { whiteSpace: 'pre-line', lineHeight: '1.8', color: '#475569', marginBottom: '1.5rem' }),
-                                    this.createButton('Get Started', { backgroundColor: currentConfig.brand?.primaryColor || '#4f46e5', color: '#ffffff', padding: '0.75rem 1.5rem', borderRadius: '0.75rem', fontWeight: 'bold' })
-                                ], { backgroundColor: '#ffffff', borderRadius: '1.25rem', padding: '2rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }),
-                                this.createBox([
-                                    this.createText('Growth & Pro (Popular)', { fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem', color: '#0f172a' }),
-                                    this.createText('₹6,999 / mo', { fontSize: '2rem', fontWeight: '900', color: currentConfig.brand?.primaryColor || '#4f46e5', marginBottom: '1rem' }),
-                                    this.createText('• Unlimited Team Members\n• Full Autonomous AI OS\n• Custom Domain & Ingestion\n• 24/7 VIP Engineering Desk', { whiteSpace: 'pre-line', lineHeight: '1.8', color: '#475569', marginBottom: '1.5rem' }),
-                                    this.createButton('Claim Pro Plan', { backgroundColor: currentConfig.brand?.primaryColor || '#4f46e5', color: '#ffffff', padding: '0.75rem 1.5rem', borderRadius: '0.75rem', fontWeight: 'bold' })
-                                ], { backgroundColor: '#ffffff', borderRadius: '1.25rem', padding: '2rem', borderStyle: 'solid', borderWidth: '2px', borderColor: currentConfig.brand?.primaryColor || '#4f46e5', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' })
-                            ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', width: '100%' })
-                        ], { maxWidth: '1000px', margin: '0 auto' })
-                    ]
-                };
+        // 5. High-Precision Heuristic Fallback Engine
+        if (!aiHandled) {
+            // A. Color Palette Updates
+            if (lowerInstruction.includes('green') || lowerInstruction.includes('emerald')) {
+                currentConfig.brand.primaryColor = '#10b981';
+                addedDetails.push('Switched theme to Emerald Green (#10b981)');
+            } else if (lowerInstruction.includes('gold') || lowerInstruction.includes('amber') || lowerInstruction.includes('yellow')) {
+                currentConfig.brand.primaryColor = '#f59e0b';
+                addedDetails.push('Switched theme to Amber Gold (#f59e0b)');
+            } else if (lowerInstruction.includes('purple') || lowerInstruction.includes('violet')) {
+                currentConfig.brand.primaryColor = '#8b5cf6';
+                addedDetails.push('Switched theme to Royal Purple (#8b5cf6)');
+            } else if (lowerInstruction.includes('blue') || lowerInstruction.includes('indigo')) {
+                currentConfig.brand.primaryColor = '#4f46e5';
+                addedDetails.push('Switched theme to Indigo Blue (#4f46e5)');
+            } else if (lowerInstruction.includes('pink') || lowerInstruction.includes('rose')) {
+                currentConfig.brand.primaryColor = '#ec4899';
+                addedDetails.push('Switched theme to Rose Pink (#ec4899)');
+            } else if (lowerInstruction.includes('cyan') || lowerInstruction.includes('teal')) {
+                currentConfig.brand.primaryColor = '#06b6d4';
+                addedDetails.push('Switched theme to Cyan Teal (#06b6d4)');
+            }
 
-                if (currentConfig.pages && currentConfig.pages[0]) {
-                    const insertIdx = Math.max(1, currentConfig.pages[0].sections.length - 1);
-                    currentConfig.pages[0].sections.splice(insertIdx, 0, pricingSection);
-                    addedDetails.push('Added transparent pricing plans section');
+            // B. Add Testimonials
+            if (lowerInstruction.includes('testimonial') || lowerInstruction.includes('review') || lowerInstruction.includes('social proof')) {
+                activeSections.push(this.createTestimonialsSection(currentConfig.brand.primaryColor));
+                addedDetails.push('Appended customer testimonials review section');
+            }
+
+            // C. Add Pricing
+            if (lowerInstruction.includes('pricing') || lowerInstruction.includes('tier') || lowerInstruction.includes('plan') || lowerInstruction.includes('price')) {
+                activeSections.push(this.createPricingSection(currentConfig.brand.primaryColor));
+                addedDetails.push('Appended 3-tier transparent pricing table');
+            }
+
+            // D. Add FAQ
+            if (lowerInstruction.includes('faq') || lowerInstruction.includes('question') || lowerInstruction.includes('accordian') || lowerInstruction.includes('accordion')) {
+                activeSections.push(this.createFAQSection(currentConfig.brand.primaryColor));
+                addedDetails.push('Appended FAQ accordion section');
+            }
+
+            // E. Add Features
+            if (lowerInstruction.includes('feature') || lowerInstruction.includes('benefit') || lowerInstruction.includes('service')) {
+                activeSections.push(this.createFeaturesSection(currentConfig.brand.primaryColor));
+                addedDetails.push('Appended core features grid');
+            }
+
+            // F. Add Stats / Metrics
+            if (lowerInstruction.includes('stat') || lowerInstruction.includes('metric') || lowerInstruction.includes('counter') || lowerInstruction.includes('number')) {
+                activeSections.push(this.createStatsSection(currentConfig.brand.primaryColor));
+                addedDetails.push('Appended high-impact stats counter section');
+            }
+
+            // G. Add Team
+            if (lowerInstruction.includes('team') || lowerInstruction.includes('member') || lowerInstruction.includes('founder') || lowerInstruction.includes('leadership')) {
+                activeSections.push(this.createTeamSection(currentConfig.brand.primaryColor));
+                addedDetails.push('Appended leadership team showcase');
+            }
+
+            // H. Add Contact Form
+            if (lowerInstruction.includes('contact') || lowerInstruction.includes('lead') || lowerInstruction.includes('get in touch') || lowerInstruction.includes('inquiry')) {
+                activeSections.push(this.createContactSection(currentConfig.brand.primaryColor));
+                addedDetails.push('Appended contact & inquiry form section');
+            }
+
+            // I. Add CTA
+            if (lowerInstruction.includes('cta') || lowerInstruction.includes('call to action') || lowerInstruction.includes('banner')) {
+                activeSections.push(this.createCtaSection(undefined, currentConfig.brand.primaryColor));
+                addedDetails.push('Appended high-converting call to action banner');
+            }
+
+            currentConfig.pages[activePageIndex].sections = activeSections;
+
+            if (!aiReply) {
+                if (addedDetails.length > 0) {
+                    aiReply = `✨ **Website Updated**: ${addedDetails.join(', ')}! All other existing ${activeSections.length - addedDetails.length} sections have been preserved intact.`;
+                } else {
+                    activeSections.push(this.createFeaturesSection(currentConfig.brand.primaryColor));
+                    currentConfig.pages[activePageIndex].sections = activeSections;
+                    aiReply = `✨ **Canvas Enhanced**: Added the **Key Features & Benefits** section to your active page.\n\n---\n💬 **To help tailor your site further:**\n1. What is your product or company's primary focus?\n2. Would you like to add **Customer Testimonials**, a **Pricing Matrix**, or an **FAQ** next?\n3. Do you have a preferred visual brand color?`;
                 }
             }
         }
 
-        if (!aiReply) {
-            aiReply = addedDetails.length > 0
-                ? `✅ Website updated with: "${textInstruction}"! Your changes have been synthesized and saved to the live builder.`
-                : `✅ Website synchronized: Your theme and live layout are up-to-date.`;
+        // Save updated config in PostgreSQL
+        if (website) {
+            await prisma.website.update({
+                where: { id: entityId },
+                data: {
+                    config: currentConfig,
+                    publishedConfig: currentConfig
+                }
+            }).catch((err) => {
+                console.warn('[WebsiteAIBuilder] DB save warning:', err.message);
+            });
         }
-
-        // Save updated config
-        await prisma.website.update({
-            where: { id: entityId },
-            data: {
-                config: currentConfig,
-                publishedConfig: currentConfig
-            }
-        });
 
         return {
             success: true,
             builderType: this.builderType,
             entityId,
-            title: website.name,
+            title: siteName,
             editUrl,
             reply: aiReply,
             ast: currentConfig,
@@ -760,3 +1460,5 @@ Analyze the instruction. If it requests a theme change or new section content, r
         return { success: true, message: 'Website deleted.' };
     }
 }
+
+export default WebsiteAIBuilderService;

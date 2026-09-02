@@ -191,3 +191,10 @@ export class AIToolRegistry {
 }
 
 export const aiToolRegistry = AIToolRegistry.getInstance();
+
+try {
+    const { registerAllBuiltInTools } = require('./builtin-tools');
+    if (typeof registerAllBuiltInTools === 'function') {
+        registerAllBuiltInTools(aiToolRegistry);
+    }
+} catch (e) {}

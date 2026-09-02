@@ -3,6 +3,7 @@ import { prisma, requestContext } from '@workspace/db';
 import { aiProviderService } from '../kernel/ai-provider.service';
 import { AICompanyConfigService } from '../kernel/ai-company-config.service';
 import { vectorStore } from '../background/ai-vector-store.service';
+import { aiToolRegistry } from '../tools/ai-tool-registry';
 import axios from 'axios';
 import * as pdfParseOriginal from 'pdf-parse';
 const pdfParse: any = pdfParseOriginal;
@@ -268,23 +269,79 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
             contextText += `\n`;
         }
 
-        if (fileContext) {
-            contextText += `Attached Document Content for Context:\n${fileContext}\n\n`;
+        // Ingest Recent Workspace Entity Memory for Continuous Consciousness
+        const [recentDocs, recentEmployeesList, recentFormsList, recentWebsitesList] = await Promise.all([
+            prisma.document ? prisma.document.findMany({
+                where: { companyId },
+                orderBy: { updatedAt: 'desc' },
+                take: 8,
+                select: { id: true, title: true, type: true, createdAt: true, updatedAt: true }
+            }).catch(() => []) : [],
+            prisma.user.findMany({
+                where: { companyId },
+                orderBy: { createdAt: 'desc' },
+                take: 8,
+                select: { id: true, name: true, email: true, role: true, department: true, salary: true }
+            }).catch(() => []),
+            prisma.form ? prisma.form.findMany({
+                where: { companyId },
+                orderBy: { updatedAt: 'desc' },
+                take: 5,
+                select: { id: true, title: true }
+            }).catch(() => []) : [],
+            prisma.website ? prisma.website.findMany({
+                where: { companyId },
+                orderBy: { updatedAt: 'desc' },
+                take: 5,
+                select: { id: true, name: true }
+            }).catch(() => []) : []
+        ]);
+
+        if (recentDocs.length > 0) {
+            contextText += `Recent Workspace Documents (in 180 Documents):\n` + recentDocs.map((d: any) => `- "${d.title}" (Type: ${d.type}, ID: ${d.id}, Direct URL: /document-editor?id=${d.id})`).join('\n') + `\n\n`;
+        }
+        if (recentEmployeesList.length > 0) {
+            contextText += `Recent Workspace Team & Hires:\n` + recentEmployeesList.map((e: any) => `- ${e.name} (Role: ${e.role}, Email: ${e.email}, Dept: ${e.department || 'General'}${e.salary ? `, Salary: ₹${Number(e.salary).toLocaleString('en-IN')}/mo` : ''})`).join('\n') + `\n\n`;
+        }
+        if (recentFormsList.length > 0) {
+            contextText += `Recent Forms:\n` + recentFormsList.map((f: any) => `- "${f.title}" (URL: /forms/${f.id})`).join('\n') + `\n\n`;
+        }
+        if (recentWebsitesList.length > 0) {
+            contextText += `Recent Websites:\n` + recentWebsitesList.map((w: any) => `- "${w.name}" (URL: /advertising/${w.id}/edit)`).join('\n') + `\n\n`;
         }
 
-        let chatHistory = 'Recent Conversation:\n';
-        if (!history || history.length === 0) {
+        contextText += `CONTINUOUS MULTI-TURN MEMORY & ENTITY LINKING INSTRUCTIONS:
+1. CONTINUOUS AWARENESS: You have persistent memory of all previous messages in this conversation. Never lose track of what action you just performed, what employee you just hired, or what document/website/form was just synthesized.
+2. DIRECT LINK RESOLUTION: If the user asks for "the link", "the document", "the offer letter", "the contract", "the operator" (typo for offer letter), or asks where to view something created earlier:
+   - Identify the referenced entity from the Recent Conversation history or Recent Workspace Documents above.
+   - Immediately provide the DIRECT clickable markdown link: [📄 Open <Title> in 180 Documents](/document-editor?id=<id>).
+   - NEVER say "there is no document ID provided" or "please provide more details". Always provide the matching link directly!
+3. TOLERATE TYPOS & NATURAL SHORTCUTS: Understand terms like "operator" -> offer letter, "delte" -> delete, "pagem" -> page, "varsha" -> Varsha.
+4. ACTION OUTPUTS: Whenever you execute an action (like hiring, firing, creating a lead, or creating a document), always make sure the output response has the direct link to the created entity.
+5. PROACTIVE CONSCIOUSNESS & INTERACTIVE CLARIFICATION:
+   - When the user asks for something broad, underspecified, or brief (e.g. "landing page for our product for a medicine product", "create a form", "draft an agreement"):
+     * NEVER refuse, NEVER say "instruction unclear", and NEVER say "no updates are necessary".
+     * PROACTIVELY TAKE INITIATIVE: Deliver a rich, high-fidelity draft or baseline immediately.
+     * COMMUNICATE INTERACTIVELY: Ask 2-3 intelligent, targeted clarifying questions to help the user refine and customize it.
+   - When the user replies with a short affirmation ("yes", "sure", "ok", "go ahead", "do it", "add it"), understand what you previously proposed in recent conversation history and execute that enhancement immediately!\n\n`;
+
+        let chatHistory = 'Recent Conversation History:\n';
+        if (Array.isArray(history) && history.length > 0) {
+            const recentHistory = history.slice(-20);
+            recentHistory.forEach((msg: any) => {
+                const role = (msg.role || '').toLowerCase() === 'user' ? 'User' : 'Assistant';
+                const content = msg.content || msg.text || '';
+                if (content) {
+                    chatHistory += `${role}: ${content}\n`;
+                }
+            });
+        } else {
             const recentMessages = await prisma.aiChatMessage.findMany({
                 where: { sessionId: activeSessionId },
                 orderBy: { createdAt: 'desc' },
-                take: 6
+                take: 25
             }).catch(() => []);
             recentMessages.reverse().slice(0, -1).forEach((msg: any) => {
-                chatHistory += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
-            });
-        } else if (history && Array.isArray(history)) {
-            const recentHistory = history.slice(-5);
-            recentHistory.forEach((msg: any) => {
                 chatHistory += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
             });
         }
@@ -306,14 +363,26 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
         let actionResult: string | null = null;
         let documentPreview: any = null;
         let finalStoredReply = fullReply;
-        const jsonMatch = fullReply.match(/```json\s*(\{[\s\S]*?\})\s*```/) || fullReply.match(/^\s*(\{[\s\S]*"action"[\s\S]*\})\s*$/);
+        const jsonMatch = fullReply.match(/```json\s*(\{[\s\S]*?\})\s*```/) || fullReply.match(/^\s*(\{[\s\S]*\})\s*$/);
 
         if (jsonMatch) {
             try {
                 const rawJson = jsonMatch[1] || jsonMatch[0];
-                const command = JSON.parse(rawJson);
-                if (command.action) {
-                    const payload = command.payload || {};
+                const parsed = JSON.parse(rawJson);
+                let action = parsed.action || parsed.tool || parsed.name || parsed.function;
+                let payload = parsed.payload || parsed.args || parsed.arguments || parsed.parameters || {};
+
+                // Handle nested single-key tool invocations like { "search_knowledge_base": { ... } } or { "get_form_submissions": { ... } }
+                if (!action && typeof parsed === 'object' && parsed !== null) {
+                    const keys = Object.keys(parsed);
+                    if (keys.length === 1 && typeof parsed[keys[0]] === 'object' && parsed[keys[0]] !== null) {
+                        action = keys[0];
+                        payload = parsed[keys[0]];
+                    }
+                }
+
+                if (action) {
+                    const command = { action, payload };
                     const userRole = (user.role || 'employee').toLowerCase();
                     const userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
                     const toolContext = {
@@ -325,8 +394,7 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
 
                     // 1. Dedicated Builder Dispatches with Rich Preview Attachments
                     if (['create_website', 'generate_website_layout'].includes(command.action)) {
-                        const { aiToolRegistry } = require('../tools/ai-tool-registry');
-                        const isAuth = aiToolRegistry.isUserAuthorizedForTool(aiToolRegistry.getTool('create_website'), userRole, userPermissions);
+                        const isAuth = aiToolRegistry.isUserAuthorizedForTool(aiToolRegistry.getTool('create_website') || {} as any, userRole, userPermissions);
                         if (!isAuth) {
                             actionResult = `🔒 **Administrative Action Restricted**\n\nYou do not have permission to publish or create company websites. Please contact your workspace administrator.`;
                         } else {
@@ -395,7 +463,6 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
                         };
                     } else {
                         // 2. Singleton AI Tool Registry Dispatches with Zero-Trust Execution
-                        const { aiToolRegistry } = require('../tools/ai-tool-registry');
                         if (aiToolRegistry && aiToolRegistry.hasTool(command.action)) {
                             const toolOutput = await aiToolRegistry.executeTool(command.action, payload, toolContext);
                             if (toolOutput.directive) {
@@ -427,7 +494,8 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
                     }
 
                     if (actionResult) {
-                        finalStoredReply = actionResult.startsWith('🌐') || actionResult.startsWith('📄') || actionResult.startsWith('📋') || actionResult.startsWith('✅')
+                        const hasEmojiHeader = ['🌐', '📄', '📋', '✅', '🎉', '🎯', '🚀', '📜', '🔒', '📊', '📈', '💰', '👥', '⚠️'].some(e => actionResult.startsWith(e));
+                        finalStoredReply = hasEmojiHeader
                             ? actionResult
                             : `✅ **Action Executed:** ${actionResult}`;
                         if (stream && onChunk) {
@@ -440,12 +508,21 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
                 }
             } catch (err) {
                 console.error('[AIChatService] Failed to parse tool call JSON:', err);
+                finalStoredReply = fullReply.replace(/```json[\s\S]*?```/g, '').trim() || fullReply;
             }
         } else {
-            // 3. Smart Builder Intent Fallback (If LLM gave generic advice instead of calling tool or if user said "build that")
+            // 3. Smart Intent Fallback
             const lowerMsg = message.toLowerCase().trim();
             const recentHistoryLower = (chatHistory || '').toLowerCase();
             const combinedContext = `${lowerMsg} ${recentHistoryLower}`;
+
+            // 3.1 Form Leads / Submissions Intent
+            const isFormQueryIntent = (lowerMsg.includes('form') || lowerMsg.includes('forms')) &&
+                (lowerMsg.includes('lead') || lowerMsg.includes('submission') || lowerMsg.includes('how many') || lowerMsg.includes('check') || lowerMsg.includes('data') || lowerMsg.includes('thor'));
+
+            // 3.2 Inactive / Project Health Query Intent
+            const isProjectHealthIntent = (lowerMsg.includes('project') || lowerMsg.includes('projects')) &&
+                (lowerMsg.includes('inactive') || lowerMsg.includes('not active') || lowerMsg.includes('non active') || lowerMsg.includes('how many') || lowerMsg.includes('health') || lowerMsg.includes('status'));
 
             const isWebsiteIntent = (combinedContext.includes('website') || combinedContext.includes('landing page') || combinedContext.includes('ecommerce') || combinedContext.includes('store') || combinedContext.includes('site')) &&
                 (lowerMsg.includes('build') || lowerMsg.includes('create') || lowerMsg.includes('make') || lowerMsg.includes('generate') || lowerMsg === 'build that');
@@ -453,10 +530,22 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
             const isDocIntent = (combinedContext.includes('document') || combinedContext.includes('contract') || combinedContext.includes('nda') || combinedContext.includes('proposal') || combinedContext.includes('policy') || combinedContext.includes('rent') || combinedContext.includes('lease') || combinedContext.includes('agreement')) &&
                 (lowerMsg.includes('build') || lowerMsg.includes('create') || lowerMsg.includes('write') || lowerMsg.includes('generate') || lowerMsg.includes('draft') || lowerMsg.includes('agreement') || lowerMsg === 'build that');
 
-            const isFormIntent = (combinedContext.includes('form') || combinedContext.includes('survey') || combinedContext.includes('intake')) &&
+            const isFormCreateIntent = (combinedContext.includes('form') || combinedContext.includes('survey') || combinedContext.includes('intake')) &&
                 (lowerMsg.includes('build') || lowerMsg.includes('create') || lowerMsg.includes('generate') || lowerMsg === 'build that');
 
-            if (isWebsiteIntent) {
+            if (isFormQueryIntent) {
+                const toolContext = { companyId, userId: user.id, userRole: (user.role || 'employee').toLowerCase() };
+                const toolRes = await aiToolRegistry.executeTool('get_form_submissions', { query: message, formName: message }, toolContext);
+                if (toolRes && toolRes.message) {
+                    finalStoredReply = toolRes.message;
+                }
+            } else if (isProjectHealthIntent) {
+                const toolContext = { companyId, userId: user.id, userRole: (user.role || 'employee').toLowerCase() };
+                const toolRes = await aiToolRegistry.executeTool('get_project_health', { statusFilter: lowerMsg.includes('inactive') || lowerMsg.includes('not active') ? 'inactive' : 'all' }, toolContext);
+                if (toolRes && toolRes.message) {
+                    finalStoredReply = toolRes.message;
+                }
+            } else if (isWebsiteIntent) {
                 try {
                     const { UniversalBuilderRegistry } = require('../builders');
                     const compileRes = await UniversalBuilderRegistry.compile('website', {
@@ -516,6 +605,65 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
                     };
                 } catch (e) {
                     console.error('[AIChatService] Smart form builder fallback failed:', e);
+                }
+            }
+        }
+
+        // 4. Deterministic Multi-Turn Entity & Link Resolution Safety Net
+        const lowerPrompt = message.toLowerCase().trim();
+        const isAskingForLink = (
+            lowerPrompt.includes('link') ||
+            lowerPrompt.includes('url') ||
+            lowerPrompt.includes('where is') ||
+            lowerPrompt.includes('open') ||
+            lowerPrompt.includes('show me') ||
+            lowerPrompt.includes('give me') ||
+            lowerPrompt.includes('offer letter') ||
+            lowerPrompt.includes('operator') ||
+            lowerPrompt.includes('contract') ||
+            lowerPrompt.includes('document')
+        );
+
+        const hasLinkAlready = finalStoredReply.includes('(/document-editor') ||
+                               finalStoredReply.includes('(/forms') ||
+                               finalStoredReply.includes('(/advertising') ||
+                               finalStoredReply.includes('http');
+
+        const isAmnesiaReply = finalStoredReply.toLowerCase().includes('there is no specific offer letter') ||
+                               finalStoredReply.toLowerCase().includes('no specific offer letter') ||
+                               finalStoredReply.toLowerCase().includes('could you please provide the document id') ||
+                               finalStoredReply.toLowerCase().includes('provide more details regarding the operator');
+
+        if ((isAskingForLink && !hasLinkAlready) || isAmnesiaReply) {
+            // Check if there is a matching document in recentDocs
+            let targetDoc = null;
+            if (recentDocs && recentDocs.length > 0) {
+                // Check if user or conversation history mentioned a specific name (e.g. Varsha)
+                for (const doc of recentDocs) {
+                    const docTitleLower = (doc.title || '').toLowerCase();
+                    const words = lowerPrompt.split(/\s+/);
+                    const matchingWord = words.find((w: string) => w.length >= 4 && docTitleLower.includes(w));
+                    if (matchingWord || (docTitleLower.includes('offer') && (lowerPrompt.includes('offer') || lowerPrompt.includes('operator') || lowerPrompt.includes('hired')))) {
+                        targetDoc = doc;
+                        break;
+                    }
+                }
+                if (!targetDoc) targetDoc = recentDocs[0];
+            }
+
+            if (targetDoc) {
+                documentPreview = {
+                    id: targetDoc.id,
+                    title: targetDoc.title,
+                    type: 'document',
+                    editUrl: `/document-editor?id=${targetDoc.id}`,
+                    blocksCount: 7
+                };
+
+                if (isAmnesiaReply) {
+                    finalStoredReply = `📄 **${targetDoc.title}**\n\nHere is your direct link to view, edit, and send the document in 180 Documents:\n\n👉 [**Open "${targetDoc.title}" in 180 Documents**](/document-editor?id=${targetDoc.id})\n\n*(Document ID: \`${targetDoc.id}\`)*`;
+                } else if (!hasLinkAlready) {
+                    finalStoredReply += `\n\n📄 **Direct Document Link:** [Open "${targetDoc.title}" in 180 Documents](/document-editor?id=${targetDoc.id})`;
                 }
             }
         }
