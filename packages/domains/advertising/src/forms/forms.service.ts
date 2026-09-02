@@ -111,6 +111,85 @@ export class FormsService {
     return result;
   }
 
+  public static normalizeKey(key: string): string {
+    return String(key || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  public static readonly FIELD_ALIASES: Record<string, string[]> = {
+    name: ['name', 'fullname', 'full_name', 'yourname', 'your_name', 'clientname', 'client_name', 'customername', 'customer_name', 'contactname', 'contact_name', 'first_name', 'last_name', 'fname', 'lname'],
+    phone: ['phone', 'phonenumber', 'phone_number', 'mobile', 'mobilenumber', 'mobile_number', 'tel', 'whatsapp', 'yourphone', 'your_phone', 'cell', 'contactnumber', 'contact_number'],
+    email: ['email', 'useremail', 'user_email', 'workemail', 'work_email', 'youremail', 'your_email', 'emailaddress', 'email_address'],
+    company: ['company', 'companyname', 'company_name', 'organization', 'organizationname', 'organization_name', 'businessname', 'business_name'],
+    message: ['message', 'comments', 'comment', 'notes', 'note', 'inquiry', 'details', 'description', 'requirement', 'requirements'],
+    budget: ['budget', 'dealvalue', 'deal_value', 'amount', 'price', 'cost', 'quantity']
+  };
+
+  /**
+   * Universal resolution helper: given a field and a values object, attempts:
+   * 1. Exact match on field.id, field.mapping, field.name, field.label
+   * 2. Normalized string match on field.mapping, field.name, field.label
+   * 3. Semantic alias match based on field type or field mapping/label
+   */
+  public static resolveFieldValueFromObject(field: any, values: Record<string, any>): any {
+    if (!values || typeof values !== 'object') return '';
+
+    // 1. Direct / Exact key matches
+    if (values[field.id] !== undefined && values[field.id] !== null && values[field.id] !== '') return values[field.id];
+    if (field.mapping && values[field.mapping] !== undefined && values[field.mapping] !== null && values[field.mapping] !== '') return values[field.mapping];
+    if (field.name && values[field.name] !== undefined && values[field.name] !== null && values[field.name] !== '') return values[field.name];
+    if (values[field.label] !== undefined && values[field.label] !== null && values[field.label] !== '') return values[field.label];
+
+    const keys = Object.keys(values);
+    if (keys.length === 0) return '';
+
+    // 2. Normalized key matches (ignoring spaces, underscores, dashes, case)
+    const fieldMappingNorm = field.mapping ? FormsService.normalizeKey(field.mapping) : '';
+    const fieldNameNorm = field.name ? FormsService.normalizeKey(field.name) : '';
+    const fieldLabelNorm = field.label ? FormsService.normalizeKey(field.label) : '';
+
+    for (const key of keys) {
+      const val = values[key];
+      if (val === undefined || val === null || val === '') continue;
+
+      const normKey = FormsService.normalizeKey(key);
+      if (
+        (fieldMappingNorm && normKey === fieldMappingNorm) ||
+        (fieldNameNorm && normKey === fieldNameNorm) ||
+        (fieldLabelNorm && normKey === fieldLabelNorm)
+      ) {
+        return val;
+      }
+    }
+
+    // 3. Semantic alias matching based on field type and field mapping/label
+    const fieldType = (field.type || '').toUpperCase();
+    const fieldTag = `${field.mapping || ''} ${field.label || ''} ${field.name || ''}`.toLowerCase();
+
+    let targetCategory: string | null = null;
+    if (fieldType === 'EMAIL' || fieldTag.includes('email')) targetCategory = 'email';
+    else if (fieldType === 'PHONE' || fieldTag.includes('phone') || fieldTag.includes('mobile') || fieldTag.includes('tel')) targetCategory = 'phone';
+    else if (fieldTag.includes('company') || fieldTag.includes('org')) targetCategory = 'company';
+    else if (fieldTag.includes('name')) targetCategory = 'name';
+    else if (fieldTag.includes('message') || fieldTag.includes('note') || fieldTag.includes('comment') || fieldTag.includes('inquiry')) targetCategory = 'message';
+    else if (fieldType === 'NUMBER' || fieldTag.includes('budget') || fieldTag.includes('amount') || fieldTag.includes('price')) targetCategory = 'budget';
+
+    if (targetCategory && FormsService.FIELD_ALIASES[targetCategory]) {
+      const aliases = FormsService.FIELD_ALIASES[targetCategory].map(a => FormsService.normalizeKey(a));
+      for (const key of keys) {
+        const val = values[key];
+        if (val === undefined || val === null || val === '') continue;
+        const normKey = FormsService.normalizeKey(key);
+        if (aliases.includes(normKey)) {
+          return val;
+        }
+      }
+    }
+
+    return '';
+  }
+
   static async createForm(data: { 
     title: string; 
     description?: string; 
@@ -409,8 +488,8 @@ export class FormsService {
       orderBy: { submittedAt: 'desc' }
     });
 
-    // Fallback recovery for historical submissions that lost their FormSubmissionValue rows due to past cascade-deletions
-    const emptySubs = submissions.filter(s => !s.values || s.values.length === 0);
+    // Fallback recovery for submissions that have no non-empty values
+    const emptySubs = submissions.filter(s => !s.values || s.values.length === 0 || s.values.every((v: any) => !v.value || !String(v.value).trim()));
     const emptySubClientIds = emptySubs.map(s => s.clientId).filter(Boolean) as string[];
     const emptySubLeadIds = emptySubs.map(s => s.leadId).filter(Boolean) as string[];
 
@@ -434,13 +513,16 @@ export class FormsService {
     }
 
     const enhanced = submissions.map(sub => {
-      if (!sub.values || sub.values.length === 0) {
+      const hasRealValues = sub.values && sub.values.length > 0 && sub.values.some((v: any) => Boolean(v.value && String(v.value).trim()));
+      if (!hasRealValues) {
         const virtualValues: any[] = [];
         const client = sub.clientId ? clientsMap.get(sub.clientId) : null;
         const lead = sub.leadId ? leadsMap.get(sub.leadId) : null;
         const deal = sub.leadId ? dealsMap.get(sub.leadId) : null;
 
-        const name = lead?.name || client?.name || deal?.title?.replace(/\s*-\s*.*$/, '');
+        const name = (lead?.name && lead.name !== 'Inbound Lead' && lead.name !== 'Inbound Prospect')
+          ? lead.name
+          : (client?.name && client.name !== 'Inbound Prospect') ? client.name : (deal?.title?.replace(/\s*-\s*.*$/, '') || lead?.name || client?.name);
         const phone = lead?.phone || client?.phone;
         const email = lead?.email || client?.email;
         const company = lead?.company || client?.companyName;
@@ -683,20 +765,8 @@ export class FormsService {
     if (!form) throw new Error('Form not found');
     if (!form.isActive) throw new Error('This form is currently inactive');
 
-    // Helper for robust value resolution (supports field.id, mapping, name, label, or fuzzy match)
-    const resolveFieldValue = (field: any) => {
-      if (values[field.id] !== undefined && values[field.id] !== null && values[field.id] !== '') return values[field.id];
-      if (field.mapping && values[field.mapping] !== undefined && values[field.mapping] !== null && values[field.mapping] !== '') return values[field.mapping];
-      if (field.name && values[field.name] !== undefined && values[field.name] !== null && values[field.name] !== '') return values[field.name];
-      if (values[field.label] !== undefined && values[field.label] !== null && values[field.label] !== '') return values[field.label];
-      const matchKey = Object.keys(values).find(k => 
-        k.toLowerCase() === (field.mapping || '').toLowerCase() ||
-        k.toLowerCase() === (field.name || '').toLowerCase() ||
-        k.toLowerCase() === field.label.toLowerCase()
-      );
-      if (matchKey && values[matchKey] !== undefined) return values[matchKey];
-      return '';
-    };
+    // Helper for robust value resolution (supports field.id, mapping, name, label, normalized match, or fuzzy alias)
+    const resolveFieldValue = (field: any) => FormsService.resolveFieldValueFromObject(field, values);
 
     // 1. Validate required fields
     const missingFields: string[] = [];
@@ -1067,12 +1137,13 @@ export class FormsService {
     const currentFields = [...(form.fields || [])];
     let nextOrder = currentFields.length;
 
-    const unmappedKeys = discoveredFieldKeys.filter(key => !currentFields.some(f => 
-      (f.mapping && f.mapping.toLowerCase() === key.toLowerCase()) ||
-      f.label.toLowerCase() === key.toLowerCase() ||
-      f.label.toLowerCase() === this.humanizeKey(key).toLowerCase() ||
-      f.id === key
-    ));
+    const unmappedKeys = discoveredFieldKeys.filter(key => {
+      const isAlreadyMapped = currentFields.some(f => {
+        const val = FormsService.resolveFieldValueFromObject(f, { [key]: flattened[key] });
+        return val !== undefined && val !== null && val !== '';
+      });
+      return !isAlreadyMapped;
+    });
 
     if (unmappedKeys.length > 0) {
       const createdFields = await Promise.all(
@@ -1114,15 +1185,9 @@ export class FormsService {
     const formattedSummaryLines: string[] = [];
 
     currentFields.forEach(field => {
-      let val: any = '';
-      if (field.mapping && flattened[field.mapping] !== undefined) {
-        val = flattened[field.mapping];
-      } else {
-        const foundKey = Object.keys(flattened).find(k => k.toLowerCase() === (field.mapping || field.label).toLowerCase());
-        if (foundKey) val = flattened[foundKey];
-      }
+      const val = FormsService.resolveFieldValueFromObject(field, flattened);
 
-      if (!val && val !== 0 && val !== false) return;
+      if (val === undefined || val === null || val === '') return;
       const strVal = String(val).trim();
       formattedSummaryLines.push(`• ${field.label}: ${strVal}`);
 
@@ -1242,16 +1307,7 @@ export class FormsService {
     const submissionValues = currentFields
       .filter(f => !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(f.type))
       .map(field => {
-        let matchedVal = '';
-        if (field.mapping && flattened[field.mapping] !== undefined) {
-          matchedVal = flattened[field.mapping];
-        } else if (flattened[field.label] !== undefined) {
-          matchedVal = flattened[field.label];
-        } else {
-          const foundKey = Object.keys(flattened).find(k => k.toLowerCase() === (field.mapping || field.label).toLowerCase());
-          if (foundKey) matchedVal = flattened[foundKey];
-        }
-
+        const matchedVal = FormsService.resolveFieldValueFromObject(field, flattened);
         const strVal = matchedVal !== undefined && matchedVal !== null ? (typeof matchedVal === 'object' ? JSON.stringify(matchedVal) : String(matchedVal)) : '';
         return {
           fieldId: field.id,
@@ -1306,7 +1362,8 @@ export class FormsService {
       success: true,
       submissionId: submission.id,
       formCode: form.formCode || form.id,
-      dealId,
+      dealId: leadId || null,
+      leadId,
       clientId,
       redirectUrl,
       pixelEventName: settings.pixelEventName || 'Lead',
