@@ -7,9 +7,9 @@ import { FeatureLock, LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 
 export default function GoogleIntegrationsPage() {
-    const { companyConfig, loading } = useSubscription();
+    const { companyConfig, isPaidPlan, hasApp: checkHasApp, loading } = useSubscription();
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
-    const hasApp = enabledApps.includes('workspace-tools');
+    const hasApp = isPaidPlan || enabledApps.includes('workspace-tools') || enabledApps.includes('google-integrations') || (checkHasApp && checkHasApp('google-integrations'));
 
     return (
         <div className="p-6 lg:p-8 w-full space-y-6 pb-16">

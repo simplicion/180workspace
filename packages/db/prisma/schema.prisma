@@ -285,7 +285,7 @@ model User {
   socialLinks                           Json?
   highlights                            Json?                 @default("[]")
   interests                             String[]              @default([])
-  employeeId                            String?               @unique
+  employeeId                            String?
   department                            String?
   position                              String?
   joinDate                              DateTime?
@@ -393,6 +393,7 @@ model User {
   teamActivityLogs  TeamActivityLog[]         @relation("UserTeamActivityLogs")
   employeeDocuments Document[]                @relation("EmployeeDocuments")
 
+  @@unique([companyId, employeeId])
   @@index([companyId])
   @@index([companyId, id])
   @@index([companyId, createdAt])

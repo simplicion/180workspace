@@ -61,12 +61,23 @@ export default function EmployeesPage() {
         );
     }
 
+    // Calculate next available employee ID scoped to current employees in this workspace
+    const maxEmpNum = (employees || []).reduce((max, u) => {
+        const match = u?.employeeId?.match(/EMP-(\d+)/i);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            return num > max ? num : max;
+        }
+        return max;
+    }, 0);
+    const nextEmployeeId = `EMP-${String(Math.max(totalUsers, maxEmpNum) + 1).padStart(4, '0')}`;
+
     return (
         <div>
             {showAdd && (
                 <AddEmployeeDrawer
                     open={showAdd}
-                    nextId={`EMP-${String(totalUsers + 1).padStart(4, '0')}`}
+                    nextId={nextEmployeeId}
                     onClose={() => setShowAdd(false)}
                     onSuccess={() => { setShowAdd(false); loadEmployees(); }}
                 />

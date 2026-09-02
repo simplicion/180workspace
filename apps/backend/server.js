@@ -202,18 +202,22 @@ const RUN_MODE = process.env.RUN_MODE || 'both'; // 'api', 'worker', or 'both'
 
 async function bootstrap() {
     try {
+        console.log('[Bootstrap] Connecting to database...');
         await prisma.$connect();
+        console.log('[Bootstrap] Database connected.');
         
         // Always initialize queues (API needs Queues to add jobs, Worker needs Workers to process)
+        console.log('[Bootstrap] Initializing queues...');
         await initQueues();
+        console.log('[Bootstrap] Queues initialized.');
         
         // Initialize WebSockets on HTTP server
+        console.log('[Bootstrap] Initializing sockets...');
         initSocket(server);
-        
+        console.log('[Bootstrap] Sockets initialized.');
         
         if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
             console.log('👷 Starting Worker Services (Delegated to external worker app)');
-            // CronService.init(); -> Moved to apps/worker
             AiJobsService.init(); // Phase 6: Proactive AI Alerts
             const aiCron = new AiCronService();
             aiCron.initCronJobs(); // AI Background Processes
@@ -242,3 +246,4 @@ async function bootstrap() {
 bootstrap();
 
 module.exports = app;
+// Reload trigger: Platform Billing enabledApps and subscription enrichment updated

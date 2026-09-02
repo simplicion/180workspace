@@ -66,20 +66,38 @@ export class BillingController {
                 prisma.document.aggregate({ where: { companyId }, _sum: { fileSize: true } })
             ]);
 
-            let activeAppsCount = 0;
-            if (company?.metadata && typeof company.metadata === 'object' && Array.isArray((company.metadata as any).enabledApps)) {
-                const enabledApps = (company.metadata as any).enabledApps;
-                const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media'];
-                activeAppsCount = enabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
-            } else {
-                activeAppsCount = await prisma.project.count({ where: { companyId } });
-            }
+            const companyMetadata = (company?.metadata && typeof company.metadata === 'object') ? (company.metadata as any) : {};
+            const rawEnabledApps = Array.isArray(companyMetadata.enabledApps) ? companyMetadata.enabledApps : [];
+            const rawEnabledModules = Array.isArray(companyMetadata.enabledModules) ? companyMetadata.enabledModules : [];
+
+            const isPaidPlan = Boolean(
+                (plan && Number(plan.price) > 0) ||
+                (currentSubscription && currentSubscription.status?.toUpperCase() === 'ACTIVE' && plan && Number(plan.price) > 0) ||
+                (plan && (plan.planName?.toLowerCase().includes('limitless') || plan.planName?.toLowerCase().includes('momentum')))
+            );
+
+            const ALL_PLATFORM_APPS = [
+                'system', 'settings', 'projects', 'communications', 'workspace-tools',
+                'crm', 'hr', 'finance', 'insights', 'analytics', 'advertising',
+                'social-media', 'traffic-director', 'ai', 'storage', 'database', 'google-integrations'
+            ];
+
+            const effectiveEnabledApps = isPaidPlan
+                ? Array.from(new Set([...rawEnabledApps, ...ALL_PLATFORM_APPS]))
+                : rawEnabledApps;
+
+            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director'];
+            const activeAppsCount = effectiveEnabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
 
             const storageUsedBytes = storageAgg._sum.fileSize || 0;
             
-            if (companyConfig) {
-                companyConfig.storageUsedBytes = storageUsedBytes;
-            }
+            const safeCompanyConfig = {
+                ...(companyConfig ? companyConfig : {}),
+                companyId,
+                storageUsedBytes,
+                enabledApps: effectiveEnabledApps,
+                enabledModules: rawEnabledModules
+            };
 
             const isTrial = company?.subscriptionStatus === 'trial';
             let isExpired = false;
@@ -117,8 +135,12 @@ export class BillingController {
                         plan: plan || null,
                         createdAt: company?.createdAt 
                       },
+                subscription: currentSubscription ? { ...currentSubscription, plan: plan || null } : null,
                 plan: plan || null,
-                companyConfig: companyConfig || null,
+                companyConfig: safeCompanyConfig,
+                enabledApps: effectiveEnabledApps,
+                enabledModules: rawEnabledModules,
+                isPaidPlan,
                 teamMembersCount,
                 activeAppsCount,
                 activeWebsitesCount,

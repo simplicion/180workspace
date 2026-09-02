@@ -7,9 +7,9 @@ import { FeatureLock, LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 
 export default function StorageSettingsPage() {
-    const { companyConfig, loading } = useSubscription();
+    const { companyConfig, isPaidPlan, hasApp: checkHasApp, loading } = useSubscription();
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
-    const hasApp = enabledApps.includes('workspace-tools');
+    const hasApp = isPaidPlan || enabledApps.includes('workspace-tools') || enabledApps.includes('storage') || (checkHasApp && checkHasApp('storage'));
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">

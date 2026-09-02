@@ -281,9 +281,53 @@ export class FormsService {
 
     const updatedForm = await prisma.$transaction(async (tx) => {
       if (fields) {
-        await tx.formField.deleteMany({
+        const existingFields = await tx.formField.findMany({
           where: { formId: id }
         });
+        const existingFieldMap = new Map(existingFields.map(f => [f.id, f]));
+        const incomingFieldIds = new Set(fields.map(f => f.id).filter(Boolean));
+
+        // Delete only fields that were explicitly removed by the user
+        const fieldsToDelete = existingFields.filter(f => !incomingFieldIds.has(f.id));
+        if (fieldsToDelete.length > 0) {
+          await tx.formField.deleteMany({
+            where: { id: { in: fieldsToDelete.map(f => f.id) } }
+          });
+        }
+
+        // Upsert / update incoming fields to preserve existing IDs and all linked submission values
+        for (let index = 0; index < fields.length; index++) {
+          const field = fields[index];
+          const fieldData = {
+            label: field.label || 'Untitled Field',
+            type: field.type || 'TEXT',
+            required: field.required || false,
+            placeholder: field.placeholder || null,
+            description: field.description || null,
+            options: field.options || null,
+            validation: {
+              ...(typeof field.validation === 'object' && field.validation !== null ? field.validation : {}),
+              pageId: field.pageId || field.validation?.pageId || 'page_1'
+            },
+            order: index,
+            mapping: field.mapping || null
+          };
+
+          if (field.id && existingFieldMap.has(field.id)) {
+            await tx.formField.update({
+              where: { id: field.id },
+              data: fieldData
+            });
+          } else {
+            await tx.formField.create({
+              data: {
+                ...(field.id && field.id.length > 10 ? { id: field.id } : {}),
+                formId: id,
+                ...fieldData
+              }
+            });
+          }
+        }
       }
 
       return await tx.form.update({
@@ -294,25 +338,7 @@ export class FormsService {
           isActive: isActive !== undefined ? isActive : undefined,
           formType: formType !== undefined ? formType : undefined,
           formCode: formCode !== undefined ? formCode : undefined,
-          settings: settings !== undefined ? (settings as any) : undefined,
-          ...(fields && {
-            fields: {
-              create: fields.map((field, index) => ({
-                label: field.label || 'Untitled Field',
-                type: field.type || 'TEXT',
-                required: field.required || false,
-                placeholder: field.placeholder || null,
-                description: field.description || null,
-                options: field.options || null,
-                validation: {
-                  ...(typeof field.validation === 'object' && field.validation !== null ? field.validation : {}),
-                  pageId: field.pageId || field.validation?.pageId || 'page_1'
-                },
-                order: index,
-                mapping: field.mapping || null
-              }))
-            }
-          })
+          settings: settings !== undefined ? (settings as any) : undefined
         },
         include: {
           fields: {
@@ -383,7 +409,58 @@ export class FormsService {
       orderBy: { submittedAt: 'desc' }
     });
 
-    return submissions;
+    // Fallback recovery for historical submissions that lost their FormSubmissionValue rows due to past cascade-deletions
+    const emptySubs = submissions.filter(s => !s.values || s.values.length === 0);
+    const emptySubClientIds = emptySubs.map(s => s.clientId).filter(Boolean) as string[];
+    const emptySubLeadIds = emptySubs.map(s => s.leadId).filter(Boolean) as string[];
+
+    let clientsMap = new Map<string, any>();
+    if (emptySubClientIds.length > 0) {
+      const clients = await prisma.client.findMany({
+        where: { id: { in: emptySubClientIds } }
+      });
+      clientsMap = new Map(clients.map(c => [c.id, c]));
+    }
+
+    let leadsMap = new Map<string, any>();
+    let dealsMap = new Map<string, any>();
+    if (emptySubLeadIds.length > 0) {
+      const [leads, deals] = await Promise.all([
+        prisma.lead.findMany({ where: { id: { in: emptySubLeadIds } } }),
+        prisma.deal.findMany({ where: { id: { in: emptySubLeadIds } } })
+      ]);
+      leadsMap = new Map(leads.map(l => [l.id, l]));
+      dealsMap = new Map(deals.map(d => [d.id, d]));
+    }
+
+    const enhanced = submissions.map(sub => {
+      if (!sub.values || sub.values.length === 0) {
+        const virtualValues: any[] = [];
+        const client = sub.clientId ? clientsMap.get(sub.clientId) : null;
+        const lead = sub.leadId ? leadsMap.get(sub.leadId) : null;
+        const deal = sub.leadId ? dealsMap.get(sub.leadId) : null;
+
+        const name = lead?.name || client?.name || deal?.title?.replace(/\s*-\s*.*$/, '');
+        const phone = lead?.phone || client?.phone;
+        const email = lead?.email || client?.email;
+        const company = lead?.company || client?.companyName;
+
+        if (name) virtualValues.push({ label: 'Full Name', value: name });
+        if (phone) virtualValues.push({ label: 'Phone Number', value: phone });
+        if (email) virtualValues.push({ label: 'Email', value: email });
+        if (company) virtualValues.push({ label: 'Company', value: company });
+
+        if (virtualValues.length > 0) {
+          return {
+            ...sub,
+            values: virtualValues
+          };
+        }
+      }
+      return sub;
+    });
+
+    return enhanced;
   }
 
   /**
@@ -606,11 +683,26 @@ export class FormsService {
     if (!form) throw new Error('Form not found');
     if (!form.isActive) throw new Error('This form is currently inactive');
 
+    // Helper for robust value resolution (supports field.id, mapping, name, label, or fuzzy match)
+    const resolveFieldValue = (field: any) => {
+      if (values[field.id] !== undefined && values[field.id] !== null && values[field.id] !== '') return values[field.id];
+      if (field.mapping && values[field.mapping] !== undefined && values[field.mapping] !== null && values[field.mapping] !== '') return values[field.mapping];
+      if (field.name && values[field.name] !== undefined && values[field.name] !== null && values[field.name] !== '') return values[field.name];
+      if (values[field.label] !== undefined && values[field.label] !== null && values[field.label] !== '') return values[field.label];
+      const matchKey = Object.keys(values).find(k => 
+        k.toLowerCase() === (field.mapping || '').toLowerCase() ||
+        k.toLowerCase() === (field.name || '').toLowerCase() ||
+        k.toLowerCase() === field.label.toLowerCase()
+      );
+      if (matchKey && values[matchKey] !== undefined) return values[matchKey];
+      return '';
+    };
+
     // 1. Validate required fields
     const missingFields: string[] = [];
     form.fields.forEach(field => {
       if (field.required && !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(field.type)) {
-        const val = values[field.id] || (field.mapping && values[field.mapping]);
+        const val = resolveFieldValue(field);
         if (val === undefined || val === null || val === '') {
           missingFields.push(field.label);
         }
@@ -625,7 +717,7 @@ export class FormsService {
     const submissionValues = form.fields
       .filter(f => !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(f.type))
       .map(field => {
-        const val = values[field.id] || (field.mapping && values[field.mapping]) || '';
+        const val = resolveFieldValue(field);
         let fileUrl: string | null = null;
         let fileName: string | null = null;
         let textValue = '';
@@ -637,7 +729,7 @@ export class FormsService {
         } else if (Array.isArray(val)) {
           textValue = val.join(', ');
         } else {
-          textValue = String(val);
+          textValue = String(val ?? '');
         }
 
         return {
@@ -680,7 +772,7 @@ export class FormsService {
     const formattedSummaryLines: string[] = [];
 
     form.fields.forEach(field => {
-      const val = values[field.id] || (field.mapping && values[field.mapping]);
+      const val = resolveFieldValue(field);
       if (val === undefined || val === null || val === '') return;
       
       const strVal = typeof val === 'object' ? (val.name ? `${val.name} (${val.url})` : JSON.stringify(val)) : String(val);
@@ -730,25 +822,20 @@ export class FormsService {
         const dealValue = salesSettings.defaultDealValue || leadData.budget || 0;
         const ownerId = salesSettings.assignedSalesRepId || undefined;
 
-        // B. Create Lead / Deal Card in Sales Pipeline with Form Attribution Tags
-        const formTag = {
-          label: `Form: ${form.title}`,
-          formId: form.id,
-          formCode: form.formCode || form.id,
-          type: 'form_submission'
-        };
-
-        const lead = await prisma.deal.create({
+        // B. Create Lead in Lead Pipeline with Form Attribution & Selected Stage
+        const lead = await prisma.lead.create({
           data: {
-            title: `${leadData.name || 'New Lead'} - ${form.title}`,
-            source: leadData.source,
-            stage: targetStage,
-            pipelineType: 'DEAL',
+            name: leadData.name || 'Inbound Lead',
+            email: leadData.email || null,
+            phone: leadData.phone || null,
+            company: leadData.company || null,
+            companyName: leadData.company || null,
+            source: leadData.source || `Web Form: ${form.title}`,
+            status: targetStage || 'Lead',
             value: Number(dealValue) || 0,
-            clientId: client.id,
-            ownerId: ownerId || null,
-            notes: `Auto-created from Form: ${form.title} (${form.formCode || form.id})`,
-            tags: [formTag] as any
+            assignedSalesRepId: ownerId || null,
+            notes: `Auto-created from Form: ${form.title} (${form.formCode || form.id})\n\nSubmitted Data:\n${formattedSummaryLines.join('\n')}`,
+            followUpDate: new Date(Date.now() + 24 * 60 * 60 * 1000)
           }
         });
 
@@ -760,7 +847,7 @@ export class FormsService {
             data: {
               type: 'form_submission',
               notes: activityNotes,
-              dealId: lead.id,
+              leadId: lead.id,
               relatedClientId: client.id,
               ownerId: ownerId || null,
               status: 'completed',
@@ -769,7 +856,7 @@ export class FormsService {
           });
         }
 
-        // D. Link Deal and Client to FormSubmission
+        // D. Link Lead and Client to FormSubmission
         await prisma.formSubmission.update({
           where: { id: submission.id },
           data: {
@@ -1084,7 +1171,7 @@ export class FormsService {
     const salesSettings = settings.salesSettings || {};
     const isSalesForm = (form.formType === 'SALES_ACTIVITY' || (form.formType === 'HEADLESS_ENDPOINT' && settings.isSalesActivity !== false && salesSettings.isSalesActivity !== false)) && settings.isSalesActivity !== false && salesSettings.isSalesActivity !== false;
 
-    let dealId: string | null = null;
+    let leadId: string | null = null;
     let clientId: string | null = null;
 
     // 6. AUTOMATIC CRM LEAD & PIPELINE INTEGRATION
@@ -1114,27 +1201,22 @@ export class FormsService {
         const dealValue = salesSettings.defaultDealValue || leadData.budget || 0;
         const ownerId = salesSettings.assignedSalesRepId || undefined;
 
-        const formTag = {
-          label: `Capture: ${form.title}`,
-          formId: form.id,
-          formCode: form.formCode || form.id,
-          type: 'form_submission'
-        };
-
-        const deal = await prisma.deal.create({
+        const lead = await prisma.lead.create({
           data: {
-            title: `${leadData.name || 'New Lead'} - ${form.title}`,
-            source: leadData.source,
-            stage: targetStage,
-            pipelineType: 'DEAL',
+            name: leadData.name || 'Inbound Lead',
+            email: leadData.email || null,
+            phone: leadData.phone || null,
+            company: leadData.company || null,
+            companyName: leadData.company || null,
+            source: leadData.source || `Headless Form: ${form.title}`,
+            status: targetStage || 'Lead',
             value: Number(dealValue) || 0,
-            clientId: client.id,
-            ownerId: ownerId || null,
-            notes: `Auto-captured from Website Form: ${form.title} (#${form.formCode || form.id})`,
-            tags: [formTag] as any
+            assignedSalesRepId: ownerId || null,
+            notes: `Auto-captured from Website Form: ${form.title} (#${form.formCode || form.id})\n\nDetails:\n${formattedSummaryLines.join('\n')}`,
+            followUpDate: new Date(Date.now() + 24 * 60 * 60 * 1000)
           }
         });
-        dealId = deal.id;
+        leadId = lead.id;
 
         if (salesSettings.autoCreateActivity !== false) {
           const activityNotes = `⚡ Form Data Captured: "${form.title}" (Endpoint: #${form.formCode || form.id})\n\nDetails:\n${formattedSummaryLines.join('\n')}`;
@@ -1143,7 +1225,7 @@ export class FormsService {
             data: {
               type: 'form_submission',
               notes: activityNotes,
-              dealId: deal.id,
+              leadId: lead.id,
               relatedClientId: client.id,
               ownerId: ownerId || null,
               status: 'completed',
@@ -1152,7 +1234,7 @@ export class FormsService {
           }).catch(err => console.error('Background activity log error:', err.message));
         }
       } catch (crmErr) {
-        console.error('CRM Lead & Deal auto-creation error during capture:', crmErr);
+        console.error('CRM Lead auto-creation error during capture:', crmErr);
       }
     }
 
@@ -1186,7 +1268,7 @@ export class FormsService {
         formId: form.id,
         companyId: form.companyId,
         clientId: clientId || null,
-        leadId: dealId || null,
+        leadId: leadId || null,
         ipAddress: meta?.ipAddress || null,
         userAgent: meta?.userAgent || null,
         referrer: meta?.referrer || meta?.origin || null,

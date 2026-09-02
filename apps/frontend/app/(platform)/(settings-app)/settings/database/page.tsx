@@ -7,9 +7,9 @@ import { FeatureLock, LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 
 export default function DatabaseSettingsPage() {
-    const { companyConfig, loading } = useSubscription();
+    const { companyConfig, isPaidPlan, hasApp: checkHasApp, loading } = useSubscription();
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
-    const hasApp = enabledApps.includes('workspace-tools');
+    const hasApp = isPaidPlan || enabledApps.includes('workspace-tools') || enabledApps.includes('database') || (checkHasApp && checkHasApp('database'));
 
     return (
         <div className="min-h-screen bg-[#fafafa] pb-20">

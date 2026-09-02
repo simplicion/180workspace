@@ -7,9 +7,9 @@ import { FeatureLock, LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 
 export default function PlausibleAnalyticsPage() {
-    const { companyConfig, loading } = useSubscription();
+    const { companyConfig, isPaidPlan, hasApp: checkHasApp, loading } = useSubscription();
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
-    const hasApp = enabledApps.includes('analytics');
+    const hasApp = isPaidPlan || enabledApps.includes('analytics') || enabledApps.includes('insights') || (checkHasApp && checkHasApp('analytics'));
 
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-6">
