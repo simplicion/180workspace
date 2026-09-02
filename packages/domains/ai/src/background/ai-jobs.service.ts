@@ -5,6 +5,14 @@ import { aiProviderService } from '../kernel/ai-provider.service';
 let intervalId: any = null;
 
 export class AIJobsService {
+    init(intervalMs?: number) {
+        return AIJobsService.init(intervalMs);
+    }
+
+    stop() {
+        return AIJobsService.stop();
+    }
+
     static init(intervalMs: number = 60 * 1000) {
         console.log('[AIJobsService] Background Jobs Initialized');
         if (intervalId) clearInterval(intervalId);
@@ -78,3 +86,6 @@ export class AIJobsService {
         }
     }
 }
+
+export const aiJobsService = AIJobsService;
+export const AiJobsService = AIJobsService;

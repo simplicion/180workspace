@@ -25,11 +25,15 @@ router.post('/agent/execute', protect, AIController.executeAgent);
 // Entity Mention Autocomplete Search
 router.get('/search-entities', protect, AIController.searchEntities);
 
-// Document Intelligence & Upload
+// Document, Website & Form Intelligence
 router.post('/upload', protect, upload.single('file'), AIController.uploadDocument);
 router.post('/documents/generate', protect, AIController.generateDocument);
 router.post('/documents/chat-file', protect, AIController.analyzeDocument);
 router.post('/analyze-document', protect, AIController.analyzeDocument); // Legacy alias
+router.post('/websites/generate', protect, AIController.generateWebsite);
+router.post('/websites/patch', protect, AIController.patchWebsite);
+router.post('/forms/generate', protect, AIController.generateForm);
+router.post('/forms/patch', protect, AIController.patchForm);
 
 // Analytics & Insights
 router.get('/analytics/dashboard', protect, AIController.getDashboardInsights);

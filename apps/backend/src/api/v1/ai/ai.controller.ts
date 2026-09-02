@@ -13,7 +13,8 @@ import {
     AIAutomationService,
     AIAgentExecutor,
     ContextAggregatorService,
-    Mem0MemoryService
+    Mem0MemoryService,
+    UniversalBuilderRegistry
 } from '@workspace/ai';
 
 export class AIController {
@@ -328,6 +329,106 @@ export class AIController {
             return res.json(result);
         } catch (error: any) {
             console.error('[AIController.generateDocument] Error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * POST /api/v1/ai/websites/generate
+     * Full website synthesis and PostgreSQL persistence
+     */
+    static async generateWebsite(req: Request, res: Response) {
+        try {
+            const { prompt, theme } = req.body;
+            const companyId = req.user?.companyId;
+            const userId = req.user?.id;
+
+            const result = await UniversalBuilderRegistry.compile('website', {
+                prompt: prompt || 'Modern marketing landing page',
+                theme,
+                companyId,
+                userId
+            });
+
+            return res.json({ success: true, ...result });
+        } catch (error: any) {
+            console.error('[AIController.generateWebsite] Error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * POST /api/v1/ai/websites/patch
+     * Iterative section update, theme change, and conversational editing
+     */
+    static async patchWebsite(req: Request, res: Response) {
+        try {
+            const { websiteId, instruction, prompt } = req.body;
+            const companyId = req.user?.companyId;
+            const userId = req.user?.id;
+
+            if (!websiteId) {
+                return res.status(400).json({ success: false, message: 'Website ID is required for patching.' });
+            }
+
+            const result = await UniversalBuilderRegistry.patch('website', websiteId, instruction || prompt || '', {
+                companyId,
+                userId
+            });
+
+            return res.json({ success: true, ...result });
+        } catch (error: any) {
+            console.error('[AIController.patchWebsite] Error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * POST /api/v1/ai/forms/generate
+     * Full form synthesis and PostgreSQL persistence
+     */
+    static async generateForm(req: Request, res: Response) {
+        try {
+            const { prompt, theme } = req.body;
+            const companyId = req.user?.companyId;
+            const userId = req.user?.id;
+
+            const result = await UniversalBuilderRegistry.compile('form', {
+                prompt: prompt || 'Lead Intake & Inquiry Form',
+                theme,
+                companyId,
+                userId
+            });
+
+            return res.json({ success: true, ...result });
+        } catch (error: any) {
+            console.error('[AIController.generateForm] Error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * POST /api/v1/ai/forms/patch
+     * Iterative question addition, styling update, and live form editing
+     */
+    static async patchForm(req: Request, res: Response) {
+        try {
+            const { formId, instruction, prompt } = req.body;
+            const companyId = req.user?.companyId;
+            const userId = req.user?.id;
+
+            if (!formId) {
+                return res.status(400).json({ success: false, message: 'Form ID is required for patching.' });
+            }
+
+            const result = await UniversalBuilderRegistry.patch('form', formId, instruction || prompt || '', {
+                companyId,
+                userId
+            });
+
+            return res.json({ success: true, ...result });
+        } catch (error: any) {
+            console.error('[AIController.patchForm] Error:', error);
             return res.status(500).json({ success: false, message: error.message });
         }
     }

@@ -767,3 +767,7 @@ ${transcriptText}`;
         };
     }
 }
+
+export const aiChatService = AIChatService;
+export const AiAssistantService = AIChatService;
+export const aiAssistantService = AIChatService;

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Centralized AI Intelligence, Multi-Provider Kernel, Mem0 Memory, and LangChain Domain for 180 Workspace",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w"

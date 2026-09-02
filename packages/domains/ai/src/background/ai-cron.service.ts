@@ -6,6 +6,10 @@ import { aiProviderService } from '../kernel/ai-provider.service';
 import { AICompanyConfigService } from '../kernel/ai-company-config.service';
 
 export class AICronService {
+    initCronJobs() {
+        return AICronService.initCronJobs();
+    }
+
     static initCronJobs() {
         // 1. Automated RAG Data Synchronization (Runs every night at 2:00 AM)
         cron.schedule('0 2 * * *', async () => {
@@ -94,3 +98,4 @@ Example: "Hi [Name], I noticed there are X overdue tasks today. Would you like m
 }
 
 export const aiCronService = AICronService;
+export const AiCronService = AICronService;

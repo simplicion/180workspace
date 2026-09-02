@@ -537,7 +537,7 @@ export default function AIAssistantPage() {
                     title: preview.title || 'Untitled',
                     type: preview.type || (preview.documentType || 'document'),
                     blocksCount: preview.blocksCount || preview.blocks?.length || 5,
-                    editUrl: preview.editUrl || (preview.type === 'website' ? `/advertising?id=${preview.id}` : preview.type === 'form' ? `/forms-builder?id=${preview.id}` : `/document-editor?id=${preview.id}`),
+                    editUrl: preview.editUrl || (preview.type === 'website' ? `/advertising/${preview.id}/edit` : preview.type === 'form' ? `/forms/${preview.id}` : `/document-editor?id=${preview.id}`),
                     shareUrl: preview.shareUrl,
                     grandTotal: preview.grandTotal,
                     clientEmail: preview.clientEmail

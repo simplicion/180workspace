@@ -7,6 +7,13 @@ import { AICompanyConfigService } from '../kernel/ai-company-config.service';
 
 export class AIContentCalendarService {
     /**
+     * Instance method for backwards compatibility
+     */
+    async generateContentCalendar(config: any, userId?: string, companyIdParam?: string) {
+        return AIContentCalendarService.generateContentCalendar(config, userId || '', companyIdParam);
+    }
+
+    /**
      * Get the company-specific AI settings
      */
     static async getAiSettings(companyIdParam?: string) {
@@ -265,3 +272,7 @@ JSON ARRAY FORMAT:
         }
     }
 }
+
+export const aiContentCalendarService = new AIContentCalendarService();
+export const AiContentService = AIContentCalendarService;
+export const aiContentService = aiContentCalendarService;

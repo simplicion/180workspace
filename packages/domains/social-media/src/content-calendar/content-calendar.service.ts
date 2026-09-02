@@ -1,5 +1,5 @@
 import { prisma, requestContext } from '@workspace/db';
-import { AiContentService } from '@workspace/workspace-tools';
+import { AiContentService } from '@workspace/ai';
 
 export class ContentCalendarService {
     static async listCalendars(limit: number = 10, offset: number = 0) {

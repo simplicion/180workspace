@@ -9,6 +9,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@workspace/ai": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/workspace-tools": "workspace:*"
   },

@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { ConfirmModal, LogoLoader } from "@workspace/ui";
+import { AIFormDrawer } from './_components/AIFormDrawer';
 
 type FieldType = 
   | 'TEXT' 
@@ -130,7 +131,36 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'integrations' | 'submissions'>('editor');
   const [showDesignPanel, setShowDesignPanel] = useState<boolean>(true);
+  const [showAIDrawer, setShowAIDrawer] = useState<boolean>(false);
   const [hoveredFieldIndex, setHoveredFieldIndex] = useState<number | null>(null);
+
+  const handleApplyAIForm = (data: {
+    title?: string;
+    description?: string;
+    fields?: any[];
+    settings?: any;
+    pages?: any[];
+  }) => {
+    if (data.title !== undefined) setTitle(data.title);
+    if (data.description !== undefined) setDescription(data.description);
+    if (data.fields !== undefined) {
+      setFields(data.fields.map((f: any, idx: number) => ({
+        ...f,
+        order: idx,
+        pageId: f.pageId || f.validation?.pageId || 'page_1'
+      })));
+    }
+    if (data.settings !== undefined) {
+      setSettings(prev => ({
+        ...prev,
+        ...data.settings
+      }));
+    }
+    if (data.pages !== undefined && Array.isArray(data.pages) && data.pages.length > 0) {
+      setPages(data.pages);
+    }
+    setSaveStatus('saved');
+  };
   
   // Inline editor state
   const [activeFieldIndex, setActiveFieldIndex] = useState<number | null>(null);
@@ -1244,20 +1274,32 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
 
         <div className="flex items-center gap-3 flex-wrap">
           {!isHeadless && (
-            <button 
-              type="button"
-              onClick={() => setShowDesignPanel(!showDesignPanel)} 
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all shadow-xs ${
-                showDesignPanel 
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-500/10' 
-                  : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-              }`}
-              title="Toggle Design & Theme Side Panel"
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Design Panel</span>
-              {showDesignPanel && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400" />}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setShowAIDrawer(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl transition-all shadow-xs shadow-indigo-600/20 active:scale-95 cursor-pointer border border-indigo-500/30"
+                title="Open AI Form Builder & Dynamic Synthesis"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                <span>AI Builder</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => setShowDesignPanel(!showDesignPanel)} 
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all shadow-xs ${
+                  showDesignPanel 
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-500/10' 
+                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                }`}
+                title="Toggle Design & Theme Side Panel"
+              >
+                <Palette className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Design Panel</span>
+                {showDesignPanel && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400" />}
+              </button>
+            </>
           )}
           <label className="flex items-center gap-2 cursor-pointer select-none bg-white dark:bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xs">
             <div className="relative">
@@ -1282,6 +1324,17 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
             <ExternalLink className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{isHeadless ? 'Copy Submission URL' : 'Preview'}</span>
           </a>
+
+          {/* AI Form Builder Action Button */}
+          <button 
+            type="button"
+            onClick={() => setShowAIDrawer(true)} 
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-500/20 active:scale-95 border border-indigo-500/30 cursor-pointer"
+            title="Open AI Form Builder & Schema Synthesis"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+            <span>AI Builder</span>
+          </button>
 
           {/* Live Auto-Save Status Indicator */}
           {saveStatus === 'saving' && (
@@ -2903,6 +2956,31 @@ print(response.json())`}
         variant="warning"
         onConfirm={handleConfirmRegenerateKey}
         onCancel={() => setShowRegenerateConfirm(false)}
+      />
+
+      {/* Floating AI Form Builder Trigger */}
+      <div className="fixed bottom-6 left-6 z-40">
+        <button
+          type="button"
+          onClick={() => setShowAIDrawer(true)}
+          className="flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-indigo-600/30 border border-white/20 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+          title="Ask AI Copilot to generate form questions, logic, and styling"
+        >
+          <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center group-hover:rotate-12 transition-transform">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+          </div>
+          <span className="text-sm font-bold tracking-tight">AI Builder</span>
+          <span className="text-[10px] uppercase font-black px-1.5 py-0.5 bg-white/20 rounded-full text-indigo-100">Live</span>
+        </button>
+      </div>
+
+      {/* AI Live Form Builder Side Drawer */}
+      <AIFormDrawer
+        isOpen={showAIDrawer}
+        onClose={() => setShowAIDrawer(false)}
+        formId={formId}
+        formState={{ title, description, fields, settings, pages }}
+        onApplyForm={handleApplyAIForm}
       />
     </div>
   );
