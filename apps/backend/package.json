@@ -19,6 +19,7 @@
     "@ffprobe-installer/ffprobe": "^2.1.2",
     "@google/generative-ai": "^0.24.1",
     "@workspace/advertising": "workspace:*",
+    "@workspace/ai": "workspace:*",
     "@workspace/automations": "workspace:*",
     "@workspace/backend-infra": "workspace:*",
     "@workspace/communications": "workspace:*",

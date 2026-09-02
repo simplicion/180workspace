@@ -14,12 +14,8 @@ import * as PDFDocument from 'pdfkit';
 import { pdfUtils } from '@workspace/backend-infra';
 const { generateQuotationPDF, generateContractPDF } = pdfUtils;
 
-// AIAssistantService is typically in @workspace/workspace-tools now
-const { AIAssistantService } = require('@workspace/workspace-tools');
-
 const clearCRMCache = async (companyId: string) => {
   try {
-
     if (!companyId) return;
     const timeframes = ['all', '7days', 'weekly', 'month', 'months'];
     for (const t of timeframes) {
@@ -27,15 +23,11 @@ const clearCRMCache = async (companyId: string) => {
     }
     await cacheDel(`company:${companyId}:forecasting`);
     await cacheDel(`company:${companyId}:productivity`);
-
   } catch (error) {
     console.error('Failed to clear CRM cache for company:', companyId, error);
   }
 };
 
-// -------------------------------------------------------------
-// DASHBOARD & METRICS
-// -------------------------------------------------------------
 export const getDashboardMetrics = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { user, company } = req as any;

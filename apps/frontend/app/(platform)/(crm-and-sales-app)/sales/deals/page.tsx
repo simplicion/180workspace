@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import api from '@/lib/api';
 import {
-    Search, Plus, CheckCircle2, GripVertical, FileUp, Edit
+    Search, Plus, CheckCircle2, GripVertical, FileUp, Edit, Zap, ArrowRight
 } from 'lucide-react';
 import { Skeleton } from "@workspace/ui";
 import clsx from 'clsx';
@@ -36,23 +36,21 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const STAGES = ['Qualified', 'Demo', 'Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'];
+const STAGES = ['ContractPending', 'ContractSigned', 'InDelivery', 'Invoiced', 'ClosedPaid'];
 const STAGE_LABELS: Record<string, string> = {
-    'Qualified': 'Qualified',
-    'Demo': 'Demo/Meeting',
-    'Proposal': 'Proposal',
-    'Negotiation': 'Negotiation',
-    'ClosedWon': 'Won',
-    'ClosedLost': 'Lost'
+    'ContractPending': 'Contract Pending',
+    'ContractSigned': 'Contract Signed',
+    'InDelivery': 'In Delivery',
+    'Invoiced': 'Invoiced',
+    'ClosedPaid': 'Closed Paid'
 };
 
 const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }> = {
-    'Qualified': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
-    'Demo': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
-    'Proposal': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
-    'Negotiation': { color: 'border-orange-400', bg: 'bg-orange-50', badge: 'badge-orange' },
-    'ClosedWon': { color: 'border-emerald-400', bg: 'bg-emerald-50', badge: 'badge-emerald' },
-    'ClosedLost': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' }
+    'ContractPending': { color: 'border-amber-400', bg: 'bg-amber-50', badge: 'badge-amber' },
+    'ContractSigned': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
+    'InDelivery': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
+    'Invoiced': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
+    'ClosedPaid': { color: 'border-emerald-400', bg: 'bg-emerald-50', badge: 'badge-emerald' }
 };
 
 
@@ -205,10 +203,17 @@ export default function DealsPage() {
          deal.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
+    const normalizeStage = (status: string) => {
+        if (STAGES.includes(status)) return status;
+        if (status === 'Qualified' || status === 'Demo' || status === 'Proposal' || status === 'Negotiation') return 'ContractPending';
+        if (status === 'ClosedWon' || status === 'converted' || status === 'Won') return 'ContractSigned';
+        return 'ContractPending';
+    };
+
     // Group by stage
     const grouped = STAGES.reduce((acc, stage) => {
         acc[stage] = filteredLeads.filter(o => {
-            let s = o.stage || 'Qualified';
+            let s = normalizeStage(o.stage || o.status || 'ContractPending');
             return s === stage;
         })
             // Sort by priorityScore (highest first), then by value
@@ -224,7 +229,7 @@ export default function DealsPage() {
                         <CheckCircle2 className="w-6 h-6 text-indigo-600" />
                         Deals Pipeline
                     </h1>
-                    <p className="page-subtitle mt-1">Manage deals across stages.</p>
+                    <p className="page-subtitle mt-1">Manage active deals, client contracts & revenue fulfillment.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative w-64">
@@ -255,6 +260,21 @@ export default function DealsPage() {
                         {importing ? 'Importing...' : 'Import CSV'}
                     </button>
                 </div>
+            </div>
+
+            {/* Info Banner */}
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-3 flex items-center justify-between gap-3 text-xs text-emerald-800 dark:text-emerald-300 shrink-0">
+                <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span><strong>Post-Sale Execution:</strong> Deals enter this pipeline automatically when Won leads are converted in your Leads Pipeline.</span>
+                </div>
+                <button
+                    onClick={() => router.push('/sales/leads-pipeline')}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 shadow-sm"
+                >
+                    <span>Go to Leads Pipeline</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                </button>
             </div>
 
             {error && (

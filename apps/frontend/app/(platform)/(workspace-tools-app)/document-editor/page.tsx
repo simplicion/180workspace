@@ -227,8 +227,9 @@ function TemplateEditor({
     // Initialize Redux state with template and dynamic company brand details
     useEffect(() => {
         if (template) {
+            const initialBlocks = Array.isArray(template.blocks) ? template.blocks : [];
             dispatch(initializeDocument({
-                blocks: template.blocks || [],
+                blocks: initialBlocks,
                 documentDetails: {
                     companyName: (brand as any)?.companyName || 'Company Name',
                     companyAddress: (brand as any)?.companyAddress || 'Company Address',
@@ -242,7 +243,7 @@ function TemplateEditor({
                 }
             }));
         }
-    }, [template, brand, dispatch]);
+    }, [template?.id, template?.blocks, brand, dispatch]);
 
     // Dynamically inject active Google Font stylesheet into <head>
     useEffect(() => {
@@ -1704,13 +1705,19 @@ function DocumentEditorPageContent() {
                     const doc = res.data?.document || res.data?.article || res.data;
                     if (doc) {
                         let contentBlocks = doc.contentBlocks || doc.blocks || [];
+                        if (typeof contentBlocks === 'string') {
+                            try { contentBlocks = JSON.parse(contentBlocks); } catch (e) { contentBlocks = []; }
+                        }
                         let parsedVariables = doc.variables || {};
+                        if (typeof parsedVariables === 'string') {
+                            try { parsedVariables = JSON.parse(parsedVariables); } catch (e) { parsedVariables = {}; }
+                        }
 
                         if ((!contentBlocks || contentBlocks.length === 0) && doc.content) {
                             try {
-                                const parsed = JSON.parse(doc.content);
-                                contentBlocks = parsed.blocks || [];
-                                parsedVariables = parsed.documentDetails || parsedVariables;
+                                const parsed = typeof doc.content === 'string' ? JSON.parse(doc.content) : doc.content;
+                                contentBlocks = parsed.blocks || parsed.contentBlocks || [];
+                                parsedVariables = parsed.documentDetails || parsed.variables || parsedVariables;
                             } catch (e) {}
                         }
 

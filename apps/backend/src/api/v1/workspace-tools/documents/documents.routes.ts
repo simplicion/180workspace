@@ -10,6 +10,7 @@ router.use((req, res, next) => {
 router.get('/', ctrl.getAllDocuments);
 router.post('/', ctrl.createDocument);
 router.post('/generate-ai', ctrl.generateDocumentAI);
+router.get('/ai-status', ctrl.getAIConfigStatus);
 
 router.get('/links/entity', ctrl.getLinksForEntity); 
 router.get('/token/:token', ctrl.getDocumentByToken);

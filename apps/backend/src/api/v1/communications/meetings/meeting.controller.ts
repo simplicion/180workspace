@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { MeetingService } from '@workspace/communications';
-import { aiService as AIService } from '@workspace/workspace-tools';
 import { GoogleSheetsService } from '@workspace/integrations';
 const googleSheetsService = new GoogleSheetsService();
 

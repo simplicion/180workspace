@@ -28,11 +28,17 @@ const featureFlagGuard = (featureKey: string) => {
 
         let hasAccess = false;
         if (featureKey === 'hasAIAssistant') {
-            hasAccess = plan.features.some(f => f.toLowerCase().includes('ai assistant'));
+            hasAccess = plan.features.some(f => {
+                const lower = f.toLowerCase();
+                return lower.includes('ai') || lower.includes('assistant') || lower.includes('all') || lower.includes('tools');
+            });
         } else if (featureKey === 'hasEmailServices') {
-            hasAccess = plan.features.some(f => f.toLowerCase().includes('email smtp'));
+            hasAccess = plan.features.some(f => {
+                const lower = f.toLowerCase();
+                return lower.includes('email') || lower.includes('smtp') || lower.includes('all');
+            });
         } else {
-            hasAccess = plan.features.some(f => f.toLowerCase().includes(featureKey.toLowerCase()));
+            hasAccess = plan.features.some(f => f.toLowerCase().includes(featureKey.toLowerCase()) || f.toLowerCase().includes('all'));
         }
 
         if (!hasAccess) {

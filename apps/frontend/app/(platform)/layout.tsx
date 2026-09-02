@@ -19,6 +19,7 @@ import dynamic from 'next/dynamic';
 import { signOut } from 'next-auth/react';
 import { MeetingProvider, useMeeting } from '@/lib/meeting-context';
 import FloatingMeetingPiP from '@/components/shared/FloatingMeetingPiP';
+import { AICopilotFloatingWidget } from './(workspace-tools-app)/ai/_components/AICopilotFloatingWidget';
 
 const safeImport = (importFn: () => Promise<any>) => {
     return importFn().catch((err) => {
@@ -960,6 +961,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 )}
             </main>
             <FloatingMeetingPiP />
+            <AICopilotFloatingWidget />
         </div>
     );
 }

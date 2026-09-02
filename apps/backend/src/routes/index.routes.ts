@@ -60,7 +60,7 @@ router.use((req, res, next) => {
     }
     // Explicit rewrites for components like CeoOverview and useSubscription
     const rewrites = {
-        '/insights': '/v1/workspace-tools/ai-assistant/insights',
+        '/insights': '/v1/ai/insights',
         '/weekly-trends': '/v1/hr-management/hrms/weekly-trends',
         '/dashboard': '/v1/hr-management/hrms/dashboard',
         '/calendar': '/v1/workspace-tools/calendar',
@@ -73,7 +73,10 @@ router.use((req, res, next) => {
         '/files/upload-video': '/v1/workspace-tools/storage/upload-video',
         '/files/upload-voice': '/v1/workspace-tools/storage/upload-voice',
         '/invoices': '/v1/finance/invoices',
-        '/settings': '/v1/settings/configs'
+        '/settings': '/v1/settings/configs',
+        '/180documents/generate-ai': '/v1/ai/documents/generate',
+        '/180documents/ai-status': '/v1/ai/status',
+        '/settings/test-ai': '/v1/ai/test-connection'
     };
 
     if (rewrites[path]) {
@@ -109,7 +112,7 @@ router.use((req, res, next) => {
     } else if (path.startsWith('/hrms/')) {
         req.url = req.url.replace('/hrms', '/v1/hr-management/hrms');
     } else if (path.startsWith('/ai/')) {
-        req.url = req.url.replace('/ai', '/v1/workspace-tools/ai-assistant');
+        req.url = req.url.replace('/ai', '/v1/ai');
     } else if (path.startsWith('/contracts/') || path === '/contracts') {
         req.url = req.url.replace('/contracts', '/v1/crm-and-sales/contracts');
     } else if (path.startsWith('/sales/') || path === '/sales') {
@@ -168,6 +171,8 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/assets', '/v1/workspace-tools/assets');
     } else if (path.startsWith('/settings/company')) {
         req.url = req.url.replace('/settings/company', '/company-profile/private');
+    } else if (path.startsWith('/settings/test-') || path.startsWith('/settings/clear-data')) {
+        req.url = req.url.replace('/settings', '/v1/settings/configs');
     } else if (path.startsWith('/settings/')) {
         req.url = req.url.replace('/settings', '/v1/settings');
     }
@@ -234,6 +239,7 @@ router.use('/v1/traffic-director', protect, moduleGuard('traffic-director'), tra
 router.use('/v1/social-media', protect, moduleGuard('tools'), socialMediaRoutes);
 router.use('/v1/insights', protect, moduleGuard('insights'), insightsRoutes);
 router.use('/v1/platform-billing', protect, platformBillingRoutes);
+router.use('/v1/ai', require('../api/v1/ai').default);
 router.use('/v1/domains', require('../api/v1/domains/domains.routes').default);
 router.use('/domains', require('../api/v1/domains/domains.routes').default);
 router.use('/p/contract', publicContractRoutes);

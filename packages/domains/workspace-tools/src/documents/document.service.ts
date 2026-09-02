@@ -228,26 +228,59 @@ export class DocumentService {
             const doc = await prisma.document.findFirst({
                 where: { id },
                 include: {
-                    uploadedBy: { select: { id: true, name: true, photoUrl: true, email: true } }
+                    uploadedBy: { select: { id: true, name: true, photoUrl: true, email: true } },
+                    client: true
                 }
             });
 
             if (doc) {
+                let blocks = doc.contentBlocks || [];
+                if (typeof blocks === 'string') {
+                    try { blocks = JSON.parse(blocks); } catch (e) { blocks = []; }
+                }
+
                 return {
                     id: doc.id,
                     _id: doc.id,
-                    title: doc.name || 'Uploaded File',
-                    name: doc.name || 'Uploaded File',
-                    documentNumber: '',
-                    documentType: 'UPLOADED_FILE',
-                    status: 'published',
+                    title: doc.title || doc.name || 'Untitled Document',
+                    name: doc.name || doc.title || 'Untitled Document',
+                    documentNumber: doc.documentNumber || '',
+                    documentType: doc.documentType || 'CONTRACT',
+                    status: doc.status || 'draft',
                     category: doc.category || 'General',
-                    folder: doc.folder || 'General',
+                    folder: doc.folder || 'contracts',
                     tags: doc.tags || [],
                     createdAt: doc.createdAt,
                     updatedAt: doc.updatedAt,
                     createdBy: doc.uploadedBy,
                     uploadedBy: doc.uploadedBy,
+                    client: doc.client,
+                    clientId: doc.clientId || null,
+                    employeeId: doc.employeeId || null,
+                    projectId: doc.projectId || null,
+                    dealId: doc.dealId || null,
+                    companyId: doc.companyId || null,
+                    type: doc.documentType || 'CONTRACT',
+                    blocks: blocks,
+                    contentBlocks: blocks,
+                    headerBlocks: doc.headerBlocks || [],
+                    footerBlocks: doc.footerBlocks || [],
+                    variables: doc.variables || {},
+                    designSettings: doc.designSettings || {},
+                    subtotal: doc.subtotal || 0,
+                    taxPercent: doc.taxPercent || 0,
+                    taxAmount: doc.taxAmount || 0,
+                    discount: doc.discount || 0,
+                    grandTotal: doc.grandTotal || doc.subtotal || 0,
+                    currency: doc.currency || 'INR',
+                    shareToken: doc.shareToken || '',
+                    signature: doc.signatureData || null,
+                    signatureData: doc.signatureData || null,
+                    signerIp: doc.signerIp || null,
+                    signedAt: doc.signedAt || null,
+                    validUntil: doc.validUntil || null,
+                    dueDate: doc.dueDate || null,
+                    paidAt: doc.paidAt || null,
                     fileUrl: doc.fileUrl
                 };
             }

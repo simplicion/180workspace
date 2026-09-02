@@ -34,6 +34,9 @@ export default function ClientsPage() {
     const [selectedClients, setSelectedClients] = useState<string[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [editClient, setEditClient] = useState<any>(null);
+    const [categoryFilter, setCategoryFilter] = useState('');
+
+    const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
     const loadClients = useCallback(() => {
         setLoading(true);
@@ -41,7 +44,21 @@ export default function ClientsPage() {
             .then(({ data }) => setClients(data.clients))
             .catch(() => toast.error('Failed to load clients'))
             .finally(() => setLoading(false));
+
+        api.get('/api/clients/categories')
+            .then(({ data }) => {
+                if (data.categories && Array.isArray(data.categories)) {
+                    setCategoriesList(data.categories);
+                }
+            })
+            .catch(() => {});
     }, [search, status]);
+
+    const uniqueCategories = Array.from(new Set([
+        ...categoriesList,
+        ...clients.map(c => c.category).filter(Boolean)
+    ])).sort();
+    const displayClients = clients.filter(c => !categoryFilter || c.category === categoryFilter);
 
     useEffect(() => { loadClients(); }, [loadClients]);
 
@@ -170,6 +187,7 @@ export default function ClientsPage() {
                             className="input pl-9" 
                         />
                     </div>
+
                     <div className="relative">
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <CustomSelect 
@@ -181,6 +199,20 @@ export default function ClientsPage() {
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                             <option value="lead">Lead / Prospect</option>
+                        </CustomSelect>
+                    </div>
+
+                    <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
+                        <CustomSelect 
+                            value={categoryFilter} 
+                            onChange={(e) => setCategoryFilter(e.target.value)} 
+                            className="select pl-9 w-48 font-medium"
+                        >
+                            <option value="">All Categories</option>
+                            {uniqueCategories.map(cat => (
+                                <option key={cat as string} value={cat as string}>{cat as string}</option>
+                            ))}
                         </CustomSelect>
                     </div>
                 </div>
@@ -201,7 +233,6 @@ export default function ClientsPage() {
                 )}
             </div>
 
-
             {loading ? (
                 <SkeletonTable rows={8} columns={6} />
             ) : (
@@ -214,20 +245,20 @@ export default function ClientsPage() {
                                         <input 
                                             type="checkbox" 
                                             className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer"
-                                            checked={selectedClients.length === clients.length && clients.length > 0}
+                                            checked={selectedClients.length === displayClients.length && displayClients.length > 0}
                                             onChange={handleSelectAll}
                                         />
                                     </th>
                                     <th>Client / Company</th>
                                     <th>Contact Info</th>
                                     <th>Business Insights</th>
-                                    <th>Projects</th>
+                                    <th>Category</th>
                                     <th>Status / Health</th>
                                     <th className="text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {clients.map((client) => (
+                                {displayClients.map((client) => (
                                     <tr 
                                         key={client.id}
                                         className={clsx(
@@ -313,11 +344,13 @@ export default function ClientsPage() {
                                             </div>
                                         </td>
                                         <td>
-                                            <div className="flex items-center gap-2">
-                                                <div className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider">
-                                                    {client.projectIds?.length || 0} Projects
-                                                </div>
-                                            </div>
+                                            {client.category ? (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-200/80">
+                                                    🏷️ {client.category}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 font-medium">—</span>
+                                            )}
                                         </td>
                                         <td>
                                             <div className="space-y-1.5">
@@ -363,7 +396,7 @@ export default function ClientsPage() {
                                         </td>
                                     </tr>
                                 ))}
-                                {clients.length === 0 && (
+                                {displayClients.length === 0 && (
                                     <tr>
                                         <td colSpan={7} className="py-20 text-center">
                                             <div className="flex flex-col items-center justify-center opacity-40">

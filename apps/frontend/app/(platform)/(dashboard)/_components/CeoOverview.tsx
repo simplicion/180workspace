@@ -4,24 +4,51 @@ import { LogoLoader, FeatureLock } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
-import { Sparkles, BrainCircuit } from 'lucide-react';
+import { Sparkles, BrainCircuit, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 export default function CeoOverview() {
     const { user, isLoading: authLoading } = useAuth();
     const [insights, setInsights] = useState<string>('');
+    const [isConfigured, setIsConfigured] = useState<boolean>(true);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [insightsLoading, setInsightsLoading] = useState(true);
     const [isLocked, setIsLocked] = useState(false);
 
     useEffect(() => {
         api.get('/api/ai/insights')
-            .then(({ data }) => setInsights(data.insight))
+            .then(({ data }) => {
+                if (data?.error) {
+                    setErrorMessage(data.error);
+                    setIsConfigured(false);
+                    setInsights('');
+                    return;
+                }
+                if (data?.isConfigured === false) {
+                    setIsConfigured(false);
+                    setInsights('');
+                    return;
+                }
+                const summary = data?.summary || data?.insight || data?.insights || '';
+                const text = typeof summary === 'string' ? summary : '';
+                
+                if (text.toLowerCase().includes('failed to generate') || text.toLowerCase().includes('check your api key')) {
+                    setErrorMessage(text);
+                    setIsConfigured(false);
+                    setInsights('');
+                } else {
+                    setInsights(text);
+                    setIsConfigured(Boolean(text));
+                    setErrorMessage(null);
+                }
+            })
             .catch((err) => {
                 if (err.response?.status === 403) {
                     setIsLocked(true);
                 } else {
-                    setInsights('Failed to load AI Insights.');
+                    setIsConfigured(false);
+                    setInsights('');
                 }
             })
             .finally(() => setInsightsLoading(false));
@@ -64,9 +91,19 @@ export default function CeoOverview() {
                 <div className="text-[13px] text-gray-700 leading-relaxed font-medium">
                     {insightsLoading ? (
                         <div className="flex items-center gap-2 text-indigo-500/80 py-2">
-                            <LogoLoader className="w-4 h-4 animate-spin" /> Generating insights based on latest data...
+                            <LogoLoader className="w-4 h-4 animate-spin" /> Analyzing real-time workspace metrics...
                         </div>
-                    ) : insights.toLowerCase().includes('unavailable') || insights.toLowerCase().includes('configure') ? (
+                    ) : errorMessage ? (
+                        <div className="bg-amber-50/80 rounded-lg p-3 border border-amber-200/80 text-amber-900 text-xs flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>Invalid API Key or AI Connection Error.</span>
+                            </div>
+                            <Link href='/settings/system-configs' className="text-amber-800 underline font-bold hover:text-amber-950 whitespace-nowrap text-[12px]">
+                                Update API Key in Settings &rarr;
+                            </Link>
+                        </div>
+                    ) : !isConfigured || !insights ? (
                         <div className="bg-white/60 rounded-lg p-3 border border-indigo-100/50">
                             <span className="text-indigo-800/80">
                                 AI Insights are currently unavailable.{' '}
@@ -76,7 +113,7 @@ export default function CeoOverview() {
                             </span>
                         </div>
                     ) : (
-                        <div className="prose prose-sm prose-indigo max-w-none line-clamp-4">
+                        <div className="text-gray-800 leading-relaxed whitespace-pre-line">
                             {insights}
                         </div>
                     )}

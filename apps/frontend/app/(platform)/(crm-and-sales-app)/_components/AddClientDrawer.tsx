@@ -58,10 +58,27 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         employeeCount: editClient?.employeeCount || '',
         annualRevenue: editClient?.annualRevenue || '',
         customIndustry: editClient?.customIndustry || '',
+        category: editClient?.category || '',
     });
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         setForm(prev => ({ ...prev, [k]: e.target.value }));
+
+    const [categoriesList, setCategoriesList] = useState<string[]>([
+        'Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare'
+    ]);
+
+    useEffect(() => {
+        if (open) {
+            api.get('/api/clients/categories')
+                .then(({ data }) => {
+                    if (data.categories && Array.isArray(data.categories)) {
+                        setCategoriesList(data.categories);
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [open]);
 
     useEffect(() => {
         if (open) {
@@ -89,6 +106,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 employeeCount: editClient?.employeeCount || '',
                 annualRevenue: editClient?.annualRevenue || '',
                 customIndustry: editClient?.customIndustry || '',
+                category: editClient?.category || '',
             });
             setIsCompany(!!editClient?.company);
         }
@@ -258,6 +276,18 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                         />
                     </div>
                 )}
+                <div>
+                    <label htmlFor="clientCategory" className="label">Category</label>
+                    <CustomSelect
+                        label=""
+                        value={form.category}
+                        onChange={(val: string) => setForm(prev => ({ ...prev, category: val }))}
+                        options={categoriesList}
+                        placeholder="Select or type category..."
+                        searchable={true}
+                        creatable={true}
+                    />
+                </div>
                 <div>
                     <label htmlFor="clientStatus" className="label">Status</label>
                     <CustomSelect id="clientStatus" value={form.status} onChange={(e: any) => set('status')(e)} className="input">

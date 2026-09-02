@@ -26,7 +26,7 @@ const { prisma } = require('@workspace/db');
 const { initSocket } = require('./src/system-configs/sockets');
 const { queueService } = require('@workspace/backend-infra');
 const { initQueues } = queueService;
-const { AiJobsService, AiCronService } = require('@workspace/workspace-tools');
+const { AIJobsService, AICronService } = require('@workspace/ai');
 const errorHandler = require('./src/system-configs/middleware/system/error').default || require('./src/system-configs/middleware/system/error');
 
 // ─── Domain Event Wiring ──────────────────────────────────────────────────────
@@ -218,9 +218,8 @@ async function bootstrap() {
         
         if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
             console.log('👷 Starting Worker Services (Delegated to external worker app)');
-            AiJobsService.init(); // Phase 6: Proactive AI Alerts
-            const aiCron = new AiCronService();
-            aiCron.initCronJobs(); // AI Background Processes
+            AIJobsService.init(); // Proactive AI Alerts
+            AICronService.initCronJobs(); // AI Background Processes
         }
         
         if (RUN_MODE === 'both' || RUN_MODE === 'api') {

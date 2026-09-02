@@ -25,6 +25,13 @@ export const getClients = async (req: Request, res: Response, next: NextFunction
     } catch (err) { next(err); }
 };
 
+export const getClientCategories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const categories = await ClientService.getCategories();
+        res.json({ categories });
+    } catch (err) { next(err); }
+};
+
 export const createClient = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const companyId = (req as any).company?.id || (req as any).user?.companyId;

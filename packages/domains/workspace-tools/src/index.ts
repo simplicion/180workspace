@@ -1,11 +1,4 @@
-export * from './ai-assistant/ai.service';
-export * from './ai-assistant/ai-assistant.service';
-export * from './ai-assistant/ai-automation.service';
-export * from './ai-assistant/ai-content.service';
-export * from './ai-assistant/ai-cron.service';
-export * from './ai-assistant/ai-jobs.service';
-export * from './ai-assistant/vector.store';
-
+// Workspace Tools Domain Services
 export { CalendarService } from './calendar/calendar.service';
 export { DocumentService } from './documents/document.service';
 export { DocumentApprovalService } from './documents/document-approval.service';

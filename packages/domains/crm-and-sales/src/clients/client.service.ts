@@ -67,12 +67,49 @@ export class ClientService {
             createData.annualRevenue = createData.annualRevenue.trim() === '' ? null : parseFloat(createData.annualRevenue.replace(/,/g, ''));
         }
 
+        if (createData.category && typeof createData.category === 'string' && createData.category.trim() !== '') {
+            const catName = createData.category.trim();
+            const catId = `cat_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            await prisma.$executeRawUnsafe(
+                `INSERT INTO "ClientCategory" ("id", "name", "createdAt", "updatedAt") VALUES ($1, $2, NOW(), NOW()) ON CONFLICT ("name") DO NOTHING`,
+                catId,
+                catName
+            ).catch(() => {});
+        }
+
         const client = await prisma.client.create({
             data: createData
         });
 
         return { client, givePortalAccess, password };
     }
+
+  static async getCategories() {
+    const defaultCategories = ['Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare'];
+    
+    let dbCategories: { name: string }[] = [];
+    try {
+      dbCategories = await prisma.$queryRawUnsafe(`SELECT name FROM "ClientCategory"`);
+    } catch (e) {}
+
+    let clientCategories: { category: string }[] = [];
+    try {
+      clientCategories = await prisma.client.findMany({
+        where: { category: { not: null } },
+        select: { category: true },
+        distinct: ['category']
+      });
+    } catch (e) {}
+
+    const allCatNames = [
+      ...defaultCategories,
+      ...dbCategories.map((c: any) => c.name),
+      ...clientCategories.map((c: any) => c.category).filter(Boolean)
+    ];
+
+    const uniqueSet = Array.from(new Set(allCatNames));
+    return uniqueSet.sort((a, b) => a.localeCompare(b));
+  }
 
   static async getClientById(id: string) {
     const client = await prisma.client.findFirst({
@@ -116,6 +153,16 @@ export class ClientService {
 
         if (typeof updateData.annualRevenue === 'string') {
             updateData.annualRevenue = updateData.annualRevenue.trim() === '' ? null : parseFloat(updateData.annualRevenue.replace(/,/g, ''));
+        }
+
+        if (updateData.category && typeof updateData.category === 'string' && updateData.category.trim() !== '') {
+            const catName = updateData.category.trim();
+            const catId = `cat_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            await prisma.$executeRawUnsafe(
+                `INSERT INTO "ClientCategory" ("id", "name", "createdAt", "updatedAt") VALUES ($1, $2, NOW(), NOW()) ON CONFLICT ("name") DO NOTHING`,
+                catId,
+                catName
+            ).catch(() => {});
         }
 
         delete updateData.givePortalAccess;
