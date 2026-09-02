@@ -1027,7 +1027,7 @@ export class FormsService {
     const formattedSummaryLines: string[] = [];
 
     currentFields.forEach(field => {
-      let val = '';
+      let val: any = '';
       if (field.mapping && flattened[field.mapping] !== undefined) {
         val = flattened[field.mapping];
       } else {
