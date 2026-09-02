@@ -77,9 +77,15 @@ export default function AiTab() {
     const testAiConnection = async () => {
         setTestingAi(true);
         try {
-            // First save
+            const keyToTest = aiProvider === 'openai' ? openaiKey :
+                              aiProvider === 'gemini' ? geminiKey :
+                              aiProvider === 'claude' ? claudeKey :
+                              customAiKey;
+
             const payload: any = { 
                 aiProvider,
+                provider: aiProvider,
+                apiKey: keyToTest,
                 openaiKey,
                 claudeKey,
                 geminiKey,
@@ -88,15 +94,24 @@ export default function AiTab() {
                 customAiModel
             };
 
+            // First save settings
             await api.put('/api/settings', payload);
 
-            const { data } = await api.post('/api/settings/test-ai');
+            // Test live connection directly against centralized endpoint
+            const { data } = await api.post('/api/v1/ai/test-connection', {
+                provider: aiProvider,
+                apiKey: keyToTest,
+                customUrl: customAiUrl,
+                customModel: customAiModel
+            });
+
             setAiTestStatus('success');
-            toast.success(data.message || 'AI Connection verified!');
+            toast.success(data.message || 'AI Connection verified successfully!');
             await refreshGlobalSettings(true);
         } catch (e: any) {
             setAiTestStatus('failure');
-            toast.error(e?.response?.data?.details || e?.response?.data?.error || 'AI Connection test failed');
+            const errorMsg = e?.response?.data?.details || e?.response?.data?.error || e?.response?.data?.message || 'AI Connection test failed';
+            toast.error(errorMsg);
         } finally {
             setTestingAi(false);
         }

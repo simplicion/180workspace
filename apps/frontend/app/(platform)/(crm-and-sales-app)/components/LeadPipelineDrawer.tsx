@@ -63,6 +63,8 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         currency: company?.currency || 'USD',
         owner: '',
         followUpDate: '',
+        createClient: false,
+        clientCategory: '',
     });
 
     const handleClientSelect = (value: string) => {
@@ -120,6 +122,8 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     currency: editingLeadPipeline.currency || company?.currency || 'USD',
                     owner: editingLeadPipeline.ownerId || editingLeadPipeline.assignedSalesRepId || '',
                     followUpDate: editingLeadPipeline.followUpDate ? format(parseISO(editingLeadPipeline.followUpDate), "yyyy-MM-dd'T'HH:mm") : currentDatetime,
+                    createClient: !!editingLeadPipeline.clientId || !!editingLeadPipeline.client,
+                    clientCategory: editingLeadPipeline.client?.category || '',
                 });
             } else {
                 setFormData({
@@ -142,6 +146,8 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     currency: company?.currency || 'USD',
                     owner: '',
                     followUpDate: currentDatetime,
+                    createClient: false,
+                    clientCategory: '',
                 });
             }
         }
@@ -168,15 +174,29 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
     };
 
-    const fetchCurrencies = async () => {
+    const [categoriesList, setCategoriesList] = useState<string[]>([
+        'Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare'
+    ]);
+
+    const fetchCategories = async () => {
         try {
-            const res = await fetch('/api/data/currencies');
-            const data = await res.json();
-            setCurrencies(data);
+            const { data } = await api.get('/api/clients/categories');
+            if (data.categories && Array.isArray(data.categories)) {
+                setCategoriesList(data.categories);
+            }
         } catch (error) {
-            console.error('Failed to fetch currencies');
+            console.error('Failed to fetch categories');
         }
     };
+
+    useEffect(() => {
+        if (open) {
+            fetchAccounts();
+            fetchUsers();
+            fetchCurrencies();
+            fetchCategories();
+        }
+    }, [open]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -420,6 +440,38 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         creatable={true}
                     />
                 </div>
+
+                {!isDealContext && (
+                    <div className="col-span-2 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-3.5 flex flex-col gap-2.5 my-1">
+                        <label htmlFor="createClientCheckbox" className="flex items-center gap-2.5 text-xs font-bold text-gray-800 dark:text-gray-200 cursor-pointer select-none">
+                            <input 
+                                id="createClientCheckbox"
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                checked={formData.createClient}
+                                onChange={(e) => setFormData({ ...formData, createClient: e.target.checked })}
+                            />
+                            <span>📁 Save & Add as Client in Client Directory</span>
+                        </label>
+
+                        {formData.createClient && (
+                            <div className="pt-2.5 border-t border-indigo-100 dark:border-indigo-900/40 flex flex-col gap-1.5">
+                                <label htmlFor="clientCategory" className="text-[11px] font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
+                                    Client Category (Select or type custom category)
+                                </label>
+                                <CustomSelect
+                                    id="clientCategory"
+                                    className="select text-xs bg-white dark:bg-gray-900"
+                                    placeholder="e.g. Enterprise, VIP, Retail, Tech"
+                                    value={formData.clientCategory}
+                                    onChange={(e: any) => setFormData({ ...formData, clientCategory: e.target.value })}
+                                    options={categoriesList}
+                                    creatable={true}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div>
                     <label htmlFor="dealValue" className="label">Estimated Lead Amount</label>
                     <div className="flex gap-2">

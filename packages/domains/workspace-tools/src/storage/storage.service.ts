@@ -1,6 +1,6 @@
 import { prisma } from '@workspace/db';
 import { AutomationService } from '@workspace/automations';
-import { aiAutomationService as AIAutomationService } from '../ai-assistant/ai-automation.service';
+import { aiAutomationService as AIAutomationService } from '@workspace/ai';
 // Assume these might exist, for now just stub them or import from original path if they exist
 // const googleDriveService = require('../../../../../platform-core/platform-storage/services/google-drive.service');
 // const { getPresignedUploadUrl } = require('../../../../../platform-core/platform-storage/services/r2');

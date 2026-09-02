@@ -261,4 +261,14 @@ export const generateDocumentAI = async (req: Request, res: Response, next: Next
     }
 };
 
+export const getAIConfigStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const companyId = (req as any).user?.companyId;
+        const status = await AIDocumentService.getAIStatus(companyId);
+        res.json(status);
+    } catch (error) {
+        next(error);
+    }
+};
+
 

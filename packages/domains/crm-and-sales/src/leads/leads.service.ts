@@ -41,8 +41,11 @@ static async getLeads(page = 1, limit = 100) {
             followUpDate: data.followUpDate ? new Date(data.followUpDate) : null
         };
         const ownerId = data.owner || data.ownerId || data.assignedSalesRepId || userId;
-        if (ownerId) {
-            leadData.assignedSalesRep = { connect: { id: ownerId } };
+        if (ownerId && typeof ownerId === 'string' && ownerId.length > 5) {
+            const userExists = await prisma.user.findUnique({ where: { id: ownerId } });
+            if (userExists) {
+                leadData.assignedSalesRep = { connect: { id: ownerId } };
+            }
         }
         const lead = await prisma.lead.create({ data: leadData });
 
@@ -60,27 +63,54 @@ static async getLeads(page = 1, limit = 100) {
             });
         }
 
-        if (!existingClient) {
-            await prisma.client.create({
-                data: {
-                    name: leadData.name,
-                    email: leadData.email,
-                    phone: leadData.phone,
-                    companyName: leadData.company,
-                    industry: leadData.industry,
-                    employeeCount: leadData.companySize ? leadData.companySize.toString() : null,
-                    assignedManager: leadData.assignedSalesRepId,
-                    status: 'Active',
-                    leadSource: leadData.source
-                }
-            });
+        const shouldCreateClient = data.createClient === true || data.createClient === 'true' || data.createClient === 1;
+        const clientCategory = data.clientCategory || data.category || null;
+
+        if (clientCategory && typeof clientCategory === 'string' && clientCategory.trim().length > 0) {
+            const catName = clientCategory.trim();
+            const catId = `cat_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            await prisma.$executeRawUnsafe(
+                `INSERT INTO "ClientCategory" ("id", "name", "createdAt", "updatedAt") VALUES ($1, $2, NOW(), NOW()) ON CONFLICT ("name") DO NOTHING`,
+                catId,
+                catName
+            ).catch(() => {});
+        }
+
+        if (shouldCreateClient) {
+            if (!existingClient) {
+                await prisma.client.create({
+                    data: {
+                        name: leadData.name,
+                        email: leadData.email,
+                        phone: leadData.phone,
+                        companyName: leadData.company,
+                        industry: leadData.industry,
+                        category: clientCategory,
+                        employeeCount: leadData.companySize ? leadData.companySize.toString() : null,
+                        assignedManager: leadData.assignedSalesRepId,
+                        status: 'Active',
+                        leadSource: leadData.source
+                    }
+                });
+            } else if (clientCategory) {
+                await prisma.client.update({
+                    where: { id: existingClient.id },
+                    data: { category: clientCategory }
+                });
+            }
+        }
+
+        let validActivityOwner: string | null = null;
+        if (userId && typeof userId === 'string' && userId.length > 5) {
+            const u = await prisma.user.findUnique({ where: { id: userId } });
+            if (u) validActivityOwner = u.id;
         }
 
         await prisma.salesActivity.create({ data: {
             type: 'note',
             leadId: lead.id,
             notes: `New lead created: ${lead.name} from ${lead.company}`,
-            ownerId: userId
+            ownerId: validActivityOwner
         } });
 
         const settings = await prisma.settings.findFirst();
@@ -250,17 +280,27 @@ static async convertLead(id: string, userId: string) {
                 } });
             }
 
+            let validOwnerId: string | null = null;
+            if (userId) {
+                const ownerUser = await prisma.user.findUnique({ where: { id: userId } });
+                if (ownerUser) validOwnerId = ownerUser.id;
+            }
+            if (!validOwnerId && lead.assignedSalesRepId) {
+                const repUser = await prisma.user.findUnique({ where: { id: lead.assignedSalesRepId } });
+                if (repUser) validOwnerId = repUser.id;
+            }
+
             const opp = await prisma.deal.create({ data: {
-                title: `Deal with ${companyName}`,
+                title: lead.name ? `Deal - ${lead.name}` : `Deal with ${companyName}`,
                 clientId: account.id,
                 leadId: lead.id,
                 value: lead.value || 0,
-                stage: 'Qualified',
-                ownerId: userId,
+                stage: 'ContractPending',
+                ownerId: validOwnerId,
                 priorityScore: (lead.leadScore || 0)
             } });
 
-            await prisma.lead.update({ where: { id: lead.id }, data: { status: 'converted' } });
+            await prisma.lead.update({ where: { id: lead.id }, data: { status: 'ClosedWon' } });
 
             await prisma.salesActivity.create({ data: {
                 type: 'task',
@@ -268,7 +308,7 @@ static async convertLead(id: string, userId: string) {
                 relatedClientId: account.id,
                 dealId: opp.id,
                 notes: `Converted lead into account and opportunity: ${opp.title}`,
-                ownerId: userId
+                ownerId: validOwnerId
             } });
 
             return { account, contact, opportunity: opp };

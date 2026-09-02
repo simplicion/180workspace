@@ -212,6 +212,7 @@ model Client {
   country         String?
   leadSource      String?
   clientTier      String?
+  category        String?
 
   // Recommended CRM Fields added for 180workspace
   shippingAddress   String?
@@ -236,6 +237,14 @@ model Client {
 
   @@index([companyId])
   @@index([companyId, id])
+}
+
+model ClientCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Designation {

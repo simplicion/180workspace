@@ -1,0 +1,29 @@
+{
+  "name": "@workspace/ai",
+  "version": "1.0.0",
+  "description": "Centralized AI Intelligence, Multi-Provider Kernel, Mem0 Memory, and LangChain Domain for 180 Workspace",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.1",
+    "@google/generative-ai": "^0.21.0",
+    "@prisma/client": "^5.x.x",
+    "@types/node-cron": "^3.0.11",
+    "@workspace/backend-infra": "workspace:*",
+    "@workspace/db": "workspace:*",
+    "axios": "^1.19.0",
+    "mammoth": "^1.12.1",
+    "node-cron": "^3.0.3",
+    "openai": "^4.83.0",
+    "pdf-parse": "^2.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "^5.0.0"
+  }
+}

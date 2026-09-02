@@ -8,6 +8,7 @@ const router = Router();
 router.use(protect);
 
 router.get('/', ctrl.getClients);
+router.get('/categories', ctrl.getClientCategories);
 router.post('/', requirePermission('can_manage_clients', 'admin'), ctrl.createClient);
 router.get('/:id', ctrl.getClientById);
 router.put('/:id', requirePermission('can_manage_clients', 'admin'), ctrl.updateClient);

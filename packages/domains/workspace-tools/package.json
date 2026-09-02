@@ -13,6 +13,7 @@
     "@google/generative-ai": "^0.21.0",
     "@prisma/client": "^5.x.x",
     "@types/node-cron": "^3.0.11",
+    "@workspace/ai": "workspace:*",
     "@workspace/automations": "workspace:*",
     "@workspace/backend-infra": "workspace:*",
     "@workspace/db": "workspace:*",

@@ -1,4 +1,4 @@
-7'use client';
+'use client';
 
 import React, { useMemo } from 'react';
 import { Check, FileText, Receipt, FileCheck, Award, ShieldCheck, Briefcase } from 'lucide-react';

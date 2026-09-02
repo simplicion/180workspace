@@ -1,7 +1,7 @@
 import { prisma, requestContext } from '@workspace/db';
 
 const METADATA_FIELDS = [
-    'aiProvider', 'openaiKey', 'geminiKey', 'claudeKey', 'googleSheetsId',
+    'aiProvider', 'provider', 'apiKey', 'openaiKey', 'geminiKey', 'claudeKey', 'googleSheetsId',
     'lastAiTestStatus', 'lastAiTestDate', 'lastAiTestError',
     'lastEmailTestStatus', 'lastEmailTestDate', 'lastEmailTestError',
     'lastStorageTestStatus', 'lastStorageTestDate', 'lastStorageTestError',
@@ -77,7 +77,8 @@ export class SettingsService {
     }
 
     static async updateSettings(data: any, user: any, company: any, dependencies: any) {
-        const isPrivileged = ['admin', 'manager', 'BMSP_SUPER_ADMIN', 'BMSP_ADMIN'].includes(user.role);
+        const userRole = (user?.role || '').toLowerCase();
+        const isPrivileged = ['admin', 'manager', 'owner', 'superadmin', 'bmsp_super_admin', 'bmsp_admin'].includes(userRole);
         if (!isPrivileged) {
             throw new Error('Forbidden');
         }
@@ -107,8 +108,14 @@ export class SettingsService {
         const aiFields = ['aiProvider', 'openaiKey', 'geminiKey', 'claudeKey', 'customAiKey', 'customAiUrl', 'customAiModel'];
         const smtpFields = ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'emailFrom'];
 
-        const hasAIAssistant = plan.features.some((f: string) => f.toLowerCase().includes('ai assistant'));
-        const hasEmailServices = plan.features.some((f: string) => f.toLowerCase().includes('email smtp'));
+        const hasAIAssistant = plan.features.some((f: string) => {
+            const lower = f.toLowerCase();
+            return lower.includes('ai') || lower.includes('assistant') || lower.includes('all') || lower.includes('tools');
+        });
+        const hasEmailServices = plan.features.some((f: string) => {
+            const lower = f.toLowerCase();
+            return lower.includes('email') || lower.includes('smtp') || lower.includes('all');
+        });
 
         const tryingToUpdateAI = aiFields.some(f => {
             const val = bodyData[f];
@@ -152,6 +159,17 @@ export class SettingsService {
             }
         });
 
+        const VALID_SETTINGS_COLUMNS = [
+            'companyName', 'logoUrl', 'themeColor', 'storageMode', 'salesConfig',
+            'recruitmentApiKey', 'authorizedRecruitmentDomains'
+        ];
+        const cleanSettingsUpdate: any = {};
+        Object.keys(settingsUpdate).forEach(k => {
+            if (VALID_SETTINGS_COLUMNS.includes(k)) {
+                cleanSettingsUpdate[k] = settingsUpdate[k];
+            }
+        });
+
         // (companyId is already extracted above as const companyId = requestContext.getStore()?.companyId as string;)
         let settings = companyId ? await prisma.settings.findFirst({
             where: { companyId }
@@ -161,15 +179,15 @@ export class SettingsService {
         if (!settings && companyId) {
             updatedSettings = await (prisma.settings.create as any)({
                 data: {
-                    ...settingsUpdate,
+                    ...cleanSettingsUpdate,
                     companyId: companyId || undefined
                 }
             });
         } else {
-            if (Object.keys(settingsUpdate).length > 0) {
+            if (Object.keys(cleanSettingsUpdate).length > 0) {
                 updatedSettings = await prisma.settings.update({
                     where: { id: settings!.id },
-                    data: settingsUpdate
+                    data: cleanSettingsUpdate
                 });
             } else {
                 updatedSettings = settings;
@@ -205,7 +223,8 @@ export class SettingsService {
     }
 
     static async testAiConnection(user: any, dependencies: any) {
-        if (!['admin', 'manager'].includes(user.role)) {
+        const userRole = (user?.role || '').toLowerCase();
+        if (!['admin', 'manager', 'owner', 'superadmin', 'bmsp_super_admin', 'bmsp_admin'].includes(userRole)) {
             throw new Error('Forbidden');
         }
 

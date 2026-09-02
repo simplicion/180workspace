@@ -38,39 +38,105 @@ export class ConfigsController {
                 // Removed legacy clearCompanyCache
             },
             testGemini: async (apiKey: string) => {
+                const trimmedKey = (apiKey || '').trim();
+                if (!trimmedKey) {
+                    throw new Error('Gemini API Key is empty.');
+                }
+
+                if (trimmedKey.startsWith('AQ.') || trimmedKey.startsWith('ya29.')) {
+                    throw new Error('The key entered appears to be an OAuth Access Token or Cloud Bearer Token. The Gemini API expects an API Key generated from Google AI Studio (https://aistudio.google.com/app/apikey), which typically starts with "AIzaSy...". If you want to use a custom cloud endpoint, select the "Custom (Unified)" provider.');
+                }
+
                 const { GoogleGenerativeAI } = require('@google/generative-ai');
-                const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                const result = await model.generateContent("Say 'Connection Successful'");
-                return result.response.text();
+                const genAI = new GoogleGenerativeAI(trimmedKey);
+                
+                const candidateModels = [
+                    'gemini-1.5-flash',
+                    'gemini-1.5-flash-latest',
+                    'gemini-2.0-flash',
+                    'gemini-1.5-pro',
+                    'gemini-pro'
+                ];
+
+                let lastErr: any = null;
+                for (const modelName of candidateModels) {
+                    try {
+                        const model = genAI.getGenerativeModel({ model: modelName });
+                        const result = await model.generateContent("Say 'Connection Successful'");
+                        const text = result.response.text();
+                        if (text) {
+                            return text;
+                        }
+                    } catch (err: any) {
+                        lastErr = err;
+                    }
+                }
+
+                const msg = lastErr?.message || '';
+                if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || msg.includes('invalid authentication credentials')) {
+                    throw new Error('Invalid Gemini API Key. Please ensure you copied a valid API Key from Google AI Studio (https://aistudio.google.com/app/apikey).');
+                }
+                if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')) {
+                    throw new Error('Gemini API Quota Exceeded. Please check your project billing or rate limits on Google AI Studio.');
+                }
+                if (msg.includes('404') || msg.includes('not found')) {
+                    throw new Error('Gemini API Key does not have access to standard generative models. Please generate a new key from Google AI Studio (https://aistudio.google.com/app/apikey).');
+                }
+                throw new Error(`Gemini connection error: ${msg}`);
             },
             testOpenAI: async (apiKey: string) => {
-                const OpenAI = require('openai');
-                const openai = new OpenAI({ apiKey });
-                const completion = await openai.chat.completions.create({
-                    messages: [{ role: "user", content: "Say 'Connection Successful'" }],
-                    model: "gpt-3.5-turbo",
-                });
-                return completion.choices[0].message.content;
+                try {
+                    const OpenAI = require('openai');
+                    const openai = new OpenAI({ apiKey });
+                    const completion = await openai.chat.completions.create({
+                        messages: [{ role: "user", content: "Say 'Connection Successful'" }],
+                        model: "gpt-4o-mini",
+                    });
+                    return completion.choices[0].message.content;
+                } catch (openaiErr: any) {
+                    const msg = openaiErr.message || '';
+                    if (msg.includes('Incorrect API key') || msg.includes('401')) {
+                        throw new Error('Invalid OpenAI API Key. Please verify the key from OpenAI Dashboard.');
+                    }
+                    if (msg.includes('insufficient_quota') || msg.includes('429')) {
+                        throw new Error('OpenAI Quota Exceeded. Please ensure you have credits added to your OpenAI balance ($5 minimum).');
+                    }
+                    throw new Error(`OpenAI connection error: ${msg}`);
+                }
             },
             testClaude: async (apiKey: string) => {
-                const Anthropic = require('@anthropic-ai/sdk');
-                const anthropic = new Anthropic({ apiKey });
-                const msg = await anthropic.messages.create({
-                    model: "claude-3-5-sonnet-20240620",
-                    max_tokens: 10,
-                    messages: [{ role: "user", content: "Say 'Connection Successful'" }]
-                });
-                return msg.content && msg.content.length > 0;
+                try {
+                    const Anthropic = require('@anthropic-ai/sdk');
+                    const anthropic = new Anthropic({ apiKey });
+                    const msg = await anthropic.messages.create({
+                        model: "claude-3-haiku-20240307",
+                        max_tokens: 15,
+                        messages: [{ role: "user", content: "Say 'Connection Successful'" }]
+                    });
+                    return msg.content && msg.content.length > 0;
+                } catch (claudeErr: any) {
+                    const msg = claudeErr.message || '';
+                    if (msg.includes('invalid_api_key') || msg.includes('401')) {
+                        throw new Error('Invalid Anthropic Claude API Key. Please verify your key from Anthropic Console.');
+                    }
+                    if (msg.includes('credit_balance_too_low') || msg.includes('429')) {
+                        throw new Error('Anthropic Claude Credit balance too low. Please top up your Anthropic account.');
+                    }
+                    throw new Error(`Claude connection error: ${msg}`);
+                }
             },
             testCustomAI: async (apiKey: string, url: string, modelName: string) => {
-                const OpenAI = require('openai');
-                const openai = new OpenAI({ apiKey, baseURL: url });
-                const completion = await openai.chat.completions.create({
-                    messages: [{ role: "user", content: "Say 'Connection Successful'" }],
-                    model: modelName,
-                });
-                return completion.choices[0].message.content;
+                try {
+                    const OpenAI = require('openai');
+                    const openai = new OpenAI({ apiKey, baseURL: url });
+                    const completion = await openai.chat.completions.create({
+                        messages: [{ role: "user", content: "Say 'Connection Successful'" }],
+                        model: modelName,
+                    });
+                    return completion.choices[0].message.content;
+                } catch (customErr: any) {
+                    throw new Error(`Custom AI Endpoint error: ${customErr.message}`);
+                }
             }
         };
 
