@@ -28,6 +28,8 @@ router.get('/search-entities', protect, AIController.searchEntities);
 // Document, Website & Form Intelligence
 router.post('/upload', protect, upload.single('file'), AIController.uploadDocument);
 router.post('/documents/generate', protect, AIController.generateDocument);
+router.post('/documents/patch', protect, AIController.patchDocument);
+router.post('/documents/generate-section', protect, AIController.patchDocument);
 router.post('/documents/chat-file', protect, AIController.analyzeDocument);
 router.post('/analyze-document', protect, AIController.analyzeDocument); // Legacy alias
 router.post('/websites/generate', protect, AIController.generateWebsite);

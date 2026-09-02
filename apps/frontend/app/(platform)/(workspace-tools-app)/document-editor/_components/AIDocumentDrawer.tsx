@@ -27,6 +27,7 @@ import { setBlocks, addBlock, updateBlock, setDocumentDetails } from '@/redux/sl
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { DrawerMarkdown } from '@workspace/ui';
 
 interface Message {
   id: string;
@@ -95,8 +96,55 @@ export function AIDocumentDrawer({
   });
   const [isCheckingConfig, setIsCheckingConfig] = useState(false);
 
+  // Width & Resizing State
+  const [drawerWidth, setDrawerWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('180_ai_drawer_width');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 360 && parsed <= 960) {
+          return parsed;
+        }
+      }
+    }
+    return 480;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Resizing mouse move listener
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = window.innerWidth - e.clientX;
+      const clamped = Math.min(Math.max(newWidth, 360), Math.min(960, window.innerWidth - 80));
+      setDrawerWidth(clamped);
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        setIsResizing(false);
+        localStorage.setItem('180_ai_drawer_width', drawerWidth.toString());
+      }
+    };
+
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, drawerWidth]);
+
+  const handleSetPresetWidth = (width: number) => {
+    setDrawerWidth(width);
+    localStorage.setItem('180_ai_drawer_width', width.toString());
+  };
 
   // Check AI Config Status
   const checkAIConfig = async () => {
@@ -300,11 +348,31 @@ export function AIDocumentDrawer({
 
       {/* Slide-in Drawer */}
       <div 
+        style={{ width: `${drawerWidth}px` }}
         className={clsx(
-          "fixed top-0 right-0 h-full w-full sm:w-[460px] bg-white shadow-2xl z-40 flex flex-col border-l border-gray-200 transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "translate-x-full"
+          "fixed top-0 bottom-0 right-0 h-screen bg-white dark:bg-zinc-950 shadow-2xl z-40 flex flex-col border-l border-zinc-200 dark:border-zinc-800 transition-transform duration-300 ease-in-out select-none",
+          isOpen ? "translate-x-0" : "translate-x-full",
+          isResizing && "cursor-col-resize pointer-events-auto"
         )}
       >
+        {/* Left Edge Drag Resizer Handle */}
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+          className={clsx(
+            "absolute left-0 top-0 bottom-0 w-2.5 -translate-x-1/2 cursor-col-resize z-50",
+            "group flex items-center justify-center transition-colors",
+            isResizing ? "bg-indigo-500/40" : "hover:bg-indigo-500/20"
+          )}
+          title="Drag to resize drawer width"
+        >
+          <div className="w-1 h-8 rounded-full bg-zinc-400/50 dark:bg-zinc-600/50 group-hover:bg-indigo-500 transition-colors flex items-center justify-center">
+            <div className="w-0.5 h-4 bg-white/70 rounded-full" />
+          </div>
+        </div>
+
         {/* Drawer Header */}
         <div className="px-5 py-4 bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-700 text-white flex items-center justify-between flex-shrink-0 shadow-sm relative">
           <div className="flex items-center gap-3">
@@ -325,7 +393,44 @@ export function AIDocumentDrawer({
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            {/* Width Preset Buttons */}
+            <div className="hidden sm:flex items-center bg-black/20 rounded-lg p-0.5 border border-white/10 text-[10px] font-semibold text-white/80 mr-1">
+              <button
+                type="button"
+                onClick={() => handleSetPresetWidth(380)}
+                className={clsx(
+                  "px-1.5 py-0.5 rounded-md transition-colors",
+                  drawerWidth <= 400 ? "bg-white/30 text-white shadow-xs" : "hover:text-white"
+                )}
+                title="Compact Width (380px)"
+              >
+                S
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetPresetWidth(500)}
+                className={clsx(
+                  "px-1.5 py-0.5 rounded-md transition-colors",
+                  drawerWidth > 400 && drawerWidth <= 600 ? "bg-white/30 text-white shadow-xs" : "hover:text-white"
+                )}
+                title="Standard Width (500px)"
+              >
+                M
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetPresetWidth(720)}
+                className={clsx(
+                  "px-1.5 py-0.5 rounded-md transition-colors",
+                  drawerWidth > 600 ? "bg-white/30 text-white shadow-xs" : "hover:text-white"
+                )}
+                title="Wide View (720px)"
+              >
+                L
+              </button>
+            </div>
+
             {/* Info Button */}
             <button
               onClick={() => setShowInfoModal(!showInfoModal)}
@@ -453,15 +558,11 @@ export function AIDocumentDrawer({
                         "px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed shadow-xs",
                         msg.sender === 'user'
                           ? "bg-indigo-600 text-white rounded-tr-none font-normal"
-                          : "bg-white text-gray-800 border border-gray-200/80 rounded-tl-none prose prose-xs max-w-none"
+                          : "bg-white text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-800 rounded-tl-none"
                       )}
-                      dangerouslySetInnerHTML={{ 
-                        __html: msg.text
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                          .replace(/\n/g, '<br/>')
-                      }}
-                    />
+                    >
+                      <DrawerMarkdown content={msg.text} isUser={msg.sender === 'user'} />
+                    </div>
                     <span className={clsx("text-[10px] text-gray-400 px-1", msg.sender === 'user' ? "text-right" : "text-left")}>
                       {msg.timestamp}
                     </span>

@@ -122,6 +122,114 @@ export class AIDocumentArchitectService {
             };
         }
 
+        // C. Incremental AST Block Addition (Preserves existing canvas blocks)
+        const isIncrementalAddition = hasExisting && (
+            lower.startsWith('add ') ||
+            lower.startsWith('insert ') ||
+            lower.startsWith('append ') ||
+            lower.includes('add a ') ||
+            lower.includes('add another ') ||
+            lower.includes('add the ') ||
+            lower.includes('insert a ') ||
+            lower.includes('insert the ')
+        );
+
+        if (isIncrementalAddition) {
+            const addedBlocks: any[] = [];
+            let addedDesc = '';
+
+            if (lower.includes('milestone') || lower.includes('payment schedule') || lower.includes('tranche')) {
+                addedBlocks.push({
+                    id: crypto.randomUUID(),
+                    type: 'payment_checkout',
+                    content: {
+                        mode: 'milestones',
+                        milestoneTitle: 'Project Deliverable Milestone Schedule',
+                        milestones: [
+                            { id: 'm1', name: 'Milestone 1 - Initial Kickoff & Setup (25%)', amount: 25000, status: 'pending' },
+                            { id: 'm2', name: 'Milestone 2 - Core Engineering & Beta Release (50%)', amount: 50000, status: 'pending' },
+                            { id: 'm3', name: 'Milestone 3 - Final Acceptance & Handover (25%)', amount: 25000, status: 'pending' }
+                        ]
+                    }
+                });
+                addedDesc = 'interactive 3-stage milestone payment schedule';
+            } else if (lower.includes('signature') || lower.includes('signatory') || lower.includes('sign block')) {
+                addedBlocks.push({
+                    id: crypto.randomUUID(),
+                    type: 'container',
+                    content: {
+                        direction: 'row',
+                        justifyContent: 'space-between',
+                        gap: 24,
+                        children: [
+                            {
+                                id: crypto.randomUUID(),
+                                type: 'signature',
+                                content: { label: 'Client Authorized Signatory', signatoryName: clientName, signatoryEmail: clientEmail, requireName: true },
+                                styles: { flex: 1, border: '1px dashed #cbd5e1', padding: 16, borderRadius: 8 }
+                            },
+                            {
+                                id: crypto.randomUUID(),
+                                type: 'signature',
+                                content: { label: 'Company Signatory', signatoryName: employeeName, signatoryEmail: 'authorized@company.com', requireName: true },
+                                styles: { flex: 1, border: '1px dashed #cbd5e1', padding: 16, borderRadius: 8 }
+                            }
+                        ]
+                    },
+                    styles: { marginTop: 24 }
+                });
+                addedDesc = 'bilateral signature blocks for both parties';
+            } else if (lower.includes('pricing') || lower.includes('line item') || lower.includes('table') || lower.includes('tax') || lower.includes('gst')) {
+                addedBlocks.push({
+                    id: crypto.randomUUID(),
+                    type: 'pricing_table',
+                    content: {
+                        currency: 'INR',
+                        items: [
+                            { id: '1', description: 'Sprint 1: Architecture & UI/UX Design', quantity: 1, rate: 25000, taxRate: 18, amount: 29500 },
+                            { id: '2', description: 'Sprint 2: Backend APIs & Cloud Deployment', quantity: 1, rate: 35000, taxRate: 18, amount: 41300 },
+                            { id: '3', description: 'Sprint 3: Security Audits & SLA Support', quantity: 1, rate: 15000, taxRate: 18, amount: 17700 }
+                        ],
+                        subtotal: 75000,
+                        taxAmount: 13500,
+                        grandTotal: 88500
+                    }
+                });
+                addedDesc = 'itemized pricing table with 18% GST';
+            } else if (lower.includes('nda') || lower.includes('confidential') || lower.includes('terms') || lower.includes('net 15')) {
+                addedBlocks.push({
+                    id: crypto.randomUUID(),
+                    type: 'box',
+                    content: {
+                        text: '🔒 <strong>Payment Terms (Net 15) & Mutual Confidentiality:</strong><br>Invoices are payable within 15 days of presentation. Both parties agree to protect all proprietary and confidential information. Deliverables vest with the Client upon receipt of final settlement.'
+                    },
+                    styles: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', padding: 16, borderRadius: 8 }
+                });
+                addedDesc = 'payment terms (Net 15) and mutual confidentiality clause';
+            } else {
+                addedBlocks.push({
+                    id: crypto.randomUUID(),
+                    type: 'text',
+                    content: { text: textPrompt },
+                    styles: { fontSize: 14, lineHeight: '1.6', marginTop: 8 }
+                });
+                addedDesc = `clause: "${textPrompt.slice(0, 40)}..."`;
+            }
+
+            const combinedBlocks = [...existingBlocks, ...addedBlocks];
+            const incrementalReply = `✨ **Document Updated**: Appended ${addedDesc}! Your existing ${existingBlocks.length} canvas blocks have been preserved intact.`;
+
+            return {
+                success: true,
+                intent: 'append',
+                mode: 'append',
+                reply: incrementalReply,
+                explanation: incrementalReply,
+                blocks: combinedBlocks,
+                newBlocks: addedBlocks
+            };
+        }
+
         // 4. Try Real LLM Execution if Configured
         let docResult: any = null;
 
@@ -218,7 +326,7 @@ Return valid JSON with keys: title, documentType (CONTRACT, INVOICE, PROPOSAL, N
             `- **Structure**: ${docResult.blocks.length} AST Elements (Scope, Payment Milestones, Terms, E-Signatures)\n` +
             (docResult.grandTotal ? `- **Total Value**: ₹${Number(docResult.grandTotal).toLocaleString('en-IN')}\n` : '') +
             (docId ? `- **Document ID**: \`${docId}\`\n\n` : '\n') +
-            `You can edit and customize this document right away using the link below!`;
+            `👉 [**Open & Edit "${docResult.title}" in 180 Documents**](${editorUrl})`;
 
         return {
             success: true,

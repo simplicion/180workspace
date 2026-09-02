@@ -62,3 +62,4 @@ scripts/config.yaml
 
 apps/backend/debug-module-guard.txt
 apps/backend/perf-analysis.jsonl
+apps/worker/perf-analysis.jsonl

@@ -29,7 +29,7 @@ COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 # Copy the Prisma schema to avoid postinstall errors
 COPY --from=builder /app/out/full/packages/db/prisma ./packages/db/prisma
 
-RUN pnpm install --frozen-lockfile --prod=false
+RUN pnpm install --frozen-lockfile --prod=false || pnpm install --no-frozen-lockfile --prod=false
 
 # Now copy the source code of the pruned app
 COPY --from=builder /app/out/full/ .

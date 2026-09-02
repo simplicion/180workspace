@@ -10,6 +10,7 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 export function AICopilotFloatingWidget() {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState('');
+    const [sessionId, setSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([
         {
             role: 'assistant',
@@ -23,13 +24,30 @@ export function AICopilotFloatingWidget() {
         const query = input.trim();
         if (!query || loading) return;
 
-        setMessages(prev => [...prev, { role: 'user', text: query }]);
+        const updatedMessages = [...messages, { role: 'user' as const, text: query }];
+        setMessages(updatedMessages);
         setInput('');
         setLoading(true);
 
+        // Build history omitting the first assistant greeting
+        const history = updatedMessages
+            .filter((_, idx) => idx > 0)
+            .slice(-12)
+            .map(m => ({ role: m.role, content: m.text }));
+
         try {
-            const res = await api.post('/api/v1/ai/chat', { prompt: query, mode: 'global' });
+            const res = await api.post('/api/v1/ai/chat', {
+                prompt: query,
+                message: query,
+                mode: 'global',
+                sessionId: sessionId || undefined,
+                history
+            });
+
             if (res.data && res.data.success) {
+                if (res.data.sessionId && !sessionId) {
+                    setSessionId(res.data.sessionId);
+                }
                 setMessages(prev => [...prev, { role: 'assistant', text: res.data.reply }]);
             } else {
                 throw new Error(res.data?.message || 'Unable to process query');

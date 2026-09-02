@@ -363,7 +363,7 @@ export class AIController {
      */
     static async patchWebsite(req: Request, res: Response) {
         try {
-            const { websiteId, instruction, prompt } = req.body;
+            const { websiteId, instruction, prompt, stateContext, history } = req.body;
             const companyId = req.user?.companyId;
             const userId = req.user?.id;
 
@@ -373,7 +373,9 @@ export class AIController {
 
             const result = await UniversalBuilderRegistry.patch('website', websiteId, instruction || prompt || '', {
                 companyId,
-                userId
+                userId,
+                stateContext,
+                history
             });
 
             return res.json({ success: true, ...result });
@@ -413,7 +415,7 @@ export class AIController {
      */
     static async patchForm(req: Request, res: Response) {
         try {
-            const { formId, instruction, prompt } = req.body;
+            const { formId, instruction, prompt, stateContext, history } = req.body;
             const companyId = req.user?.companyId;
             const userId = req.user?.id;
 
@@ -423,12 +425,44 @@ export class AIController {
 
             const result = await UniversalBuilderRegistry.patch('form', formId, instruction || prompt || '', {
                 companyId,
-                userId
+                userId,
+                stateContext,
+                history
             });
 
             return res.json({ success: true, ...result });
         } catch (error: any) {
             console.error('[AIController.patchForm] Error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * POST /api/v1/ai/documents/patch
+     * POST /api/v1/ai/documents/generate-section
+     * Iterative block addition, legal clause editing, and document revision
+     */
+    static async patchDocument(req: Request, res: Response) {
+        try {
+            const { documentId, instruction, prompt, stateContext, history } = req.body;
+            const companyId = req.user?.companyId;
+            const userId = req.user?.id;
+
+            const targetId = documentId || stateContext?.id;
+            if (!targetId && !stateContext) {
+                return res.status(400).json({ success: false, message: 'Document ID or stateContext is required for patching.' });
+            }
+
+            const result = await UniversalBuilderRegistry.patch('document', targetId || 'doc_active', instruction || prompt || '', {
+                companyId,
+                userId,
+                stateContext,
+                history
+            });
+
+            return res.json({ success: true, ...result });
+        } catch (error: any) {
+            console.error('[AIController.patchDocument] Error:', error);
             return res.status(500).json({ success: false, message: error.message });
         }
     }

@@ -9,6 +9,8 @@ export interface BuilderGenerationParams {
     clientId?: string;
     employeeId?: string;
     existingAST?: any;
+    stateContext?: any;
+    history?: Array<{ role?: string; sender?: string; text?: string; content?: string }>;
     meta?: Record<string, any>;
 }
 

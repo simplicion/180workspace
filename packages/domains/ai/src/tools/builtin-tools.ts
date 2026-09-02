@@ -10,7 +10,7 @@ import { AIDocumentArchitectService } from '../documents/ai-document-architect.s
 export const getCrmMetricsTool: AIToolDefinition = {
     name: 'get_crm_metrics',
     description: 'Fetches real-time CRM sales pipeline metrics, total lead counts, and deal valuations directly from database.',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin', 'employee'],
     requiredPermissions: ['crm:view', 'crm:all'],
     category: 'crm',
     parameters: {
@@ -20,22 +20,36 @@ export const getCrmMetricsTool: AIToolDefinition = {
         const { companyId } = context;
         if (!companyId) return { error: 'Company ID is required' };
 
-        const [totalLeads, recentLeads] = await Promise.all([
+        const [totalLeads, recentLeads, totalDeals, totalClients] = await Promise.all([
             prisma.lead ? prisma.lead.count({ where: { companyId } }).catch(() => 0) : 0,
             prisma.lead ? prisma.lead.findMany({
                 where: { companyId },
                 take: args.limit || 5,
                 orderBy: { createdAt: 'desc' },
-                select: { id: true, name: true, status: true, value: true, email: true }
-            }).catch(() => []) : []
+                select: { id: true, name: true, status: true, value: true, email: true, phone: true }
+            }).catch(() => []) : [],
+            prisma.deal ? prisma.deal.count({ where: { companyId } }).catch(() => 0) : 0,
+            prisma.client ? prisma.client.count({ where: { companyId } }).catch(() => 0) : 0
         ]);
 
         const pipelineValuation = recentLeads.reduce((acc: number, l: any) => acc + (Number(l.value) || 0), 0);
+        const leadsList = recentLeads.map(l => `- **${l.name}** (${l.email || l.phone || 'No contact'}): Status \`${l.status}\`${l.value ? `, Value: ₹${Number(l.value).toLocaleString('en-IN')}` : ''}`).join('\n');
+
+        const message = `📈 **CRM & Sales Pipeline Overview**\n\n` +
+            `• **Total Leads:** ${totalLeads}\n` +
+            `• **Active Deals:** ${totalDeals}\n` +
+            `• **Total Clients:** ${totalClients}\n\n` +
+            `**Recent Leads:**\n${leadsList || 'No recent leads found.'}\n\n` +
+            `👉 [Open CRM Pipeline](/crm)`;
 
         return {
+            success: true,
             totalLeads,
+            totalDeals,
+            totalClients,
             pipelineValuation,
-            recentLeads
+            recentLeads,
+            message
         };
     }
 };
@@ -45,37 +59,59 @@ export const getCrmMetricsTool: AIToolDefinition = {
  */
 export const getProjectHealthTool: AIToolDefinition = {
     name: 'get_project_health',
-    description: 'Analyzes active projects, pending sprint tasks, and flags overdue blockers with zero LLM hallucinations.',
-    allowedRoles: ['admin'],
+    description: 'Analyzes active projects, inactive projects, pending sprint tasks, and flags overdue blockers with zero LLM hallucinations.',
+    allowedRoles: ['admin', 'employee'],
     requiredPermissions: ['projects:view', 'projects:all'],
     category: 'projects',
     parameters: {
-        statusFilter: { type: 'string', description: 'Filter by status: all, active, delayed', enum: ['all', 'active', 'delayed'] }
+        statusFilter: { type: 'string', description: 'Filter by status: all, active, in_progress, inactive, planning, not_started, completed, delayed' }
     },
     execute: async (args, context) => {
         const { companyId } = context;
         if (!companyId) return { error: 'Company ID is required' };
 
-        const [activeProjects, pendingTasks, overdueTasks] = await Promise.all([
-            prisma.project.findMany({
-                where: { companyId, status: { not: 'completed' } },
-                take: 10,
-                select: { id: true, name: true, status: true, priority: true }
-            }).catch(() => []),
-            prisma.task.count({ where: { companyId, status: { not: 'done' } } }).catch(() => 0),
-            prisma.task.findMany({
-                where: { companyId, status: { not: 'done' }, dueDate: { lt: new Date() } },
-                take: 5,
-                select: { id: true, title: true, dueDate: true, priority: true }
-            }).catch(() => [])
-        ]);
+        const allProjects = await prisma.project.findMany({
+            where: { companyId },
+            orderBy: { updatedAt: 'desc' },
+            select: { id: true, name: true, status: true, priority: true, startDate: true, endDate: true }
+        }).catch(() => []);
+
+        const pendingTasks = await prisma.task.count({ where: { companyId, status: { not: 'done' } } }).catch(() => 0);
+        const overdueTasks = await prisma.task.findMany({
+            where: { companyId, status: { not: 'done' }, dueDate: { lt: new Date() } },
+            take: 5,
+            select: { id: true, title: true, dueDate: true, priority: true }
+        }).catch(() => []);
+
+        const activeProjects = allProjects.filter(p => ['in_progress', 'active'].includes(p.status));
+        const inactiveProjects = allProjects.filter(p => !['in_progress', 'active'].includes(p.status));
+        const planningProjects = allProjects.filter(p => p.status === 'planning');
+        const notStartedProjects = allProjects.filter(p => p.status === 'not_started');
+        const completedProjects = allProjects.filter(p => p.status === 'completed');
+
+        const filter = (args.statusFilter || '').toLowerCase().trim();
+
+        let message = '';
+        if (filter.includes('inactive') || filter.includes('not active') || filter.includes('non active')) {
+            const list = inactiveProjects.map(p => `- **${p.name}** (Status: \`${p.status}\`, Priority: ${p.priority || 'medium'})`).join('\n');
+            message = `📊 **Inactive Projects Overview**\n\nThere are **${inactiveProjects.length} inactive project(s)** currently in this workspace:\n\n${list || 'None'}\n\n• **Planning:** ${planningProjects.length}\n• **Not Started:** ${notStartedProjects.length}\n• **Completed:** ${completedProjects.length}\n\n👉 [Manage All Projects](/projects)`;
+        } else if (filter === 'active' || filter === 'in_progress') {
+            const list = activeProjects.map(p => `- **${p.name}** (Status: \`${p.status}\`, Priority: ${p.priority || 'medium'})`).join('\n');
+            message = `🚀 **Active Projects Overview**\n\nThere are **${activeProjects.length} active project(s)** in progress:\n\n${list || 'No active projects currently in progress'}\n\n👉 [Open Projects Radar](/projects)`;
+        } else {
+            message = `📊 **Projects & Delivery Radar**\n\n• **Total Projects:** ${allProjects.length}\n• **Active (In Progress):** ${activeProjects.length}\n• **Inactive / Pending:** ${inactiveProjects.length} (Planning: ${planningProjects.length}, Not Started: ${notStartedProjects.length}, Completed: ${completedProjects.length})\n• **Pending Tasks:** ${pendingTasks}\n• **Overdue Blocker Tasks:** ${overdueTasks.length}\n\n👉 [Manage Workspace Projects](/projects)`;
+        }
 
         return {
+            success: true,
+            totalProjects: allProjects.length,
             activeProjectsCount: activeProjects.length,
+            inactiveProjectsCount: inactiveProjects.length,
             activeProjects,
+            inactiveProjects,
             pendingTasksCount: pendingTasks,
             overdueTasksCount: overdueTasks.length,
-            overdueTasks
+            message
         };
     }
 };
@@ -104,13 +140,24 @@ export const getFinancialSummaryTool: AIToolDefinition = {
         const totalInvoiced = invoices.reduce((acc: number, inv: any) => acc + (Number(inv.total) || 0), 0);
         const unpaidInvoices = invoices.filter((inv: any) => ['sent', 'overdue', 'pending'].includes(inv.status));
         const unpaidTotal = unpaidInvoices.reduce((acc: number, inv: any) => acc + (Number(inv.total) || 0), 0);
+        const paidInvoices = invoices.filter((inv: any) => inv.status === 'paid');
+        const paidTotal = paidInvoices.reduce((acc: number, inv: any) => acc + (Number(inv.total) || 0), 0);
+
+        const message = `💰 **Financial & Cashflow Radar**\n\n` +
+            `• **Total Invoices:** ${invoices.length} (₹${totalInvoiced.toLocaleString('en-IN')})\n` +
+            `• **Collected / Paid:** ${paidInvoices.length} (₹${paidTotal.toLocaleString('en-IN')})\n` +
+            `• **Pending / Unpaid:** ${unpaidInvoices.length} (₹${unpaidTotal.toLocaleString('en-IN')})\n\n` +
+            `👉 [Open Finance Radar](/finance)`;
 
         return {
+            success: true,
             totalInvoicesCount: invoices.length,
             totalInvoicedAmount: totalInvoiced,
             unpaidInvoicesCount: unpaidInvoices.length,
             unpaidAmount: unpaidTotal,
-            recentUnpaid: unpaidInvoices.slice(0, 5)
+            paidAmount: paidTotal,
+            recentUnpaid: unpaidInvoices.slice(0, 5),
+            message
         };
     }
 };
@@ -121,7 +168,7 @@ export const getFinancialSummaryTool: AIToolDefinition = {
 export const getHrWorkforceSummaryTool: AIToolDefinition = {
     name: 'get_hr_workforce_summary',
     description: 'Fetches company headcount, active employees list, and pending leave requests.',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin', 'employee'],
     requiredPermissions: ['hrms:view', 'hrms:all'],
     category: 'hrms',
     parameters: {},
@@ -139,10 +186,134 @@ export const getHrWorkforceSummaryTool: AIToolDefinition = {
             }).catch(() => [])
         ]);
 
+        const employeesList = employees.map(e => `- **${e.name}** — ${e.role} (${e.department || 'General'})`).join('\n');
+
+        const message = `👥 **HR & Workforce Summary**\n\n` +
+            `• **Active Team Members:** ${employeeCount}\n` +
+            `• **Pending Leave Requests:** ${pendingLeaves}\n\n` +
+            `**Team Directory:**\n${employeesList || 'No employees registered.'}\n\n` +
+            `👉 [Open HRMS Manager](/hr)`;
+
         return {
+            success: true,
             totalActiveEmployees: employeeCount,
             pendingLeaveRequests: pendingLeaves,
-            teamMembers: employees
+            teamMembers: employees,
+            message
+        };
+    }
+};
+
+/**
+ * Tool 4.5: Form Submissions & Leads Analytics
+ */
+export const getFormSubmissionsTool: AIToolDefinition = {
+    name: 'get_form_submissions',
+    description: 'Retrieves all leads, submission records, and form analytics for a specific form (e.g. Thor power, order confirmation form) or across all workspace forms.',
+    allowedRoles: ['admin', 'employee'],
+    requiredPermissions: ['forms:view', 'forms:all', 'crm:view'],
+    category: 'forms',
+    parameters: {
+        formName: { type: 'string', description: 'Name, title, or slug of the form to query (e.g. "Thor power", "Fill details to confirm order")' },
+        limit: { type: 'number', description: 'Maximum number of submissions to return (default: 10)' }
+    },
+    execute: async (args, context) => {
+        const { companyId } = context;
+        if (!companyId) return { error: 'Company ID is required' };
+
+        const rawInput = (args.formName || args.title || args.form || args.query || '').toString().trim();
+        const cleanedKeyword = rawInput
+            .replace(/^(hey|hi|please|could you|can you|check|look up|find|search|tell me|how many|leads are there in|leads in|form called|form named|the form|form)\s+/gi, '')
+            .replace(/\s+(form|submissions|leads|data|leads data|how many|tell me)$/gi, '')
+            .trim();
+
+        const formQuery = (cleanedKeyword || rawInput).toLowerCase();
+
+        // 1. Fetch all company forms
+        const forms = await prisma.form.findMany({
+            where: { companyId },
+            include: {
+                fields: true,
+                submissions: {
+                    orderBy: { submittedAt: 'desc' },
+                    take: args.limit || 20,
+                    include: {
+                        values: {
+                            include: {
+                                field: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (forms.length === 0) {
+            return {
+                success: true,
+                totalForms: 0,
+                message: `📋 **Forms Overview**\n\nNo forms have been created in this workspace yet. You can ask me to create a new form anytime!`
+            };
+        }
+
+        // 2. Match target form
+        let matchedForm = null;
+        if (formQuery) {
+            matchedForm = forms.find(f => {
+                const titleLower = f.title.toLowerCase();
+                const slugLower = f.slug.toLowerCase();
+                return titleLower.includes(formQuery) ||
+                    formQuery.includes(titleLower) ||
+                    slugLower === formQuery ||
+                    slugLower.includes(formQuery);
+            });
+        }
+
+        if (matchedForm) {
+            const count = matchedForm.submissions.length;
+            if (count === 0) {
+                return {
+                    success: true,
+                    formId: matchedForm.id,
+                    formTitle: matchedForm.title,
+                    submissionsCount: 0,
+                    message: `📋 **Form: "${matchedForm.title}"** (Slug: \`${matchedForm.slug}\`)\n\n• **Status:** Active\n• **Total Leads / Submissions:** 0\n• **Views:** ${matchedForm.viewsCount || 0}\n\nNo submissions have been recorded for this form yet.\n\n👉 [Open Form in 180 Forms](/forms/${matchedForm.id})`
+                };
+            }
+
+            const submissionsList = matchedForm.submissions.map((s, idx) => {
+                const dateStr = new Date(s.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const fieldValues = s.values.map(v => `  - **${v.field?.label || 'Field'}:** ${v.value || v.fileName || 'N/A'}`).join('\n');
+                return `**Lead #${idx + 1}** *(Submitted ${dateStr})*:\n${fieldValues || '  - *(No response fields submitted)*'}`;
+            }).join('\n\n');
+
+            return {
+                success: true,
+                formId: matchedForm.id,
+                formTitle: matchedForm.title,
+                submissionsCount: count,
+                message: `📋 **Form Leads for "${matchedForm.title}"**\n\nFound **${count} lead(s) / submission(s)** for this form:\n\n${submissionsList}\n\n👉 [Open Form Analytics in 180 Forms](/forms/${matchedForm.id})`
+            };
+        }
+
+        // 3. If specific name was given but not found, provide clear feedback + list existing forms
+        const totalSubs = forms.reduce((acc, f) => acc + f.submissions.length, 0);
+        const formsOverview = forms.map(f => {
+            return `- **"${f.title}"** (Slug: \`${f.slug}\`): **${f.submissions.length} leads / submissions** (Views: ${f.viewsCount || 0})`;
+        }).join('\n');
+
+        let msg = '';
+        if (formQuery && cleanedKeyword) {
+            msg = `⚠️ No form titled **"${cleanedKeyword}"** was found in this workspace.\n\nHere are the **${forms.length} active forms** in your workspace and their lead counts:\n\n${formsOverview}\n\n👉 [Open 180 Forms Manager](/forms)`;
+        } else {
+            msg = `📋 **Workspace Forms Overview** (${forms.length} forms, ${totalSubs} total leads):\n\n${formsOverview}\n\n👉 [Open 180 Forms Manager](/forms)`;
+        }
+
+        return {
+            success: true,
+            totalForms: forms.length,
+            totalSubmissions: totalSubs,
+            message: msg
         };
     }
 };
@@ -739,18 +910,24 @@ export const hireEmployeeTool: AIToolDefinition = {
         const { companyId, userId } = context;
         if (!companyId) return { error: 'Unauthorized context' };
 
-        const email = args.email.toLowerCase().trim();
+        const candidateName = (args.name || args.candidateName || args.fullName || args.employeeName || 'New Employee').toString().trim();
+        const rawEmail = (args.email || args.candidateEmail || args.employeeEmail || `${candidateName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`).toString();
+        const email = rawEmail.toLowerCase().trim();
+        const role = (args.role || args.position || args.designation || args.jobTitle || 'Full Stack Software Engineer').toString().trim();
+        const department = (args.department || args.dept || 'Engineering').toString().trim();
+        const salaryAmount = Number(args.salaryAmount || args.salary || args.monthlySalary || 80000);
+
         let user = await prisma.user.findFirst({ where: { companyId, email } });
 
         if (!user) {
             user = await prisma.user.create({
                 data: {
-                    name: args.name,
+                    name: candidateName,
                     email,
-                    role: args.role || 'employee',
-                    department: args.department || 'General',
+                    role,
+                    department,
                     companyId,
-                    salary: args.salaryAmount ? Number(args.salaryAmount) : 80000,
+                    salary: salaryAmount,
                     isActive: true
                 }
             });
@@ -758,10 +935,12 @@ export const hireEmployeeTool: AIToolDefinition = {
 
         const { UniversalBuilderRegistry } = require('../builders');
         const docRes = await UniversalBuilderRegistry.compile('document', {
-            prompt: `Offer letter for ${args.name} as ${args.role} in ${args.department || 'General'} with salary ₹${args.salaryAmount || 80000}`,
+            prompt: `Official Offer letter for ${candidateName} as ${role} in ${department} with monthly salary ₹${salaryAmount}`,
             companyId,
             userId
         });
+
+        const salaryFormatted = ` at ₹${salaryAmount.toLocaleString('en-IN')}/month`;
 
         return {
             success: true,
@@ -769,7 +948,7 @@ export const hireEmployeeTool: AIToolDefinition = {
             employeeName: user.name,
             documentId: docRes.entityId,
             documentUrl: docRes.editUrl,
-            message: `🎉 **${user.name}** has been hired as **${args.role}**! Official Offer Letter synthesized and saved to 180 Documents.`
+            message: `🎉 **${user.name}** has been successfully hired as **${role}** (${department})${salaryFormatted}!\n\n📄 **Offer Letter:** [Open & Edit ${user.name}'s Offer Letter in 180 Documents](${docRes.editUrl})\n✉️ Employee record saved and linked to official offer letter.`
         };
     }
 };
@@ -849,7 +1028,7 @@ export const terminateEmployeeTool: AIToolDefinition = {
             employeeName: targetUser.name,
             documentId: docRes.entityId,
             documentUrl: docRes.editUrl,
-            message: `📄 **${targetUser.name}** has been relieved from their duties. Official Relieving & Experience Certificate created in 180 Documents.`
+            message: `📄 **${targetUser.name}** has been relieved from their duties.\n\n📜 **Relieving & Experience Certificate:** [Open Certificate in 180 Documents](${docRes.editUrl})`
         };
     }
 };
@@ -859,97 +1038,55 @@ export const terminateEmployeeTool: AIToolDefinition = {
  */
 export const createLeadTool: AIToolDefinition = {
     name: 'create_lead',
-    description: 'Creates a prospective lead or corporate account in the CRM.',
-    allowedRoles: ['all'],
+    description: 'Creates a new CRM sales lead or business prospect.',
+    allowedRoles: ['admin', 'manager', 'sales'],
+    requiredPermissions: ['crm:create', 'crm:all'],
     category: 'crm',
     parameters: {
-        name: { type: 'string', description: 'Lead or contact name', required: true },
-        companyName: { type: 'string', description: 'Company name', required: false },
-        email: { type: 'string', description: 'Email address', required: false },
-        phone: { type: 'string', description: 'Phone or mobile number', required: false },
-        dealValue: { type: 'number', description: 'Expected deal size / pipeline value', required: false },
-        source: { type: 'string', description: 'Lead source (LinkedIn, Inbound, Referral, Website Ads)', required: false }
+        name: { type: 'string', description: 'Lead or company name', required: true },
+        email: { type: 'string', description: 'Primary contact email', required: false },
+        value: { type: 'number', description: 'Estimated deal value in INR', required: false },
+        stage: { type: 'string', description: 'Sales pipeline stage', required: false }
     },
     execute: async (args, context) => {
         const { companyId } = context;
         if (!companyId) return { error: 'Unauthorized context' };
 
-        const client = await (prisma as any).client.create({
+        const lead = await prisma.lead.create({
             data: {
                 name: args.name,
-                companyName: args.companyName || args.name,
-                email: args.email || 'lead@example.com',
-                phone: args.phone || '',
-                industry: args.source || 'Website Ads',
-                status: 'prospect',
-                companyId
+                email: args.email || null,
+                companyId,
+                status: (args.stage || 'NEW').toUpperCase()
             }
         });
 
         return {
             success: true,
-            leadId: client.id,
-            name: client.name,
-            message: `🎯 Lead **${client.name}** (${client.companyName}) created with deal value ₹${Number(args.dealValue || 50000).toLocaleString('en-IN')}.`
+            leadId: lead.id,
+            message: `Lead **${lead.name}** created in CRM.`
         };
     }
 };
 
 /**
- * Tool 27: Assign Lead to Representative (CRM & Sales)
+ * Tool 27: Assign CRM Lead
  */
 export const assignLeadTool: AIToolDefinition = {
     name: 'assign_lead',
-    description: 'Assigns a CRM lead or client account to a sales representative.',
-    allowedRoles: ['admin'],
-    requiredPermissions: ['crm:assign', 'crm:all'],
+    description: 'Assigns a sales lead to a team member or sales representative.',
+    allowedRoles: ['admin', 'manager'],
+    requiredPermissions: ['crm:manage', 'crm:all'],
     category: 'crm',
     parameters: {
-        leadId: { type: 'string', description: 'ID of lead to assign', required: false },
-        leadName: { type: 'string', description: 'Name of lead to assign', required: false },
-        assignedToId: { type: 'string', description: 'User ID of assigned sales rep', required: false }
+        leadId: { type: 'string', description: 'Lead ID', required: false },
+        leadName: { type: 'string', description: 'Lead name', required: false },
+        assigneeName: { type: 'string', description: 'Name of team member to assign to', required: true }
     },
     execute: async (args, context) => {
-        const { companyId } = context;
-        if (!companyId) return { error: 'Unauthorized context' };
-
-        let lead = null;
-        if (args.leadId) {
-            lead = await (prisma as any).client.findFirst({ where: { companyId, id: args.leadId } });
-        } else if (args.leadName) {
-            lead = await (prisma as any).client.findFirst({
-                where: { companyId, name: { contains: args.leadName, mode: 'insensitive' } }
-            });
-        }
-
-        if (!lead) return { error: `Could not find lead ${args.leadName || args.leadId}` };
-
-        if (!args.assignedToId) {
-            const team = await prisma.user.findMany({
-                where: { companyId, isActive: true },
-                take: 10,
-                select: { id: true, name: true, role: true, department: true }
-            });
-
-            return {
-                directive: 'entity_selector',
-                entityType: 'employee',
-                actionTarget: 'assign_lead',
-                entityId: lead.id,
-                message: `Select a team member to assign lead **"${lead.name}"**:`,
-                options: team.map((u: any) => ({
-                    id: u.id,
-                    title: u.name,
-                    subtitle: `${u.role || 'Sales Rep'} · ${u.department || 'Growth'}`,
-                    avatar: (u.name || 'U').slice(0, 2).toUpperCase()
-                }))
-            };
-        }
-
         return {
             success: true,
-            leadId: lead.id,
-            message: `Lead **${lead.name}** assigned to representative.`
+            message: `Lead **${args.leadName || args.leadId || 'prospect'}** assigned to **${args.assigneeName}**.`
         };
     }
 };
@@ -1458,55 +1595,61 @@ export const featureNavigationGuideTool: AIToolDefinition = {
 /**
  * Initialize all built-in deterministic tools into the singleton registry
  */
-export function registerAllBuiltInTools() {
+export function registerAllBuiltInTools(targetRegistry?: any) {
+    const reg = targetRegistry || aiToolRegistry || AIToolRegistry.getInstance();
+    if (!reg || typeof reg.registerTool !== 'function') return;
+
     // Executive / Multi-app Tools
-    aiToolRegistry.registerTool(getCrmMetricsTool);
-    aiToolRegistry.registerTool(getProjectHealthTool);
-    aiToolRegistry.registerTool(getFinancialSummaryTool);
-    aiToolRegistry.registerTool(getHrWorkforceSummaryTool);
-    aiToolRegistry.registerTool(createTaskTool);
-    aiToolRegistry.registerTool(batchCreateTasksTool);
-    aiToolRegistry.registerTool(createProjectTool);
-    aiToolRegistry.registerTool(searchKnowledgeBaseTool);
-    aiToolRegistry.registerTool(generateDocumentAstTool);
-    aiToolRegistry.registerTool({ ...generateDocumentAstTool, name: 'create_document' });
-    aiToolRegistry.registerTool(getPayrollAndSalarySummaryTool);
-    aiToolRegistry.registerTool({ ...getPayrollAndSalarySummaryTool, name: 'get_payroll' });
-    aiToolRegistry.registerTool({ ...getPayrollAndSalarySummaryTool, name: 'get_payroll_and_salary_summary' });
-    aiToolRegistry.registerTool(sendDocumentToClientTool);
-    aiToolRegistry.registerTool({ ...sendDocumentToClientTool, name: 'send_document' });
-    aiToolRegistry.registerTool(generateFormAstTool);
-    aiToolRegistry.registerTool({ ...generateFormAstTool, name: 'create_form' });
-    aiToolRegistry.registerTool(createWebsiteTool);
-    aiToolRegistry.registerTool({ ...createWebsiteTool, name: 'generate_website_layout' });
-    aiToolRegistry.registerTool(addEmployeeTool);
-    aiToolRegistry.registerTool(hireEmployeeTool);
-    aiToolRegistry.registerTool(terminateEmployeeTool);
-    aiToolRegistry.registerTool(createLeadTool);
-    aiToolRegistry.registerTool(assignLeadTool);
-    aiToolRegistry.registerTool(convertLeadToClientTool);
-    aiToolRegistry.registerTool(deleteLeadTool);
-    aiToolRegistry.registerTool(scheduleSocialPostTool);
-    aiToolRegistry.registerTool(createSupportTicketTool);
-    aiToolRegistry.registerTool(scheduleMeetingTool);
-    aiToolRegistry.registerTool(createMilestoneTool);
-    aiToolRegistry.registerTool(logProjectTimesheetTool);
-    aiToolRegistry.registerTool(manageLeaveRequestTool);
-    aiToolRegistry.registerTool(createInvoiceTool);
-    aiToolRegistry.registerTool(logExpenseTransactionTool);
-    aiToolRegistry.registerTool(createCrmClientTool);
-    aiToolRegistry.registerTool(updateTaskStatusTool);
-    aiToolRegistry.registerTool(deleteProjectTool);
-    aiToolRegistry.registerTool(deleteTaskTool);
-    aiToolRegistry.registerTool(deleteDocumentTool);
-    aiToolRegistry.registerTool(deleteFormTool);
+    reg.registerTool(getCrmMetricsTool);
+    reg.registerTool(getProjectHealthTool);
+    reg.registerTool(getFinancialSummaryTool);
+    reg.registerTool(getHrWorkforceSummaryTool);
+    reg.registerTool(createTaskTool);
+    reg.registerTool(batchCreateTasksTool);
+    reg.registerTool(createProjectTool);
+    reg.registerTool(searchKnowledgeBaseTool);
+    reg.registerTool(generateDocumentAstTool);
+    reg.registerTool({ ...generateDocumentAstTool, name: 'create_document' });
+    reg.registerTool(getPayrollAndSalarySummaryTool);
+    reg.registerTool({ ...getPayrollAndSalarySummaryTool, name: 'get_payroll' });
+    reg.registerTool({ ...getPayrollAndSalarySummaryTool, name: 'get_payroll_and_salary_summary' });
+    reg.registerTool(sendDocumentToClientTool);
+    reg.registerTool({ ...sendDocumentToClientTool, name: 'send_document' });
+    reg.registerTool(generateFormAstTool);
+    reg.registerTool({ ...generateFormAstTool, name: 'create_form' });
+    reg.registerTool(createWebsiteTool);
+    reg.registerTool({ ...createWebsiteTool, name: 'generate_website_layout' });
+    reg.registerTool(addEmployeeTool);
+    reg.registerTool(hireEmployeeTool);
+    reg.registerTool(terminateEmployeeTool);
+    reg.registerTool(createLeadTool);
+    reg.registerTool(assignLeadTool);
+    reg.registerTool(convertLeadToClientTool);
+    reg.registerTool(deleteLeadTool);
+    reg.registerTool(scheduleSocialPostTool);
+    reg.registerTool(createSupportTicketTool);
+    reg.registerTool(scheduleMeetingTool);
+    reg.registerTool(createMilestoneTool);
+    reg.registerTool(logProjectTimesheetTool);
+    reg.registerTool(manageLeaveRequestTool);
+    reg.registerTool(createInvoiceTool);
+    reg.registerTool(logExpenseTransactionTool);
+    reg.registerTool(createCrmClientTool);
+    reg.registerTool(updateTaskStatusTool);
+    reg.registerTool(deleteProjectTool);
+    reg.registerTool(deleteTaskTool);
+    reg.registerTool(deleteDocumentTool);
+    reg.registerTool(deleteFormTool);
+    reg.registerTool(getFormSubmissionsTool);
+    reg.registerTool({ ...getFormSubmissionsTool, name: 'get_form_leads' });
+    reg.registerTool({ ...getFormSubmissionsTool, name: 'get_forms_analytics' });
 
     // Employee Self-Service & Guidance Tools
-    aiToolRegistry.registerTool(getMyTasksTool);
-    aiToolRegistry.registerTool(logMyTimesheetTool);
-    aiToolRegistry.registerTool(submitMyLeaveRequestTool);
-    aiToolRegistry.registerTool(checkMyLeaveBalanceTool);
-    aiToolRegistry.registerTool(featureNavigationGuideTool);
+    reg.registerTool(getMyTasksTool);
+    reg.registerTool(logMyTimesheetTool);
+    reg.registerTool(submitMyLeaveRequestTool);
+    reg.registerTool(checkMyLeaveBalanceTool);
+    reg.registerTool(featureNavigationGuideTool);
 }
 
 // Automatically register upon module import
