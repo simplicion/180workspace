@@ -25,6 +25,9 @@ router.route('/:id/submissions/bulk-delete')
 router.route('/submissions/:submissionId')
   .delete(formBuilderController.deleteSubmission);
 
+router.route('/submissions/:submissionId/status')
+  .patch(formBuilderController.updateSubmissionStatus);
+
 router.route('/:id/export/csv')
   .get(formBuilderController.exportSubmissionsCsv);
 

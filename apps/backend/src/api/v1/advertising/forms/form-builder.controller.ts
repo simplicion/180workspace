@@ -174,3 +174,24 @@ export const deleteAllSubmissions = async (req: Request, res: Response, next: Ne
     next(error);
   }
 };
+
+export const updateSubmissionStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ error: 'Please provide a valid status string' });
+    }
+
+    const result = await FormsService.updateSubmissionStatus(req.params.submissionId, status);
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  } catch (error: any) {
+    if (error.message === 'Submission not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+};

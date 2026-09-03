@@ -47,16 +47,14 @@ export const submitForm = async (req: Request, res: Response, next: NextFunction
       }
     });
   } catch (error: any) {
-    if (error.message === 'Invalid submission format' || error.message.startsWith('Missing required fields')) {
-      return res.status(400).json({ error: error.message });
-    }
     if (error.message === 'Form not found') {
       return res.status(404).json({ error: error.message });
     }
-    if (error.message === 'This form is currently inactive') {
-      return res.status(400).json({ error: error.message });
-    }
-    next(error);
+    // Return 400 for duplicate submissions, missing required fields, or validation failures
+    return res.status(400).json({ 
+      success: false,
+      error: error.message || 'Failed to process submission' 
+    });
   }
 };
 

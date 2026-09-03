@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useRef, use } from 'react';
 import axios from 'axios';
-import { CheckCircle2, AlertCircle, Upload, Star, Calendar, Hash, FileText, ArrowRight, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Upload, Star, Calendar, Hash, FileText, ArrowRight, ChevronLeft, ChevronRight, Sparkles, Mail, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
+import CountryPhoneInput from '@/components/ui/CountryPhoneInput';
 import { LogoLoader } from "@workspace/ui";
+import clsx from 'clsx';
 
 export default function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -21,6 +23,10 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
   
   // Multi-step wizard state
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
+
+  // Field validation and submission errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [submissionError, setSubmissionError] = useState<string>('');
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -157,6 +163,16 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
       ...prev,
       [fieldId]: value
     }));
+    if (fieldErrors[fieldId]) {
+      setFieldErrors(prev => {
+        const copy = { ...prev };
+        delete copy[fieldId];
+        return copy;
+      });
+    }
+    if (submissionError) {
+      setSubmissionError('');
+    }
   };
 
   const handleCheckboxChange = (fieldId: string, option: string, checked: boolean) => {
@@ -220,21 +236,58 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
     : (form?.fields || []);
 
   const validateCurrentStep = () => {
+    const errors: Record<string, string> = {};
+    let firstErrorElId: string | null = null;
+
     for (const field of currentStepFields) {
       if (['HEADING', 'DIVIDER', 'PARAGRAPH'].includes(field.type)) continue;
+      const val = formData[field.id];
+
+      // 1. Required Check
       if (field.required) {
-        const val = formData[field.id];
         if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
-          toast.error(`Please answer required question: "${field.label || 'Question'}"`);
-          const el = document.getElementById(field.id);
-          if (el) {
-            el.focus();
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          return false;
+          errors[field.id] = `"${field.label || 'Question'}" is required.`;
+          if (!firstErrorElId) firstErrorElId = field.id;
+          continue;
+        }
+      }
+
+      // 2. Phone Number Validation (Must be 10 digits)
+      if (field.type === 'PHONE' && val) {
+        const digits = String(val).replace(/\D/g, '');
+        if (digits.length < 10) {
+          errors[field.id] = 'Please enter a complete 10-digit mobile number after the country code.';
+          if (!firstErrorElId) firstErrorElId = field.id;
+          continue;
+        }
+      }
+
+      // 3. Email / Gmail Validation
+      if (field.type === 'EMAIL' && val) {
+        const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailPattern.test(String(val).trim())) {
+          errors[field.id] = 'Please enter a valid email address (e.g. name@gmail.com).';
+          if (!firstErrorElId) firstErrorElId = field.id;
+          continue;
         }
       }
     }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const firstErrorMsg = Object.values(errors)[0];
+      toast.error(firstErrorMsg, { duration: 4000, id: 'validation-error' });
+      if (firstErrorElId) {
+        const el = document.getElementById(firstErrorElId);
+        if (el) {
+          el.focus();
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+      return false;
+    }
+
+    setFieldErrors({});
     return true;
   };
 
@@ -260,7 +313,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isMultiPage && !validateCurrentStep()) {
+    if (!validateCurrentStep()) {
       return;
     }
     setIsSubmitting(true);
@@ -274,16 +327,35 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
       });
 
       const resData = response.data.data;
+      
+      // Normalize destination redirect URL (handles missing https://, relative paths, etc.)
+      const rawRedirect = resData.redirectUrl || settings.redirectUrl || (form as any)?.settings?.redirectUrl || '';
+      const normalizeRedirectUrl = (url?: string | null): string => {
+        if (!url || typeof url !== 'string') return '';
+        const trimmed = url.trim();
+        if (!trimmed) return '';
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        if (trimmed.startsWith('//')) return `https:${trimmed}`;
+        if (trimmed.startsWith('/')) {
+          if (typeof window !== 'undefined') return `${window.location.origin}${trimmed}`;
+          return trimmed;
+        }
+        return `https://${trimmed}`;
+      };
+
+      const targetRedirectUrl = normalizeRedirectUrl(rawRedirect);
+
       setIsSuccess(true);
       setSuccessInfo({
-        message: resData.message,
-        redirectUrl: resData.redirectUrl
+        message: resData.message || settings.successMessage || 'Your submission has been received successfully.',
+        redirectUrl: targetRedirectUrl
       });
 
       // 1. Meta Pixel Lead Tracking
+      const pixelEvent = resData.pixelEventName || settings.pixelEventName || 'Lead';
       if (typeof window !== 'undefined' && (window as any).fbq) {
         try {
-          (window as any).fbq('track', resData.pixelEventName || 'Lead', {
+          (window as any).fbq('track', pixelEvent, {
             form_slug: slug,
             form_title: form.title
           });
@@ -305,31 +377,56 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
       }
 
       // 3. Post message to parent iframe if embedded
-      if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
-        window.parent.postMessage({
-          type: '180workspace:form:submitted',
-          slug,
-          submissionId: resData.submissionId,
-          redirectUrl: resData.redirectUrl,
-          target: '_top'
-        }, '*');
+      if (typeof window !== 'undefined' && window.parent) {
+        try {
+          window.parent.postMessage({
+            type: '180workspace:form:submitted',
+            slug,
+            submissionId: resData.submissionId,
+            redirectUrl: targetRedirectUrl,
+            target: '_top'
+          }, '*');
+        } catch (_) {}
       }
 
-      // 4. Custom Redirect URL if specified
-      if (resData.redirectUrl) {
-        setTimeout(() => {
-          if (typeof window !== 'undefined') {
+      // 4. Custom Redirect URL Navigation (Instant breakout)
+      if (targetRedirectUrl) {
+        if (typeof window !== 'undefined') {
+          try {
             if (window.top && window.top !== window) {
-              window.top.location.href = resData.redirectUrl;
-            } else {
-              window.location.href = resData.redirectUrl;
+              window.top.location.href = targetRedirectUrl;
+              return;
             }
+          } catch (frameErr) {
+            console.warn('Cross-origin iframe navigation restriction, falling back to direct navigation:', frameErr);
           }
-        }, 1200);
+          window.location.href = targetRedirectUrl;
+        }
       }
 
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to submit form. Please check your answers.');
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to submit form. Please check your answers.';
+      const isDuplicate = errorMsg.includes('already exists') || errorMsg.includes('Multiple submissions') || errorMsg.includes('contact information');
+
+      if (isDuplicate) {
+        // As requested: Do NOT show pop-up notification and do NOT show blocked messages.
+        // Just show that number already filled the form below the text.
+        const errors: Record<string, string> = {};
+        currentStepFields.forEach(f => {
+          if (f.type === 'PHONE' || f.mapping === 'phone' || f.label.toLowerCase().includes('phone')) {
+            errors[f.id] = 'This number has already filled the form.';
+          }
+          if (f.type === 'EMAIL' || f.mapping === 'email' || f.label.toLowerCase().includes('email')) {
+            errors[f.id] = 'This email has already filled the form.';
+          }
+        });
+        setFieldErrors(errors);
+        setSubmissionError('');
+      } else {
+        toast.error(errorMsg, { duration: 4000, id: 'submit-error' });
+      }
+
+      containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } finally {
       setIsSubmitting(false);
     }
@@ -382,20 +479,35 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
 
   if (isSuccess) {
     return (
-      <div className={`flex items-center justify-center p-4 ${isEmbed ? 'bg-transparent' : 'min-h-screen bg-zinc-50/50 dark:bg-zinc-950'}`} style={backgroundStyle}>
+      <div 
+        className={clsx(
+          "w-full flex items-center justify-center transition-all",
+          isEmbed 
+            ? "p-4 bg-transparent" 
+            : "min-h-screen p-0 sm:p-4 bg-zinc-50/50 dark:bg-zinc-950"
+        )} 
+        style={backgroundStyle}
+      >
         {settings.customCss && <style dangerouslySetInnerHTML={{ __html: settings.customCss }} />}
-        <div className="w-full max-w-lg backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border border-emerald-500/30 p-10 rounded-2xl shadow-2xl text-center animate-in fade-in zoom-in-95 duration-300">
-          <div className="h-16 w-16 bg-emerald-100 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+        <div className="w-full min-h-screen sm:min-h-0 sm:max-w-lg backdrop-blur-md bg-white sm:bg-white/90 dark:bg-zinc-900/90 border-0 sm:border border-emerald-500/30 p-6 sm:p-10 rounded-none sm:rounded-2xl shadow-none sm:shadow-2xl text-center flex flex-col justify-center items-center animate-in fade-in zoom-in-95 duration-300">
+          <div className="h-16 w-16 bg-emerald-100 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20 shrink-0">
             <CheckCircle2 className="h-9 w-9 text-emerald-600 dark:text-emerald-400" />
           </div>
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">Thank You!</h2>
-          <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
+          <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed max-w-sm">
             {successInfo.message || settings.successMessage || 'Your submission has been received successfully.'}
           </p>
           {successInfo.redirectUrl && (
-            <div className="mt-6 flex items-center justify-center text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-              <span>Redirecting you shortly</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1 animate-pulse" />
+            <div className="mt-6 flex flex-col items-center justify-center gap-2 w-full">
+              <a
+                href={successInfo.redirectUrl}
+                target={isEmbed ? '_top' : '_self'}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-sm sm:text-xs rounded-xl transition-all shadow-md hover:shadow-lg"
+              >
+                <span>Continue to destination</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-0.5 animate-pulse" />
+              </a>
+              <span className="text-[11px] text-zinc-400">Redirecting automatically...</span>
             </div>
           )}
         </div>
@@ -406,13 +518,23 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
   return (
     <div 
       ref={containerRef}
-      className={`px-4 sm:px-6 lg:px-8 ${isEmbed ? 'py-4 bg-transparent' : 'min-h-screen py-10 bg-zinc-50 dark:bg-zinc-950'}`}
+      className={clsx(
+        "w-full transition-all",
+        isEmbed 
+          ? "p-0 bg-transparent" 
+          : "min-h-screen p-0 sm:px-4 sm:py-8 md:py-12 bg-zinc-50 dark:bg-zinc-950 flex flex-col justify-start sm:justify-center items-center"
+      )}
       style={backgroundStyle}
     >
       {settings.customCss && <style dangerouslySetInnerHTML={{ __html: settings.customCss }} />}
       
       <div 
-        className="max-w-2xl mx-auto backdrop-blur-md bg-white/95 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden shadow-xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] border-t-[5px]"
+        className={clsx(
+          "w-full transition-all border-t-[4px] sm:border-t-[5px]",
+          isEmbed
+            ? "bg-transparent border-0"
+            : "min-h-screen sm:min-h-0 sm:max-w-2xl sm:mx-auto bg-white dark:bg-zinc-900 sm:backdrop-blur-md sm:bg-white/95 sm:dark:bg-zinc-900/90 rounded-none sm:rounded-2xl border-0 sm:border border-zinc-200/80 dark:border-zinc-800/80 sm:shadow-xl dark:sm:shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col justify-between"
+        )}
         style={{ borderTopColor: primaryButtonColor }}
       >
         {/* Optional Header Banner Image */}
@@ -427,7 +549,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
         )}
 
         {/* Form Global Header */}
-        <div className="px-8 py-8 text-center border-b border-zinc-100 dark:border-zinc-800">
+        <div className="px-5 py-6 sm:px-8 sm:py-8 text-center border-b border-zinc-100 dark:border-zinc-800">
           {settings.showCompanyLogo !== false && form.company?.logoUrl && (
             <div className="flex justify-center mb-5">
               <img src={form.company.logoUrl} alt={form.company.name || "Company Logo"} className="h-10 object-contain max-w-[200px]" />
@@ -470,13 +592,14 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
           )}
         </div>
         
-        <form onSubmit={handleSubmit} className="px-8 py-8 space-y-6">
-          {currentStepFields.length === 0 ? (
-            <div className="py-10 text-center text-zinc-400 text-sm">
-              No questions found on this step.
-            </div>
-          ) : (
-            currentStepFields.map((field: any) => {
+        <form onSubmit={handleSubmit} className="px-5 py-6 sm:px-8 sm:py-8 flex-1 flex flex-col justify-between">
+          <div className="space-y-5">
+            {currentStepFields.length === 0 ? (
+              <div className="py-10 text-center text-zinc-400 text-sm">
+                No questions found on this step.
+              </div>
+            ) : (
+              currentStepFields.map((field: any) => {
               // Layout fields
               if (field.type === 'HEADING') {
                 return (
@@ -527,26 +650,50 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
                   )}
                   
                   {field.type === 'EMAIL' && (
-                    <input 
-                      id={field.id}
-                      type="email"
-                      required={field.required}
-                      placeholder={field.placeholder || 'you@company.com'}
-                      value={formData[field.id] || ''}
-                      onChange={(e) => handleInputChange(field.id, e.target.value)}
-                      className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
-                    />
+                    <div className="space-y-1">
+                      <div className="relative">
+                        <input 
+                          id={field.id}
+                          type="email"
+                          required={field.required}
+                          placeholder={field.placeholder || 'you@company.com'}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          className={clsx(
+                            "w-full pl-10 pr-10 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border rounded-xl focus:outline-none text-sm transition-all",
+                            formData[field.id] && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(String(formData[field.id]).trim())
+                              ? "border-red-400 dark:border-red-500/80 bg-red-50/20 focus:ring-2 focus:ring-red-500/30 text-zinc-900 dark:text-zinc-100"
+                              : formData[field.id] && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(String(formData[field.id]).trim())
+                                ? "border-emerald-400 dark:border-emerald-500/80 bg-emerald-50/20 focus:ring-2 focus:ring-emerald-500/30 text-zinc-900 dark:text-zinc-100"
+                                : "border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-indigo-500 text-zinc-900 dark:text-zinc-100"
+                          )}
+                        />
+                        <Mail className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3.5 pointer-events-none" />
+                        {formData[field.id] && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(String(formData[field.id]).trim()) && (
+                          <span className="absolute right-3 top-3 text-emerald-500 flex items-center pointer-events-none" title="Valid email format">
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+                      {formData[field.id] && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(String(formData[field.id]).trim()) && (
+                        <p className="text-[11px] text-red-500 dark:text-red-400 flex items-center gap-1 pl-1">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>Please enter a valid email address (e.g. name@gmail.com).</span>
+                        </p>
+                      )}
+                    </div>
                   )}
                   
                   {field.type === 'PHONE' && (
-                    <input 
+                    <CountryPhoneInput
                       id={field.id}
-                      type="tel"
+                      name={field.name || field.id}
                       required={field.required}
-                      placeholder={field.placeholder || '+1 (555) 000-0000'}
+                      placeholder={field.placeholder || '10-digit mobile number'}
                       value={formData[field.id] || ''}
-                      onChange={(e) => handleInputChange(field.id, e.target.value)}
-                      className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+                      companyCountry={form?.company?.country || form?.company?.countryCode}
+                      error={fieldErrors[field.id]}
+                      onChange={(val) => handleInputChange(field.id, val)}
                     />
                   )}
 
@@ -701,25 +848,26 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
               );
             })
           )}
+          </div>
           
           {/* Navigation Controls (Back, Next, Submit) */}
-          <div className="pt-4 flex items-center justify-between gap-4">
+          <div className="pt-8 mt-auto flex flex-col-reverse sm:flex-row items-center justify-between gap-3 sm:gap-4">
             {isMultiPage && !isFirstPage ? (
               <button
                 type="button"
                 onClick={handlePrevStep}
-                className="px-5 py-3 rounded-xl font-semibold text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all flex items-center gap-1.5"
+                className="w-full sm:w-auto px-5 py-3 rounded-xl font-semibold text-sm border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all flex items-center justify-center gap-1.5 order-2 sm:order-1"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Previous</span>
               </button>
-            ) : <div />}
+            ) : <div className="hidden sm:block" />}
 
             {isMultiPage && !isLastPage ? (
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="px-7 py-3 rounded-xl font-semibold text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-[0.99] transition-all flex items-center gap-2 ml-auto"
+                className="w-full sm:w-auto px-7 py-3.5 rounded-xl font-semibold text-base sm:text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 sm:ml-auto order-1 sm:order-2"
                 style={{ backgroundColor: primaryButtonColor, color: primaryTextColor }}
               >
                 <span>Continue to Step {currentPageIndex + 2}</span>
@@ -728,7 +876,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
             ) : (
               <button 
                 type="submit" 
-                className="px-8 py-3.5 rounded-xl font-semibold text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 ml-auto"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-semibold text-base sm:text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 sm:ml-auto order-1 sm:order-2"
                 disabled={isSubmitting}
                 style={{ backgroundColor: primaryButtonColor, color: primaryTextColor }}
               >
@@ -758,7 +906,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
 
         {/* Optional Footer Note / Disclaimer / Privacy Note */}
         {footerText && (
-          <div className="px-8 py-4 bg-zinc-50/70 dark:bg-zinc-850/50 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
+          <div className="px-5 py-4 sm:px-8 sm:py-4 bg-zinc-50/70 dark:bg-zinc-850/50 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
             <p className="text-xs text-zinc-500 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed">
               {footerText}
             </p>

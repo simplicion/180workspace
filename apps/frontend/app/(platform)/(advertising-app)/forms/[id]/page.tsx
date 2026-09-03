@@ -17,6 +17,8 @@ import api from '@/lib/api';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { ConfirmModal, LogoLoader } from "@workspace/ui";
 import { AIFormDrawer } from './_components/AIFormDrawer';
+import { LeadSubmissionsManager } from './_components/LeadSubmissionsManager';
+import CountryPhoneInput from '@/components/ui/CountryPhoneInput';
 
 type FieldType = 
   | 'TEXT' 
@@ -86,6 +88,7 @@ interface FormSettings {
   honeypotField?: string;
   isHeadless?: boolean;
   pages?: FormPage[];
+  disallowDuplicateSubmissions?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -200,11 +203,15 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
     submitButtonText: 'Submit Form',
     backgroundType: 'default',
     backgroundColor: '#f8fafc',
+    backgroundImage: '',
+    redirectUrl: '',
     pixelEventName: 'Lead',
     successMessage: 'Thank you! Your submission has been received.',
     headerImage: '',
     footerImage: '',
     footerText: '',
+    webhookUrl: '',
+    disallowDuplicateSubmissions: false,
     allowedDomains: [],
     honeypotField: '_gotcha',
     salesSettings: {
@@ -507,20 +514,27 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
       }
       
       const resolvedSettings: FormSettings = {
+        ...(form.settings || {}),
         buttonColor: form.settings?.buttonColor || '#4f46e5',
         buttonTextColor: form.settings?.buttonTextColor || '#ffffff',
         submitButtonText: form.settings?.submitButtonText || 'Submit Form',
         backgroundType: form.settings?.backgroundType || 'default',
         backgroundColor: form.settings?.backgroundColor || '#f8fafc',
+        backgroundImage: form.settings?.backgroundImage || '',
+        redirectUrl: form.settings?.redirectUrl || '',
         pixelEventName: form.settings?.pixelEventName || 'Lead',
         successMessage: form.settings?.successMessage || 'Thank you! Your submission has been received.',
         headerImage: form.settings?.headerImage || '',
         footerImage: form.settings?.footerImage || '',
         footerText: form.settings?.footerText || '',
+        webhookUrl: form.settings?.webhookUrl || '',
+        notificationEmails: form.settings?.notificationEmails || [],
+        disallowDuplicateSubmissions: Boolean(form.settings?.disallowDuplicateSubmissions),
         allowedDomains: form.settings?.allowedDomains || [],
         honeypotField: form.settings?.honeypotField || '_gotcha',
         pages: loadedPages,
         salesSettings: {
+          ...(form.settings?.salesSettings || {}),
           isSalesActivity: resolvedFormType === 'SALES_ACTIVITY' || resolvedFormType === 'HEADLESS_ENDPOINT' || form.settings?.isSalesActivity || form.settings?.salesSettings?.isSalesActivity || false,
           targetStage: form.settings?.salesSettings?.targetStage || 'Lead',
           defaultDealValue: form.settings?.salesSettings?.defaultDealValue || 0,
@@ -593,6 +607,9 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
           isHeadless: isHeadlessMode,
           isSalesActivity: isSalesMode,
           pages,
+          disallowDuplicateSubmissions: Boolean(settings.disallowDuplicateSubmissions),
+          redirectUrl: settings.redirectUrl || '',
+          pixelEventName: settings.pixelEventName || 'Lead',
           salesSettings: {
             ...(settings.salesSettings || {}),
             isSalesActivity: isSalesMode
@@ -673,6 +690,9 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
             isHeadless: isHeadlessMode,
             isSalesActivity: isSalesMode,
             pages,
+            disallowDuplicateSubmissions: Boolean(settings.disallowDuplicateSubmissions),
+            redirectUrl: settings.redirectUrl || '',
+            pixelEventName: settings.pixelEventName || 'Lead',
             salesSettings: {
               ...(settings.salesSettings || {}),
               isSalesActivity: isSalesMode
@@ -777,6 +797,9 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
           isHeadless: isHeadlessMode,
           isSalesActivity: isSalesMode,
           pages,
+          disallowDuplicateSubmissions: Boolean(settings.disallowDuplicateSubmissions),
+          redirectUrl: settings.redirectUrl || '',
+          pixelEventName: settings.pixelEventName || 'Lead',
           salesSettings: {
             ...(settings.salesSettings || {}),
             isSalesActivity: isSalesMode
@@ -788,8 +811,17 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
         })
       };
 
-      await api.patch(`/api/forms/${formId}`, payload);
-      lastSavedStateRef.current = serializeFormState(title, description, true, formType, formCode, settings, fields, pages);
+      const res = await api.patch(`/api/forms/${formId}`, payload);
+      const updatedForm = res.data?.data?.form;
+      if (updatedForm?.settings) {
+        setSettings(prev => ({
+          ...prev,
+          ...(updatedForm.settings || {}),
+          disallowDuplicateSubmissions: Boolean(updatedForm.settings.disallowDuplicateSubmissions),
+          redirectUrl: updatedForm.settings.redirectUrl || prev.redirectUrl || ''
+        }));
+      }
+      lastSavedStateRef.current = serializeFormState(title, description, true, formType, formCode, payload.settings, fields, pages);
       setSaveStatus('saved');
       toast.success('Form published successfully! All changes are live.');
     } catch (error) {
@@ -1198,6 +1230,34 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
         ) : (
           <div className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-zinc-400">
             {field.placeholder || 'mm/dd/yyyy'}
+          </div>
+        );
+      case 'PHONE':
+        return (
+          <div className="w-full pointer-events-none opacity-95">
+            <CountryPhoneInput
+              placeholder={field.placeholder || '10-digit mobile number'}
+              value=""
+              disabled
+            />
+          </div>
+        );
+      case 'EMAIL':
+        return isExpanded ? (
+          <div className="relative">
+            <input
+              type="text"
+              value={field.placeholder || ''}
+              onChange={(e) => updateField(index, 'placeholder', e.target.value)}
+              placeholder="you@company.com"
+              className="w-full pl-9 pr-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-indigo-400 focus:border-indigo-600 focus:border-solid rounded-xl text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none transition-all placeholder:text-zinc-400 placeholder:italic"
+            />
+            <span className="text-zinc-400 text-xs font-bold absolute left-3.5 top-3">@</span>
+          </div>
+        ) : (
+          <div className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-zinc-400 flex items-center gap-2">
+            <span className="text-zinc-400 font-bold">@</span>
+            <span>{field.placeholder || 'you@company.com'}</span>
           </div>
         );
       default:
@@ -2548,15 +2608,50 @@ print(response.json())`}
                       />
                     </div>
                     <div>
-                      <span className="text-[10px] text-zinc-400 block mb-0.5">Redirect URL (Optional)</span>
+                      <span className="text-[10px] text-zinc-400 block mb-0.5 font-medium">Redirect URL on Submit (Optional)</span>
                       <input
-                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-zinc-800 dark:text-zinc-200"
                         value={settings.redirectUrl || ''}
                         onChange={(e) => setSettings(prev => ({ ...prev, redirectUrl: e.target.value }))}
-                        placeholder="https://..."
+                        placeholder="https://yourwebsite.com/thank-you"
                       />
+                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                        Redirects respondents automatically to your thank-you page or tracking link after submission.
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-zinc-400 block mb-0.5 font-medium">Meta Pixel Event Name (Optional)</span>
+                      <input
+                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-zinc-800 dark:text-zinc-200"
+                        value={settings.pixelEventName || ''}
+                        onChange={(e) => setSettings(prev => ({ ...prev, pixelEventName: e.target.value }))}
+                        placeholder="Lead (Default), CompleteRegistration, etc."
+                      />
+                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                        Fires custom Meta Pixel tracking event on successful submission before redirect.
+                      </p>
                     </div>
                   </div>
+                </div>
+
+                {/* Contact Deduplication & Security Settings */}
+                <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none group p-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(settings.disallowDuplicateSubmissions)}
+                      onChange={(e) => setSettings(prev => ({ ...prev, disallowDuplicateSubmissions: e.target.checked }))}
+                      className="mt-0.5 w-4 h-4 text-indigo-600 rounded border-zinc-300 dark:border-zinc-700 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="block text-xs font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        No multiple submission from the same contact information
+                      </span>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                        Block respondents from submitting more than once using the same phone number or email address.
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
             </div>
@@ -2683,20 +2778,19 @@ print(response.json())`}
             </div>
           </div>
 
-          {/* Webhook & Tracking */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 space-y-4">
-              <div className="flex items-center gap-2"><Webhook className="w-5 h-5 text-indigo-600" /><h3 className="text-sm font-bold text-zinc-900 dark:text-white">Outbound Webhook</h3></div>
-              <p className="text-xs text-zinc-500">Push real-time lead payloads to Zapier, Make.com, n8n.</p>
-              <input className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-mono" value={settings.webhookUrl || ''} onChange={(e) => setSettings(prev => ({ ...prev, webhookUrl: e.target.value }))} placeholder="https://hooks.zapier.com/hooks/catch/..." />
+          {/* Outbound Webhook */}
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Webhook className="w-5 h-5 text-indigo-600" />
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Outbound Webhook</h3>
             </div>
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 space-y-4">
-              <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-600" /><h3 className="text-sm font-bold text-zinc-900 dark:text-white">Ad Tracking & Redirect</h3></div>
-              <div className="space-y-3">
-                <div><label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Redirect URL on Submit</label><input className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs" value={settings.redirectUrl || ''} onChange={(e) => setSettings(prev => ({ ...prev, redirectUrl: e.target.value }))} placeholder="https://yourwebsite.com/thank-you" /></div>
-                <div><label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Meta Pixel Event Name</label><input className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs" value={settings.pixelEventName || 'Lead'} onChange={(e) => setSettings(prev => ({ ...prev, pixelEventName: e.target.value }))} placeholder="Lead, CompleteRegistration, etc." /></div>
-              </div>
-            </div>
+            <p className="text-xs text-zinc-500">Push real-time lead payloads to Zapier, Make.com, n8n, or your custom CRM endpoints on every submission.</p>
+            <input 
+              className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-mono" 
+              value={settings.webhookUrl || ''} 
+              onChange={(e) => setSettings(prev => ({ ...prev, webhookUrl: e.target.value }))} 
+              placeholder="https://hooks.zapier.com/hooks/catch/..." 
+            />
           </div>
 
           {/* Embed Codes */}
@@ -2717,238 +2811,25 @@ print(response.json())`}
       {/* ══════════════════════════════════════════════════════════════════════════
           TAB 4: SUBMISSIONS
           ══════════════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════════════
+          TAB 4: SUBMISSIONS & LEAD INTELLIGENCE
+          ══════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'submissions' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search submissions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
-                />
-              </div>
-              {selectedSubIds.length > 0 && (
-                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1 rounded-xl border border-indigo-200 dark:border-indigo-900/50">
-                  {selectedSubIds.length} selected
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {selectedSubIds.length > 0 ? (
-                <>
-                  <button
-                    onClick={() => setSelectedSubIds([])}
-                    className="px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
-                  >
-                    Deselect All
-                  </button>
-                  <button
-                    onClick={() => promptDeleteSubmissions(selectedSubIds)}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedSubIds.length})
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handleExportCsv}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-xl text-xs font-semibold transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Export CSV
-                  </button>
-                  {filteredSubmissions.length > 0 && (
-                    <button
-                      onClick={() => promptDeleteSubmissions(filteredSubmissions.map(s => s.id))}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-xl text-xs font-semibold transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Delete All
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-          {filteredSubmissions.length === 0 ? (
-            <div className="p-12 text-center space-y-2">
-              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No submissions yet</p>
-              <p className="text-xs text-zinc-400">Responses will appear here.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 uppercase tracking-wider text-[10px] border-b border-zinc-100 dark:border-zinc-800">
-                  <tr>
-                    <th className="px-4 py-3 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        checked={filteredSubmissions.length > 0 && selectedSubIds.length === filteredSubmissions.length}
-                        onChange={handleSelectAllSubmissions}
-                        className="rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                      />
-                    </th>
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3">Lead Summary</th>
-                    <th className="px-5 py-3">CRM Sync</th>
-                    <th className="px-5 py-3">IP</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {filteredSubmissions.map(sub => {
-                    const isSelected = selectedSubIds.includes(sub.id);
-                    return (
-                      <tr key={sub.id} className={`hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''}`}>
-                        <td className="px-4 py-3.5 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleSubSelection(sub.id)}
-                            className="rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-5 py-3.5 text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
-                          {new Date(sub.submittedAt).toLocaleDateString()} {new Date(sub.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <div className="flex flex-col gap-0.5">
-                            {(() => {
-                              const validValues = (sub.values || []).filter((v: any) => Boolean(v.value && String(v.value).trim()) || Boolean(v.fileUrl));
-                              if (validValues.length > 0) {
-                                return validValues.slice(0, 3).map((v: any, i: number) => (
-                                  <span key={i} className="text-xs text-zinc-800 dark:text-zinc-200 font-medium truncate max-w-xs">
-                                    {v.label || v.field?.label || `Field ${i + 1}`}: {v.value || (v.fileUrl ? 'Attachment' : '—')}
-                                  </span>
-                                ));
-                              }
-                              return <span className="text-zinc-400 text-[11px] italic">No response data</span>;
-                            })()}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 whitespace-nowrap">
-                          {sub.leadId ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20">
-                              <Zap className="w-3 h-3 text-emerald-500" /> Pipeline Lead
-                            </span>
-                          ) : (
-                            <span className="text-zinc-400 text-[11px]">—</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-zinc-500 font-mono text-[11px] whitespace-nowrap">{sub.ipAddress || '—'}</td>
-                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => setSelectedSubmission(sub)}
-                              className="px-2.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={() => promptDeleteSubmissions([sub.id])}
-                              title="Delete submission and linked CRM lead"
-                              className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <LeadSubmissionsManager
+          formId={effectiveId}
+          formTitle={title || 'Untitled Form'}
+          formCode={formCode || slug}
+          viewsCount={viewsCount}
+          conversionRate={conversionRate}
+          submissions={submissions}
+          onSubmissionsChange={(updated) => setSubmissions(updated)}
+          onRefresh={async () => {
+            const subResponse = await api.get(`/api/forms/${formId}/submissions`);
+            setSubmissions(subResponse.data.data.submissions || []);
+          }}
+          accentColor={accentColor}
+        />
       )}
-
-      {/* Lead Detail Modal */}
-      {selectedSubmission && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
-              <div>
-                <h3 className="text-base font-bold text-zinc-900 dark:text-white">Submission Details</h3>
-                <p className="text-xs text-zinc-400">ID: {selectedSubmission.id}</p>
-              </div>
-              <button onClick={() => setSelectedSubmission(null)} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-2 text-xs bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl">
-                <div>
-                  <span className="text-zinc-400 block text-[10px] uppercase">Submitted At</span>
-                  <strong className="text-zinc-700 dark:text-zinc-300">{new Date(selectedSubmission.submittedAt).toLocaleString()}</strong>
-                </div>
-                <div>
-                  <span className="text-zinc-400 block text-[10px] uppercase">Pipeline Status</span>
-                  <strong className="text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                    {selectedSubmission.leadId ? <><Zap className="w-3 h-3 text-emerald-500" /> Synced Lead</> : 'Standard'}
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-zinc-400 block text-[10px] uppercase">IP Address</span>
-                  <strong className="text-zinc-700 dark:text-zinc-300 font-mono">{selectedSubmission.ipAddress || 'N/A'}</strong>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Submitted Values</h4>
-                {(() => {
-                  const validModalValues = (selectedSubmission.values || []).filter((v: any) => Boolean(v.value && String(v.value).trim()) || Boolean(v.fileUrl));
-                  if (validModalValues.length > 0) {
-                    return validModalValues.map((val: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800 space-y-1">
-                        <span className="text-[11px] font-semibold text-zinc-500 uppercase">{val.label || val.field?.label || `Field ${idx + 1}`}</span>
-                        {val.fileUrl ? (
-                          <a href={val.fileUrl} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-indigo-600 hover:underline">
-                            📎 {val.fileName || 'Download'}
-                          </a>
-                        ) : (
-                          <p className="text-xs text-zinc-800 dark:text-zinc-200 font-medium whitespace-pre-wrap">{val.value || '—'}</p>
-                        )}
-                      </div>
-                    ));
-                  }
-                  return <p className="text-xs text-zinc-400 italic p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-100 dark:border-zinc-800">No field responses recorded for this submission.</p>;
-                })()}
-              </div>
-            </div>
-            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <button
-                onClick={() => promptDeleteSubmissions([selectedSubmission.id])}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 rounded-xl text-xs font-semibold transition-colors border border-rose-200 dark:border-rose-900/50"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Delete Submission
-              </button>
-              <button
-                onClick={() => setSelectedSubmission(null)}
-                className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold rounded-xl text-zinc-700 dark:text-zinc-200"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Modal for Submissions Deletion */}
-      <ConfirmModal
-        isOpen={confirmDeleteModal.open}
-        title={confirmDeleteModal.title}
-        message={confirmDeleteModal.description}
-        confirmText={deletingSubmissions ? "Deleting..." : "Delete Permanently"}
-        cancelText="Cancel"
-        loading={deletingSubmissions}
-        variant="danger"
-        onConfirm={executeDeleteSubmissions}
-        onCancel={() => setConfirmDeleteModal({ open: false, title: '', description: '', idsToDelete: [] })}
-      />
 
       {/* Confirm Modal */}
       <ConfirmModal
