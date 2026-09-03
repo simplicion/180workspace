@@ -22,3 +22,10 @@
 ## 4. Styling Approach
 - Use Tailwind CSS exclusively. No inline styles (`style={{...}}`) unless dynamically calculating values that Tailwind cannot handle.
 
+## 5. Universal Skeleton Loading & Lifecycle Boundaries
+- **NEVER** use generic text spinners (`Loading...`, `Fetching...`) or ad-hoc custom skeleton divs in page components.
+- Always use the centralized, adaptive skeleton system from `@workspace/ui`:
+  - **Single Components:** `<UniversalSkeleton type="kanban" | "table" | "financial" | "projects" | "metrics" | "chat" | "calendar" | "form" | "editor" | "detail" | "activity" />` (or `<AdaptiveSkeleton />`).
+  - **Full Container Lifecycles:** Use `<SkeletonBoundary loading={isLoading} error={error} empty={data.length === 0} skeletonType="table">{children}</SkeletonBoundary>` to handle loading, error alerts, and empty states smoothly without layout shifts (CLS).
+  - Skeletons automatically adapt to dark mode and match the exact pixel geometry of target components.
+

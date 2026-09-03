@@ -39,9 +39,16 @@ export class WorkLogService {
     static async submitWorkLog(data: any, user: UserContext) {
         const { projectId, moduleId, taskId, description, hoursSpent, workDate, links, attachmentUrls, voiceMessageUrl, isWorkCompleted, status, reviewComment } = data;
         
+        let companyId = user.companyId || (requestContext.getStore()?.companyId as string);
+        if (!companyId) {
+            const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { companyId: true } });
+            companyId = dbUser?.companyId || undefined;
+        }
+
         const workLog = await prisma.workLog.create({
             data: {
                 userId: user.id,
+                companyId,
                 projectId,
                 moduleId: moduleId || null,
                 taskId: taskId || null,
@@ -56,10 +63,21 @@ export class WorkLogService {
                 reviewComment: reviewComment || ''
             },
             include: {
-                user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                user: { select: { id: true, name: true, photoUrl: true, role: true } },
+                task: { 
+                    select: { 
+                        id: true, 
+                        title: true, 
+                        description: true, 
+                        estimatedHours: true,
+                        creatorId: true,
+                        assigneeId: true,
+                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                    } 
+                },
                 module: { select: { id: true, title: true } },
-                project: { select: { id: true, name: true } }
+                project: { select: { id: true, name: true, ownerId: true } }
             }
         });
         
@@ -68,6 +86,24 @@ export class WorkLogService {
                 where: { id: taskId },
                 data: { status: 'in_review' }
             });
+
+            // Notify the task creator/assigner that a work log has been submitted for review (fire-and-forget in background)
+            if (workLog.task?.creatorId && workLog.task.creatorId !== user.id && triggerAutomation) {
+                triggerAutomation({
+                    eventType: 'work_log_submitted',
+                    triggeredBy: user.id,
+                    targetUser: workLog.task.creatorId,
+                    relatedItem: { itemId: workLog.id, itemModel: 'WorkLog' },
+                    description: `${user.name || 'An employee'} submitted a work log for review on task: "${workLog.task.title}"`,
+                    sendEmailNotification: true,
+                    metadata: {
+                        taskTitle: workLog.task.title,
+                        hoursSpent: hoursSpent || 0,
+                        submittedBy: user.name || 'Employee',
+                        workLogId: workLog.id
+                    }
+                }).catch(err => console.error('[WorkLogService] background automation error:', err));
+            }
         }
         
         const mappedLog = mapLogs([workLog])[0];
@@ -81,8 +117,19 @@ export class WorkLogService {
         const logs = await prisma.workLog.findMany({
             where: { projectId },
             include: {
-                user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                user: { select: { id: true, name: true, photoUrl: true, role: true } },
+                task: { 
+                    select: { 
+                        id: true, 
+                        title: true, 
+                        description: true, 
+                        estimatedHours: true,
+                        creatorId: true,
+                        assigneeId: true,
+                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                    } 
+                },
                 module: { select: { id: true, title: true } },
                 project: { select: { id: true, name: true } }
             },
@@ -97,8 +144,19 @@ export class WorkLogService {
         const logs = await prisma.workLog.findMany({
             where,
             include: {
-                user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                user: { select: { id: true, name: true, photoUrl: true, role: true } },
+                task: { 
+                    select: { 
+                        id: true, 
+                        title: true, 
+                        description: true, 
+                        estimatedHours: true,
+                        creatorId: true,
+                        assigneeId: true,
+                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                    } 
+                },
                 module: { select: { id: true, title: true } },
                 project: { select: { id: true, name: true } }
             },
@@ -112,8 +170,19 @@ export class WorkLogService {
         const logs = await prisma.workLog.findMany({
             where,
             include: {
-                user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                user: { select: { id: true, name: true, photoUrl: true, role: true } },
+                task: { 
+                    select: { 
+                        id: true, 
+                        title: true, 
+                        description: true, 
+                        estimatedHours: true,
+                        creatorId: true,
+                        assigneeId: true,
+                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                    } 
+                },
                 module: { select: { id: true, title: true } },
                 project: { select: { id: true, name: true } }
             },
@@ -122,15 +191,46 @@ export class WorkLogService {
         return { success: true, logs: mapLogs(logs) };
     }
 
-    static async getPendingReviews(query: any) {
-        const where = { ...getQueryFilters(query), status: 'pending' };
+    static async getPendingReviews(query: any, user: UserContext) {
+        const companyId = user?.companyId || (requestContext.getStore()?.companyId as string);
+        const userRoles = user?.roles || [user?.role || 'employee'];
+        const isAdminOrCeo = userRoles.includes('admin') || userRoles.includes('ceo') || user?.role === 'admin' || user?.role === 'ceo';
+
+        const baseWhere: any = { 
+            ...getQueryFilters(query), 
+            status: 'pending' 
+        };
+        if (companyId) {
+            baseWhere.companyId = companyId;
+        }
+
+        if (!isAdminOrCeo && user?.id) {
+            // Only show pending reviews for tasks where the current user is the assigner (creator) or self-assigned
+            baseWhere.OR = [
+                { task: { creatorId: user.id } },
+                { userId: user.id },
+                { project: { ownerId: user.id } }
+            ];
+        }
+
         const logs = await prisma.workLog.findMany({
-            where,
+            where: baseWhere,
             include: {
-                user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                user: { select: { id: true, name: true, photoUrl: true, role: true } },
+                task: { 
+                    select: { 
+                        id: true, 
+                        title: true, 
+                        description: true, 
+                        estimatedHours: true,
+                        creatorId: true,
+                        assigneeId: true,
+                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                    } 
+                },
                 module: { select: { id: true, title: true } },
-                project: { select: { id: true, name: true } }
+                project: { select: { id: true, name: true, ownerId: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -144,8 +244,19 @@ export class WorkLogService {
         const logs = await prisma.workLog.findMany({
             where,
             include: {
-                user: { select: { id: true, name: true, photoUrl: true } },
-                task: { select: { id: true, title: true, description: true, estimatedHours: true } },
+                user: { select: { id: true, name: true, photoUrl: true, role: true } },
+                task: { 
+                    select: { 
+                        id: true, 
+                        title: true, 
+                        description: true, 
+                        estimatedHours: true,
+                        creatorId: true,
+                        assigneeId: true,
+                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+                    } 
+                },
                 module: { select: { id: true, title: true } },
                 project: { select: { id: true, name: true } }
             },
@@ -197,10 +308,46 @@ export class WorkLogService {
     static async reviewWorkLog(id: string, data: any, user: UserContext) {
         const { status, reviewComment } = data;
         
+        const existingLog = await prisma.workLog.findUnique({
+            where: { id },
+            include: { 
+                task: { 
+                    include: { 
+                        creator: true,
+                        assignee: true,
+                        project: true 
+                    } 
+                },
+                project: true
+            }
+        });
+
+        if (!existingLog) {
+            throw new Error('Work log not found');
+        }
+
+        const userRoles = user.roles || [user.role || 'employee'];
+        const isAdminOrCeo = userRoles.includes('admin') || userRoles.includes('ceo') || user.role === 'admin' || user.role === 'ceo';
+        const isTaskCreator = existingLog.task?.creatorId?.toString() === user.id.toString();
+        const isSelfAssigned = isTaskCreator && existingLog.userId.toString() === user.id.toString();
+        const isProjectOwner = existingLog.project?.ownerId?.toString() === user.id.toString();
+
+        if (!isAdminOrCeo && !isTaskCreator && !isSelfAssigned && !isProjectOwner) {
+            throw new Error('Access denied. Only the user who assigned this task or an administrator can review this work log.');
+        }
+
         const workLog = await prisma.workLog.update({
             where: { id },
-            data: { status, reviewComment },
-            include: { task: true }
+            data: { 
+                status, 
+                reviewComment: reviewComment || '',
+                reviewedById: user.id,
+                reviewedAt: new Date()
+            },
+            include: { 
+                task: true,
+                user: { select: { id: true, name: true, email: true } }
+            }
         });
         
         if (status === 'rejected' && workLog.taskId) {
@@ -208,10 +355,26 @@ export class WorkLogService {
                 where: { id: workLog.taskId },
                 data: { status: 'in_progress' }
             });
+
+            if (triggerAutomation) {
+                triggerAutomation({
+                    eventType: 'work_log_rejected',
+                    triggeredBy: user.id,
+                    targetUser: workLog.userId,
+                    relatedItem: { itemId: workLog.id, itemModel: 'WorkLog' },
+                    description: `Your work log for task "${existingLog.task?.title || 'Task'}" was requested for revisions: "${reviewComment || 'Please revise and resubmit'}"`,
+                    sendEmailNotification: true,
+                    metadata: {
+                        taskTitle: existingLog.task?.title,
+                        reviewComment: reviewComment || '',
+                        reviewedBy: user.name || 'Assigner'
+                    }
+                }).catch(err => console.error('[WorkLogService] rejection automation error:', err));
+            }
         }
         
         if (status === 'approved' && workLog.taskId) {
-            const oldTask = workLog.task;
+            const oldTask = existingLog.task;
             if (oldTask && oldTask.status !== 'done') {
                 const now = new Date();
                 const isOnTime = oldTask.dueDate ? now <= new Date(oldTask.dueDate) : true;
@@ -233,13 +396,19 @@ export class WorkLogService {
                 }
 
                 if (triggerAutomation) {
-                    await triggerAutomation({
+                    triggerAutomation({
                         eventType: 'task_completed',
                         triggeredBy: user.id,
+                        targetUser: workLog.userId,
                         relatedItem: { itemId: oldTask.id, itemModel: 'Task' },
-                        description: `Task "${oldTask.title}" has been completed! +1 achievement point awarded.`,
-                        metadata: { taskName: oldTask.title, completedOnTime: isOnTime }
-                    });
+                        description: `Task "${oldTask.title}" review was approved and confirmed as completed!`,
+                        sendEmailNotification: true,
+                        metadata: { 
+                            taskName: oldTask.title, 
+                            completedOnTime: isOnTime,
+                            reviewedBy: user.name || 'Assigner'
+                        }
+                    }).catch(err => console.error('[WorkLogService] approval automation error:', err));
                 }
             }
         }

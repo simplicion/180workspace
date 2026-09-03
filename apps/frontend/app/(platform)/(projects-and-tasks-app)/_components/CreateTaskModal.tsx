@@ -2,6 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '@/lib/api';
 import { X, CheckSquare, AlignLeft, FolderKanban, User, Flag, Calendar, Layout, Paperclip, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -28,6 +29,15 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
     const { user } = useAuth();
     const dispatch = useDispatch();
     const [loading, setLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
     const [projects, setProjects] = useState<any[]>([]);
     const [employees, setEmployees] = useState<any[]>([]);
     const [form, setForm] = useState({
@@ -184,9 +194,11 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
     // Use all employees as available assignees
     const availableAssignees = employees;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    if (!mounted) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center">
@@ -450,6 +462,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

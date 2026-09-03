@@ -2,6 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '@/lib/api';
 import { X, Briefcase, Layout, CheckSquare, Clock, Calendar, Link as LinkIcon, Plus, Trash2, CheckCircle2, FileText, Paperclip, Phone, Mail, Users as UsersIcon, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -21,6 +22,7 @@ interface Props {
 export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, taskId, initialTaskId }: Props) {
     const { user } = useAuth();
     const [submitting, setSubmitting] = useState(false);
+    const [mounted, setMounted] = useState(false);
     
     // Lists for dropdowns
     const [projects, setProjects] = useState<any[]>([]);
@@ -30,6 +32,14 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
     // Loading states
     const [loadingModules, setLoadingModules] = useState(false);
     const [loadingTasks, setLoadingTasks] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     // Form state
     const [form, setForm] = useState({
@@ -212,47 +222,55 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         setLinks(next);
     };
 
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
+    async function handleSubmit(e?: React.FormEvent) {
+        if (e && e.preventDefault) e.preventDefault();
         if (!isSalesActivity) {
             if (!form.projectId) return toast.error('Please select a project');
             if (!form.taskId) return toast.error('Please select a specific task');
-            if (!form.hoursSpent) return toast.error('Hours spent is required');
+            if (!form.hoursSpent || isNaN(parseFloat(form.hoursSpent)) || parseFloat(form.hoursSpent) <= 0) {
+                return toast.error('Valid hours spent is required (e.g. 1.5)');
+            }
         }
-        if (!form.description) return toast.error('Please describe what you worked on');
+        if (!form.description || !form.description.trim()) {
+            return toast.error('Please describe what you worked on');
+        }
 
         setSubmitting(true);
         try {
             let finalVoiceUrl = form.voiceMessageUrl;
+            let uploadedFileUrls: string[] = [];
 
-            const uploadedFileUrls: string[] = [];
             if (selectedFiles.length > 0) {
-                for (let i = 0; i < selectedFiles.length; i++) {
-                    const file = selectedFiles[i];
+                const uploadPromises = selectedFiles.map(file => {
                     const formData = new FormData();
                     formData.append('file', file);
-                    
-                    const { data: uploadData } = await api.post('/api/files/upload', formData, {
+                    return api.post('/api/files/upload', formData, {
                         headers: { 'Content-Type': 'multipart/form-data' }
+                    }).then(res => res.data?.url).catch(err => {
+                        console.error('File upload failed', err);
+                        return null;
                     });
-                    uploadedFileUrls.push(uploadData.url);
-                }
+                });
+                const results = await Promise.all(uploadPromises);
+                uploadedFileUrls = results.filter(Boolean);
             }
 
-            // Upload multiple blobs if any
             if (voiceBlobs.length > 0) {
-                const uploadedUrls = [];
-                for (let i = 0; i < voiceBlobs.length; i++) {
-                    const blob = voiceBlobs[i];
+                const voicePromises = voiceBlobs.map((blob, i) => {
                     const formData = new FormData();
                     formData.append('file', blob, `voice-note-${Date.now()}-${i}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`);
-                    
-                    const { data: uploadData } = await api.post('/api/files/upload-voice', formData, {
+                    return api.post('/api/files/upload-voice', formData, {
                         headers: { 'Content-Type': 'multipart/form-data' }
+                    }).then(res => res.data?.url).catch(err => {
+                        console.error('Voice upload failed', err);
+                        return null;
                     });
-                    uploadedUrls.push(uploadData.url);
+                });
+                const voiceResults = await Promise.all(voicePromises);
+                const validVoiceUrls = voiceResults.filter(Boolean);
+                if (validVoiceUrls.length > 0) {
+                    finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${validVoiceUrls.join(',')}` : validVoiceUrls.join(',');
                 }
-                finalVoiceUrl = finalVoiceUrl ? `${finalVoiceUrl},${uploadedUrls.join(',')}` : uploadedUrls.join(',');
             }
 
             const payload: any = {
@@ -297,9 +315,11 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         }
     }
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col">
+    if (!mounted) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
@@ -325,7 +345,8 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto hidden-scrollbar px-6 py-5 space-y-6">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto hidden-scrollbar px-6 py-5 space-y-6">
                     
 
 
@@ -465,7 +486,7 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                             >
                                 <option value="">Select Task</option>
                                 {tasks.map(t => (
-                                    <option key={t.id} value={t.id} disabled={t.status !== 'in_progress'}>
+                                    <option key={t.id} value={t.id}>
                                         {t.title} ({t.status.replace('_', ' ')})
                                     </option>
                                 ))}
@@ -627,31 +648,34 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                             </label>
                         </div>
                     )}
-                </form>
+                    </div>
 
-                <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
-                    <button onClick={onClose} type="button" className="btn-secondary">
-                        Cancel
-                    </button>
-                    <button type="submit" 
-                         
-                        disabled={submitting} 
-                        className="btn-primary min-w-[140px]"
-                    >
-                        {submitting ? (
-                            <>
-                                <LogoLoader className="w-4 h-4 animate-spin" />
-                                Submitting...
-                            </>
-                        ) : (
-                            <>
-                                <CheckCircle2 className="w-4 h-4" />
-                                Submit Work Log
-                            </>
-                        )}
-                    </button>
-                </div>
+                    <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 flex-shrink-0 bg-white">
+                        <button onClick={onClose} type="button" className="btn-secondary">
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit" 
+                            onClick={() => handleSubmit()}
+                            disabled={submitting} 
+                            className="btn-primary min-w-[140px]"
+                        >
+                            {submitting ? (
+                                <>
+                                    <LogoLoader className="w-4 h-4 animate-spin" />
+                                    Submitting...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Submit Work Log
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

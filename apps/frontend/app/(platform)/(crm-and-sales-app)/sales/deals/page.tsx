@@ -222,7 +222,7 @@ export default function DealsPage() {
     }, {} as Record<string, any[]>);
 
     return (
-        <div className="h-[calc(100vh-100px)] flex flex-col gap-4">
+        <div className="flex flex-col gap-4 pb-12">
             <div className="page-header flex justify-between items-start shrink-0 mb-0">
                 <div>
                     <h1 className="page-title text-indigo-900 flex items-center gap-2">
@@ -284,9 +284,9 @@ export default function DealsPage() {
             )}
 
             {loading ? (
-                <div className="flex gap-4 overflow-x-auto pb-4 h-full">
+                <div className="flex gap-4 overflow-x-auto pb-4 items-start">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="min-w-[300px] w-[300px] bg-gray-50/50 border border-gray-100 rounded-2xl flex flex-col h-full border-dashed p-4 gap-4">
+                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 border border-gray-100 rounded-2xl flex flex-col min-h-[460px] border-dashed p-4 gap-4">
                             <Skeleton variant="text" height={24} width="120px" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
@@ -300,7 +300,7 @@ export default function DealsPage() {
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
-                    <div className="flex gap-4 overflow-x-auto pb-6 h-full hidden-scrollbar items-stretch">
+                    <div className="flex gap-4 overflow-x-auto pb-6 items-start">
                         {STAGES.map(stage => (
                             <Column
                                 key={stage}
@@ -353,7 +353,7 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
     return (
         <div 
             ref={setNodeRef}
-            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] flex-1 min-h-[420px] flex flex-col', styles.bg, styles.color)}
+            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] shrink-0 min-h-[460px] flex flex-col', styles.bg, styles.color)}
         >
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -362,7 +362,7 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2.5 overflow-y-auto hidden-scrollbar pb-10 flex-1 min-h-[200px]">
+            <div className="flex flex-col gap-2.5 pb-4 flex-1 min-h-[200px]">
                 <SortableContext items={deals.map(o => o.id)} strategy={verticalListSortingStrategy}>
                     {deals.map(deal => (
                         <SortableDealCard 
@@ -374,7 +374,7 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
                 </SortableContext>
 
                 {deals.length === 0 && (
-                    <div className="flex-1 flex items-center justify-center text-gray-300 text-xs select-none">
+                    <div className="flex-1 min-h-[140px] flex items-center justify-center text-gray-300 text-xs select-none">
                         Drop deals here
                     </div>
                 )}

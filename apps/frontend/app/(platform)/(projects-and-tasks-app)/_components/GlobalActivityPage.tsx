@@ -1,8 +1,9 @@
 'use client';
 
 
-import { LogoLoader } from "@workspace/ui";
-import { useEffect, useState, useCallback } from 'react';
+import { LogoLoader, SkeletonActivityFeed, SkeletonTable } from "@workspace/ui";
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
 import { Activity, Clock, Filter, Search, Calendar, User, ArrowUpRight, Bell, CheckCircle2, AlertCircle, DollarSign, Briefcase, Users, FileText, Settings, RefreshCw, ChevronLeft, ChevronRight, Download, CalendarRange, ClipboardList, Info, Monitor, MapPin, X, Globe, Smartphone, Laptop } from 'lucide-react';
@@ -53,11 +54,15 @@ export default function GlobalActivityPage() {
     const currencySymbol = company?.currencySymbol || '$';
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [filter, setFilter] = useState({ eventType: '', startDate: '', endDate: '', page: 1 });
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [filter, setFilter] = useState({ eventType: '', startDate: '', endDate: '' });
     const [searchTerm, setSearchTerm] = useState('');
     const [totalLogs, setTotalLogs] = useState(0);
     const [showLogModal, setShowLogModal] = useState(false);
+    const observerTarget = useRef<HTMLDivElement>(null);
     
     // Tab State
     const [activeTab, setActiveTab] = useState<'activity' | 'audit'>('activity');
@@ -73,6 +78,7 @@ export default function GlobalActivityPage() {
     const fetchLogs = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
+        setPage(1);
 
         try {
             const { data } = await api.get('/api/activity', {
@@ -80,12 +86,15 @@ export default function GlobalActivityPage() {
                     eventType: filter.eventType || undefined,
                     startDate: filter.startDate || undefined,
                     endDate: filter.endDate || undefined,
-                    page: filter.page,
+                    page: 1,
                     limit: 20
                 }
             });
-            setLogs(data.logs || []);
-            setTotalLogs(data.total || 0);
+            const newLogs = data.logs || [];
+            setLogs(newLogs);
+            const total = data.total || 0;
+            setTotalLogs(total);
+            setHasMore(newLogs.length < total);
         } catch (error) {
             toast.error('Failed to load activity feed');
         } finally {
@@ -93,6 +102,34 @@ export default function GlobalActivityPage() {
             setRefreshing(false);
         }
     }, [filter]);
+
+    const loadMoreLogs = useCallback(async () => {
+        if (loading || loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        const nextPage = page + 1;
+
+        try {
+            const { data } = await api.get('/api/activity', {
+                params: {
+                    eventType: filter.eventType || undefined,
+                    startDate: filter.startDate || undefined,
+                    endDate: filter.endDate || undefined,
+                    page: nextPage,
+                    limit: 20
+                }
+            });
+            const newLogs = data.logs || [];
+            setLogs(prev => [...prev, ...newLogs]);
+            setPage(nextPage);
+            const total = data.total || totalLogs;
+            setTotalLogs(total);
+            setHasMore((logs.length + newLogs.length) < total && newLogs.length > 0);
+        } catch (error) {
+            console.error('Failed to load more logs:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [filter, page, loading, loadingMore, hasMore, logs.length, totalLogs]);
 
     const fetchAuditLogs = useCallback(async (page: number = 1, forceRefresh = false) => {
         if (forceRefresh) setRefreshing(true);
@@ -170,6 +207,30 @@ export default function GlobalActivityPage() {
             fetchAuditLogs(1);
         }
     }, [fetchLogs, fetchAuditLogs, activeTab]);
+
+    useEffect(() => {
+        if (activeTab !== 'activity') return;
+
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+                    loadMoreLogs();
+                }
+            },
+            { threshold: 0.1, rootMargin: '150px' }
+        );
+
+        const currentTarget = observerTarget.current;
+        if (currentTarget) {
+            observer.observe(currentTarget);
+        }
+
+        return () => {
+            if (currentTarget) {
+                observer.unobserve(currentTarget);
+            }
+        };
+    }, [activeTab, hasMore, loading, loadingMore, loadMoreLogs]);
 
     const getEventIcon = (type: string, isNotification: boolean) => {
         if (isNotification) return <Bell className="w-4 h-4 text-amber-500" />;
@@ -332,7 +393,7 @@ export default function GlobalActivityPage() {
                             {EVENT_TYPES.map(type => (
                                 <button
                                     key={type.value}
-                                    onClick={() => setFilter(f => ({ ...f, eventType: type.value, page: 1 }))}
+                                    onClick={() => setFilter(f => ({ ...f, eventType: type.value }))}
                                     className={clsx(
                                         "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border",
                                         filter.eventType === type.value
@@ -355,7 +416,7 @@ export default function GlobalActivityPage() {
                                     type="date" 
                                     className="bg-transparent border-none focus:ring-0 text-xs text-gray-700 p-0 m-0 h-auto font-medium"
                                     value={filter.startDate}
-                                    onChange={(e) => setFilter(f => ({ ...f, startDate: e.target.value, page: 1 }))}
+                                    onChange={(e) => setFilter(f => ({ ...f, startDate: e.target.value }))}
                                 />
                             </div>
                             <span className="text-gray-400 text-xs font-medium">to</span>
@@ -364,7 +425,7 @@ export default function GlobalActivityPage() {
                                     type="date" 
                                     className="bg-transparent border-none focus:ring-0 text-xs text-gray-700 p-0 m-0 h-auto font-medium"
                                     value={filter.endDate}
-                                    onChange={(e) => setFilter(f => ({ ...f, endDate: e.target.value, page: 1 }))}
+                                    onChange={(e) => setFilter(f => ({ ...f, endDate: e.target.value }))}
                                 />
                             </div>
                         </div>
@@ -524,7 +585,7 @@ export default function GlobalActivityPage() {
                                     <h3 className="text-sm font-bold text-gray-900">No activity found</h3>
                                     <p className="text-gray-500 text-xs mt-1">There are no logs matching your current filter criteria.</p>
                                     <button 
-                                        onClick={() => { setFilter({ eventType: '', startDate: '', endDate: '', page: 1 }); setSearchTerm(''); }}
+                                        onClick={() => { setFilter({ eventType: '', startDate: '', endDate: '' }); setSearchTerm(''); }}
                                         className="text-indigo-600 text-xs font-bold mt-3 hover:underline"
                                     >
                                         Clear all filters
@@ -534,28 +595,20 @@ export default function GlobalActivityPage() {
                         </div>
                     </div>
 
-                    {/* Pagination */}
-                    {totalLogs > 20 && (
-                        <div className="flex items-center justify-center gap-2 pb-10">
-                            <button 
-                                disabled={filter.page === 1}
-                                onClick={() => setFilter(f => ({ ...f, page: f.page - 1 }))}
-                                className="p-2 rounded-lg bg-white border border-gray-200 text-gray-500 disabled:opacity-50"
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </button>
-                            <span className="text-xs font-bold text-gray-500 px-4">
-                                Page {filter.page} of {Math.ceil(totalLogs / 20)}
-                            </span>
-                            <button 
-                                disabled={filter.page >= Math.ceil(totalLogs / 20)}
-                                onClick={() => setFilter(f => ({ ...f, page: f.page + 1 }))}
-                                className="p-2 rounded-lg bg-white border border-gray-200 text-gray-500 disabled:opacity-50"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
+                    {/* Infinite Scroll Sentinel & Loader */}
+                    <div ref={observerTarget} className="py-6 flex flex-col items-center justify-center gap-2">
+                        {loadingMore && (
+                            <div className="flex items-center gap-2 text-indigo-600">
+                                <LogoLoader className="w-5 h-5 animate-spin" />
+                                <span className="text-xs font-semibold text-gray-500">Loading more activity...</span>
+                            </div>
+                        )}
+                        {!hasMore && logs.length > 0 && !loading && (
+                            <p className="text-xs font-medium text-gray-400">
+                                You&apos;ve reached the end of the activity timeline
+                            </p>
+                        )}
+                    </div>
                 </>
             ) : (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
@@ -609,10 +662,7 @@ function TrendingUpIcon(props: any) {
 
 function AuditLogsList({ logs, loading, page, totalPages, onPageChange, onRowClick }: any) {
     if (loading && logs.length === 0) return (
-        <div className="flex flex-col items-center justify-center py-32 gap-4">
-            <LogoLoader className="w-10 h-10 animate-spin text-indigo-500" />
-            <p className="text-sm font-medium text-gray-500 tracking-wide">Fetching system logs...</p>
-        </div>
+        <SkeletonTable rows={8} columns={5} />
     );
 
     return (
@@ -775,13 +825,13 @@ function parseUserAgent(ua: string) {
 }
 
 function AuditLogDetailsModal({ log, onClose }: { log: any, onClose: () => void }) {
-    if (!log) return null;
+    if (!log || typeof document === 'undefined') return null;
     
     const parsedUA = parseUserAgent(log.userAgent);
     const actionKey = Object.keys(ACTION_COLORS).find(k => log.eventType.includes(k)) || 'LOGOUT';
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -823,60 +873,47 @@ function AuditLogDetailsModal({ log, onClose }: { log: any, onClose: () => void 
                         </div>
                     </div>
 
-                    {/* User & Location Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        {/* Who */}
-                        <div>
-                            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <User className="w-4 h-4 text-indigo-500" />
+                    {/* Actor & Network Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 text-indigo-500" />
                                 Triggered By
                             </h3>
                             {log.triggeredBy ? (
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                                        {log.triggeredBy.name?.[0]?.toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-900">{log.triggeredBy.name}</p>
-                                        <p className="text-xs text-gray-500">{log.triggeredBy.email}</p>
-                                        <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider mt-0.5">
-                                            {log.triggeredBy.role?.replace(/_/g, ' ')}
-                                        </p>
-                                    </div>
+                                <div>
+                                    <p className="text-sm font-bold text-gray-900">{log.triggeredBy.name}</p>
+                                    <p className="text-xs text-gray-500">{log.triggeredBy.email}</p>
+                                    <span className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-200 text-gray-700">
+                                        {log.triggeredBy.role}
+                                    </span>
                                 </div>
                             ) : (
-                                <p className="text-sm text-gray-500 italic">System or Anonymous User</p>
+                                <p className="text-sm text-gray-400 italic">Automated System Action</p>
                             )}
                         </div>
 
-                        {/* Where */}
-                        <div>
-                            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <MapPin className="w-4 h-4 text-emerald-500" />
-                                Location & Device
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <Monitor className="w-3.5 h-3.5 text-indigo-500" />
+                                Client / Device
                             </h3>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-center gap-2 text-sm">
-                                    <Globe className="w-4 h-4 text-gray-400" />
-                                    <span className="text-gray-600 font-mono text-xs">{log.ipAddress || 'Unknown IP'}</span>
-                                </div>
-                                {log.location && (
-                                    <div className="flex items-center gap-2 text-sm pl-[26px]">
-                                        <span className="text-gray-900 font-medium">{log.location}</span>
-                                    </div>
-                                )}
-                                <div className="flex items-center gap-2 text-sm mt-1">
-                                    {parsedUA.type === 'mobile' ? (
-                                        <Smartphone className="w-4 h-4 text-gray-400" />
-                                    ) : (
-                                        <Laptop className="w-4 h-4 text-gray-400" />
-                                    )}
-                                    <span className="text-gray-600">
-                                        {parsedUA.os} • {parsedUA.browser}
-                                    </span>
-                                </div>
+                            <div className="space-y-1 text-xs">
+                                <p className="text-gray-900 font-medium">{parsedUA.browser} on {parsedUA.os}</p>
+                                <p className="text-gray-500 flex items-center gap-1">
+                                    <Globe className="w-3 h-3" />
+                                    IP: {log.ipAddress || '127.0.0.1'}
+                                </p>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Description</h3>
+                        <p className="text-sm text-gray-800 bg-gray-50 p-3.5 rounded-xl border border-gray-100 leading-relaxed">
+                            {log.description}
+                        </p>
                     </div>
 
                     {/* Metadata Details */}
@@ -906,7 +943,7 @@ function AuditLogDetailsModal({ log, onClose }: { log: any, onClose: () => void 
                     </button>
                 </div>
             </motion.div>
-        </div>
+        </div>,
+        document.body
     );
 }
-

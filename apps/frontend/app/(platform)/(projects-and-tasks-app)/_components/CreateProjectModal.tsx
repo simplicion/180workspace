@@ -2,6 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState, FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import api from '@/lib/api';
 import { X, FolderKanban, Plus, Users, Calendar, Flag, Tag, AlignLeft, CheckCircle2, DollarSign, Settings, User, Briefcase, Eye, Building } from 'lucide-react';
 import clsx from 'clsx';
@@ -42,6 +43,15 @@ const VISIBILITY_OPTS = [
 export default function CreateProjectModal({ onClose, onSuccess }: Props) {
     const [step, setStep] = useState(1);
     const [submitting, setSubmitting] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     // Step 1 — Details
     const [name, setName] = useState('');
@@ -148,11 +158,13 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
         if (step < 3) setStep(s => s + 1);
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    if (!mounted) return null;
 
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg z-10 flex flex-col max-h-[90vh]">
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <div className="flex items-center gap-3">
@@ -348,6 +360,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: Props) {
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

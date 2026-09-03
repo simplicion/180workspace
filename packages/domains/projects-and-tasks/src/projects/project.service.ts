@@ -252,7 +252,10 @@ export class ProjectService {
     static async getProjectTasks(projectId: string) {
         const tasks = await prisma.task.findMany({
             where: { projectId, deletedAt: null },
-            include: { assignee: { select: { id: true, name: true, email: true, photoUrl: true } } },
+            include: { 
+                assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+            },
             orderBy: { createdAt: 'desc' }
         });
         return { tasks };

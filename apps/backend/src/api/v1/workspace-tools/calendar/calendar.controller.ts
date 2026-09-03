@@ -8,21 +8,24 @@ import { logAction } from '../../../../system-configs/utils/audit';
 export const getEvents = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { year, month } = req.query;
+        const companyId = (req as any).user?.companyId;
         let filter: any = {};
         
+        if (companyId) {
+            filter.companyId = companyId;
+        }
+
         if (year && month) {
             const y = parseInt(year as string, 10);
             const m = parseInt(month as string, 10);
             const monthStart = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
             const monthEnd = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
 
-            filter = {
-                startDate: { lte: monthEnd },
-                OR: [
-                    { endDate: { gte: monthStart } },
-                    { endDate: null }
-                ],
-            };
+            filter.startDate = { lte: monthEnd };
+            filter.OR = [
+                { endDate: { gte: monthStart } },
+                { endDate: null }
+            ];
         }
         
         const events = await CalendarService.getEvents(filter);
