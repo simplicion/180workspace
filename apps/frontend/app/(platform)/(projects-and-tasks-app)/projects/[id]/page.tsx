@@ -917,23 +917,40 @@ export default function ProjectDetailPage() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    {task.assignee && (
-                                                        <div className={clsx(
-                                                            "w-5 h-5 rounded-full flex items-center justify-center relative shadow-sm ring-1 ring-white",
-                                                            task.assignee.role && ROLE_CONFIG[task.assignee.role] ? ROLE_CONFIG[task.assignee.role].bg : "bg-gray-400"
-                                                        )}>
-                                                            {task.assignee.profilePicture || task.assignee.photoUrl ? (
-                                                                <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt={task.assignee.name} className="w-5 h-5 rounded-full object-cover" />
-                                                            ) : (
-                                                                <span className="text-white text-[9px] font-bold">{task.assignee?.name?.[0]?.toUpperCase()}</span>
-                                                            )}
-                                                            {/* Tiny Role Dot */}
-                                                            <div className={clsx(
-                                                                "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white shadow-xs",
-                                                                task.assignee.role && ROLE_CONFIG[task.assignee.role] ? ROLE_CONFIG[task.assignee.role].bg : "bg-gray-400"
-                                                            )} />
-                                                        </div>
-                                                    )}
+                                                    <div className="flex items-center gap-1.5 ml-auto">
+                                                        {task.creator && (
+                                                            <div 
+                                                                className="w-5 h-5 rounded-full flex items-center justify-center relative shadow-sm ring-1 ring-purple-200 bg-purple-100 text-purple-800 text-[8px] font-bold overflow-hidden"
+                                                                title={`Assigned by: ${task.creator.name}`}
+                                                            >
+                                                                {task.creator.photoUrl ? (
+                                                                    <img src={task.creator.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    task.creator.name?.[0]?.toUpperCase() || 'A'
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {task.creator && task.assignee && (
+                                                            <span className="text-[9px] text-gray-300">→</span>
+                                                        )}
+                                                        {task.assignee ? (
+                                                            <div 
+                                                                className={clsx(
+                                                                    "w-5 h-5 rounded-full flex items-center justify-center relative shadow-sm ring-1 ring-white overflow-hidden",
+                                                                    task.assignee.role && ROLE_CONFIG[task.assignee.role] ? ROLE_CONFIG[task.assignee.role].bg : "bg-gray-400"
+                                                                )}
+                                                                title={`Working by: ${task.assignee.name}`}
+                                                            >
+                                                                {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                                                    <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt={task.assignee.name} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <span className="text-white text-[9px] font-bold">{task.assignee?.name?.[0]?.toUpperCase()}</span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[9px] text-gray-400 italic">Unassigned</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}

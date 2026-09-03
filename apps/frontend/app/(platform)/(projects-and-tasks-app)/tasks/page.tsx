@@ -8,6 +8,7 @@ import { SkeletonListItem, SkeletonKanbanColumn } from "@workspace/ui";
 import clsx from 'clsx';
 import TaskDetailModal from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskDetailModal';
 import CreateTaskModal from '@/app/(platform)/(projects-and-tasks-app)/_components/CreateTaskModal';
+import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/LogWorkModal';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
@@ -50,6 +51,7 @@ export default function TasksPage() {
     const [modules, setModules] = useState<any[]>([]);
 
     const [selectedTask, setSelectedTask] = useState<string | null>(null);
+    const [logWorkTask, setLogWorkTask] = useState<any | null>(null);
     const [showCreate, setShowCreate] = useState(false);
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const { user } = useAuth();
@@ -110,19 +112,16 @@ export default function TasksPage() {
     // Kanban drag-and-drop
     const handleDrop = async (columnId: string) => {
         if (!draggedId) return;
-        
-        // Restrict movement to In Review / Done for non-admins/managers
-        const isRestricted = columnId === 'in_review' || columnId === 'done';
-        const isAdmin = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'));
-        
-        if (isRestricted && !isAdmin) {
-            toast.error(`"${columnId.replace('_', ' ')}" status is automatically managed via the 'Log Work' feature.`);
+
+        const task = tasks.find(t => t.id === draggedId);
+        if (!task || task.status === columnId) { setDraggedId(null); return; }
+
+        if (columnId === 'in_review' || columnId === 'done') {
+            setLogWorkTask(task);
             setDraggedId(null);
             return;
         }
 
-        const task = tasks.find(t => t.id === draggedId);
-        if (!task || task.status === columnId) { setDraggedId(null); return; }
         setTasks(prev => prev.map(t => t.id === draggedId ? { ...t, status: columnId } : t));
         setDraggedId(null);
         try {
@@ -255,19 +254,53 @@ export default function TasksPage() {
                                             {task.projectId?.name && (
                                                 <p className="text-xs text-gray-400 mb-2 ml-4">{task.projectId.name}</p>
                                             )}
-                                            <div className="flex items-center justify-between ml-4">
-                                                {task.dueDate && (
-                                                    <span className="text-xs text-gray-400">{format(new Date(task.dueDate), 'MMM d')}</span>
-                                                )}
-                                                {task.assignee && (
-                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center ml-auto overflow-hidden">
-                                                        {task.assignee.profilePicture || task.assignee.photoUrl ? (
-                                            <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span className="text-white text-[10px] font-bold">{getInitials(task.assignee.name) || <User className="w-3 h-3" />}</span>
-                                        )}
-                                                    </div>
-                                                )}
+                                            <div className="flex items-center justify-between ml-4 mt-2 pt-2 border-t border-gray-50 text-[10px]">
+                                                {task.dueDate ? (
+                                                    <span className="text-gray-400 font-medium">{format(new Date(task.dueDate), 'MMM d')}</span>
+                                                ) : <span />}
+                                                
+                                                <div className="flex items-center gap-1.5">
+                                                    {/* Creator / Assigner */}
+                                                    {task.creator && (
+                                                        <div 
+                                                            className="flex items-center gap-1 bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-full border border-purple-100"
+                                                            title={`Assigned by: ${task.creator.name}`}
+                                                        >
+                                                            <div className="w-3.5 h-3.5 rounded-full overflow-hidden bg-purple-200 flex items-center justify-center text-[7px] font-bold text-purple-800 shrink-0">
+                                                                {task.creator.photoUrl ? (
+                                                                    <img src={task.creator.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    task.creator.name?.[0]?.toUpperCase() || 'A'
+                                                                )}
+                                                            </div>
+                                                            <span className="font-semibold text-[9px] max-w-[60px] truncate">{task.creator.name?.split(' ')[0]}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Arrow connector */}
+                                                    {task.creator && task.assignee && (
+                                                        <span className="text-gray-300 text-[9px]">→</span>
+                                                    )}
+
+                                                    {/* Assignee / Working by */}
+                                                    {task.assignee ? (
+                                                        <div 
+                                                            className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-full border border-indigo-100"
+                                                            title={`Working by: ${task.assignee.name}`}
+                                                        >
+                                                            <div className="w-3.5 h-3.5 rounded-full overflow-hidden bg-indigo-200 flex items-center justify-center text-[7px] font-bold text-indigo-800 shrink-0">
+                                                                {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                                                    <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    task.assignee.name?.[0]?.toUpperCase() || 'U'
+                                                                )}
+                                                            </div>
+                                                            <span className="font-semibold text-[9px] max-w-[60px] truncate">{task.assignee.name?.split(' ')[0]}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400 italic text-[9px]">Unassigned</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -293,19 +326,32 @@ export default function TasksPage() {
                                 <p className="font-medium text-gray-900 truncate group-hover:text-indigo-700 transition-colors">{task.title}</p>
                                 <p className="text-xs text-gray-400 mt-0.5">{task.projectId?.name}</p>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex items-center gap-3 flex-shrink-0">
                                 <span className={clsx('badge', PRIORITY_COLORS[task.priority] || 'badge-gray')}>{task.priority}</span>
                                 <span className="badge badge-gray">{task.status?.replace(/_/g, ' ')}</span>
                                 {task.dueDate && <span className="text-xs text-gray-400">{format(new Date(task.dueDate), 'MMM d')}</span>}
-                                {task.assignee && (
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center overflow-hidden">
-                                        {task.assignee.profilePicture || task.assignee.photoUrl ? (
-                                            <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt={task.assignee.name || "User"} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span className="text-white text-xs font-bold">{getInitials(task.assignee.name) || <User className="w-4 h-4" />}</span>
-                                        )}
-                                    </div>
-                                )}
+                                
+                                <div className="flex items-center gap-2">
+                                    {task.creator && (
+                                        <div className="flex items-center gap-1 text-xs text-purple-700 bg-purple-50 px-2 py-1 rounded-lg border border-purple-100" title={`Assigned by: ${task.creator.name}`}>
+                                            <span className="text-[10px] text-purple-400 font-bold">BY:</span>
+                                            <span className="font-semibold max-w-[70px] truncate">{task.creator.name}</span>
+                                        </div>
+                                    )}
+                                    {task.assignee && (
+                                        <div className="flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100" title={`Working by: ${task.assignee.name}`}>
+                                            <span className="text-[10px] text-indigo-400 font-bold">FOR:</span>
+                                            <div className="w-4 h-4 rounded-full bg-indigo-200 overflow-hidden shrink-0">
+                                                {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                                    <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-[8px] font-bold flex items-center justify-center w-full h-full">{task.assignee.name?.[0]?.toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <span className="font-semibold max-w-[70px] truncate">{task.assignee.name}</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -324,6 +370,19 @@ export default function TasksPage() {
                     onClose={() => setSelectedTask(null)}
                     onUpdated={handleUpdated}
                     onDeleted={handleDeleted}
+                />
+            )}
+
+            {logWorkTask && (
+                <LogWorkModal 
+                    onClose={() => setLogWorkTask(null)} 
+                    onSuccess={() => {
+                        setLogWorkTask(null);
+                        loadTasks();
+                    }}
+                    prefilledTaskId={logWorkTask.id}
+                    prefilledProjectId={logWorkTask.projectId}
+                    prefilledModuleId={logWorkTask.moduleId}
                 />
             )}
         </div>

@@ -145,13 +145,42 @@ export class AutomationService {
     private static async handleEmailDispatch(eventType: string, user: any, params: any, companyPrisma: any) {
         try {
             const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-            await EmailManagementService.sendCustomEmail(
-                'system',
-                user.email,
-                `Notification: ${eventType}`,
-                `${params.description || 'You have a new notification.'}\n\nView details at ${clientUrl}`
-            );
-            return { success: true, skipped: false };
+            
+            const templateData: any = {
+                name: user.name || 'User',
+                ...params.metadata
+            };
+            
+            // Map specific fields for standard templates
+            if (eventType === 'task_assigned') {
+                templateData.taskTitle = params.metadata?.taskName || 'A new task';
+                templateData.taskUrl = `${clientUrl}/dashboard/tasks/${params.relatedItem?.itemId}`;
+            } else if (eventType === 'project_assigned') {
+                templateData.projectUrl = `${clientUrl}/dashboard/projects/${params.relatedItem?.itemId}`;
+            }
+            
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const validSentById = (params.triggeredBy && uuidRegex.test(params.triggeredBy)) ? params.triggeredBy : null;
+
+            try {
+                // Attempt to send via HTML template using the company's configured SMTP
+                await EmailManagementService.sendManualEmail(
+                    validSentById as string,
+                    user.email,
+                    eventType, // Matches template IDs like 'task_assigned', 'project_assigned'
+                    templateData
+                );
+                return { success: true, skipped: false };
+            } catch (templateError) {
+                // Fallback to raw custom email if template doesn't exist
+                await EmailManagementService.sendCustomEmail(
+                    validSentById as string,
+                    user.email,
+                    `Notification: ${eventType.replace('_', ' ').toUpperCase()}`,
+                    `${params.description || 'You have a new notification.'}\n\nView details at ${clientUrl}`
+                );
+                return { success: true, skipped: false, fallback: true };
+            }
         } catch (err: any) {
             return { success: false, error: err.message };
         }

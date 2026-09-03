@@ -18,7 +18,6 @@ import CeoOverview from '@/app/(platform)/(dashboard)/_components/CeoOverview';
 import FinancialSnapshot from '@/app/(platform)/(dashboard)/_components/FinancialSnapshot';
 import OperationsOverview from '@/app/(platform)/(dashboard)/_components/OperationsOverview';
 import ActivityAnalytics from '@/app/(platform)/(dashboard)/_components/ActivityAnalytics';
-import LiveActivityFeed from '@/app/(platform)/(dashboard)/_components/LiveActivityFeed';
 import SalesActivityFeed from '@/app/(platform)/(dashboard)/_components/SalesActivityFeed';
 import SalesOverview from '@/app/(platform)/(dashboard)/_components/SalesOverview';
 import { useGetWeeklyTrendsQuery, useGetHrmsDashboardStatsQuery, useGetRecentProjectsQuery } from '@/redux/api/dashboardApi';
@@ -242,17 +241,6 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                     />
                 </div>
             )}
-
-            {/* 7. Live Team & Project Activity */}
-            <div className="mt-6">
-                {hasProjects ? (
-                    <LiveActivityFeed />
-                ) : (
-                    <FeatureLock title="Project Activity Locked" description="Install the Projects app to view live project activity." className="min-h-[300px]">
-                        <LiveActivityFeed isLocked={true} />
-                    </FeatureLock>
-                )}
-            </div>
         </div>
     );
 }

@@ -2,6 +2,7 @@
 
 import { LogoLoader } from "@workspace/ui";
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Layout, User, AlignLeft, Type } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -20,6 +21,15 @@ export default function CreateModuleModal({ projectId, onClose, onSuccess }: Pro
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [fetchingUsers, setFetchingUsers] = useState(true);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     useEffect(() => {
         api.get('/api/users', { params: { limit: 100 } })
@@ -56,9 +66,11 @@ export default function CreateModuleModal({ projectId, onClose, onSuccess }: Pro
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    if (!mounted) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
 
                 {/* Header — matches CreateTaskModal */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -155,6 +167,7 @@ export default function CreateModuleModal({ projectId, onClose, onSuccess }: Pro
                 </div>
 
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

@@ -33,10 +33,13 @@ export class TaskService {
         }
 
         const userRoles = user.roles || [user.role || 'employee'];
-        const isAdminOrCeo = userRoles.includes('admin');
+        const isAdminOrCeo = userRoles.includes('admin') || userRoles.includes('ceo') || user.role === 'admin' || user.role === 'ceo';
 
         if (!isAdminOrCeo) {
-            query.assigneeId = user.id;
+            query.OR = [
+                { assigneeId: user.id },
+                { creatorId: user.id }
+            ];
         }
 
         const skip = (Number(page) - 1) * Number(limit);
@@ -44,7 +47,8 @@ export class TaskService {
             prisma.task.findMany({
                 where: query,
                 include: {
-                    assignee: { select: { id: true, name: true, email: true, photoUrl: true } },
+                    assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                    creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
                     project: { select: { id: true, name: true, status: true } }
                 },
                 orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
@@ -98,7 +102,8 @@ export class TaskService {
         const task = await prisma.task.create({
             data: cleanData,
             include: {
-                assignee: { select: { id: true, name: true, email: true, photoUrl: true } },
+                assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
                 project: { select: { id: true, name: true, status: true, description: true, progress: true } }
             }
         });
@@ -145,8 +150,8 @@ export class TaskService {
         const task = await prisma.task.findUnique({
             where: { id: taskId },
             include: {
-                assignee: { select: { id: true, name: true, email: true, photoUrl: true } },
-                creator: { select: { id: true, name: true, email: true, photoUrl: true } },
+                assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
                 project: { select: { id: true, name: true, status: true, description: true, progress: true } },
                 module: { select: { id: true, title: true } },
                 workLogs_TaskWorkLogs: {
@@ -164,7 +169,8 @@ export class TaskService {
             ...task,
             project: task.project ? { id: task.project.id, name: task.project.name, status: task.project.status, description: task.project.description, progress: task.project.progress } : null,
             module: task.module ? { id: task.module.id, name: task.module.title } : null,
-            assignee: task.assignee ? { id: task.assignee.id, name: task.assignee.name, photoUrl: task.assignee.photoUrl } : null,
+            assignee: task.assignee ? { id: task.assignee.id, name: task.assignee.name, email: task.assignee.email, photoUrl: task.assignee.photoUrl, role: task.assignee.role } : null,
+            creator: task.creator ? { id: task.creator.id, name: task.creator.name, email: task.creator.email, photoUrl: task.creator.photoUrl, role: task.creator.role } : null,
         };
 
         const attachments = await prisma.document.findMany({
@@ -184,8 +190,8 @@ export class TaskService {
         const oldTask = await prisma.task.findUnique({ where: { id: taskId } });
         if (!oldTask) throw new Error('Task not found');
 
-        const isAdmin = ['admin', 'manager'].includes(user.role || '');
-        const isCreator = false; // oldTask.createdBy not in schema
+        const isAdmin = ['admin', 'manager', 'ceo'].includes(user.role || '');
+        const isCreator = oldTask.creatorId?.toString() === user.id.toString();
         const isAssignee = oldTask.assigneeId?.toString() === user.id.toString();
 
         let isModuleOwner = false;
@@ -226,7 +232,8 @@ export class TaskService {
             where: { id: taskId },
             data: updateData,
             include: {
-                assignee: { select: { id: true, name: true, email: true, photoUrl: true } },
+                assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+                creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
                 project: { select: { id: true, name: true, status: true, description: true, progress: true } }
             }
         });

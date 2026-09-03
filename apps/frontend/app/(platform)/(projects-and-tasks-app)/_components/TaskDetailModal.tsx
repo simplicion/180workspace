@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import api from '@/lib/api';
 import { format } from 'date-fns';
 import { X, CheckSquare, Calendar, User, Tag, AlignLeft, Paperclip, Save, Trash2, Clock, Flag, FolderKanban, CheckCircle2, Link, AlertCircle, CalendarClock } from 'lucide-react';
@@ -35,7 +36,16 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
     const [deleting, setDeleting] = useState(false);
     const [showUpload, setShowUpload] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const { user } = useAuth();
+
+    useEffect(() => {
+        setMounted(true);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     // Editable fields
     const [title, setTitle] = useState('');
@@ -151,11 +161,13 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
 
     const canEdit = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team')) || task?.assigneeId === user?.id || assigneeId === user?.id || task?.creator?.id === user?.id || task?.creatorId === user?.id;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    if (!mounted) return null;
 
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-10 flex flex-col max-h-[90vh]">
+    return createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden">
                 {/* Header */}
                 <div className="flex items-start justify-between p-6 border-b border-gray-100">
                     <div className="flex items-center gap-3 flex-1 min-w-0 mr-4">
@@ -428,10 +440,43 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                     </div>
                                 </div>
 
-                                {/* Assignee */}
+                                {/* Task Assigner / Creator */}
+                                <div className="p-3 bg-purple-50/70 rounded-xl border border-purple-100/60">
+                                    <label className="text-[10px] font-bold text-purple-600 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                                        <User className="w-3 h-3 text-purple-500" />
+                                        Assigned By
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-purple-200 text-purple-800 flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
+                                            {task?.creator?.photoUrl ? (
+                                                <img src={task.creator.photoUrl} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                task?.creator?.name?.[0]?.toUpperCase() || 'A'
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-bold text-gray-900 truncate">{task?.creator?.name || 'Task Creator'}</p>
+                                            <p className="text-[10px] text-purple-700 capitalize">{task?.creator?.role?.replace('_', ' ') || 'Assigner'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {status === 'in_review' && (
+                                    <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl">
+                                        <div className="flex items-center gap-1.5 text-amber-800 font-bold text-xs mb-1">
+                                            <Timer className="w-3.5 h-3.5 text-amber-600" />
+                                            Task In Review
+                                        </div>
+                                        <p className="text-[11px] text-amber-700 leading-snug">
+                                            Work log submitted. Pending review & confirmation by <strong>{task?.creator?.name || 'task assigner'}</strong> or administrator.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Working By / Assignee */}
                                 <div>
                                     <label htmlFor="taskAssignee" className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                                        <User className="w-3 h-3" aria-hidden="true" />Assignee
+                                        <User className="w-3 h-3" aria-hidden="true" />Working By (Assignee)
                                     </label>
                                     {canEdit ? (
                                         <CustomSelect
@@ -591,6 +636,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                 loading={deleting}
                 variant="danger"
             />
-        </div>
+        </div>,
+        document.body
     );
 }

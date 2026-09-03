@@ -8,6 +8,8 @@ import api from '@/lib/api';
 import clsx from 'clsx';
 import CustomSelect from '@/components/ui/CustomSelect';
 
+import { SkeletonFinancialTrajectory } from '@workspace/ui';
+
 export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLocked?: boolean }) {
     const [ceoInsights, setCeoInsights] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -34,14 +36,7 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
     };
 
     if (loading) {
-        return (
-            <div className="card p-6 h-[380px] flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="animate-spin rounded-full h-7 w-7 border-2 border-emerald-200 border-t-emerald-500"></div>
-                    <p className="text-xs text-gray-400 font-medium">Loading financials...</p>
-                </div>
-            </div>
-        );
+        return <SkeletonFinancialTrajectory />;
     }
 
     if (isLocked && !isLockedProp) {

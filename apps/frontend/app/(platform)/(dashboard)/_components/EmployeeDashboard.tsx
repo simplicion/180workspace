@@ -7,7 +7,7 @@ import { CheckSquare, FolderKanban, Clock, Calendar, Star, AlertCircle, Trending
 import clsx from 'clsx';
 import { format, isValid, subDays } from 'date-fns';
 import Link from 'next/link';
-import { TimeProgressBar , LogoLoader, ConfirmModal } from "@workspace/ui";
+import { TimeProgressBar , LogoLoader, ConfirmModal, SkeletonWorkspace } from "@workspace/ui";
 import MarkAttendanceDrawer from '@/app/(platform)/(hr-management-app)/_components/MarkAttendanceDrawer';
 import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/LogWorkModal';
 import { ClipboardCheck } from 'lucide-react';
@@ -139,11 +139,7 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
     }, []);
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-24">
-                <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
-            </div>
-        );
+        return <SkeletonWorkspace />;
     }
 
     if (error) {

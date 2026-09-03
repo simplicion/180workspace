@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Calendar, ChevronRight, Users, CheckCircle2, Clock, AlertTriangle, FolderKanban } from 'lucide-react';
+import { SkeletonProjectGrid } from '@workspace/ui';
 
 interface TaskStats {
     totalTasks: number;
@@ -30,24 +31,7 @@ interface RecentProjectsProps {
 
 export default function RecentProjects({ projects, loading }: RecentProjectsProps) {
     if (loading) {
-        return (
-            <div className="card p-5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl">
-                <div className="flex items-center justify-between mb-5">
-                    <div className="h-6 w-48 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-md" />
-                    <div className="h-4 w-24 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-md" />
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-850/50 space-y-3">
-                            <div className="w-9 h-9 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded-xl" />
-                            <div className="h-4 w-3/4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" />
-                            <div className="h-3 w-1/2 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" />
-                            <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" />
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+        return <SkeletonProjectGrid count={5} />;
     }
 
     const getStatusStyles = (status: string) => {
