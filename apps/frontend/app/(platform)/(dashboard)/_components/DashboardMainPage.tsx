@@ -17,7 +17,6 @@ import FinancialTrajectory from '@/app/(platform)/(dashboard)/_components/Financ
 import CeoOverview from '@/app/(platform)/(dashboard)/_components/CeoOverview';
 import FinancialSnapshot from '@/app/(platform)/(dashboard)/_components/FinancialSnapshot';
 import OperationsOverview from '@/app/(platform)/(dashboard)/_components/OperationsOverview';
-import TeamPulse from '@/app/(platform)/(dashboard)/_components/TeamPulse';
 import ActivityAnalytics from '@/app/(platform)/(dashboard)/_components/ActivityAnalytics';
 import LiveActivityFeed from '@/app/(platform)/(dashboard)/_components/LiveActivityFeed';
 import SalesActivityFeed from '@/app/(platform)/(dashboard)/_components/SalesActivityFeed';
@@ -81,7 +80,7 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     const { user, company } = useAuth();
     const { settings, company: companyConfig } = useSettings();
     const [error, setError] = useState('');
-    const [range, setRange] = useState('7');
+    const [range, setRange] = useState('30');
     const [grouping, setGrouping] = useState('daily');
 
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
@@ -178,31 +177,13 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
             {/* 1. Executive Briefing */}
             <CeoOverview />
 
-            {/* 2. The Engine (Operations & Sales - Urgent & Actionable) */}
+            {/* 2. Operations & Financial Velocity (Urgent & Actionable) */}
             <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
                 {hasHR ? (
-                    <OperationsOverview stats={stats} getStatValue={getStatValue} />
+                    <OperationsOverview stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
                 ) : (
                     <FeatureLock title="Operations Locked" description="Install the HR app to unlock operations insights." className="min-h-[300px]">
-                        <OperationsOverview stats={stats} getStatValue={getStatValue} isLocked={true} />
-                    </FeatureLock>
-                )}
-                {hasCRM ? (
-                    <SalesOverview />
-                ) : (
-                    <FeatureLock title="Sales Locked" description="Install the CRM app to unlock sales analytics." className="min-h-[300px]">
-                        <SalesOverview isLocked={true} />
-                    </FeatureLock>
-                )}
-            </div>
-
-            {/* 3. Health & Money (Team Pulse & Financials) */}
-            <div className={clsx("grid gap-6 mt-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                {hasHR ? (
-                    <TeamPulse stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
-                ) : (
-                    <FeatureLock title="Team Pulse Locked" description="Install the HR app to track team health metrics." className="min-h-[300px]">
-                        <TeamPulse stats={null} getStatValue={() => '—'} getSubText={() => ''} isLocked={true} />
+                        <OperationsOverview stats={stats} getStatValue={getStatValue} getSubText={getSubText} isLocked={true} />
                     </FeatureLock>
                 )}
                 {hasFinance ? (
@@ -214,7 +195,40 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 )}
             </div>
 
-            {/* 4. Deep Analytics (Historical/Trends) */}
+            {/* 3. Sales Pipeline (Lead Volume, Daily Trajectory & Stage Intelligence - Below Merged Operations) */}
+            <div className="mt-6">
+                {hasCRM ? (
+                    <SalesOverview />
+                ) : (
+                    <FeatureLock title="Sales Locked" description="Install the CRM app to unlock sales analytics." className="min-h-[300px]">
+                        <SalesOverview isLocked={true} />
+                    </FeatureLock>
+                )}
+            </div>
+
+            {/* 4. Sales Activity (Just below the Sales Pipeline) */}
+            <div className="mt-6">
+                {hasCRM ? (
+                    <SalesActivityFeed />
+                ) : (
+                    <FeatureLock title="Sales Activity Locked" description="Install the CRM app to view live sales activity." className="min-h-[300px]">
+                        <SalesActivityFeed isLocked={true} />
+                    </FeatureLock>
+                )}
+            </div>
+
+            {/* 5. Execution & Risk (Recent Projects) */}
+            <div className="mt-6">
+                {hasProjects ? (
+                    <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />
+                ) : (
+                    <FeatureLock title="Projects Locked" description="Install the Projects app to view active projects." className="min-h-[300px]">
+                        <RecentProjects projects={[]} loading={false} />
+                    </FeatureLock>
+                )}
+            </div>
+
+            {/* 6. Deep Analytics (Activity Velocity / Trends) */}
             {(hasHR || hasFinance || hasProjects || hasCRM) && (
                 <div className="mt-6">
                     <ActivityAnalytics
@@ -229,26 +243,8 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 </div>
             )}
 
-            {/* 5. Execution & Risk (Projects) */}
+            {/* 7. Live Team & Project Activity */}
             <div className="mt-6">
-                {hasProjects ? (
-                    <RecentProjects projects={recentProjects} loading={fetchingProjects && recentProjects.length === 0} />
-                ) : (
-                    <FeatureLock title="Projects Locked" description="Install the Projects app to view active projects." className="min-h-[300px]">
-                        <RecentProjects projects={[]} loading={false} />
-                    </FeatureLock>
-                )}
-            </div>
-
-            {/* 6. Live Awareness (Activity Feeds) */}
-            <div className={clsx("grid gap-6 mt-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-                {hasCRM ? (
-                    <SalesActivityFeed />
-                ) : (
-                    <FeatureLock title="Sales Activity Locked" description="Install the CRM app to view live sales activity." className="min-h-[300px]">
-                        <SalesActivityFeed isLocked={true} />
-                    </FeatureLock>
-                )}
                 {hasProjects ? (
                     <LiveActivityFeed />
                 ) : (

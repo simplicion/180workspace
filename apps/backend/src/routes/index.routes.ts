@@ -5,9 +5,9 @@ const router = express.Router();
 console.log('[Router] Index routes loaded with Public Edge Traffic Director & Reverse Proxy Streamer');
 
 // Middleware
-const { protect } = require('../system-configs/middleware/auth/auth.ts');
-const subscriptionGuard = require('../system-configs/middleware/auth/subscription-guard.ts').default;
-const moduleGuard = require('../system-configs/middleware/auth/module-guard.ts').default;
+const { protect } = require('../system-configs/middleware/auth/auth');
+const subscriptionGuard = require('../system-configs/middleware/auth/subscription-guard').default;
+const moduleGuard = require('../system-configs/middleware/auth/module-guard').default;
 const { rateLimit } = require('express-rate-limit');
 
 const authLimiter = rateLimit({
@@ -278,7 +278,7 @@ router.get('/bootstrap', protect, require('../api/v1/system/init/init.controller
 router.use(subscriptionGuard);
 
 // ─── Protected Routes (Company) ─────────────────────────────────────────────
-const featureFlagGuard = require('../system-configs/middleware/billing/featureFlagGuard.ts');
+const featureFlagGuard = require('../system-configs/middleware/billing/featureFlagGuard');
 
 // ─── HR ──────────────────────────────────────────────────────────────────
 router.use('/onboarding', protect, moduleGuard('hr'), require('../api/v1/company/onboarding/onboarding.routes').default);

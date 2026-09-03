@@ -18,6 +18,10 @@ export const crmApi = baseApi.injectEndpoints({
       query: (pipelineType: string = 'DEAL') => `/api/sales/leads-pipeline?pipelineType=${pipelineType}`,
       providesTags: ["SalesPipeline"],
     }),
+    getLeads: builder.query<{ leads: any[]; pagination: any }, { page?: number; limit?: number } | void>({
+      query: (params) => `/api/sales/leads?page=${params?.page || 1}&limit=${params?.limit || 200}`,
+      providesTags: ["SalesPipeline"],
+    }),
     getDeals: builder.query({
       query: () => `/api/sales/deals`,
       providesTags: ["SalesPipeline"],
@@ -84,6 +88,7 @@ export const {
   useGetSalesRevenueQuery,
   useGetSalesProductivityQuery,
   useGetLeadsPipelineQuery,
+  useGetLeadsQuery,
   useGetDealsQuery,
   useGetClientsQuery,
   useGetClientByIdQuery,
