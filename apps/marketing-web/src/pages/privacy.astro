@@ -1,0 +1,364 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const lastUpdated = "September 4, 2026";
+const effectiveDate = "January 1, 2026";
+
+const sections = [
+  { id: "overview", title: "1. Overview & Scope" },
+  { id: "information-collected", title: "2. Information We Collect" },
+  { id: "google-data", title: "3. Google API & OAuth Data Use" },
+  { id: "how-we-use", title: "4. How We Use Your Information" },
+  { id: "data-sharing", title: "5. Information Sharing & Third Parties" },
+  { id: "data-retention", title: "6. Data Retention & Deletion" },
+  { id: "security", title: "7. Data Security & Multi-Tenancy" },
+  { id: "your-rights", title: "8. Your Privacy Rights (GDPR & CCPA)" },
+  { id: "cookies", title: "9. Cookies & Tracking Technologies" },
+  { id: "children", title: "10. Children's Privacy" },
+  { id: "updates", title: "11. Policy Changes & Notifications" },
+  { id: "contact", title: "12. Contact Privacy Officer" }
+];
+---
+
+<Layout 
+  title="Privacy Policy | 180workspace"
+  description="Learn how 180workspace collects, secures, and protects your enterprise data, user profile information, and Google OAuth credentials with bank-grade encryption."
+  canonicalUrl="https://180workspace.com/privacy"
+>
+  <main class="w-full relative">
+    
+    <!-- Hero Header -->
+    <section class="relative pt-24 pb-12 md:pt-36 md:pb-16 overflow-hidden border-b border-slate-200/80 dark:border-slate-800">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-indigo-500/15 via-purple-500/10 to-emerald-500/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+      <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
+
+      <div class="container mx-auto px-4 max-w-5xl text-center">
+        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-6">
+          <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Trust & Transparency</span>
+        </div>
+        
+        <h1 class="display-h1 max-w-4xl mx-auto mb-6">
+          Privacy <span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent">Policy</span>
+        </h1>
+        <p class="body-lead max-w-3xl mx-auto mb-6">
+          We believe your enterprise data belongs entirely to you. Learn how 180workspace safeguards your privacy across all 15 native applications.
+        </p>
+
+        <div class="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Effective: {effectiveDate}</span>
+          </div>
+          <span>•</span>
+          <div class="flex items-center gap-1.5">
+            <span>Last Updated: {lastUpdated}</span>
+          </div>
+          <span>•</span>
+          <div class="flex items-center gap-1.5">
+            <span>Version: 2.4</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Grid -->
+    <div class="container mx-auto px-4 max-w-7xl py-12 md:py-16">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        
+        <!-- Sticky Table of Contents (Desktop) -->
+        <aside class="hidden lg:block lg:col-span-4">
+          <div class="sticky top-28 p-6 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/5">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+              <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+              Table of Contents
+            </h3>
+            <nav class="space-y-1 text-xs">
+              {sections.map((section) => (
+                <a 
+                  href={`#${section.id}`} 
+                  class="block py-2 px-3 rounded-lg text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-medium transition-colors"
+                >
+                  {section.title}
+                </a>
+              ))}
+            </nav>
+
+            <div class="mt-6 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+              <div class="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-xs">
+                <p class="font-bold text-slate-900 dark:text-white mb-1">Have privacy questions?</p>
+                <p class="text-slate-600 dark:text-slate-400 mb-3">Our dedicated Data Protection Officer is here to assist you.</p>
+                <a href="mailto:privacy@180workspace.com" class="inline-flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  <span>privacy@180workspace.com</span>
+                  <span>→</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Policy Content Body -->
+        <article class="lg:col-span-8 space-y-12 text-slate-700 dark:text-slate-300 leading-relaxed text-sm md:text-base">
+          
+          <!-- Section 1: Overview -->
+          <section id="overview" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              1. Overview & Scope
+            </h2>
+            <p>
+              Welcome to <strong>180workspace</strong> ("we," "us," or "our"). 180workspace operates the unified Work Graph business operating platform accessible via <a href="https://180workspace.com" class="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">180workspace.com</a>, <a href="https://app.180workspace.com" class="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">app.180workspace.com</a>, desktop applications, mobile applications, and developer APIs (collectively, the "Service").
+            </p>
+            <p>
+              This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information and company data when you visit our marketing website, create an account, or utilize any of our 15 unified applications (including CRM, Projects, Finance, HR, Communications, Traffic Director, and Orbit Copilot).
+            </p>
+            <div class="p-4 rounded-2xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+              <span class="font-bold text-slate-900 dark:text-white">Key Principle:</span> We do not sell your personal data, nor do we use your private Work Graph data to train external public AI models without your express organizational authorization.
+            </div>
+          </section>
+
+          <!-- Section 2: Information Collected -->
+          <section id="information-collected" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              2. Information We Collect
+            </h2>
+            <p>
+              We collect information in three primary categories to provide reliable, enterprise-grade business tooling:
+            </p>
+            
+            <div class="space-y-4 mt-4">
+              <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <h3 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-black">A</span>
+                  Information You Provide Directly
+                </h3>
+                <ul class="list-disc list-inside space-y-1.5 text-xs md:text-sm text-slate-600 dark:text-slate-400">
+                  <li><strong>Account Registration:</strong> Name, work email address, company name, phone number, and password credentials.</li>
+                  <li><strong>Workspace Business Data:</strong> Customer profiles, Kanban project tasks, financial invoices, timesheets, payroll entries, internal chat messages, and document assets created inside your isolated workspace.</li>
+                  <li><strong>Billing & Payment Information:</strong> Payment card details, billing address, and VAT/tax identifiers (processed securely via Stripe; we do not store full credit card numbers on our servers).</li>
+                </ul>
+              </div>
+
+              <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <h3 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs font-black">B</span>
+                  Information Collected Automatically
+                </h3>
+                <ul class="list-disc list-inside space-y-1.5 text-xs md:text-sm text-slate-600 dark:text-slate-400">
+                  <li><strong>Usage Analytics:</strong> App telemetry, feature utilization frequency, navigation paths, and error crash logs.</li>
+                  <li><strong>Device & Network Data:</strong> IP addresses, browser user-agent strings, operating system, localized language preferences, and referral sources.</li>
+                  <li><strong>Edge & Traffic Director Telemetry:</strong> Anonymized request fingerprints for bot mitigation and edge traffic routing.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section 3: Google Data & Limited Use -->
+          <section id="google-data" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              3. Google API & OAuth User Data Policy
+            </h2>
+            <p>
+              180workspace allows users to sign up and authenticate using Google OAuth single sign-on (SSO), as well as connect Google Calendar or Gmail for optional workspace sync features.
+            </p>
+
+            <div class="p-6 rounded-3xl bg-gradient-to-br from-indigo-50/90 to-purple-50/90 dark:from-indigo-950/40 dark:to-purple-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-3">
+              <h3 class="text-base font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                </svg>
+                Google API Limited Use Disclosure
+              </h3>
+              <p class="text-xs md:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                180workspace's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 font-bold underline">Google API Services User Data Policy</a>, including the <strong>Limited Use requirements</strong>.
+              </p>
+              <div class="space-y-2 text-xs text-slate-600 dark:text-slate-400">
+                <p><strong>Specifically:</strong></p>
+                <ul class="list-disc list-inside space-y-1">
+                  <li>We only request the minimum Google scopes required (e.g., <code>openid</code>, <code>profile</code>, <code>email</code> for authentication).</li>
+                  <li>We do not transfer your Google user data to external advertising platforms, data brokers, or information resellers.</li>
+                  <li>Humans do not read your Google user data unless you have given explicit permission for tech support, it is necessary for security investigations, or it is required by law.</li>
+                  <li>We do not use data obtained through Google Workspace APIs to develop, train, or improve generalized AI/ML models.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section 4: How We Use -->
+          <section id="how-we-use" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              4. How We Use Your Information
+            </h2>
+            <p>We process your data strictly for legitimate business and operational purposes:</p>
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs md:text-sm">
+              <li class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <strong>Platform Delivery:</strong> Provisioning unified accounts, database schemas, and multi-tenant access controls.
+              </li>
+              <li class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <strong>Automation & Orchestration:</strong> Executing background BullMQ queue triggers and Work Graph event listeners.
+              </li>
+              <li class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <strong>Customer Support:</strong> Responding to help tickets, bug reports, and SLA inquiries.
+              </li>
+              <li class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <strong>Billing & Compliance:</strong> Processing invoices, subscription renewals, tax calculations, and fraud detection.
+              </li>
+            </ul>
+          </section>
+
+          <!-- Section 5: Data Sharing -->
+          <section id="data-sharing" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              5. Information Sharing & Sub-Processors
+            </h2>
+            <p>
+              We only share your information with trusted third-party sub-processors strictly required to operate our global infrastructure:
+            </p>
+            
+            <div class="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white uppercase font-bold border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th class="p-3.5">Sub-Processor</th>
+                    <th class="p-3.5">Service Provided</th>
+                    <th class="p-3.5">Data Location</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                  <tr>
+                    <td class="p-3.5 font-bold">Stripe, Inc.</td>
+                    <td class="p-3.5">Payment processing & subscription billing</td>
+                    <td class="p-3.5">United States / Global</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3.5 font-bold">Cloudflare, Inc.</td>
+                    <td class="p-3.5">Edge DNS, CDN, DDoS protection & bot shield</td>
+                    <td class="p-3.5">Global Edge Network</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3.5 font-bold">Amazon Web Services (AWS)</td>
+                    <td class="p-3.5">Cloud compute, PostgreSQL databases & backups</td>
+                    <td class="p-3.5">US-East / EU-Central</td>
+                  </tr>
+                  <tr>
+                    <td class="p-3.5 font-bold">Google Cloud Platform</td>
+                    <td class="p-3.5">OAuth 2.0 authentication & SSO infrastructure</td>
+                    <td class="p-3.5">Global</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Section 6: Data Retention -->
+          <section id="data-retention" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              6. Data Retention & Deletion
+            </h2>
+            <p>
+              We retain your company's Work Graph data for as long as your workspace account remains active. Upon subscription cancellation or explicit account termination:
+            </p>
+            <ul class="list-disc list-inside space-y-1.5 text-xs md:text-sm">
+              <li>You can request a complete JSON/CSV export of all CRM, Project, and Financial records within 30 days of cancellation.</li>
+              <li>After 30 days, tenant database records and uploaded media are permanently purged in accordance with our cascading data deletion protocol.</li>
+              <li>Audit logs and billing tax records are retained only as required by statutory financial regulations.</li>
+            </ul>
+          </section>
+
+          <!-- Section 7: Security -->
+          <section id="security" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              7. Data Security & Multi-Tenant Isolation
+            </h2>
+            <p>
+              180workspace implements bank-grade security protocols across every layer of the architecture:
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <div class="font-bold text-slate-900 dark:text-white mb-1">AES-256 & TLS 1.3</div>
+                <p class="text-slate-500">All data in transit is encrypted using TLS 1.3; data at rest is secured via AES-256 hardware encryption.</p>
+              </div>
+              <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <div class="font-bold text-slate-900 dark:text-white mb-1">Tenant ID Isolation</div>
+                <p class="text-slate-500">Every database query is strictly filtered by <code>companyId</code> at the ORM middleware level, preventing data leakage.</p>
+              </div>
+              <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <div class="font-bold text-slate-900 dark:text-white mb-1">MFA & RBAC</div>
+                <p class="text-slate-500">Granular Role-Based Access Control and mandatory Multi-Factor Authentication for sensitive administrative actions.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section 8: Your Rights -->
+          <section id="your-rights" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              8. Your Privacy Rights (GDPR, CCPA/CPRA)
+            </h2>
+            <p>
+              Regardless of your geographic location, 180workspace provides full privacy rights to all users:
+            </p>
+            <ul class="list-disc list-inside space-y-2 text-xs md:text-sm">
+              <li><strong>Right to Access:</strong> You may request a copy of all personal data we maintain about you.</li>
+              <li><strong>Right to Rectification:</strong> You may update incomplete or inaccurate information directly in your workspace settings.</li>
+              <li><strong>Right to Erasure ("Right to be Forgotten"):</strong> You may request permanent deletion of your account and personal records.</li>
+              <li><strong>Right to Data Portability:</strong> You may export your workspace Work Graph in standardized machine-readable formats.</li>
+              <li><strong>Right to Non-Discrimination:</strong> We never deny service or degrade feature quality because you exercised your privacy rights.</li>
+            </ul>
+            <p class="text-xs text-slate-500 mt-2">
+              To exercise any of these rights, email <a href="mailto:privacy@180workspace.com" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">privacy@180workspace.com</a>. We respond to all verified requests within 30 days.
+            </p>
+          </section>
+
+          <!-- Section 9: Cookies -->
+          <section id="cookies" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              9. Cookies & Tracking Technologies
+            </h2>
+            <p>
+              We use strictly necessary cookies to maintain authenticated session state, secure CSRF tokens, and remember your dark/light theme preferences. We do not use intrusive third-party cross-site advertising cookies.
+            </p>
+          </section>
+
+          <!-- Section 10: Children's Privacy -->
+          <section id="children" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              10. Children's Privacy
+            </h2>
+            <p>
+              The Service is designed solely for commercial enterprise and professional business operations. We do not knowingly collect personal information from individuals under the age of 16.
+            </p>
+          </section>
+
+          <!-- Section 11: Updates -->
+          <section id="updates" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              11. Policy Changes & Notifications
+            </h2>
+            <p>
+              We may update this Privacy Policy from time to time. When material modifications occur, we will notify registered workspace owners via email or an in-app notification banner at least 14 days before changes take effect.
+            </p>
+          </section>
+
+          <!-- Section 12: Contact -->
+          <section id="contact" class="scroll-mt-28 space-y-4">
+            <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+              12. Contact Privacy Officer
+            </h2>
+            <p>
+              If you have any questions, concerns, or regulatory inquiries regarding this Privacy Policy, please contact our legal team:
+            </p>
+            <div class="p-6 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 text-xs md:text-sm">
+              <p class="font-bold text-slate-900 dark:text-white text-base">180workspace Legal & Privacy Team</p>
+              <p>Email: <a href="mailto:privacy@180workspace.com" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">privacy@180workspace.com</a></p>
+              <p>General Legal: <a href="mailto:legal@180workspace.com" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">legal@180workspace.com</a></p>
+              <p>Website: <a href="https://180workspace.com" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">https://180workspace.com</a></p>
+            </div>
+          </section>
+
+        </article>
+      </div>
+    </div>
+
+  </main>
+</Layout>
