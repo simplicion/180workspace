@@ -81,20 +81,23 @@ export async function middleware(req: NextRequest) {
   const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f', '/api'];
   const is180workspaceRoute = WORKSPACE_ROUTES.some(r => pathname.startsWith(r));
 
-  const isWorkspaceSetupComplete = !!(token?.companyId && token?.isOnboardingComplete) || !!platformCookie;
-  const isOnboardingDone = (token?.isFirstLogin === false) || !!(token?.companyId && token?.isOnboardingComplete) || !!platformCookie;
+  const isWorkspaceSetupComplete = token ? !!token.isOnboardingComplete : (!!platformCookie && !isSetupPage);
+  const isOnboardingDone = token ? (token.isFirstLogin === false || !!token.isOnboardingComplete) : !!platformCookie;
 
   // 4. Authenticated users hitting "/" (Landing / Dashboard root)
   if (isAuth && pathname === "/") {
     if (!isOnboardingDone) {
       return NextResponse.redirect(new URL("/signup", req.url));
     }
+    if (!isWorkspaceSetupComplete) {
+      return NextResponse.redirect(new URL("/workspace-setup", req.url));
+    }
     return NextResponse.next();
   }
 
   // 5. Unauthenticated users
   if (!isAuth) {
-    if (is180workspaceRoute || isAuthPage) {
+    if (is180workspaceRoute || isAuthPage || isSetupPage) {
       return NextResponse.next();
     }
     let from = pathname;
@@ -109,7 +112,7 @@ export async function middleware(req: NextRequest) {
 
   // 7. Workspace Setup route
   if (isSetupPage) {
-    if (isWorkspaceSetupComplete) {
+    if (token?.isOnboardingComplete) {
       return NextResponse.redirect(new URL("/", req.url));
     }
     return NextResponse.next();

@@ -37,11 +37,15 @@ export default function SignupFlow() {
     useEffect(() => {
         if (status === 'authenticated' && session?.user) {
             const user: any = session.user;
-            if (user.isOnboardingComplete || user.isFirstLogin === false) {
+            if (user.isOnboardingComplete) {
                 window.location.href = '/';
                 return;
             }
-            if (user.isFirstLogin !== false && step < 4) {
+            if (user.isFirstLogin === false) {
+                window.location.href = '/workspace-setup';
+                return;
+            }
+            if (step < 4) {
                 setEmail(user.email || '');
                 setStep(4);
             }
