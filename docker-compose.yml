@@ -1,6 +1,5 @@
-version: '3.8'
-
 services:
+
   # 1. Reverse Proxy (Nginx with Cloudflare Real-IP)
   reverse-proxy:
     image: nginx:alpine

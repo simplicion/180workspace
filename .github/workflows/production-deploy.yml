@@ -117,20 +117,25 @@ jobs:
             export GITHUB_REPOSITORY_LOWER=$REPO_LOWER
 
             # 6. Pull latest multi-stage images
-            docker compose pull || docker-compose pull
+            docker compose pull
 
-            # 7. Graceful Rolling Restart (zero-downtime)
-            docker compose up -d --remove-orphans || docker-compose up -d --remove-orphans
+            # 7. Stop host-level services / processes binding to port 80 or 443
+            sudo systemctl stop nginx apache2 2>/dev/null || true
+            sudo systemctl disable nginx apache2 2>/dev/null || true
+            sudo fuser -k 80/tcp 443/tcp 2>/dev/null || true
 
-            # 8. Clean up unused legacy processes if any
+            # 8. Clean up unused legacy PM2 processes to free RAM
             pm2 stop all 2>/dev/null || true
             pm2 delete all 2>/dev/null || true
             npx pm2 kill 2>/dev/null || true
 
-            # 9. Health verification
+            # 9. Graceful Rolling Restart (zero-downtime)
+            docker compose up -d --remove-orphans
+
+            # 10. Health verification
             sleep 5
             echo "==> Verifying container status..."
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-            # 10. Clean up dangling images to save disk space
+            # 11. Clean up dangling images to save disk space
             docker image prune -af --filter "until=24h"
