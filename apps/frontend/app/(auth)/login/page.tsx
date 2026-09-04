@@ -44,33 +44,31 @@ function LoginForm() {
     // ── Auto-login: redirect already-authenticated users ─────────────────────
     useEffect(() => {
         if (!isLoading && user) {
-            const hasPlatformToken = document.cookie.includes('platform_auth_token');
-
-            if (searchParams?.get('clearSession') === 'true' && user) {
+            if (searchParams?.get('clearSession') === 'true') {
                 signOut({ redirect: false }).then(() => {
                     router.replace('/login');
                 });
                 return;
             }
 
-            if (user && searchParams?.get('clearSession') !== 'true') {
-                if (!hasPlatformToken) {
-                    // Break the redirect loop
-                    signOut({ redirect: false });
-                    toast.error('Session sync error. Please log in again.');
-                    return;
-                }
-                if ((user as any).isFirstLogin !== false && !(user as any).isOnboardingComplete) {
-                    // If onboarding is incomplete, redirect them to /signup so they can complete it.
-                    router.replace('/signup');
-                    return;
-                }
-
-                const returnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
-                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+            // Ensure platform_auth_token cookie is synced if available
+            const localToken = localStorage.getItem('platform_auth_token') || token;
+            if (localToken && typeof document !== 'undefined' && !document.cookie.includes('platform_auth_token=')) {
+                const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
+                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}`;
+                document.cookie = `platform_auth_token=${localToken}${cookieFlags}`;
             }
+
+            if ((user as any).isFirstLogin !== false && !(user as any).isOnboardingComplete) {
+                // If onboarding is incomplete, redirect them to /signup so they can complete it.
+                router.replace('/signup');
+                return;
+            }
+
+            const returnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
+            window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
         }
-    }, [isLoading, user, router, searchParams]);
+    }, [isLoading, user, token, router, searchParams]);
 
     // ── Auto-login: Sync platform_auth_token to NextAuth if missing ───────
     useEffect(() => {
