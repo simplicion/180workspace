@@ -58,45 +58,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==========================================
-  # Phase 2: Deploy Marketing App to Cloudflare Pages
-  # ==========================================
-  deploy-marketing:
-    name: Deploy Marketing Site to Cloudflare Pages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js & PNPM
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
-
-      - name: Build Marketing Site
-        run: pnpm --filter apps-marketing-web build
-        env:
-          CLOUDFLARE_PAGES: "true"
-          NODE_ENV: production
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '7158d01d5e0dd9e7f5be050ed3717b14' }}
-          command: pages deploy apps/marketing-web/dist --project-name=180workspace-marketing
-
-  # ==========================================
-  # Phase 3: Zero-Downtime Deploy to AWS EC2
+  # Phase 2: Zero-Downtime Deploy to AWS EC2
   # ==========================================
   deploy-aws:
     name: Deploy All Containers to AWS EC2
