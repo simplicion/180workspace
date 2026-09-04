@@ -43,16 +43,16 @@ function LoginForm() {
 
     // ── Auto-login: redirect already-authenticated users ─────────────────────
     useEffect(() => {
-        if (!isLoading && user) {
-            if (searchParams?.get('clearSession') === 'true') {
-                signOut({ redirect: false }).then(() => {
-                    router.replace('/login');
-                });
-                return;
-            }
+        if (searchParams?.get('clearSession') === 'true') {
+            localStorage.removeItem('platform_auth_token');
+            localStorage.removeItem('platform_refresh_token');
+            sessionStorage.removeItem('platform_init_data');
+            signOut({ redirect: false });
+            return;
+        }
 
-            // Ensure platform_auth_token cookie is synced if available
-            const localToken = localStorage.getItem('platform_auth_token') || (session as any)?.platformToken || token;
+        if (!isLoading && user) {
+            const localToken = (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null) || (session as any)?.platformToken || token;
             if (localToken && typeof document !== 'undefined') {
                 const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
                 const is180 = typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com');
@@ -82,10 +82,11 @@ function LoginForm() {
                 window.location.href = target;
             }
         }
-    }, [isLoading, user, token, router, searchParams]);
+    }, [isLoading, user, session, token, router, searchParams]);
 
     // ── Auto-login: Sync platform_auth_token to NextAuth if missing ───────
     useEffect(() => {
+        if (searchParams?.get('clearSession') === 'true') return;
         if (!isLoading && !authLoading && !user && authUser && token) {
             // User is authenticated in backend but NextAuth session is missing
             signIn('platform-token', { token, redirect: false }).then((result) => {
@@ -102,17 +103,17 @@ function LoginForm() {
         }
     }, [isLoading, authLoading, user, authUser, token, searchParams]);
 
-    // While the auth context or settings context is resolving, show a spinner
-    // so the login form never flickers on screen for logged-in users.
-    // However, if they haven't finished onboarding, we let them see the form so they can switch accounts.
+    // Show a transition spinner ONLY when redirecting an already-authenticated user with a valid token
+    const hasValidToken = !!(typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null) || !!(session as any)?.platformToken || !!token;
     const isUserFullyOnboarded = user && ((user as any).isFirstLogin === false || (user as any).isOnboardingComplete === true);
-    const shouldShowSpinner = isLoading || authLoading || isUserFullyOnboarded || settingsLoading;
-    if (shouldShowSpinner) {
+    const isRedirectingAuthenticatedUser = !!user && isUserFullyOnboarded && hasValidToken && searchParams?.get('clearSession') !== 'true';
+
+    if (isRedirectingAuthenticatedUser) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
                 <LogoLoader className="w-10 h-10 animate-spin text-primary" />
                 <p className="text-sm font-semibold text-gray-400 tracking-wide">
-                    {user ? 'Redirecting…' : 'Checking session…'}
+                    Redirecting…
                 </p>
             </div>
         );

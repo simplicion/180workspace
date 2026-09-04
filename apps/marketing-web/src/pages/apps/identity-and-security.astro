@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Granular RBAC",
+    title: "Role-Based Access Control & Permission Scopes",
+    description: "Define exact permission matrices across Admin, Manager, Employee, Contractor, and Client roles. Control read, write, and delete permissions per application module.",
+    bullets: [
+      "Custom role definitions with module-level permissions",
+      "Field-level sensitivity masking on financial ledgers & payroll",
+      "Restricted views for external freelance contractors"
+    ]
+  },
+  {
+    badge: "Two-Factor Auth",
+    title: "Multi-Factor Authentication (MFA / 2FA)",
+    description: "Protect company accounts with mandatory or optional TOTP Authenticator app support (Google Authenticator, 1Password, Authy) and backup emergency codes.",
+    bullets: [
+      "Standard TOTP Authenticator QR-code setup",
+      "Enforceable company-wide mandatory 2FA policies",
+      "Encrypted emergency backup recovery keys"
+    ]
+  },
+  {
+    badge: "Tamper-Evident",
+    title: "Comprehensive Audit Logs & Session Monitoring",
+    description: "Track every login, permission change, document export, and financial modification with immutable, tamper-evident audit logs with IP geolocation.",
+    bullets: [
+      "Real-time audit log stream (/system/audit)",
+      "Tracks actor user ID, timestamp, IP address & user-agent",
+      "Exportable CSV logs for external SOC2 compliance audits"
+    ]
+  },
+  {
+    badge: "Multi-Tenancy",
+    title: "Strict Multi-Tenant Company Isolation",
+    description: "Every query across the platform is hardcoded with companyId scoping. Your customer lists, project deliverables, and financials cannot be accessed by other tenants.",
+    bullets: [
+      "Database-level multi-tenant company context enforcement",
+      "Cross-company boundary validation middleware",
+      "Zero risk of data bleeding between company workspaces"
+    ]
+  },
+  {
+    badge: "API Keys",
+    title: "Enterprise API Keys & Webhook Signatures",
+    description: "Generate scoped API keys with expiration dates and HMAC-SHA256 signature verification for secure programmatic access and custom developer automations.",
+    bullets: [
+      "Scoped API keys with read/write permission limits",
+      "HMAC-SHA256 signature headers on all outbound webhooks",
+      "Instant 1-click token revocation in security dashboard"
+    ]
+  },
+  {
+    badge: "Encryption",
+    title: "AES-256 Encryption at Rest & TLS 1.3 in Transit",
+    description: "All database records, file uploads, and communications are encrypted using bank-grade AES-256 encryption at rest and TLS 1.3 in transit.",
+    bullets: [
+      "End-to-end encrypted WebSocket & WebRTC connections",
+      "Automated daily encrypted database backups",
+      "Compliance with GDPR, HIPAA and SOC2 standards"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Define Custom Roles & Module Permissions",
+    description: "Navigate to Settings → Roles & Permissions. Create role profiles (e.g. Sales Manager, Junior Dev) and toggle read/write permissions per app.",
+    actionSnippet: "Settings → Roles → + Add Role → Set Module Scopes"
+  },
+  {
+    stepNumber: "02",
+    title: "Enable Mandatory Two-Factor Authentication",
+    description: "Enforce company-wide 2FA in security settings. Team members scan a QR code using Google Authenticator or 1Password during next login.",
+    actionSnippet: "Security → MFA Policy = Mandatory for All Staff"
+  },
+  {
+    stepNumber: "03",
+    title: "Monitor Real-Time System Audit Logs",
+    description: "Review live activity logs in the audit screen to monitor sensitive actions like invoice deletions, role escalations, or external document sharing.",
+    actionSnippet: "System → Audit Logs → Filter by Actor / Event"
+  },
+  {
+    stepNumber: "04",
+    title: "Manage Active Sessions & Revoke Access",
+    description: "View active user sessions across devices. If an employee leaves or a device is lost, revoke all active JWT tokens with a single click.",
+    actionSnippet: "User Profile → Active Sessions → Revoke All"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Identity & Security",
+    targetApp: "Company Hub",
+    badge: "Governance",
+    description: "Enforces multi-factor authentication and role permissions across all company workspace members."
+  },
+  {
+    sourceApp: "Identity & Security",
+    targetApp: "Finance & Invoicing",
+    badge: "Field Masking",
+    description: "Restricts sensitive financial reports, bank credentials, and payroll figures to authorized CFOs and admins."
+  },
+  {
+    sourceApp: "Identity & Security",
+    targetApp: "Workspace Tools",
+    badge: "Document Vault",
+    description: "Enforces password protection, view-only locks, and download restrictions on confidential contracts."
+  }
+];
+
+const faqs = [
+  {
+    question: "How does 180workspace prevent data leakage between different companies?",
+    answer: "Every database query, API route, and background job is secured with multi-tenant company context middleware. Every record is indexed by companyId, guaranteeing that tenant data remains strictly segregated and inaccessible to other organizations."
+  },
+  {
+    question: "Can I enforce mandatory Two-Factor Authentication (2FA) for all employees?",
+    answer: "Yes. Workspace administrators can toggle 'Mandatory MFA'. Once enabled, employees without active 2FA are automatically prompted to set up their TOTP authenticator app before accessing company data."
+  },
+  {
+    question: "What events are recorded in the System Audit Log?",
+    answer: "The audit engine logs every authentication attempt, role change, document deletion, invoice creation, contract signing, API key generation, and member invite with exact timestamps, IP addresses, and user-agent strings."
+  },
+  {
+    question: "Is 180workspace compliant with GDPR and SOC2 standards?",
+    answer: "Yes. 180workspace implements role-based access control, tamper-evident audit logs, AES-256 data encryption at rest, TLS 1.3 in transit, and GDPR data export and deletion endpoints."
+  },
+  {
+    question: "How do custom API keys authenticate requests?",
+    answer: "Developer API keys utilize Bearer token authentication over HTTPS. All outbound webhooks include an HMAC-SHA256 signature header so your server can verify that events originated from 180workspace."
+  }
+];
+---
+
+<Layout 
+  title="Identity & Security Governance Software & Guide | 180workspace"
+  description="Granular role-based access control (RBAC), multi-factor authentication (MFA), tamper-evident audit logs, and encryption in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Bank-grade security and granular RBAC"
+      highlightText="for total company governance."
+      description="Protect company data with role-based access controls, mandatory 2FA authenticator verification, tamper-evident audit logs, and strict multi-tenant isolation."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Security Capabilities"
+      sectionTitle="Engineered for CTOs, IT security leads, and enterprise compliance."
+      sectionSubtitle="From granular role-based permissions to real-time immutable audit streams."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Security Playbook"
+      title="How to Configure Security & Access Control in 180"
+      subtitle="Follow these 4 steps to set up custom roles, enforce 2FA, and inspect audit logs."
+      videoCaption="2-Minute Security & RBAC Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Identity & Security"
+      title="Security policies enforced across every single app."
+      subtitle="Discover how permission scopes protect financial data, employee records, and contract archives."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Security FAQs"
+      title="Frequently Asked Questions about 180 Security"
+      subtitle="Answers on multi-tenant isolation, mandatory 2FA, audit logs, and compliance standards."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Identity & Security" 
+      headline="Protect your company data with bank-grade security today."
+      subheadline="Start enforcing enterprise role-based permissions in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Identity & Security Governance"
+      description="Granular role-based access control (RBAC), multi-factor authentication (MFA), tamper-evident audit logs, and encryption in 180workspace."
+      urlPath="/apps/identity-and-security"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

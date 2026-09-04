@@ -1,86 +1,203 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { prisma } from '@workspace/db';
+import FAQAccordion from '../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../components/apps/JSONLDSchema.astro';
+import Badge from '../components/ui/Badge.astro';
+import Button from '../components/ui/Button.astro';
 
-let plans = [];
-try {
-  plans = await prisma.plan.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      price: 'asc'
-    }
-  });
-} catch (error) {
-  console.error("Failed to fetch plans for SSG:", error);
-}
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const plans = [
+  {
+    name: "180 Kickstart",
+    badge: "Free Forever",
+    priceMonthly: 0,
+    priceDisplay: "$0",
+    description: "Essential workspace foundations with unified Work Graph data isolation for solopreneurs and early ventures.",
+    popular: false,
+    color: "glass-card",
+    buttonVariant: "secondary" as const,
+    buttonText: "Get Started Free",
+    subtext: "Free forever • No credit card required",
+    features: [
+      "Access to 5 Core Applications",
+      "Up to 2 Team Members",
+      "1 Active Website / Custom CNAME",
+      "1 GB Cloud Storage",
+      "Standard Community & Ticket Support",
+      "Unified Work Graph Data Isolation"
+    ]
+  },
+  {
+    name: "180 Momentum",
+    badge: "Most Popular",
+    priceMonthly: 12,
+    priceDisplay: "$12",
+    description: "Expanded application capacity, AI copilot intelligence, and custom SMTP email routing for scaling businesses.",
+    popular: true,
+    color: "glass-card border-indigo-500/80 bg-indigo-50/40 dark:bg-indigo-950/30 shadow-2xl shadow-indigo-900/10 ring-2 ring-indigo-500/20",
+    buttonVariant: "primary" as const,
+    buttonText: "Start 14-Day Free Trial",
+    subtext: "14-day free trial • No card upfront",
+    features: [
+      "Access to 7 Applications",
+      "Up to 5 Team Members",
+      "Up to 5 Active Websites",
+      "10 GB Cloud Storage",
+      "Orbit AI Copilot Access",
+      "Custom Email SMTP Integration",
+      "Priority Email & Ticket Support",
+      "Cross-App Event Triggers & Workflows"
+    ]
+  },
+  {
+    name: "180 Limitless",
+    badge: "Scale & Enterprise",
+    priceMonthly: 15,
+    priceDisplay: "$15",
+    description: "Complete unrestricted access to all 15+ applications, 20 team seats, and sub-5ms edge traffic routing.",
+    popular: false,
+    color: "glass-card",
+    buttonVariant: "secondary" as const,
+    buttonText: "Start 14-Day Free Trial",
+    subtext: "14-day free trial • Instant setup",
+    features: [
+      "Unlimited Access to All 15+ Applications",
+      "Up to 20 Team Members Included",
+      "Unlimited Websites & Automated SSL",
+      "20 GB High-Speed Cloud Storage",
+      "Sub-5ms Traffic Director & Bot Shield",
+      "Dedicated Team & Priority Support",
+      "Orbit AI Copilot Full Capabilities",
+      "Custom Email SMTP & Webhook Integrations",
+      "Enterprise Multi-Tenant Security & RBAC"
+    ]
+  }
+];
+
+const faqs = [
+  {
+    question: "Is there a free tier available for 180workspace?",
+    answer: "Yes! 180 Kickstart is completely free forever for up to 2 team members, 1 website, 1 GB storage, and access to 5 core applications with zero credit card required."
+  },
+  {
+    question: "How do the 14-day free trials work for paid plans?",
+    answer: "Both 180 Momentum ($12/mo) and 180 Limitless ($15/mo) include a 14-day full-access trial. You can test all features and invite your team without entering a credit card upfront."
+  },
+  {
+    question: "Can I upgrade, downgrade, or cancel at any time?",
+    answer: "Yes. You have total flexibility. You can upgrade from Kickstart to Momentum or Limitless, or cancel your paid subscription anytime from Settings > Platform Billing to revert to the free Kickstart tier without losing your data."
+  },
+  {
+    question: "What makes 180 Limitless different from other software suites?",
+    answer: "For just $15/month for your entire workspace (up to 20 users), 180 Limitless unlocks all 15+ applications—including CRM, Projects, HRMS, Communications, Invoicing, Orbit AI, and our ultra-fast Traffic Director—eliminating over $500/month in fragmented SaaS fees."
+  },
+  {
+    question: "What payment methods are supported?",
+    answer: "We support all major credit cards, debit cards, and secure online checkout via Razorpay with automated invoicing and tax receipts."
+  }
+];
 ---
 
 <Layout 
-  title="180workspace | Pricing"
-  description="Simple, transparent pricing for your digital agency. Choose the plan that fits your needs."
+  title="180workspace Pricing | Real, Transparent Plans with No Per-App Add-on Fees"
+  description="Explore real pricing for 180workspace. Free Kickstart ($0), Momentum ($12/mo), and Limitless ($15/mo) with full Work Graph access."
 >
-  <main class="container mx-auto px-4 py-20 max-w-6xl">
-    <div class="text-center mb-16">
-      <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">Simple, transparent pricing</h1>
-      <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
-        No hidden fees. No surprise charges. Just powerful software to run your agency.
-      </p>
-    </div>
-
-    {plans.length === 0 ? (
-      <div class="py-20 text-center rounded-xl border border-dashed border-border bg-accent/20">
-        <p class="text-muted-foreground text-lg">No active plans found. Please configure pricing in the admin panel.</p>
+  <main class="w-full relative">
+    
+    <!-- Hero Section -->
+    <section class="relative pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 mb-6">
+        <svg class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>Simple, Transparent Pricing</span>
       </div>
-    ) : (
-      <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+      <h1 class="display-h1 max-w-4xl mx-auto">
+        One workspace. <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-emerald-600 bg-clip-text text-transparent">Unbeatable real pricing.</span>
+      </h1>
+      <p class="body-lead max-w-2xl mx-auto mt-6">
+        No per-seat gouging. No hidden add-ons. Choose the real plan that fits your business scale and launch in seconds.
+      </p>
+    </section>
+
+    <!-- Pricing Cards Grid -->
+    <section class="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
         {plans.map((plan) => (
-          <div class={`relative flex flex-col rounded-2xl border p-8 shadow-sm ${plan.planName.toLowerCase().includes('pro') ? 'border-primary bg-primary/5 shadow-md' : 'border-border bg-card'}`}>
-            {plan.planName.toLowerCase().includes('pro') && (
-              <div class="absolute -top-4 left-0 right-0 mx-auto w-fit rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+          <div class={`relative flex flex-col justify-between p-8 ${plan.color}`}>
+            {plan.popular && (
+              <div class="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg">
                 Most Popular
               </div>
             )}
-            
-            <div class="mb-6">
-              <h3 class="text-2xl font-bold text-foreground">{plan.planName}</h3>
-              <p class="mt-2 text-sm text-muted-foreground line-clamp-2">{plan.description || "Everything you need to get started."}</p>
+
+            <div>
+              <div class="flex items-center justify-between">
+                <h3 class="text-2xl font-black text-slate-900 dark:text-white">{plan.name}</h3>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  {plan.badge}
+                </span>
+              </div>
+              <p class="body-standard text-xs mt-3">
+                {plan.description}
+              </p>
+
+              <div class="mt-6 flex items-baseline gap-1">
+                <span class="text-5xl font-black text-slate-950 dark:text-white font-mono">{plan.priceDisplay}</span>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">/ mo</span>
+              </div>
+
+              <div class="mt-8 pt-8 border-t border-slate-200/80 dark:border-slate-800">
+                <div class="text-eyebrow text-slate-900 dark:text-white mb-4">What's Included:</div>
+                <ul class="space-y-3 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  {plan.features.map((feat) => (
+                    <li class="flex items-center gap-2.5">
+                      <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            
-            <div class="mb-6 flex items-baseline gap-x-2">
-              <span class="text-5xl font-bold tracking-tight text-foreground">${plan.price}</span>
-              <span class="text-sm font-semibold leading-6 text-muted-foreground">/{plan.billingCycle || 'month'}</span>
+
+            <div class="mt-10">
+              <Button 
+                href={`${saasUrl}/signup`} 
+                variant={plan.buttonVariant}
+                class="w-full text-center"
+              >
+                {plan.buttonText}
+              </Button>
+              <div class="text-center text-[10px] text-slate-400 font-medium mt-2">
+                {plan.subtext}
+              </div>
             </div>
-            
-            <a href="/register" class={`mt-auto mb-8 block rounded-full px-3 py-3 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${plan.planName.toLowerCase().includes('pro') ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
-              Get started
-            </a>
-            
-            <ul class="space-y-4 text-sm leading-6 text-muted-foreground">
-              {/* Features would ideally be stored in the DB, but using placeholders for now since Plan model might not have structured features array */}
-              <li class="flex gap-x-3">
-                <svg class="h-6 w-5 flex-none text-primary" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-                </svg>
-                Includes {plan.maxUsers || 'Unlimited'} users
-              </li>
-              <li class="flex gap-x-3">
-                <svg class="h-6 w-5 flex-none text-primary" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-                </svg>
-                Core Workspace Features
-              </li>
-              <li class="flex gap-x-3">
-                <svg class="h-6 w-5 flex-none text-primary" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-                </svg>
-                24/7 Support
-              </li>
-            </ul>
           </div>
         ))}
       </div>
-    )}
+    </section>
+
+    <!-- FAQ Accordion -->
+    <FAQAccordion 
+      sectionBadge="Pricing FAQs"
+      title="Frequently Asked Questions about 180workspace Pricing"
+      subtitle="Clear answers on real plans, seat counts, app limits, and upgrades."
+      faqs={faqs}
+    />
+
+    <!-- Bottom CTA -->
+    <AppBottomCTA 
+      appName="180workspace"
+      headline="Ready to launch your unified workspace?"
+      subheadline="Start with 180 Kickstart for free or test 180 Limitless with a 14-day trial. Deploy in 60 seconds."
+    />
+
+    <JSONLDSchema 
+      appName="180workspace Pricing"
+      description="Real, transparent pricing for 180workspace. Free Kickstart ($0), Momentum ($12/mo), and Limitless ($15/mo) with full Work Graph access."
+      urlPath="/pricing"
+      faqs={faqs}
+    />
+
   </main>
 </Layout>

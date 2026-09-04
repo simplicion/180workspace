@@ -1,51 +1,218 @@
 ---
-// Define the SaaS base URL. In local dev, it usually points to 3000.
-// In production, you would configure an environment variable like process.env.PUBLIC_SAAS_URL
+// Define the SaaS base URL
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const appCategories = [
+  {
+    category: "Revenue & Growth",
+    apps: [
+      { name: "CRM & Sales", slug: "crm-and-sales", desc: "Lead pipelines, deal stages & contracts", badge: "Popular" },
+      { name: "Traffic Director", slug: "traffic-director", desc: "Dynamic URL cloaking & bot shielding", badge: "Core" },
+      { name: "Finance & Invoicing", slug: "finance", desc: "Cash flow, invoices & vendor bills", badge: "" },
+      { name: "Advertising", slug: "advertising", desc: "Multi-platform ad spend vs ROI", badge: "" },
+    ]
+  },
+  {
+    category: "Operations & People",
+    apps: [
+      { name: "Projects & Tasks", slug: "projects-and-tasks", desc: "Kanban boards, sprints & timelogs", badge: "" },
+      { name: "HR & Payroll", slug: "hr-management", desc: "Employee directory, leaves & salaries", badge: "" },
+      { name: "Communications", slug: "communications", desc: "Team chat & 180 HD video meetings", badge: "" },
+      { name: "Service Desk", slug: "service-desk", desc: "Customer tickets, SLAs & support", badge: "" },
+    ]
+  },
+  {
+    category: "Tools & Intelligence",
+    apps: [
+      { name: "Orbit Copilot (AI)", slug: "orbit-copilot", desc: "Meeting summaries & task extraction", badge: "AI" },
+      { name: "Social Media", slug: "social-media", desc: "Universal content calendar & planner", badge: "" },
+      { name: "Workspace Tools", slug: "workspace-tools", desc: "180 Docs, cloud storage & e-sign", badge: "" },
+      { name: "Insights & BI", slug: "insights", desc: "CEO dashboard & predictive metrics", badge: "" },
+    ]
+  },
+  {
+    category: "Platform Governance",
+    apps: [
+      { name: "Company Hub", slug: "company-hub", desc: "Custom branding & CNAME SSL", badge: "" },
+      { name: "Identity & Security", slug: "identity-and-security", desc: "RBAC, MFA & audit logs", badge: "" },
+      { name: "Workflows & Automations", slug: "workflows-and-automations", desc: "Work Graph triggers & BullMQ", badge: "" },
+    ]
+  }
+];
 ---
 
-<header class="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-  <div class="container mx-auto px-4 max-w-6xl flex h-16 items-center justify-between">
+<header class="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
+  <div class="container mx-auto px-4 max-w-7xl flex h-16 items-center justify-between">
+    
+    {/* Brand Logo */}
     <div class="flex items-center gap-8">
-      {/* Brand */}
-      <a href="/" class="flex items-center gap-2">
-        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-          <span class="text-primary-foreground text-sm font-bold">180</span>
-        </div>
-        <span class="text-xl font-bold tracking-tight">180workspace</span>
+      <a href="/" class="flex items-center gap-2.5 group" aria-label="180workspace Home">
+        <img src="/icons/black-icon.svg" alt="180workspace" class="w-9 h-9 group-hover:scale-105 transition-transform dark:hidden" width="36" height="36" />
+        <img src="/icons/white-icon.svg" alt="180workspace" class="w-9 h-9 group-hover:scale-105 transition-transform hidden dark:block" width="36" height="36" />
+        <span class="text-xl font-black tracking-tight text-slate-950 dark:text-white">
+          180<span class="text-indigo-600">workspace</span>
+        </span>
       </a>
 
       {/* Desktop Navigation */}
-      <nav class="hidden md:flex items-center gap-6">
-        <a href="/features" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-          Features
-        </a>
-        <a href="/use-cases/for-digital-agencies" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-          Agencies
-        </a>
-        <a href="/pricing" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+      <nav class="hidden lg:flex items-center gap-1" aria-label="Main Navigation">
+        
+        {/* Apps Mega-Menu Trigger */}
+        <div class="relative group">
+          <button 
+            type="button" 
+            aria-expanded="false" 
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+          >
+            <span>Apps</span>
+            <svg class="w-4 h-4 text-slate-400 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+
+          {/* Mega-Menu Dropdown Panel */}
+          <div class="absolute left-0 top-full pt-2 w-[850px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/15 backdrop-blur-2xl">
+              <div class="grid grid-cols-3 gap-6">
+                {appCategories.slice(0, 3).map((col) => (
+                  <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 px-2.5">
+                      {col.category}
+                    </h4>
+                    <div class="space-y-1">
+                      {col.apps.map((app) => (
+                        <a 
+                          href={`/apps/${app.slug}`} 
+                          class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group/item"
+                        >
+                          <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 mt-0.5 text-indigo-600 dark:text-indigo-400 group-hover/item:bg-indigo-600 group-hover/item:text-white transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                          </div>
+                          <div>
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-sm font-bold text-slate-900 dark:text-white group-hover/item:text-indigo-600 transition-colors">
+                                {app.name}
+                              </span>
+                              {app.badge && (
+                                <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                  {app.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                              {app.desc}
+                            </p>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mega-Menu Bottom Bar */}
+              <div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between px-2.5 text-xs">
+                <span class="text-slate-500 font-medium">All 15 applications share one unified Work Graph database</span>
+                <a href="/apps" class="font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                  <span>Explore All Apps Directory</span>
+                  <span>→</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <a href="/pricing" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
           Pricing
         </a>
-        <a href="/blog" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+        <a href="/enterprise" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+          Enterprise
+        </a>
+        <a href="/case-studies" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+          Case Studies
+        </a>
+        <a href="/developers" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+          Developers
+        </a>
+        <a href="/blog" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
           Blog
         </a>
       </nav>
     </div>
 
-    {/* Auth Actions (Linking to SaaS App) */}
-    <div class="flex items-center gap-4">
+    {/* Auth & CTA Buttons + Mobile Menu Toggle */}
+    <div class="flex items-center gap-3">
       <a 
         href={`${saasUrl}/login`} 
-        class="hidden sm:inline-flex text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        class="hidden lg:inline-flex text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 px-3 py-2 rounded-lg transition-colors"
       >
-        Log in
+        Sign In
       </a>
       <a 
-        href={`${saasUrl}/signup`} 
-        class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        href={`${saasUrl}/signup?plan=momentum`} 
+        class="hidden lg:inline-flex btn-sm-primary"
       >
-        Get Started
+        Start with $12 Plan
+      </a>
+
+      {/* Mobile Menu Hamburger Button */}
+      <button 
+        type="button"
+        id="mobile-menu-btn"
+        aria-label="Toggle mobile menu"
+        class="lg:hidden p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+      >
+        <svg id="hamburger-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <svg id="close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+  </div>
+
+  {/* Mobile Navigation Drawer */}
+  <div id="mobile-drawer" class="lg:hidden hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-6 space-y-4">
+    <div class="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <a href="/apps" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+        All 15 Apps
+      </a>
+      <a href="/pricing" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+        Pricing Plans
+      </a>
+      <a href="/enterprise" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+        Enterprise
+      </a>
+      <a href="/case-studies" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+        Case Studies
+      </a>
+      <a href="/developers" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+        Developers
+      </a>
+      <a href="/blog" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+        Blog & News
+      </a>
+    </div>
+    <div class="flex flex-col gap-2 pt-2">
+      <a href={`${saasUrl}/login`} class="btn-secondary w-full text-center">
+        Sign In
+      </a>
+      <a href={`${saasUrl}/signup?plan=momentum`} class="btn-primary w-full text-center">
+        Start with $12 Plan
       </a>
     </div>
   </div>
 </header>
+
+<script>
+  const btn = document.getElementById('mobile-menu-btn');
+  const drawer = document.getElementById('mobile-drawer');
+  const hamburger = document.getElementById('hamburger-icon');
+  const close = document.getElementById('close-icon');
+
+  if (btn && drawer && hamburger && close) {
+    btn.addEventListener('click', () => {
+      const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!isExpanded));
+      drawer.classList.toggle('hidden');
+      hamburger.classList.toggle('hidden');
+      close.classList.toggle('hidden');
+    });
+  }
+</script>

@@ -1,0 +1,79 @@
+---
+interface Props {
+  badge?: string;
+  badgeColor?: string;
+  title: string;
+  highlightText?: string;
+  description: string;
+  primaryCtaText?: string;
+  primaryCtaLink?: string;
+  secondaryCtaText?: string;
+  secondaryCtaLink?: string;
+}
+
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const {
+  badge,
+  badgeColor = "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800",
+  title,
+  highlightText,
+  description,
+  primaryCtaText = "Start Free Trial",
+  primaryCtaLink = `${saasUrl}/signup`,
+  secondaryCtaText = "Watch Demo Walkthrough",
+  secondaryCtaLink = "#walkthrough"
+} = Astro.props;
+---
+
+<section class="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden">
+  {/* Background Atmospheric Glow */}
+  <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-indigo-500/15 to-purple-500/15 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+  <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
+
+  <div class="container mx-auto px-4 max-w-5xl text-center">
+
+
+    {/* H1 Display Title */}
+    <h1 class="display-h1 max-w-4xl mx-auto mb-8">
+      {title}{" "}
+      {highlightText && (
+        <span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          {highlightText}
+        </span>
+      )}
+    </h1>
+
+    {/* Lead Subtitle */}
+    <p class="body-lead max-w-3xl mx-auto mb-10">
+      {description}
+    </p>
+
+    {/* Action Buttons */}
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+      <a 
+        href={primaryCtaLink} 
+        class="btn-primary w-full sm:w-auto"
+      >
+        <span>{primaryCtaText}</span>
+        <svg class="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+      </a>
+
+      <a 
+        href={secondaryCtaLink} 
+        class="btn-secondary w-full sm:w-auto"
+      >
+        <svg class="mr-2 w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+        <span>{secondaryCtaText}</span>
+      </a>
+    </div>
+
+    {/* Platform Trust Highlights */}
+    <div class="flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+      <span class="px-3.5 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md">14-Day Free Trial</span>
+      <span class="px-3.5 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md">Instant Setup</span>
+      <span class="px-3.5 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md">No Credit Card Required</span>
+    </div>
+
+  </div>
+</section>

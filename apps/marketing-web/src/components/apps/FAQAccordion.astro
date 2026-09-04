@@ -1,0 +1,51 @@
+---
+import SectionHeader from '../ui/SectionHeader.astro';
+
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  sectionBadge?: string;
+  title?: string;
+  subtitle?: string;
+  faqs: FAQItem[];
+}
+
+const {
+  sectionBadge = "Frequently Asked Questions",
+  title = "Got Questions? We Have Answers.",
+  subtitle = "Everything you need to know about setting up and scaling with this application.",
+  faqs = []
+} = Astro.props;
+---
+
+<section class="py-20 md:py-28 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800">
+  <div class="container mx-auto px-4 max-w-4xl">
+    
+    <SectionHeader 
+      badge={sectionBadge}
+      badgeClass="badge-pill bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800"
+      title={title}
+      subtitle={subtitle}
+    />
+
+    <div class="space-y-4">
+      {faqs.map((faq, index) => (
+        <details class="group bg-slate-50 dark:bg-slate-950/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 transition-all duration-200 open:shadow-lg open:bg-white dark:open:bg-slate-900 open:border-indigo-200 dark:open:border-indigo-800">
+          <summary class="flex items-center justify-between font-bold text-base sm:text-lg text-slate-900 dark:text-white cursor-pointer list-none select-none">
+            <span>{faq.question}</span>
+            <span class="w-8 h-8 rounded-full bg-slate-200/70 dark:bg-slate-800 flex items-center justify-center shrink-0 transition-transform duration-200 group-open:rotate-180 group-open:bg-indigo-600 group-open:text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+            </span>
+          </summary>
+          <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+            {faq.answer}
+          </div>
+        </details>
+      ))}
+    </div>
+
+  </div>
+</section>

@@ -1,128 +1,349 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SectionHeader from '../components/ui/SectionHeader.astro';
+import Badge from '../components/ui/Badge.astro';
+import Button from '../components/ui/Button.astro';
+import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
+import SEOKnowledgeHub from '../components/seo/SEOKnowledgeHub.astro';
 
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const appCategories = [
+  {
+    category: "Revenue & Growth Engine",
+    apps: [
+      {
+        name: "CRM & Sales Pipelines",
+        slug: "crm-and-sales",
+        badge: "Revenue Ops",
+        domain: "crm" as const,
+        description: "Visual deal pipelines, proposal e-signatures, and automated client onboarding.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'
+      },
+      {
+        name: "Traffic Director & Bot Shield",
+        slug: "traffic-director",
+        badge: "Edge Routing",
+        domain: "traffic" as const,
+        description: "Sub-5ms Cloudflare edge routing, bot mitigation, and dynamic ad cloaking.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'
+      },
+      {
+        name: "Advertising Attribution & ROI",
+        slug: "advertising",
+        badge: "Ad Tracking",
+        domain: "social" as const,
+        description: "Match paid ad spend across channels directly to closed bank deposit revenue.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'
+      },
+      {
+        name: "Social Media Publisher",
+        slug: "social-media",
+        badge: "Multi-Channel",
+        domain: "social" as const,
+        description: "Visual content calendar, multi-channel scheduler, and AI post generator.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>'
+      }
+    ]
+  },
+  {
+    category: "Operations & Financial Execution",
+    apps: [
+      {
+        name: "Finance, Invoicing & Cash Flow",
+        slug: "finance",
+        badge: "Cash Flow",
+        domain: "finance" as const,
+        description: "Automated recurring billing, Stripe payments, multi-currency ledger, and taxes.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>'
+      },
+      {
+        name: "Projects, Kanban & Work Logs",
+        slug: "projects-and-tasks",
+        badge: "Agile Sprints",
+        domain: "projects" as const,
+        description: "Lightning-fast Kanban boards, milestone roadmaps, and billable time logs.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>'
+      },
+      {
+        name: "HR Management & Time Clock",
+        slug: "hr-management",
+        badge: "HRMS & Clocking",
+        domain: "hr" as const,
+        description: "Digital time clocking, leave management, employee directory, and payroll sync.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>'
+      },
+      {
+        name: "Service Desk & SLA Helpdesk",
+        slug: "service-desk",
+        badge: "Support Inbox",
+        domain: "projects" as const,
+        description: "Omnichannel customer ticketing, automated SLA timers, and AI auto-responses.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>'
+      }
+    ]
+  },
+  {
+    category: "Intelligence & Collaboration",
+    apps: [
+      {
+        name: "Orbit Copilot Enterprise AI",
+        slug: "orbit-copilot",
+        badge: "Work Graph AI",
+        domain: "orbit" as const,
+        description: "Context-aware AI assistant grounded in your real business contracts and records.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>'
+      },
+      {
+        name: "Team Chat & HD Video Meetings",
+        slug: "communications",
+        badge: "Zero Add-On Fees",
+        domain: "comms" as const,
+        description: "1080p HD video conferencing, team channels, and AI meeting summaries.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>'
+      },
+      {
+        name: "Workspace Tools & Cloud Drive",
+        slug: "workspace-tools",
+        badge: "Cloud Storage",
+        domain: "tools" as const,
+        description: "Real-time collaborative rich documents, company wikis, and cloud file drive.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>'
+      },
+      {
+        name: "Executive Insights & BI",
+        slug: "insights",
+        badge: "CEO Dashboard",
+        domain: "insights" as const,
+        description: "Real-time MRR analytics, operational velocity, and AI anomaly detection.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>'
+      }
+    ]
+  },
+  {
+    category: "Enterprise Governance & Extensibility",
+    apps: [
+      {
+        name: "Company Hub & White-Label Portals",
+        slug: "company-hub",
+        badge: "Custom CNAME",
+        domain: "hub" as const,
+        description: "Custom CNAME domain with automatic SSL, white-label client portals, and branding.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>'
+      },
+      {
+        name: "Identity, RBAC & Security Audit",
+        slug: "identity-and-security",
+        badge: "Zero-Trust",
+        domain: "hub" as const,
+        description: "Granular app permissions, multi-factor auth, SAML SSO, and SOC2 audit logs.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>'
+      },
+      {
+        name: "Workflows & Event Automations",
+        slug: "workflows-and-automations",
+        badge: "No-Code Engine",
+        domain: "crm" as const,
+        description: "Event-driven Work Graph triggers and BullMQ background automation workers.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'
+      }
+    ]
+  }
+];
 ---
 
-<Layout title="180workspace | The Ultimate Work Graph Architecture">
+<Layout 
+  title="180workspace | Workspace Built Only for Agencies, Freelancers & Teams"
+  description="The workspace built only for digital agencies, freelancers and teams on Earth. Eliminate 10+ fragmented tools with one unified Work Graph — you will never regret using 180workspace."
+>
   <main class="w-full relative">
-    {/* Grid Background */}
-    <div class="absolute inset-0 bg-grid-pattern [mask-image:linear-gradient(to_bottom,white,transparent)] -z-10 h-[120vh]"></div>
+    
+    <!-- Hero Section -->
+    <section class="relative min-h-[90vh] flex items-center justify-center overflow-hidden px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+      {/* Background Atmospheric Glow & Grid Pattern */}
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-gradient-to-tr from-indigo-500/15 via-violet-500/10 to-transparent blur-[120px] rounded-full -z-10 pointer-events-none"></div>
+      <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_80%_70%_at_50%_30%,#000_60%,transparent_100%)] opacity-70 -z-20"></div>
 
-    <section class="relative min-h-[85vh] flex items-center justify-center overflow-hidden px-4">
-      <!-- Glow effect -->
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 blur-[100px] rounded-full -z-10"></div>
-      
-      <div class="relative z-10 text-center max-w-5xl mx-auto pt-20">
-        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 shadow-sm mb-8 animate-fade-in">
-          <span class="flex h-2 w-2 rounded-full bg-emerald-500"></span>
-          <span class="text-sm font-medium text-gray-700">The new 180workspace is live</span>
+      <div class="relative z-10 text-center max-w-5xl mx-auto">
+        
+        <!-- Live Badge & Target Audience Pill -->
+        <!-- Live Badge -->
+        <div class="flex items-center justify-center mb-8">
+          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Run your entire and only one income source on 180workspace</span>
+          </div>
         </div>
 
-        <h1 class="text-5xl md:text-7xl font-black tracking-tight mb-8 text-gray-950 leading-tight">
-          Run your entire agency on one <span class="text-indigo-600">unified platform.</span>
+        <!-- H1 Display Title -->
+        <h1 class="display-h1 mb-6">
+          Built only for <br class="hidden sm:inline" />
+          <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 bg-clip-text text-transparent">
+            freelancers, digital agencies & teams on Earth.
+          </span>
         </h1>
-        <p class="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed font-medium">
-          Eliminate software fragmentation. Connect your CRM, HR, Projects, and Finance in a single powerful work graph.
+
+        <!-- Subheadline -->
+        <p class="body-lead mb-10 max-w-3xl mx-auto">
+          Eliminate 10+ fragmented software subscriptions. Connect your CRM, Traffic Routing, Finance, Projects, HR, and Orbit AI into one connected Work Graph — <span class="text-slate-900 dark:text-white font-bold">you will not regret using 180workspace.</span>
         </p>
         
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a href={`${saasUrl}/signup`} class="w-full sm:w-auto inline-flex h-14 items-center justify-center rounded-full bg-indigo-600 px-8 text-lg font-bold text-white shadow-xl shadow-indigo-600/20 transition-all hover:bg-indigo-700 hover:scale-105 hover:shadow-2xl">
-            Start your workspace
-            <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-          </a>
-          <a href="#features" class="w-full sm:w-auto inline-flex h-14 items-center justify-center rounded-full border border-gray-200 bg-white px-8 text-lg font-bold text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:border-gray-300">
-            Explore Features
-          </a>
+        <!-- CTA Actions -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+          <Button href={`${saasUrl}/signup?plan=momentum`} variant="primary" icon={true} class="w-full sm:w-auto shadow-xl shadow-indigo-600/25">
+            Start with $12 Plan
+          </Button>
+          <Button href="/apps" variant="secondary" class="w-full sm:w-auto">
+            Explore All 15 Apps
+          </Button>
         </div>
+
+        <!-- Trust Badges -->
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-500">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg> 14-day free trial on $12 plan</span>
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg> No credit card required upfront</span>
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg> Cancel anytime</span>
+        </div>
+
       </div>
     </section>
 
-    <!-- Bento Box Features Grid -->
-    <section id="features" class="w-full py-24 px-4 sm:px-6 lg:px-8 bg-white/50 backdrop-blur-3xl">
-      <div class="max-w-7xl mx-auto">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-black text-gray-950 tracking-tight mb-4">Eliminate chaos. Scale with confidence.</h2>
-          <p class="text-xl text-gray-600 max-w-3xl mx-auto font-medium">Stop duct-taping your business together. 180workspace provides everything you need natively, so your team can focus on growth.</p>
-        </div>
+    <!-- 15 Applications Bento Showcase -->
+    <section class="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <SectionHeader 
+        badge="Complete Application Ecosystem"
+        title="15 Specialized Apps."
+        highlightText="One Work Graph."
+        subtitle="Every app is natively connected. When deals close, invoices generate, project tasks provision, and team channels activate automatically."
+      />
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <!-- Feature 1 -->
-          <a href="/features/crm-and-sales-software" class="col-span-1 md:col-span-2 lg:col-span-2 bg-white rounded-3xl p-8 border border-gray-200 hover:border-indigo-300 transition-colors group overflow-hidden relative shadow-xl shadow-indigo-900/5 block">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-indigo-500/20 transition-all"></div>
-            <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 border border-indigo-200">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-            </div>
-            <h3 class="text-2xl font-bold text-gray-950 tracking-tight mb-3 group-hover:text-indigo-600 transition-colors">CRM & Sales Pipeline</h3>
-            <p class="text-gray-600 text-lg max-w-md font-medium">Stop letting leads slip through the cracks. Manage client relationships, track pipelines, and close deals faster.</p>
-          </a>
+      <div class="space-y-16">
+        {appCategories.map((group) => (
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-6 flex items-center gap-3">
+              <span>{group.category}</span>
+              <span class="flex-1 h-px bg-slate-200 dark:bg-slate-800"></span>
+            </h3>
 
-          <!-- Feature 2 -->
-          <a href="/features/hr-management-system" class="bg-white rounded-3xl p-8 border border-gray-200 hover:border-emerald-300 transition-colors group relative overflow-hidden shadow-xl shadow-indigo-900/5 block">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-emerald-500/20 transition-all"></div>
-            <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-200">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-            </div>
-            <h3 class="text-2xl font-bold text-gray-950 tracking-tight mb-3 group-hover:text-emerald-600 transition-colors">HR Management</h3>
-            <p class="text-gray-600 text-lg font-medium">Automate onboarding, track time off, and manage your entire workforce seamlessly.</p>
-          </a>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {group.apps.map((app) => (
+                <a 
+                  href={`/apps/${app.slug}`} 
+                  class="glass-card-interactive p-6 flex flex-col justify-between"
+                >
+                  <div>
+                    <div class="flex items-center justify-between mb-4">
+                      <div class="w-10 h-10 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={app.iconSvg}></svg>
+                      </div>
+                      <Badge text={app.badge} domain={app.domain} />
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">
+                      {app.name}
+                    </h4>
+                    <p class="body-standard text-xs mt-2">
+                      {app.description}
+                    </p>
+                  </div>
 
-          <!-- Feature 3 -->
-          <a href="/features/project-management-tool" class="bg-white rounded-3xl p-8 border border-gray-200 hover:border-blue-300 transition-colors group relative overflow-hidden shadow-xl shadow-indigo-900/5 block">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-blue-500/20 transition-all"></div>
-            <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 border border-blue-200">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>
+                  <div class="mt-6 flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
+                    <span>Explore Playbook & Guide</span>
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                  </div>
+                </a>
+              ))}
             </div>
-            <h3 class="text-2xl font-bold text-gray-950 tracking-tight mb-3 group-hover:text-blue-600 transition-colors">Projects & Tasks</h3>
-            <p class="text-gray-600 text-lg font-medium">Keep your team aligned and deliver on time with robust kanban boards and project tracking.</p>
-          </a>
-
-          <!-- Feature 4 -->
-          <a href="/features/invoicing-and-finance" class="bg-white rounded-3xl p-8 border border-gray-200 hover:border-amber-300 transition-colors group relative overflow-hidden shadow-xl shadow-indigo-900/5 block">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-amber-500/20 transition-all"></div>
-            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6 border border-amber-200">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-            </div>
-            <h3 class="text-2xl font-bold text-gray-950 tracking-tight mb-3 group-hover:text-amber-600 transition-colors">Finance & Assets</h3>
-            <p class="text-gray-600 text-lg font-medium">Monitor expenses, track revenue, and manage company assets seamlessly.</p>
-          </a>
-
-          <!-- Feature 5 -->
-          <a href="/features/agency-analytics-dashboard" class="bg-white rounded-3xl p-8 border border-gray-200 hover:border-pink-300 transition-colors group relative overflow-hidden shadow-xl shadow-indigo-900/5 block">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-pink-500/20 transition-all"></div>
-            <div class="w-14 h-14 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center mb-6 border border-pink-200">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-            </div>
-            <h3 class="text-2xl font-bold text-gray-950 tracking-tight mb-3 group-hover:text-pink-600 transition-colors">Deep Insights</h3>
-            <p class="text-gray-600 text-lg font-medium">Make data-driven decisions with real-time reports and analytics across all your operations.</p>
-          </a>
-        </div>
+          </div>
+        ))}
       </div>
     </section>
 
-    <!-- Final CTA -->
-    <section class="w-full py-24 px-4 text-center">
-      <h2 class="text-4xl md:text-5xl font-black tracking-tight text-gray-950 mb-6">Stop paying the fragmentation tax.</h2>
-      <p class="text-xl text-gray-600 font-medium mb-10 max-w-2xl mx-auto">Join forward-thinking businesses who have consolidated their tech stack and accelerated their growth.</p>
-      <a href={`${saasUrl}/signup`} class="inline-flex px-10 py-5 text-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1">
-        Create your free account
-      </a>
+    <!-- The Work Graph Advantage Section (Refactored to Hero Section Psychology) -->
+    <section class="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div class="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-2xl backdrop-blur-xl p-8 sm:p-12 lg:p-16 text-center">
+        
+        {/* Background Atmosphere & Radial Grid */}
+        <div class="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-500/15 to-violet-500/10 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+        <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-rose-500/10 to-amber-500/10 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+        <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_at_center,#000_60%,transparent_100%)] opacity-60 -z-20 pointer-events-none"></div>
+
+        <div class="max-w-4xl mx-auto relative z-10 space-y-6">
+          
+          <!-- Live Pulse Pill -->
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs">
+            <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">The Work Graph Advantage</span>
+          </div>
+
+          <!-- Main Headline with Gradient Text -->
+          <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-[1.12] text-slate-950 dark:text-white">
+            Stop losing 30% of your billable hours to <br class="hidden sm:inline" />
+            <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 bg-clip-text text-transparent">
+              manual data transfer.
+            </span>
+          </h2>
+
+          <!-- Psychology Narrative -->
+          <p class="body-lead text-base sm:text-lg max-w-2xl mx-auto">
+            When an agency or freelancer closes a client, why copy-paste details into Stripe, manually build boards in Asana, and invite them to Slack one by one? In 180workspace, every operational action triggers instantaneous, downstream synchronization across the entire Work Graph.
+          </p>
+
+          <!-- 2 Core Work Graph Metrics -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto pt-2 text-left">
+            <div class="flex items-start gap-3 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+              <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wide text-slate-900 dark:text-white">Sub-5ms Event Sync</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Zero webhook delay or broken Zapier syncs.</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+              <div class="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wide text-slate-900 dark:text-white">Save 12+ Hrs / Week</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Reclaim billable focus for client delivery.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA Row -->
+          <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+            <Button href={`${saasUrl}/signup?plan=momentum`} variant="primary" icon={true} class="w-full sm:w-auto shadow-xl shadow-indigo-600/25">
+              Start with $12 Plan
+            </Button>
+            <Button href="/apps" variant="secondary" class="w-full sm:w-auto">
+              Browse All 15 App Playbooks
+            </Button>
+          </div>
+
+          <!-- Trust Badge Microline -->
+          <div class="flex items-center justify-center gap-4 text-xs font-medium text-slate-500 pt-1">
+            <span class="flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              14-day free trial on $12 plan
+            </span>
+            <span>•</span>
+            <span>Cancel anytime</span>
+          </div>
+
+        </div>
+
+      </div>
     </section>
 
-    <!-- Schema.org Organization Data -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "180workspace",
-        "url": "https://180workspace.com",
-        "logo": "https://180workspace.com/logo.png",
-        "description": "The ultimate SaaS ecosystem for digital agencies.",
-        "sameAs": [
-          "https://twitter.com/180workspace",
-          "https://linkedin.com/company/180workspace"
-        ]
-      }
-    </script>
+    <!-- SEO & AI Discovery Knowledge Hub -->
+    <SEOKnowledgeHub />
+
+    <!-- Bottom CTA -->
+    <AppBottomCTA 
+      appName="180workspace"
+      headline="Ready to run your business on one connected Work Graph?"
+      subheadline="Start your 14-day free trial on the $12 Momentum plan today. Connect your CRM, Traffic, Projects, Finance, and Orbit AI with zero sync lag — you will not regret using 180workspace."
+    />
   </main>
 </Layout>

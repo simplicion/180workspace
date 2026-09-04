@@ -13,9 +13,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
  
-    --primary-rgb: 15 23 42;
-    --primary-dark-rgb: 30 41 59;
-    --primary: 222.2 47.4% 11.2%;
+    --primary-rgb: 79 70 229;
+    --primary-dark-rgb: 67 56 202;
+    --primary: 243.4 75.4% 58.6%;
     --primary-foreground: 210 40% 98%;
  
     --secondary: 210 40% 96.1%;
@@ -32,9 +32,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 243.4 75.4% 58.6%;
  
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 }
  
@@ -61,7 +61,125 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased;
+  }
+}
+
+/* ==========================================================================
+   CENTRALIZED UI/UX DESIGN SYSTEM COMPONENTS & TOKENS
+   ========================================================================== */
+
+@layer components {
+  /* --- Typography Scale Hierarchy --- */
+  .display-h1 {
+    @apply text-4xl sm:text-5xl md:text-7xl font-black tracking-tight leading-[1.08] text-slate-950 dark:text-white;
+  }
+
+  .section-h2 {
+    @apply text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight text-slate-950 dark:text-white;
+  }
+
+  .card-h3 {
+    @apply text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white;
+  }
+
+  .body-lead {
+    @apply text-lg sm:text-xl text-slate-600 dark:text-slate-300 font-medium leading-relaxed;
+  }
+
+  .body-standard {
+    @apply text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-normal;
+  }
+
+  .text-eyebrow {
+    @apply text-xs font-bold uppercase tracking-wider;
+  }
+
+  /* --- Glassmorphism & Surface Elevation --- */
+  .glass-card {
+    @apply rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl shadow-slate-900/5 transition-all duration-300;
+  }
+
+  .glass-card-interactive {
+    @apply glass-card hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-2xl hover:-translate-y-1;
+  }
+
+  .glass-panel {
+    @apply rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg;
+  }
+
+  .mockup-terminal {
+    @apply relative mx-auto rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-slate-900 p-2 sm:p-4 shadow-2xl shadow-indigo-950/20 backdrop-blur-xl;
+  }
+
+  /* --- Button Hierarchy Tokens --- */
+  .btn-primary {
+    @apply inline-flex h-12 md:h-14 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm md:text-base px-8 shadow-xl shadow-indigo-600/20 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-12 md:h-14 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base px-8 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer;
+  }
+
+  .btn-sm-primary {
+    @apply inline-flex h-10 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs md:text-sm px-5 shadow-md shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 cursor-pointer;
+  }
+
+  .btn-sm-secondary {
+    @apply inline-flex h-10 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold text-xs md:text-sm px-5 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer;
+  }
+
+  .btn-ghost {
+    @apply inline-flex h-10 items-center justify-center rounded-xl text-slate-700 dark:text-slate-300 font-bold text-sm px-4 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer;
+  }
+
+  /* --- Pill Badges & App Domain Token Styling --- */
+  .badge-pill {
+    @apply inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase border;
+  }
+
+  .badge-crm {
+    @apply bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800;
+  }
+
+  .badge-traffic {
+    @apply bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/60 dark:border-rose-800;
+  }
+
+  .badge-finance {
+    @apply bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800;
+  }
+
+  .badge-projects {
+    @apply bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-800;
+  }
+
+  .badge-hr {
+    @apply bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-400 border-sky-200/60 dark:border-sky-800;
+  }
+
+  .badge-comms {
+    @apply bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-400 border-violet-200/60 dark:border-violet-800;
+  }
+
+  .badge-social {
+    @apply bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-400 border-pink-200/60 dark:border-pink-800;
+  }
+
+  .badge-tools {
+    @apply bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border-blue-200/60 dark:border-blue-800;
+  }
+
+  .badge-insights {
+    @apply bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 border-teal-200/60 dark:border-teal-800;
+  }
+
+  .badge-orbit {
+    @apply bg-gradient-to-r from-violet-600 to-indigo-600 text-white border-transparent shadow-sm;
+  }
+
+  .badge-hub {
+    @apply bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700;
   }
 }
 

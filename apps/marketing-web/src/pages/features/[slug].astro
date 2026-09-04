@@ -1,5 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Badge from '../../components/ui/Badge.astro';
+import Button from '../../components/ui/Button.astro';
 import { prisma } from '@workspace/db';
 
 export async function getStaticPaths() {
@@ -43,6 +45,8 @@ if (!feature) {
   return Astro.redirect('/features');
 }
 
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
 // Default structured data for Product schema
 const defaultStructuredData = {
   "@context": "https://schema.org",
@@ -69,36 +73,37 @@ const jsonLd = feature.jsonLdSchema ? feature.jsonLdSchema : JSON.stringify(defa
   title={`${feature.seoTitle || feature.heroHeadline} | 180workspace`}
   description={feature.seoDescription || `Explore the ${feature.heroHeadline} app on 180workspace.`}
 >
-  <main class="container mx-auto px-4 py-16 max-w-5xl">
+  <main class="container mx-auto px-4 py-16 md:py-24 max-w-5xl">
     
-    <div class="mb-12">
+    <div class="mb-12 border-b border-slate-200 dark:border-slate-800 pb-12">
       <div class="mb-6">
-        <a href="/features" class="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
-          ← Back to Features
+        <a href="/features" class="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold text-sm transition-colors flex items-center gap-1.5">
+          <span>←</span> Back to Features
         </a>
       </div>
       
       <div class="max-w-3xl">
-        <h1 class="text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
+        <Badge text="Work Graph Feature" variant="crm" pulse class="mb-4" />
+        <h1 class="display-h1 mb-6 leading-tight">
           {feature.heroHeadline}
         </h1>
-        <p class="text-xl text-muted-foreground leading-relaxed">
+        <p class="body-lead">
           {feature.seoDescription}
         </p>
       </div>
       
-      <div class="mt-8 flex gap-4">
-        <a href="/register" class="btn-primary inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90">
+      <div class="mt-8 flex flex-wrap gap-4">
+        <Button href={`${saasUrl}/signup`} variant="primary" showArrow>
           Start Free Trial
-        </a>
-        <a href="/contact" class="btn-secondary inline-flex h-12 items-center justify-center rounded-full border border-input bg-background px-8 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+        </Button>
+        <Button href="/contact" variant="secondary">
           Talk to Sales
-        </a>
+        </Button>
       </div>
     </div>
 
-    <div class="my-16 border-t border-border pt-16">
-      <article class="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80">
+    <div class="my-12">
+      <article class="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-slate-950 dark:prose-headings:text-white prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-a:text-indigo-600 dark:prose-a:text-indigo-400">
         <div set:html={typeof feature.contentBlocks === "string" ? feature.contentBlocks : JSON.stringify(feature.contentBlocks)} />
       </article>
     </div>

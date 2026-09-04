@@ -1,0 +1,39 @@
+---
+interface Props {
+  text: string;
+  domain?: 'crm' | 'traffic' | 'finance' | 'projects' | 'hr' | 'comms' | 'social' | 'tools' | 'insights' | 'orbit' | 'hub' | 'default';
+  ping?: boolean;
+  class?: string;
+}
+
+const {
+  text,
+  domain = 'default',
+  ping = false,
+  class: className = ""
+} = Astro.props;
+
+const domainClasses: Record<string, string> = {
+  crm: 'badge-crm',
+  traffic: 'badge-traffic',
+  finance: 'badge-finance',
+  projects: 'badge-projects',
+  hr: 'badge-hr',
+  comms: 'badge-comms',
+  social: 'badge-social',
+  tools: 'badge-tools',
+  insights: 'badge-insights',
+  orbit: 'badge-orbit',
+  hub: 'badge-hub',
+  default: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800'
+};
+
+const badgeStyle = domainClasses[domain] || domainClasses.default;
+---
+
+<span class={`badge-pill ${badgeStyle} ${className}`}>
+  {ping && (
+    <span class="flex h-1.5 w-1.5 rounded-full bg-current animate-ping"></span>
+  )}
+  <span>{text}</span>
+</span>

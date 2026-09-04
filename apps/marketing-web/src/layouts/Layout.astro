@@ -1,42 +1,77 @@
 ---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import SEOHead from '../components/seo/SEOHead.astro';
+
+interface Breadcrumb {
+  name: string;
+  url: string;
+}
+
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface ArticleMeta {
+  publishedTime?: string;
+  modifiedTime?: string;
+  author?: string;
+  tags?: string[];
+}
+
 interface Props {
   title: string;
   description?: string;
   image?: string;
+  type?: 'website' | 'article';
+  canonicalUrl?: string;
+  noindex?: boolean;
+  breadcrumbs?: Breadcrumb[];
+  faqs?: FAQItem[];
+  applicationCategory?: string;
+  article?: ArticleMeta;
 }
 
 const { 
   title, 
-  description = "180workspace - The Ultimate Work Graph Architecture SaaS.",
-  image = "/og-image.jpg"
+  description = "180workspace — The Unified Business Operating System. Replace 15+ disconnected SaaS tools with one interconnected Work Graph for CRM, Projects, Finance, HR, Comms & AI.",
+  image = "/og-image.png",
+  type = "website",
+  canonicalUrl,
+  noindex = false,
+  breadcrumbs,
+  faqs,
+  applicationCategory,
+  article
 } = Astro.props;
-import '../styles/global.css';
-import Footer from '../components/Footer.astro';
-import Header from '../components/Header.astro';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content={description} />
-    <meta name="viewport" content="width=device-width" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="generator" content={Astro.generator} />
-    
-    <title>{title}</title>
-    
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
-    <meta property="og:image" content={image} />
-    
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={image} />
+    <SEOHead 
+      title={title}
+      description={description}
+      image={image}
+      type={type}
+      canonicalUrl={canonicalUrl}
+      noindex={noindex}
+      breadcrumbs={breadcrumbs}
+      faqs={faqs}
+      applicationCategory={applicationCategory}
+      article={article}
+    />
+
+    {/* Font preconnect */}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   </head>
-  <body class="min-h-screen bg-background font-sans antialiased flex flex-col">
+  <body class="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 antialiased flex flex-col selection:bg-indigo-500 selection:text-white">
+    <Header />
     <div class="flex-grow">
       <slot />
     </div>

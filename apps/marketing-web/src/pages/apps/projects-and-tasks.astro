@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Agile Workflow",
+    title: "Multi-View Kanban, List & Gantt Boards",
+    description: "Switch seamlessly between agile Kanban sprint columns, detailed structured task lists, and milestone Gantt timelines with live dependency tracking.",
+    bullets: [
+      "Custom board columns, task statuses & color tags",
+      "Drag-and-drop prioritization & sprint velocity tracking",
+      "Milestone Gantt charts with critical path highlighting"
+    ]
+  },
+  {
+    badge: "Accurate Tracking",
+    title: "Work Logs & Billable Time Tracking",
+    description: "Empower team members to submit detailed work logs and track time against specific tasks, modules, and clients with manager approval workflows.",
+    bullets: [
+      "One-click time recording with task context",
+      "Module lead review & approval queues",
+      "Auto-syncs approved billable hours to Finance Invoices"
+    ]
+  },
+  {
+    badge: "Hierarchy",
+    title: "Task Hierarchies, Dependencies & Subtasks",
+    description: "Break complex multi-month client deliverables down into manageable modules, milestones, tasks, and checklist items with blocking dependencies.",
+    bullets: [
+      "Parent-child task nesting & checklist progress bars",
+      "Blocking dependency alerts to prevent bottlenecks",
+      "Rich-text task descriptions with file attachments"
+    ]
+  },
+  {
+    badge: "Capacity",
+    title: "Team Workload & Resource Allocation",
+    description: "Visualize team capacity in real-time. Balance workloads across developers, designers, and project managers to prevent burnout and missed deadlines.",
+    bullets: [
+      "Individual and team capacity heatmaps",
+      "Task assignment with role-based permission locks",
+      "Automated notifications on overdue milestones"
+    ]
+  },
+  {
+    badge: "Collaboration",
+    title: "In-Context Task Comments & Mentions",
+    description: "Keep all project communication right where the work happens. Mention teammates, attach deliverable drafts, and resolve feedback without switching apps.",
+    bullets: [
+      "@mention teammates for instant notifications",
+      "Activity audit history tracking all status changes",
+      "Direct integration with 180 Team Chat and Email"
+    ]
+  },
+  {
+    badge: "AI Powered",
+    title: "Autonomous AI Task Extraction with Orbit",
+    description: "Orbit Copilot automatically converts meeting transcripts, client emails, and chat agreements into assigned, prioritized project tasks.",
+    bullets: [
+      "Extracts action items from 180 Meeting recordings",
+      "Auto-generates task descriptions and estimated hours",
+      "Assigns tasks based on historical team member expertise"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Create a Project Workspace & Define Milestones",
+    description: "Create a new project (or let it auto-provision from a closed CRM deal). Define your target delivery milestones, deadline dates, and client budget.",
+    actionSnippet: "Projects → + New Project → Select Agile / Waterfall"
+  },
+  {
+    stepNumber: "02",
+    title: "Break Down Modules & Assign Sprint Tasks",
+    description: "Organize work into modules (e.g. Frontend UI, Backend API, QA Testing). Assign tasks to team members with estimated hours and priorities.",
+    actionSnippet: "Tasks → Add Subtask → Assign Team Member"
+  },
+  {
+    stepNumber: "03",
+    title: "Log Time & Submit Work Logs",
+    description: "Team members track progress and log their daily hours. Module leads review and approve time entries in the unified Work Log Review dashboard.",
+    actionSnippet: "Work Logs → Log Time → Submit for Lead Review"
+  },
+  {
+    stepNumber: "04",
+    title: "Generate Client Invoices Automatically",
+    description: "When milestone tasks are completed, approved billable hours flow directly into 180 Finance to issue itemized client invoices.",
+    actionSnippet: "Instant Work Graph Reconciliation • Zero Manual Entry"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Projects & Tasks",
+    targetApp: "Finance & Invoicing",
+    badge: "Billing Flow",
+    description: "Approved billable hours and completed milestone deliverables automatically populate invoice line items."
+  },
+  {
+    sourceApp: "Projects & Tasks",
+    targetApp: "CRM & Sales",
+    badge: "Client 360",
+    description: "Project progress, completed milestones, and active tasks reflect in the CRM client record for account managers."
+  },
+  {
+    sourceApp: "Projects & Tasks",
+    targetApp: "Orbit AI Copilot",
+    badge: "AI Extraction",
+    description: "Orbit extracts action items from video meeting recordings and creates organized tasks with deadlines."
+  }
+];
+
+const faqs = [
+  {
+    question: "How does 180 Projects compare to tools like Jira, Asana, or ClickUp?",
+    answer: "Unlike standalone tools that require expensive third-party integrations, 180 Projects is natively tied into your CRM, HR management, team chat, and finance invoices. You don't need Zapier or CSV exports to convert a closed sales contract into an active project or turn logged hours into a client invoice."
+  },
+  {
+    question: "Can clients view project progress without seeing internal conversations?",
+    answer: "Yes. Using our white-label Client Portal (under your custom CNAME domain), you can share a clean, high-level milestone board with clients while keeping internal task comments and internal work logs private."
+  },
+  {
+    question: "How does the Work Log approval process work?",
+    answer: "Team members log their daily task hours. Designees (module leads or project managers) review the submitted logs in the Work Log Review screen, where they can approve, reject with feedback, or edit before hours are billed to the client."
+  },
+  {
+    question: "Can I customize the Kanban board columns and statuses?",
+    answer: "Yes. Every project board can have custom columns (e.g., Backlog, In Progress, Code Review, Client Review, Deployed) with custom color tags and WIP (Work In Progress) limits."
+  },
+  {
+    question: "Is there support for task dependencies and Gantt charts?",
+    answer: "Yes. 180 Projects includes dynamic Gantt charts where you can draw dependency links between tasks. If a predecessor task is delayed, all dependent downstream tasks adjust automatically."
+  }
+];
+---
+
+<Layout 
+  title="Projects & Tasks Management Software & Guide | 180workspace"
+  description="Agile sprint boards, Kanban, milestone Gantt timelines, billable work logs, and AI task extraction natively linked to CRM and Finance in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Deliver client projects on time with"
+      highlightText="zero context switching."
+      description="Kanban sprint boards, milestone Gantt timelines, billable time logs, and autonomous AI task extraction all connected to your sales contracts and client billing."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Project Features"
+      sectionTitle="Engineered for high-performing engineering and agency teams."
+      sectionSubtitle="From high-level executive roadmaps to granular subtask checklists and billable time logs."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Workflow Playbook"
+      title="How to Execute Projects from Contract to Invoice"
+      subtitle="Follow these 4 steps to manage tasks, track hours, and automate client billing."
+      videoCaption="2-Minute Projects & Time Tracking Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Projects & Tasks"
+      title="Task execution that coordinates with your entire company."
+      subtitle="See how task completions instantly inform client CRM records and accounting ledgers."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Project FAQs"
+      title="Frequently Asked Questions about 180 Projects"
+      subtitle="Answers on Kanban customization, billable time logs, client portals, and migrations."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Projects & Tasks" 
+      headline="Keep every sprint on schedule and within budget."
+      subheadline="Start streamlining your team's project execution in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Projects & Tasks Management"
+      description="Agile sprint boards, Kanban, milestone Gantt timelines, billable work logs, and AI task extraction natively linked to CRM and Finance in 180workspace."
+      urlPath="/apps/projects-and-tasks"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

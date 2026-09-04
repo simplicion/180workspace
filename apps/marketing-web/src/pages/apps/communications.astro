@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Real-Time Chat",
+    title: "Team Messaging, Channels & Threaded Discussions",
+    description: "Organize conversations by department, client project, or topic. Keep discussions focused with threaded replies, reactions, and file attachments.",
+    bullets: [
+      "Public and private channels with custom member access",
+      "Threaded replies to keep channel streams tidy",
+      "Direct 1-on-1 messages with rich markdown formatting"
+    ]
+  },
+  {
+    badge: "Zero Downloads",
+    title: "180 HD Video Meetings & Screen Sharing",
+    description: "Launch instant HD video meetings directly inside your browser. No Zoom installs or external meeting links needed for your team or clients.",
+    bullets: [
+      "Crystal-clear WebRTC video & low-latency audio",
+      "One-click screen sharing & presentation mode",
+      "Floating Picture-in-Picture (PiP) to multitask across apps"
+    ]
+  },
+  {
+    badge: "Email Sync",
+    title: "Unified Email Inbox & Client Thread Sync",
+    description: "Connect your company email inboxes directly to 180. Read, reply, and convert incoming client emails into CRM leads or project tasks with one click.",
+    bullets: [
+      "Two-way email synchronization (IMAP/SMTP)",
+      "Converts email inquiries into actionable tasks",
+      "Consolidates client emails on CRM contact timeline"
+    ]
+  },
+  {
+    badge: "AI Summarizer",
+    title: "AI Meeting Transcripts & Task Extraction",
+    description: "Orbit Copilot joins your meetings to transcribe audio, summarize key talking points, and automatically extract assigned tasks into project boards.",
+    bullets: [
+      "Real-time audio speech-to-text transcription",
+      "Automated meeting summary & decision log",
+      "Direct task assignment to attendees with due dates"
+    ]
+  },
+  {
+    badge: "Calendar Sync",
+    title: "Universal Team Calendar & Scheduling",
+    description: "Schedule internal meetings, client calls, project milestones, and company holidays on a shared calendar synchronized across all apps.",
+    bullets: [
+      "Direct integration with Google Calendar & Outlook",
+      "Smart scheduling considering team time zones",
+      "Automated calendar reminders & meeting countdowns"
+    ]
+  },
+  {
+    badge: "Smart Alerts",
+    title: "Centralized Notification & Activity Feed",
+    description: "Stay in the loop without alert fatigue. Get centralized updates when you are @mentioned, assigned a task, or when a client signs a contract.",
+    bullets: [
+      "Customizable in-app, browser, and email alerts",
+      "Priority inbox for urgent client messages",
+      "Do-Not-Disturb focus mode during deep work"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Create Team Channels & Invite Members",
+    description: "Navigate to Communications → Chat. Set up channels (e.g. #general, #engineering, #marketing, #client-updates) and invite team members.",
+    actionSnippet: "Communications → Chat → + New Channel"
+  },
+  {
+    stepNumber: "02",
+    title: "Start an Instant 180 Video Meeting",
+    description: "Click 'Start Meeting' inside any channel or task. Share the secure meeting link with team members or external clients for one-click browser entry.",
+    actionSnippet: "Communications → Meetings → + Start Instant Call"
+  },
+  {
+    stepNumber: "03",
+    title: "Enable Picture-in-Picture Floating Mode",
+    description: "Keep your video call visible in the floating PiP window while navigating between CRM records, project boards, and finance invoices simultaneously.",
+    actionSnippet: "Floating PiP Video Widget • Zero Tab Switching"
+  },
+  {
+    stepNumber: "04",
+    title: "Let Orbit AI Generate Meeting Tasks",
+    description: "After ending the call, Orbit Copilot automatically publishes the meeting transcript summary and creates assigned project tasks.",
+    actionSnippet: "Orbit AI → Auto-Generated Tasks → Added to Sprint"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Communications",
+    targetApp: "Projects & Tasks",
+    badge: "Task Conversion",
+    description: "Convert any chat message or AI meeting transcript directly into an assigned project task with deadlines."
+  },
+  {
+    sourceApp: "Communications",
+    targetApp: "CRM & Sales",
+    badge: "Client Inbox",
+    description: "Synchronizes all client email exchanges and meeting notes directly onto the CRM contact relationship card."
+  },
+  {
+    sourceApp: "Communications",
+    targetApp: "HR Management",
+    badge: "Team Presence",
+    description: "Approved employee leaves automatically display out-of-office status badges in team chat channels."
+  }
+];
+
+const faqs = [
+  {
+    question: "Do my clients need to install software or create an account to join a 180 Video Meeting?",
+    answer: "No. 180 Video Meetings run completely in the browser via standard WebRTC. You simply share a link (e.g. https://180workspace.com/meeting/room-id), and clients join with one click on their laptop, tablet, or phone with zero software downloads."
+  },
+  {
+    question: "How does the floating Picture-in-Picture (PiP) video window work?",
+    answer: "When you are on a video call in 180workspace, navigating to other platform modules (like CRM, Projects, or Invoices) automatically docks your video stream into a floating, resizable PiP widget in the corner of your screen so you never lose visual contact with your team."
+  },
+  {
+    question: "Can I connect my company Gmail or Microsoft 365 inbox?",
+    answer: "Yes. 180 Communications includes universal IMAP/SMTP integration, allowing you to send and receive client emails directly inside the unified inbox with two-way synchronization."
+  },
+  {
+    question: "How does Orbit AI create tasks from meeting recordings?",
+    answer: "When an audio recording or transcript is processed by Orbit Copilot, our enterprise AI identifies commitments, action items, and assigned owners, automatically drafting structured task cards in your project sprint boards for review."
+  },
+  {
+    question: "Are chat messages and video calls encrypted and secure?",
+    answer: "Yes. All WebSockets, text messages, and WebRTC video streams utilize industry-standard TLS/SSL encryption and multi-tenant company isolation."
+  }
+];
+---
+
+<Layout 
+  title="Communications & Video Meetings Software & Guide | 180workspace"
+  description="Real-time team chat, 180 HD WebRTC video meetings, picture-in-picture, unified email sync, and AI meeting summaries in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Team chat and HD video meetings built"
+      highlightText="directly into your workspace."
+      description="Eliminate Slack and Zoom bill shock. 180 Communications combines real-time team channels, browser HD video calls with Picture-in-Picture, unified email inboxes, and AI meeting summaries."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Collaboration Features"
+      sectionTitle="Engineered for distributed teams, creative agencies, and startups."
+      sectionSubtitle="Zero context switching between team messaging, client video meetings, and task execution."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Collaboration Playbook"
+      title="How to Collaborate with Chat, Video & AI in 180"
+      subtitle="Follow these 4 steps to launch video calls, use Picture-in-Picture, and auto-extract meeting tasks."
+      videoCaption="2-Minute Communications & Video Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Communications"
+      title="Messaging that powers real-time business action."
+      subtitle="See how chat messages convert into sprint tasks and emails sync with client relationship records."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Communications FAQs"
+      title="Frequently Asked Questions about 180 Communications"
+      subtitle="Answers on WebRTC video quality, Picture-in-Picture mode, email synchronization, and security."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Communications" 
+      headline="Bring all team and client conversations into one place."
+      subheadline="Start using 180 Communications today. Free 14-day trial, instant setup, no software downloads."
+    />
+
+    <JSONLDSchema 
+      appName="Communications & Video Meetings"
+      description="Real-time team chat, 180 HD WebRTC video meetings, picture-in-picture, unified email sync, and AI meeting summaries in 180workspace."
+      urlPath="/apps/communications"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

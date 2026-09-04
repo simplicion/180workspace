@@ -82,7 +82,7 @@ api.interceptors.response.use(
                     window.location.pathname !== '/onboarding' &&
                     window.location.pathname !== '/workspace-setup' &&
                     !window.location.pathname.startsWith('/superadmin')) {
-                    window.location.href = '/login?clearSession=true';
+                    window.location.href = '/login';
                 }
                 return Promise.reject(error);
             }

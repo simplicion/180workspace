@@ -1,0 +1,95 @@
+---
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  appName: string;
+  description: string;
+  urlPath: string;
+  faqs?: FAQItem[];
+}
+
+const {
+  appName,
+  description,
+  urlPath,
+  faqs = []
+} = Astro.props;
+
+const rootDomain = "https://180workspace.com";
+const pageUrl = `${rootDomain}${urlPath}`;
+
+// SoftwareApplication Schema
+const appSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": `180 ${appName}`,
+  "operatingSystem": "Web, Cloud, All Platforms",
+  "applicationCategory": "BusinessApplication",
+  "description": description,
+  "url": pageUrl,
+  "offers": {
+    "@type": "Offer",
+    "price": "0.00",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock",
+    "seller": {
+      "@type": "Organization",
+      "name": "180workspace",
+      "url": rootDomain
+    }
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "180workspace",
+    "url": rootDomain,
+    "logo": `${rootDomain}/black-icon.svg`
+  }
+};
+
+// FAQPage Schema
+const faqSchema = faqs.length > 0 ? {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqs.map(faq => ({
+    "@type": "Question",
+    "name": faq.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": faq.answer
+    }
+  }))
+} : null;
+
+// BreadcrumbList Schema
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": rootDomain
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Apps",
+      "item": `${rootDomain}/apps`
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": appName,
+      "item": pageUrl
+    }
+  ]
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(appSchema)} />
+<script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+{faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}

@@ -8,7 +8,8 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Satoshi', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                sans: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
             },
             colors: {
                 border: 'var(--border)',
@@ -45,8 +46,23 @@ export default {
                     DEFAULT: 'var(--card)',
                     foreground: 'var(--card-foreground)'
                 },
+                // App Domain Accent Colors
+                domain: {
+                    crm: '#4f46e5',
+                    traffic: '#e11d48',
+                    finance: '#059669',
+                    projects: '#d97706',
+                    hr: '#0284c7',
+                    comms: '#7c3aed',
+                    social: '#db2777',
+                    tools: '#2563eb',
+                    insights: '#0d9488',
+                    hub: '#475569',
+                }
             },
             borderRadius: {
+                '3xl': '1.5rem',
+                '4xl': '2rem',
                 lg: 'var(--radius)',
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)'

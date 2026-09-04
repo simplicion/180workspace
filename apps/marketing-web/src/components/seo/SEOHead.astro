@@ -1,0 +1,235 @@
+---
+interface Breadcrumb {
+  name: string;
+  url: string;
+}
+
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface ArticleMeta {
+  publishedTime?: string;
+  modifiedTime?: string;
+  author?: string;
+  tags?: string[];
+}
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  canonicalUrl?: string;
+  noindex?: boolean;
+  article?: ArticleMeta;
+  breadcrumbs?: Breadcrumb[];
+  faqs?: FAQItem[];
+  applicationCategory?: string;
+}
+
+const {
+  title,
+  description = "180workspace — The Unified Business Operating System. Replace 15+ disconnected SaaS tools with one interconnected Work Graph for CRM, Projects, Finance, HR, Comms & AI.",
+  image = "/og-image.png",
+  type = "website",
+  canonicalUrl: explicitCanonical,
+  noindex = false,
+  article,
+  breadcrumbs = [],
+  faqs = [],
+  applicationCategory
+} = Astro.props;
+
+const siteUrl = "https://180workspace.com";
+const currentPath = Astro.url.pathname;
+const canonicalUrl = explicitCanonical || `${siteUrl}${currentPath === '/' ? '' : currentPath}`;
+const absoluteImageUrl = image.startsWith('http') ? image : `${siteUrl}${image.startsWith('/') ? image : `/${image}`}`;
+
+// Formatted clean title with brand suffix if not present
+const pageTitle = title.includes("180workspace") ? title : `${title} | 180workspace`;
+
+// Organization Schema (Global Brand Authority)
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "180workspace",
+  "alternateName": ["180 Workspace", "180OS", "180 Business OS"],
+  "url": siteUrl,
+  "logo": `${siteUrl}/black-icon.svg`,
+  "image": `${siteUrl}/og-image.png`,
+  "description": "Unified business operating system connecting CRM, projects, finance, HR, communications, cloud storage, and AI agents into one sovereign Work Graph.",
+  "foundingDate": "2024",
+  "sameAs": [
+    "https://twitter.com/180workspace",
+    "https://linkedin.com/company/180workspace",
+    "https://github.com/180workspace"
+  ],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "customer support",
+    "email": "support@180workspace.com",
+    "url": `${siteUrl}/enterprise`
+  }
+};
+
+// WebSite Schema with Sitelinks Search Box
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "180workspace",
+  "url": siteUrl,
+  "description": "The unified operating system for modern business teams.",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": `${siteUrl}/apps?search={search_term_string}`,
+    "query-input": "required name=search_term_string"
+  }
+};
+
+// BreadcrumbList Schema
+const breadcrumbSchema = breadcrumbs.length > 0 ? {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": breadcrumbs.map((crumb, index) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "name": crumb.name,
+    "item": crumb.url.startsWith('http') ? crumb.url : `${siteUrl}${crumb.url}`
+  }))
+} : null;
+
+// FAQPage Schema
+const faqSchema = faqs.length > 0 ? {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqs.map(faq => ({
+    "@type": "Question",
+    "name": faq.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": faq.answer
+    }
+  }))
+} : null;
+
+// SoftwareApplication Schema (for App Pages)
+const softwareAppSchema = applicationCategory ? {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": title,
+  "applicationCategory": applicationCategory,
+  "operatingSystem": "Web, Cloud, Windows, macOS, iOS, Android",
+  "description": description,
+  "url": canonicalUrl,
+  "offers": {
+    "@type": "Offer",
+    "price": "0.00",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "180workspace",
+    "url": siteUrl
+  }
+} : null;
+
+// Article Schema (for Blog Posts)
+const articleSchema = type === 'article' && article ? {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": title,
+  "description": description,
+  "image": absoluteImageUrl,
+  "datePublished": article.publishedTime,
+  "dateModified": article.modifiedTime || article.publishedTime,
+  "author": {
+    "@type": "Person",
+    "name": article.author || "180workspace Editorial Team"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "180workspace",
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${siteUrl}/black-icon.svg`
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": canonicalUrl
+  }
+} : null;
+---
+
+<!-- Essential Meta Tags -->
+<title>{pageTitle}</title>
+<meta name="description" content={description} />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="canonical" href={canonicalUrl} />
+<meta name="generator" content={Astro.generator} />
+
+<!-- Search Engine Robots Directive -->
+{noindex ? (
+  <meta name="robots" content="noindex, nofollow" />
+) : (
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+)}
+
+<!-- Favicons & Touch Icons (Official Black Icon) -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#020617" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+<!-- Open Graph / Facebook / LinkedIn / WhatsApp / Slack -->
+<meta property="og:type" content={type} />
+<meta property="og:url" content={canonicalUrl} />
+<meta property="og:title" content={pageTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={absoluteImageUrl} />
+<meta property="og:image:secure_url" content={absoluteImageUrl} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:alt" content={`${title} — 180workspace`} />
+<meta property="og:site_name" content="180workspace" />
+<meta property="og:locale" content="en_US" />
+
+<!-- Twitter / X Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content="@180workspace" />
+<meta name="twitter:creator" content="@180workspace" />
+<meta name="twitter:title" content={pageTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={absoluteImageUrl} />
+<meta name="twitter:image:alt" content={`${title} — 180workspace`} />
+
+<!-- Article Specific Tags -->
+{type === 'article' && article?.publishedTime && (
+  <meta property="article:published_time" content={article.publishedTime} />
+)}
+{type === 'article' && article?.modifiedTime && (
+  <meta property="article:modified_time" content={article.modifiedTime} />
+)}
+{type === 'article' && article?.author && (
+  <meta property="article:author" content={article.author} />
+)}
+{type === 'article' && article?.tags?.map((tag: string) => (
+  <meta property="article:tag" content={tag} />
+))}
+
+<!-- JSON-LD Structured Data Scripts -->
+<script type="application/ld+json" set:html={JSON.stringify(organizationSchema)} />
+<script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
+{breadcrumbSchema && <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />}
+{faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
+{softwareAppSchema && <script type="application/ld+json" set:html={JSON.stringify(softwareAppSchema)} />}
+{articleSchema && <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />}

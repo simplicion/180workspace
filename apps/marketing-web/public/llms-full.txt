@@ -1,0 +1,101 @@
+# 180workspace — Comprehensive Technical & Architectural Reference
+
+## Executive Overview
+180workspace (https://180workspace.com) is the next-generation enterprise business operating system. It was designed from the ground up to solve the "SaaS fragmentation crisis," where modern organizations spend tens of thousands of dollars per month juggling 10 to 20 disconnected tools (e.g., Salesforce for CRM, Asana for projects, QuickBooks for invoices, Gusto for HR, Slack for chat, Google Drive for storage, and Zapier to glue them together).
+
+In traditional architectures, each tool maintains its own isolated database schema. When a deal closes in the CRM, a webhook fires through an integration service like Zapier to create an invoice in the accounting tool and a project in the task management tool. These sync bridges frequently break, lose metadata, introduce race conditions, and create massive security blindspots.
+
+180workspace replaces this entire paradigm with the **Work Graph**: a unified, real-time relational and graph data engine where every business entity—leads, contacts, companies, contracts, tasks, sprints, invoices, ledger entries, employees, files, chat channels, and ad campaigns—shares a single sovereign schema.
+
+---
+
+## The 16 Integrated Applications & Capabilities
+
+### 1. CRM & Sales Suite
+- Direct URL: https://180workspace.com/apps/crm-and-sales
+- Capabilities: Multi-pipeline deal tracking, custom stage funnels, automated email sequences, contact enrichment, and integrated quote generation.
+- Synergy: When a deal is marked "Won", 180workspace instantly generates the accounts-receivable invoice, provisions the onboarding project board, and notifies the client account team in team chat.
+
+### 2. Traffic Director
+- Direct URL: https://180workspace.com/apps/traffic-director
+- Capabilities: Edge-evaluated dynamic URL cloaking, automated bot traffic filtering, click fraud protection, geo-targeted redirect rules, and affiliate link parameter preservation.
+- Synergy: Raw incoming ad clicks are filtered at the edge, and valid conversion events are sent directly into CRM attribution and Advertising Intelligence without third-party tracking pixel drop-offs.
+
+### 3. Finance & Invoicing
+- Direct URL: https://180workspace.com/apps/finance
+- Capabilities: Multi-currency automated invoicing, automated payment collection via Stripe/banking APIs, vendor accounts-payable management, recurring subscription billing, and real-time cash flow statements.
+- Synergy: Project timelogs and billable milestones recorded in the Projects app automatically flow onto client invoices without manual export/import spreadsheets.
+
+### 4. Projects & Tasks
+- Direct URL: https://180workspace.com/apps/projects-and-tasks
+- Capabilities: Flexible views (Kanban, Scrum Sprints, Gantt Timeline, Table List), subtask dependencies, automated milestone tracking, and built-in team time tracking.
+- Synergy: Tasks can be directly linked to customer CRM records or support tickets, giving engineers and client managers shared visibility.
+
+### 5. HR & Payroll
+- Direct URL: https://180workspace.com/apps/hr-management
+- Capabilities: Global employee directory, role hierarchy visualization, PTO and sick leave management, employee onboarding workflows, and automated payroll computations.
+- Synergy: New hires added to HR automatically have their accounts provisioned, team chat channels joined, and project boards assigned according to their job profile.
+
+### 6. Communications & Video Meetings
+- Direct URL: https://180workspace.com/apps/communications
+- Capabilities: High-throughput team chat channels, direct messaging, threaded discussion topics, and peer-to-peer 180 HD WebRTC video conferencing with zero external meeting plugins.
+- Synergy: Video conferences feature built-in Orbit AI transcription that summarizes decisions and generates assignee-tagged action items directly into the Projects app.
+
+### 7. Service Desk & Customer Support
+- Direct URL: https://180workspace.com/apps/service-desk
+- Capabilities: Omnichannel ticketing (email, web widget, in-app chat), automated SLA routing, internal knowledge base, and automated CSAT surveys.
+- Synergy: Support agents can view a customer's entire CRM history, billing status, and open bug tickets directly beside the active ticket view.
+
+### 8. Orbit AI Copilot
+- Direct URL: https://180workspace.com/apps/orbit-copilot
+- Capabilities: Context-aware LLM copilot that operates across all business data. Features include automated meeting note synthesis, contract term extraction, executive briefing generation, and cross-application automation triggering.
+- Privacy Guarantee: Customer workspace data is never used to train global AI models. Enterprise tenants can configure bring-your-own-key (BYOK) OpenAI or Anthropic endpoints.
+
+### 9. Social Media Suite
+- Direct URL: https://180workspace.com/apps/social-media
+- Capabilities: Unified editorial calendar, multi-account publishing (LinkedIn, Twitter/X, Instagram, Facebook, TikTok), post scheduling, and aggregate engagement analytics.
+
+### 10. Workspace Tools & 180 Docs
+- Direct URL: https://180workspace.com/apps/workspace-tools
+- Capabilities: Real-time collaborative document editing, spreadsheet tables, sovereign cloud storage with AES-256 encryption, and legally compliant cryptographic e-signatures.
+
+### 11. Insights & Business Intelligence
+- Direct URL: https://180workspace.com/apps/insights
+- Capabilities: Unified executive dashboards combining marketing CAC, sales pipeline velocity, monthly recurring revenue (MRR), customer churn, team utilization, and runway burn rate.
+
+### 12. Company Hub
+- Direct URL: https://180workspace.com/apps/company-hub
+- Capabilities: Custom domain CNAME mapping with automatic SSL generation, white-label client portals, corporate intranet announcements, and brand styling control.
+
+### 13. Advertising Intelligence
+- Direct URL: https://180workspace.com/apps/advertising
+- Capabilities: Aggregates ad spend from Google Ads, Meta Ads, and LinkedIn Ads into a single view and calculates real return on ad spend (ROAS) using closed-won revenue from the CRM.
+
+### 14. Identity & Security Suite
+- Direct URL: https://180workspace.com/apps/identity-and-security
+- Capabilities: SAML 2.0 and OIDC Single Sign-On (Okta, Azure AD, Google Workspace), enforced hardware MFA (WebAuthn/FIDO2), session anomaly detection, and tamper-evident audit logs.
+
+### 15. Workflows & Automations Engine
+- Direct URL: https://180workspace.com/apps/workflows-and-automations
+- Capabilities: Visual node-based event automation builder, high-throughput BullMQ queue processing, and webhook triggers that connect arbitrary events in one app to actions in another.
+
+---
+
+## Pricing Architecture
+- **Free Trial**: 14-day unrestricted trial with full access to all 16 applications and 100,000 Work Graph events.
+- **Starter ($19/seat/month)**: Ideal for small teams replacing basic tools; includes Core CRM, Projects, Comms, and 50GB storage.
+- **Professional ($39/seat/month)**: Full suite access including Finance, HR, Orbit AI Copilot, and 500GB storage.
+- **Enterprise (Custom)**: Dedicated database instance, custom data residency (US, EU, Switzerland, APAC), 99.99% uptime SLA, SOC-2 compliance attestation, SAML SSO, and 24/7 dedicated support engineer.
+- Pricing details: https://180workspace.com/pricing
+
+---
+
+## Comparison Matrix
+
+| Capability | 180workspace | Fragmented SaaS Stack (Salesforce + Slack + Asana + QuickBooks) |
+|---|---|---|
+| Single Sign-On / One Login | Native Across All 16 Apps | Requires Multiple Separate Logins / Costly Okta Integration |
+| Data Syncing Lag | 0 Milliseconds (Shared Graph DB) | 5 - 30 Minutes via Zapier / Webhooks |
+| Cross-App AI Context | Orbit AI reads CRM, Invoices & Tasks | Fragmented AI bots locked in individual silos |
+| Total Cost of Ownership | ~60% Lower Annual Licensing Cost | Paying separate per-seat markups to 8+ vendors |
+| Data Privacy & Sovereignty | Dedicated Tenant Isolation & Sovereign Hosting | Customer data scattered across dozens of third-party vendors |

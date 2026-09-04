@@ -1,0 +1,271 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import SectionHeader from '../../components/ui/SectionHeader.astro';
+import Badge from '../../components/ui/Badge.astro';
+import Button from '../../components/ui/Button.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const appCategories = [
+  {
+    name: "Revenue & Growth",
+    description: "Convert high-value leads, protect ad traffic, and streamline billing.",
+    apps: [
+      {
+        name: "CRM & Sales Pipeline",
+        slug: "crm-and-sales",
+        badge: "Most Popular",
+        variant: "crm" as const,
+        description: "Visual deal pipelines, automated follow-ups, client interaction timelines, and legally-binding contract e-signatures.",
+        capabilities: ["Custom Pipelines", "Lead Scoring", "Proposal Signatures", "Activity Feeds"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'
+      },
+      {
+        name: "Traffic Director & Ad Cloaking",
+        slug: "traffic-director",
+        badge: "Edge Powered",
+        variant: "traffic" as const,
+        description: "Zero-latency dynamic URL evaluation, bot shielding, ad click attribution, and multi-domain script tag verification.",
+        capabilities: ["Sub-5ms Edge Routing", "Bot Shielding", "Ad Review Bypassing", "Real-Time Attribution"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'
+      },
+      {
+        name: "Finance & Accounting",
+        slug: "finance",
+        badge: "Invoicing & Cashflow",
+        variant: "finance" as const,
+        description: "Automated invoice generation, multi-currency cash flow forecasting, expense tracking, and vendor bill schedules.",
+        capabilities: ["Smart Invoices", "Receipt Scanning", "Vendor Schedules", "Cash Flow Analytics"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>'
+      },
+      {
+        name: "Advertising & Campaign ROI",
+        slug: "advertising",
+        badge: "Marketing Attribution",
+        variant: "traffic" as const,
+        description: "Multi-platform ad spend aggregation versus closed-won CRM revenue for true marketing ROI attribution.",
+        capabilities: ["Ad Spend Sync", "True ROI Calculation", "Campaign Optimization", "Conversion Attribution"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'
+      }
+    ]
+  },
+  {
+    name: "Operations & Workforce",
+    description: "Manage projects, agile team sprints, and complete employee lifecycles.",
+    apps: [
+      {
+        name: "Projects & Tasks",
+        slug: "projects-and-tasks",
+        badge: "Essential",
+        variant: "projects" as const,
+        description: "Sprint planning, visual Kanban boards, milestone Gantt timelines, task dependencies, and billable work logs.",
+        capabilities: ["Kanban & Gantt", "Subtask Hierarchies", "Work Log Approvals", "Milestone Tracking"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>'
+      },
+      {
+        name: "HR Management & HRMS",
+        slug: "hr-management",
+        badge: "Workforce",
+        variant: "hr" as const,
+        description: "Employee directories, multi-tier leave approvals, payroll structures, attendance tracking, and performance reviews.",
+        capabilities: ["Employee Onboarding", "Leave Accruals", "Payroll Structures", "Performance Reviews"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>'
+      },
+      {
+        name: "Communications & Meetings",
+        slug: "communications",
+        badge: "HD WebRTC",
+        variant: "comms" as const,
+        description: "Zero-context-switching team messaging, HD video calls with Picture-in-Picture, unified email inboxes, and channels.",
+        capabilities: ["Direct & Channel Chat", "HD Video Meetings", "Picture-in-Picture", "Unified Email Sync"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>'
+      },
+      {
+        name: "Service Desk & Ticketing",
+        slug: "service-desk",
+        badge: "Customer Support",
+        variant: "support" as const,
+        description: "Customer support ticket queues, automated SLA tracking, customer satisfaction surveys, and knowledge base resolution.",
+        capabilities: ["Ticket Routing", "SLA Management", "Customer Portal", "Canned Responses"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>'
+      }
+    ]
+  },
+  {
+    name: "Tools, Intelligence & Synergy",
+    description: "Supercharge your team with autonomous AI workflows and creative tools.",
+    apps: [
+      {
+        name: "Orbit Copilot (AI Engine)",
+        slug: "orbit-copilot",
+        badge: "Autonomous AI",
+        variant: "orbit" as const,
+        description: "Autonomous AI agent operating across all apps. Generates meeting summaries, extracts actionable tasks, and drafts docs.",
+        capabilities: ["Audio Transcript Summaries", "Cross-App Task Extraction", "Smart Inquiries", "Auto-Drafting"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>'
+      },
+      {
+        name: "Social Media Suite",
+        slug: "social-media",
+        badge: "Omnichannel",
+        variant: "social" as const,
+        description: "Universal visual content calendar, multi-network post scheduling, digital asset library, and engagement analytics.",
+        capabilities: ["Universal Calendar", "Multi-Account Publishing", "Asset Bank", "Post Analytics"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>'
+      },
+      {
+        name: "Workspace Tools & Storage",
+        slug: "workspace-tools",
+        badge: "Docs & Files",
+        variant: "tools" as const,
+        description: "Collaborative 180 Documents, enterprise cloud storage, document template engines, and legally-binding e-signatures.",
+        capabilities: ["180 Rich Documents", "Cloud Storage", "PDF Generation", "Template Engines"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>'
+      },
+      {
+        name: "Insights & CEO Analytics",
+        slug: "insights",
+        badge: "Executive BI",
+        variant: "insights" as const,
+        description: "Executive-level dashboards translating operational activities into actionable financial metrics and team productivity indexes.",
+        capabilities: ["CEO Overview", "Productivity Index", "Revenue Velocity", "Exportable Reports"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>'
+      }
+    ]
+  },
+  {
+    name: "Governance & Customization",
+    description: "Enterprise security, custom branding, and custom domain CNAME automation.",
+    apps: [
+      {
+        name: "Company Hub & Custom Domains",
+        slug: "company-hub",
+        badge: "White Label",
+        variant: "security" as const,
+        description: "White-label custom portal domains with automated SSL provisioning, multi-tenant company settings, and brand customization.",
+        capabilities: ["Custom CNAME SSL", "Brand Color Customization", "Multi-Tenant Isolation", "Seat Allocation"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>'
+      },
+      {
+        name: "Identity & Security Governance",
+        slug: "identity-and-security",
+        badge: "SOC2 Compliance",
+        variant: "security" as const,
+        description: "Role-based access control (RBAC), multi-factor authentication (MFA), password policies, and tamper-evident audit logs.",
+        capabilities: ["Granular RBAC", "Authenticator 2FA", "Tamper-Evident Logs", "Session Management"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>'
+      },
+      {
+        name: "Workflows & Automations",
+        slug: "workflows-and-automations",
+        badge: "Event Driven",
+        variant: "crm" as const,
+        description: "No-code event triggers across the Work Graph powered by BullMQ background workers and real-time socket events.",
+        capabilities: ["Cross-App Event Triggers", "BullMQ Queues", "Webhook Delivery", "Email Notifications"],
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'
+      }
+    ]
+  }
+];
+---
+
+<Layout 
+  title="All Applications & Work Graph Modules | 180workspace"
+  description="Explore all 15 native applications integrated into the 180workspace business operating system. From CRM to HR, Finance, and Edge Traffic Routing."
+>
+  <main class="w-full relative">
+    
+    {/* Hero Section */}
+    <section class="pt-24 pb-16 md:pt-32 md:pb-20 text-center relative overflow-hidden">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+      
+      <div class="container mx-auto px-4 max-w-5xl">
+        <Badge text="The Complete Work Graph Suite" variant="crm" pulse class="mb-6" />
+
+        <h1 class="display-h1 mb-6">
+          15 powerful apps. <br /><span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">One unified operating system.</span>
+        </h1>
+
+        <p class="body-lead max-w-3xl mx-auto mb-10">
+          Say goodbye to 15 different logins, chaotic CSV exports, and expensive subscription bloat. 180workspace delivers every core tool your business needs, natively connected.
+        </p>
+
+        <div class="flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <span class="px-3.5 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md">15 Integrated Apps</span>
+          <span class="px-3.5 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md">Single Unified Database</span>
+          <span class="px-3.5 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md">Autonomous AI Copilot</span>
+        </div>
+      </div>
+    </section>
+
+    {/* App Directory Categories */}
+    <section class="py-12 md:py-16">
+      <div class="container mx-auto px-4 max-w-7xl space-y-20">
+        {appCategories.map((cat) => (
+          <div>
+            <div class="mb-8 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+              <h2 class="section-h2">
+                {cat.name}
+              </h2>
+              <p class="body-standard mt-1">
+                {cat.description}
+              </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {cat.apps.map((app) => (
+                <a 
+                  href={`/apps/${app.slug}`} 
+                  class="glass-card-interactive p-6 flex flex-col justify-between group"
+                >
+                  <div>
+                    <div class="flex items-center justify-between mb-4">
+                      <div class="w-11 h-11 p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-800 dark:text-slate-200 group-hover:scale-110 transition-transform duration-300">
+                        <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={app.iconSvg}></svg>
+                      </div>
+                      {app.badge && (
+                        <Badge text={app.badge} variant={app.variant} size="sm" />
+                      )}
+                    </div>
+
+                    <h3 class="card-h3 mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {app.name}
+                    </h3>
+
+                    <p class="body-standard line-clamp-3 mb-6">
+                      {app.description}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div class="flex flex-wrap gap-1.5 border-t border-slate-100 dark:border-slate-800 pt-4 mb-4">
+                      {app.capabilities.slice(0, 3).map((cap) => (
+                        <span class="text-[10px] font-semibold bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md">
+                          {cap}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-between group-hover:translate-x-1 transition-transform">
+                      <span>Explore App Guide</span>
+                      <span>→</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* Bottom Conversion CTA */}
+    <AppBottomCTA 
+      appName="Platform" 
+      headline="Unlock all 15 applications with one simple workspace."
+      subheadline="Start your 14-day free trial today. Onboard your entire team in under 3 minutes."
+    />
+
+  </main>
+</Layout>

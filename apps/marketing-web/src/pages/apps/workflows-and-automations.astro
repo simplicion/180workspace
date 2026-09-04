@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "No-Code Triggers",
+    title: "Cross-App Work Graph Event Triggers",
+    description: "Automate repetitive business processes across apps. Trigger actions automatically when a CRM contract is signed, an invoice is paid, or a support ticket is escalated.",
+    bullets: [
+      "Visual trigger-and-action workflow builder",
+      "Native cross-module triggers without third-party tools",
+      "Condition filtering (e.g. Only if Deal Value > $10,000)"
+    ]
+  },
+  {
+    badge: "BullMQ Engine",
+    title: "Enterprise Background Worker Architecture",
+    description: "Heavy tasks, PDF generation, transcript processing, and batch email dispatches execute reliably in isolated background BullMQ queues with automated retries.",
+    bullets: [
+      "High-throughput Redis & BullMQ task queues",
+      "Automatic exponential backoff on transient network failures",
+      "Zero UI blocking or request timeouts for end users"
+    ]
+  },
+  {
+    badge: "Outbound Webhooks",
+    title: "Real-Time Outbound Webhooks",
+    description: "Subscribe external systems to live 180workspace events. Receive signed JSON payloads when deals close, tasks move stages, or employees check in.",
+    bullets: [
+      "Custom webhook endpoints with event type filtering",
+      "HMAC-SHA256 signature verification headers",
+      "Full webhook delivery logs with payload inspection & manual replay"
+    ]
+  },
+  {
+    badge: "Notifications",
+    title: "Automated Multi-Channel Notifications",
+    description: "Notify your team where they already work. Send automated Slack alerts, Discord pings, SMS messages, and email digests when critical business events occur.",
+    bullets: [
+      "Pre-built notification templates for Slack & Discord",
+      "Custom email notification delivery with dynamic merge tags",
+      "SMS alerts for urgent client contract signatures"
+    ]
+  },
+  {
+    badge: "Integrations",
+    title: "Third-Party Connectors (Zapier, Make, n8n)",
+    description: "Connect 180workspace to over 5,000+ external apps via our REST API, Webhooks, and pre-built connectors for Zapier, Make, and n8n.",
+    bullets: [
+      "Universal REST API & Webhook interoperability",
+      "Bi-directional data sync with external systems",
+      "Pre-built community templates for agency workflows"
+    ]
+  },
+  {
+    badge: "AI Automations",
+    title: "Orbit AI Intelligent Workflow Generation",
+    description: "Describe what you want to automate in plain English. Orbit AI drafts the multi-step trigger logic, filters, and action payloads automatically.",
+    bullets: [
+      "Natural language workflow builder ('When a lead is captured, assign to Alex and send email')",
+      "Automated edge-case detection and error recovery",
+      "Continuous optimization recommendations based on execution speed"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Select an Event Trigger in the Builder",
+    description: "Navigate to Automations → + New Workflow. Choose an event from any 180 app (e.g. CRM: Deal Reaches 'Closed Won').",
+    actionSnippet: "Trigger: CRM.deal.closed_won"
+  },
+  {
+    stepNumber: "02",
+    title: "Add Conditions & Filters",
+    description: "Define logic filters to ensure the workflow runs only when specific criteria are met (e.g. Deal Value is greater than $5,000).",
+    actionSnippet: "Filter: deal.amount >= 5000"
+  },
+  {
+    stepNumber: "03",
+    title: "Chain Multi-Step Actions Across Apps",
+    description: "Add subsequent actions: 1. Provision Project Workspace, 2. Issue Initial Deposit Invoice, 3. Post Announcement in #sales Team Chat.",
+    actionSnippet: "Action 1: Projects.create • Action 2: Finance.invoice"
+  },
+  {
+    stepNumber: "04",
+    title: "Activate & Monitor Execution Logs",
+    description: "Turn the workflow ON. Monitor live execution history, step runtimes, and payload data in the centralized automation audit screen.",
+    actionSnippet: "Status: Active ✓ • 100% Success Rate"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Workflows",
+    targetApp: "CRM & Sales",
+    badge: "Deal Triggers",
+    description: "Triggers downstream project creation and client onboarding sequences when deals are marked won."
+  },
+  {
+    sourceApp: "Workflows",
+    targetApp: "Finance & Invoicing",
+    badge: "Payment Triggers",
+    description: "Unlocks client deliverables and notifies account managers automatically upon invoice payment confirmation."
+  },
+  {
+    sourceApp: "Workflows",
+    targetApp: "Communications",
+    badge: "Chat Alerts",
+    description: "Sends automated celebratory announcements and alerts to dedicated team chat channels."
+  }
+];
+
+const faqs = [
+  {
+    question: "Do I need coding skills to build automations in 180workspace?",
+    answer: "No. The Work Graph automation builder is 100% visual and no-code. You simply select a trigger (e.g., 'New Lead Captured') and choose what actions should happen next (e.g., 'Assign Task', 'Send Email', 'Create Deal'). You can also use Orbit AI to describe your workflow in plain English."
+  },
+  {
+    question: "How reliable is background task execution during heavy traffic?",
+    answer: "180workspace utilizes enterprise-grade BullMQ workers backed by Redis. Background jobs execute independently from web request cycles with automatic retries and dead-letter queues, ensuring zero lost tasks even during peak traffic surges."
+  },
+  {
+    question: "Can I send outbound webhooks to my own custom backend or server?",
+    answer: "Yes. You can configure custom webhook destinations with HMAC-SHA256 secret keys. 180workspace sends real-time JSON payloads whenever configured events occur, with full request/response delivery logs."
+  },
+  {
+    question: "How does 180 Automations compare to Zapier or Make?",
+    answer: "Because 180workspace apps (CRM, Tasks, HR, Finance) share the same native database, internal automations execute with zero latency, zero per-task fees, and zero complex API authentication setups compared to third-party tools."
+  },
+  {
+    question: "Can we test workflows before enabling them in production?",
+    answer: "Yes. Every workflow includes a 'Test Execution' simulator that runs sample payload data through your trigger rules and filters to verify actions before turning the automation live."
+  }
+];
+---
+
+<Layout 
+  title="Workflows & Automations Software & Guide | 180workspace"
+  description="No-code Work Graph event triggers, BullMQ background worker architecture, real-time webhooks, and AI automations in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Automate cross-app business processes with"
+      highlightText="zero third-party Zapier fees."
+      description="Connect triggers and actions seamlessly across CRM, Projects, Finance, and Communications. Powered by enterprise BullMQ background workers and real-time event streams."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Automation Features"
+      sectionTitle="Engineered for operations leads, developers, and agency owners."
+      sectionSubtitle="From visual no-code triggers to high-throughput BullMQ background job processing."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Automation Playbook"
+      title="How to Build Multi-Step Workflows in 180"
+      subtitle="Follow these 4 steps to select triggers, set conditions, and chain automated actions."
+      videoCaption="2-Minute Workflows & Automations Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Workflows"
+      title="Automations that synchronize your entire company."
+      subtitle="Discover how event triggers seamlessly link sales agreements, project tasks, and financial ledgers."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Automations FAQs"
+      title="Frequently Asked Questions about 180 Automations"
+      subtitle="Answers on no-code triggers, BullMQ background reliability, outbound webhooks, and third-party connectors."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Workflows & Automations" 
+      headline="Put your business operations on autopilot today."
+      subheadline="Start building powerful cross-app automations in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Workflows & Automations"
+      description="No-code Work Graph event triggers, BullMQ background worker architecture, real-time webhooks, and AI automations in 180workspace."
+      urlPath="/apps/workflows-and-automations"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

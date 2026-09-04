@@ -102,18 +102,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(`/login?from=${encodeURIComponent(from)}`, req.url));
   }
 
-  // 6. Already authenticated user trying to access Auth pages
+  // 6. Auth pages (/login, /signup, /onboarding) always render safely without server loops
   if (isAuthPage) {
-    if (url.searchParams.get('clearSession') === 'true') {
-      return NextResponse.next();
-    }
-    // Allow signup/onboarding if in progress
-    if (pathname.startsWith("/signup") || pathname.startsWith("/onboarding")) {
-      return NextResponse.next();
-    }
-    if (isOnboardingDone) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
     return NextResponse.next();
   }
 

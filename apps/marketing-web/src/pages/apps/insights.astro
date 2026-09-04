@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "CEO Overview",
+    title: "Executive Cross-App Command Center",
+    description: "See your entire business at a glance. Real-time revenue recognized, active sales pipeline value, team sprint velocity, and open customer tickets in one view.",
+    bullets: [
+      "Cross-app data aggregation with zero manual consolidation",
+      "Real-time revenue versus operational expenses",
+      "High-level milestone progress across all active projects"
+    ]
+  },
+  {
+    badge: "Weekly Trends",
+    title: "Weekly Growth Trends & Velocity Metrics",
+    description: "Identify emerging operational trends early. Track week-over-week growth in new lead acquisitions, closed revenue, billable hours, and task completion velocity.",
+    bullets: [
+      "Week-over-week performance comparisons",
+      "Sales pipeline velocity and conversion bottleneck detection",
+      "Team delivery velocity index across sprint cycles"
+    ]
+  },
+  {
+    badge: "Productivity",
+    title: "Team Productivity & Utilization Index",
+    description: "Measure team output accurately without micromanagement. Track billable utilization rates, task completion ratios, and departmental capacity.",
+    bullets: [
+      "Billable vs non-billable hour allocation breakdown",
+      "Departmental productivity heatmaps (Design, Engineering, Sales)",
+      "Identifies underutilized capacity or burnout risks"
+    ]
+  },
+  {
+    badge: "Predictive",
+    title: "Cash Flow & Revenue Runway Forecasting",
+    description: "Predict future cash flow with confidence. Project incoming receivables against scheduled contractor disbursements and payroll runs.",
+    bullets: [
+      "Rolling 30, 60, and 90-day cash flow projections",
+      "Weighted pipeline revenue forecasting",
+      "Accounts receivable aging analysis"
+    ]
+  },
+  {
+    badge: "Custom KPIs",
+    title: "Custom KPI Widgets & Exportable Board Reports",
+    description: "Build custom executive metric dashboards tailored to your board of directors, investors, or department heads. Export presentation-ready PDF reports with one click.",
+    bullets: [
+      "Drag-and-drop metric widget customization",
+      "One-click PDF board report generation",
+      "Automated weekly email digests to leadership"
+    ]
+  },
+  {
+    badge: "AI Insights",
+    title: "Orbit AI Autonomous Business Recommendations",
+    description: "Orbit Copilot continuously analyzes your historical operational data to uncover hidden revenue opportunities, cost leaks, and efficiency bottlenecks.",
+    bullets: [
+      "Identifies unprofitable project types or client accounts",
+      "Highlights high-performing sales playbooks",
+      "Recommends optimal pricing and retainer adjustments"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Open the CEO Overview Dashboard",
+    description: "Navigate to Insights → Overview. Instantly review total revenue, active pipeline value, pending receivables, and sprint velocity across all apps.",
+    actionSnippet: "Insights → Executive Command Center"
+  },
+  {
+    stepNumber: "02",
+    title: "Inspect Weekly Growth Trends",
+    description: "Review week-over-week lead acquisition, deal close rates, and billable hour utilization to identify emerging operational patterns.",
+    actionSnippet: "Insights → Weekly Trends → Filter by Department"
+  },
+  {
+    stepNumber: "03",
+    title: "Review Orbit AI Business Diagnostics",
+    description: "Read Orbit Copilot's automated weekly diagnostic summary highlighting operational bottlenecks, client profit margins, and team capacity.",
+    actionSnippet: "Orbit AI Diagnostic: 'Design team at 94% capacity'"
+  },
+  {
+    stepNumber: "04",
+    title: "Export Presentation-Ready Board Reports",
+    description: "Generate a clean, branded PDF summary for your executive team, board members, or bank lenders with one click.",
+    actionSnippet: "Export PDF Report • Instant Executive Summary"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Insights",
+    targetApp: "Finance & Invoicing",
+    badge: "Cash Flow",
+    description: "Aggregates revenue collected, pending invoices, and vendor disbursements into real-time profit reports."
+  },
+  {
+    sourceApp: "Insights",
+    targetApp: "CRM & Sales",
+    badge: "Pipeline Velocity",
+    description: "Calculates average deal closing speed, win rates, and customer acquisition costs (CAC)."
+  },
+  {
+    sourceApp: "Insights",
+    targetApp: "Projects & Tasks",
+    badge: "Sprint Velocity",
+    description: "Tracks task completion velocity, milestone delivery accuracy, and team billable utilization."
+  }
+];
+
+const faqs = [
+  {
+    question: "Do I need to configure separate data pipelines or BI connectors?",
+    answer: "No. Because all 180workspace applications (CRM, Projects, HR, Finance, Traffic Director) share the native Work Graph database, Insights requires zero setup, zero ETL pipelines, and zero expensive BI tool licenses."
+  },
+  {
+    question: "How does 180workspace calculate Team Utilization?",
+    answer: "The platform calculates billable utilization by comparing approved billable project time logs against total scheduled work hours defined in HR management policies, providing an accurate, honest measure of team output."
+  },
+  {
+    question: "Can I create different dashboards for department heads?",
+    answer: "Yes. Role-based permissions allow you to create customized insight dashboards for Sales Leads (focusing on pipeline metrics), Engineering Leads (focusing on sprint velocity), and CFOs (focusing on cash flow)."
+  },
+  {
+    question: "Can we automate weekly leadership email reports?",
+    answer: "Yes. Insights can automatically compile and email an executive weekly digest every Monday morning to founders and department heads with key week-over-week metric changes."
+  },
+  {
+    question: "What makes Orbit AI Insights different from standard graphs?",
+    answer: "Orbit AI doesn't just show historical charts; it actively correlates data across apps (e.g. noticing that projects with more than 5 design revisions result in lower net profit margins) and provides actionable recommendations to improve profitability."
+  }
+];
+---
+
+<Layout 
+  title="Insights & CEO Analytics Software & Guide | 180workspace"
+  description="Executive CEO dashboard, weekly growth trends, team productivity index, and predictive cash flow analytics in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Executive clarity and revenue analytics"
+      highlightText="with zero manual spreadsheets."
+      description="Stop spending weekends consolidating messy CSV reports. 180 Insights gives founders and leadership teams real-time visibility across sales, projects, cash flow, and team productivity."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Analytics Features"
+      sectionTitle="Engineered for founders, executives, and department leads."
+      sectionSubtitle="From high-level cash flow forecasting to granular sprint velocity and employee capacity analytics."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Insights Playbook"
+      title="How to Monitor Company Health in 180 Insights"
+      subtitle="Follow these 4 steps to review executive dashboards, growth trends, and Orbit AI diagnostics."
+      videoCaption="2-Minute Insights & Analytics Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Insights & BI"
+      title="Intelligence powered by every operational transaction."
+      subtitle="See how financial ledgers, sales deals, and sprint work logs combine into unified business clarity."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Insights FAQs"
+      title="Frequently Asked Questions about 180 Insights"
+      subtitle="Answers on automated metrics calculation, role-based dashboards, board reports, and AI analytics."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Insights & Analytics" 
+      headline="Gain total clarity over your company's growth and health."
+      subheadline="Start leveraging real-time business intelligence in 180workspace today. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Insights & Business Intelligence"
+      description="Executive CEO dashboard, weekly growth trends, team productivity index, and predictive cash flow analytics in 180workspace."
+      urlPath="/apps/insights"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>
