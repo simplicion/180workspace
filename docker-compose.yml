@@ -53,9 +53,9 @@ services:
     container_name: 180workspace-backend
     restart: always
     ports:
-      - "4001:4001"
+      - "4000:4000"
     environment:
-      - PORT=4001
+      - PORT=4000
       - NODE_ENV=production
     env_file:
       - .env
