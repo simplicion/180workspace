@@ -60,13 +60,13 @@ function LoginForm() {
                     toast.error('Session sync error. Please log in again.');
                     return;
                 }
-                if ((user as any).isFirstLogin !== false) {
+                if ((user as any).isFirstLogin !== false && !(user as any).isOnboardingComplete) {
                     // If onboarding is incomplete, redirect them to /signup so they can complete it.
                     router.replace('/signup');
                     return;
                 }
 
-                const returnUrl = searchParams?.get('returnUrl');
+                const returnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
                 window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
             }
         }
@@ -78,7 +78,7 @@ function LoginForm() {
             // User is authenticated in backend but NextAuth session is missing
             signIn('platform-token', { token, redirect: false }).then((result) => {
                 if (result?.ok) {
-                    const returnUrl = searchParams?.get('returnUrl');
+                    const returnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
                     window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
                 }
             });
@@ -88,7 +88,8 @@ function LoginForm() {
     // While the auth context or settings context is resolving, show a spinner
     // so the login form never flickers on screen for logged-in users.
     // However, if they haven't finished onboarding, we let them see the form so they can switch accounts.
-    const shouldShowSpinner = isLoading || authLoading || (user && (user as any).isFirstLogin === false) || settingsLoading;
+    const isUserFullyOnboarded = user && ((user as any).isFirstLogin === false || (user as any).isOnboardingComplete === true);
+    const shouldShowSpinner = isLoading || authLoading || isUserFullyOnboarded || settingsLoading;
     if (shouldShowSpinner) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">

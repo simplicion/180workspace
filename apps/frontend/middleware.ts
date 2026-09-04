@@ -77,8 +77,10 @@ export default withAuth(
       return NextResponse.rewrite(new URL(`/sites/${domainKey}${path}${search}`, req.url));
     }
 
-    const token = req.nextauth.token
-    const isAuth = !!token; console.log('MIDDLEWARE CHECK:', { hasToken: !!token, url: req.nextUrl.pathname, isCustomDomain, companySlug: token?.companySlug, isFirstLogin: token?.isFirstLogin });
+    const token = req.nextauth?.token;
+    const platformCookie = req.cookies.get('platform_auth_token')?.value;
+    const isAuth = !!token || !!platformCookie;
+
     const isAuthPage =
       req.nextUrl.pathname.startsWith("/login") ||
       req.nextUrl.pathname.startsWith("/signup") ||
@@ -94,17 +96,15 @@ export default withAuth(
     const isApiRoute = req.nextUrl.pathname.startsWith('/api');
     const isIMSRoute = !is180workspaceRoute && !isAuthPage && !isSetupPage && !isApiRoute;
 
-    const isWorkspaceSetupComplete = !!(token?.companyId && token?.isOnboardingComplete);
+    const isWorkspaceSetupComplete = !!(token?.companyId && token?.isOnboardingComplete) || !!platformCookie;
     const is180workspaceUser = token?.role === 'USER';
-    const isOnboardingDone = token?.isFirstLogin === false;  // isFirstLogin: true = NOT done
+    const isOnboardingDone = (token?.isFirstLogin === false) || !!(token?.companyId && token?.isOnboardingComplete) || !!platformCookie;
 
     // 0. Redirect authenticated users hitting the landing page to their dashboard (now root)
     if (isAuth && req.nextUrl.pathname === "/") {
       if (!isOnboardingDone) {
         return NextResponse.redirect(new URL("/signup", req.url));
       } else {
-        // Without /dashboard prefix, we might want them to go to a default app like /projects or let them stay on /
-        // Let's let them stay on / which will render the default platform layout
         return null;
       }
     }
@@ -118,8 +118,6 @@ export default withAuth(
         let from = req.nextUrl.pathname;
         if (req.nextUrl.search) from += req.nextUrl.search;
 
-        // If they are on a custom domain, redirect them to the root domain's login page
-        // (Wait, we already handle this at the top for specific paths, but for others we still redirect)
         if (isCustomDomain) {
           const protocol = req.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
           const port = hostname.split(':')[1];
@@ -150,31 +148,23 @@ export default withAuth(
       if (req.nextUrl.pathname.startsWith("/signup") || req.nextUrl.pathname.startsWith("/onboarding")) {
         return null;
       }
-      // If onboarding is NOT complete, let them access /login too (they might want to switch accounts)
-      // but also redirect from /login to /signup if they have incomplete onboarding
-      if (!isOnboardingDone) {
-        // If they're on /login, let them stay — they might want to switch accounts
-        if (req.nextUrl.pathname.startsWith("/login")) {
-          return NextResponse.next();
-        }
-        return NextResponse.redirect(new URL("/signup", req.url));
+      // If user is on /login and is already authenticated with completed onboarding, redirect to root
+      if (isOnboardingDone) {
+        return NextResponse.redirect(new URL("/", req.url));
       }
-      // Onboarding is done — redirect away from auth pages to their dashboard
-      return NextResponse.redirect(new URL("/", req.url));
+      return null;
     }
 
     // 3. User is trying to access 180workspace routes (Dashboard, CRM, etc.)
     if (isIMSRoute) {
-      // If personal onboarding is not complete, redirect to signup
       if (!isOnboardingDone) {
         return NextResponse.redirect(new URL("/signup", req.url));
       }
       if (!isWorkspaceSetupComplete) {
-        // Force them to complete workspace setup
         return NextResponse.redirect(new URL("/workspace-setup", req.url));
       }
 
-      return NextResponse.next(); // Allow access
+      return NextResponse.next();
     }
 
     // 4. User is trying to access Workspace Setup
