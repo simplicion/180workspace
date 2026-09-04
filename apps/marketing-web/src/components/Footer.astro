@@ -20,6 +20,8 @@ const platformLinks = [
 ];
 
 const legalLinks = [
+  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Terms of Service', href: '/terms' },
   { label: 'Security & Compliance', href: '/enterprise' },
   { label: 'Platform Architecture', href: '/features' },
   { label: 'XML Sitemap', href: '/sitemap.xml' },
@@ -96,7 +98,9 @@ const legalLinks = [
       <p>
         &copy; {new Date().getFullYear()} 180workspace. All rights reserved.
       </p>
-      <div class="flex items-center gap-6 mt-4 sm:mt-0">
+      <div class="flex flex-wrap items-center gap-4 sm:gap-6 mt-4 sm:mt-0">
+        <a href="/privacy" class="hover:text-slate-600 dark:hover:text-slate-300">Privacy Policy</a>
+        <a href="/terms" class="hover:text-slate-600 dark:hover:text-slate-300">Terms of Service</a>
         <a href="/pricing" class="hover:text-slate-600 dark:hover:text-slate-300">Pricing</a>
         <a href="/enterprise" class="hover:text-slate-600 dark:hover:text-slate-300">Security</a>
         <a href="/developers" class="hover:text-slate-600 dark:hover:text-slate-300">Developers</a>

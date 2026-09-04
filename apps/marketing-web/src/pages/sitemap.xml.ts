@@ -16,6 +16,8 @@ export const GET: APIRoute = async () => {
     { url: `${baseUrl}/features`, priority: 0.85, changeFrequency: 'weekly' },
     { url: `${baseUrl}/case-studies`, priority: 0.85, changeFrequency: 'monthly' },
     { url: `${baseUrl}/blog`, priority: 0.90, changeFrequency: 'daily' },
+    { url: `${baseUrl}/privacy`, priority: 0.70, changeFrequency: 'monthly' },
+    { url: `${baseUrl}/terms`, priority: 0.70, changeFrequency: 'monthly' },
   ];
 
   // All 16 Business Applications
