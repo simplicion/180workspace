@@ -16,6 +16,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ubuntu/app
-            pm2 status
-            pm2 logs --nostream --lines 100
+            echo "=== DOCKER CONTAINERS ==="
+            docker ps -a
+            echo "=== BACKEND LOGS ==="
+            docker compose logs --tail 150 backend 2>/dev/null || docker logs $(docker ps -qf "name=backend") --tail 150 2>/dev/null || true
+            echo "=== FRONTEND LOGS ==="
+            docker compose logs --tail 150 frontend 2>/dev/null || docker logs $(docker ps -qf "name=frontend") --tail 150 2>/dev/null || true
+            echo "=== SYSTEM / NGINX / DOCKER LOGS ==="
+            docker compose logs --tail 50 2>/dev/null || true
+
 
