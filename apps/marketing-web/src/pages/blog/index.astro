@@ -6,40 +6,42 @@ import { fallbackBlogs, type BlogPost } from '../../data/fallback-blogs';
 
 let dbBlogs: BlogPost[] = [];
 
-try {
-  const records = await prisma.$queryRawUnsafe<any[]>(
-    `SELECT * FROM "MarketingBlog" WHERE "published" = true ORDER BY "featured" DESC, "publishedAt" DESC`
-  );
+if (process.env.DATABASE_URL) {
+  try {
+    const records = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM "MarketingBlog" WHERE "published" = true ORDER BY "featured" DESC, "publishedAt" DESC`
+    );
 
-  if (records && records.length > 0) {
-    dbBlogs = records.map((r: any) => ({
-      id: r.id,
-      title: r.title,
-      slug: r.slug,
-      category: r.category || 'Operations',
-      excerpt: r.seoDescription || r.title,
-      contentMarkdown: r.contentMarkdown || '',
-      readingTimeMin: r.readingTimeMin || 5,
-      featured: Boolean(r.featured),
-      authorName: r.authorName || '180workspace Team',
-      authorRole: r.authorBio ? 'Author' : 'Editorial Team',
-      authorBio: r.authorBio || '',
-      authorAvatar: undefined,
-      authorSocial: r.authorSocial || undefined,
-      publishedAt: r.publishedAt ? new Date(r.publishedAt) : new Date(),
-      seoTitle: r.seoTitle || r.title,
-      seoDescription: r.seoDescription || '',
-      keywords: Array.isArray(r.keywords) ? r.keywords : (typeof r.keywords === 'string' ? r.keywords.split(',').map((s: string) => s.trim()) : []),
-      keyTakeaways: Array.isArray(r.keyTakeaways) ? r.keyTakeaways : [],
-      faqs: Array.isArray(r.faqs) ? r.faqs : [],
-      relatedAppSlug: r.relatedAppSlug || undefined,
-      ctaHeadline: r.ctaHeadline || undefined,
-      ctaButtonText: r.ctaButtonText || undefined,
-      viewsCount: r.viewsCount || 0
-    }));
+    if (records && records.length > 0) {
+      dbBlogs = records.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        slug: r.slug,
+        category: r.category || 'Operations',
+        excerpt: r.seoDescription || r.title,
+        contentMarkdown: r.contentMarkdown || '',
+        readingTimeMin: r.readingTimeMin || 5,
+        featured: Boolean(r.featured),
+        authorName: r.authorName || '180workspace Team',
+        authorRole: r.authorBio ? 'Author' : 'Editorial Team',
+        authorBio: r.authorBio || '',
+        authorAvatar: undefined,
+        authorSocial: r.authorSocial || undefined,
+        publishedAt: r.publishedAt ? new Date(r.publishedAt) : new Date(),
+        seoTitle: r.seoTitle || r.title,
+        seoDescription: r.seoDescription || '',
+        keywords: Array.isArray(r.keywords) ? r.keywords : (typeof r.keywords === 'string' ? r.keywords.split(',').map((s: string) => s.trim()) : []),
+        keyTakeaways: Array.isArray(r.keyTakeaways) ? r.keyTakeaways : [],
+        faqs: Array.isArray(r.faqs) ? r.faqs : [],
+        relatedAppSlug: r.relatedAppSlug || undefined,
+        ctaHeadline: r.ctaHeadline || undefined,
+        ctaButtonText: r.ctaButtonText || undefined,
+        viewsCount: r.viewsCount || 0
+      }));
+    }
+  } catch (error) {
+    console.warn("Could not fetch blogs from DB, using fallbacks:", error);
   }
-} catch (error) {
-  console.warn("Could not fetch blogs from DB, using fallbacks:", error);
 }
 
 // Merge or use fallbacks

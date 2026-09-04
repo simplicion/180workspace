@@ -15,18 +15,20 @@ export async function getStaticPaths() {
   });
 
   // Query DB slugs if available
-  try {
-    const dbBlogs = await prisma.marketingBlog.findMany({
-      where: { published: true },
-      select: { slug: true }
-    });
-    dbBlogs.forEach(b => {
-      if (!paths.some(p => p.params.slug === b.slug)) {
-        paths.push({ params: { slug: b.slug } });
-      }
-    });
-  } catch (e) {
-    console.warn("Could not query DB for blog static paths, relying on fallback slugs:", e);
+  if (process.env.DATABASE_URL) {
+    try {
+      const dbBlogs = await prisma.marketingBlog.findMany({
+        where: { published: true },
+        select: { slug: true }
+      });
+      dbBlogs.forEach(b => {
+        if (!paths.some(p => p.params.slug === b.slug)) {
+          paths.push({ params: { slug: b.slug } });
+        }
+      });
+    } catch (e) {
+      console.warn("Could not query DB for blog static paths, relying on fallback slugs:", e);
+    }
   }
 
   return paths;
@@ -36,49 +38,51 @@ const { slug } = Astro.params;
 
 let blog: BlogPost | null = null;
 
-// Try to fetch from DB first
-try {
-  const records = await prisma.$queryRawUnsafe<any[]>(
-    `SELECT * FROM "MarketingBlog" WHERE "slug" = $1 AND "published" = true LIMIT 1`,
-    slug
-  );
+// Try to fetch from DB first if DATABASE_URL is available
+if (process.env.DATABASE_URL) {
+  try {
+    const records = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM "MarketingBlog" WHERE "slug" = $1 AND "published" = true LIMIT 1`,
+      slug
+    );
 
-  if (records && records.length > 0) {
-    const record = records[0];
-    const rawKeywords = record.keywords;
-    const rawTakeaways = record.keyTakeaways;
-    const rawFaqs = record.faqs;
+    if (records && records.length > 0) {
+      const record = records[0];
+      const rawKeywords = record.keywords;
+      const rawTakeaways = record.keyTakeaways;
+      const rawFaqs = record.faqs;
 
-    blog = {
-      id: record.id,
-      title: record.title,
-      slug: record.slug,
-      category: record.category || 'Operations',
-      excerpt: record.excerpt || record.seoDescription || record.title,
-      contentMarkdown: record.contentMarkdown || record.contentHtml || '',
-      readingTimeMin: record.readingTimeMin || 6,
-      featured: Boolean(record.featured),
-      authorName: record.authorName || '180workspace Team',
-      authorRole: record.authorRole || (record.authorBio ? 'Author' : 'Editorial Contributor'),
-      authorBio: record.authorBio || '',
-      authorAvatar: record.authorAvatarUrl || undefined,
-      authorSocial: record.authorSocial || undefined,
-      publishedAt: record.publishedAt ? new Date(record.publishedAt) : new Date(),
-      seoTitle: record.seoTitle || record.title,
-      seoDescription: record.seoDescription || '',
-      keywords: safeParseJson<string[]>(rawKeywords, []),
-      keyTakeaways: safeParseJson<string[]>(rawTakeaways, []),
-      faqs: safeParseJson<Array<{ question: string; answer: string }>>(rawFaqs, []),
-      canonicalUrl: record.canonicalUrl || undefined,
-      ogImageUrl: record.ogImageUrl || undefined,
-      relatedAppSlug: record.relatedAppSlug || 'workspace-tools',
-      ctaHeadline: record.ctaHeadline || 'Consolidate 15+ Disconnected SaaS Tools on 180workspace',
-      ctaButtonText: record.ctaButtonText || 'Start with $12 Plan',
-      viewsCount: record.viewsCount || 0
-    };
+      blog = {
+        id: record.id,
+        title: record.title,
+        slug: record.slug,
+        category: record.category || 'Operations',
+        excerpt: record.excerpt || record.seoDescription || record.title,
+        contentMarkdown: record.contentMarkdown || record.contentHtml || '',
+        readingTimeMin: record.readingTimeMin || 6,
+        featured: Boolean(record.featured),
+        authorName: record.authorName || '180workspace Team',
+        authorRole: record.authorRole || (record.authorBio ? 'Author' : 'Editorial Contributor'),
+        authorBio: record.authorBio || '',
+        authorAvatar: record.authorAvatarUrl || undefined,
+        authorSocial: record.authorSocial || undefined,
+        publishedAt: record.publishedAt ? new Date(record.publishedAt) : new Date(),
+        seoTitle: record.seoTitle || record.title,
+        seoDescription: record.seoDescription || '',
+        keywords: safeParseJson<string[]>(rawKeywords, []),
+        keyTakeaways: safeParseJson<string[]>(rawTakeaways, []),
+        faqs: safeParseJson<Array<{ question: string; answer: string }>>(rawFaqs, []),
+        canonicalUrl: record.canonicalUrl || undefined,
+        ogImageUrl: record.ogImageUrl || undefined,
+        relatedAppSlug: record.relatedAppSlug || 'workspace-tools',
+        ctaHeadline: record.ctaHeadline || 'Consolidate 15+ Disconnected SaaS Tools on 180workspace',
+        ctaButtonText: record.ctaButtonText || 'Start with $12 Plan',
+        viewsCount: record.viewsCount || 0
+      };
+    }
+  } catch (err) {
+    console.warn(`Failed to fetch blog post "${slug}" from DB, checking fallback blogs:`, err);
   }
-} catch (err) {
-  console.warn(`Failed to fetch blog post "${slug}" from DB, checking fallback blogs:`, err);
 }
 
 // Fallback lookup
@@ -90,6 +94,10 @@ if (!blog) {
   return Astro.redirect('/blog');
 }
 
+// Normalize published date safely
+const publishedDate = blog.publishedAt ? new Date(blog.publishedAt) : new Date();
+const publishedIsoString = publishedDate.toISOString();
+
 // Render Markdown to HTML and extract Table of Contents (TOC)
 const { html: renderedContent, toc } = renderBlogMarkdown(blog.contentMarkdown);
 
@@ -100,11 +108,16 @@ const relatedPosts = fallbackBlogs
 
 // Category styling
 const categoryColors: Record<string, string> = {
+  "Revenue & Sales": "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/80",
   "Operations": "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200/80 dark:border-amber-800/80",
+  "Finance": "bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 border-cyan-200/80 dark:border-cyan-800/80",
   "Architecture": "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-800/80",
   "Growth & Traffic": "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/80",
   "Growth & Ads": "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/80",
+  "Growth & Marketing": "bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-400 border-pink-200/80 dark:border-pink-800/80",
   "Autonomous AI": "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-400 border-violet-200/80 dark:border-violet-800/80",
+  "Productivity": "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border-blue-200/80 dark:border-blue-800/80",
+  "Security & Governance": "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-400 border-red-200/80 dark:border-red-800/80",
   "Product Updates": "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/80",
 };
 
@@ -118,7 +131,7 @@ const fullCanonical = blog.canonicalUrl || `https://180workspace.com/blog/${blog
   type="article"
   canonicalUrl={fullCanonical}
   article={{
-    publishedTime: blog.publishedAt.toISOString(),
+    publishedTime: publishedIsoString,
     author: blog.authorName,
     tags: blog.keywords,
   }}
@@ -156,8 +169,8 @@ const fullCanonical = blog.canonicalUrl || `https://180workspace.com/blog/${blog
             <span>{blog.readingTimeMin} min read</span>
           </span>
           <span class="text-slate-300 dark:text-slate-700">•</span>
-          <time datetime={blog.publishedAt.toISOString()} class="text-xs text-slate-500 dark:text-slate-400 font-semibold tabular-nums">
-            Published on {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          <time datetime={publishedIsoString} class="text-xs text-slate-500 dark:text-slate-400 font-semibold tabular-nums">
+            Published on {publishedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </time>
         </div>
 
