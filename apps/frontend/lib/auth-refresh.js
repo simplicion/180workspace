@@ -89,6 +89,7 @@ export function clearAllAuthTokens() {
 
     localStorage.removeItem("platform_auth_token");
     localStorage.removeItem("platform_refresh_token");
+    sessionStorage.removeItem("platform_init_data");
 
     const hostname = window.location.hostname;
     const is180 = hostname.endsWith('180workspace.com');
@@ -96,8 +97,26 @@ export function clearAllAuthTokens() {
     const cookieDomain = hostname.includes("localhost")
         ? ".localhost"
         : `.${hostname.split(".").slice(-2).join(".")}`;
+
+    // Clear platform_auth_token
     document.cookie = `platform_auth_token=; path=/; max-age=0; Domain=${cookieDomain}`;
     document.cookie = `platform_auth_token=; path=/; max-age=0${domainAttr}`;
     document.cookie = `platform_auth_token=; path=/; max-age=0;`;
     document.cookie = `platform_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+
+    // Clear NextAuth cookies
+    const nextAuthCookieNames = [
+        'next-auth.session-token',
+        '__Secure-next-auth.session-token',
+        'next-auth.callback-url',
+        '__Secure-next-auth.callback-url',
+        'next-auth.csrf-token',
+        '__Host-next-auth.csrf-token'
+    ];
+    nextAuthCookieNames.forEach(name => {
+        document.cookie = `${name}=; path=/; max-age=0; Domain=${cookieDomain}`;
+        document.cookie = `${name}=; path=/; max-age=0${domainAttr}`;
+        document.cookie = `${name}=; path=/; max-age=0;`;
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    });
 }

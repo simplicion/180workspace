@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Automated Ingestion",
+    title: "Headless Lead Capture & Web Forms",
+    description: "Capture leads from websites, dynamic Traffic Director links, and custom landing pages instantly. Eliminate manual data entry with auto-lead enrichment.",
+    bullets: [
+      "Embeddable public forms with custom branding",
+      "Instant lead attribution & traffic source tracking",
+      "Auto-assignment rules based on team capacity"
+    ]
+  },
+  {
+    badge: "Drag & Drop",
+    title: "Visual Multi-Stage Deal Pipelines",
+    description: "Track deals from initial contact to closed-won. Drag and drop deals across customizable stages with real-time revenue weighting.",
+    bullets: [
+      "Custom stage definitions & win probability multipliers",
+      "Revenue forecasting per pipeline & sales rep",
+      "Stale deal alerts & automated follow-up reminders"
+    ]
+  },
+  {
+    badge: "Self-Service",
+    title: "Proposals & Digital Contract Signatures",
+    description: "Generate professional client proposals, embed scope of work, and collect legally-binding electronic signatures without third-party tools.",
+    bullets: [
+      "Public signing URLs (/p/contract/:id) with custom domains",
+      "Audit trail with IP timestamps & signee verification",
+      "Auto-converts signed contracts into active Projects"
+    ]
+  },
+  {
+    badge: "360° Timeline",
+    title: "Client & Company Relationship Records",
+    description: "Every email, chat thread, project milestone, and paid invoice consolidated in one comprehensive 360-degree client timeline.",
+    bullets: [
+      "Unified contact directory with custom field support",
+      "Company-level aggregation of multiple contacts & deals",
+      "Direct link to client invoices, files & active tasks"
+    ]
+  },
+  {
+    badge: "AI Powered",
+    title: "AI Meeting Transcripts & Deal Insights",
+    description: "Orbit Copilot automatically extracts follow-up tasks, objection summaries, and client sentiment directly from meeting recordings.",
+    bullets: [
+      "Automated meeting summary generation",
+      "Key decision points & next action items extracted",
+      "One-click task assignment to account managers"
+    ]
+  },
+  {
+    badge: "Client Portal",
+    title: "White-Label Client Collaboration Portal",
+    description: "Give your clients a custom-branded portal under your own domain to view proposals, approve deliverables, and review project progress.",
+    bullets: [
+      "Custom CNAME domain with automatic SSL (e.g. portal.yourbrand.com)",
+      "Role-based client permission controls",
+      "Eliminates messy email threads & lost file attachments"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Create Your Custom Pipeline Stages",
+    description: "Navigate to CRM → Pipelines. Customize stage names, win probabilities, and automated actions (e.g., Discovery → Proposal Sent → Under Review → Closed Won).",
+    actionSnippet: "CRM → Settings → Pipelines → Add New Stage"
+  },
+  {
+    stepNumber: "02",
+    title: "Capture Leads from Traffic Director or Forms",
+    description: "Connect your landing page forms or dynamic ad tracking links. Incoming leads automatically populate your pipeline with complete attribution data.",
+    actionSnippet: "Advertising → Forms → Copy Embed Code"
+  },
+  {
+    stepNumber: "03",
+    title: "Generate & Send Proposal for E-Signature",
+    description: "Draft a proposal using customizable templates. Share the secure self-service link with your client for one-click digital signing.",
+    actionSnippet: "CRM → Deals → [Deal Name] → Generate Contract"
+  },
+  {
+    stepNumber: "04",
+    title: "Work Graph Automatic Execution",
+    description: "Upon signature completion, the Work Graph automatically triggers the creation of a Project workspace and issues the initial deposit invoice in Finance.",
+    actionSnippet: "Zero manual data transfer • Instant automation"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "CRM",
+    targetApp: "Projects & Tasks",
+    badge: "Auto-Provisioning",
+    description: "Closing a deal immediately provisions a project workspace with predefined task templates and milestone schedules."
+  },
+  {
+    sourceApp: "CRM",
+    targetApp: "Finance & Invoicing",
+    badge: "Revenue Flow",
+    description: "Converts agreed contract payment terms into automated deposit invoices with Stripe payment collection."
+  },
+  {
+    sourceApp: "CRM",
+    targetApp: "Traffic Director",
+    badge: "Attribution",
+    description: "Links deal revenue back to the exact ad campaign, keyword, and click ID that generated the original lead."
+  }
+];
+
+const faqs = [
+  {
+    question: "Can I import existing contacts and deals from HubSpot, Pipedrive, or CSV files?",
+    answer: "Yes. 180 CRM provides a one-click CSV import wizard that maps your custom fields, past deal history, company relationships, and contact emails seamlessly in under 2 minutes."
+  },
+  {
+    question: "Are digital contract signatures legally binding in 180workspace?",
+    answer: "Yes. 180 Contracts comply with the ESIGN Act and UETA standards. Every signed contract generates a cryptographic audit log with signee email verification, IP address, user-agent details, and exact timestamp."
+  },
+  {
+    question: "Can I use my own custom domain for client proposals and contracts?",
+    answer: "Absolutely. With our Company Hub custom domain engine (powered by Cloudflare for SaaS), you can host all client-facing signing pages under your own brand (e.g., https://portal.youragency.com/p/contract/123) with free, automatic SSL certificates."
+  },
+  {
+    question: "How does the CRM share data with our project management and finance teams?",
+    answer: "Through the 180 Work Graph architecture, when a deal reaches 'Closed Won', the system triggers background events that simultaneously create the project board in Projects & Tasks and generate the deposit invoice in Finance without any manual copy-pasting."
+  },
+  {
+    question: "Is there a limit on the number of leads or pipelines I can create?",
+    answer: "No. 180workspace plans include unlimited leads, unlimited contacts, and multiple custom pipelines per company workspace."
+  }
+];
+---
+
+<Layout 
+  title="CRM & Sales Pipeline Software & User Guide | 180workspace"
+  description="Manage leads, visual deal pipelines, proposals, and digital e-signatures in one unified CRM natively connected to your projects and finance."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Close deals faster with a CRM that"
+      highlightText="natively connects to delivery."
+      description="Stop losing context between sales and execution. 180 CRM manages your entire client lifecycle from first ad click to proposal e-signatures and automated invoice collection."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="CRM Capabilities"
+      sectionTitle="Everything your sales team needs to win."
+      sectionSubtitle="Designed specifically for modern agencies, software consultants, and high-growth B2B teams."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Quickstart Playbook"
+      title="How to Manage Your Sales Pipeline in 180"
+      subtitle="Follow these 4 simple steps to set up your pipeline and start closing deals."
+      videoCaption="2-Minute CRM & Proposals Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="180 CRM"
+      title="Sales that automatically triggers fulfillment."
+      subtitle="See how closed deals immediately activate project management, finance, and marketing attribution."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="CRM Questions & Answers"
+      title="Frequently Asked Questions about 180 CRM"
+      subtitle="Clear answers on migrations, contract signatures, custom domains, and automations."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="CRM & Sales"
+      headline="Turn more leads into long-term client revenue."
+      subheadline="Start using 180 CRM today. Free 14-day trial, instant setup, no credit card required."
+    />
+
+    <JSONLDSchema 
+      appName="CRM & Sales Pipeline"
+      description="Manage leads, visual deal pipelines, proposals, and digital e-signatures in one unified CRM natively connected to your projects and finance."
+      urlPath="/apps/crm-and-sales"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Smart Ticketing",
+    title: "Omnichannel Support Queues & Ticket Routing",
+    description: "Consolidate customer support requests from email, website forms, and client portals into one clean, prioritized support inbox with automated agent routing.",
+    bullets: [
+      "Custom ticket priority levels (Urgent, High, Normal, Low)",
+      "Automated ticket assignment based on agent specialization",
+      "Custom tag taxonomy & department filtering"
+    ]
+  },
+  {
+    badge: "SLA Control",
+    title: "Automated SLA Tracking & Escalation Rules",
+    description: "Guarantee customer satisfaction with customized Service Level Agreement (SLA) timers, automated warning alerts, and escalation triggers before breaches occur.",
+    bullets: [
+      "First-response and full-resolution SLA countdown timers",
+      "Automated manager escalation on approaching SLA breaches",
+      "Custom business hours & holiday calendar support"
+    ]
+  },
+  {
+    badge: "Fast Resolution",
+    title: "Canned Responses & AI-Assisted Replies",
+    description: "Empower agents to resolve repetitive inquiries in seconds with pre-written macros, customizable snippets, and AI-suggested responses from Orbit Copilot.",
+    bullets: [
+      "Library of rich-text canned macro responses",
+      "Orbit AI response drafter referencing documentation",
+      "Internal private notes for team collaboration on tickets"
+    ]
+  },
+  {
+    badge: "Self-Service",
+    title: "White-Label Customer Help Portal",
+    description: "Provide clients with a branded self-service support portal where they can submit new tickets, check resolution progress, and access knowledge base guides.",
+    bullets: [
+      "Custom CNAME domain with automated SSL encryption",
+      "Ticket status tracking without requiring phone calls",
+      "Self-service password reset & account inquiries"
+    ]
+  },
+  {
+    badge: "Customer CSAT",
+    title: "CSAT Surveys & Support Performance Analytics",
+    description: "Measure customer happiness with automated post-resolution CSAT surveys, agent resolution speed metrics, and ticket volume trend reports.",
+    bullets: [
+      "Automated 1-click CSAT survey emails",
+      "Agent productivity & average resolution time leaderboards",
+      "Category volume trend analytics to identify product bugs"
+    ]
+  },
+  {
+    badge: "Work Graph",
+    title: "Direct Conversion to Bug Tasks & CRM Records",
+    description: "Convert customer support tickets directly into engineering bug tasks in Projects or link them to active CRM client relationship cards.",
+    bullets: [
+      "1-click conversion of support ticket to Project Bug Task",
+      "Links support history directly to CRM client cards",
+      "Notifies account managers of escalated VIP client issues"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Configure Support Inbox & SLA Policies",
+    description: "Navigate to Service Desk → Settings. Connect your support email address (e.g., support@yourcompany.com) and set SLA response targets (e.g. 1 hour for Urgent).",
+    actionSnippet: "Service Desk → Settings → SLA Targets"
+  },
+  {
+    stepNumber: "02",
+    title: "Define Canned Responses & Routing Rules",
+    description: "Set up standard macros for common billing, setup, and troubleshooting questions. Configure automatic routing rules to distribute tickets evenly.",
+    actionSnippet: "Service Desk → Canned Responses → + New Macro"
+  },
+  {
+    stepNumber: "03",
+    title: "Resolve Tickets with Team Collaboration",
+    description: "Agents reply to customers, add internal private notes, tag specialists, and use Orbit AI to generate instant troubleshooting recommendations.",
+    actionSnippet: "Ticket #1042 → Orbit AI Suggestion → Send Reply"
+  },
+  {
+    stepNumber: "04",
+    title: "Escalate to Engineering or Log Customer CSAT",
+    description: "If a bug is identified, convert the ticket into an engineering task in Projects with one click. Upon resolution, an automated CSAT survey is sent.",
+    actionSnippet: "Ticket Resolved • CSAT: 5/5 Stars • Work Graph Synced"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Service Desk",
+    targetApp: "Projects & Tasks",
+    badge: "Bug Escalation",
+    description: "Converts reported customer issues directly into prioritized bug tasks for engineering sprint backlogs."
+  },
+  {
+    sourceApp: "Service Desk",
+    targetApp: "CRM & Sales",
+    badge: "Customer Health",
+    description: "Displays open and resolved support tickets directly on the CRM client timeline for account managers."
+  },
+  {
+    sourceApp: "Service Desk",
+    targetApp: "Company Hub",
+    badge: "Custom Portal",
+    description: "Serves the customer support helpdesk under your white-labeled custom CNAME domain with automatic SSL."
+  }
+];
+
+const faqs = [
+  {
+    question: "Can I connect our company support email address?",
+    answer: "Yes. You can route support@yourdomain.com into 180 Service Desk via automated email forwarding or direct IMAP/SMTP integration so every incoming email becomes a structured ticket."
+  },
+  {
+    question: "How do automated SLA timers work in 180 Service Desk?",
+    answer: "You can define different SLA targets based on ticket priority (Urgent, High, Normal, Low) and customer tier. Real-time countdown badges indicate time remaining for first response and resolution, with automated escalation alerts sent before a breach occurs."
+  },
+  {
+    question: "Can agents collaborate internally on tickets without the customer seeing?",
+    answer: "Yes. Service Desk includes Internal Notes that are highlighted in yellow and visible only to team members. Agents can @mention colleagues to ask for advice before replying to the customer."
+  },
+  {
+    question: "Can we convert complex support tickets into engineering tasks?",
+    answer: "Yes. With our Work Graph architecture, you can click 'Convert to Project Task', and the ticket description, attachments, and customer details will automatically create a task card in your development sprint board."
+  },
+  {
+    question: "Are CSAT satisfaction surveys included?",
+    answer: "Yes. When a ticket is marked resolved, the system can automatically send a lightweight, one-click CSAT survey (Great / Good / Bad with optional feedback) to measure and track customer happiness."
+  }
+];
+---
+
+<Layout 
+  title="Service Desk & Customer Support Software & Guide | 180workspace"
+  description="Omnichannel customer support ticketing, automated SLA management, canned responses, and client portals in 180workspace natively linked to Projects and CRM."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Deliver world-class customer support with"
+      highlightText="zero SLA breaches."
+      description="Omnichannel ticket queues, automated SLA escalation timers, AI-assisted macro replies, and white-label client help portals directly connected to your engineering tasks."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Service Desk Features"
+      sectionTitle="Engineered for customer success teams, IT desks, and agencies."
+      sectionSubtitle="From high-speed omnichannel ticket queues to deep cross-app escalation to engineering."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Support Playbook"
+      title="How to Streamline Customer Support in 180"
+      subtitle="Follow these 4 steps to set up support inboxes, configure SLAs, and resolve customer inquiries."
+      videoCaption="2-Minute Service Desk Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Service Desk"
+      title="Support that coordinates directly with product and sales."
+      subtitle="See how customer tickets convert into engineering bugs and reflect on client CRM records."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Service Desk FAQs"
+      title="Frequently Asked Questions about 180 Service Desk"
+      subtitle="Answers on email forwarding, SLA countdown timers, internal notes, and CSAT surveys."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Service Desk" 
+      headline="Elevate your customer support experience today."
+      subheadline="Start resolving tickets faster and delighting clients in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Service Desk & Ticketing"
+      description="Omnichannel customer support ticketing, automated SLA management, canned responses, and client portals in 180workspace natively linked to Projects and CRM."
+      urlPath="/apps/service-desk"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

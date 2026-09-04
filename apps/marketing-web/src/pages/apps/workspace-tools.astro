@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Rich Editor",
+    title: "180 Documents & Knowledge Base",
+    description: "Create collaborative internal wikis, standard operating procedures (SOPs), project briefs, and client notes in a clean, distraction-free rich-text editor.",
+    bullets: [
+      "Real-time team editing with rich formatting & code blocks",
+      "Nested document hierarchies & searchable knowledge base",
+      "Export to clean Markdown, PDF, or HTML"
+    ]
+  },
+  {
+    badge: "Cloud Storage",
+    title: "Centralized File & Digital Asset Manager",
+    description: "Store, organize, and preview design assets, contract PDFs, video clips, and client deliverables with fast CDN delivery and role-based folder permissions.",
+    bullets: [
+      "Encrypted enterprise cloud storage with instant file previews",
+      "Organized folders by client, department, or project",
+      "Direct attachment to Tasks, CRM deals, and Invoices"
+    ]
+  },
+  {
+    badge: "E-Signatures",
+    title: "Document Templates & Electronic Signatures",
+    description: "Turn standard agreements, NDAs, and onboarding contracts into reusable templates. Collect legally-binding electronic signatures from any device.",
+    bullets: [
+      "Reusable contract templates with dynamic placeholder merge tags",
+      "Self-service public signing links (/p/document/:id)",
+      "Audit logs with cryptographic timestamps & signee verification"
+    ]
+  },
+  {
+    badge: "AI Powered",
+    title: "AI Document Drafter & Policy Generator",
+    description: "Orbit AI generates complete first drafts of technical specs, client proposals, job descriptions, and employee handbook policies in seconds.",
+    bullets: [
+      "Pulls project context to generate complete client proposals",
+      "Generates standardized HR compliance documentation",
+      "Real-time tone switcher (Executive, Technical, Conversational)"
+    ]
+  },
+  {
+    badge: "Universal Search",
+    title: "Fast Global Full-Text Search",
+    description: "Find any document, uploaded contract, image asset, or SOP instantly with high-speed full-text indexing powered by Meilisearch.",
+    bullets: [
+      "Sub-50ms search results across thousands of documents",
+      "Filters by file type, author, date, and associated client",
+      "Keyboard shortcuts (CMD+K / CTRL+K) for instant navigation"
+    ]
+  },
+  {
+    badge: "Access Control",
+    title: "Granular Document Permissions & Sharing",
+    description: "Control exactly who has access to sensitive files. Share documents privately with specific team members or generate password-protected public links.",
+    bullets: [
+      "Role-based permission locks (View Only, Comment, Edit)",
+      "Password protection & expiring links for external sharing",
+      "Watermark protection on confidential client drafts"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Create a Document or Knowledge Base Page",
+    description: "Navigate to Workspace Tools → Documents. Create an internal SOP, project scope, or client brief using the rich-text editor or pre-built templates.",
+    actionSnippet: "Workspace Tools → Documents → + New Document"
+  },
+  {
+    stepNumber: "02",
+    title: "Use Orbit AI to Draft & Refine Content",
+    description: "Highlight text or press `/ai` to ask Orbit Copilot to summarize, expand, draft clauses, or refine the document's tone.",
+    actionSnippet: "/ai: Draft an SLA agreement for 99.9% uptime"
+  },
+  {
+    stepNumber: "03",
+    title: "Upload & Organize Files in Cloud Storage",
+    description: "Upload brand assets, contract PDFs, and design deliverables. Tag assets and organize them into dedicated client and project folders.",
+    actionSnippet: "Workspace Tools → Storage → Upload Assets"
+  },
+  {
+    stepNumber: "04",
+    title: "Link Documents Directly to Tasks & Deals",
+    description: "Attach documents directly to active CRM deals, project sprint tasks, or HR employee profiles with zero manual file duplication.",
+    actionSnippet: "Work Graph Linked • Instant File Access"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Workspace Tools",
+    targetApp: "CRM & Sales",
+    badge: "Contract Templates",
+    description: "Powers proposal generation and digital contract signatures directly inside CRM deal pipelines."
+  },
+  {
+    sourceApp: "Workspace Tools",
+    targetApp: "Projects & Tasks",
+    badge: "Asset Linking",
+    description: "Attaches design briefs, technical specs, and deliverables directly to project task cards."
+  },
+  {
+    sourceApp: "Workspace Tools",
+    targetApp: "Social Media",
+    badge: "Media Bank",
+    description: "Provides image, video, and graphic assets directly to the social media content composer."
+  }
+];
+
+const faqs = [
+  {
+    question: "Can multiple team members collaborate on a document simultaneously?",
+    answer: "Yes. 180 Documents supports real-time collaborative editing with multi-cursor presence, live updates, and revision history tracking."
+  },
+  {
+    question: "How is cloud storage organized across clients and projects?",
+    answer: "180 Cloud Storage provides an organized folder taxonomy. You can create shared corporate folders, department-specific vaults (e.g. HR / Finance), and dedicated client workspaces with isolated permissions."
+  },
+  {
+    question: "Can I export documents to PDF, Markdown, or Word formats?",
+    answer: "Yes. You can export any document with one click to clean Markdown (.md), styled PDF, or HTML."
+  },
+  {
+    question: "How secure is file storage in 180workspace?",
+    answer: "All files uploaded to 180 Cloud Storage are encrypted at rest using AES-256 encryption and transmitted securely over TLS 1.3. Multi-tenant company isolation guarantees that only authorized users within your tenant workspace can access your assets."
+  },
+  {
+    question: "Can we collect digital signatures on custom document templates?",
+    answer: "Yes. You can turn any agreement into a template with dynamic fields. The system generates a public signing URL where clients or new hires can review and sign with a legally binding digital signature."
+  }
+];
+---
+
+<Layout 
+  title="Workspace Tools, Documents & Storage Software & Guide | 180workspace"
+  description="Collaborative 180 Documents, enterprise cloud storage, document templates, and digital e-signatures in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Collaborative documents and cloud storage"
+      highlightText="built natively into your work graph."
+      description="Replace Google Docs, Notion, and Dropbox. 180 Workspace Tools brings collaborative documents, centralized file management, template e-signatures, and Orbit AI drafting into one system."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Workspace Tools Features"
+      sectionTitle="Engineered for knowledge workers, consultants, and agencies."
+      sectionSubtitle="From centralizing standard operating procedures to securing client contract archives."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Documents Playbook"
+      title="How to Create Documents & Manage Files in 180"
+      subtitle="Follow these 4 steps to draft SOPs with AI, organize storage, and link assets to tasks."
+      videoCaption="2-Minute Workspace Tools & Storage Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Workspace Tools"
+      title="Knowledge and files that attach to every task and deal."
+      subtitle="See how documents and cloud storage assets natively integrate with CRM deals and project boards."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Workspace Tools FAQs"
+      title="Frequently Asked Questions about Workspace Tools"
+      subtitle="Answers on real-time collaboration, file storage encryption, export formats, and e-signatures."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Workspace Tools" 
+      headline="Unify your team's knowledge and digital assets today."
+      subheadline="Start drafting documents and organizing files in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Workspace Tools & Cloud Storage"
+      description="Collaborative 180 Documents, enterprise cloud storage, document templates, and digital e-signatures in 180workspace."
+      urlPath="/apps/workspace-tools"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

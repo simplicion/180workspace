@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Universal Calendar",
+    title: "Visual Multi-Channel Content Calendar",
+    description: "Plan, draft, and schedule all your marketing content across social channels in an intuitive drag-and-drop monthly, weekly, and daily calendar view.",
+    bullets: [
+      "Drag-and-drop post rescheduling across dates and times",
+      "Channel filtering (LinkedIn, Twitter/X, Instagram, Facebook)",
+      "Color-coded campaign tags & content category grouping"
+    ]
+  },
+  {
+    badge: "Multi-Publishing",
+    title: "One-Click Multi-Network Distribution",
+    description: "Write your post once and customize captions, hashtags, and image aspect ratios for each platform with real-time live preview mockups.",
+    bullets: [
+      "Direct API publishing to LinkedIn, Twitter/X, Meta & Instagram",
+      "Platform-specific character counters & hashtag helpers",
+      "First-comment auto-posting for links and extra hashtags"
+    ]
+  },
+  {
+    badge: "Asset Bank",
+    title: "Centralized Media Library & Asset Storage",
+    description: "Access high-resolution brand photography, product mockups, video clips, and marketing graphics stored natively in 180 Cloud Storage.",
+    bullets: [
+      "Direct integration with 180workspace Cloud Storage",
+      "Tag-based image searching & instant crop presets",
+      "Shared asset folders for creative team members"
+    ]
+  },
+  {
+    badge: "Approval Tiers",
+    title: "Content Review & Approval Workflows",
+    description: "Prevent accidental social slip-ups. Draft posts require client or marketing director review and sign-off before automated scheduling.",
+    bullets: [
+      "Draft, Pending Review, Scheduled & Published states",
+      "In-line feedback comments directly on post drafts",
+      "External client approval links for agency social managers"
+    ]
+  },
+  {
+    badge: "Performance",
+    title: "Social Engagement & Audience Analytics",
+    description: "Track post impressions, engagement rates, click-throughs, and follower growth trends across all connected social channels in one dashboard.",
+    bullets: [
+      "Cross-platform impression & engagement comparisons",
+      "Top-performing post leaderboards to identify winning formats",
+      "Best time-to-post recommendations based on historical data"
+    ]
+  },
+  {
+    badge: "AI Copywriter",
+    title: "Orbit AI Social Post Copy & Hashtag Generator",
+    description: "Never suffer from writer's block. Orbit AI analyzes your product features and generates viral hooks, thread outlines, and engaging captions.",
+    bullets: [
+      "1-click hook and caption variations (Professional, Witty, Direct)",
+      "Automated hashtag generation based on trending topics",
+      "Converts blog posts into multi-slide carousel copy"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Connect Your Social Media Accounts",
+    description: "Navigate to Social Media → Settings. Connect your brand's LinkedIn company page, Twitter/X profile, Facebook page, and Instagram account.",
+    actionSnippet: "Social Media → Settings → Connect Accounts"
+  },
+  {
+    stepNumber: "02",
+    title: "Draft Post with Orbit AI Copy Assistance",
+    description: "Click any date on the calendar to open the post composer. Attach creative assets from Cloud Storage and let Orbit AI refine your caption.",
+    actionSnippet: "Composer → Select Channels → Attach Image"
+  },
+  {
+    stepNumber: "03",
+    title: "Submit for Team or Client Review",
+    description: "Mark the post as 'Ready for Review'. Your marketing lead or agency client reviews the post preview and approves with one click.",
+    actionSnippet: "Post Status: Approved ✓ → Auto-Scheduled"
+  },
+  {
+    stepNumber: "04",
+    title: "Automated Publishing & Live Analytics",
+    description: "The Work Graph background queue automatically publishes the post at the scheduled time and starts tracking engagement metrics.",
+    actionSnippet: "Published Automatically via BullMQ Workers"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Social Media",
+    targetApp: "Workspace Tools",
+    badge: "Asset Sharing",
+    description: "Pulls creative images, videos, and marketing brand assets directly from 180 Cloud Storage."
+  },
+  {
+    sourceApp: "Social Media",
+    targetApp: "Traffic Director",
+    badge: "Link Tracking",
+    description: "Embeds dynamic Traffic Director tracking links in social posts to attribute social clicks to closed CRM revenue."
+  },
+  {
+    sourceApp: "Social Media",
+    targetApp: "Orbit AI Copilot",
+    badge: "Copy Generation",
+    description: "Uses Orbit AI to generate platform-specific post copy and multi-thread storytelling narratives."
+  }
+];
+
+const faqs = [
+  {
+    question: "Which social networks are supported for auto-publishing?",
+    answer: "180 Social Media supports direct automated publishing to LinkedIn (Company Pages & Personal Profiles), Twitter/X, Facebook Pages & Groups, and Instagram (Business & Creator accounts)."
+  },
+  {
+    question: "Can agencies manage social calendars for multiple clients?",
+    answer: "Yes. Using 180workspace multi-tenant architecture, agencies can maintain isolated social media workspaces and calendars for each client with separate account connections and approval workflows."
+  },
+  {
+    question: "Can I preview how a post will look on mobile before it goes live?",
+    answer: "Yes. The post composer features real-time, pixel-perfect mobile preview mockups for LinkedIn, Twitter, Instagram, and Facebook so you can verify image cropping and text formatting before publishing."
+  },
+  {
+    question: "How does the external client approval workflow operate?",
+    answer: "You can generate a secure, branded external review link where clients can preview scheduled posts for the upcoming month, leave feedback comments, and click 'Approve All' without needing a full platform login."
+  },
+  {
+    question: "Can Orbit AI repurpose blog posts into social content?",
+    answer: "Yes. You can paste a blog post URL or text into the Orbit AI composer and ask it to generate 5 distinct Twitter hooks, a LinkedIn thought leadership post, and an Instagram carousel caption."
+  }
+];
+---
+
+<Layout 
+  title="Social Media Management Software & Guide | 180workspace"
+  description="Universal visual content calendar, multi-network post scheduling, asset library, and AI copy generation in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Plan, create and schedule social media"
+      highlightText="across all channels in one calendar."
+      description="Eliminate Buffer and Hootsuite subscription fees. 180 Social Media combines a universal visual content calendar, multi-network auto-publishing, digital asset management, and Orbit AI copywriting."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Social Suite Features"
+      sectionTitle="Engineered for brand marketers, social media managers, and agencies."
+      sectionSubtitle="From collaborative content creation to automated multi-channel publishing and analytics."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Social Media Playbook"
+      title="How to Schedule & Publish Content with 180"
+      subtitle="Follow these 4 steps to connect social profiles, draft content with AI, and schedule posts."
+      videoCaption="2-Minute Social Media Suite Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Social Media"
+      title="Social publishing connected to your creative asset bank."
+      subtitle="See how social posts utilize cloud storage assets and track click conversions through Traffic Director."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Social Media FAQs"
+      title="Frequently Asked Questions about 180 Social Media"
+      subtitle="Answers on supported social networks, client approval links, mobile previews, and Orbit AI."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Social Media Suite" 
+      headline="Scale your brand presence across every major social platform."
+      subheadline="Start scheduling your content in 180workspace today. 14-day free trial, no credit card required."
+    />
+
+    <JSONLDSchema 
+      appName="Social Media Management"
+      description="Universal visual content calendar, multi-network post scheduling, asset library, and AI copy generation in 180workspace."
+      urlPath="/apps/social-media"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

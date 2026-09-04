@@ -1,5 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import SectionHeader from '../../components/ui/SectionHeader.astro';
+import Badge from '../../components/ui/Badge.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
 import { prisma } from '@workspace/db';
 
 let apps = [];
@@ -20,41 +23,77 @@ try {
 
 <Layout 
   title="180workspace Features & Ecosystem"
-  description="Explore the 11+ SaaS apps included in the 180workspace platform."
+  description="Explore the 15+ native business applications included in the 180workspace operating system."
 >
-  <main class="container mx-auto px-4 py-16 max-w-6xl">
-    <div class="mb-16 text-center">
-      <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">The Work Graph Ecosystem</h1>
-      <p class="text-xl text-muted-foreground max-w-3xl mx-auto">
-        Discover the powerful suite of 11+ integrated applications designed to streamline every aspect of your agency's operations.
-      </p>
-    </div>
+  <main class="w-full relative">
+    
+    <!-- Hero -->
+    <section class="relative pt-24 pb-16 md:pt-36 md:pb-20 overflow-hidden">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-indigo-500/15 to-violet-500/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+      <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
 
-    {apps.length === 0 ? (
-      <div class="py-20 text-center rounded-xl border border-dashed border-border bg-accent/20">
-        <p class="text-muted-foreground text-lg">Features are currently being updated. Please check back later.</p>
+      <div class="container mx-auto px-4 max-w-5xl text-center">
+        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-8">
+          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Unified Work Graph Ecosystem</span>
+        </div>
+
+        <h1 class="display-h1 max-w-4xl mx-auto mb-6">
+          15+ Integrated Applications. <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">Zero Context Switching.</span>
+        </h1>
+        <p class="body-lead max-w-3xl mx-auto">
+          Discover the powerful suite of native business applications designed to streamline every aspect of your agency's operations.
+        </p>
       </div>
-    ) : (
-      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {apps.map(app => (
-          <a href={`/features/${app.slug}`} class="group block h-full">
-            <div class="h-full rounded-2xl border border-border bg-card p-8 transition-all hover:shadow-md hover:border-primary/30 flex flex-col">
-              <h3 class="text-2xl font-bold text-foreground group-hover:text-primary transition-colors mb-4">
-                {app.heroHeadline || app.seoTitle}
-              </h3>
-              <p class="text-muted-foreground leading-relaxed mb-6 flex-grow">
-                {app.seoDescription || "Learn more about how this app integrates into the Work Graph."}
-              </p>
-              <div class="flex items-center text-sm font-medium text-primary">
-                Explore Feature 
-                <svg class="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section class="py-8 pb-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+      {apps.length === 0 ? (
+        <div class="py-20 text-center rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 max-w-2xl mx-auto">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-5">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+          </div>
+          <p class="body-lead mb-2">Features are currently being updated with live telemetry.</p>
+          <p class="body-standard mb-6">Explore our comprehensive App Playbooks below for detailed feature breakdowns.</p>
+          <a href="/apps" class="btn-primary">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            <span>Explore All 15 Apps</span>
           </a>
-        ))}
-      </div>
-    )}
+        </div>
+      ) : (
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {apps.map(app => (
+            <a href={`/features/${app.slug}`} class="glass-card-interactive p-7 flex flex-col justify-between group">
+              <div>
+                <div class="mb-4">
+                  <span class="badge-pill text-[10px] py-1 px-2.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800">
+                    Feature Spotlight
+                  </span>
+                </div>
+                <h3 class="card-h3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-3">
+                  {app.heroHeadline || app.seoTitle}
+                </h3>
+                <p class="body-standard mb-6">
+                  {app.seoDescription || "Learn more about how this app integrates into the Work Graph."}
+                </p>
+              </div>
+              <div class="flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 gap-1.5 group-hover:gap-2.5 transition-all">
+                <span>Explore Feature</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+
+    <!-- Bottom CTA -->
+    <AppBottomCTA 
+      appName="180workspace"
+      headline="Ready to run your entire company on one Work Graph?"
+      subheadline="Start your free 14-day trial today. Instant setup, no credit card required."
+    />
+
   </main>
 </Layout>

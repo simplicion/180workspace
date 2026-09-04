@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Cloudflare for SaaS",
+    title: "Custom CNAME Domain & Auto SSL Automation",
+    description: "Serve your client portals, digital contract signing pages, and dynamic traffic shortlinks under your own branded domain (e.g. portal.youragency.com) with automated Cloudflare SSL.",
+    bullets: [
+      "Sub-60s automated Cloudflare SSL certificate provisioning",
+      "Unlimited custom CNAME routing domains",
+      "Automatic DNS health verification & fallback handling"
+    ]
+  },
+  {
+    badge: "Brand Identity",
+    title: "White-Label Brand Customization",
+    description: "Make 180workspace your own. Upload your custom logo, configure your brand's color palette, and customize email notification templates.",
+    bullets: [
+      "Custom primary & secondary brand color themes",
+      "Company logo & favicon injection across all client touchpoints",
+      "Custom branded email invitation and notification headers"
+    ]
+  },
+  {
+    badge: "Multi-Tenancy",
+    title: "Isolated Multi-Tenant Company Workspaces",
+    description: "Maintain complete data isolation across multiple subsidiary brands, agencies, or business units with strict companyId architectural boundaries.",
+    bullets: [
+      "1-click workspace switching without logging out",
+      "Isolated CRM databases, financial ledgers, and team directories",
+      "Independent seat billing and subscription management"
+    ]
+  },
+  {
+    badge: "Subscription Control",
+    title: "Modular App Activation & Seat Management",
+    description: "Scale your workspace at your own pace. Activate or lock individual applications (CRM, Traffic Director, Finance) with our modular `useSubscription()` engine.",
+    bullets: [
+      "Pay only for the apps and team seats you need",
+      "Instant app provisioning with FeatureLock protection",
+      "Transparent tiered billing with Stripe Connect"
+    ]
+  },
+  {
+    badge: "Team Directory",
+    title: "Company Member Directory & Invites",
+    description: "Invite team members, assign initial departments, and define workspace administrators with secure magic link invitations and Google OAuth integration.",
+    bullets: [
+      "1-click email invitations with customizable onboarding steps",
+      "Automatic role assignment upon first sign-in",
+      "Comprehensive company member directory"
+    ]
+  },
+  {
+    badge: "Compliance",
+    title: "Legal & Company Policy Center",
+    description: "Publish your company terms of service, privacy policy, and compliance notices directly on your custom domain for clients and team members.",
+    bullets: [
+      "Hosted public legal pages under your custom domain",
+      "Versioned employee handbook and code of conduct",
+      "GDPR & SOC2 compliance acknowledgement workflows"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Configure Company Profile & Upload Brand Assets",
+    description: "Navigate to Company Hub → Settings. Enter your legal company name, upload your dark/light logos, and pick your primary brand colors.",
+    actionSnippet: "Company Hub → Branding → Upload Logo & Set Colors"
+  },
+  {
+    stepNumber: "02",
+    title: "Connect Your Custom CNAME Domain",
+    description: "Enter your desired subdomain (e.g. portal.yourbrand.com). Add the single CNAME record to your DNS provider (Cloudflare, GoDaddy, Namecheap).",
+    actionSnippet: "CNAME portal.yourbrand.com ➔ cname.180workspace.com"
+  },
+  {
+    stepNumber: "03",
+    title: "Automated SSL Verification in Under 60 Seconds",
+    description: "180workspace communicates with Cloudflare for SaaS to automatically issue and deploy an edge SSL certificate for your custom domain.",
+    actionSnippet: "Status: Active ✓ • SSL Certificate Issued"
+  },
+  {
+    stepNumber: "04",
+    title: "Invite Team Members & Set App Permissions",
+    description: "Send invitations to team members, designate module leads, and activate the specific 180workspace apps your business requires.",
+    actionSnippet: "Company Hub → Members → Send Invites"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Company Hub",
+    targetApp: "CRM & Sales",
+    badge: "White-Label Portals",
+    description: "Serves client proposal contracts and client portals under your company's custom branded domain."
+  },
+  {
+    sourceApp: "Company Hub",
+    targetApp: "Traffic Director",
+    badge: "Tracking Domains",
+    description: "Provisions custom shortlink tracking domains for ad cloaking and traffic evaluation."
+  },
+  {
+    sourceApp: "Company Hub",
+    targetApp: "Finance & Invoicing",
+    badge: "Invoice Branding",
+    description: "Injects company logo, address, and tax registration details on all client invoices."
+  }
+];
+
+const faqs = [
+  {
+    question: "How does the custom domain CNAME and SSL automation work?",
+    answer: "180workspace integrates with Cloudflare for SaaS. When you enter a custom domain (e.g., portal.yourcompany.com) and point a CNAME to our proxy, Cloudflare automatically verifies ownership, provisions a trusted SSL certificate, and activates edge HTTPS in under 60 seconds with zero manual certificate renewals."
+  },
+  {
+    question: "Can an agency manage multiple independent companies from one account?",
+    answer: "Yes. 180workspace features native multi-tenancy. You can create multiple company workspaces (e.g. Agency Main, Client A, Subsidiary B) and switch between them instantly from the top navigation bar without logging out."
+  },
+  {
+    question: "Can we customize the colors and logo seen by our clients?",
+    answer: "Yes. Company Hub allows you to upload custom logos and set primary brand color tokens. When clients visit your proposal links, video meeting rooms, or support portals, they only see your branding."
+  },
+  {
+    question: "How do modular app subscriptions work?",
+    answer: "You only pay for what you use. If your team only needs CRM and Projects initially, you can enable just those two apps. As you grow, you can unlock Traffic Director, Finance, or Social Media with a single click."
+  },
+  {
+    question: "What DNS records are required to connect a custom domain?",
+    answer: "Only one single CNAME record is required: point your subdomain (e.g. app or portal) to cname.180workspace.com. All SSL generation, renewal, and edge caching is handled automatically."
+  }
+];
+---
+
+<Layout 
+  title="Company Hub & Custom Domains Software & Guide | 180workspace"
+  description="White-label custom CNAME domains, automated SSL, multi-tenant workspace management, and brand customization in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Custom branding and automated CNAME SSL"
+      highlightText="for white-label operations."
+      description="Run client portals, contract signing pages, and tracking endpoints under your own branded domain. Powered by Cloudflare for SaaS with automatic SSL provisioning."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Company Hub Features"
+      sectionTitle="Engineered for agencies, enterprise teams, and multi-brand operators."
+      sectionSubtitle="From instant white-label SSL provisioning to complete multi-tenant workspace isolation."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Setup Playbook"
+      title="How to Configure Custom Domains & Brand Identity in 180"
+      subtitle="Follow these 4 steps to upload brand assets, add DNS CNAME records, and verify SSL."
+      videoCaption="2-Minute Custom Domains & Branding Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Company Hub"
+      title="Branding and domains that cascade across all apps."
+      subtitle="Discover how custom CNAME domains power client proposal signatures, client portals, and invoice headers."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Company Hub FAQs"
+      title="Frequently Asked Questions about Company Hub"
+      subtitle="Answers on Cloudflare SSL provisioning, multi-tenant workspace switching, DNS setup, and modular apps."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Company Hub" 
+      headline="Brand your entire business operating system today."
+      subheadline="Start setting up your custom domain and brand identity in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Company Hub & Custom Domains"
+      description="White-label custom CNAME domains, automated SSL, multi-tenant workspace management, and brand customization in 180workspace."
+      urlPath="/apps/company-hub"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

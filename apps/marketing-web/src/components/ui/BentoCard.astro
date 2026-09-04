@@ -1,0 +1,17 @@
+---
+interface Props {
+  interactive?: boolean;
+  class?: string;
+}
+
+const {
+  interactive = true,
+  class: className = ""
+} = Astro.props;
+
+const cardStyle = interactive ? 'glass-card-interactive' : 'glass-card';
+---
+
+<div class={`${cardStyle} p-6 sm:p-8 flex flex-col justify-between ${className}`}>
+  <slot />
+</div>

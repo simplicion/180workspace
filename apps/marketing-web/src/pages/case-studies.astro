@@ -1,0 +1,140 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
+
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const caseStudies = [
+  {
+    company: "Apex Growth Media",
+    industry: "Performance Marketing Agency",
+    headline: "How Apex Media Saved $33,600/Year and 3.4x'd Deal Velocity by Consolidating 8 Tools",
+    metrics: [
+      { label: "Cost Reduction", value: "66%" },
+      { label: "Deal Velocity", value: "3.4x" },
+      { label: "Tools Replaced", value: "8 Tools" }
+    ],
+    summary: "Apex was paying for Salesforce, ClickUp, Slack, FreshBooks, and Zapier. Context switching caused delayed client onboarding and unbilled scope creep. Moving to 180workspace unified their sales pipeline directly into Kanban projects and automated invoicing.",
+    quote: "180workspace solved the exact problem we've fought for years: our sales reps and project managers now live in the exact same data graph with zero sync lag.",
+    author: "Marcus Vance, Founder & CEO"
+  },
+  {
+    company: "Nova Fintech Consulting",
+    industry: "Global Financial Services",
+    headline: "How Nova Reduced Client Invoicing Latency from 14 Days to Under 4 Hours",
+    metrics: [
+      { label: "Billing Cycle", value: "4 Hours" },
+      { label: "Unbilled Hours Lost", value: "0%" },
+      { label: "Multi-Currency", value: "12 Currencies" }
+    ],
+    summary: "Managing 35 international consultants meant timesheet approvals and invoice generation took two full weeks at the end of every month. By linking approved billable work logs directly to 180 Finance, client invoices generate automatically.",
+    quote: "Our accounts receivable turnaround improved overnight. What took two accounting managers two weeks is now executed in a single click.",
+    author: "Elena Rostova, Operations Director"
+  },
+  {
+    company: "ScalePulse Direct",
+    industry: "Global E-Commerce Brand",
+    headline: "How ScalePulse Mitigated 99.4% of Bot Fraud and Saved 32% on Ad Spend",
+    metrics: [
+      { label: "Bot Mitigation", value: "99.4%" },
+      { label: "Ad Spend Saved", value: "32%" },
+      { label: "Edge Latency", value: "<5ms" }
+    ],
+    summary: "ScalePulse was suffering from aggressive competitor click bots and review crawler disruptions across Meta and Google Ads. Deploying Traffic Director evaluated visitor fingerprints at the edge in sub-5ms, shielding high-converting landing pages.",
+    quote: "Traffic Director paid for our entire 180workspace subscription within our first 48 hours of live ad traffic.",
+    author: "Julian Thorne, Head of Media Buying"
+  }
+];
+---
+
+<Layout 
+  title="Customer Stories & Case Studies | 180workspace"
+  description="See how fast-growing agencies, consultancies, and e-commerce brands accelerate revenue and cut software costs by 60%+ with 180workspace."
+>
+  <main class="w-full relative">
+    
+    <!-- Hero Section -->
+    <section class="relative pt-24 pb-16 md:pt-36 md:pb-20 overflow-hidden">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-emerald-500/15 to-teal-500/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+      <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
+
+      <div class="container mx-auto px-4 max-w-5xl text-center">
+        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-8">
+          <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Real Business Outcomes</span>
+        </div>
+        
+        <h1 class="display-h1 max-w-4xl mx-auto mb-6">
+          Proven results from <span class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">real growing teams.</span>
+        </h1>
+        <p class="body-lead max-w-3xl mx-auto">
+          Discover how companies eliminate the fragmentation tax, accelerate deal velocity, and safeguard ad spend with 180workspace.
+        </p>
+      </div>
+    </section>
+
+    <!-- Case Studies List -->
+    <section class="py-8 pb-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-8">
+      {caseStudies.map((study, idx) => (
+        <article class="glass-card overflow-hidden">
+          {/* Accent gradient bar */}
+          <div class="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500"></div>
+          
+          <div class="p-8 sm:p-10">
+            {/* Header */}
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-sm">
+                  {String(idx + 1).padStart(2, '0')}
+                </div>
+                <div>
+                  <div class="text-sm font-bold text-slate-900 dark:text-white">{study.company}</div>
+                  <div class="text-[11px] text-slate-500 font-semibold">{study.industry}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Headline */}
+            <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white leading-tight mb-8">
+              {study.headline}
+            </h2>
+
+            {/* Metrics */}
+            <div class="grid grid-cols-3 gap-4 mb-8">
+              {study.metrics.map((m) => (
+                <div class="py-5 px-4 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 text-center">
+                  <div class="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">{m.value}</div>
+                  <div class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mt-1.5">{m.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Summary */}
+            <p class="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-medium mb-8">
+              {study.summary}
+            </p>
+
+            {/* Quote */}
+            <div class="relative pl-6 py-4 border-l-4 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-r-2xl">
+              <svg class="absolute top-4 right-4 w-8 h-8 text-indigo-200 dark:text-indigo-900" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"></path></svg>
+              <p class="text-sm italic text-slate-800 dark:text-slate-200 font-medium leading-relaxed relative z-10">
+                "{study.quote}"
+              </p>
+              <footer class="mt-3 text-xs font-bold not-italic text-slate-500">
+                -- {study.author}
+              </footer>
+            </div>
+          </div>
+        </article>
+      ))}
+    </section>
+
+    <!-- Bottom CTA -->
+    <AppBottomCTA 
+      appName="Customer Stories"
+      headline="Ready to write your company's growth story?"
+      subheadline="Start your free 14-day trial today. Deploy your workspace in under 3 minutes."
+    />
+
+  </main>
+</Layout>

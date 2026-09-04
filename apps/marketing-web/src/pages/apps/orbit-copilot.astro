@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Meeting Intelligence",
+    title: "Autonomous Meeting Summaries & Transcription",
+    description: "Orbit automatically transcribes 180 Video Meetings and audio uploads, extracting key decisions, discussion highlights, and speaker timelines in seconds.",
+    bullets: [
+      "Speech-to-text transcription with multi-speaker detection",
+      "Executive summary & key takeaway extraction",
+      "Searchable timestamped transcript repository"
+    ]
+  },
+  {
+    badge: "Work Graph Automation",
+    title: "Cross-App Task & Commitment Extraction",
+    description: "Orbit identifies promises made in meetings, client emails, and team chats—automatically drafting prioritized task cards in project boards.",
+    bullets: [
+      "Auto-detects action verbs, deadlines, and assigned owners",
+      "Drafts structured tasks with estimated hours",
+      "One-click review and assignment into active sprints"
+    ]
+  },
+  {
+    badge: "Business Intelligence",
+    title: "Ask Orbit: Unified Workspace Knowledge Retrieval",
+    description: "Query your entire company's operational history in plain English. Ask Orbit questions about client contracts, expense totals, past meeting decisions, and project blockers.",
+    bullets: [
+      "Answers questions across CRM, Finance, Tasks, and Docs",
+      "Instant financial queries (e.g. 'What was our total software spend in Q2?')",
+      "Strict companyId data boundary isolation and zero data leakage"
+    ]
+  },
+  {
+    badge: "AI Drafter",
+    title: "AI Proposal, Contract & Document Generator",
+    description: "Generate client proposals, company policies, technical specifications, and marketing copy directly inside 180 Documents with context-aware AI.",
+    bullets: [
+      "Pulls client scope from CRM to draft customized proposals",
+      "Generates standardized HR company policies and onboarding guides",
+      "Real-time tone adjustment and grammar refinement"
+    ]
+  },
+  {
+    badge: "Predictive Insights",
+    title: "Proactive Risk & Bottleneck Detection",
+    description: "Orbit continuously monitors your Work Graph, identifying overloaded team members, approaching SLA breaches, and stalled high-value deals.",
+    bullets: [
+      "Stalled deal warning alerts in CRM pipelines",
+      "Team workload imbalance and burnout risk alerts",
+      "Predictive project delivery delay forecasting"
+    ]
+  },
+  {
+    badge: "Enterprise Security",
+    title: "Zero Data Training Privacy Guarantee",
+    description: "Your business data is strictly isolated within your tenant database. Orbit never uses your private company data or client contracts to train public AI models.",
+    bullets: [
+      "Dedicated multi-tenant company encryption",
+      "SOC2-ready data handling protocols",
+      "Compliant with GDPR, HIPAA and enterprise privacy standards"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Launch an Instant 180 Meeting or Upload Audio",
+    description: "Start a call in 180 Communications or upload an audio file directly to Orbit AI (`/api/v1/ai/meetings/process`).",
+    actionSnippet: "Communications → Meetings → Orbit Auto-Record = ON"
+  },
+  {
+    stepNumber: "02",
+    title: "Review AI-Generated Summary & Decision Log",
+    description: "Within seconds of meeting completion, Orbit publishes an executive overview with bulleted takeaways and timestamped highlights.",
+    actionSnippet: "Orbit AI → Meeting Summary Published"
+  },
+  {
+    stepNumber: "03",
+    title: "One-Click Push Extracted Tasks to Sprints",
+    description: "Review extracted action items, adjust assignees or deadlines if desired, and approve. Tasks instantly appear on project sprint boards.",
+    actionSnippet: "Action Items → Approve All → Added to Project Sprint"
+  },
+  {
+    stepNumber: "04",
+    title: "Query Business Data in Plain English",
+    description: "Click the Orbit Copilot floating widget anywhere in the platform to ask business questions, draft documents, or summarize client activity.",
+    actionSnippet: "Ask Orbit: 'Summarize our interactions with Acme Corp'"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Orbit AI Copilot",
+    targetApp: "Projects & Tasks",
+    badge: "Task Creation",
+    description: "Automatically extracts action items from video calls and turns them into organized, deadline-driven project tasks."
+  },
+  {
+    sourceApp: "Orbit AI Copilot",
+    targetApp: "CRM & Sales",
+    badge: "Deal Intelligence",
+    description: "Summarizes client objection points and sentiment from sales calls directly into the CRM contact timeline."
+  },
+  {
+    sourceApp: "Orbit AI Copilot",
+    targetApp: "Workspace Tools",
+    badge: "Doc Generator",
+    description: "Drafts tailored proposals and technical specifications directly inside 180 Documents using Work Graph context."
+  }
+];
+
+const faqs = [
+  {
+    question: "Is our company data used to train public AI models like ChatGPT?",
+    answer: "Never. 180workspace enforces strict enterprise data privacy. All AI operations process queries via dedicated private enterprise API channels with zero-data-retention agreements. Your confidential client contracts, financials, and transcripts remain 100% private to your tenant workspace."
+  },
+  {
+    question: "What audio formats can Orbit process for meeting summaries?",
+    answer: "Orbit handles all live WebRTC audio recordings directly inside 180 Video Meetings, as well as uploaded audio files (.mp3, .wav, .m4a, .webm) up to 250MB."
+  },
+  {
+    question: "How accurate is the cross-app task extraction?",
+    answer: "Orbit utilizes state-of-the-art natural language processing tailored specifically for business workflows. It identifies commitment phrases (e.g. 'I will send the revised quote by Thursday') and maps them to the appropriate project, assignee, and priority level with over 95% accuracy."
+  },
+  {
+    question: "Can I use Orbit Copilot on mobile devices?",
+    answer: "Yes. The Orbit floating AI widget is fully responsive and available across desktop, tablet, and mobile web browsers."
+  },
+  {
+    question: "What types of business questions can I ask Orbit?",
+    answer: "You can ask complex cross-module questions such as: 'What were our highest revenue deals last quarter?', 'Who has available capacity next week in engineering?', or 'Draft a standard NDA contract for a new contractor.'"
+  }
+];
+---
+
+<Layout 
+  title="Orbit Copilot Enterprise AI Engine & Guide | 180workspace"
+  description="Autonomous AI meeting transcriptions, cross-app task extraction, smart business queries, and proposal generation in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="An autonomous AI copilot that works across"
+      highlightText="your entire business graph."
+      description="Transcribe meetings, extract project tasks automatically, draft contracts in seconds, and query your entire company operational history in plain English with zero data leaks."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Orbit AI Capabilities"
+      sectionTitle="Engineered for founders, executives, and high-velocity teams."
+      sectionSubtitle="From automated post-meeting intelligence to instant company-wide knowledge retrieval."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="AI Playbook"
+      title="How to Supercharge Your Operations with Orbit AI"
+      subtitle="Follow these 4 steps to transcribe meetings, extract sprint tasks, and query company data."
+      videoCaption="2-Minute Orbit Copilot AI Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Orbit AI Copilot"
+      title="Intelligence that connects to every record in your company."
+      subtitle="Discover how Orbit operates across CRM deals, task boards, financial ledgers, and document archives."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Orbit AI FAQs"
+      title="Frequently Asked Questions about Orbit Copilot"
+      subtitle="Answers on data privacy, transcription accuracy, supported audio formats, and AI drafting."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Orbit Copilot" 
+      headline="Put an autonomous AI assistant to work for your team today."
+      subheadline="Start leveraging Orbit Copilot across all 15 applications in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Orbit Copilot (AI Engine)"
+      description="Autonomous AI meeting transcriptions, cross-app task extraction, smart business queries, and proposal generation in 180workspace."
+      urlPath="/apps/orbit-copilot"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

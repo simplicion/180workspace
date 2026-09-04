@@ -3,96 +3,105 @@ import { prisma } from '@workspace/db';
 
 export const GET: APIRoute = async () => {
   const baseUrl = 'https://180workspace.com';
+  const now = new Date().toISOString();
 
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+  // Core Platform URLs
+  const corePages = [
+    { url: `${baseUrl}`, priority: 1.0, changeFrequency: 'daily' },
+    { url: `${baseUrl}/apps`, priority: 0.95, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/pricing`, priority: 0.95, changeFrequency: 'daily' },
+    { url: `${baseUrl}/enterprise`, priority: 0.90, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/developers`, priority: 0.90, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/features`, priority: 0.85, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/case-studies`, priority: 0.85, changeFrequency: 'monthly' },
+    { url: `${baseUrl}/blog`, priority: 0.90, changeFrequency: 'daily' },
+  ];
+
+  // All 16 Business Applications
+  const appSlugs = [
+    'crm-and-sales',
+    'traffic-director',
+    'finance',
+    'projects-and-tasks',
+    'hr-management',
+    'communications',
+    'service-desk',
+    'orbit-copilot',
+    'social-media',
+    'workspace-tools',
+    'insights',
+    'company-hub',
+    'advertising',
+    'identity-and-security',
+    'workflows-and-automations'
+  ];
+
+  const appPages = appSlugs.map(slug => ({
+    url: `${baseUrl}/apps/${slug}`,
+    priority: 0.90,
+    changeFrequency: 'weekly',
+    lastModified: now,
+  }));
+
+  let dynamicBlogPages: Array<{ url: string; priority: number; changeFrequency: string; lastModified: string }> = [];
+  let dynamicFeaturePages: Array<{ url: string; priority: number; changeFrequency: string; lastModified: string }> = [];
 
   try {
-    // Fetch all public companies
-    const companies = await prisma.company.findMany({
-      select: { id: true, updatedAt: true },
+    const publishedBlogs = await prisma.marketingBlog.findMany({
+      where: { published: true },
+      select: { slug: true, updatedAt: true, publishedAt: true }
     });
 
-    // Fetch all users
-    const users = await prisma.user.findMany({
-      select: { id: true, updatedAt: true },
-    });
-
-    // Fetch all posts
-    const posts = await prisma.forumPost.findMany({
-      select: { id: true, updatedAt: true },
-    });
-
-    const companyUrls = companies.map((company) => ({
-      url: `${baseUrl}/company/${company.id}`,
-      lastModified: company.updatedAt,
-      changeFrequency: 'daily',
-      priority: 0.8,
+    dynamicBlogPages = publishedBlogs.map(b => ({
+      url: `${baseUrl}/blog/${b.slug}`,
+      priority: 0.80,
+      changeFrequency: 'monthly',
+      lastModified: (b.updatedAt || b.publishedAt || new Date()).toISOString()
     }));
-
-    const userUrls = users.map((user) => ({
-      url: `${baseUrl}/profile/${user.id}`,
-      lastModified: user.updatedAt,
-      changeFrequency: 'daily',
-      priority: 0.8,
-    }));
-
-    const postUrls = posts.map((post) => ({
-      url: `${baseUrl}/post/${post.id}`,
-      lastModified: post.updatedAt,
-      changeFrequency: 'weekly',
-      priority: 0.6,
-    }));
-
-    const staticUrls = [
-      {
-        url: baseUrl,
-        lastModified: new Date(),
-        changeFrequency: 'daily',
-        priority: 1.0,
-      },
-      {
-        url: `${baseUrl}/login`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.5,
-      },
-      {
-        url: `${baseUrl}/signup`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.5,
-      },
-    ];
-
-    const allUrls = [...staticUrls, ...companyUrls, ...userUrls, ...postUrls];
-
-    allUrls.forEach((item) => {
-      xml += `
-  <url>
-    <loc>${item.url}</loc>
-    <lastmod>${item.lastModified.toISOString()}</lastmod>
-    <changefreq>${item.changeFrequency}</changefreq>
-    <priority>${item.priority}</priority>
-  </url>`;
-    });
-  } catch (error) {
-    console.error('Error generating sitemap:', error);
-    xml += `
-  <url>
-    <loc>${baseUrl}</loc>
-    <lastmod>${new Date().toISOString()}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>`;
+  } catch (err) {
+    console.warn("Could not query published blogs for sitemap, using defaults:", err);
   }
 
-  xml += `
+  try {
+    const publishedFeatures = await prisma.marketingPage.findMany({
+      where: { type: 'FEATURE', published: true },
+      select: { slug: true, updatedAt: true }
+    });
+
+    dynamicFeaturePages = publishedFeatures.map(f => ({
+      url: `${baseUrl}/features/${f.slug}`,
+      priority: 0.75,
+      changeFrequency: 'monthly',
+      lastModified: (f.updatedAt || new Date()).toISOString()
+    }));
+  } catch (err) {
+    console.warn("Could not query published features for sitemap:", err);
+  }
+
+  const allEntries = [
+    ...corePages.map(p => ({ ...p, lastModified: now })),
+    ...appPages,
+    ...dynamicBlogPages,
+    ...dynamicFeaturePages
+  ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+${allEntries.map(entry => `  <url>
+    <loc>${entry.url}</loc>
+    <lastmod>${entry.lastModified}</lastmod>
+    <changefreq>${entry.changeFrequency}</changefreq>
+    <priority>${entry.priority.toFixed(2)}</priority>
+  </url>`).join('\n')}
 </urlset>`;
 
   return new Response(xml, {
     headers: {
-      'Content-Type': 'application/xml',
+      'Content-Type': 'application/xml; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'public, max-age=3600, s-maxage=86400',
     },
   });

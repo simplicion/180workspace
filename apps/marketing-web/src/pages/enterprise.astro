@@ -1,0 +1,203 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Badge from '../components/ui/Badge.astro';
+import Button from '../components/ui/Button.astro';
+import FAQAccordion from '../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../components/apps/JSONLDSchema.astro';
+
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const securityPillars = [
+  {
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>',
+    badge: "Zero-Trust Architecture",
+    title: "Dedicated Tenant Data Isolation",
+    description: "Every company operates within a cryptographically isolated tenant domain. Automated companyId schema constraints ensure cross-tenant data leakage is mathematically impossible.",
+    bullets: [
+      "Strict row-level & schema tenant segmentation",
+      "Encrypted data at rest (AES-256) & in transit (TLS 1.3)",
+      "Automated hourly snapshot backups across 3 regions"
+    ]
+  },
+  {
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>',
+    badge: "Identity & Access",
+    title: "Enterprise SAML SSO & SCIM Provisioning",
+    description: "Seamlessly integrate your identity provider including Okta, Microsoft Azure AD, Google Workspace, and Ping Identity for automated employee provisioning and deprovisioning.",
+    bullets: [
+      "One-click SAML 2.0 & OIDC Single Sign-On",
+      "Enforced hardware-backed 2FA & WebAuthn Passkeys",
+      "Automated SCIM user provisioning & group mapping"
+    ]
+  },
+  {
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
+    badge: "Compliance Ready",
+    title: "SOC2 Type II, GDPR & HIPAA Aligned",
+    description: "Built from the ground up for strict regulatory compliance. Maintain immutable audit logs of every system access, file download, contract signature, and permission update.",
+    bullets: [
+      "Tamper-evident audit logging with IP & device telemetry",
+      "Right-to-be-forgotten GDPR automated data sanitization",
+      "Comprehensive Business Associate Agreements (BAA)"
+    ]
+  },
+  {
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>',
+    badge: "High Availability",
+    title: "99.99% Financially-Backed SLA",
+    description: "Deploy with confidence on our globally distributed edge infrastructure with automatic failover, sub-10ms routing latency, and dedicated Enterprise Solutions Architects.",
+    bullets: [
+      "Global CDN & edge routing via Cloudflare Enterprise",
+      "Dedicated 24/7/365 priority phone & Slack support",
+      "Dedicated Customer Success & Migration Engineers"
+    ]
+  }
+];
+
+const trustMetrics = [
+  { value: "AES-256", label: "Encryption at Rest" },
+  { value: "TLS 1.3", label: "In-Transit Security" },
+  { value: "99.99%", label: "Uptime SLA" },
+  { value: "SOC2", label: "Type II Compliant" }
+];
+
+const faqs = [
+  {
+    question: "How does 180workspace isolate customer data in a multi-tenant environment?",
+    answer: "Every query, API request, and background job strictly validates the cryptographic tenant identifier (companyId) at the database layer. Cross-company access is programmatically prevented and validated via automated security regression suites."
+  },
+  {
+    question: "Can we sign a customized Enterprise SLA and BAA agreement?",
+    answer: "Yes. For our Enterprise tier customers, we provide custom 99.99% uptime Service Level Agreements, HIPAA Business Associate Agreements, and tailored data processing addendums (DPA)."
+  },
+  {
+    question: "How does 180workspace isolate tenant data across all 15 applications?",
+    answer: "We employ strict multi-tenant isolation. Every database query in Prisma contains an enforced companyId filter, making it cryptographically impossible for users in Company A to access or mutate records belonging to Company B."
+  },
+  {
+    question: "Do you support Enterprise Single Sign-On (SAML / Okta / Azure AD)?",
+    answer: "Yes. 180workspace Enterprise supports SAML 2.0 and OIDC integrations with all major identity providers including Okta, Microsoft Azure AD, Google Workspace, and PingFederate."
+  },
+  {
+    question: "Where is our company data hosted, and is data encrypted at rest and in transit?",
+    answer: "All data is hosted in Tier-4 SOC2 certified AWS data centers. Data in transit is secured with TLS 1.3, and all storage volumes and databases are encrypted at rest using AES-256 with customer-managed encryption key support."
+  },
+  {
+    question: "What is your uptime Service Level Agreement (SLA)?",
+    answer: "We guarantee a 99.99% monthly uptime SLA for Enterprise accounts, supported by global multi-region failover and real-time edge monitoring with financial credit guarantees."
+  },
+  {
+    question: "Can we get custom compliance agreements (DPA, BAA, SOC2 Type II reports)?",
+    answer: "Yes. Our legal and compliance team signs custom Data Processing Agreements (DPAs), Business Associate Agreements (BAAs), and provides our latest SOC2 Type II audit report upon NDA."
+  }
+];
+---
+
+<Layout 
+  title="Enterprise Security & Trust Center | 180workspace"
+  description="Enterprise-grade work operating system with dedicated tenant isolation, SAML SSO, SOC2 compliance audit logs, and 99.99% uptime SLA."
+>
+  <main class="w-full relative">
+    
+    <!-- Hero Section -->
+    <section class="relative pt-24 pb-16 md:pt-36 md:pb-24 overflow-hidden">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-indigo-500/15 to-violet-500/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+      <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
+
+      <div class="container mx-auto px-4 max-w-5xl text-center">
+        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-8">
+          <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Enterprise Trust & Security Center</span>
+        </div>
+        
+        <h1 class="display-h1 max-w-4xl mx-auto mb-8">
+          Enterprise scale. <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-slate-600 bg-clip-text text-transparent">Zero-trust security.</span>
+        </h1>
+        <p class="body-lead max-w-3xl mx-auto mb-10">
+          Engineered for organizations with strict compliance, security, and uptime mandates. Protect sensitive financial records and employee data with enterprise-grade safeguards.
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
+          <a href={`${saasUrl}/signup`} class="btn-primary w-full sm:w-auto">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+            <span>Request Enterprise Demo</span>
+          </a>
+          <a href="/pricing" class="btn-secondary w-full sm:w-auto">
+            View Enterprise Pricing
+          </a>
+        </div>
+
+        <!-- Trust Metrics Bar -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
+          {trustMetrics.map((m) => (
+            <div class="py-4 px-5 rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-lg border border-slate-200/60 dark:border-slate-800 text-center">
+              <div class="text-lg sm:text-xl font-black text-slate-900 dark:text-white">{m.value}</div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">{m.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Security Pillars Grid -->
+    <section class="py-16 md:py-24 bg-slate-50/60 dark:bg-slate-950/40 border-y border-slate-200/80 dark:border-slate-800">
+      <div class="container mx-auto px-4 max-w-6xl">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          {securityPillars.map((p) => (
+            <div class="glass-card-interactive p-7 sm:p-9 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-5">
+                  <div class="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={p.iconSvg}></svg>
+                  </div>
+                  <span class="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-lg">
+                    {p.badge}
+                  </span>
+                </div>
+                <h3 class="card-h3 mb-3">{p.title}</h3>
+                <p class="body-standard mb-6">
+                  {p.description}
+                </p>
+              </div>
+
+              <ul class="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-5 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                {p.bullets.map((b) => (
+                  <li class="flex items-start gap-2.5">
+                    <div class="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Accordion -->
+    <FAQAccordion 
+      sectionBadge="Enterprise Security FAQs"
+      title="Frequently Asked Questions about Security & Compliance"
+      subtitle="Detailed technical answers on encryption, SSO, data residency, and SLAs."
+      faqs={faqs}
+    />
+
+    <!-- Bottom CTA -->
+    <AppBottomCTA 
+      appName="Enterprise Security"
+      headline="Deploy 180workspace with complete enterprise confidence."
+      subheadline="Talk with our security and solutions architecture team today."
+    />
+
+    <JSONLDSchema 
+      appName="180workspace Enterprise Security"
+      description="Enterprise-grade work operating system with dedicated tenant isolation, SAML SSO, SOC2 compliance audit logs, and 99.99% uptime SLA."
+      urlPath="/enterprise"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

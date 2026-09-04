@@ -14,6 +14,7 @@ dotenvConfig({ path: path.resolve(__dirname, '../../.env') });
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://180workspace.com',
   output: 'static',
   integrations: [react(), tailwind()],
   vite: {

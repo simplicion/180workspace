@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Sub-5ms Latency",
+    title: "Zero-Overhead Edge Traffic Evaluation",
+    description: "Evaluate incoming clicks in under 5 milliseconds directly at Cloudflare Edge network before routing visitors to destination offers or safe pages.",
+    bullets: [
+      "Real-time IP, user-agent, and header fingerprinting",
+      "Dynamic rule engine (Geo-location, device, ISP, referrer)",
+      "Zero redirect lag preserving maximum ad quality scores"
+    ]
+  },
+  {
+    badge: "Anti-Fraud",
+    title: "Bot Shielding & Ad Review Cloaking",
+    description: "Protect your ad spend from click fraud, competitor spy tools, and ad platform review bots. Serve clean compliance pages to crawlers and high-converting pages to real buyers.",
+    bullets: [
+      "Automated detection of Meta, Google, TikTok & crawler bots",
+      "Dynamic shield endpoints (/shield/:slug) with fallback modes",
+      "Protects ad accounts from aggressive false-positive bans"
+    ]
+  },
+  {
+    badge: "Universal Tag",
+    title: "Dynamic Client Tag Injection & Verification",
+    description: "Install one lightweight JS tag on external WordPress, Shopify, or Webflow landing pages to enable dynamic cloaking, headless lead capture, and visitor tracking.",
+    bullets: [
+      "One-line script tag (/tag/:slug) for external sites",
+      "Automated tag installation verifier in dashboard",
+      "Zero dependency on WordPress plugins or CMS code changes"
+    ]
+  },
+  {
+    badge: "Reverse Proxy",
+    title: "Seamless Clean Page Proxy Streaming",
+    description: "Stream safe destination content directly through the edge proxy (/r/_proxy/stream) without domain redirects, preserving complete URL integrity for ad platforms.",
+    bullets: [
+      "In-memory stream proxying with real-time HTML rewriting",
+      "Preserves original display URL for Facebook & Google Ads",
+      "Custom HTTP header overrides & SSL masking"
+    ]
+  },
+  {
+    badge: "Attribution",
+    title: "Full-Funnel Click & Revenue Attribution",
+    description: "Track every ad click from initial impression to closed CRM deal revenue. Identify the exact campaigns delivering real cash flow.",
+    bullets: [
+      "UTM, Click ID (fbclid, gclid, ttclid) auto-capture",
+      "Postback webhook support for Meta CAPI & Google Offline",
+      "Direct connection to 180 CRM Deals and Finance Invoices"
+    ]
+  },
+  {
+    badge: "Custom Domains",
+    title: "Automated Custom Domain Routing & SSL",
+    description: "Deploy hundreds of tracking domains, custom shortlinks, and dynamic routing endpoints under your own branded CNAMEs with automatic Cloudflare SSL.",
+    bullets: [
+      "Unlimited custom CNAME routing domains",
+      "Automated Cloudflare SSL provisioning in under 60 seconds",
+      "Isolated routing rules per domain and campaign"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Create a Dynamic Link Campaign",
+    description: "Navigate to Traffic Director → Create Link. Define your Campaign Slug, Safe Page URL (for bots/crawlers), and Offer Page URL (for real target visitors).",
+    actionSnippet: "Traffic Director → Links → + New Link"
+  },
+  {
+    stepNumber: "02",
+    title: "Configure Evaluation & Bot Shield Rules",
+    description: "Select your filtering criteria: allow target countries (e.g., US, UK, CA), block VPN/Datacenter IPs, and enable Automatic Ad Review Cloaking.",
+    actionSnippet: "Rules: Block Crawlers = ON • Allow Mobile = ON"
+  },
+  {
+    stepNumber: "03",
+    title: "Deploy via Shortlink or Dynamic Tag",
+    description: "Use the generated shortlink (https://yourdomain.com/r/offer-slug) as your ad destination, or inject the 1-line dynamic script tag on your landing page.",
+    actionSnippet: "<script src=\"https://api.180workspace.com/tag/offer-slug\"></script>"
+  },
+  {
+    stepNumber: "04",
+    title: "Monitor Real-Time Clicks & CRM Leads",
+    description: "Watch live incoming traffic logs, blocked bot attempts, conversion rates, and automatically created deals in 180 CRM in real-time.",
+    actionSnippet: "Live Stream • 0ms Latency • Instant Work Graph Sync"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Traffic Director",
+    targetApp: "CRM & Sales",
+    badge: "Lead Ingestion",
+    description: "Captured landing page clicks automatically pass UTM parameters and attribution IDs when a lead submits a contact form."
+  },
+  {
+    sourceApp: "Traffic Director",
+    targetApp: "Advertising Module",
+    badge: "ROI Sync",
+    description: "Feeds verified conversion data and real customer value back into ad campaign dashboards to optimize ad bidding."
+  },
+  {
+    sourceApp: "Traffic Director",
+    targetApp: "Company Hub",
+    badge: "Custom CNAME",
+    description: "Utilizes Cloudflare for SaaS custom domain management to provision free SSL on all client tracking domains."
+  }
+];
+
+const faqs = [
+  {
+    question: "What is Traffic Director and how does it protect my ad spend?",
+    answer: "Traffic Director is an enterprise-grade edge routing and click evaluation engine. When someone clicks your ad, Traffic Director analyzes their IP, user-agent, and fingerprint in under 5ms. Real customers are instantly routed to your high-converting offer, while ad review crawlers, competitor spy tools, and click fraud bots are shown a compliant safe page."
+  },
+  {
+    question: "Does Traffic Director slow down page load times for my real visitors?",
+    answer: "No. Traffic Director runs directly on Cloudflare's global edge network across 300+ worldwide data centers. Evaluation takes less than 5 milliseconds, meaning your visitors experience instantaneous page loading with zero noticeable lag."
+  },
+  {
+    question: "Can I use Traffic Director on existing WordPress, Shopify, or custom websites?",
+    answer: "Yes. In addition to direct redirect links (/r/:slug), Traffic Director provides a 1-line dynamic JavaScript tag (/tag/:slug) that you can paste into Google Tag Manager, WordPress, Shopify, or Webflow headers without altering existing code."
+  },
+  {
+    question: "How does Traffic Director handle Meta (Facebook), Google, and TikTok ad review bots?",
+    answer: "Traffic Director maintains an active database of known ad platform review subnets, residential proxy exit nodes, and automated crawler signatures. Review bots are dynamically identified and served the clean, compliant safe page to prevent unjustified ad account suspensions."
+  },
+  {
+    question: "Can I connect my own custom branded domains for tracking links?",
+    answer: "Yes. You can connect unlimited custom domains (e.g., track.youragency.com) through our Company Hub. SSL certificates are provisioned automatically via Cloudflare with zero manual DNS configuration required after setting the initial CNAME record."
+  }
+];
+---
+
+<Layout 
+  title="Traffic Director & Ad Cloaking Software & Guide | 180workspace"
+  description="Sub-5ms edge traffic evaluation, bot shielding, dynamic tag injection, and ad review protection natively integrated into 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Protect ad spend and scale traffic with"
+      highlightText="sub-5ms edge evaluation."
+      description="Eliminate click fraud, shield ad accounts from competitor spy bots, and route visitors with precision using our zero-latency Cloudflare Edge routing engine."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Traffic Director Features"
+      sectionTitle="Engineered for media buyers, affiliate pros, and performance agencies."
+      sectionSubtitle="Built on Cloudflare global edge network for maximum speed, security, and attribution accuracy."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Setup Playbook"
+      title="How to Launch Your First Protected Campaign"
+      subtitle="Follow these 4 steps to shield your campaigns and maximize conversion rates."
+      videoCaption="2-Minute Traffic Director & Cloaking Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Traffic Director"
+      title="Edge traffic that feeds your entire sales funnel."
+      subtitle="See how real visitor clicks automatically enrich CRM contact records and calculate ad ROI."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Traffic Director FAQs"
+      title="Frequently Asked Questions about Traffic Director"
+      subtitle="Detailed technical answers on latency, bot shielding, custom domains, and platform safety."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Traffic Director" 
+      headline="Stop wasting ad budget on crawlers and bot clicks."
+      subheadline="Start protecting your advertising campaigns today. Deploy in under 60 seconds with 180workspace."
+    />
+
+    <JSONLDSchema 
+      appName="Traffic Director & Ad Cloaking"
+      description="Sub-5ms edge traffic evaluation, bot shielding, dynamic tag injection, and ad review protection natively integrated into 180workspace."
+      urlPath="/apps/traffic-director"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

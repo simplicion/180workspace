@@ -1,0 +1,52 @@
+---
+interface Props {
+  badge?: string;
+  badgeClass?: string;
+  title: string;
+  highlightText?: string;
+  highlightGradient?: string;
+  subtitle?: string;
+  align?: 'center' | 'left';
+  class?: string;
+}
+
+const {
+  badge,
+  badgeClass = "badge-pill bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800",
+  title,
+  highlightText,
+  highlightGradient = "from-indigo-600 via-violet-600 to-pink-600",
+  subtitle,
+  align = 'center',
+  class: className = ""
+} = Astro.props;
+
+const alignmentClasses = align === 'center' 
+  ? 'text-center max-w-3xl mx-auto' 
+  : 'text-left max-w-3xl';
+---
+
+<div class={`mb-12 md:mb-16 ${alignmentClasses} ${className}`}>
+  {badge && (
+    <div class="mb-4">
+      <span class={badgeClass}>
+        {badge}
+      </span>
+    </div>
+  )}
+
+  <h2 class="section-h2">
+    {title}{" "}
+    {highlightText && (
+      <span class={`bg-gradient-to-r ${highlightGradient} bg-clip-text text-transparent`}>
+        {highlightText}
+      </span>
+    )}
+  </h2>
+
+  {subtitle && (
+    <p class="body-lead mt-4">
+      {subtitle}
+    </p>
+  )}
+</div>

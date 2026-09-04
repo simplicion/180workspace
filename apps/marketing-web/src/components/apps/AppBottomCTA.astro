@@ -1,0 +1,104 @@
+---
+interface Props {
+  appName: string;
+  headline?: string;
+  subheadline?: string;
+  ctaText?: string;
+  ctaLink?: string;
+}
+
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const {
+  appName,
+  headline,
+  subheadline = "Eliminate 10+ fragmented software subscriptions. Connect your CRM, Traffic Routing, Finance, Projects, HR, and Orbit AI into one connected Work Graph — you will not regret using 180workspace.",
+  ctaText,
+  ctaLink = `${saasUrl}/signup?plan=momentum`
+} = Astro.props;
+
+// Smart default headline logic
+const isCoreWorkspace = !appName || appName.toLowerCase() === '180workspace';
+const displayHeadline = headline || (isCoreWorkspace 
+  ? "Ready to run your business on one connected Work Graph?" 
+  : `Ready to run ${appName} on one connected Work Graph?`);
+
+// Smart default CTA text logic (never repeat 'Launch X in X')
+const displayCtaText = ctaText || (isCoreWorkspace
+  ? "Start with $12 Plan"
+  : `Get Started with ${appName}`);
+---
+
+<section class="py-20 md:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative">
+  <div class="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/70 dark:from-slate-900/90 dark:via-slate-900 dark:to-indigo-950/40 p-8 sm:p-14 lg:p-16 shadow-2xl text-center">
+    
+    {/* Atmospheric Background & Grid Pattern */}
+    <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-indigo-500/15 via-violet-500/10 to-rose-500/10 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+    <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_at_center,#000_60%,transparent_100%)] opacity-60 pointer-events-none -z-20"></div>
+
+    <div class="max-w-4xl mx-auto relative z-10">
+      
+      <!-- Live Badge Pill matching hero psychology -->
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-700 shadow-sm mb-6">
+        <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          Built for Freelancers, Agencies & Teams
+        </span>
+      </div>
+
+      <!-- Main Headline with Gradient Text -->
+      <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.12] text-slate-950 dark:text-white mb-6">
+        {displayHeadline}
+      </h2>
+
+      <!-- Subheadline -->
+      <p class="body-lead text-base sm:text-lg max-w-2xl mx-auto mb-10">
+        {subheadline}
+      </p>
+
+      <!-- CTA Actions -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+        <a 
+          href={ctaLink} 
+          class="btn-primary w-full sm:w-auto shadow-xl shadow-indigo-600/25"
+        >
+          <span>{displayCtaText}</span>
+          <svg class="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+          </svg>
+        </a>
+
+        <a 
+          href="/pricing" 
+          class="btn-secondary w-full sm:w-auto"
+        >
+          View Pricing & Plans
+        </a>
+      </div>
+
+      <!-- Trust Badges with emerald checkmarks -->
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500 font-semibold">
+        <span class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+          </svg>
+          14-Day Free Trial on $12 Plan
+        </span>
+        <span class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+          </svg>
+          No Credit Card Required Upfront
+        </span>
+        <span class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+          </svg>
+          Instant Setup • Cancel Anytime
+        </span>
+      </div>
+
+    </div>
+
+  </div>
+</section>

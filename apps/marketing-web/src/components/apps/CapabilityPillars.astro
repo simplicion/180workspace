@@ -1,0 +1,80 @@
+---
+import SectionHeader from '../ui/SectionHeader.astro';
+
+interface PillarItem {
+  icon?: string;
+  iconSvg?: string;
+  badge?: string;
+  title: string;
+  description: string;
+  bullets?: string[];
+}
+
+interface Props {
+  sectionBadge?: string;
+  sectionTitle: string;
+  sectionSubtitle: string;
+  pillars: PillarItem[];
+}
+
+const {
+  sectionBadge = "Core Capabilities",
+  sectionTitle,
+  sectionSubtitle,
+  pillars = []
+} = Astro.props;
+---
+
+<section class="py-20 md:py-28 bg-slate-50/60 dark:bg-slate-950/40 border-y border-slate-200/80 dark:border-slate-800">
+  <div class="container mx-auto px-4 max-w-6xl">
+    
+    <SectionHeader 
+      badge={sectionBadge}
+      title={sectionTitle}
+      subtitle={sectionSubtitle}
+    />
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+      {pillars.map((pillar, idx) => (
+        <div class="glass-card-interactive p-6 sm:p-8 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
+                {pillar.iconSvg ? (
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={pillar.iconSvg}></svg>
+                ) : (
+                  <span>{String(idx + 1).padStart(2, '0')}</span>
+                )}
+              </div>
+              {pillar.badge && (
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-full">
+                  {pillar.badge}
+                </span>
+              )}
+            </div>
+
+            <h3 class="card-h3 mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+              {pillar.title}
+            </h3>
+
+            <p class="body-standard mb-6">
+              {pillar.description}
+            </p>
+          </div>
+
+          {pillar.bullets && pillar.bullets.length > 0 && (
+            <ul class="space-y-2.5 border-t border-slate-100 dark:border-slate-800 pt-5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">
+              {pillar.bullets.map((bullet) => (
+                <li class="flex items-start gap-2">
+                  <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>

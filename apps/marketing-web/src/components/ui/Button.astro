@@ -1,0 +1,42 @@
+---
+interface Props {
+  href: string;
+  variant?: 'primary' | 'secondary' | 'sm-primary' | 'sm-secondary' | 'ghost';
+  icon?: boolean;
+  external?: boolean;
+  class?: string;
+}
+
+const {
+  href,
+  variant = 'primary',
+  icon = false,
+  external = false,
+  class: className = ""
+} = Astro.props;
+
+const variantClasses: Record<string, string> = {
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
+  'sm-primary': 'btn-sm-primary',
+  'sm-secondary': 'btn-sm-secondary',
+  ghost: 'btn-ghost'
+};
+
+const btnStyle = variantClasses[variant] || variantClasses.primary;
+const isExternal = external || href.startsWith('http');
+---
+
+<a 
+  href={href}
+  target={isExternal ? '_blank' : undefined}
+  rel={isExternal ? 'noopener noreferrer' : undefined}
+  class={`${btnStyle} group ${className}`}
+>
+  <slot />
+  {icon && (
+    <svg class="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+    </svg>
+  )}
+</a>

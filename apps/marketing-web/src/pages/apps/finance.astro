@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Instant Invoicing",
+    title: "Professional Client Invoices & Stripe Payments",
+    description: "Generate customized, tax-compliant invoices in seconds. Accept credit card, ACH, and bank transfers with automatic reconciliation.",
+    bullets: [
+      "Custom branding, logo & payment term options",
+      "Automated recurring subscriptions & retainer billing",
+      "One-click PDF downloads and hosted payment links"
+    ]
+  },
+  {
+    badge: "Expense Control",
+    title: "Expense Categorization & Receipt Management",
+    description: "Track agency operational costs, software subscriptions, and team travel expenses with categorized receipt uploads and approval workflows.",
+    bullets: [
+      "Direct receipt image & PDF attachments",
+      "Departmental categorization & tax deduction tags",
+      "Automated currency conversion at daily spot rates"
+    ]
+  },
+  {
+    badge: "Predictive",
+    title: "Real-Time Cash Flow & Revenue Analytics",
+    description: "Gain complete visibility over Accounts Receivable (AR), Accounts Payable (AP), Net Profit margins, and rolling 90-day cash flow projections.",
+    bullets: [
+      "Real-time revenue recognition vs pending receivables",
+      "Aging invoice reports with automated payment reminders",
+      "Visual cash burn & profit margin breakdowns"
+    ]
+  },
+  {
+    badge: "Vendor Bills",
+    title: "Vendor Management & Scheduled Disbursements",
+    description: "Consolidate freelance contractor invoices, software vendor bills, and supplier expenses in one centralized accounts payable queue.",
+    bullets: [
+      "Vendor directory with tax ID & bank details",
+      "Due date alerts to avoid late payment penalties",
+      "Cross-checks against project task budgets"
+    ]
+  },
+  {
+    badge: "Multi-Currency",
+    title: "Global Multi-Currency & Dynamic Tax Rules",
+    description: "Bill international clients in their local currency while tracking your books in your company base currency with automated VAT/GST tax rates.",
+    bullets: [
+      "Support for 135+ worldwide currencies",
+      "Automated VAT, GST & local sales tax calculation",
+      "Real-time foreign exchange gain/loss tracking"
+    ]
+  },
+  {
+    badge: "AI Powered",
+    title: "Automated Work Graph Financial Reconciliation",
+    description: "When CRM deals are won or project milestones are completed, invoices and contractor disbursements trigger automatically across the Work Graph.",
+    bullets: [
+      "Auto-generates deposit invoices upon signed contracts",
+      "Links billable time logs directly to client invoices",
+      "Eliminates double-entry accounting errors"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Set Up Company Financial Preferences",
+    description: "Navigate to Finance → Settings. Define your base currency, tax rates (VAT/GST/Sales Tax), payment terms, and Stripe payout details.",
+    actionSnippet: "Finance → Settings → Currency & Taxes"
+  },
+  {
+    stepNumber: "02",
+    title: "Create or Auto-Generate an Invoice",
+    description: "Create an invoice manually or let the Work Graph generate one automatically when a CRM proposal is signed or a project milestone is met.",
+    actionSnippet: "Finance → Invoices → + New Invoice"
+  },
+  {
+    stepNumber: "03",
+    title: "Send Client Hosted Payment Link",
+    description: "Email the secure payment link directly to your client. Clients can pay instantly via credit card or bank transfer without creating an account.",
+    actionSnippet: "One-click Stripe Checkout / Bank Wire Details"
+  },
+  {
+    stepNumber: "04",
+    title: "Automated Bookkeeping & Cash Flow Updates",
+    description: "Payments automatically reconcile against the invoice, update your CEO overview revenue analytics, and notify account managers.",
+    actionSnippet: "Instant Status: PAID • Zero Manual Entry"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Finance",
+    targetApp: "CRM & Sales",
+    badge: "Deal Invoicing",
+    description: "Automatically pulls agreed scope, discounts, and payment terms from CRM contracts to generate deposit invoices."
+  },
+  {
+    sourceApp: "Finance",
+    targetApp: "Projects & Tasks",
+    badge: "Billable Hours",
+    description: "Converts approved employee work logs and project milestone completions directly into billable client invoice items."
+  },
+  {
+    sourceApp: "Finance",
+    targetApp: "HR & Payroll",
+    badge: "Salary Sync",
+    description: "Deducts monthly employee payroll disbursements from net profit to provide true operational cash flow figures."
+  }
+];
+
+const faqs = [
+  {
+    question: "Can I connect my existing Stripe account to accept payments?",
+    answer: "Yes. 180 Finance connects directly with Stripe Connect. All client payments deposit straight into your bank account with zero platform markup fees."
+  },
+  {
+    question: "How does 180 Finance handle international currencies and taxes?",
+    answer: "180 Finance supports over 135+ global currencies. You can set individual tax rules (VAT, GST, State Sales Tax) per client or country, and track your ledger in your primary base currency with automatic daily exchange rates."
+  },
+  {
+    question: "Can clients download PDF invoices and view payment receipts?",
+    answer: "Yes. Every invoice includes a clean, hosted public payment page and a one-click PDF download with complete tax breakdown, line items, and company branding."
+  },
+  {
+    question: "How do billable hours from Projects get converted into invoices?",
+    answer: "Project managers can select 'Generate Invoice from Time Logs' in the Projects module. The system aggregates all approved billable work logs for the specified date range and automatically drafts an itemized invoice."
+  },
+  {
+    question: "Can I track recurring monthly retainer contracts?",
+    answer: "Yes. 180 Finance includes automated recurring billing. You can schedule weekly, monthly, or quarterly retainer invoices that automatically charge the client's saved payment method or send a payment reminder."
+  }
+];
+---
+
+<Layout 
+  title="Finance & Invoicing Software & User Guide | 180workspace"
+  description="Automate client invoices, cash flow forecasting, expense tracking, and multi-currency accounting in 180workspace natively linked to CRM and Projects."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Automate invoices, cash flow & expenses"
+      highlightText="with zero manual reconciliation."
+      description="Stop chasing payments and wrestling with disconnected accounting software. 180 Finance connects directly to your sales contracts, project hours, and contractor bills."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Financial Capabilities"
+      sectionTitle="Complete cash flow clarity for modern growing companies."
+      sectionSubtitle="Everything you need to bill clients, manage contractor expenses, and forecast revenue."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Quickstart Playbook"
+      title="How to Issue Invoices & Automate Payments in 180"
+      subtitle="Follow these 4 steps to set up Stripe payments, tax rules, and recurring retainers."
+      videoCaption="2-Minute Finance & Invoicing Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="180 Finance"
+      title="Financials connected to every project and contract."
+      subtitle="Discover how invoices trigger automatically from signed deals and approved work logs."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Finance FAQs"
+      title="Frequently Asked Questions about 180 Finance"
+      subtitle="Answers on Stripe processing, multi-currency support, tax rules, and accounting exports."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Finance & Invoicing" 
+      headline="Take full control of your company cash flow today."
+      subheadline="Start issuing professional invoices and tracking expenses in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Finance & Accounting"
+      description="Automate client invoices, cash flow forecasting, expense tracking, and multi-currency accounting in 180workspace natively linked to CRM and Projects."
+      urlPath="/apps/finance"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

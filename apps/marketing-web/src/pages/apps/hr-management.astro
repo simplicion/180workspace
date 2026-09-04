@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Central Directory",
+    title: "Employee Directory & Organization Hierarchy",
+    description: "Manage your entire team across departments, reporting managers, job titles, and contact information with granular role-based permissions.",
+    bullets: [
+      "Departmental grouping (Engineering, Design, Marketing, Sales)",
+      "Reporting manager hierarchies & direct report trees",
+      "Emergency contacts, personal details & document storage"
+    ]
+  },
+  {
+    badge: "Multi-Tier Approval",
+    title: "Leave Management & Custom Balance Accrual",
+    description: "Define custom leave types (Annual Paid Leave, Sick Leave, Parental, Unpaid). Enable automated balance accruals and multi-level manager approvals.",
+    bullets: [
+      "Custom leave policy definitions & annual accrual limits",
+      "One-click leave requests with manager approval queues",
+      "Company holiday calendar & team out-of-office visibility"
+    ]
+  },
+  {
+    badge: "Payroll Automation",
+    title: "Salary Structure & Payroll Management",
+    description: "Configure base salaries, bonuses, deductions, and tax withholding structures. Generate monthly payroll runs synchronized with Finance.",
+    bullets: [
+      "Custom salary component structures per employee",
+      "Automated monthly payroll calculation with deductions",
+      "Downloadable employee payslips & tax summary reports"
+    ]
+  },
+  {
+    badge: "Performance",
+    title: "Performance Reviews, Goals & OKRs",
+    description: "Run quarterly review cycles, track employee OKRs (Objectives & Key Results), and conduct structured 360-degree feedback sessions.",
+    bullets: [
+      "Quarterly & annual review cycle templates",
+      "Manager assessments, peer feedback & self-evaluations",
+      "Goal progress tracking linked directly to project output"
+    ]
+  },
+  {
+    badge: "Compliance",
+    title: "Attendance & Work Log Compliance",
+    description: "Ensure labor compliance by monitoring daily attendance, work log submissions, and shift schedules without intrusive spyware.",
+    bullets: [
+      "Work log compliance tracking against expected weekly hours",
+      "Absence alerts and automated manager notifications",
+      "Comprehensive HR compliance audit logs"
+    ]
+  },
+  {
+    badge: "Self-Service",
+    title: "Employee Self-Service Portal",
+    description: "Empower employees to check leave balances, submit vacation requests, view payslips, and update personal information independently.",
+    bullets: [
+      "Intuitive mobile-first employee portal",
+      "Instant push notifications on leave approval status",
+      "Secure encrypted document vault for contracts & IDs"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Configure Departments & Leave Policies",
+    description: "Navigate to HR → Settings. Set up your departments, work schedules, company holidays, and annual leave allowances per employee tier.",
+    actionSnippet: "HR → Settings → Leave Policies → Add Policy"
+  },
+  {
+    stepNumber: "02",
+    title: "Onboard Employees & Define Roles",
+    description: "Add team members, assign reporting managers, set base salary structures, and grant system permissions (Admin, Manager, Employee).",
+    actionSnippet: "HR → Employees → + Add Employee"
+  },
+  {
+    stepNumber: "03",
+    title: "Process Leave Requests & Track Attendance",
+    description: "Employees submit leave requests via their self-service portal. Managers approve or decline with a single click.",
+    actionSnippet: "HR → Leaves → Approval Queue → Approve Request"
+  },
+  {
+    stepNumber: "04",
+    title: "Run Monthly Payroll & Sync with Finance",
+    description: "Calculate net pay, apply approved leave deductions, and generate payslips. Total payroll disbursements sync directly into 180 Finance.",
+    actionSnippet: "HR → Payroll → Generate Monthly Run → Sync to Finance"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "HR Management",
+    targetApp: "Finance & Invoicing",
+    badge: "Payroll Sync",
+    description: "Monthly salary disbursements and bonus payments automatically record as expenses in company financial cash flow ledgers."
+  },
+  {
+    sourceApp: "HR Management",
+    targetApp: "Projects & Tasks",
+    badge: "Capacity & Leave",
+    description: "Approved leaves reflect on project sprint schedules, preventing tasks from being assigned to absent team members."
+  },
+  {
+    sourceApp: "HR Management",
+    targetApp: "Communications",
+    badge: "Team Calendar",
+    description: "Company holidays and approved team leaves sync to the shared company calendar and team chat status badges."
+  }
+];
+
+const faqs = [
+  {
+    question: "Can I customize leave types and accrual rules for different countries?",
+    answer: "Yes. 180 HR allows you to create customized leave policies tailored to different offices or employment tiers (e.g. Full-time US, Contractors, International Entities) with different annual balance allowances and carry-over rules."
+  },
+  {
+    question: "How does payroll integrate with the Finance module?",
+    answer: "When a payroll run is approved in the HR module, the system automatically creates an expense disbursement record in 180 Finance, categorizing team salaries under operational expenses to keep your net profit reports accurate."
+  },
+  {
+    question: "Can employees access their own payslips and leave balances?",
+    answer: "Yes. Every team member has an Employee Self-Service portal where they can submit time off requests, check remaining leave balances, view historical payslips, and review their quarterly performance goals."
+  },
+  {
+    question: "How do performance review cycles work in 180workspace?",
+    answer: "HR administrators can launch review cycles with customizable questionnaires. The system orchestrates self-reviews, peer feedback, and manager evaluations with automated deadline reminders."
+  },
+  {
+    question: "Can I store sensitive employment documents securely?",
+    answer: "Yes. Every employee profile includes an encrypted document repository for signed employment contracts, government IDs, and tax forms, with strict role-based access restricted to HR admins."
+  }
+];
+---
+
+<Layout 
+  title="HR Management & HRMS Software & Guide | 180workspace"
+  description="Manage employee directories, leave approvals, payroll structures, attendance, and performance reviews in 180workspace natively linked to Finance and Projects."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Manage your entire workforce from"
+      highlightText="onboarding to payroll."
+      description="Simplify employee directories, multi-tier leave approvals, payroll structures, and quarterly performance reviews in one unified HR platform connected to company financials."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="HRMS Capabilities"
+      sectionTitle="Engineered for modern HR teams, founders, and people managers."
+      sectionSubtitle="From seamless digital onboarding to compliant leave approvals and automated payroll disbursements."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="HR Playbook"
+      title="How to Manage Employees, Leaves & Payroll in 180"
+      subtitle="Follow these 4 steps to onboard staff, configure leave policies, and run monthly payroll."
+      videoCaption="2-Minute HRMS & Payroll Overview"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="HR Management"
+      title="HR that coordinates seamlessly with delivery and finance."
+      subtitle="See how leave approvals adjust sprint timelines and payroll disbursements sync with company ledgers."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="HR FAQs"
+      title="Frequently Asked Questions about 180 HR"
+      subtitle="Answers on custom leave policies, international payroll sync, document storage, and employee self-service."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="HR Management" 
+      headline="Build a happier, more compliant, and productive workforce."
+      subheadline="Start streamlining your company HR operations in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="HR Management & HRMS"
+      description="Manage employee directories, leave approvals, payroll structures, attendance, and performance reviews in 180workspace natively linked to Finance and Projects."
+      urlPath="/apps/hr-management"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

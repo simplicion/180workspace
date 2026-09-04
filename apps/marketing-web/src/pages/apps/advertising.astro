@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: "Cross-Network",
+    title: "Multi-Platform Ad Spend Aggregation",
+    description: "Connect your Meta Ads, Google Ads, and TikTok Ads accounts to monitor aggregate daily spend, impressions, CPC, and blended customer acquisition costs (CAC).",
+    bullets: [
+      "Unified dashboard tracking Meta, Google & TikTok campaigns",
+      "Real-time blended CAC & ROAS metrics across channels",
+      "Automated alerts on unexpected ad spend spikes"
+    ]
+  },
+  {
+    badge: "Closed-Won ROI",
+    title: "True Closed-Won CRM Revenue Attribution",
+    description: "Stop relying on inflated ad platform pixel metrics. 180 Advertising matches ad spend against actual cash collected in 180 Finance and closed deals in CRM.",
+    bullets: [
+      "Calculates True ROAS based on actual collected bank revenue",
+      "Tracks customer Lifetime Value (LTV) back to original ad campaign",
+      "Identifies highest-margin client acquisition channels"
+    ]
+  },
+  {
+    badge: "Form Builder",
+    title: "Dynamic Lead Capture Forms & Headless Ingestion",
+    description: "Build embeddable, responsive lead capture forms for your landing pages. Automatically capture UTM tags, click IDs, and visitor device fingerprints.",
+    bullets: [
+      "Drag-and-drop form builder with custom field support",
+      "Embed via HTML iframe or headless API endpoint (/api/v1/advertising/forms)",
+      "Instant lead ingestion into CRM with zero latency"
+    ]
+  },
+  {
+    badge: "Conversions API",
+    title: "Meta CAPI & Google Offline Conversions Sync",
+    description: "Feed verified closed-won conversion data back to Meta and Google ad algorithms using server-side Conversions API (CAPI) to optimize bidding for high-value buyers.",
+    bullets: [
+      "Server-to-server conversion postback webhooks",
+      "Bypasses iOS 14.5+ browser cookie tracking limitations",
+      "Trains ad algorithms to target high-paying enterprise clients"
+    ]
+  },
+  {
+    badge: "Edge Protected",
+    title: "Native Traffic Director Synergy",
+    description: "Deploy advertising campaigns behind Traffic Director's edge cloaking engine to filter bot clicks, prevent click fraud, and protect ad account quality scores.",
+    bullets: [
+      "Links ad campaigns directly to dynamic edge shortlinks",
+      "Filters crawler traffic from ad attribution metrics",
+      "Sub-5ms edge evaluation preserves fast page load speeds"
+    ]
+  },
+  {
+    badge: "AI Optimization",
+    title: "Orbit AI Ad Budget & Scaling Recommendations",
+    description: "Orbit Copilot continuously analyzes your ad spend versus closed revenue to recommend which campaigns to scale and which to pause.",
+    bullets: [
+      "Detects creative fatigue before ROAS drops",
+      "Recommends budget reallocation toward highest LTV channels",
+      "Automated weekly marketing performance audits"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Connect Ad Platforms & Build Lead Form",
+    description: "Navigate to Advertising → Settings. Connect your Meta and Google ad accounts, and design your branded lead capture form.",
+    actionSnippet: "Advertising → Forms → + Create Lead Form"
+  },
+  {
+    stepNumber: "02",
+    title: "Deploy Form or Dynamic Edge Tracking Link",
+    description: "Embed the form on your landing page or route your ad campaigns through Traffic Director to capture UTM and Click IDs.",
+    actionSnippet: "<script src=\"https://api.180workspace.com/tag/form-id\"></script>"
+  },
+  {
+    stepNumber: "03",
+    title: "Track Leads in CRM & Collect Invoices",
+    description: "As leads submit forms, they populate 180 CRM. When deals close and invoices are paid in Finance, revenue links back to the original ad.",
+    actionSnippet: "Lead Ingested ➔ Deal Won ➔ Invoice Paid ($12,000)"
+  },
+  {
+    stepNumber: "04",
+    title: "Analyze True ROAS & Sync Server Conversions",
+    description: "View your true marketing ROI in the Advertising dashboard. Server-side CAPI webhooks automatically notify ad platforms to optimize bidding.",
+    actionSnippet: "True ROAS: 4.8x • Meta CAPI Event Sent ✓"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Advertising",
+    targetApp: "CRM & Sales",
+    badge: "Lead Routing",
+    description: "Passes form submissions, UTM parameters, and attribution data directly into CRM deal cards."
+  },
+  {
+    sourceApp: "Advertising",
+    targetApp: "Finance & Invoicing",
+    badge: "Revenue Attribution",
+    description: "Matches actual collected client revenue against ad spend to calculate true return on investment."
+  },
+  {
+    sourceApp: "Advertising",
+    targetApp: "Traffic Director",
+    badge: "Click Shield",
+    description: "Filters bot clicks and review crawlers at the edge to protect ad campaigns and conversion tracking."
+  }
+];
+
+const faqs = [
+  {
+    question: "How does 180 Advertising calculate 'True ROAS'?",
+    answer: "Most analytics tools calculate ROAS based on unverified browser pixel triggers. 180 Advertising matches your ad spend directly against actual paid invoices in 180 Finance and closed contracts in 180 CRM, giving you the real dollar return for every ad dollar spent."
+  },
+  {
+    question: "How does Server-Side Conversions API (CAPI) help our campaigns?",
+    answer: "Browser ad blockers and iOS privacy restrictions block up to 40% of standard client-side pixel events. 180 Advertising sends conversion events directly from our server to Meta and Google (CAPI), ensuring 100% conversion attribution accuracy and cheaper ad costs."
+  },
+  {
+    question: "Can I embed 180 lead capture forms on external websites?",
+    answer: "Yes. You can embed our lead capture forms on any external WordPress, Webflow, Shopify, or custom HTML site using a simple 1-line script or iframe, or submit data via our headless REST API."
+  },
+  {
+    question: "Does this support multi-currency ad spend and revenue?",
+    answer: "Yes. If you run ads in USD but bill clients in EUR or GBP, 180workspace normalizes all calculations into your base company currency using real-time daily exchange rates."
+  },
+  {
+    question: "Can agencies track ad campaigns for multiple clients separately?",
+    answer: "Yes. Multi-tenancy allows agencies to connect separate ad accounts and lead forms for each client workspace with isolated reporting dashboards."
+  }
+];
+---
+
+<Layout 
+  title="Advertising & True ROI Attribution Software & Guide | 180workspace"
+  description="Multi-platform ad spend aggregation, True ROAS calculation, lead capture forms, and server-side CAPI sync in 180workspace."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Track real advertising ROI from ad click to"
+      highlightText="closed bank revenue."
+      description="Stop guessing your true marketing return. 180 Advertising connects ad spend across Meta, Google, and TikTok directly to actual closed CRM deals and paid client invoices."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Advertising Features"
+      sectionTitle="Engineered for media buyers, growth marketers, and performance agencies."
+      sectionSubtitle="From headless lead capture forms to server-side Meta CAPI and closed-won revenue attribution."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Advertising Playbook"
+      title="How to Track True Marketing ROI with 180"
+      subtitle="Follow these 4 steps to connect ad channels, deploy lead capture forms, and sync server conversions."
+      videoCaption="2-Minute Advertising Suite Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="Advertising"
+      title="Ad analytics that connect to sales pipelines and invoices."
+      subtitle="Discover how ad clicks become CRM deals and closed revenue feeds back into ad optimization."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Advertising FAQs"
+      title="Frequently Asked Questions about 180 Advertising"
+      subtitle="Answers on True ROAS calculation, server-side CAPI webhooks, lead form embedding, and multi-currency."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="Advertising Suite" 
+      headline="Know the exact dollar return on every marketing campaign."
+      subheadline="Start tracking true closed-won ad attribution in 180workspace. 14-day free trial."
+    />
+
+    <JSONLDSchema 
+      appName="Advertising & True ROI Attribution"
+      description="Multi-platform ad spend aggregation, True ROAS calculation, lead capture forms, and server-side CAPI sync in 180workspace."
+      urlPath="/apps/advertising"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>
