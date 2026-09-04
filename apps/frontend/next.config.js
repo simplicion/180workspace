@@ -66,9 +66,17 @@ const nextConfig = {
     async headers() {
         return [
             {
-                source: '/((?!r/|shield/|tag/|evaluate/|f/).*)',
+                source: '/((?!r/|shield/|tag/|evaluate/|f/|sites/).*)',
                 headers: [
                     { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+                    { key: 'X-Content-Type-Options', value: 'nosniff' },
+                    { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+                ],
+            },
+            {
+                source: '/sites/:path*',
+                headers: [
+                    { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://*.facebook.com https://*.meta.com https://*.google.com" },
                     { key: 'X-Content-Type-Options', value: 'nosniff' },
                     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
                 ],

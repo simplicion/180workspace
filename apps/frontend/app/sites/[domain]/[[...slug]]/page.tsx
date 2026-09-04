@@ -3,6 +3,7 @@ import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCirc
 import { BuilderElement } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/BuilderElement';
 import { CompanyProfileUI } from '@/app/(platform)/(company-hub-app)/_components/CompanyProfileUI';
 import { ScriptInjector } from './_components/ScriptInjector';
+import { FacebookPixel } from './_components/FacebookPixel';
 
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -595,8 +596,19 @@ export default async function PublicWebsitePage({
                         }
                     `
                 }} />
-                {/* Global Head Scripts */}
-                {brand.headScript && <ScriptInjector html={brand.headScript} position="head" />}
+                {/* Dedicated Facebook Pixels */}
+                {pixels && pixels.length > 0 && <FacebookPixel pixels={pixels} />}
+
+                {/* Global Head Scripts (SSR + Client Injection) */}
+                {brand.headScript && (
+                    <>
+                        <div 
+                            style={{ display: 'none' }}
+                            dangerouslySetInnerHTML={{ __html: brand.headScript }} 
+                        />
+                        <ScriptInjector html={brand.headScript} position="head" />
+                    </>
+                )}
 
                 {/* Universal Form Iframe Auto-Resize Listener */}
                 <script dangerouslySetInnerHTML={{ __html: `
@@ -756,8 +768,16 @@ export default async function PublicWebsitePage({
                     <BuilderElement key={sec.id} node={sec} brand={brand} isReadOnly={true} />
                 ))}
 
-                {/* Global Body Scripts */}
-                {brand.bodyScript && <ScriptInjector html={brand.bodyScript} position="body" />}
+                {/* Global Body Scripts (SSR + Client Injection) */}
+                {brand.bodyScript && (
+                    <>
+                        <div 
+                            style={{ display: 'none' }}
+                            dangerouslySetInnerHTML={{ __html: brand.bodyScript }} 
+                        />
+                        <ScriptInjector html={brand.bodyScript} position="body" />
+                    </>
+                )}
             </div>
         </div>
     );

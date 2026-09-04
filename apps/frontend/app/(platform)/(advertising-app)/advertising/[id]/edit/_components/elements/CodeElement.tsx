@@ -44,23 +44,29 @@ export default function CodeElement({ element, isReadOnly = false }: CodeElement
                 Array.from(oldScript.attributes).forEach((attr) => {
                     newScript.setAttribute(attr.name, attr.value);
                 });
-                if (oldScript.innerHTML) {
-                    newScript.textContent = oldScript.innerHTML;
+                const scriptText = oldScript.innerHTML || '';
+                if (scriptText) {
+                    newScript.textContent = scriptText;
                 }
                 container.appendChild(newScript);
                 scriptElements.push(newScript);
-            });
 
-            // 2. Process non-script content (e.g., noscript, iframe, div, style)
-            const nonScriptDoc = parser.parseFromString(html, 'text/html');
-            nonScriptDoc.querySelectorAll('script').forEach(s => s.remove());
-            const nonScriptHtml = nonScriptDoc.body.innerHTML;
-            if (nonScriptHtml) {
-                const markupContainer = document.createElement('div');
-                markupContainer.className = 'custom-code-markup w-full';
-                markupContainer.innerHTML = nonScriptHtml;
-                container.appendChild(markupContainer);
-            }
+                // Multi-Pixel Protection: If fbq is already initialized on window, ensure this pixel ID is registered
+                if (scriptText.includes('fbq')) {
+                    const fbqInitMatches = Array.from(scriptText.matchAll(/fbq\s*\(\s*['"]init['"]\s*,\s*['"]([0-9A-Za-z_-]+)['"]\s*\)/g));
+                    if (fbqInitMatches.length > 0 && typeof window !== 'undefined' && (window as any).fbq) {
+                        fbqInitMatches.forEach((m) => {
+                            const pixelId = m[1];
+                            if (pixelId) {
+                                try {
+                                    (window as any).fbq('init', pixelId);
+                                    (window as any).fbq('track', 'PageView');
+                                } catch (_) {}
+                            }
+                        });
+                    }
+                }
+            });
         } catch (err) {
             console.error('[CodeElement] Error executing embedded code:', err);
         }
@@ -71,9 +77,6 @@ export default function CodeElement({ element, isReadOnly = false }: CodeElement
                     if (s.parentNode) s.parentNode.removeChild(s);
                 } catch (e) {}
             });
-            if (container) {
-                container.innerHTML = '';
-            }
         };
     }, [html, isReadOnly]);
 
@@ -141,6 +144,7 @@ export default function CodeElement({ element, isReadOnly = false }: CodeElement
                 ref={containerRef}
                 style={element.style} 
                 className="w-full relative custom-code-container"
+                dangerouslySetInnerHTML={{ __html: html }}
             />
         );
     }
