@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { prisma } from '@workspace/db';
+import { fallbackBlogs } from '../data/fallback-blogs';
 
 export const GET: APIRoute = async () => {
   const baseUrl = 'https://180workspace.com';
@@ -44,24 +45,41 @@ export const GET: APIRoute = async () => {
   }));
 
   let dynamicBlogPages: Array<{ url: string; priority: number; changeFrequency: string; lastModified: string }> = [];
-  let dynamicFeaturePages: Array<{ url: string; priority: number; changeFrequency: string; lastModified: string }> = [];
+  const blogMap = new Map<string, { url: string; priority: number; changeFrequency: string; lastModified: string }>();
 
-  try {
-    const publishedBlogs = await prisma.marketingBlog.findMany({
-      where: { published: true },
-      select: { slug: true, updatedAt: true, publishedAt: true }
+    // Add fallback blogs first
+    fallbackBlogs.forEach(b => {
+      const pubDate = b.publishedAt ? new Date(b.publishedAt).toISOString() : now;
+      blogMap.set(b.slug, {
+        url: `${baseUrl}/blog/${b.slug}`,
+        priority: 0.85,
+        changeFrequency: 'weekly',
+        lastModified: pubDate
+      });
     });
 
-    dynamicBlogPages = publishedBlogs.map(b => ({
-      url: `${baseUrl}/blog/${b.slug}`,
-      priority: 0.80,
-      changeFrequency: 'monthly',
-      lastModified: (b.updatedAt || b.publishedAt || new Date()).toISOString()
-    }));
-  } catch (err) {
-    console.warn("Could not query published blogs for sitemap, using defaults:", err);
-  }
+    try {
+      const publishedBlogs = await prisma.marketingBlog.findMany({
+        where: { published: true },
+        select: { slug: true, updatedAt: true, publishedAt: true }
+      });
 
+      publishedBlogs.forEach(b => {
+        const modDate = b.updatedAt || b.publishedAt ? new Date(b.updatedAt || b.publishedAt).toISOString() : now;
+        blogMap.set(b.slug, {
+          url: `${baseUrl}/blog/${b.slug}`,
+          priority: 0.85,
+          changeFrequency: 'weekly',
+          lastModified: modDate
+        });
+      });
+    } catch (err) {
+      console.warn("Could not query published blogs for sitemap, using defaults:", err);
+    }
+
+    dynamicBlogPages = Array.from(blogMap.values());
+
+  let dynamicFeaturePages: Array<{ url: string; priority: number; changeFrequency: string; lastModified: string }> = [];
   try {
     const publishedFeatures = await prisma.marketingPage.findMany({
       where: { type: 'FEATURE', published: true },

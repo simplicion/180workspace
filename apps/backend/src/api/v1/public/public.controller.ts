@@ -1,6 +1,7 @@
 'use strict';
 
 import { PublicService } from '@workspace/public';
+import { BlogService } from '@workspace/platform-admin';
 import { Request, Response, NextFunction } from 'express';
 
 /**
@@ -194,4 +195,47 @@ export const resolveDomain = async (req: Request, res: Response, next: NextFunct
         next(err);
     }
 };
+
+/**
+ * Public Blog Endpoints (for external headless consumers / marketing frontend)
+ */
+export const getPublicBlogs = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { category, search } = req.query;
+        const blogs = await BlogService.list({
+            published: true,
+            category: category ? String(category) : undefined,
+            search: search ? String(search) : undefined
+        });
+        res.json({ success: true, data: { blogs } });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getPublicBlogBySlug = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { slug } = req.params;
+        const blog = await BlogService.getBySlug(slug);
+        if (!blog || !blog.published) {
+            return res.status(404).json({ success: false, error: 'Article not found' });
+        }
+        // Auto-increment views count
+        await BlogService.incrementViews(slug).catch(() => {});
+        res.json({ success: true, data: { blog } });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const recordBlogView = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { slug } = req.params;
+        const updated = await BlogService.incrementViews(slug);
+        res.json({ success: true, data: { viewsCount: updated?.viewsCount || 0 } });
+    } catch (err) {
+        next(err);
+    }
+};
+
 

@@ -8,7 +8,7 @@ import {
     LayoutDashboard, Building2, Users, CreditCard, Tag, Receipt,
     Settings, FileText, Megaphone, LifeBuoy, Database, Bug,
     LogOut, Bell, Shield, ChevronRight, Rocket, Globe, ToggleRight, Sparkles, Menu, X, ArrowLeft,
-    CheckCircle2, Activity, ExternalLink
+    CheckCircle2, Activity, ExternalLink, Newspaper
 } from 'lucide-react';
 import { SuperAdminProvider, useSuperAdmin } from '../../lib/superadmin-context';
 import { useSettings } from '../../lib/settings-context';
@@ -49,6 +49,7 @@ const NAV_SECTIONS: NavSection[] = [
     {
         title: 'Governance & Community',
         items: [
+            { href: '/superadmin/blogs', label: 'Marketing Blog CMS', icon: Newspaper, badge: 'SEO' },
             { href: '/superadmin/tickets', label: 'Support & Issue Desk', icon: LifeBuoy, badge: 'Live' },
             { href: '/superadmin/feature-flags', label: 'Feature Flags', icon: ToggleRight },
             { href: '/superadmin/release-notes', label: 'Release Notes', icon: Rocket },

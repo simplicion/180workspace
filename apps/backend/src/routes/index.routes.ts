@@ -249,6 +249,7 @@ router.use('/domains', require('../api/v1/domains/domains.routes').default);
 router.use('/p/contract', publicContractRoutes);
 router.use('/p/document', require('../api/v1/workspace-tools/documents/documents.public.routes').default);
 router.use('/public', publicRoutes);
+router.use('/v1/public', publicRoutes);
 router.use('/public', advertisingPublicRoutes);
 router.use('/r', trafficDirectorPublicRoutes);
 router.use('/shield/:slug', (req, res) => {

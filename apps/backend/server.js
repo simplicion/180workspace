@@ -4,6 +4,8 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 // Form 10-char ID and Headless Capture support loaded - 2026-09-02
+// Marketing Blog CMS routes loaded - 2026-09-04
+// Public Blog routes loaded - 2026-09-04
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);

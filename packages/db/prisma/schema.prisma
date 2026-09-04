@@ -2511,30 +2511,51 @@ model MarketingPage {
 }
 
 model MarketingBlog {
-  id       String @id @default(uuid())
-  slug     String @unique
-  category String // e.g., 'agency-growth', 'freelance-tips'
+  id       String   @id @default(uuid())
+  slug     String   @unique
+  category String   // e.g., 'Operations', 'Growth & Ads', 'Architecture', 'Finance', 'AI'
+  tags     String[] @default([])
 
-  // SEO Data
+  // SEO Data & Generative Engine Optimization (GEO)
   seoTitle       String
   seoDescription String
   keywords       String[]
+  canonicalUrl   String?
+  ogImageUrl     String?
+  noIndex        Boolean  @default(false)
 
   // Content
-  title         String
-  excerpt       String
-  contentHtml   String // Raw HTML or Markdown
-  coverImageUrl String?
+  title           String
+  excerpt         String
+  contentMarkdown String    @default("")
+  contentHtml     String    // Raw HTML or compiled Markdown
+  coverImageUrl   String?
+  keyTakeaways    String[]  @default([])
+  readingTimeMin  Int       @default(5)
 
-  // Author
+  // Author & E-E-A-T Attribution
   authorName      String
   authorRole      String
   authorAvatarUrl String?
+  authorBio       String?
+  authorSocial    String?
 
+  // Product-Led Growth CTA
+  relatedAppSlug String?
+  ctaHeadline    String?
+  ctaButtonText  String?
+
+  // Structured Schema.org Q&A
+  faqs Json?
+
+  // Publication Lifecycle
+  featured    Boolean   @default(false)
   published   Boolean   @default(false)
   publishedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  viewsCount  Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MarketingFaq {

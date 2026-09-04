@@ -9,6 +9,7 @@ import subscriptionRoutes from './routes/subscription.routes';
 import settingsRoutes from './routes/settings.routes';
 import featureFlagRoutes from './routes/feature-flag.routes';
 import releaseNoteRoutes from './routes/release-note.routes';
+import blogRoutes from './routes/blog.routes';
 import logRoutes from './routes/log.routes';
 import ticketRoutes from './routes/ticket.routes';
 
@@ -30,6 +31,7 @@ router.use('/subscriptions', subscriptionRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/feature-flags', featureFlagRoutes);
 router.use('/release-notes', releaseNoteRoutes);
+router.use('/blogs', blogRoutes);
 router.use('/logs', logRoutes);
 router.use('/tickets', ticketRoutes);
 
