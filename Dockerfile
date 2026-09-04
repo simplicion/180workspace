@@ -3,10 +3,10 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 RUN apk add --no-cache libc6-compat openssl
+RUN npm install -g tsx turbo
 
 FROM base AS builder
 WORKDIR /app
-RUN npm install -g turbo
 COPY . .
 RUN turbo prune backend --docker
 
@@ -33,4 +33,4 @@ WORKDIR /app/apps/backend
 EXPOSE 4000
 ENV PORT=4000
 
-CMD ["node", "server.js"]
+CMD ["tsx", "server.js"]

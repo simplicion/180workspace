@@ -3,10 +3,10 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 RUN apk add --no-cache libc6-compat openssl
+RUN npm install -g tsx turbo
 
 FROM base AS builder
 WORKDIR /app
-RUN npm install -g turbo
 COPY . .
 RUN turbo prune backend --docker
 
@@ -17,7 +17,6 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
-# Run build if there is a build script (often not needed for raw JS backends, but safe for turbo)
 RUN pnpm turbo run build --filter=backend... || true
 
 FROM base AS runner
@@ -34,4 +33,4 @@ WORKDIR /app/apps/backend
 EXPOSE 4000
 ENV PORT=4000
 
-CMD ["node", "server.js"]
+CMD ["tsx", "server.js"]
