@@ -37,6 +37,10 @@ export default function SignupFlow() {
     useEffect(() => {
         if (status === 'authenticated' && session?.user) {
             const user: any = session.user;
+            if (user.isOnboardingComplete || user.isFirstLogin === false) {
+                window.location.href = '/';
+                return;
+            }
             if (user.isFirstLogin !== false && step < 4) {
                 setEmail(user.email || '');
                 setStep(4);

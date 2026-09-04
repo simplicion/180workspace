@@ -87,20 +87,21 @@ export const authOptions: NextAuthOptions = {
           
           const data = await res.json();
           const backendUser = data?.user;
-          const backendCompany = data?.company;
+          const backendCompany = data?.company || backendUser?.company;
           
           if (!backendUser || !backendUser.id) return null;
           
           if (backendUser.isActive) {
+            const isOnboardingComplete = backendCompany?.isOnboardingComplete === true;
             return { 
               id: backendUser.id, 
               name: backendUser.name,
               username: backendUser.username,
               email: backendUser.email, 
-              companyId: backendUser.companyId || backendCompany?.id,
+              companyId: backendUser.companyId || backendCompany?.id || backendCompany?._id,
               role: backendUser.role,
-              isOnboardingComplete: backendCompany?.isOnboardingComplete || false,
-              isFirstLogin: !backendUser.username,
+              isOnboardingComplete: isOnboardingComplete,
+              isFirstLogin: !isOnboardingComplete && (backendUser.isFirstLogin === true || !backendUser.username),
               companySlug: backendCompany?.slug,
               companyCustomDomain: backendCompany?.customDomain
             } as any
@@ -139,21 +140,23 @@ export const authOptions: NextAuthOptions = {
            
            const data = await res.json();
            const backendUser = data?.user;
+           const backendCompany = data?.company || backendUser?.company;
            if (!backendUser || !backendUser.id) return null;
            
            if (backendUser.isActive) {
+             const isOnboardingComplete = backendCompany?.isOnboardingComplete === true;
              return { 
                id: backendUser.id, 
                name: backendUser.name,
                username: backendUser.username,
                email: backendUser.email, 
-               companyId: backendUser.companyId,
+               companyId: backendUser.companyId || backendCompany?.id || backendCompany?._id,
                role: backendUser.role,
                permissions: backendUser.permissions || [],
-               isOnboardingComplete: data.company?.isOnboardingComplete || false,
-               isFirstLogin: !backendUser.username,
-               companySlug: data.company?.slug,
-               companyCustomDomain: data.company?.customDomain
+               isOnboardingComplete: isOnboardingComplete,
+               isFirstLogin: !isOnboardingComplete && (backendUser.isFirstLogin === true || !backendUser.username),
+               companySlug: backendCompany?.slug,
+               companyCustomDomain: backendCompany?.customDomain
              } as any
            }
         } catch(e) {
