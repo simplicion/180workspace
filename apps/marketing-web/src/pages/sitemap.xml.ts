@@ -58,42 +58,46 @@ export const GET: APIRoute = async () => {
       });
     });
 
-    try {
-      const publishedBlogs = await prisma.marketingBlog.findMany({
-        where: { published: true },
-        select: { slug: true, updatedAt: true, publishedAt: true }
-      });
-
-      publishedBlogs.forEach(b => {
-        const modDate = b.updatedAt || b.publishedAt ? new Date(b.updatedAt || b.publishedAt).toISOString() : now;
-        blogMap.set(b.slug, {
-          url: `${baseUrl}/blog/${b.slug}`,
-          priority: 0.85,
-          changeFrequency: 'weekly',
-          lastModified: modDate
+    if (process.env.DATABASE_URL) {
+      try {
+        const publishedBlogs = await prisma.marketingBlog.findMany({
+          where: { published: true },
+          select: { slug: true, updatedAt: true, publishedAt: true }
         });
-      });
-    } catch (err) {
-      console.warn("Could not query published blogs for sitemap, using defaults:", err);
+
+        publishedBlogs.forEach(b => {
+          const modDate = b.updatedAt || b.publishedAt ? new Date(b.updatedAt || b.publishedAt).toISOString() : now;
+          blogMap.set(b.slug, {
+            url: `${baseUrl}/blog/${b.slug}`,
+            priority: 0.85,
+            changeFrequency: 'weekly',
+            lastModified: modDate
+          });
+        });
+      } catch (err) {
+        console.warn("Could not query published blogs for sitemap, using defaults:", err);
+      }
     }
 
     dynamicBlogPages = Array.from(blogMap.values());
 
   let dynamicFeaturePages: Array<{ url: string; priority: number; changeFrequency: string; lastModified: string }> = [];
-  try {
-    const publishedFeatures = await prisma.marketingPage.findMany({
-      where: { type: 'FEATURE', published: true },
-      select: { slug: true, updatedAt: true }
-    });
+  if (process.env.DATABASE_URL) {
+    try {
+      const publishedFeatures = await prisma.marketingPage.findMany({
+        where: { type: 'FEATURE', published: true },
+        select: { slug: true, updatedAt: true }
+      });
 
-    dynamicFeaturePages = publishedFeatures.map(f => ({
-      url: `${baseUrl}/features/${f.slug}`,
-      priority: 0.75,
-      changeFrequency: 'monthly',
-      lastModified: (f.updatedAt || new Date()).toISOString()
-    }));
-  } catch (err) {
-    console.warn("Could not query published features for sitemap:", err);
+      dynamicFeaturePages = publishedFeatures.map(f => ({
+        url: `${baseUrl}/features/${f.slug}`,
+        priority: 0.75,
+        changeFrequency: 'monthly',
+        lastModified: (f.updatedAt || new Date()).toISOString()
+      }));
+    } catch (err) {
+      console.warn("Could not query published features for sitemap:", err);
+    }
   }
 
   const allEntries = [
