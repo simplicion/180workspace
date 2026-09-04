@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import api from './api';
 import { updateSocketAuth, disconnectSocket } from './socket';
+import { signOut } from 'next-auth/react';
 
 interface User {
     id: string;
@@ -58,6 +59,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const hasInitialized = useRef(false);
 
+    const setPlatformCookie = (jwtToken: string) => {
+        if (typeof document === 'undefined') return;
+        const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
+        const is180 = typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com');
+        const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+        const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}${domainAttr}`;
+        document.cookie = `platform_auth_token=${jwtToken}${cookieFlags}`;
+    };
+
+    const clearPlatformCookie = () => {
+        if (typeof document === 'undefined') return;
+        const is180 = typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com');
+        const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+        document.cookie = `platform_auth_token=; path=/; max-age=0${domainAttr}`;
+        document.cookie = `platform_auth_token=; path=/; max-age=0`;
+        document.cookie = `platform_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    };
+
     useEffect(() => {
         if (hasInitialized.current) return;
         hasInitialized.current = true;
@@ -70,14 +89,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
 
         const storedToken = getAuthToken();
-        const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
-        const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${isProd ? '; Secure' : ''}`;
 
         if (storedToken) {
             setToken(storedToken);
             // Sync to cookie for middleware persistence
             if (!document.cookie.includes('platform_auth_token=')) {
-                document.cookie = `platform_auth_token=${storedToken}${cookieFlags}`;
+                setPlatformCookie(storedToken);
             }
             api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
             updateSocketAuth(storedToken);
@@ -105,9 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (err?.response?.status === 401) {
                 localStorage.removeItem('platform_auth_token');
                 localStorage.removeItem('platform_refresh_token');
+                clearPlatformCookie();
 
-                // Clear cookie
-                document.cookie = `platform_auth_token=; path=/; max-age=0`;
+                try {
+                    await signOut({ redirect: false });
+                } catch {}
 
                 setToken(null);
                 setUser(null);
@@ -125,11 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             localStorage.setItem('platform_auth_token', data.token);
             localStorage.setItem('platform_refresh_token', data.refreshToken);
-
-            // Set cookie so Next.js middleware can read it
-            const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
-            const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${isProd ? '; Secure' : ''}`;
-            document.cookie = `platform_auth_token=${data.token}${cookieFlags}`;
+            setPlatformCookie(data.token);
 
             setToken(data.token);
             setUser(data.user);
@@ -137,8 +152,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
             return { user: data.user, company: data.company, token: data.token, refreshToken: data.refreshToken };
         } catch (err: any) {
-            // Re-throw with the full response data so caller can inspect
-            // setupToken, onboardingToken, onboardingRequired etc.
             const errData = err?.response?.data || {};
             const structured: any = new Error(errData.error || 'Login failed');
             structured.response = err?.response;
@@ -154,21 +167,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const refreshToken = localStorage.getItem('platform_refresh_token');
             await api.post('/api/auth/logout', { refreshToken });
         } catch { }
+
         localStorage.removeItem('platform_auth_token');
         localStorage.removeItem('platform_refresh_token');
-
-        // Clear cookie comprehensively
-        const domains = [window.location.hostname, `.${window.location.hostname}`];
-        const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN;
-        if (mainDomain) {
-            domains.push(mainDomain);
-            domains.push(`.${mainDomain}`);
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem('platform_init_data');
         }
 
-        domains.forEach(domain => {
-            document.cookie = `platform_auth_token=; path=/; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
-        });
-        document.cookie = `platform_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
+        clearPlatformCookie();
+
+        try {
+            await signOut({ redirect: false });
+        } catch {}
 
         setToken(null);
         setUser(null);
@@ -185,10 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             localStorage.setItem('platform_auth_token', data.token);
             localStorage.setItem('platform_refresh_token', data.refreshToken);
-            
-            const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
-            const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${isProd ? '; Secure' : ''}`;
-            document.cookie = `platform_auth_token=${data.token}${cookieFlags}`;
+            setPlatformCookie(data.token);
             
             setToken(data.token);
             setUser(data.user);

@@ -103,7 +103,8 @@ export const authOptions: NextAuthOptions = {
               isOnboardingComplete: isOnboardingComplete,
               isFirstLogin: !isOnboardingComplete && (backendUser.isFirstLogin === true || !backendUser.username),
               companySlug: backendCompany?.slug,
-              companyCustomDomain: backendCompany?.customDomain
+              companyCustomDomain: backendCompany?.customDomain,
+              platformToken: data?.token
             } as any
           }
         } catch(e) {
@@ -156,7 +157,8 @@ export const authOptions: NextAuthOptions = {
                isOnboardingComplete: isOnboardingComplete,
                isFirstLogin: !isOnboardingComplete && (backendUser.isFirstLogin === true || !backendUser.username),
                companySlug: backendCompany?.slug,
-               companyCustomDomain: backendCompany?.customDomain
+               companyCustomDomain: backendCompany?.customDomain,
+               platformToken: credentials.token
              } as any
            }
         } catch(e) {
@@ -180,6 +182,9 @@ export const authOptions: NextAuthOptions = {
         token.isFirstLogin = (user as any).isFirstLogin;
         token.companySlug = (user as any).companySlug;
         token.companyCustomDomain = (user as any).companyCustomDomain;
+        if ((user as any).platformToken) {
+          token.platformToken = (user as any).platformToken;
+        }
       }
       
       // Handle manual session updates (e.g., after workspace setup is completed)
@@ -192,13 +197,7 @@ export const authOptions: NextAuthOptions = {
         if (session.username !== undefined) token.username = session.username;
         if (session.companySlug !== undefined) token.companySlug = session.companySlug;
         if (session.companyCustomDomain !== undefined) token.companyCustomDomain = session.companyCustomDomain;
-      }
-
-      // In a fully decoupled frontend, we trust the JWT contents (which are signed).
-      // Backend API calls will enforce security (e.g. if user is disabled, API returns 401).
-      if (token.id || token.email) {
-        // We no longer query Prisma here to avoid DB connection issues on Vercel.
-        // The token already contains the user data we need.
+        if (session.platformToken !== undefined) token.platformToken = session.platformToken;
       }
 
       return token;
@@ -214,7 +213,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).isFirstLogin = token.isFirstLogin;
         (session.user as any).companySlug = token.companySlug;
         (session.user as any).companyCustomDomain = token.companyCustomDomain;
+        (session.user as any).platformToken = token.platformToken;
       }
+      (session as any).platformToken = token.platformToken;
       return session;
     }
   }
