@@ -201,6 +201,7 @@ export default withAuth(
     callbacks: {
       authorized: ({ token }) => true, // Let the middleware function handle the logic
     },
+    secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
   }
 )
 
