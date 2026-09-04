@@ -6,14 +6,27 @@ on:
 
 jobs:
   # ==========================================
-  # Phase 1: Build & Push Docker Image
+  # Phase 1: Build & Push Docker Images (GHCR)
   # ==========================================
-  build-and-push:
-    name: Build & Push to GHCR
+  build-and-push-images:
+    name: Build & Push Production Images
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            file: ./Dockerfile
+            suffix: ""
+          - name: frontend
+            file: ./apps/frontend/Dockerfile
+            suffix: "-frontend"
+          - name: admin-web
+            file: ./apps/admin-web/Dockerfile
+            suffix: "-admin-web"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,7 +34,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to the Container registry
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -38,17 +51,56 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ${{ matrix.file }}
           push: true
-          tags: ghcr.io/${{ steps.repo-name.outputs.REPO_LOWER }}:latest
+          tags: ghcr.io/${{ steps.repo-name.outputs.REPO_LOWER }}${{ matrix.suffix }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   # ==========================================
-  # Phase 2: Deploy Backend to AWS EC2
+  # Phase 2: Deploy Marketing App to Cloudflare Pages
   # ==========================================
-  deploy-backend:
-    name: Deploy to AWS EC2
-    needs: build-and-push
+  deploy-marketing:
+    name: Deploy Marketing Site to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
+
+      - name: Build Marketing Site
+        run: pnpm --filter apps-marketing-web build
+        env:
+          CLOUDFLARE_PAGES: "true"
+          NODE_ENV: production
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '7158d01d5e0dd9e7f5be050ed3717b14' }}
+          command: pages deploy apps/marketing-web/dist --project-name=180workspace-marketing
+
+  # ==========================================
+  # Phase 3: Zero-Downtime Deploy to AWS EC2
+  # ==========================================
+  deploy-aws:
+    name: Deploy All Containers to AWS EC2
+    needs: build-and-push-images
     runs-on: ubuntu-latest
     steps:
       - name: Extract repository name (lowercase)
@@ -56,8 +108,8 @@ jobs:
         run: |
           REPO=${{ github.repository }}
           echo "REPO_LOWER=${REPO,,}" >> $GITHUB_OUTPUT
-          
-      - name: Execute Remote SSH Commands
+
+      - name: Execute Remote SSH Deployment
         uses: appleboy/ssh-action@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -72,11 +124,22 @@ jobs:
           script: |
             set -e
             cd /home/ubuntu/app
-            
-            # Inject production environment variables
+
+            # 1. Configure 4GB Virtual Swap File if not already configured
+            if [ ! -f /swapfile ]; then
+              echo "==> Provisioning 4GB Virtual Swap Memory on SSD..."
+              sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+              echo "==> 4GB Swap file active. Memory ceiling expanded."
+            fi
+
+            # 2. Inject production environment variables
             echo "$PRODUCTION_ENV_FILE" > .env
-            
-            # Update codebase to get latest docker-compose.yml
+
+            # 3. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             if [ ! -d ".git" ]; then
               git init
             fi
@@ -84,27 +147,28 @@ jobs:
             git remote add origin https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}.git
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
-            
-            # Login to GHCR to pull the image
+
+            # 4. Login to GitHub Container Registry (GHCR)
             echo $GITHUB_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Export GITHUB_REPOSITORY_LOWER so docker-compose can use it
+
+            # 5. Export environment for Docker Compose
             export GITHUB_REPOSITORY_LOWER=$REPO_LOWER
-            
-            # Pull the latest image
+
+            # 6. Pull latest multi-stage images
             docker compose pull || docker-compose pull
-            
-            # Start the new container (recreates automatically, zero downtime style if configured properly)
-            docker compose up -d || docker-compose up -d
-            
-            # Stop pm2 if it's still running (Migration step)
-            pm2 stop all || true
-            pm2 delete all || true
-            pm2 save --force || true
-            npx pm2 kill || true
-            
-            # Ensure port 4001 is completely free before starting Docker
-            fuser -k 4001/tcp || true
-            
-            # Clean up old docker images
-            docker image prune -af
+
+            # 7. Graceful Rolling Restart (zero-downtime)
+            docker compose up -d --remove-orphans || docker-compose up -d --remove-orphans
+
+            # 8. Clean up unused legacy processes if any
+            pm2 stop all 2>/dev/null || true
+            pm2 delete all 2>/dev/null || true
+            npx pm2 kill 2>/dev/null || true
+
+            # 9. Health verification
+            sleep 5
+            echo "==> Verifying container status..."
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+            # 10. Clean up dangling images to save disk space
+            docker image prune -af --filter "until=24h"

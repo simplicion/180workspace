@@ -1,7 +1,6 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
-import vercel from '@astrojs/vercel';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,12 +14,17 @@ dotenvConfig({ path: path.resolve(__dirname, '../../.env') });
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'server',
-  adapter: vercel(),
+  output: 'static',
   integrations: [react(), tailwind()],
   vite: {
+    resolve: {
+      alias: {
+        cookie: path.resolve(__dirname, 'cookie-mock.js')
+      }
+    },
     ssr: {
-      external: ['@workspace/db', '@prisma/client', '.prisma/client', '@prisma/engines', 'cookie']
+      noExternal: ['cookie'],
+      external: ['@workspace/db', '@prisma/client', '.prisma/client', '@prisma/engines']
     }
   }
 });

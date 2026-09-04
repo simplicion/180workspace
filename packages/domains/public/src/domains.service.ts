@@ -24,8 +24,10 @@ export interface DomainConfig {
 }
 
 export class DomainsService {
-  private static VERCEL_ANYCAST_IP = '76.76.21.21';
-  private static VERCEL_CNAME_TARGET = 'cname.vercel-dns.com';
+  private static VERCEL_ANYCAST_IP = process.env.VERCEL_ANYCAST_IP || '76.76.21.21';
+  private static VERCEL_CNAME_TARGET = process.env.VERCEL_CNAME_TARGET || 'cname.vercel-dns.com';
+  private static CLOUDFLARE_CNAME_TARGET = process.env.CUSTOM_DOMAIN_CNAME_TARGET || 'cname.180workspace.com';
+  private static SERVER_PUBLIC_IP = process.env.EC2_PUBLIC_IP || process.env.SERVER_PUBLIC_IP || '44.214.118.213';
 
   /**
    * Normalizes domain name (lowercase, trim, strip protocol and paths)
@@ -60,20 +62,22 @@ export class DomainsService {
   static calculateRequiredRecords(domain: string, verificationToken?: string): DnsRecord[] {
     const clean = this.normalizeDomain(domain);
     const isApex = this.isApexDomain(clean);
+    const cnameTarget = process.env.CUSTOM_DOMAIN_CNAME_TARGET || this.CLOUDFLARE_CNAME_TARGET;
+    const ipTarget = this.SERVER_PUBLIC_IP;
 
     if (isApex) {
       const records: DnsRecord[] = [
         {
           type: 'A',
           name: '@',
-          value: this.VERCEL_ANYCAST_IP,
+          value: ipTarget,
           ttl: 3600,
-          description: 'Points your apex domain to the edge server routing network'
+          description: 'Points your apex domain to the 180workspace edge server network'
         },
         {
           type: 'CNAME',
           name: 'www',
-          value: this.VERCEL_CNAME_TARGET,
+          value: cnameTarget,
           ttl: 3600,
           description: 'Ensures www.' + clean + ' resolves seamlessly to your website/link'
         }
@@ -82,7 +86,7 @@ export class DomainsService {
       if (verificationToken) {
         records.push({
           type: 'TXT',
-          name: '_vercel',
+          name: '_180workspace',
           value: verificationToken,
           ttl: 3600,
           description: 'Domain ownership verification record'
@@ -97,9 +101,9 @@ export class DomainsService {
         {
           type: 'CNAME',
           name: subHost,
-          value: this.VERCEL_CNAME_TARGET,
+          value: cnameTarget,
           ttl: 3600,
-          description: `Routes traffic for ${clean} to the edge platform`
+          description: `Routes traffic for ${clean} to the 180workspace platform`
         }
       ];
     }
@@ -140,6 +144,40 @@ export class DomainsService {
     const isApex = this.isApexDomain(cleanDomain);
     const verificationToken = `vc-domain-verify=${cleanDomain},${companyId.slice(0, 8)}`;
     const requiredRecords = this.calculateRequiredRecords(cleanDomain, verificationToken);
+
+    // Call Cloudflare Custom Hostnames API if configured
+    let cloudflareData: any = null;
+    const cfZoneId = process.env.CLOUDFLARE_ZONE_ID;
+    const cfToken = process.env.CLOUDFLARE_API_TOKEN;
+    const cfAuthKey = process.env.CLOUDFLARE_AUTH_KEY;
+    const cfAuthEmail = process.env.CLOUDFLARE_AUTH_EMAIL;
+
+    if (cfZoneId && (cfToken || (cfAuthKey && cfAuthEmail))) {
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (cfToken) headers['Authorization'] = `Bearer ${cfToken}`;
+        if (cfAuthKey && cfAuthEmail) {
+          headers['X-Auth-Key'] = cfAuthKey;
+          headers['X-Auth-Email'] = cfAuthEmail;
+        }
+
+        const cfRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/custom_hostnames`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            hostname: cleanDomain,
+            ssl: {
+              method: 'http',
+              type: 'dv',
+              settings: { min_tls_version: '1.2' }
+            }
+          })
+        });
+        cloudflareData = await cfRes.json();
+      } catch (err) {
+        console.warn('[DomainsService] Cloudflare API registration warning:', err);
+      }
+    }
 
     // Call Vercel Custom Domains API if token is present
     let vercelData: any = null;
@@ -253,7 +291,39 @@ export class DomainsService {
     let isVercelVerified = false;
     const details: Record<string, any> = {};
 
-    // 1. Check Vercel API if configured
+    // 1. Check Cloudflare Custom Hostnames API if configured
+    const cfZoneId = process.env.CLOUDFLARE_ZONE_ID;
+    const cfToken = process.env.CLOUDFLARE_API_TOKEN;
+    const cfAuthKey = process.env.CLOUDFLARE_AUTH_KEY;
+    const cfAuthEmail = process.env.CLOUDFLARE_AUTH_EMAIL;
+
+    if (cfZoneId && (cfToken || (cfAuthKey && cfAuthEmail))) {
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (cfToken) headers['Authorization'] = `Bearer ${cfToken}`;
+        if (cfAuthKey && cfAuthEmail) {
+          headers['X-Auth-Key'] = cfAuthKey;
+          headers['X-Auth-Email'] = cfAuthEmail;
+        }
+
+        const cfRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/custom_hostnames?hostname=${cleanDomain}`, {
+          method: 'GET',
+          headers
+        });
+        const cfData = await cfRes.json();
+        if (cfData?.result && cfData.result.length > 0) {
+          const item = cfData.result[0];
+          if (item.status === 'active' || item.ssl?.status === 'active') {
+            isDnsValid = true;
+          }
+          details.cloudflare = item;
+        }
+      } catch (err) {
+        console.warn('[DomainsService] Cloudflare verify API error:', err);
+      }
+    }
+
+    // 2. Check Vercel API if configured
     if (process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID) {
       try {
         const verifyRes = await fetch(
@@ -276,18 +346,18 @@ export class DomainsService {
       }
     }
 
-    // 2. Perform live DNS query via Node.js dns resolver
+    // 3. Perform live DNS query via Node.js dns resolver
     try {
       if (isApex) {
         const aRecords = await dns.promises.resolve4(cleanDomain).catch(() => []);
         details.resolvedA = aRecords;
-        if (aRecords.includes(this.VERCEL_ANYCAST_IP)) {
+        if (aRecords.includes(this.SERVER_PUBLIC_IP) || aRecords.includes(this.VERCEL_ANYCAST_IP)) {
           isDnsValid = true;
         }
       } else {
         const cnameRecords = await dns.promises.resolveCname(cleanDomain).catch(() => []);
         details.resolvedCname = cnameRecords;
-        if (cnameRecords.some(r => r.includes('vercel-dns') || r.includes('180workspace'))) {
+        if (cnameRecords.some(r => r.includes('180workspace') || r.includes('vercel-dns') || r.includes('cloudflare'))) {
           isDnsValid = true;
         }
       }
@@ -295,8 +365,8 @@ export class DomainsService {
       details.dnsError = String(dnsErr);
     }
 
-    // 3. In local development or mock environments, simulate successful validation
-    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL_API_TOKEN) {
+    // 4. In local development or mock environments, simulate successful validation
+    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL_API_TOKEN && !process.env.CLOUDFLARE_ZONE_ID) {
       isDnsValid = true;
       isVercelVerified = true;
       details.mock = 'Local development auto-verification enabled';

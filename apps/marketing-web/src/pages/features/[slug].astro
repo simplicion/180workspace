@@ -2,6 +2,20 @@
 import Layout from '../../layouts/Layout.astro';
 import { prisma } from '@workspace/db';
 
+export async function getStaticPaths() {
+  try {
+    const features = await prisma.marketingPage.findMany({
+      where: { type: 'FEATURE', published: true },
+      select: { slug: true }
+    });
+    return features.map((f) => ({
+      params: { slug: f.slug }
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
 const { slug } = Astro.params;
 
 let feature = null;

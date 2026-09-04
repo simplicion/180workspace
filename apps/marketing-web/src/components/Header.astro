@@ -1,8 +1,7 @@
 ---
 // Define the SaaS base URL. In local dev, it usually points to 3000.
 // In production, you would configure an environment variable like process.env.PUBLIC_SAAS_URL
-// For now, we fallback to a hardcoded domain or local.
-const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'http://localhost:3002';
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
 ---
 
 <header class="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
