@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import api from './api';
 import { updateSocketAuth, disconnectSocket } from './socket';
 import { signOut } from 'next-auth/react';
+import { clearAllAuthTokens } from './auth-refresh';
 
 interface User {
     id: string;
@@ -120,9 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Only wipe credentials on confirmed 401 Auth errors. 
             // 500s or network errors shouldn't log the user out.
             if (err?.response?.status === 401) {
-                localStorage.removeItem('platform_auth_token');
-                localStorage.removeItem('platform_refresh_token');
-                clearPlatformCookie();
+                clearAllAuthTokens();
 
                 try {
                     await signOut({ redirect: false });
@@ -168,13 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await api.post('/api/auth/logout', { refreshToken });
         } catch { }
 
-        localStorage.removeItem('platform_auth_token');
-        localStorage.removeItem('platform_refresh_token');
-        if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.removeItem('platform_init_data');
-        }
-
-        clearPlatformCookie();
+        clearAllAuthTokens();
 
         try {
             await signOut({ redirect: false });
@@ -186,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         delete api.defaults.headers.common['Authorization'];
         disconnectSocket();
         
-        window.location.href = '/login';
+        window.location.href = '/login?clearSession=true';
     };
 
     const loginWithGoogle = async (tokenId: string) => {

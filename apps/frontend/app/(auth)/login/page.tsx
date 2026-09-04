@@ -51,26 +51,27 @@ function LoginForm() {
             return;
         }
 
+        const localToken = typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null;
+
         if (!isLoading && user) {
-            const localToken = (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null) || (session as any)?.platformToken || token;
             if (localToken && typeof document !== 'undefined') {
                 const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
                 const is180 = typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com');
                 const domainAttr = is180 ? '; domain=.180workspace.com' : '';
                 const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}${domainAttr}`;
                 document.cookie = `platform_auth_token=${localToken}${cookieFlags}`;
-                if (!localStorage.getItem('platform_auth_token')) {
-                    localStorage.setItem('platform_auth_token', localToken);
-                }
             } else if (!localToken) {
                 // NextAuth has a stale session but we have no backend token; clear it to avoid loops
                 signOut({ redirect: false });
                 return;
             }
 
-            if ((user as any).isFirstLogin !== false && !(user as any).isOnboardingComplete) {
-                // If onboarding is incomplete, redirect them to /signup so they can complete it.
-                router.replace('/signup');
+            if (!(user as any).isOnboardingComplete) {
+                if ((user as any).isFirstLogin === false) {
+                    router.replace('/workspace-setup');
+                } else {
+                    router.replace('/signup');
+                }
                 return;
             }
 
@@ -82,14 +83,15 @@ function LoginForm() {
                 window.location.href = target;
             }
         }
-    }, [isLoading, user, session, token, router, searchParams]);
+    }, [isLoading, user, router, searchParams]);
 
     // ── Auto-login: Sync platform_auth_token to NextAuth if missing ───────
     useEffect(() => {
         if (searchParams?.get('clearSession') === 'true') return;
-        if (!isLoading && !authLoading && !user && authUser && token) {
+        const localToken = typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null;
+        if (!isLoading && !authLoading && !user && authUser && localToken) {
             // User is authenticated in backend but NextAuth session is missing
-            signIn('platform-token', { token, redirect: false }).then((result) => {
+            signIn('platform-token', { token: localToken, redirect: false }).then((result) => {
                 if (result?.ok) {
                     const rawReturnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
                     const target = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : '/';
@@ -101,12 +103,12 @@ function LoginForm() {
                 }
             });
         }
-    }, [isLoading, authLoading, user, authUser, token, searchParams]);
+    }, [isLoading, authLoading, user, authUser, searchParams]);
 
     // Show a transition spinner ONLY when redirecting an already-authenticated user with a valid token
-    const hasValidToken = !!(typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null) || !!(session as any)?.platformToken || !!token;
-    const isUserFullyOnboarded = user && ((user as any).isFirstLogin === false || (user as any).isOnboardingComplete === true);
-    const isRedirectingAuthenticatedUser = !!user && isUserFullyOnboarded && hasValidToken && searchParams?.get('clearSession') !== 'true';
+    const localToken = typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null;
+    const isUserFullyOnboarded = user && ((user as any).isOnboardingComplete === true);
+    const isRedirectingAuthenticatedUser = !isLoading && !!user && isUserFullyOnboarded && !!localToken && searchParams?.get('clearSession') !== 'true';
 
     if (isRedirectingAuthenticatedUser) {
         return (
