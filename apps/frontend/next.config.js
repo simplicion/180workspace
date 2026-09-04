@@ -5,6 +5,8 @@ const fs = require('fs');
 const nextConfig = {
     transpilePackages: ['@workspace/ui', '@workspace/common'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
+    output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
+    outputFileTracingRoot: path.join(__dirname, '../../'),
     reactStrictMode: true,
     poweredByHeader: false,
     eslint: {
@@ -13,8 +15,6 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
-    // outputFileTracingIncludes removed to prevent Vercel build trace issues with Next.js 15
-    // experimental config removed to prevent Vercel build trace issues with Next.js 15
 
     webpack: (config, { webpack, isServer }) => {
         if (isServer) {

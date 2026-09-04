@@ -32,8 +32,8 @@ COPY --from=installer --chown=nextjs:nodejs /app/apps/admin-web/.next/static ./a
 
 USER nextjs
 
-EXPOSE 3001
-ENV PORT=3001
+EXPOSE 3003
+ENV PORT=3003
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "apps/admin-web/server.js"]
