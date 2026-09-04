@@ -85,9 +85,27 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
+
+            # 1. Expand root partition and filesystem to full 30GB EBS volume
+            echo "==> Expanding disk partition & filesystem..."
+            sudo growpart /dev/sda 1 2>/dev/null || sudo growpart /dev/xvda 1 2>/dev/null || sudo growpart /dev/nvme0n1 1 2>/dev/null || true
+            sudo resize2fs /dev/sda1 2>/dev/null || sudo resize2fs /dev/xvda1 2>/dev/null || sudo resize2fs /dev/nvme0n1p1 2>/dev/null || sudo xfs_growfs -d / 2>/dev/null || true
+
+            # 2. Aggressive Disk Space Recovery before pulling new layers
+            echo "==> Reclaiming disk space..."
+            sudo apt-get clean 2>/dev/null || true
+            sudo journalctl --vacuum-time=1d 2>/dev/null || true
+            docker container prune -f 2>/dev/null || true
+            docker image prune -af 2>/dev/null || true
+            docker builder prune -af 2>/dev/null || true
+            sudo rm -rf /var/lib/docker/tmp/* /tmp/* 2>/dev/null || true
+
+            echo "==> Available Disk Space:"
+            df -h /
+
             cd /home/ubuntu/app
 
-            # 1. Configure 4GB Virtual Swap File if not already configured
+            # 3. Configure 4GB Virtual Swap File if not already configured
             if [ ! -f /swapfile ]; then
               echo "==> Provisioning 4GB Virtual Swap Memory on SSD..."
               sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
@@ -95,13 +113,13 @@ jobs:
               sudo mkswap /swapfile
               sudo swapon /swapfile
               echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-              echo "==> 4GB Swap file active. Memory ceiling expanded."
+              echo "==> 4GB Swap file active."
             fi
 
-            # 2. Inject production environment variables
+            # 4. Inject production environment variables
             echo "$PRODUCTION_ENV_FILE" > .env
 
-            # 3. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
+            # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             if [ ! -d ".git" ]; then
               git init
             fi
@@ -110,33 +128,33 @@ jobs:
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
 
-            # 4. Login to GitHub Container Registry (GHCR)
+            # 6. Login to GitHub Container Registry (GHCR)
             echo $GITHUB_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # 5. Export environment for Docker Compose
+            # 7. Export environment for Docker Compose
             export GITHUB_REPOSITORY_LOWER=$REPO_LOWER
 
-            # 6. Pull latest multi-stage images
+            # 8. Pull latest multi-stage images
+            echo "==> Pulling latest production container images..."
             docker compose pull
 
-            # 7. Stop host-level services / processes binding to port 80 or 443
+            # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
             sudo systemctl disable nginx apache2 2>/dev/null || true
             sudo fuser -k 80/tcp 443/tcp 2>/dev/null || true
 
-            # 8. Clean up unused legacy PM2 processes to free RAM
+            # 10. Clean up unused legacy PM2 processes to free RAM
             pm2 stop all 2>/dev/null || true
             pm2 delete all 2>/dev/null || true
             npx pm2 kill 2>/dev/null || true
 
-            # 9. Graceful Rolling Restart (zero-downtime)
+            # 11. Graceful Rolling Restart (zero-downtime)
             docker compose up -d --force-recreate --remove-orphans
 
-
-            # 10. Health verification
+            # 12. Health verification
             sleep 5
             echo "==> Verifying container status..."
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-            # 11. Clean up dangling images to save disk space
-            docker image prune -af --filter "until=24h"
+            # 13. Clean up dangling images to preserve disk space
+            docker image prune -af --filter "until=24h" 2>/dev/null || true
