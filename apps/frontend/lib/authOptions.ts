@@ -67,7 +67,7 @@ export const authOptions: NextAuthOptions = {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
             process.env.NEXT_PUBLIC_BACKEND_URL || 
             process.env.BACKEND_INTERNAL_URL || 
-            (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:4002');
+            (typeof window !== 'undefined' ? '' : 'http://backend:4000');
             
           const res = await fetch(`${apiUrl}/api/auth/login`, {
             method: 'POST',
@@ -121,10 +121,10 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.token) return null;
         
         try {
-           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-             process.env.NEXT_PUBLIC_BACKEND_URL || 
-             process.env.BACKEND_INTERNAL_URL || 
-             (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:4002');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
+              process.env.NEXT_PUBLIC_BACKEND_URL || 
+              process.env.BACKEND_INTERNAL_URL || 
+              (typeof window !== 'undefined' ? '' : 'http://backend:4000');
            const res = await fetch(`${apiUrl}/api/auth/me`, {
              headers: {
                Authorization: `Bearer ${credentials.token}`
