@@ -1,13 +1,47 @@
-name: Master CI/CD Pipeline
+name: Master Production CI/CD Pipeline
 
 on:
   push:
-    branches: [ "Production", "main", "Testing-updates" ]
+    branches: [ "main" ]
 
 jobs:
-  # ==========================================
-  # Phase 1: Build & Push Docker Images (GHCR)
-  # ==========================================
+  # ====================================================
+  # Phase 1: Deploy Marketing Web to Cloudflare Pages
+  # ====================================================
+  deploy-marketing-cloudflare:
+    name: Deploy Marketing Site to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Marketing Site
+        run: pnpm turbo run build --filter=apps-marketing-web...
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/marketing-web/dist --project-name=180workspace-marketing --branch=main --commit-dirty=true
+
+  # ====================================================
+  # Phase 2: Build & Push Docker Images (GHCR)
+  # ====================================================
   build-and-push-images:
     name: Build & Push Production Images
     runs-on: ubuntu-latest
@@ -57,9 +91,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ==========================================
-  # Phase 2: Zero-Downtime Deploy to AWS EC2
-  # ==========================================
+  # ====================================================
+  # Phase 3: Zero-Downtime Deploy to AWS EC2
+  # ====================================================
   deploy-aws:
     name: Deploy All Containers to AWS EC2
     needs: build-and-push-images
