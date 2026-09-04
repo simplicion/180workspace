@@ -76,7 +76,7 @@ if (!process.env.CLIENT_URL && process.env.NODE_ENV === 'production') {
 
 const allowedOrigins = process.env.CLIENT_URL 
     ? process.env.CLIENT_URL.split(',').map(item => item.trim()) 
-    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'];
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:3002', 'http://127.0.0.1:3002', 'http://localhost:3003', 'http://127.0.0.1:3003', 'http://localhost:3004', 'http://127.0.0.1:3004'];
 
 
 // ─── Public Traffic Director CORS bypass ──────────────────────────────────────
@@ -202,26 +202,6 @@ const RUN_MODE = process.env.RUN_MODE || 'both'; // 'api', 'worker', or 'both'
 
 async function bootstrap() {
     try {
-        console.log('[Bootstrap] Connecting to database...');
-        await prisma.$connect();
-        console.log('[Bootstrap] Database connected.');
-        
-        // Always initialize queues (API needs Queues to add jobs, Worker needs Workers to process)
-        console.log('[Bootstrap] Initializing queues...');
-        await initQueues();
-        console.log('[Bootstrap] Queues initialized.');
-        
-        // Initialize WebSockets on HTTP server
-        console.log('[Bootstrap] Initializing sockets...');
-        initSocket(server);
-        console.log('[Bootstrap] Sockets initialized.');
-        
-        if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
-            console.log('👷 Starting Worker Services (Delegated to external worker app)');
-            AIJobsService.init(); // Proactive AI Alerts
-            AICronService.initCronJobs(); // AI Background Processes
-        }
-        
         if (RUN_MODE === 'both' || RUN_MODE === 'api') {
             server.listen(PORT, () => {
                 console.log(`\n🚀 Platform API running on port ${PORT}`);
@@ -236,13 +216,36 @@ async function bootstrap() {
                 console.log(`📡 Environment: ${process.env.NODE_ENV} | Mode: ${RUN_MODE}\n`);
             });
         }
+
+        console.log('[Bootstrap] Connecting to database & initializing services...');
+        prisma.$connect().then(() => {
+            console.log('[Bootstrap] Database connected.');
+        }).catch(err => {
+            console.error('[Bootstrap] Database connect error:', err.message);
+        });
+        
+        // Always initialize queues (API needs Queues to add jobs, Worker needs Workers to process)
+        initQueues().then(() => {
+            console.log('[Bootstrap] Queues initialized.');
+        }).catch(err => {
+            console.error('[Bootstrap] Queues init error:', err.message);
+        });
+        
+        // Initialize WebSockets on HTTP server
+        initSocket(server);
+        console.log('[Bootstrap] Sockets initialized.');
+        
+        if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
+            console.log('👷 Starting Worker Services (Delegated to external worker app)');
+            AIJobsService.init(); // Proactive AI Alerts
+            AICronService.initCronJobs(); // AI Background Processes
+        }
     } catch (err) {
         console.error('❌ Bootstrap failed:', err);
-        process.exit(1);
     }
 }
 
 bootstrap();
 
 module.exports = app;
-// Reload trigger: Platform Billing enabledApps and subscription enrichment updated
+// Reload trigger: SupportService superadminUpdateStatus updated

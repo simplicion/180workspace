@@ -12,9 +12,27 @@ export default function GlobalError({
     reset: () => void;
 }) {
     useEffect(() => {
-        // Log the error to an error reporting service
         console.error(error);
+        if (
+            typeof window !== 'undefined' &&
+            (error?.name === 'ChunkLoadError' || error?.message?.includes('Loading chunk') || error?.message?.includes('ChunkLoadError'))
+        ) {
+            const lastReload = sessionStorage.getItem('last_chunk_reload');
+            const now = Date.now();
+            if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+                sessionStorage.setItem('last_chunk_reload', String(now));
+                window.location.reload();
+            }
+        }
     }, [error]);
+
+    const handleRecovery = () => {
+        if (typeof window !== 'undefined' && (error?.name === 'ChunkLoadError' || error?.message?.includes('chunk'))) {
+            window.location.reload();
+        } else {
+            reset();
+        }
+    };
 
     return (
         <div className="min-h-screen bg-rose-50/30 flex items-center justify-center p-4">
@@ -31,19 +49,21 @@ export default function GlobalError({
                     </h1>
                     
                     <p className="text-sm text-gray-500 mb-8 max-w-[280px] leading-relaxed">
-                        We apologize for the inconvenience. A runtime error has interrupted your session.
+                        {error?.name === 'ChunkLoadError' || error?.message?.includes('chunk')
+                            ? 'A new version of this page has been compiled. Please click below to refresh.'
+                            : 'We apologize for the inconvenience. A runtime error has interrupted your session.'}
                     </p>
 
                     <div className="flex flex-col w-full gap-3">
                         <button
-                            onClick={() => reset()}
+                            onClick={handleRecovery}
                             className="w-full py-4 rounded-xl font-bold text-sm text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 active:scale-[0.98]"
                         >
                             <RefreshCcw className="w-4 h-4" />
                             Attempt Recovery
                         </button>
                         <Link
-                            href="/dashboard"
+                            href="/superadmin"
                             className="w-full py-4 rounded-xl font-semibold text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
                         >
                             <Home className="w-4 h-4" />

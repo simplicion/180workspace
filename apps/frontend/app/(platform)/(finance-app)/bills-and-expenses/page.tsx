@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '@/lib/api';
 import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
@@ -38,8 +38,23 @@ export default function BillsAndExpensesPage() {
         loadData();
     }, [filterStatus]);
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     function loadData() {
-        setLoading(true);
+        const cacheKey = `finance:expenses:${filterStatus || 'all'}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setTransactions(cached.data.transactions || []);
+            setVendors(cached.data.vendors || []);
+            setProjects(cached.data.projects || []);
+            setClients(cached.data.clients || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         Promise.all([
             api.get('/api/expenses', { params: { status: filterStatus || undefined } }),
             api.get('/api/vendors'),
@@ -47,13 +62,20 @@ export default function BillsAndExpensesPage() {
             api.get('/api/clients')
         ])
         .then(([expensesRes, vendorsRes, projectsRes, clientsRes]) => {
-            setTransactions(expensesRes.data.data?.expenses || []);
-            setVendors(vendorsRes.data.data?.vendors || []);
-            setProjects(projectsRes.data.data?.projects || []);
-            setClients(clientsRes.data.data?.clients || []);
+            const fetched = {
+                transactions: expensesRes.data.data?.expenses || [],
+                vendors: vendorsRes.data.data?.vendors || [],
+                projects: projectsRes.data.data?.projects || [],
+                clients: clientsRes.data.data?.clients || []
+            };
+            setTransactions(fetched.transactions);
+            setVendors(fetched.vendors);
+            setProjects(fetched.projects);
+            setClients(fetched.clients);
+            swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
         })
         .catch(() => {
-            toast.error('Failed to load transactions');
+            if (!cached) toast.error('Failed to load transactions');
         })
         .finally(() => setLoading(false));
     }

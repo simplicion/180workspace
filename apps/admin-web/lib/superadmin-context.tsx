@@ -28,32 +28,53 @@ export function SuperAdminProvider({ children }: { children: ReactNode }) {
     const router = useRouter();
 
     const logout = useCallback(() => {
-        localStorage.removeItem('superadmin_token');
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('superadmin_token');
+        }
         setSuperAdmin(null);
+        setLoading(false);
         router.push('/superadmin/login');
     }, [router]);
 
     const fetchSuperAdmin = useCallback(async () => {
-        const token = localStorage.getItem('superadmin_token');
-        if (!token) return;
-        try {
-            const { data } = await saApi.get('/auth/me');
-            setSuperAdmin(data.superAdmin);
-        } catch {
-            logout();
+        const token = typeof window !== 'undefined' ? localStorage.getItem('superadmin_token') : null;
+        if (!token) {
+            setSuperAdmin(null);
+            setLoading(false);
+            return;
         }
-    }, [logout]);
+        try {
+            const { data } = await saApi.get('/auth/me', { timeout: 6000 });
+            if (data?.superAdmin) {
+                setSuperAdmin(data.superAdmin);
+            } else {
+                setSuperAdmin(null);
+            }
+        } catch (err) {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('superadmin_token');
+            }
+            setSuperAdmin(null);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const token = localStorage.getItem('superadmin_token');
-        if (!token) { setLoading(false); return; }
-        fetchSuperAdmin().finally(() => setLoading(false));
+        fetchSuperAdmin();
+        // Safety timeout: Never leave user in loading state for more than 4 seconds
+        const safetyTimer = setTimeout(() => {
+            setLoading(false);
+        }, 4000);
+        return () => clearTimeout(safetyTimer);
     }, [fetchSuperAdmin]);
 
-
     const login = (token: string, admin: SuperAdmin) => {
-        localStorage.setItem('superadmin_token', token);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('superadmin_token', token);
+        }
         setSuperAdmin(admin);
+        setLoading(false);
         router.push('/superadmin');
     };
 

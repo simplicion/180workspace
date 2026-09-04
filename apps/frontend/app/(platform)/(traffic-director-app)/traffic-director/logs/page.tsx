@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Activity, RefreshCw, Filter, Bot, ShieldCheck, 
   ExternalLink, Search, Globe, Smartphone, X, Clock 
@@ -17,13 +17,28 @@ export default function TrafficStreamLogsPage() {
   const [botFilter, setBotFilter] = useState<'all' | 'bots' | 'humans'>('all');
   const [selectedLog, setSelectedLog] = useState<any>(null);
 
+  // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+  const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
   const fetchLogs = async () => {
+    const cacheKey = `traffic:logs:${botFilter}`;
+    const cached = swrCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      setLogs(cached.data || []);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const isBotParam = botFilter === 'bots' ? true : (botFilter === 'humans' ? false : undefined);
       const res = await api.get('/api/v1/traffic-director/logs', {
         params: { isBot: isBotParam, limit: 50 }
       });
-      setLogs(res.data.data.logs || []);
+      const fetched = res.data.data.logs || [];
+      setLogs(fetched);
+      swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
     } catch (error) {
       console.error('Failed to fetch logs:', error);
     } finally {

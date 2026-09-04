@@ -1,20 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Building2, BadgeCheck, Ban, Trash2, KeyRound, Eye } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Search, Building2, BadgeCheck, Ban, Trash2, KeyRound, Eye, Sparkles } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../lib/superadmin-api';
 import { useModal } from '../../../lib/modal-context';
+import { Skeleton } from '@workspace/ui';
 
-const STATUS_COLORS: Record<string, string> = {
-    active: 'text-emerald-600 bg-emerald-50',
-    trial: 'text-amber-600 bg-amber-50',
-    suspended: 'text-rose-600 bg-rose-50',
-    cancelled: 'text-slate-500 bg-slate-100',
-    expired: 'text-orange-600 bg-orange-50',
+const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+        case 'active':
+            return 'badge-emerald';
+        case 'trial':
+            return 'badge-amber';
+        case 'suspended':
+            return 'badge-rose';
+        case 'expired':
+            return 'badge-amber';
+        default:
+            return 'badge-slate';
+    }
 };
 
 export default function CompaniesPage() {
+    const router = useRouter();
     const modal = useModal();
     const [companies, setCompanies] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
@@ -27,11 +38,14 @@ export default function CompaniesPage() {
         setLoading(true);
         try {
             const { data } = await saApi.get('/companies', { params: { page, limit: 20, search } });
-            setCompanies(data.companies);
-            setTotal(data.total);
+            setCompanies(data.companies || []);
+            setTotal(data.total || 0);
             setSelectedIds([]);
-        } catch { toast.error('Failed to load companies'); }
-        setLoading(false);
+        } catch { 
+            toast.error('Failed to load companies'); 
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => { load(); }, [page, search]);
@@ -66,44 +80,56 @@ export default function CompaniesPage() {
             const { data } = await saApi.post('/companies/bulk-delete', { 
                 companyIds: selectedIds, 
                 confirm: 'DELETE' 
-            }, { timeout: 300000 }); // 5 minute timeout for bulk deletion
+            }, { timeout: 300000 });
             
             const { results } = data;
-            if (results.failed.length > 0) {
+            if (results && results.failed && results.failed.length > 0) {
                 toast.error(`Deleted ${results.success.length} but ${results.failed.length} failed`, { id: t, duration: 5000 });
             } else {
-                toast.success(`Successfully deleted all ${results.success.length} companies`, { id: t });
+                toast.success(`Successfully deleted all ${results?.success?.length || selectedIds.length} companies`, { id: t, duration: 4000 });
             }
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Bulk delete failed. This may be due to a timeout, but some deletions might have processed. Refreshing...', { id: t });
-            load(); // Reload anyway to see current state
+            toast.error(err.response?.data?.error || 'Bulk delete failed. Refreshing...', { id: t, duration: 5000 });
+            load();
         }
     };
 
     const suspend = async (id: string, isSuspended: boolean) => {
         if (!isSuspended) {
             const reason = await modal.prompt({
-                title: 'Suspend Company',
-                message: 'Provide a reason for suspending this company. They will lose access to all features instantly.',
+                title: 'Deactivate / Suspend Company',
+                message: 'Provide a reason for deactivating this company. They will lose access to all platform features instantly.',
                 placeholder: 'e.g. Violation of terms, Overdue payment',
-                confirmText: 'Suspend Now',
+                confirmText: 'Deactivate Company',
                 variant: 'danger'
             });
             if (!reason) return;
-            await saApi.put(`/companies/${id}/suspend`, { reason });
+            const t = toast.loading('Deactivating company...');
+            try {
+                await saApi.put(`/companies/${id}/suspend`, { reason });
+                toast.success('Company deactivated successfully', { id: t, duration: 4000 });
+                load();
+            } catch (err: any) {
+                toast.error(err.response?.data?.error || 'Failed to deactivate company', { id: t, duration: 4000 });
+            }
         } else {
             const ok = await modal.confirm({
-                title: 'Unsuspend Company?',
-                message: 'Are you sure you want to restore access for this company?',
-                confirmText: 'Unsuspend',
+                title: 'Activate / Unsuspend Company?',
+                message: 'Are you sure you want to restore full platform access for this company?',
+                confirmText: 'Activate Company',
                 variant: 'success'
             });
             if (!ok) return;
-            await saApi.put(`/companies/${id}/unsuspend`);
+            const t = toast.loading('Activating company...');
+            try {
+                await saApi.put(`/companies/${id}/unsuspend`);
+                toast.success('Company activated successfully', { id: t, duration: 4000 });
+                load();
+            } catch (err: any) {
+                toast.error(err.response?.data?.error || 'Failed to activate company', { id: t, duration: 4000 });
+            }
         }
-        toast.success(isSuspended ? 'Company unsuspended' : 'Company suspended');
-        load();
     };
 
     const del = async (id: string, name: string) => {
@@ -118,29 +144,41 @@ export default function CompaniesPage() {
             if (input !== null) toast.error('Incorrect confirmation text');
             return;
         }
+        const t = toast.loading(`Deleting "${name}" permanently...`);
         try {
             await saApi.delete(`/companies/${id}`, { data: { confirm: 'DELETE' } });
-            toast.success('Company deleted');
+            toast.success(`Company "${name}" deleted permanently`, { id: t, duration: 4000 });
             load();
-        } catch { toast.error('Delete failed'); }
+        } catch (err: any) { 
+            toast.error(err.response?.data?.error || 'Delete failed', { id: t, duration: 4000 }); 
+        }
     };
 
     return (
-        <div className="space-y-5">
-            <Toaster position="top-center" />
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+            
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Companies</h1>
-                    <p className="text-slate-500 text-sm mt-1">{total} total companies registered</p>
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                            <Building2 className="w-5 h-5" />
+                        </div>
+                        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Workspaces & Companies</h1>
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                        {total} total tenant organizations registered across the platform.
+                    </p>
                 </div>
+                
                 {selectedIds.length > 0 && (
                     <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <span className="text-sm font-bold text-sky-600 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-100">
+                        <span className="badge-sky text-xs font-bold px-3 py-1.5">
                             {selectedIds.length} Selected
                         </span>
                         <button 
                             onClick={bulkDelete}
-                            className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all active:scale-95"
+                            className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-200 dark:shadow-rose-950/50 hover:bg-rose-700 transition-all active:scale-95"
                         >
                             <Trash2 className="w-4 h-4" />
                             Delete Selected
@@ -150,87 +188,143 @@ export default function CompaniesPage() {
             </div>
 
             {/* Search */}
-            <div className="relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-sky-500 transition-colors" />
-                <input id="search-companies" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-                    placeholder="Search by company name or email..." aria-label="Search Companies"
-                    className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all text-sm shadow-sm" />
+            <div className="glass-card p-4">
+                <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <input 
+                        id="search-companies" 
+                        value={search} 
+                        onChange={e => { setSearch(e.target.value); setPage(1); }}
+                        placeholder="Search by company name or admin email..." 
+                        aria-label="Search Companies"
+                        className="input pl-10 w-full text-xs sm:text-sm" 
+                    />
+                </div>
             </div>
 
             {/* Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
+            <div className="table-wrapper">
+                <table className="table">
                     <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-200">
-                            <th className="px-5 py-3.5 w-10">
+                        <tr>
+                            <th className="w-10">
                                 <input 
                                     id="select-all-companies"
                                     type="checkbox" 
-                                    className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 transition-all cursor-pointer"
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
                                     checked={companies.length > 0 && selectedIds.length === companies.length}
                                     onChange={toggleAll}
                                     aria-label="Select all companies"
                                 />
                             </th>
-                            <th className="text-left px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Company</th>
-                            <th className="text-left px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Admin Email</th>
-                            <th className="text-left px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Plan</th>
-                            <th className="text-left px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Status</th>
-                            <th className="text-left px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Autopay</th>
-                            <th className="text-left px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Next Charge</th>
-                            <th className="text-left px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Joined</th>
-                            <th className="text-right px-5 py-3.5 text-slate-500 font-bold text-xs uppercase tracking-wider">Actions</th>
+                            <th>Company</th>
+                            <th>Admin Email</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Autopay</th>
+                            <th>Next Charge</th>
+                            <th>Joined</th>
+                            <th className="text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? [...Array(5)].map((_, i) => (
-                            <tr key={i}><td colSpan={9} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td></tr>
-                        )) : companies.length === 0 ? (
-                            <tr><td colSpan={9} className="text-center py-12 text-slate-400">No companies found</td></tr>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                        {loading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={i}>
+                                    <td className="p-4"><Skeleton className="h-4 w-4 rounded" /></td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <Skeleton className="h-9 w-9 rounded-xl" />
+                                            <div>
+                                                <Skeleton className="h-4 w-32 rounded mb-1" />
+                                                <Skeleton className="h-3 w-20 rounded" />
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-4"><Skeleton className="h-4 w-40 rounded" /></td>
+                                    <td className="p-4"><Skeleton className="h-5 w-16 rounded-md" /></td>
+                                    <td className="p-4"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                                    <td className="p-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                                    <td className="p-4"><Skeleton className="h-4 w-24 rounded" /></td>
+                                    <td className="p-4"><Skeleton className="h-4 w-20 rounded" /></td>
+                                    <td className="p-4 text-right"><Skeleton className="h-8 w-24 rounded-lg ml-auto" /></td>
+                                </tr>
+                            ))
+                        ) : companies.length === 0 ? (
+                            <tr>
+                                <td colSpan={9} className="text-center py-16 text-slate-400">
+                                    <Building2 className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
+                                    <p className="text-base font-bold text-slate-900 dark:text-white">No companies found</p>
+                                    <p className="text-xs text-slate-500 mt-1">Try adjusting your search query</p>
+                                </td>
+                            </tr>
                         ) : companies.map(c => (
-                            <tr key={c.id} className={`transition-colors group ${selectedIds.includes(c.id) ? 'bg-sky-50/50' : 'hover:bg-sky-50/30'}`}>
-                                <td className="px-5 py-4">
+                            <tr key={c.id} className={`transition-colors group ${selectedIds.includes(c.id) ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'}`}>
+                                <td>
                                     <input 
                                         type="checkbox" 
-                                        className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 transition-all cursor-pointer"
+                                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
                                         checked={selectedIds.includes(c.id)}
                                         onChange={() => toggleSelection(c.id)}
                                         aria-label={`Select company ${c.companyName}`}
                                     />
                                 </td>
-                                <td className="px-5 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center border border-sky-100 transition-colors group-hover:bg-sky-100">
-                                            <Building2 className="w-4 h-4 text-sky-600" />
+                                <td>
+                                    <Link href={`/superadmin/companies/${c.id}`} className="flex items-center gap-3 group/company">
+                                        <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-black text-sm group-hover/company:scale-105 transition-transform">
+                                            {c.companyName ? c.companyName.charAt(0).toUpperCase() : 'C'}
                                         </div>
-                                        <span className="font-bold text-slate-900">{c.companyName}</span>
-                                    </div>
+                                        <div>
+                                            <span className="font-bold text-slate-900 dark:text-white block text-sm group-hover/company:text-indigo-600 dark:group-hover/company:text-indigo-400 transition-colors">
+                                                {c.companyName}
+                                            </span>
+                                            <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">ID: {c.id?.slice(0, 8)}...</span>
+                                        </div>
+                                    </Link>
                                 </td>
-                                <td className="px-5 py-4 text-slate-600 font-medium">{c.adminEmail}</td>
-                                <td className="px-5 py-4">
-                                    <span className="text-slate-700 font-semibold px-2 py-0.5 bg-slate-100 rounded-md text-[11px] uppercase tracking-wider border border-slate-200">{c.subscriptionPlan?.planName || 'Free'}</span>
+                                <td className="text-slate-600 dark:text-slate-300 font-medium text-xs">{c.adminEmail}</td>
+                                <td>
+                                    <span className="badge-slate font-semibold text-[11px]">
+                                        {c.subscriptionPlan?.planName || 'Free'}
+                                    </span>
                                 </td>
-                                <td className="px-5 py-4">
-                                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${STATUS_COLORS[c.subscriptionStatus] || 'text-slate-500 bg-slate-100'}`}>
+                                <td>
+                                    <span className={`${getStatusBadge(c.subscriptionStatus)} font-bold text-[11px] capitalize`}>
                                         {c.subscriptionStatus}
                                     </span>
                                 </td>
-                                <td className="px-5 py-4">
-                                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${c.autopayEnabled ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 bg-slate-100'}`}>
+                                <td>
+                                    <span className={`font-bold text-[11px] ${c.autopayEnabled ? 'badge-emerald' : 'badge-slate'}`}>
                                         {c.autopayEnabled ? 'Enabled' : 'Disabled'}
                                     </span>
                                 </td>
-                                <td className="px-5 py-4 text-slate-600 font-medium text-[13px]">
+                                <td className="text-slate-600 dark:text-slate-400 font-medium text-xs">
                                     {c.nextChargeDate ? new Date(c.nextChargeDate).toLocaleDateString() : '-'}
                                 </td>
-                                <td className="px-5 py-4 text-slate-400 text-xs font-medium">{new Date(c.createdAt).toLocaleDateString()}</td>
-                                <td className="px-5 py-4">
+                                <td className="text-slate-400 dark:text-slate-500 text-xs font-medium">{new Date(c.createdAt).toLocaleDateString()}</td>
+                                <td className="text-right">
                                     <div className="flex items-center justify-end gap-1">
-                                        <button onClick={() => window.location.href = `/superadmin/companies/${c.id}`} className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all" title="View"><Eye className="w-4 h-4" /></button>
-                                        <button onClick={() => suspend(c.id, c.isSuspended)} className={`p-2 rounded-lg transition-all ${c.isSuspended ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`} title={c.isSuspended ? 'Unsuspend' : 'Suspend'}>
+                                        <Link 
+                                            href={`/superadmin/companies/${c.id}`} 
+                                            className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-all" 
+                                            title="View details"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                        </Link>
+                                        <button 
+                                            onClick={() => suspend(c.id, c.isSuspended)} 
+                                            className={`p-2 rounded-lg transition-all ${c.isSuspended ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40' : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'}`} 
+                                            title={c.isSuspended ? 'Unsuspend' : 'Suspend'}
+                                        >
                                             {c.isSuspended ? <BadgeCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                                         </button>
-                                        <button onClick={() => del(c.id, c.companyName)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                                        <button 
+                                            onClick={() => del(c.id, c.companyName)} 
+                                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all" 
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -242,14 +336,27 @@ export default function CompaniesPage() {
             {/* Pagination */}
             {total > 20 && (
                 <div className="flex items-center justify-between pt-2">
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Page {page} of {Math.ceil(total / 20)}</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">
+                        Page {page} of {Math.ceil(total / 20)}
+                    </p>
                     <div className="flex gap-2">
-                        <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 disabled:opacity-50 transition-colors">Prev</button>
-                        <button disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(p => p + 1)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 disabled:opacity-50 transition-colors">Next</button>
+                        <button 
+                            disabled={page === 1} 
+                            onClick={() => setPage(p => p - 1)} 
+                            className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                        >
+                            Prev
+                        </button>
+                        <button 
+                            disabled={page >= Math.ceil(total / 20)} 
+                            onClick={() => setPage(p => p + 1)} 
+                            className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
             )}
         </div>
     );
 }
-

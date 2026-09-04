@@ -1,7 +1,7 @@
 'use client';
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useSettings } from '@/lib/settings-context';
@@ -40,11 +40,33 @@ export default function InvoicesPage() {
     const [deleting, setDeleting] = useState(false);
 
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     function loadInvoices() {
-        setLoading(true);
+        const cacheKey = `invoices:${filterStatus || 'all'}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setInvoices(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/invoices', { params: { status: filterStatus || undefined } })
-            .then(({ data }) => setInvoices(data.invoices || []))
-            .catch(() => setInvoices([]))
+            .then(({ data }) => {
+                const fetched = data.invoices || [];
+                setInvoices(fetched);
+                swrCacheRef.current.set(cacheKey, {
+                    data: fetched,
+                    timestamp: Date.now()
+                });
+            })
+            .catch(() => {
+                if (!cached) setInvoices([]);
+            })
             .finally(() => setLoading(false));
     }
 

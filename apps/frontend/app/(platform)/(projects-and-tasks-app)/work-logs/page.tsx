@@ -1,7 +1,7 @@
 'use client';
 
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, UniversalSkeleton } from "@workspace/ui";
 import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import TaskDetailModal from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskDetailModal';
@@ -127,6 +127,11 @@ export default function WorkLogsPage() {
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showLogModal, setShowLogModal] = useState(false);
+    
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
 
     // Dashboard State
     const [stats, setStats] = useState<any>(null);
@@ -150,8 +155,27 @@ export default function WorkLogsPage() {
     const [reviewComment, setReviewComment] = useState('');
     const [isReviewLoading, setIsReviewLoading] = useState(false);
 
-    const fetchLogs = async () => {
-        setLoading(true);
+    // Fast In-Memory SWR Cache for 0ms Tab Switching (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
+    const fetchLogs = async (pageNum = 1) => {
+        const cacheKey = `logs:${activeTab}:${filters.projectId}:${filters.moduleId}:${filters.userId}`;
+        const cached = pageNum === 1 ? swrCacheRef.current.get(cacheKey) : null;
+        const isFresh = cached && (Date.now() - cached.timestamp < 60 * 1000);
+
+        if (pageNum === 1) {
+            if (cached) {
+                // Instant 0ms Paint from cache
+                setLogs(cached.data.logs || []);
+                setHasMore(cached.data.hasMore ?? true);
+                setLoading(false);
+            } else {
+                setLoading(true);
+            }
+        } else {
+            setIsFetchingMore(true);
+        }
+
         try {
             let endpoint = '/api/work-logs/my';
             if (activeTab === 'pending_reviews') endpoint = '/api/work-logs/reviews';
@@ -161,11 +185,14 @@ export default function WorkLogsPage() {
             if (filters.projectId) params?.append('projectId', filters.projectId);
             if (filters.moduleId) params?.append('moduleId', filters.moduleId);
             if (filters.userId) params?.append('userId', filters.userId);
+            params?.append('page', pageNum.toString());
+            params?.append('limit', '20');
 
             const { data } = await api.get(`${endpoint}?${params?.toString()}`);
-            let mergedLogs = data?.logs || [];
+            let newLogs = data?.logs || [];
             
-            if (activeTab === 'my_logs' || activeTab === 'all_logs' || activeTab === 'pending_reviews') {
+            // Only fetch sales activities on page 1
+            if (pageNum === 1 && (activeTab === 'my_logs' || activeTab === 'all_logs' || activeTab === 'pending_reviews')) {
                 try {
                     const salesEndpoint = activeTab === 'my_logs' ? '/api/sales/activities' : '/api/sales/activities?all=true';
                     const salesRes = await api.get(salesEndpoint);
@@ -191,7 +218,7 @@ export default function WorkLogsPage() {
                         relatedClient: s.relatedClient
                     }));
                     
-                    mergedLogs = [...mergedLogs, ...formattedSales].sort((a: any, b: any) => 
+                    newLogs = [...newLogs, ...formattedSales].sort((a: any, b: any) => 
                         new Date(b.workDate).getTime() - new Date(a.workDate).getTime()
                     );
                 } catch (e) {
@@ -199,16 +226,40 @@ export default function WorkLogsPage() {
                 }
             }
             
-            setLogs(mergedLogs);
+            const nextHasMore = Boolean(data?.logs?.length === 20);
+            setLogs(prev => {
+                const combined = pageNum === 1 ? newLogs : [...prev, ...newLogs];
+                // Update in-memory SWR cache for page 1
+                if (pageNum === 1) {
+                    swrCacheRef.current.set(cacheKey, {
+                        data: { logs: combined, hasMore: nextHasMore },
+                        timestamp: Date.now()
+                    });
+                }
+                return combined;
+            });
+            setHasMore(nextHasMore);
         } catch (err) {
-            toast.error('Failed to fetch work logs');
+            if (!cached) toast.error('Failed to fetch work logs');
         } finally {
             setLoading(false);
+            setIsFetchingMore(false);
         }
     };
 
     const fetchStats = async () => {
-        setLoading(true);
+        const statsKey = `stats:${filters.startDate}:${filters.endDate}:${filters.projectId}:${filters.moduleId}:${filters.userId}`;
+        const cached = swrCacheRef.current.get(statsKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setStats(cached.data);
+            if (cached.data?.filterOptions) setFilterOptions(cached.data.filterOptions);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         try {
             const params = new URLSearchParams();
             if (filters.startDate) params?.append('startDate', filters.startDate);
@@ -222,8 +273,13 @@ export default function WorkLogsPage() {
             if (data?.filterOptions) {
                 setFilterOptions(data.filterOptions);
             }
+
+            swrCacheRef.current.set(statsKey, {
+                data,
+                timestamp: Date.now()
+            });
         } catch (err) {
-            toast.error('Failed to fetch dashboard statistics');
+            if (!cached) toast.error('Failed to fetch dashboard statistics');
         } finally {
             setLoading(false);
         }
@@ -231,39 +287,53 @@ export default function WorkLogsPage() {
 
     useEffect(() => {
         if (filterOptions.projects.length === 0) {
-            api.get('/api/work-logs/stats').then(({ data }) => {
-                if (data && data.filterOptions) {
-                    setFilterOptions(data.filterOptions);
+            api.get('/api/projects?limit=100').then(({ data }) => {
+                if (data?.projects) {
+                    setFilterOptions((prev: any) => ({ ...prev, projects: data.projects }));
                 }
             }).catch(() => {});
         }
     }, []);
 
     useEffect(() => {
+        setPage(1);
         if (activeTab === 'dashboard') {
             fetchStats();
         } else {
-            fetchLogs();
+            fetchLogs(1);
         }
     }, [activeTab, filters.startDate, filters.endDate, filters.projectId, filters.moduleId, filters.userId]);
 
+    // Optimistic UI for Instant Tactile Review Feedback
     const handleReview = async (logId: string, status: 'approved' | 'rejected') => {
-        setIsReviewLoading(true);
+        const previousLogs = [...logs];
+
+        // 1. Optimistic Local State Update (0ms latency for user)
+        if (activeTab === 'pending_reviews') {
+            setLogs(prev => prev.filter(l => l.id !== logId));
+        } else {
+            setLogs(prev => prev.map(l => l.id === logId ? { ...l, status } : l));
+        }
+
+        toast.success(`Work log ${status}`);
+        setReviewingLog(null);
+        const comment = reviewComment;
+        setReviewComment('');
+
+        // 2. Background Sync
         try {
-            const isSales = logs.find(l => l.id === logId)?.isSalesActivity;
+            const isSales = previousLogs.find(l => l.id === logId)?.isSalesActivity;
             const endpoint = isSales ? `/api/sales/activities/${logId}/review` : `/api/work-logs/${logId}/review`;
             await api.patch(endpoint, { 
                 status, 
-                reviewComment 
+                reviewComment: comment 
             });
-            toast.success(`Work log ${status}`);
-            setReviewingLog(null);
-            setReviewComment('');
-            fetchLogs();
+            // Invalidate cached lists to guarantee fresh data on next cold visit
+            swrCacheRef.current.clear();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Review failed');
-        } finally {
-            setIsReviewLoading(false);
+            // Revert state if network call fails
+            setLogs(previousLogs);
+            toast.error(err.response?.data?.error || 'Review failed — changes reverted');
         }
     };
 
@@ -337,9 +407,8 @@ export default function WorkLogsPage() {
                     </div>
 
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100">
-                            <LogoLoader className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-                            <p className="text-gray-500 animate-pulse">Loading data...</p>
+                        <div className="w-full">
+                            <UniversalSkeleton layout={activeTab === 'dashboard' ? 'workspace' : 'activity'} />
                         </div>
                     ) : activeTab === 'dashboard' ? (
                         <div className="space-y-6">
@@ -662,6 +731,29 @@ export default function WorkLogsPage() {
                                      </div>
                                 );
                             })}
+                        </div>
+                    )}
+                    
+                    {activeTab !== 'dashboard' && logs.length > 0 && hasMore && (
+                        <div className="flex justify-center mt-6">
+                            <button
+                                onClick={() => {
+                                    const nextPage = page + 1;
+                                    setPage(nextPage);
+                                    fetchLogs(nextPage);
+                                }}
+                                disabled={isFetchingMore}
+                                className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold shadow-sm hover:bg-gray-50 hover:text-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isFetchingMore ? (
+                                    <>
+                                        <div className="w-4 h-4 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+                                        Loading more...
+                                    </>
+                                ) : (
+                                    'Load More Logs'
+                                )}
+                            </button>
                         </div>
                     )}
                 </div>

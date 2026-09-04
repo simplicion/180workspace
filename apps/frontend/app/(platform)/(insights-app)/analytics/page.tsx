@@ -2,7 +2,7 @@
 
 
 import { LogoLoader } from "@workspace/ui";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -40,8 +40,26 @@ export default function AnalyticsPage() {
     const [projProfitability, setProjProfitability] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     useEffect(() => {
-        setLoading(true);
+        const cacheKey = 'insights:analytics:all';
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setStats(cached.data.stats);
+            setFinSummary(cached.data.finSummary);
+            setProjProfitability(cached.data.projProfitability);
+            setTaskStats(cached.data.taskStats);
+            setDeptStats(cached.data.deptStats);
+            setProjectStats(cached.data.projectStats);
+            setSalaryStats(cached.data.salaryStats);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         Promise.all([
             api.get('/api/hrms/dashboard'),
             api.get('/api/tasks', { params: { limit: 200 } }),
@@ -51,40 +69,62 @@ export default function AnalyticsPage() {
             api.get('/api/analytics/financial/stats'),
             api.get('/api/analytics/financial/projects'),
         ]).then(([dash, tasks, users, projects, salary, fin, finProjs]) => {
-            setStats(dash.data);
-            setFinSummary(fin.data);
-            setProjProfitability(finProjs.data.reports || []);
+            const nextStats = dash.data;
+            const nextFin = fin.data;
+            const nextProjProf = finProjs.data.reports || [];
 
             // Task status breakdown for pie chart
             const taskArr = tasks.data.tasks || [];
             const statuses: Record<string, number> = { todo: 0, in_progress: 0, in_review: 0, done: 0 };
             taskArr.forEach((t: any) => { if (statuses[t.status] !== undefined) statuses[t.status]++; });
-            setTaskStats([
+            const nextTaskStats = [
                 { name: 'To Do', value: statuses.todo },
                 { name: 'In Progress', value: statuses.in_progress },
                 { name: 'In Review', value: statuses.in_review },
                 { name: 'Done', value: statuses.done },
-            ]);
+            ];
 
             // Headcount by department
             const usersArr = users.data.users || [];
             const depts: Record<string, number> = {};
             usersArr.forEach((u: any) => { if (u.department) depts[u.department] = (depts[u.department] || 0) + 1; });
-            setDeptStats(Object.entries(depts).map(([dept, count]) => ({ dept, count })).sort((a, b) => b.count - a.count));
+            const nextDeptStats = Object.entries(depts).map(([dept, count]) => ({ dept, count })).sort((a, b) => b.count - a.count);
 
             // Project status breakdown
             const projArr = projects.data.projects || [];
             const projStatus: Record<string, number> = {};
             projArr.forEach((p: any) => { projStatus[p.status] = (projStatus[p.status] || 0) + 1; });
-            setProjectStats(Object.entries(projStatus).map(([name, value]) => ({ name, value })));
+            const nextProjectStats = Object.entries(projStatus).map(([name, value]) => ({ name, value }));
 
             // Monthly payroll trend (last 6 months)
             const salArr = salary.data.salaries || [];
             const monthMap: Record<string, number> = {};
             salArr.forEach((s: any) => { if (s.month) monthMap[s.month] = (monthMap[s.month] || 0) + (s.netSalary || 0); });
             const months = Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b)).slice(-6);
-            setSalaryStats(months.map(([month, total]) => ({ month: month.slice(0, 7), total })));
-        }).finally(() => setLoading(false));
+            const nextSalaryStats = months.map(([month, total]) => ({ month: month.slice(0, 7), total }));
+
+            setStats(nextStats);
+            setFinSummary(nextFin);
+            setProjProfitability(nextProjProf);
+            setTaskStats(nextTaskStats);
+            setDeptStats(nextDeptStats);
+            setProjectStats(nextProjectStats);
+            setSalaryStats(nextSalaryStats);
+
+            swrCacheRef.current.set(cacheKey, {
+                data: {
+                    stats: nextStats,
+                    finSummary: nextFin,
+                    projProfitability: nextProjProf,
+                    taskStats: nextTaskStats,
+                    deptStats: nextDeptStats,
+                    projectStats: nextProjectStats,
+                    salaryStats: nextSalaryStats
+                },
+                timestamp: Date.now()
+            });
+        }).catch(() => {})
+        .finally(() => setLoading(false));
     }, []);
 
     const KPI = activeTab === 'org' ? [

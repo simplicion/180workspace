@@ -17,6 +17,9 @@ import {
     DndContext,
     DragOverlay,
     closestCorners,
+    pointerWithin,
+    rectIntersection,
+    CollisionDetection,
     KeyboardSensor,
     PointerSensor,
     useSensor,
@@ -26,6 +29,7 @@ import {
     DragOverEvent,
     defaultDropAnimationSideEffects,
     DropAnimation,
+    useDroppable,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -79,12 +83,30 @@ export default function DealsPage() {
         })
     );
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const loadLeads = () => {
-        setLoading(true);
+        const cacheKey = 'crm:deals:all';
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setLeads(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/sales/deals')
             .then(({ data }) => {
                 const leadsData = data.deals || data.leads || data;
-                setLeads(Array.isArray(leadsData) ? leadsData : []);
+                const fetched = Array.isArray(leadsData) ? leadsData : [];
+                setLeads(fetched);
+                swrCacheRef.current.set(cacheKey, {
+                    data: fetched,
+                    timestamp: Date.now()
+                });
 
                 // Track Visit (Phase 6)
                 api.post('/api/user-preferences/recent', {
@@ -96,7 +118,9 @@ export default function DealsPage() {
                     window.dispatchEvent(new CustomEvent('recentItemsUpdated'));
                 }).catch(err => console.error('Recent tracking error:', err));
             })
-            .catch(() => setError('Failed to load deals'))
+            .catch(() => {
+                if (!cached) setError('Failed to load deals');
+            })
             .finally(() => setLoading(false));
     };
 
@@ -157,6 +181,22 @@ export default function DealsPage() {
         }
     };
 
+    const customCollisionDetection: CollisionDetection = (args) => {
+        const pointerCollisions = pointerWithin(args);
+        if (pointerCollisions.length > 0) {
+            const cardCollision = pointerCollisions.find(c => c.id !== args.active.id && !STAGES.includes(c.id as string));
+            if (cardCollision) return [cardCollision];
+            return pointerCollisions;
+        }
+        const rectCollisions = rectIntersection(args);
+        if (rectCollisions.length > 0) {
+            const cardCollision = rectCollisions.find(c => c.id !== args.active.id && !STAGES.includes(c.id as string));
+            if (cardCollision) return [cardCollision];
+            return rectCollisions;
+        }
+        return closestCorners(args);
+    };
+
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
     };
@@ -178,9 +218,10 @@ export default function DealsPage() {
         if (!STAGES.includes(newStatus)) {
             // If dropped over a card instead of a column, find the column of that card
             const overDeal = leads.find(o => o.id === overId);
-            if (overDeal) newStatus = overDeal.status || 'kickoff';
+            if (overDeal) newStatus = normalizeStage(overDeal.stage || overDeal.status || 'ContractPending');
         }
 
+        if (!STAGES.includes(newStatus)) return;
         if (deal.stage === newStatus) return;
 
         // Optimistic UI update
@@ -191,7 +232,8 @@ export default function DealsPage() {
 
         try {
             await api.put(`/api/sales/deals/${draggedId}`, { stage: newStatus });
-            toast.success(`Moved to ${STAGE_LABELS[newStatus]}`);
+            swrCacheRef.current.clear();
+            toast.success(`Moved to ${STAGE_LABELS[newStatus] || newStatus}`);
         } catch (error) {
             toast.error('Failed to move deal');
             loadLeads(); // Revert on failure
@@ -284,9 +326,9 @@ export default function DealsPage() {
             )}
 
             {loading ? (
-                <div className="flex gap-4 overflow-x-auto pb-4 items-start">
+                <div className="flex gap-4 overflow-x-auto pb-4 items-stretch flex-1 min-h-[calc(100vh-220px)]">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 border border-gray-100 rounded-2xl flex flex-col min-h-[460px] border-dashed p-4 gap-4">
+                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 border border-gray-100 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
                             <Skeleton variant="text" height={24} width="120px" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
@@ -296,11 +338,11 @@ export default function DealsPage() {
             ) : (
                 <DndContext
                     sensors={sensors}
-                    collisionDetection={closestCorners}
+                    collisionDetection={customCollisionDetection}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
-                    <div className="flex gap-4 overflow-x-auto pb-6 items-start">
+                    <div className="flex gap-4 overflow-x-auto pb-6 items-stretch flex-1 min-h-[calc(100vh-220px)]">
                         {STAGES.map(stage => (
                             <Column
                                 key={stage}
@@ -347,22 +389,33 @@ interface ColumnProps {
 }
 
 function Column({ id, title, deals, onDelete }: ColumnProps) {
-    const { setNodeRef } = useSortable({ id });
+    const { setNodeRef, isOver } = useDroppable({
+        id,
+        data: {
+            type: 'Column',
+            stage: id,
+        },
+    });
     const styles = STAGE_STYLES[id] || STAGE_STYLES['new'];
 
     return (
         <div 
             ref={setNodeRef}
-            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] shrink-0 min-h-[460px] flex flex-col', styles.bg, styles.color)}
+            className={clsx(
+                'rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] shrink-0 min-h-[calc(100vh-220px)] flex flex-col self-stretch transition-all duration-150',
+                styles.bg,
+                styles.color,
+                isOver && 'ring-2 ring-indigo-500 bg-indigo-50/80 shadow-md'
+            )}
         >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 shrink-0">
                 <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-gray-700">{title}</span>
                     <span className={clsx('badge text-xs', styles.badge)}>{deals.length}</span>
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2.5 pb-4 flex-1 min-h-[200px]">
+            <div className="flex flex-col gap-2.5 pb-4 flex-1 h-full">
                 <SortableContext items={deals.map(o => o.id)} strategy={verticalListSortingStrategy}>
                     {deals.map(deal => (
                         <SortableDealCard 
@@ -374,8 +427,11 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
                 </SortableContext>
 
                 {deals.length === 0 && (
-                    <div className="flex-1 min-h-[140px] flex items-center justify-center text-gray-300 text-xs select-none">
-                        Drop deals here
+                    <div className={clsx(
+                        "flex-1 flex items-center justify-center text-xs select-none py-12 transition-colors",
+                        isOver ? "text-indigo-600 font-bold" : "text-gray-400/60"
+                    )}>
+                        {isOver ? "Drop here" : "Drop deals here"}
                     </div>
                 )}
             </div>

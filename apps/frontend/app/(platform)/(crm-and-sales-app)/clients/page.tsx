@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download, Pencil, MessageCircle, Globe } from 'lucide-react';
@@ -38,11 +38,33 @@ export default function ClientsPage() {
 
     const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const loadClients = useCallback(() => {
-        setLoading(true);
+        const cacheKey = `clients:${search}:${status}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setClients(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/clients', { params: { search, status } })
-            .then(({ data }) => setClients(data.clients))
-            .catch(() => toast.error('Failed to load clients'))
+            .then(({ data }) => {
+                const fetched = data.clients || [];
+                setClients(fetched);
+                swrCacheRef.current.set(cacheKey, {
+                    data: fetched,
+                    timestamp: Date.now()
+                });
+            })
+            .catch(() => {
+                if (!cached) toast.error('Failed to load clients');
+            })
             .finally(() => setLoading(false));
 
         api.get('/api/clients/categories')

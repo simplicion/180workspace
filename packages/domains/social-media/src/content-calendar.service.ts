@@ -31,7 +31,8 @@ export class ContentCalendarService {
 
         const pieces = await prisma.calendarContentPiece.findMany({
             where: { calendarId: calendar.id },
-            orderBy: { dateScheduled: 'asc' }
+            orderBy: { dateScheduled: 'asc' },
+            take: 200
         });
 
         let meta = calendar.metadata || {};
@@ -181,7 +182,8 @@ export class ContentCalendarService {
     static async getCalendarPieces(calendarId: string) {
         const pieces = await prisma.calendarContentPiece.findMany({ 
             where: { calendarId }, 
-            orderBy: { dateScheduled: 'asc' } 
+            orderBy: { dateScheduled: 'asc' },
+            take: 200
         });
         
         const mappedPieces = pieces.map(p => {

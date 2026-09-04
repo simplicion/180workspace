@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { FolderKanban, Plus, Search, Eye, PlusCircle, Archive, Trash2, Edit, Calendar, User, Briefcase, CircleDollarSign, CheckCircle2 } from 'lucide-react';
 import { Skeleton, SkeletonCard } from "@workspace/ui";
@@ -42,11 +42,31 @@ export default function ProjectsPage() {
     const { user } = useAuth();
     const canCreateProject = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'));
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const fetchProjects = async () => {
-        setLoading(true);
+        const cacheKey = `projects:${search}:${status}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setProjects(cached.data.projects || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         try {
             const { data } = await api.get('/api/projects', { params: { search, status } });
-            setProjects(data.projects);
+            const fetched = data.projects || [];
+            setProjects(fetched);
+            swrCacheRef.current.set(cacheKey, {
+                data: { projects: fetched },
+                timestamp: Date.now()
+            });
+        } catch (err) {
+            if (!cached) toast.error('Failed to load projects');
         } finally {
             setLoading(false);
         }
@@ -58,6 +78,7 @@ export default function ProjectsPage() {
         try {
             await api.patch(`/api/projects/${projectToArchive.id}`, { status: 'on_hold' });
             toast.success('Project archived');
+            swrCacheRef.current.clear();
             fetchProjects();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to archive project');
@@ -73,6 +94,7 @@ export default function ProjectsPage() {
         try {
             await api.delete(`/api/projects/${projectToDelete.id}`);
             toast.success('Project deleted');
+            swrCacheRef.current.clear();
             fetchProjects();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to delete project');

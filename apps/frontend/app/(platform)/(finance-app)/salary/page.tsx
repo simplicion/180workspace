@@ -2,7 +2,7 @@
 
 
 import { LogoLoader } from "@workspace/ui";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { Plus, Search, Download, Banknote, CreditCard, Calendar, Eye, FileCheck, FileWarning, TrendingUp, ArrowUpRight, DollarSign, Clock, AlertCircle, CheckCircle } from 'lucide-react';
@@ -29,11 +29,29 @@ export default function SalaryPage() {
     const currencySymbol = company?.currencySymbol || '$';
     const [search, setSearch] = useState('');
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     function loadSalaries() {
-        setLoading(true);
+        const cacheKey = `finance:salary:${month}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setSalaries(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/salary', { params: { month } })
-            .then(({ data }) => setSalaries(data.salaries.filter((s: any) => ['hr_approved', 'approved', 'paid'].includes(s.status)))) // Only show approved/paid in Ledger
-            .catch(() => toast.error('Failed to load salaries'))
+            .then(({ data }) => {
+                const fetched = (data.salaries || []).filter((s: any) => ['hr_approved', 'approved', 'paid'].includes(s.status));
+                setSalaries(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
+            })
+            .catch(() => {
+                if (!cached) toast.error('Failed to load salaries');
+            })
             .finally(() => setLoading(false));
     }
 

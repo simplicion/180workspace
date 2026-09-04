@@ -3,8 +3,9 @@ import { prisma, requestContext } from '@workspace/db';
 const MONTHLY_LIMIT = 9;
 
 export class SupportService {
-    static async getMonthlyCount() {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async getMonthlyCount(companyIdOverride?: string) {
+        const companyId = companyIdOverride || (requestContext.getStore()?.companyId as string);
+        if (!companyId) return 0;
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
@@ -18,46 +19,131 @@ export class SupportService {
     }
 
     static async createTicket(user: any, data: any) {
-        const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company ID is required');
-        const count = await this.getMonthlyCount();
+        const companyId = requestContext.getStore()?.companyId as string || user?.companyId || 'SYSTEM_PLATFORM';
+        const count = await this.getMonthlyCount(companyId);
         if (count >= MONTHLY_LIMIT) {
             throw new Error(`Monthly support ticket limit reached (${MONTHLY_LIMIT}/month). Please wait until next month.`);
         }
         
-        const config = await prisma.companyConfig.findFirst();
+        const config = await prisma.companyConfig.findFirst({ where: { companyId } }).catch(() => null);
+        const resolvedCompanyName = (config as any)?.companyName || user?.companyName || user?.name || '180workspace Tenant';
+        const initialMessage = {
+            senderName: user?.name || 'User',
+            senderRole: user?.role || 'user',
+            senderId: user?.id || 'unknown',
+            userEmail: user?.email || '',
+            companyId,
+            companyName: resolvedCompanyName,
+            text: data.description || data.message || '',
+            attachments: Array.isArray(data.attachments) ? data.attachments : [],
+            metadata: data.metadata || null,
+            createdAt: new Date().toISOString()
+        };
         
         const ticket = await prisma.supportTicket.create({
             data: {
                 companyId,
-                companyName: (config as any)?.companyName || user.name,
-                userId: user.id,
-                userName: user.name,
-                userEmail: user.email,
+                companyName: resolvedCompanyName,
+                userId: user?.id || 'unknown',
+                userName: user?.name || 'User',
+                userEmail: user?.email || '',
                 subject: data.subject,
                 message: data.description || data.message || '',
-                category: data.category || 'other',
+                category: data.category || 'technical',
                 priority: data.priority || 'medium',
-                messages: []
+                messages: [initialMessage]
             }
         });
 
         return {
             ticket,
-            remaining: MONTHLY_LIMIT - (count + 1),
+            remaining: Math.max(0, MONTHLY_LIMIT - (count + 1)),
             used: count + 1,
             limit: MONTHLY_LIMIT,
         };
     }
 
-    static async listOwnTickets() {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async createQuickReport(user: any, data: any) {
+        const companyId = requestContext.getStore()?.companyId as string || user.companyId || 'SYSTEM_PLATFORM';
+        const config = await prisma.companyConfig.findFirst({ where: { companyId } }).catch(() => null);
+        const resolvedCompanyName = (config as any)?.companyName || user.companyName || '180workspace Tenant';
+        
+        const category = data.category || 'bug_report';
+        const subject = data.subject || `[Issue Report] ${category.replace(/_/g, ' ').toUpperCase()} on ${data.routeUrl || '/'}`;
+        const description = data.description || data.message || 'No description provided';
+        const nowIso = new Date().toISOString();
+        
+        const initialMessage = {
+            senderName: user.name,
+            senderRole: user.role || 'user',
+            senderId: user.id,
+            userEmail: user.email,
+            companyId,
+            companyName: resolvedCompanyName,
+            text: description,
+            source: 'quick_support',
+            routeUrl: data.routeUrl || data.url || '/',
+            ip: data.ip || '127.0.0.1',
+            timeZone: data.timeZone || data.metadata?.timeZone || 'UTC',
+            location: data.location || data.metadata?.location || 'Client Session',
+            timestamp: nowIso,
+            metadata: {
+                userAgent: data.metadata?.userAgent || data.userAgent || 'Unknown',
+                screenResolution: data.metadata?.screenResolution || data.screenResolution || 'N/A',
+                viewportSize: data.metadata?.viewportSize || data.viewportSize || 'N/A',
+                timeZone: data.metadata?.timeZone || data.timeZone || 'UTC',
+                language: data.metadata?.language || data.language || 'en-US',
+                timestamp: nowIso,
+                ip: data.ip || '127.0.0.1'
+            },
+            attachments: Array.isArray(data.attachments) ? data.attachments : [],
+            createdAt: nowIso
+        };
+
+        const ticket = await prisma.supportTicket.create({
+            data: {
+                companyId,
+                companyName: resolvedCompanyName,
+                userId: user.id,
+                userName: user.name,
+                userEmail: user.email,
+                subject,
+                message: description,
+                category: 'quick_support',
+                priority: data.priority || 'high',
+                messages: [initialMessage]
+            }
+        });
+
+        return {
+            success: true,
+            ticketId: ticket.id,
+            ticket,
+            message: 'Support incident report submitted successfully. Our engineering team is investigating.'
+        };
+    }
+
+    static async listOwnTickets(query: any = {}, fallbackCompanyId?: string) {
+        const companyId = (requestContext.getStore()?.companyId as string) || fallbackCompanyId;
+        const limit = Math.min(Number(query?.limit) || 50, 100);
+        const whereClause: any = {};
+        if (companyId) {
+            whereClause.companyId = companyId;
+        }
+        if (query?.status) {
+            whereClause.status = query.status;
+        }
+        if (query?.category) {
+            whereClause.category = query.category;
+        }
+
         const tickets = await prisma.supportTicket.findMany({
-            where: { companyId },
-            orderBy: { createdAt: 'desc' }
+            where: whereClause,
+            orderBy: { createdAt: 'desc' },
+            take: limit
         });
         
-        const monthCount = await this.getMonthlyCount();
+        const monthCount = await this.getMonthlyCount(companyId);
         return { tickets, monthlyUsed: monthCount, monthlyLimit: MONTHLY_LIMIT };
     }
 
@@ -76,13 +162,19 @@ export class SupportService {
         if (!ticket) throw new Error('Ticket not found');
 
         const currentMessages = Array.isArray(ticket.messages) ? ticket.messages : [];
-        const newMessage = { senderName: user.name, senderRole: 'admin', senderId: user.id, text, createdAt: new Date().toISOString() };
+        const newMessage = {
+            senderName: user?.name || 'Customer',
+            senderRole: user?.role || 'user',
+            senderId: user?.id || 'unknown',
+            text: text.trim(),
+            createdAt: new Date().toISOString()
+        };
         
         return await prisma.supportTicket.update({
             where: { id: ticketId },
             data: {
                 messages: [...currentMessages, newMessage],
-                status: 'waiting_on_customer'
+                status: 'in_progress'
             }
         });
     }
@@ -123,11 +215,33 @@ export class SupportService {
 
     // Superadmin methods
     static async superadminListTickets(query: any) {
-        const { page = 1, limit = 20, status } = query;
+        const { page = 1, limit = 30, status, category, priority, search } = query;
         const pageNum = Number(page);
         const limitNum = Number(limit);
         const where: any = {};
-        if (status) where.status = status;
+
+        if (status && status !== 'all') {
+            where.status = status;
+        }
+
+        if (category && category !== 'all') {
+            where.category = category;
+        }
+
+        if (priority && priority !== 'all') {
+            where.priority = priority;
+        }
+
+        if (search && typeof search === 'string' && search.trim()) {
+            const term = search.trim();
+            where.OR = [
+                { subject: { contains: term, mode: 'insensitive' } },
+                { message: { contains: term, mode: 'insensitive' } },
+                { userName: { contains: term, mode: 'insensitive' } },
+                { userEmail: { contains: term, mode: 'insensitive' } },
+                { companyName: { contains: term, mode: 'insensitive' } },
+            ];
+        }
 
         const [tickets, total] = await Promise.all([
             prisma.supportTicket.findMany({
@@ -166,18 +280,14 @@ export class SupportService {
     }
 
     static async superadminUpdateStatus(ticketId: string, status: string) {
-        const data: any = { status };
-        if (status === 'resolved') data.resolvedAt = new Date();
-        if (status === 'closed') data.closedAt = new Date();
+        if (!ticketId || !status) throw new Error('Ticket ID and status are required');
 
-        try {
-            return await prisma.supportTicket.update({
-                where: { id: ticketId },
-                data,
-            });
-        } catch (err: any) {
-            if (err.message === 'Ticket not found') throw err;
-            throw err;
-        }
+        const existing = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
+        if (!existing) throw new Error('Ticket not found');
+
+        return await prisma.supportTicket.update({
+            where: { id: ticketId },
+            data: { status },
+        });
     }
 }

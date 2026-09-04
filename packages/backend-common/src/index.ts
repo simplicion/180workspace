@@ -20,3 +20,16 @@ export {
   setCachedData,
   clearCache,
 } from './cache';
+export {
+  paginateWithCursor,
+  extractPaginationParams,
+  encodeCursor,
+  decodeCursor,
+  type PaginationOptions,
+  type PaginatedResult,
+  type PageInfo,
+  type CursorPayload,
+  type PaginationDirection,
+  type ExtractedPaginationParams
+} from './pagination';
+

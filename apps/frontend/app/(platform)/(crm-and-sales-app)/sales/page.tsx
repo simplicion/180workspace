@@ -20,8 +20,8 @@ import nextDynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 import SalesActivityFeed from '@/app/(platform)/(dashboard)/_components/SalesActivityFeed';
+import SalesOverview from '@/app/(platform)/(dashboard)/_components/SalesOverview';
 
-const SalesTrendAreaChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesTrendAreaChart'), { ssr: false, loading: () => <SkeletonChart /> });
 const SalesPipelinePieChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesPipelinePieChart'), { ssr: false, loading: () => <SkeletonChart /> });
 const SalesRevenueBarChart = nextDynamic(() => import('@/app/(platform)/(crm-and-sales-app)/components/SalesRevenueBarChart'), { ssr: false, loading: () => <SkeletonChart /> });
 
@@ -71,10 +71,6 @@ export default function SalesDashboardPage() {
         { key: 'opportunities', label: 'Active Opportunities', value: metrics?.activeOpportunities || 0, icon: Magnet, bg: 'bg-indigo-50', iconColor: 'text-indigo-600' },
     ];
 
-    const chartData = data?.charts?.trendData || [];
-    const pipelineData = data?.charts?.pipelineByStage || [];
-    const repData = data?.charts?.revenueByRep || [];
-    const COLORS = ['#818cf8', '#34d399', '#f472b6', '#fbbf24', '#a78bfa', '#f87171'];
     
     // Revenue specific charts
     const monthlyTrend = revenueStats?.monthlyTrend;
@@ -267,52 +263,36 @@ export default function SalesDashboardPage() {
             </div>
 
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                
-                {/* Daily Activity Trend (Full width) */}
-                <div className="lg:col-span-3">
-                    <div className="card">
-                        <div className="card-header">
-                            <h3 className="font-semibold text-gray-900">Daily Sales Activity (Current Month)</h3>
-                        </div>
-                        <div className="card-body">
-                            {loadingRevenue ? (
-                                <SkeletonChart />
-                            ) : (!revenueStats?.dailyActivityTrend || revenueStats.dailyActivityTrend.length === 0) ? (
-                                <div className="w-full h-80 relative rounded-xl overflow-hidden bg-gray-50/50 flex items-center justify-center">
-                                    <p className="text-gray-400 font-medium">No activity data for this month</p>
-                                </div>
-                            ) : (
-                                <div className="w-full h-80">
-                                    <DailyActivityLineChart data={revenueStats.dailyActivityTrend} />
-                                </div>
-                            )}
-                        </div>
+            {/* Daily Activity Trend (Full width) */}
+            <div className="mb-6">
+                <div className="card">
+                    <div className="card-header">
+                        <h3 className="font-semibold text-gray-900">Daily Sales Activity (Current Month)</h3>
+                    </div>
+                    <div className="card-body">
+                        {loadingRevenue ? (
+                            <SkeletonChart />
+                        ) : (!revenueStats?.dailyActivityTrend || revenueStats.dailyActivityTrend.length === 0) ? (
+                            <div className="w-full h-80 relative rounded-xl overflow-hidden bg-gray-50/50 flex items-center justify-center">
+                                <p className="text-gray-400 font-medium">No activity data for this month</p>
+                            </div>
+                        ) : (
+                            <div className="w-full h-80">
+                                <DailyActivityLineChart data={revenueStats.dailyActivityTrend} />
+                            </div>
+                        )}
                     </div>
                 </div>
+            </div>
 
-                {/* Left Column: Forecasts & Activity */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="card">
-                        <div className="card-header flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900">Lead vs Pipeline vs Revenue Trend</h3>
-                        </div>
-                        <div className="card-body">
-                            {loadingSales ? (
-                                <SkeletonChart />
-                            ) : (
-                                <SalesTrendAreaChart chartData={chartData} currencySymbol={currencySymbol} />
-                            )}
-                        </div>
-                    </div>
+            {/* Sales Pipeline (Lead Volume, Daily Trajectory & Stage Intelligence - from Dashboard) */}
+            <div className="mb-6">
+                <SalesOverview />
+            </div>
 
-
-                </div>
-
-                {/* Right Column: Top Deals / Recent Activity */}
-                <div className="space-y-6">
-                    <SalesActivityFeed />
-                </div>
+            {/* Sales Activity (Just below the Sales Pipeline) */}
+            <div className="mb-6">
+                <SalesActivityFeed />
             </div>
         </div>
     );

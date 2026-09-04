@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { CrmCalculationService } from '../sales/crm-calculation.service';
-import { EmailService } from '@workspace/backend-infra';
+import { EmailService, paginateWithCursor, extractPaginationParams } from '@workspace/backend-infra';
 const emailService = EmailService;
 
 import { prisma } from '@workspace/db';
@@ -10,18 +10,76 @@ import { SalesRuleEngineService as SalesRuleEngine } from '../sales/sales-rule-e
 const bcrypt = require('bcryptjs');
 
 export class LeadsService {
-static async getLeads(page = 1, limit = 100) {
-        const skip = (page - 1) * limit;
-        
-        const leads = await prisma.lead.findMany({
-            include: { assignedSalesRep: { select: { name: true, email: true } } },
-            orderBy: { leadScore: 'desc' },
-            skip: skip,
-            take: limit
-        });
+    static async getLeads(pageOrQuery: any = 1, limit = 100) {
+        // If passed request query object or cursor is present
+        if (typeof pageOrQuery === 'object' && pageOrQuery !== null) {
+            const params = extractPaginationParams(pageOrQuery);
+            const where: any = {};
+            if (pageOrQuery.status) where.status = pageOrQuery.status;
+            if (pageOrQuery.search) {
+                where.OR = [
+                    { name: { contains: pageOrQuery.search, mode: 'insensitive' } },
+                    { company: { contains: pageOrQuery.search, mode: 'insensitive' } },
+                    { email: { contains: pageOrQuery.search, mode: 'insensitive' } }
+                ];
+            }
 
-        const total = await prisma.lead.count();
-        return { leads, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
+            if (params.cursor) {
+                const result = await paginateWithCursor(prisma.lead, {
+                    where,
+                    cursor: params.cursor,
+                    limit: params.limit,
+                    direction: params.direction,
+                    sortField: params.sortField || 'createdAt',
+                    sortOrder: params.sortOrder || 'desc',
+                    include: { assignedSalesRep: { select: { name: true, email: true } } },
+                    includeTotalCount: true
+                });
+
+                return {
+                    leads: result.items,
+                    pageInfo: result.pageInfo,
+                    pagination: {
+                        total: result.pageInfo.totalCount || result.items.length,
+                        hasMore: result.pageInfo.hasNextPage,
+                        endCursor: result.pageInfo.endCursor
+                    }
+                };
+            }
+
+            const page = params.page || 1;
+            const safeLimit = Math.min(params.limit || 50, 100);
+            const skip = (page - 1) * safeLimit;
+
+            const [leads, total] = await Promise.all([
+                prisma.lead.findMany({
+                    where,
+                    include: { assignedSalesRep: { select: { name: true, email: true } } },
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: safeLimit
+                }),
+                prisma.lead.count({ where })
+            ]);
+
+            return { leads, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
+        }
+
+        const page = typeof pageOrQuery === 'number' ? pageOrQuery : 1;
+        const safeLimit = Math.min(limit, 100);
+        const skip = (page - 1) * safeLimit;
+        
+        const [leads, total] = await Promise.all([
+            prisma.lead.findMany({
+                include: { assignedSalesRep: { select: { name: true, email: true } } },
+                orderBy: { leadScore: 'desc' },
+                skip: skip,
+                take: safeLimit
+            }),
+            prisma.lead.count()
+        ]);
+
+        return { leads, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
     }
 
     static async createLead(data, userId) {

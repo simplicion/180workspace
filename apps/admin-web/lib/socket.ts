@@ -6,8 +6,8 @@ export function getSocket() {
     if (typeof window === 'undefined') return null;
 
     if (!socket) {
-        const token = localStorage.getItem('platform_auth_token');
-        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+        const token = localStorage.getItem('superadmin_token') || localStorage.getItem('platform_auth_token');
+        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002';
         
         // Sanitize token: ensure it's not null, undefined, or a string literal "null"/"undefined"
         const isValidToken = token && token !== 'null' && token !== 'undefined' && token.length > 10;
@@ -22,7 +22,7 @@ export function getSocket() {
         socket = io(SOCKET_URL, {
             auth: { token },
             transports: ['websocket', 'polling'],
-            reconnectionAttempts: 5,
+            reconnectionAttempts: 10,
             reconnectionDelay: 1000,
         });
 

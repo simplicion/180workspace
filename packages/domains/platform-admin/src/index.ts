@@ -14,12 +14,10 @@ export * from './monetization/platform-coupon.service';
 export * from './monetization/platform-payment.service';
 export * from './monetization/platform-plan.service';
 export * from './monetization/platform-subscription.service';
-export * from './communications/platform-announcement.service';
 
 // Repositories
 export * from './repositories/feature-flag.repository';
 export * from './repositories/lifecycle.repository';
-export * from './repositories/platform-announcement.repository';
 export * from './repositories/platform-auth.repository';
 export * from './repositories/platform-company.repository';
 export * from './repositories/platform-coupon.repository';

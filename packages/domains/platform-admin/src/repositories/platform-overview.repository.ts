@@ -40,4 +40,23 @@ export class PlatformOverviewRepository {
             include: { plan: true }
         });
     }
+
+    static async getLatestCompanies(limit = 5) {
+        return prisma.company.findMany({
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                logoUrl: true,
+                adminEmail: true,
+                subscriptionStatus: true,
+                accountStatus: true,
+                totalUsers: true,
+                createdAt: true,
+            }
+        });
+    }
 }
+

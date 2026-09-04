@@ -23,7 +23,8 @@ export class TrafficRulesService {
 
     const rules = await db.trafficRule.findMany({
       where: { linkId },
-      orderBy: { priority: 'asc' }
+      orderBy: { priority: 'asc' },
+      take: 100
     });
 
     return { rules };

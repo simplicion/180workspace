@@ -1,7 +1,25 @@
 import type { UserContext } from '../tasks/task.service.js';
 
 import { prisma, requestContext } from '@workspace/db';
-import { triggerAutomation } from '@workspace/backend-infra';
+import { triggerAutomation, paginateWithCursor, extractPaginationParams, getCache, setCache } from '@workspace/backend-infra';
+
+const WORK_LOG_INCLUDES = {
+    user: { select: { id: true, name: true, photoUrl: true, role: true } },
+    task: { 
+        select: { 
+            id: true, 
+            title: true, 
+            description: true, 
+            estimatedHours: true,
+            creatorId: true,
+            assigneeId: true,
+            creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+            assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
+        } 
+    },
+    module: { select: { id: true, title: true } },
+    project: { select: { id: true, name: true, ownerId: true } }
+};
 
 const mapLogs = (logs: any[]) => logs.map(log => {
     const mapped: any = {
@@ -114,81 +132,114 @@ export class WorkLogService {
         const { projectId } = query;
         if (!projectId) throw new Error('projectId is required');
         
-        const logs = await prisma.workLog.findMany({
-            where: { projectId },
-            include: {
-                user: { select: { id: true, name: true, photoUrl: true, role: true } },
-                task: { 
-                    select: { 
-                        id: true, 
-                        title: true, 
-                        description: true, 
-                        estimatedHours: true,
-                        creatorId: true,
-                        assigneeId: true,
-                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
-                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
-                    } 
-                },
-                module: { select: { id: true, title: true } },
-                project: { select: { id: true, name: true } }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+        const params = extractPaginationParams(query);
+        const where = { projectId };
+
+        if (params.cursor) {
+            const result = await paginateWithCursor(prisma.workLog, {
+                where,
+                cursor: params.cursor,
+                limit: params.limit,
+                direction: params.direction,
+                include: WORK_LOG_INCLUDES,
+                includeTotalCount: Boolean(query.includeTotalCount || query.page)
+            });
+            return {
+                success: true,
+                logs: mapLogs(result.items),
+                pageInfo: result.pageInfo,
+                total: result.pageInfo.totalCount,
+                limit: params.limit
+            };
+        }
+
+        const page = params.page || 1;
+        const [logs, total] = await Promise.all([
+            prisma.workLog.findMany({
+                where,
+                include: WORK_LOG_INCLUDES,
+                orderBy: { createdAt: 'desc' },
+                take: params.limit,
+                skip: (page - 1) * params.limit
+            }),
+            prisma.workLog.count({ where })
+        ]);
         
-        return { success: true, logs: mapLogs(logs) };
+        return { success: true, logs: mapLogs(logs), total, page, limit: params.limit };
     }
 
     static async getMyLogs(query: any, user: UserContext) {
         const where = { ...getQueryFilters(query), userId: user.id };
-        const logs = await prisma.workLog.findMany({
-            where,
-            include: {
-                user: { select: { id: true, name: true, photoUrl: true, role: true } },
-                task: { 
-                    select: { 
-                        id: true, 
-                        title: true, 
-                        description: true, 
-                        estimatedHours: true,
-                        creatorId: true,
-                        assigneeId: true,
-                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
-                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
-                    } 
-                },
-                module: { select: { id: true, title: true } },
-                project: { select: { id: true, name: true } }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        return { success: true, logs: mapLogs(logs) };
+        const params = extractPaginationParams(query);
+
+        if (params.cursor) {
+            const result = await paginateWithCursor(prisma.workLog, {
+                where,
+                cursor: params.cursor,
+                limit: params.limit,
+                direction: params.direction,
+                include: WORK_LOG_INCLUDES,
+                includeTotalCount: Boolean(query.includeTotalCount || query.page)
+            });
+            return {
+                success: true,
+                logs: mapLogs(result.items),
+                pageInfo: result.pageInfo,
+                total: result.pageInfo.totalCount,
+                limit: params.limit
+            };
+        }
+
+        const page = params.page || 1;
+        const [logs, total] = await Promise.all([
+            prisma.workLog.findMany({
+                where,
+                include: WORK_LOG_INCLUDES,
+                orderBy: { createdAt: 'desc' },
+                take: params.limit,
+                skip: (page - 1) * params.limit
+            }),
+            prisma.workLog.count({ where })
+        ]);
+        
+        return { success: true, logs: mapLogs(logs), total, page, limit: params.limit };
     }
 
     static async getAllLogs(query: any) {
         const where = getQueryFilters(query);
-        const logs = await prisma.workLog.findMany({
-            where,
-            include: {
-                user: { select: { id: true, name: true, photoUrl: true, role: true } },
-                task: { 
-                    select: { 
-                        id: true, 
-                        title: true, 
-                        description: true, 
-                        estimatedHours: true,
-                        creatorId: true,
-                        assigneeId: true,
-                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
-                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
-                    } 
-                },
-                module: { select: { id: true, title: true } },
-                project: { select: { id: true, name: true } }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        return { success: true, logs: mapLogs(logs) };
+        const params = extractPaginationParams(query);
+
+        if (params.cursor) {
+            const result = await paginateWithCursor(prisma.workLog, {
+                where,
+                cursor: params.cursor,
+                limit: params.limit,
+                direction: params.direction,
+                include: WORK_LOG_INCLUDES,
+                includeTotalCount: Boolean(query.includeTotalCount || query.page)
+            });
+            return {
+                success: true,
+                logs: mapLogs(result.items),
+                pageInfo: result.pageInfo,
+                total: result.pageInfo.totalCount,
+                limit: params.limit
+            };
+        }
+
+        const page = params.page || 1;
+        const [logs, total] = await Promise.all([
+            prisma.workLog.findMany({
+                where,
+                include: WORK_LOG_INCLUDES,
+                orderBy: { createdAt: 'desc' },
+                take: params.limit,
+                skip: (page - 1) * params.limit
+            }),
+            prisma.workLog.count({ where })
+        ]);
+        
+        return { success: true, logs: mapLogs(logs), total, page, limit: params.limit };
     }
 
     static async getPendingReviews(query: any, user: UserContext) {
@@ -205,7 +256,6 @@ export class WorkLogService {
         }
 
         if (!isAdminOrCeo && user?.id) {
-            // Only show pending reviews for tasks where the current user is the assigner (creator) or self-assigned
             baseWhere.OR = [
                 { task: { creatorId: user.id } },
                 { userId: user.id },
@@ -213,33 +263,51 @@ export class WorkLogService {
             ];
         }
 
-        const logs = await prisma.workLog.findMany({
-            where: baseWhere,
-            include: {
-                user: { select: { id: true, name: true, photoUrl: true, role: true } },
-                task: { 
-                    select: { 
-                        id: true, 
-                        title: true, 
-                        description: true, 
-                        estimatedHours: true,
-                        creatorId: true,
-                        assigneeId: true,
-                        creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
-                        assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } }
-                    } 
-                },
-                module: { select: { id: true, title: true } },
-                project: { select: { id: true, name: true, ownerId: true } }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        return { success: true, logs: mapLogs(logs) };
+        const params = extractPaginationParams(query);
+
+        if (params.cursor) {
+            const result = await paginateWithCursor(prisma.workLog, {
+                where: baseWhere,
+                cursor: params.cursor,
+                limit: params.limit,
+                direction: params.direction,
+                include: WORK_LOG_INCLUDES,
+                includeTotalCount: Boolean(query.includeTotalCount || query.page)
+            });
+            return {
+                success: true,
+                logs: mapLogs(result.items),
+                pageInfo: result.pageInfo,
+                total: result.pageInfo.totalCount,
+                limit: params.limit
+            };
+        }
+
+        const page = params.page || 1;
+        const [logs, total] = await Promise.all([
+            prisma.workLog.findMany({
+                where: baseWhere,
+                include: WORK_LOG_INCLUDES,
+                orderBy: { createdAt: 'desc' },
+                take: params.limit,
+                skip: (page - 1) * params.limit
+            }),
+            prisma.workLog.count({ where: baseWhere })
+        ]);
+        
+        return { success: true, logs: mapLogs(logs), total, page, limit: params.limit };
     }
 
     static async getDashboardStats(query: any, user: UserContext) {
+        const companyId = user?.companyId || (requestContext.getStore()?.companyId as string);
+        const cacheKey = `work_logs:stats:${companyId || 'global'}:${JSON.stringify(query || {})}`;
+
+        const cachedStats = await getCache(cacheKey).catch(() => null);
+        if (cachedStats) {
+            return cachedStats;
+        }
+
         const where = getQueryFilters(query);
-        const companyId = requestContext.getStore()?.companyId as string;
         
         const logs = await prisma.workLog.findMany({
             where,
@@ -292,7 +360,7 @@ export class WorkLogService {
             select: { id: true, name: true, photoUrl: true }
         });
 
-        return {
+        const result = {
             success: true,
             summary: { totalHours, approved, pending, rejected },
             chartData,
@@ -303,6 +371,9 @@ export class WorkLogService {
                 users
             }
         };
+
+        await setCache(cacheKey, result, 60).catch(() => {});
+        return result;
     }
 
     static async reviewWorkLog(id: string, data: any, user: UserContext) {

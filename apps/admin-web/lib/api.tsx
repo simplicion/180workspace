@@ -15,7 +15,7 @@ const getBaseURL = () => {
     const isServer = typeof window === 'undefined';
     
     if (isServer) {
-        const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002';
         if (isBuildPhase && rawUrl.includes('localhost')) {
             return 'http://127.0.0.1:0'; // Immediate connection refusal to avoid hang
         }

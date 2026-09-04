@@ -1,30 +1,87 @@
 // @ts-nocheck
 import { CrmCalculationService } from '../sales/crm-calculation.service';
-import { EmailService } from '@workspace/backend-infra';
+import { EmailService, paginateWithCursor, extractPaginationParams } from '@workspace/backend-infra';
 const emailService = EmailService;
 
 import { prisma } from '@workspace/db';
 import moment from 'moment';
 
 export class DealsService {
-    static async getDeals(page = 1, limit = 100, pipelineType) {
-        const skip = (page - 1) * limit;
+    static async getDeals(pageOrQuery: any = 1, limit = 100, pipelineType) {
+        if (typeof pageOrQuery === 'object' && pageOrQuery !== null) {
+            const params = extractPaginationParams(pageOrQuery);
+            const whereClause: any = {};
+            if (pageOrQuery.pipelineType) whereClause.pipelineType = pageOrQuery.pipelineType;
+            if (pageOrQuery.status) whereClause.status = pageOrQuery.status;
+            if (pageOrQuery.search) {
+                whereClause.OR = [
+                    { title: { contains: pageOrQuery.search, mode: 'insensitive' } },
+                    { notes: { contains: pageOrQuery.search, mode: 'insensitive' } }
+                ];
+            }
+
+            if (params.cursor) {
+                const result = await paginateWithCursor(prisma.deal, {
+                    where: whereClause,
+                    cursor: params.cursor,
+                    limit: params.limit,
+                    direction: params.direction,
+                    sortField: params.sortField || 'createdAt',
+                    sortOrder: params.sortOrder || 'desc',
+                    include: { owner: { select: { name: true, email: true } }, client: true },
+                    includeTotalCount: true
+                });
+
+                return {
+                    deals: result.items,
+                    pageInfo: result.pageInfo,
+                    pagination: {
+                        total: result.pageInfo.totalCount || result.items.length,
+                        hasMore: result.pageInfo.hasNextPage,
+                        endCursor: result.pageInfo.endCursor
+                    }
+                };
+            }
+
+            const page = params.page || 1;
+            const safeLimit = Math.min(params.limit || 50, 100);
+            const skip = (page - 1) * safeLimit;
+
+            const [deals, total] = await Promise.all([
+                prisma.deal.findMany({
+                    where: whereClause,
+                    include: { owner: { select: { name: true, email: true } }, client: true },
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: safeLimit
+                }),
+                prisma.deal.count({ where: whereClause })
+            ]);
+
+            return { deals, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
+        }
+
+        const page = typeof pageOrQuery === 'number' ? pageOrQuery : 1;
+        const safeLimit = Math.min(limit, 100);
+        const skip = (page - 1) * safeLimit;
         
         const whereClause = {};
         if (pipelineType) {
             whereClause.pipelineType = pipelineType;
         }
 
-        const deals = await prisma.deal.findMany({ 
-            where: whereClause,
-            include: { owner: { select: { name: true, email: true } }, client: true }, 
-            orderBy: { priorityScore: 'desc' },
-            skip: skip,
-            take: limit
-        });
+        const [deals, total] = await Promise.all([
+            prisma.deal.findMany({ 
+                where: whereClause,
+                include: { owner: { select: { name: true, email: true } }, client: true }, 
+                orderBy: { priorityScore: 'desc' },
+                skip: skip,
+                take: safeLimit
+            }),
+            prisma.deal.count({ where: whereClause })
+        ]);
 
-        const total = await prisma.deal.count({ where: whereClause });
-        return { deals, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
+        return { deals, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
     }
 
     static async createDeal(data, userId) {

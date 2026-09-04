@@ -7,8 +7,16 @@ export declare const requestContext: AsyncLocalStorage<{
     companyId?: string;
     userId?: string;
 }>;
-export declare const basePrisma: PrismaClient<Prisma.PrismaClientOptions, never, import("@prisma/client/runtime/library").DefaultArgs>;
-export declare const prisma: PrismaClient<Prisma.PrismaClientOptions, never, import("@prisma/client/runtime/library").DefaultArgs>;
+export declare const SAFE_QUERY_LIMIT = 100;
+export declare const MAX_ALLOWED_TAKE = 500;
+/**
+ * Universal Query Guardrail
+ * Protects database and Node memory from unbounded O(N) queries across all models.
+ */
+export declare function applyQueryGuardrails(model: string, operation: string, anyArgs: any): any;
+export declare const rawPrisma: PrismaClient<Prisma.PrismaClientOptions, never, import("@prisma/client/runtime/library").DefaultArgs>;
+export declare const basePrisma: any;
+export declare const prisma: any;
 /**
  * Creates a company-scoped Prisma Client.
  * Automatically injects `companyId` into all relevant queries

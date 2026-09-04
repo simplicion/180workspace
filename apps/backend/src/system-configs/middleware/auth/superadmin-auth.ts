@@ -24,10 +24,10 @@ export default async function superAdminAuth(req: any, res: Response, next: Next
         }
         const admin = await prisma.superAdmin.findUnique({
             where: { id: decoded.id },
-            select: { id: true, email: true, name: true, role: true, isActive: true, permissions: true } // Exclude passwordHash
+            select: { id: true, email: true, name: true, role: true } // Exclude passwordHash
         });
-        if (!admin || !admin.isActive) {
-            return res.status(401).json({ error: 'Super admin account not found or deactivated' });
+        if (!admin) {
+            return res.status(401).json({ error: 'Super admin account not found' });
         }
         req.superAdmin = admin;
         next();

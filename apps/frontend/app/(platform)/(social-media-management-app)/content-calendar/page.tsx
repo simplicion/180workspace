@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { contentCalendarService, ContentCalendar } from '@/lib/services/content-calendar.service';
 import { CalendarDays, Plus, Search, Eye, Archive, Trash2, Calendar } from 'lucide-react';
 import { Skeleton, SkeletonCard } from "@workspace/ui";
@@ -34,8 +34,20 @@ export default function ContentCalendarPage() {
     const { user } = useAuth();
     const canCreateCalendar = user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team')); // Adjust permissions as needed
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const fetchCalendars = async () => {
-        setLoading(true);
+        const cacheKey = `social:calendars:${search}:${status}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setCalendars(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         try {
             const { calendars } = await contentCalendarService.getCalendars(50, 0);
             
@@ -48,8 +60,9 @@ export default function ContentCalendarPage() {
             }
             
             setCalendars(filtered);
+            swrCacheRef.current.set(cacheKey, { data: filtered, timestamp: Date.now() });
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to fetch calendars');
+            if (!cached) toast.error(err.response?.data?.error || 'Failed to fetch calendars');
         } finally {
             setLoading(false);
         }

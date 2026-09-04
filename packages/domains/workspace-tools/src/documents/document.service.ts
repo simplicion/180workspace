@@ -3,8 +3,9 @@ import { prisma, requestContext } from '@workspace/db';
 import crypto from 'crypto';
 
 export class DocumentService {
-    static async getAllDocuments(search?: string, category?: string) {
+    static async getAllDocuments(search?: string, category?: string, pagination?: { limit?: number }) {
         const where: any = {};
+        const take = Math.min(Number(pagination?.limit) || 100, 100);
 
         if (category && category !== 'All' && category !== 'all') {
             where.category = category;
@@ -23,7 +24,8 @@ export class DocumentService {
                 createdBy: { select: { id: true, name: true, photoUrl: true, email: true } },
                 updatedBy: { select: { id: true, name: true, photoUrl: true, email: true } }
             },
-            orderBy: { updatedAt: 'desc' }
+            orderBy: { updatedAt: 'desc' },
+            take
         });
 
         // Also fetch file uploads from Document table if exists
@@ -34,7 +36,8 @@ export class DocumentService {
                 include: {
                     uploadedBy: { select: { id: true, name: true, photoUrl: true, email: true } }
                 },
-                orderBy: { updatedAt: 'desc' }
+                orderBy: { updatedAt: 'desc' },
+                take
             });
         } catch (e) {}
 

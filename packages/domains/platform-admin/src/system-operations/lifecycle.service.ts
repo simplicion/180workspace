@@ -193,12 +193,11 @@ export class LifecycleService {
         const company = await LifecycleRepository.findCompanyById(companyId);
         if (!company) throw new Error('Company not found');
 
-        console.log(`[Lifecycle] Starting FULL delete for: ${company.name} (${companyId})`);
+        console.log(`[Lifecycle] Starting permanent FULL delete for: ${company.name} (${companyId})`);
 
-        await this.performSafeDelete(company);
         await LifecycleRepository.fullDeleteCompany(companyId);
 
-        console.log(`[Lifecycle] Completed FULL delete for: ${company.name}`);
+        console.log(`[Lifecycle] Completed permanent FULL delete for: ${company.name}`);
         return true;
     }
 }

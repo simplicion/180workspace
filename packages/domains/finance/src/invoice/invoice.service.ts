@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { prisma } from '@workspace/db';
 import { prisma, Prisma } from '@workspace/db';
+import { paginateWithCursor, extractPaginationParams, getCache, setCache } from '@workspace/backend-infra';
 import { FraudDetectionService } from '../fraud-detection/fraud-detection.service';
 
 export class InvoiceService {
@@ -104,21 +104,56 @@ export class InvoiceService {
     return invoice;
   }
 
-  static async getInvoices(filter: any) {
-    const invoices = await prisma.invoice.findMany({
-      where: filter,
-      include: {
-        client: { select: { id: true, name: true, email: true, company: true } },
-        createdBy: { select: { id: true, name: true } }
-      },
-      orderBy: { issueDate: 'desc' }
-    });
+  static async getInvoices(filter: any, paginationOrQuery: any = {}) {
+    const params = extractPaginationParams(paginationOrQuery);
+    const where = filter || {};
 
-    const totalRevenue = invoices
-      .filter((i: any) => i.status === 'paid')
-      .reduce((s: number, i: any) => s + (i.totalAmount || 0), 0);
+    let invoices: any[] = [];
+    let pageInfo: any = null;
 
-    return { invoices, totalRevenue };
+    if (params.cursor) {
+      const result = await paginateWithCursor(prisma.invoice, {
+        where,
+        cursor: params.cursor,
+        limit: params.limit,
+        direction: params.direction,
+        sortField: params.sortField || 'issueDate',
+        sortOrder: params.sortOrder || 'desc',
+        include: {
+          client: { select: { id: true, name: true, email: true, company: true } },
+          createdBy: { select: { id: true, name: true } }
+        }
+      });
+      invoices = result.items;
+      pageInfo = result.pageInfo;
+    } else {
+      const safeLimit = Math.min(params.limit || 100, 100);
+      invoices = await prisma.invoice.findMany({
+        where,
+        include: {
+          client: { select: { id: true, name: true, email: true, company: true } },
+          createdBy: { select: { id: true, name: true } }
+        },
+        orderBy: { issueDate: 'desc' },
+        take: safeLimit
+      });
+    }
+
+    // Cache total revenue with 60-second TTL to avoid scanning table on every view
+    const cacheKey = `finance:revenue:${JSON.stringify(where)}`;
+    let totalRevenue = await getCache(cacheKey).catch(() => null);
+
+    if (totalRevenue === null || totalRevenue === undefined) {
+      const aggregate = await prisma.invoice.aggregate({
+        where: { ...where, status: 'paid' },
+        _sum: { totalAmount: true }
+      }).catch(() => null);
+
+      totalRevenue = aggregate?._sum?.totalAmount || 0;
+      await setCache(cacheKey, totalRevenue, 60).catch(() => {});
+    }
+
+    return { invoices, totalRevenue, pageInfo };
   }
 
   static async updateInvoice(id: string, updateData: any) {
