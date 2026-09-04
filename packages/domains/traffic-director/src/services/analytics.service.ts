@@ -1,4 +1,5 @@
 import { prisma, requestContext } from '@workspace/db';
+import { paginateWithCursor, extractPaginationParams } from '@workspace/backend-infra';
 import { EvaluationResult, ExtractedSignals } from '../types';
 
 const db = prisma as any;
@@ -160,7 +161,18 @@ export class TrafficAnalyticsService {
     };
   }
 
-  static async getLogs(companyId?: string, options: { linkId?: string; isBot?: boolean; page?: number; limit?: number } = {}) {
+  static async getLogs(
+    companyId?: string, 
+    options: { 
+      linkId?: string; 
+      isBot?: boolean; 
+      page?: number; 
+      limit?: number;
+      cursor?: string;
+      direction?: 'forward' | 'backward';
+      includeTotalCount?: boolean;
+    } = {}
+  ) {
     const page = options.page || 1;
     const limit = options.limit || 50;
     const skip = (page - 1) * limit;
@@ -180,17 +192,44 @@ export class TrafficAnalyticsService {
       where.isBot = options.isBot;
     }
 
+    const selectIncludes = {
+      link: {
+        select: { name: true, slug: true, fallbackUrl: true }
+      }
+    };
+
+    if (options.cursor) {
+      const result = await paginateWithCursor(db.trafficLog, {
+        where,
+        cursor: options.cursor,
+        limit,
+        direction: options.direction || 'forward',
+        sortField: 'timestamp',
+        sortOrder: 'desc',
+        include: selectIncludes,
+        includeTotalCount: Boolean(options.includeTotalCount)
+      });
+
+      return {
+        logs: result.items,
+        pageInfo: result.pageInfo,
+        total: result.pageInfo.totalCount,
+        pagination: {
+          page,
+          limit,
+          total: result.pageInfo.totalCount || 0,
+          totalPages: Math.ceil((result.pageInfo.totalCount || 0) / limit)
+        }
+      };
+    }
+
     const [logs, total] = await Promise.all([
       db.trafficLog.findMany({
         where,
         orderBy: { timestamp: 'desc' },
         skip,
         take: limit,
-        include: {
-          link: {
-            select: { name: true, slug: true, fallbackUrl: true }
-          }
-        }
+        include: selectIncludes
       }),
       db.trafficLog.count({ where })
     ]);

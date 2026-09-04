@@ -1,14 +1,14 @@
 import { FeatureFlagRepository } from '../repositories/feature-flag.repository';
 
 const DEFAULT_FLAGS = [
-    { flagKey: 'enable_ai', label: 'AI Module', description: 'Enable AI document analysis and chat features', category: 'ai' },
-    { flagKey: 'enable_chat', label: 'Team Chat', description: 'Enable real-time team chat system', category: 'communication' },
-    { flagKey: 'enable_automation', label: 'Automation Module', description: 'Enable workflow automation features', category: 'general' },
-    { flagKey: 'enable_google_drive', label: 'Google Drive Storage', description: 'Allow companies to connect Google Drive for storage', category: 'storage' },
-    { flagKey: 'enable_cloudinary', label: 'Cloudinary Storage', description: 'Allow companies to use Cloudinary for media uploads', category: 'storage' },
-    { flagKey: 'enable_razorpay', label: 'Razorpay Payments', description: 'Enable subscription billing via Razorpay', category: 'billing' },
-    { flagKey: 'enable_mfa', label: 'Multi-Factor Authentication', description: 'Enable MFA for all users', category: 'security' },
-    { flagKey: 'enable_support_tickets', label: 'Support Tickets', description: 'Allow companies to raise support tickets', category: 'general' },
+    { name: 'enable_ai', description: 'Enable AI document analysis and chat features', isEnabled: true },
+    { name: 'enable_chat', description: 'Enable real-time team chat system', isEnabled: true },
+    { name: 'enable_automation', description: 'Enable workflow automation features', isEnabled: true },
+    { name: 'enable_google_drive', description: 'Allow companies to connect Google Drive for storage', isEnabled: false },
+    { name: 'enable_cloudinary', description: 'Allow companies to use Cloudinary for media uploads', isEnabled: false },
+    { name: 'enable_razorpay', description: 'Enable subscription billing via Razorpay', isEnabled: true },
+    { name: 'enable_mfa', description: 'Enable MFA for all users', isEnabled: false },
+    { name: 'enable_support_tickets', description: 'Allow companies to raise support tickets', isEnabled: true },
 ];
 
 export class FeatureFlagService {
@@ -22,17 +22,22 @@ export class FeatureFlagService {
         return flags;
     }
 
-    static async create(data: any, adminId: string) {
-        return await FeatureFlagRepository.create({ ...data, updatedBy: adminId });
+    static async create(data: any, _adminId?: string) {
+        const flagName = data.name || data.key;
+        return await FeatureFlagRepository.create({
+            name: flagName,
+            description: data.description || null,
+            isEnabled: data.isEnabled ?? false,
+            rules: data.rules ?? undefined
+        });
     }
 
-    static async toggle(id: string, adminId: string) {
+    static async toggle(id: string, _adminId?: string) {
         const flag = await FeatureFlagRepository.findById(id);
         if (!flag) throw new Error('Flag not found');
         
         return await FeatureFlagRepository.update(id, {
-            isEnabled: !flag.isEnabled,
-            updatedBy: adminId
+            isEnabled: !flag.isEnabled
         });
     }
 
@@ -41,3 +46,4 @@ export class FeatureFlagService {
         return true;
     }
 }
+

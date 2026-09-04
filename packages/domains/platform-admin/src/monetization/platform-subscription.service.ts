@@ -1,9 +1,27 @@
 import { PlatformSubscriptionRepository } from '../repositories/platform-subscription.repository';
+import { prisma } from '@workspace/db';
 
 export class PlatformSubscriptionService {
     static async list(page: number, limit: number, status: string) {
         const [subscriptions, total] = await PlatformSubscriptionRepository.list(page, limit, status);
-        return { subscriptions, total };
+        
+        const companyIds = Array.from(new Set(subscriptions.map(s => s.companyId).filter(Boolean)));
+        const companies = companyIds.length > 0 
+            ? await prisma.company.findMany({
+                where: { id: { in: companyIds } },
+                select: { id: true, name: true, adminEmail: true }
+              })
+            : [];
+            
+        const companyMap = new Map(companies.map(c => [c.id, c.name]));
+
+        const enriched = subscriptions.map(s => ({
+            ...s,
+            companyName: companyMap.get(s.companyId) || 'Unknown Organization',
+            planName: s.plan?.planName || 'Custom Tier'
+        }));
+
+        return { subscriptions: enriched, total };
     }
 
     static async cancel(id: string, reason: string) {

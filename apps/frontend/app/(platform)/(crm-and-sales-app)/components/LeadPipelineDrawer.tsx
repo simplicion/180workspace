@@ -28,7 +28,10 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     const [users, setUsers] = useState<any[]>([]);
     const [loadingAccounts, setLoadingAccounts] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [currencies, setCurrencies] = useState<any>({ rates: {}, base: 'USD' });
+    const [currencies, setCurrencies] = useState<any>({ 
+        rates: { USD: 1, INR: 83.5, EUR: 0.92, GBP: 0.79, CAD: 1.36, AUD: 1.52, AED: 3.67, SGD: 1.35 }, 
+        base: 'USD' 
+    });
     const { company } = useSettings();
     const [deleting, setDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -46,7 +49,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     const [formData, setFormData] = useState({
         title: '',
         accountId: '',
-        value: 0,
+        value: '' as any,
         stage: 'Lead',
         probability: 10,
         expectedCloseDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
@@ -92,10 +95,6 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
 
     useEffect(() => {
         if (open) {
-            fetchAccounts();
-            fetchUsers();
-            fetchCurrencies();
-            
             const now = new Date();
             // Format to YYYY-MM-DDThh:mm for datetime-local
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -177,6 +176,17 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     const [categoriesList, setCategoriesList] = useState<string[]>([
         'Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare'
     ]);
+
+    const fetchCurrencies = async () => {
+        try {
+            const { data } = await api.get('/api/finance/currencies').catch(() => ({ data: null }));
+            if (data?.rates) {
+                setCurrencies(data);
+            }
+        } catch (error) {
+            // Default rates are already initialized in state
+        }
+    };
 
     const fetchCategories = async () => {
         try {

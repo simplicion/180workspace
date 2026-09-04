@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { AILogo, AILogoIcon } from './AILogo';
 
 export type AIDrawerMode = 'form' | 'website' | 'document' | 'general';
 
@@ -99,11 +100,11 @@ const MODE_CONFIG: Record<AIDrawerMode, {
         endpoint: '/api/v1/ai/documents/generate-section'
     },
     general: {
-        title: '180 Workspace AI Copilot',
-        subtitle: 'Universal Enterprise Intelligence',
+        title: 'Orbit Copilot',
+        subtitle: 'Powered by Orbit Intelligence',
         icon: <Sparkles className="w-4 h-4 text-amber-300" />,
         themeGradient: 'from-indigo-600 via-purple-600 to-pink-600',
-        welcomeText: () => `👋 Hello! I am your **180 Workspace Universal AI Copilot**.\n\nHow can I help you automate, design, or execute today?`,
+        welcomeText: () => `👋 Hello! I am your **Orbit Copilot**.\n\nHow can I help you automate, design, or execute today?`,
         quickPrompts: [
             { label: '⚡ Summarize Context', prompt: 'Summarize the key objectives and action items for this workspace.' },
             { label: '📈 Sales Forecast', prompt: 'Analyze our current pipeline and provide revenue projections.' },
@@ -390,9 +391,7 @@ export function UniversalAIDrawer({
                 {/* Header: Title, Live Sync Status, Preset Widths, Close */}
                 <div className="flex-shrink-0 px-4 py-3.5 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/60 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={clsx("w-8 h-8 rounded-xl bg-gradient-to-tr flex items-center justify-center shadow-md flex-shrink-0", config.themeGradient)}>
-                            {config.icon}
-                        </div>
+                        <AILogo size={32} className="rounded-xl flex-shrink-0 shadow-md shadow-indigo-500/20" />
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <h3 className="text-xs font-black tracking-tight text-zinc-900 dark:text-zinc-100 uppercase truncate">
@@ -488,9 +487,7 @@ export function UniversalAIDrawer({
                             )}
                         >
                             {msg.sender === 'assistant' && (
-                                <div className={clsx("w-6 h-6 rounded-lg bg-gradient-to-tr flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs", config.themeGradient)}>
-                                    <Bot className="w-3.5 h-3.5 text-white" />
-                                </div>
+                                <AILogo size={24} className="rounded-lg shadow-xs flex-shrink-0 mt-0.5" />
                             )}
 
                             <div
@@ -534,9 +531,7 @@ export function UniversalAIDrawer({
 
                     {isLoading && (
                         <div className="flex gap-2.5 items-center text-xs text-indigo-600 dark:text-indigo-400">
-                            <div className={clsx("w-6 h-6 rounded-lg bg-gradient-to-tr flex items-center justify-center shadow-xs", config.themeGradient)}>
-                                <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
-                            </div>
+                            <AILogo size={24} className="rounded-lg shadow-xs flex-shrink-0 animate-pulse" />
                             <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 flex items-center gap-2">
                                 <span className="animate-pulse font-medium">Synthesizing live changes with {aiStatus.model}...</span>
                             </div>

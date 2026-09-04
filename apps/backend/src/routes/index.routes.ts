@@ -175,6 +175,10 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/settings', '/v1/settings/configs');
     } else if (path.startsWith('/settings/')) {
         req.url = req.url.replace('/settings', '/v1/settings');
+    } else if (path.startsWith('/support/tickets') || path === '/support/tickets') {
+        req.url = req.url.replace('/support/tickets', '/v1/settings/support');
+    } else if (path.startsWith('/support/') || path === '/support') {
+        req.url = req.url.replace('/support', '/v1/settings/support');
     }
     
     next();
@@ -263,11 +267,31 @@ router.post('/evaluate/:slug', (req, res) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
 });
 router.use('/setup', setupRoutes);
-// Health moved to system routes
-// Release notes are now handled in communications
+// Release notes endpoint
+router.get('/release-notes', async (req, res, next) => {
+    try {
+        const { ReleaseNoteService } = require('@workspace/platform-admin');
+        const notes = await ReleaseNoteService.listPublished();
+        res.json({ success: true, data: { releaseNotes: notes } });
+    } catch (err) {
+        next(err);
+    }
+});
+router.get('/v1/release-notes', async (req, res, next) => {
+    try {
+        const { ReleaseNoteService } = require('@workspace/platform-admin');
+        const notes = await ReleaseNoteService.listPublished();
+        res.json({ success: true, data: { releaseNotes: notes } });
+    } catch (err) {
+        next(err);
+    }
+});
 router.use('/company-profile', require('../api/v1/company/routes/company-profile.routes').default);
 router.use('/integrations', require('../api/v1/integrations/index').default);
 router.use('/system', require('../api/v1/system/index').default);
+// ─── Super Admin (isolated) ────────────────────────────────────────────────
+router.use('/superadmin', require('../api/v1/platform-admin/index').default);
+
 // ─── Subscription Guard (Protect business routes) ──────────────────────────
 // Merged init endpoint
 const { getInit } = require('../api/v1/system/init/init.controller');
@@ -284,11 +308,10 @@ const featureFlagGuard = require('../system-configs/middleware/billing/featureFl
 router.use('/onboarding', protect, moduleGuard('hr'), require('../api/v1/company/onboarding/onboarding.routes').default);
 router.use('/company-config', protect, require('../api/v1/company/routes/company-config.routes').default);
 
-// ─── Super Admin (isolated) ────────────────────────────────────────────────
-router.use('/superadmin', require('../api/v1/platform-admin/index').default);
-
-// ─── Support & Billing ─────────────────────────────────────────────────────
-// router.use('/support/tickets', supportRoutes);
-
+// ─── Support & Tickets ─────────────────────────────────────────────────────
+const { supportRoutes } = require('../api/v1/settings/support/support.routes');
+router.use('/support/tickets', protect, supportRoutes);
+router.use('/support', protect, supportRoutes);
+router.use('/v1/support', protect, supportRoutes);
 
 export default router;

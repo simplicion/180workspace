@@ -390,7 +390,7 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
                                 this.createText('Growth Pro', { fontWeight: 'bold', fontSize: '1.35rem', color: '#0f172a', marginBottom: '0.5rem' }),
                                 this.createText('$79', { fontWeight: '900', fontSize: '2.5rem', color: primaryColor }),
                                 this.createText('per user / month billed annually', { fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1.5rem' }),
-                                this.createText('• Unlimited Team Members\n• Full AI Copilot & Memory\n• Automated Invoicing & Payroll\n• Priority 24/7 Support', { lineHeight: '2', opacity: 0.8, color: '#475569', marginBottom: '2rem' }),
+                                this.createText('• Unlimited Team Members\n• Full Orbit Copilot & Memory\n• Automated Invoicing & Payroll\n• Priority 24/7 Support', { lineHeight: '2', opacity: 0.8, color: '#475569', marginBottom: '2rem' }),
                                 this.createButton('Unlock Growth Plan', { backgroundColor: primaryColor, color: '#ffffff' })
                             ], { backgroundColor: '#ffffff', borderRadius: '1.25rem', padding: '2rem', borderStyle: 'solid', borderWidth: '2px', borderColor: primaryColor, transform: 'scale(1.03)', boxShadow: '0 20px 25px -5px rgba(79, 70, 229, 0.15)' }),
                             this.createBox([
@@ -609,7 +609,7 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
                         ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' }),
                         this.createBox([
                             this.createText('⭐⭐⭐⭐⭐', { fontSize: '1.1rem', marginBottom: '0.75rem' }),
-                            this.createText('"The AI Copilot and live document generation saved our engineering and sales teams 20+ hours every single week."', { fontStyle: 'italic', color: '#334155', lineHeight: '1.6', marginBottom: '1rem' }),
+                            this.createText('"The Orbit Copilot and live document generation saved our engineering and sales teams 20+ hours every single week."', { fontStyle: 'italic', color: '#334155', lineHeight: '1.6', marginBottom: '1rem' }),
                             this.createText('Marcus Sterling — Head of Product, FinEdge', { fontWeight: 'bold', fontSize: '0.95rem', color: '#0f172a' })
                         ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.75rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' })
                     ], { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', width: '100%' })

@@ -38,9 +38,41 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         position="top-right"
                         toastOptions={{
                             duration: 4000,
-                            style: { borderRadius: '12px', fontSize: '14px', fontWeight: 500 },
-                            success: { style: { background: '#ecfdf5', color: '#065f46', border: '1px solid #d1fae5' } },
-                            error: { style: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fee2e2' } },
+                            style: { 
+                                borderRadius: '14px', 
+                                fontSize: '13px', 
+                                fontWeight: 600,
+                                boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                padding: '12px 16px',
+                                zIndex: 999999
+                            },
+                            success: { 
+                                style: { 
+                                    background: '#ffffff', 
+                                    color: '#065f46', 
+                                    border: '1px solid #a7f3d0' 
+                                } 
+                            },
+                            error: { 
+                                style: { 
+                                    background: '#ffffff', 
+                                    color: '#991b1b', 
+                                    border: '1px solid #fecaca' 
+                                } 
+                            },
+                            loading: {
+                                style: {
+                                    background: '#ffffff',
+                                    color: '#1e293b',
+                                    border: '1px solid #e2e8f0'
+                                }
+                            }
+                        }}
+                        containerStyle={{
+                            top: 24,
+                            right: 24,
+                            zIndex: 999999,
                         }}
                     />
                 </Providers>

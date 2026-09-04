@@ -20,6 +20,7 @@ import { signOut } from 'next-auth/react';
 import { MeetingProvider, useMeeting } from '@/lib/meeting-context';
 import FloatingMeetingPiP from '@/components/shared/FloatingMeetingPiP';
 import { AICopilotFloatingWidget } from './(workspace-tools-app)/ai/_components/AICopilotFloatingWidget';
+import { QuickSupportFloatingWidget } from './_components/QuickSupportFloatingWidget';
 
 const safeImport = (importFn: () => Promise<any>) => {
     return importFn().catch((err) => {
@@ -43,6 +44,7 @@ import SystemSetupStatus from '@/app/(platform)/(dashboard)/_components/SystemSe
 import NotificationsPanel from '@/components/shared/NotificationsPanel';
 import TrialBanner from '@/components/shared/TrialBanner';
 import SubscriptionExpiredWall from '@/components/shared/SubscriptionExpiredWall';
+import CompanySuspendedWall from '@/components/shared/CompanySuspendedWall';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { MODULE_MAP, APP_DEPENDENCIES } from '@/lib/module-map';
@@ -52,7 +54,7 @@ import UploadQueueManager from '@/components/shared/UploadQueueManager';
 // navigation moved to ../../lib/navigation.ts
 
 const TOOLS = [
-    { name: 'AI Assistant', desc: 'Chat with your AI', href: '/ai', icon: Bot, color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', text: 'text-violet-700' },
+    { name: 'Orbit Copilot', desc: 'Chat with Orbit Copilot', href: '/ai', icon: Bot, color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', text: 'text-violet-700' },
     { name: 'Analytics', desc: 'Reports & insights', href: '/analytics', icon: BarChart3, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-700' },
     { name: 'Chat', desc: 'Team messaging', href: '/chat', icon: MessageSquare, color: 'from-sky-500 to-cyan-600', bg: 'bg-sky-50', text: 'text-sky-700' },
     { name: 'Documents', desc: 'Files & documents', href: '/documents', icon: FolderOpen, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-700' },
@@ -157,7 +159,7 @@ function ToolsDropdown() {
                             >
                                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out rounded-xl" />
                                 <Bot className="w-4 h-4 relative z-10 group-hover:animate-bounce" />
-                                <span className="relative z-10">Open AI Assistant</span>
+                                <span className="relative z-10">Open Orbit Copilot</span>
                             </Link>
                         </div>
                     </motion.div>
@@ -865,6 +867,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
     if (!user) return null;
 
+    // Check for suspended company account
+    if (company && (company.accountStatus === 'suspended' || company.subscriptionStatus === 'suspended')) {
+        return <CompanySuspendedWall />;
+    }
+
     // Force collapse on Apps & Settings screen as requested for "only show icon" look
     const isAppsScreen = pathname === '/settings/apps';
     const isMeetingFullscreen = meeting?.isActive && !meeting?.isMinimized;
@@ -962,6 +969,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             </main>
             <FloatingMeetingPiP />
             <AICopilotFloatingWidget />
+            <QuickSupportFloatingWidget />
         </div>
     );
 }

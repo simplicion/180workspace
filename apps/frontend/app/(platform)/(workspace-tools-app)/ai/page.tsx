@@ -1,6 +1,6 @@
 'use client';
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, AILogo, AILogoIcon } from "@workspace/ui";
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { 
     Sparkles, Send, User, RefreshCw, Copy, Check, MessageSquare, Plus, Trash2, 
@@ -65,13 +65,13 @@ type AIMode = 'global' | 'document' | 'analytics' | 'crm' | 'legal' | 'hrms';
 
 const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any; color: string; bg: string; welcome: string; placeholder: string; suggestions: string[] }> = {
     global: {
-        title: 'Workspace Copilot',
-        shortTitle: 'Copilot',
+        title: 'Orbit Copilot',
+        shortTitle: 'Orbit',
         icon: Sparkles,
         color: 'text-indigo-600',
         bg: 'bg-indigo-50 border-indigo-200 text-indigo-700',
-        welcome: "**Welcome to 180 Workspace AI Copilot! ⚡**\n\nI have real-time awareness across your entire organization — projects, sprint health, CRM leads, invoices, team members, and documents.\n\nAsk me anything or pick a quick action below to get started.",
-        placeholder: "Ask about projects, leads, documents, financial stats, or team metrics...",
+        welcome: "**Welcome to Orbit Copilot! ⚡**\n\nI have real-time awareness across your entire organization — projects, sprint health, CRM leads, invoices, team members, and documents.\n\nAsk me anything or pick a quick action below to get started.",
+        placeholder: "Ask Orbit Copilot about projects, leads, documents, financial stats, or team metrics...",
         suggestions: [
             'What projects are currently active?',
             'Give me a summary of unpaid invoices and pipeline leads',
@@ -160,10 +160,13 @@ const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB Max
 const ALLOWED_EXTENSIONS = ['.txt', '.md', '.markdown', '.json', '.csv', '.pdf', '.docx', '.doc', '.ts', '.js', '.jsx', '.tsx', '.py', '.sql', '.html', '.css', '.xml', '.yaml', '.yml', '.env'];
 
 export default function AIAssistantPage() {
-    const { user } = useAuth();
+    const { user, company } = useAuth();
     const router = useRouter();
     const userRole = (user?.role || 'employee').toLowerCase();
     const isAdmin = userRole === 'admin';
+    const userPhoto = (user as any)?.photoUrl || (user as any)?.avatar || (user as any)?.profilePicture || (user as any)?.image || (company as any)?.companyLogo || (company as any)?.logoUrl;
+    const userName = user?.name || ((user as any)?.firstName ? `${(user as any).firstName} ${(user as any).lastName || ''}`.trim() : '') || user?.email?.split('@')[0] || 'You';
+    const userInitial = userName?.[0]?.toUpperCase() || 'U';
     const [mode, setMode] = useState<AIMode>('global');
     const [messages, setMessages] = useState<Message[]>([
         {
@@ -713,33 +716,11 @@ export default function AIAssistantPage() {
                             {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
                         </button>
 
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-md shadow-indigo-100 text-white shrink-0">
-                            <Bot className="w-5 h-5" />
-                        </div>
+                        <AILogo size={38} className="rounded-xl shadow-md shadow-indigo-500/20" />
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-base font-bold text-slate-900 tracking-tight">180 Workspace AI Copilot</h1>
-                                <span className={clsx(
-                                    "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-xs",
-                                    isAdmin
-                                        ? "bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 text-indigo-700"
-                                        : "bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200 text-sky-700"
-                                )}>
-                                    <span className={clsx("w-1.5 h-1.5 rounded-full", isAdmin ? "bg-indigo-500 animate-pulse" : "bg-sky-500 animate-pulse")}></span>
-                                    {isAdmin ? '⚡ Executive Copilot' : '🧭 Workplace Companion'}
-                                </span>
-                                <span className={clsx(
-                                    "hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border",
-                                    aiConfig.isConfigured 
-                                        ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
-                                        : "bg-amber-50 border-amber-200 text-amber-700"
-                                )}>
-                                    <span className={clsx("w-1.5 h-1.5 rounded-full", aiConfig.isConfigured ? "bg-emerald-500 animate-pulse" : "bg-amber-500")}></span>
-                                    {aiConfig.isConfigured ? aiConfig.model : 'AI Unconfigured'}
-                                </span>
-                            </div>
+                            <h1 className="text-base font-bold text-slate-900 tracking-tight">Orbit Copilot</h1>
                             <p className="text-xs text-slate-500 hidden sm:block">
-                                {isAdmin ? 'Autonomous Executive Operating System · 10-App Universal Execution' : 'Workplace Companion & Interactive Feature Walkthrough Guide'}
+                                {isAdmin ? 'Autonomous Executive Operating System · Powered by Orbit AI' : 'Workplace Companion & Interactive Feature Walkthrough Guide'}
                             </p>
                         </div>
                     </div>
@@ -800,19 +781,36 @@ export default function AIAssistantPage() {
                                 key={msg.id} 
                                 className={clsx("flex gap-3 max-w-3xl", isUser ? "ml-auto flex-row-reverse" : "mr-auto")}
                             >
-                                <div className={clsx(
-                                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white shadow-xs",
-                                    isUser ? "bg-slate-800" : "bg-gradient-to-tr from-indigo-600 to-purple-600"
-                                )}>
-                                    {isUser ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-                                </div>
+                                {isUser ? (
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 text-white shadow-xs overflow-hidden border border-slate-200 dark:border-slate-700 mt-0.5">
+                                        {userPhoto ? (
+                                            <img src={userPhoto} alt={userName} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-xs font-black">{userInitial}</span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <AILogo size={32} className="rounded-xl shadow-xs shrink-0 mt-0.5" />
+                                )}
 
-                                <div className={clsx(
-                                    "rounded-2xl p-4 text-sm leading-relaxed shadow-xs",
-                                    isUser 
-                                        ? "bg-slate-900 text-white rounded-tr-xs" 
-                                        : "bg-white border border-slate-200 text-slate-800 rounded-tl-xs"
-                                )}>
+                                <div className={clsx("flex flex-col min-w-0 flex-1", isUser ? "items-end" : "items-start")}>
+                                    <div className={clsx("flex items-center gap-1.5 mb-1 px-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400", isUser ? "flex-row-reverse" : "")}>
+                                        <span className="font-bold text-slate-700 dark:text-slate-200">
+                                            {isUser ? userName : 'Orbit Copilot'}
+                                        </span>
+                                        {msg.timestamp && (
+                                            <span className="text-[10px] text-slate-400">
+                                                • {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className={clsx(
+                                        "rounded-2xl p-4 text-sm leading-relaxed shadow-xs w-fit max-w-full",
+                                        isUser 
+                                            ? "bg-slate-900 text-white rounded-tr-xs" 
+                                            : "bg-white border border-slate-200 text-slate-800 rounded-tl-xs"
+                                    )}>
                                     {/* Attachment Pill if User uploaded file */}
                                     {msg.attachment && (
                                         <div className="mb-2.5 p-2 bg-slate-800/80 rounded-lg border border-slate-700 flex items-center gap-2 text-xs text-indigo-200">
@@ -888,6 +886,7 @@ export default function AIAssistantPage() {
                                             </button>
                                         </div>
                                     )}
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -895,9 +894,7 @@ export default function AIAssistantPage() {
 
                     {loading && (
                         <div className="flex gap-3 max-w-3xl mr-auto">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shrink-0 text-white shadow-xs">
-                                <Sparkles className="w-4 h-4 animate-spin" />
-                            </div>
+                            <AILogo size={32} className="rounded-lg shadow-xs animate-pulse" />
                             <div className="rounded-2xl rounded-tl-xs p-4 bg-white border border-slate-200 shadow-xs flex items-center gap-3 text-sm text-slate-500">
                                 <div className="flex items-center gap-1">
                                     <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"></span>

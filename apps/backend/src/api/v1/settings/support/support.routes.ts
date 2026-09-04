@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/', validateRequest(SupportValidation.createTicket), SupportController.createTicket);
+router.post('/quick', validateRequest(SupportValidation.createQuickReport), SupportController.createQuickReport);
 router.get('/', SupportController.listTickets);
 router.get('/:id', SupportController.getTicket);
 router.post('/:id/reply', validateRequest(SupportValidation.addReply), SupportController.addReply);

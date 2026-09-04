@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '@/lib/api';
 import {
     BarChart2, Download, Users, Calendar, DollarSign, FolderKanban,
@@ -87,38 +87,72 @@ export default function ReportsPage() {
 
     const [error, setError] = useState<string | null>(null);
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const fetchData = useCallback(async () => {
-        setLoading(true);
+        const cacheKey = `reports:${tab}:${month}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            if (tab === 'attendance') setAttendanceSummary(cached.data);
+            else if (tab === 'payroll') setSalaries(cached.data);
+            else if (tab === 'projects') setProjects(cached.data);
+            else if (tab === 'employees') setEmployees(cached.data);
+            else if (tab === 'expenses') setExpenses(cached.data);
+            else if (tab === 'assets') setAssets(cached.data);
+            else if (tab === 'leaves') setLeaves(cached.data);
+            else if (tab === 'goals') setGoals(cached.data);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         setError(null);
         try {
             if (tab === 'attendance') {
                 const { data } = await api.get('/api/attendance/monthly-report', { params: { month } });
                 setAttendanceSummary(data);
+                swrCacheRef.current.set(cacheKey, { data, timestamp: Date.now() });
             } else if (tab === 'payroll') {
                 const { data } = await api.get('/api/salary', { params: { month } });
-                setSalaries(data.salaries || []);
+                const fetched = data.salaries || [];
+                setSalaries(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
             } else if (tab === 'projects') {
                 const { data } = await api.get('/api/projects', { params: { limit: 200 } });
-                setProjects(data.projects || []);
+                const fetched = data.projects || [];
+                setProjects(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
             } else if (tab === 'employees') {
                 const { data } = await api.get('/api/users', { params: { limit: 200 } });
-                setEmployees(data.users || []);
+                const fetched = data.users || [];
+                setEmployees(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
             } else if (tab === 'expenses') {
                 const { data } = await api.get('/api/expenses', { params: { month, limit: 200 } });
-                setExpenses(data.expenses || []);
+                const fetched = data.expenses || [];
+                setExpenses(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
             } else if (tab === 'assets') {
                 const { data } = await api.get('/api/assets', { params: { limit: 200 } });
-                setAssets(data.assets || []);
+                const fetched = data.assets || [];
+                setAssets(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
             } else if (tab === 'leaves') {
                 const { data } = await api.get('/api/leaves', { params: { month, limit: 200 } });
-                setLeaves(data.leaves || []);
+                const fetched = data.leaves || [];
+                setLeaves(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
             } else if (tab === 'goals') {
                 const { data } = await api.get('/api/goals', { params: { limit: 200 } });
-                setGoals(data.goals || []);
+                const fetched = data.goals || [];
+                setGoals(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
             }
         } catch (err: any) {
             const msg = err?.response?.data?.error || 'Failed to load report data';
-            setError(msg);
+            if (!cached) setError(msg);
         } finally { setLoading(false); }
     }, [tab, month]);
 

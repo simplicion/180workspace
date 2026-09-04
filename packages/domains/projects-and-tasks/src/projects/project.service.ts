@@ -1,5 +1,5 @@
 import { prisma } from '@workspace/db';
-import { logAction, triggerAutomation } from '@workspace/backend-infra';
+import { logAction, triggerAutomation, paginateWithCursor, extractPaginationParams } from '@workspace/backend-infra';
 
 interface UserContext {
     id: string;
@@ -22,10 +22,18 @@ export class ProjectService {
 
         if (query?.status) filter.status = query.status;
 
-        const projects = await prisma.project.findMany({
+        const paginationParams = extractPaginationParams(query || {});
+        const paginatedResult = await paginateWithCursor(prisma.project, {
             where: filter,
-            orderBy: { createdAt: 'desc' }
+            cursor: paginationParams.cursor,
+            limit: paginationParams.limit,
+            direction: paginationParams.direction,
+            sortField: paginationParams.sortField || 'createdAt',
+            sortOrder: paginationParams.sortOrder || 'desc',
+            includeTotalCount: Boolean(query?.includeTotalCount || query?.page)
         });
+
+        const projects = paginatedResult.items;
 
         // Manually fetch owners as ownerId doesn't have a Prisma relation
         const ownerIds = [...new Set(projects.map((p: any) => p.ownerId).filter(Boolean))];
@@ -67,7 +75,11 @@ export class ProjectService {
             clientIds: (p.clientIds || []).map((id: string) => clientMap[id] || { id, name: 'Unknown' })
         }));
 
-        return { projects: projectsWithOwnersAndClients };
+        return { 
+            projects: projectsWithOwnersAndClients,
+            pageInfo: paginatedResult.pageInfo,
+            total: paginatedResult.pageInfo.totalCount 
+        };
     }
 
     static async createProject({ data, user }: { data: any, user: UserContext }) {

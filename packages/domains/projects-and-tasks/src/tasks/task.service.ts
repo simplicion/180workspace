@@ -1,5 +1,5 @@
 import { prisma, requestContext } from '@workspace/db';
-import { logAction, triggerAutomation, emitSocket } from '@workspace/backend-infra';
+import { logAction, triggerAutomation, emitSocket, paginateWithCursor, extractPaginationParams } from '@workspace/backend-infra';
 
 export interface UserContext {
     id: string;
@@ -11,9 +11,14 @@ export interface UserContext {
 
 export class TaskService {
     static async getTasks(
-        { projectId, assigneeId, moduleId, status, priority, clientId, date, page = 1, limit = 100 }: any,
+        filters: any = {},
         user: UserContext
     ) {
+        const { 
+            projectId, assigneeId, moduleId, status, priority, clientId, date, 
+            page = 1, limit = 100, cursor, direction, sortField, sortOrder 
+        } = filters;
+
         const query: any = { deletedAt: null };
         if (projectId) query.projectId = projectId;
         if (assigneeId) query.assigneeId = assigneeId;
@@ -42,15 +47,42 @@ export class TaskService {
             ];
         }
 
+        const selectIncludes = {
+            assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+            creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
+            project: { select: { id: true, name: true, status: true } }
+        };
+
+        if (cursor) {
+            const paginatedResult = await paginateWithCursor(prisma.task, {
+                where: query,
+                cursor,
+                limit: Number(limit) || 20,
+                direction: direction || 'forward',
+                sortField: sortField || 'createdAt',
+                sortOrder: sortOrder || 'desc',
+                include: selectIncludes,
+                includeTotalCount: true
+            });
+
+            const mappedTasks = paginatedResult.items.map((t: any) => ({
+                ...t,
+                projectId: t.project ? { id: t.projectId, name: t.project.name, status: t.project.status } : t.projectId,
+                project: undefined
+            }));
+
+            return { 
+                tasks: mappedTasks, 
+                total: paginatedResult.pageInfo.totalCount,
+                pageInfo: paginatedResult.pageInfo 
+            };
+        }
+
         const skip = (Number(page) - 1) * Number(limit);
         const [tasks, total] = await Promise.all([
             prisma.task.findMany({
                 where: query,
-                include: {
-                    assignee: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
-                    creator: { select: { id: true, name: true, email: true, photoUrl: true, role: true } },
-                    project: { select: { id: true, name: true, status: true } }
-                },
+                include: selectIncludes,
                 orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
                 skip,
                 take: Number(limit)

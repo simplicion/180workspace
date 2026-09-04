@@ -23,9 +23,13 @@ interface Company {
     id: string;
     _id?: string;
     name: string;
+    companyName?: string;
     slug: string;
     logoUrl?: string;   // Company branding logo, returned by /api/auth/me
     companyLogo?: string; // Alias for consistency with SettingsContext
+    accountStatus?: string;
+    subscriptionStatus?: string;
+    metadata?: any;
     settings?: any;
     branding?: any;
 }

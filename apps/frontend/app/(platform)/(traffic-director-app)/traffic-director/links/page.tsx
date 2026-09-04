@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   GitFork, Link as LinkIcon, Plus, Search, Copy, Check, ExternalLink, 
@@ -25,16 +25,33 @@ export default function SmartLinksDirectoryPage() {
     loading: false
   });
 
+  // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+  const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
   const fetchLinks = async () => {
-    try {
+    const cacheKey = `traffic:links:${search || 'all'}`;
+    const cached = swrCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      // Instant 0ms Paint
+      setLinks(cached.data || []);
+      setLoading(false);
+    } else {
       setLoading(true);
+    }
+
+    try {
       const res = await api.get('/api/v1/traffic-director/links', {
         params: { search: search || undefined }
       });
-      setLinks(res.data?.data?.links || []);
+      const fetched = res.data?.data?.links || [];
+      setLinks(fetched);
+      swrCacheRef.current.set(cacheKey, {
+        data: fetched,
+        timestamp: Date.now()
+      });
     } catch (error: any) {
-      console.error('Failed to fetch links:', error);
-      setLinks([]);
+      if (!cached) setLinks([]);
     } finally {
       setLoading(false);
     }

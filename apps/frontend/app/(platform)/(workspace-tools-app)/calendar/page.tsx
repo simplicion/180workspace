@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '@/lib/api';
 import { ChevronLeft, ChevronRight, Plus, X, Calendar, Trash2, Circle, Video, MapPin, Link2, Users, Clock, Mail, RefreshCw, ExternalLink, CheckCircle, Phone, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
@@ -439,11 +439,29 @@ export default function CalendarPage() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     function loadEvents() {
-        setLoading(true);
+        const cacheKey = `calendar:${year}:${month}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setEvents(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/calendar', { params: { year, month } })
-            .then(({ data }) => setEvents(data.events || []))
-            .catch(() => setEvents([]))
+            .then(({ data }) => {
+                const fetched = data.events || [];
+                setEvents(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
+            })
+            .catch(() => {
+                if (!cached) setEvents([]);
+            })
             .finally(() => setLoading(false));
     }
 

@@ -74,7 +74,7 @@ export class AIAgentExecutor {
 
         let finalReply = '';
         if (toolOutput) {
-            const systemPrompt = `You are the 180 Workspace AI Copilot for ${companyName}.
+            const systemPrompt = `You are Orbit Copilot (powered by Orbit AI) for ${companyName}.
 An algorithmic database query was already executed to retrieve the exact real-time workspace data below:
 
 DETERMINISTIC TOOL EXECUTED: "${matchedToolName}"
@@ -98,7 +98,7 @@ Provide an executive, concise, and structured summary of these exact metrics. Do
             // Standard conversational fallback
             if (client) {
                 try {
-                    const fallbackPrompt = `You are the 180 Workspace AI Copilot for ${companyName}.\nUSER QUESTION: "${prompt}"\nProvide a helpful, executive response.`;
+                    const fallbackPrompt = `You are Orbit Copilot (powered by Orbit AI) for ${companyName}.\nUSER QUESTION: "${prompt}"\nProvide a helpful, executive response.`;
                     finalReply = await client.generate(fallbackPrompt, { max_tokens: 1000 });
                 } catch (err: any) {
                     finalReply = `I received your query regarding "${prompt}". Please ensure your workspace configuration is complete in Settings.`;

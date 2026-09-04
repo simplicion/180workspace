@@ -1,6 +1,7 @@
 import { prisma } from '@workspace/db';
 import { AutomationService } from '@workspace/automations';
 import { aiAutomationService as AIAutomationService } from '@workspace/ai';
+import { paginateWithCursor, extractPaginationParams } from '@workspace/backend-infra';
 // Assume these might exist, for now just stub them or import from original path if they exist
 // const googleDriveService = require('../../../../../platform-core/platform-storage/services/google-drive.service');
 // const { getPresignedUploadUrl } = require('../../../../../platform-core/platform-storage/services/r2');
@@ -137,12 +138,33 @@ export class StorageService {
             query.isConfidential = false;
         }
 
+        const selectIncludes = {
+            uploadedBy: { select: { name: true, email: true } }
+        };
+
+        if (params.cursor) {
+            const paginationResult = await paginateWithCursor(prisma.document, {
+                where: query,
+                cursor: params.cursor,
+                limit: Math.min(Number(params.limit) || 50, 100),
+                direction: params.direction || 'forward',
+                include: selectIncludes,
+                includeTotalCount: Boolean(params.includeTotalCount)
+            });
+
+            return {
+                files: paginationResult.items,
+                pageInfo: paginationResult.pageInfo,
+                total: paginationResult.pageInfo.totalCount
+            };
+        }
+
+        const limit = Math.min(Number(params.limit) || 100, 100);
         return await prisma.document.findMany({
             where: query,
-            include: {
-                uploadedBy: { select: { name: true, email: true } }
-            },
-            orderBy: { createdAt: 'desc' }
+            include: selectIncludes,
+            orderBy: { createdAt: 'desc' },
+            take: limit
         });
     }
 

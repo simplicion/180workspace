@@ -2,8 +2,13 @@ import { z } from 'zod';
 
 export const createFeatureFlagSchema = z.object({
     body: z.object({
-        key: z.string().min(1, 'Key is required'),
+        name: z.string().optional(),
+        key: z.string().optional(),
         description: z.string().optional(),
         isEnabled: z.boolean().optional()
+    }).refine(data => !!(data.name || data.key), {
+        message: 'Name or key is required',
+        path: ['name']
     })
 });
+

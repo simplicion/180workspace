@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '@/lib/api';
 import { CheckSquare, Plus, LayoutGrid, List, User } from 'lucide-react';
 import { SkeletonListItem, SkeletonKanbanColumn } from "@workspace/ui";
@@ -73,8 +73,21 @@ export default function TasksPage() {
         });
     }, [filterProject]);
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const loadTasks = useCallback(() => {
-        setLoading(true);
+        const cacheKey = `tasks:${filterStatus}:${filterPriority}:${filterProject}:${filterModule}:${filterClient}:${filterDate}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setTasks(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/tasks', { 
             params: { 
                 status: filterStatus, 
@@ -85,7 +98,17 @@ export default function TasksPage() {
                 date: filterDate
             } 
         })
-            .then(({ data }) => setTasks(data.tasks))
+            .then(({ data }) => {
+                const fetchedTasks = data.tasks || [];
+                setTasks(fetchedTasks);
+                swrCacheRef.current.set(cacheKey, {
+                    data: fetchedTasks,
+                    timestamp: Date.now()
+                });
+            })
+            .catch(() => {
+                if (!cached) toast.error('Failed to load tasks');
+            })
             .finally(() => setLoading(false));
     }, [filterStatus, filterPriority, filterProject, filterModule, filterClient, filterDate]);
 

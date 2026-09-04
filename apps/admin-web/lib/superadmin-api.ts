@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const saApi = axios.create({
-    baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/superadmin`,
+    baseURL: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/superadmin`,
     timeout: 30000,
 });
 
@@ -16,7 +16,9 @@ saApi.interceptors.response.use(
     (err) => {
         if (err.response?.status === 401 && typeof window !== 'undefined') {
             localStorage.removeItem('superadmin_token');
-            window.location.href = '/superadmin/login';
+            if (!window.location.pathname.includes('/superadmin/login')) {
+                window.location.href = '/superadmin/login';
+            }
         }
         return Promise.reject(err);
     }

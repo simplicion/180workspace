@@ -1,4 +1,4 @@
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, AILogoIcon } from "@workspace/ui";
 import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork } from 'lucide-react';
 
 export const navigation = [
@@ -30,7 +30,7 @@ export const navigation = [
             { id: 'calendar', name: 'Calendar', href: '/calendar', icon: Calendar, roles: ['admin', 'employee'] },
             { id: 'documents', name: '180 Documents', href: '/documents', icon: FolderOpen, roles: ['admin', 'employee'] },
             { id: 'assets', name: 'IT Assets', href: '/assets', icon: Monitor, roles: ['admin'] },
-            { id: 'ai-assistant', name: 'AI Assistant', href: '/ai', icon: Bot, roles: ['admin', 'employee'] },
+            { id: 'ai-assistant', name: 'Orbit Copilot', href: '/ai', icon: AILogoIcon, roles: ['admin', 'employee'] },
         ]
     },
 

@@ -4,7 +4,7 @@ export const releaseNotesApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         // Get all published release notes
         getReleaseNotes: builder.query({
-            query: () => '/api/release-notes',
+            query: () => '/api/v1/release-notes',
             providesTags: ['ReleaseNotes'],
         }),
     }),

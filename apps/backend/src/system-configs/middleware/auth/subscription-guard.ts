@@ -10,14 +10,23 @@ export default async function subscriptionGuard(req: any, res: Response, next: N
     try {
         // Bypass for billing, auth, health, and super admin routes
         const url = req.originalUrl || req.path;
-        const bypassPrefixes = ['/api/billing', '/api/auth', '/health', '/api/superadmin', '/api/support', '/api/webhooks'];
+        const bypassPrefixes = ['/api/billing', '/api/auth', '/health', '/api/superadmin', '/superadmin', '/api/support', '/api/webhooks'];
         if (bypassPrefixes.some(p => url.startsWith(p))) return next();
         if (!req.user) return next();
 
         const sub = await BillingService.getCurrentSubscription(req.user.companyId);
         const countdown = BillingService.getTrialCountdown(sub);
 
-        // Check Account Status (Lifecycle)
+        // Check Account Status (Suspension / Lifecycle)
+        if (req.company && (req.company.accountStatus === 'suspended' || req.company.subscriptionStatus === 'suspended')) {
+            return res.status(403).json({
+                companySuspended: true,
+                status: 'suspended',
+                message: 'Your company workspace has been suspended. Please contact customer support for more information.',
+                supportUrl: '/settings/help-support',
+            });
+        }
+
         if (req.company && req.company.accountStatus === 'trial_expired') {
             return res.status(403).json({
                 subscriptionExpired: true,

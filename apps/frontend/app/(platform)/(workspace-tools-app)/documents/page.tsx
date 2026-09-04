@@ -233,13 +233,34 @@ export default function DocumentsPage() {
     const [convertInvoiceMutation] = useConvertToInvoiceMutation();
     const { data: unifiedData, isLoading: articlesLoading, refetch: refetchArticles } = useGet180DocumentsQuery({ search: search || undefined });
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     function loadDocs() {
-        setLoading(true);
+        const cacheKey = `documents:${search || 'all'}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setDocs(cached.data.docs || []);
+            if (cached.data.storageStats) setStorageStats(cached.data.storageStats);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/files', { params: { search } })
             .then(filesRes => {
-                setDocs(filesRes.data.documents || filesRes.data.files || filesRes.data || []);
+                const fetchedDocs = filesRes.data.documents || filesRes.data.files || filesRes.data || [];
+                setDocs(fetchedDocs);
+                swrCacheRef.current.set(cacheKey, {
+                    data: { docs: fetchedDocs, storageStats },
+                    timestamp: Date.now()
+                });
             })
-            .catch(() => setDocs([]))
+            .catch(() => {
+                if (!cached) setDocs([]);
+            })
             .finally(() => setLoading(false));
 
         api.get('/v1/workspace-tools/storage/stats')

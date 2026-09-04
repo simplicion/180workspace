@@ -31,9 +31,9 @@ export class PlatformOverviewService {
             return { _id: { year, month }, revenue: revenueMap[key] };
         }).sort((a, b) => a._id.year - b._id.year || a._id.month - b._id.month);
 
-        const recentCompanies = await PlatformOverviewRepository.getRecentCompanies(sixMonthsAgo);
+        const sixMonthCompanies = await PlatformOverviewRepository.getRecentCompanies(sixMonthsAgo);
         const companyMap: Record<string, number> = {};
-        recentCompanies.forEach(c => {
+        sixMonthCompanies.forEach(c => {
             const date = new Date(c.createdAt);
             const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
             companyMap[key] = (companyMap[key] || 0) + 1;
@@ -54,6 +54,8 @@ export class PlatformOverviewService {
             count: planDistMap[planName]
         }));
 
+        const recentCompanies = await PlatformOverviewRepository.getLatestCompanies(5);
+
         return {
             stats: {
                 totalCompanies, activeCompanies, newCompaniesThisMonth,
@@ -61,6 +63,7 @@ export class PlatformOverviewService {
                 monthlyRevenue, totalUsers,
             },
             charts: { revenueChart, companyChart, planDist },
+            recentCompanies,
         };
     }
 }

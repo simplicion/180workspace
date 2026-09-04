@@ -2,7 +2,7 @@
 
 
 import { LogoLoader } from "@workspace/ui";
-import { useEffect, useState, Suspense, useCallback } from 'react';
+import { useEffect, useState, Suspense, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Calendar, CheckCheck, X, Clock, Home, Plus, FileText, CheckCircle, XCircle, Palmtree, Pencil, Trash2, Eye, ExternalLink, Settings, Save, Landmark } from 'lucide-react';
@@ -127,36 +127,99 @@ function AttendancePageInner() {
         }
     };
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     // ── Data loaders ──
     const loadAttendance = useCallback(() => {
-        setLoading(true);
+        const cacheKey = `attendance:records:${month}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setRecords(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         api.get('/api/attendance', { params: { month } })
-            .then(({ data }) => setRecords(data.records || []))
-            .catch(() => setRecords([]))
+            .then(({ data }) => {
+                const fetched = data.records || [];
+                setRecords(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
+            })
+            .catch(() => {
+                if (!cached) setRecords([]);
+            })
             .finally(() => setLoading(false));
     }, [month]);
 
     const loadLeaves = useCallback(() => {
-        setLeavesLoading(true);
+        const cacheKey = `attendance:leaves:${month}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setLeaves(cached.data || []);
+            setLeavesLoading(false);
+        } else {
+            setLeavesLoading(true);
+        }
+
         api.get('/api/leaves', { params: { month } })
-            .then(({ data }) => setLeaves(data.leaves || []))
-            .catch(() => setLeaves([]))
+            .then(({ data }) => {
+                const fetched = data.leaves || [];
+                setLeaves(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
+            })
+            .catch(() => {
+                if (!cached) setLeaves([]);
+            })
             .finally(() => setLeavesLoading(false));
     }, [month]);
 
     const loadHolidays = useCallback(() => {
-        setHolidaysLoading(true);
+        const cacheKey = `attendance:holidays:${year}`;
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setHolidays(cached.data || []);
+            setHolidaysLoading(false);
+        } else {
+            setHolidaysLoading(true);
+        }
+
         api.get('/api/holidays', { params: { year } })
-            .then(({ data }) => setHolidays(data.holidays || []))
-            .catch(() => setHolidays([]))
+            .then(({ data }) => {
+                const fetched = data.holidays || [];
+                setHolidays(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
+            })
+            .catch(() => {
+                if (!cached) setHolidays([]);
+            })
             .finally(() => setHolidaysLoading(false));
     }, [year]);
 
     const loadTrend = useCallback(() => {
-        setTrendLoading(true);
+        const cacheKey = 'attendance:trend:latest';
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setTrendData(cached.data || []);
+            setTrendLoading(false);
+        } else {
+            setTrendLoading(true);
+        }
+
         api.get('/api/hrms/attendance-trend')
-            .then(({ data }) => setTrendData(data || []))
-            .catch(() => setTrendData([]))
+            .then(({ data }) => {
+                const fetched = data || [];
+                setTrendData(fetched);
+                swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
+            })
+            .catch(() => {
+                if (!cached) setTrendData([]);
+            })
             .finally(() => setTrendLoading(false));
     }, []);
 

@@ -21,20 +21,38 @@ export const listPublished = async (req: Request, res: Response, next: NextFunct
 
 export const create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const note = await ReleaseNoteService.create(req.body, (req as any).superAdmin.id);
+        const payload = { ...req.body };
+        if (!payload.content || typeof payload.content !== 'string') {
+            payload.content = JSON.stringify({
+                description: payload.description || '',
+                features: Array.isArray(payload.features) ? payload.features : [],
+                fixes: Array.isArray(payload.fixes) ? payload.fixes : [],
+                isPublished: payload.isPublished !== undefined ? payload.isPublished : true,
+            });
+        }
+        const note = await ReleaseNoteService.create(payload, (req as any).superAdmin?.id);
         res.status(201).json(note);
     } catch (error: any) {
-  next(error);
-}
+        next(error);
+    }
 };
 
 export const update = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const note = await ReleaseNoteService.update(req.params.id, req.body);
+        const payload = { ...req.body };
+        if (!payload.content || typeof payload.content !== 'string') {
+            payload.content = JSON.stringify({
+                description: payload.description || '',
+                features: Array.isArray(payload.features) ? payload.features : [],
+                fixes: Array.isArray(payload.fixes) ? payload.fixes : [],
+                isPublished: payload.isPublished !== undefined ? payload.isPublished : true,
+            });
+        }
+        const note = await ReleaseNoteService.update(req.params.id, payload);
         res.json(note);
     } catch (error: any) {
-  next(error);
-}
+        next(error);
+    }
 };
 
 export const remove = async (req: Request, res: Response, next: NextFunction) => {

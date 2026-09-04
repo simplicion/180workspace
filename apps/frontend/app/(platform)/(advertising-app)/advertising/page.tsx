@@ -1,7 +1,7 @@
 "use client";
 
 import { LogoLoader } from "@workspace/ui";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Globe, Search, Filter, Settings } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -20,15 +20,33 @@ export default function AdvertisingPage() {
         fetchWebsites();
     }, []);
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const fetchWebsites = async () => {
-        try {
+        const cacheKey = 'advertising:websites:all';
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            setWebsites(cached.data.websites || []);
+            setCompanyData(cached.data.company || null);
+            setLoading(false);
+        } else {
             setLoading(true);
+        }
+
+        try {
             const res = await api.get('/api/websites');
-            setWebsites(res.data.websites || []);
-            setCompanyData(res.data.company || null);
+            const fetchedWebsites = res.data.websites || [];
+            const fetchedCompany = res.data.company || null;
+            setWebsites(fetchedWebsites);
+            setCompanyData(fetchedCompany);
+            swrCacheRef.current.set(cacheKey, {
+                data: { websites: fetchedWebsites, company: fetchedCompany },
+                timestamp: Date.now()
+            });
         } catch (error) {
-            console.error('Failed to fetch websites:', error);
-            toast.error('Failed to load websites');
+            if (!cached) toast.error('Failed to load websites');
         } finally {
             setLoading(false);
         }

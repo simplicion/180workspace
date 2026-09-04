@@ -528,6 +528,7 @@ model Invoice {
   @@index([companyId])
   @@index([companyId, id])
   @@index([companyId, createdAt])
+  @@index([companyId, issueDate(sort: Desc), id])
 }
 
 model InvoiceLineItem {
@@ -598,6 +599,7 @@ model ExpenseTransaction {
   @@index([companyId, projectId])
   @@index([companyId, id])
   @@index([companyId, createdAt])
+  @@index([companyId, date(sort: Desc), id])
 }
 
 model CalendarEvent {
@@ -1561,6 +1563,11 @@ model WorkLog {
   @@index([companyId])
   @@index([companyId, id])
   @@index([companyId, createdAt])
+  @@index([companyId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([moduleId, createdAt(sort: Desc)])
 }
 
 model Account {
@@ -2119,6 +2126,7 @@ model Lead {
 
   @@index([status])
   @@index([assignedSalesRepId])
+  @@index([createdAt(sort: Desc), id])
 }
 
 model Deal {
@@ -2152,6 +2160,8 @@ model Deal {
   @@index([stage])
   @@index([ownerId])
   @@index([clientId])
+  @@index([pipelineType, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc), id])
   @@map("Opportunity")
 }
 

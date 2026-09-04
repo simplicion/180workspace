@@ -63,7 +63,7 @@ export default function DocumentAIChatDrawer({ document: doc, onClose }: Documen
     };
 
     return (
-        <Drawer open={true} onClose={onClose} title="AI Assistant" position="right">
+        <Drawer open={true} onClose={onClose} title="Orbit Copilot" position="right">
             <div className="flex bg-white rounded-3xl w-full h-[90vh] overflow-hidden shadow-2xl flex-col">
                 
                 {/* Header Subtitle */}

@@ -56,6 +56,15 @@ export interface DocumentState {
     companyWebsite?: string;
     companyGst?: string;
     authorizedSignatory?: string;
+
+    // Additional data sources & billing fields
+    clientId?: string;
+    clientCompany?: string;
+    employeeId?: string;
+    paymentTerms?: string;
+    dueDate?: string;
+    currency?: string;
+    [key: string]: any;
   };
   designSettings: {
     fontFamily: string;

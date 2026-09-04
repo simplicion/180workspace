@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,9 @@ import {
     DndContext,
     DragOverlay,
     closestCorners,
+    pointerWithin,
+    rectIntersection,
+    CollisionDetection,
     KeyboardSensor,
     PointerSensor,
     useSensor,
@@ -25,6 +28,7 @@ import {
     DragOverEvent,
     defaultDropAnimationSideEffects,
     DropAnimation,
+    useDroppable,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -86,6 +90,28 @@ export default function LeadPipelinesKanbanPage() {
         })
     );
 
+    const customCollisionDetection: CollisionDetection = (args) => {
+        // 1. Pointer within (most intuitive for user cursor)
+        const pointerCollisions = pointerWithin(args);
+        if (pointerCollisions.length > 0) {
+            // Prioritize cards if pointer is directly over a card, otherwise return column
+            const cardCollision = pointerCollisions.find(c => c.id !== args.active.id && !STAGES.includes(c.id as string));
+            if (cardCollision) return [cardCollision];
+            return pointerCollisions;
+        }
+
+        // 2. Rect intersection (if dragging quickly or pointer slightly off)
+        const rectCollisions = rectIntersection(args);
+        if (rectCollisions.length > 0) {
+            const cardCollision = rectCollisions.find(c => c.id !== args.active.id && !STAGES.includes(c.id as string));
+            if (cardCollision) return [cardCollision];
+            return rectCollisions;
+        }
+
+        // 3. Fallback to closest corners
+        return closestCorners(args);
+    };
+
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
     };
@@ -107,19 +133,25 @@ export default function LeadPipelinesKanbanPage() {
         if (!STAGES.includes(newStage)) {
             // If dropped over a card instead of a column, find the column of that card
             const overOpp = leadPipelines.find(o => o.id === overId);
-            if (overOpp) newStage = overOpp.status;
+            if (overOpp) {
+                newStage = (overOpp.status === 'new' || !overOpp.status) ? 'Lead' : overOpp.status;
+            }
         }
 
-        if (opp.status === newStage) return;
+        if (!STAGES.includes(newStage)) return;
+
+        const currentStage = (opp.status === 'new' || !opp.status) ? 'Lead' : opp.status;
+        if (currentStage === newStage) return;
 
         // Optimistic UI update
         setleadPipelines(prev => prev.map(o => o.id === activeId ? { ...o, status: newStage } : o));
 
         try {
             await api.put(`/api/sales/leads/${activeId}`, { status: newStage });
-            toast.success('Lead stage updated');
+            swrCacheRef.current.clear();
+            toast.success(`Lead moved to ${STAGE_LABELS[newStage] || newStage}`);
         } catch (error) {
-            toast.error('Failed to move leadPipeline');
+            toast.error('Failed to move lead');
             fetchleadPipelines(); // Revert on failure
         }
     };
@@ -130,6 +162,7 @@ export default function LeadPipelinesKanbanPage() {
         try {
             await api.delete(`/api/sales/leads/${showDeleteConfirm.id}`);
             toast.success('Lead deleted');
+            swrCacheRef.current.clear();
             setleadPipelines(prev => prev.filter(o => o.id !== showDeleteConfirm.id));
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to delete lead');
@@ -144,6 +177,7 @@ export default function LeadPipelinesKanbanPage() {
         try {
             await api.post(`/api/sales/leads/${id}/convert`, {});
             toast.success('Converted to Deal!');
+            swrCacheRef.current.clear();
             fetchleadPipelines();
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to convert to deal');
@@ -152,13 +186,31 @@ export default function LeadPipelinesKanbanPage() {
         }
     };
 
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
     const fetchleadPipelines = async () => {
-        setLoading(true);
+        const cacheKey = 'crm:leads:all';
+        const cached = swrCacheRef.current.get(cacheKey);
+
+        if (cached) {
+            // Instant 0ms Paint
+            setleadPipelines(cached.data || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         try {
             const { data } = await api.get('/api/sales/leads');
-            setleadPipelines(data.leads || data.opportunities || data.leadPipelines || (Array.isArray(data) ? data : []));
+            const fetched = data.leads || data.opportunities || data.leadPipelines || (Array.isArray(data) ? data : []);
+            setleadPipelines(fetched);
+            swrCacheRef.current.set(cacheKey, {
+                data: fetched,
+                timestamp: Date.now()
+            });
         } catch (err) {
-            setError('Failed to load leadPipelines');
+            if (!cached) setError('Failed to load leadPipelines');
         } finally {
             setLoading(false);
         }
@@ -188,15 +240,15 @@ export default function LeadPipelinesKanbanPage() {
         const headers = ["Title", "Stage", "Value", "Company", "Contact", "Email", "Phone", "Score"];
         const csvContent = "data:text/csv;charset=utf-8," 
             + headers.join(",") + "\n"
-            + leadPipelines.map(e => [
-                `"${((o as any).name || '').replace(/"/g, '""')}"`,
-                `"${((o as any).status || '').replace(/"/g, '""')}"`,
-                (o as any).value || 0,
-                `"${((o as any).companyName || '').replace(/"/g, '""')}"`,
-                `"${((o as any).name || '').replace(/"/g, '""')}"`,
-                `"${((o as any).email || '').replace(/"/g, '""')}"`,
-                `"${((o as any).phone || '').replace(/"/g, '""')}"`,
-                (o as any).leadScore || 0
+            + leadPipelines.map((o: any) => [
+                `"${(o.name || '').replace(/"/g, '""')}"`,
+                `"${((o.status === 'new' || !o.status) ? 'Lead' : o.status).replace(/"/g, '""')}"`,
+                o.value || 0,
+                `"${(o.companyName || '').replace(/"/g, '""')}"`,
+                `"${(o.name || '').replace(/"/g, '""')}"`,
+                `"${(o.email || '').replace(/"/g, '""')}"`,
+                `"${(o.phone || '').replace(/"/g, '""')}"`,
+                o.leadScore || 0
             ].join(",")).join("\n");
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -210,7 +262,10 @@ export default function LeadPipelinesKanbanPage() {
 
     // Group by stage
     const grouped = STAGES.reduce((acc, stage) => {
-        acc[stage] = filteredOpps.filter(o => o.status === stage)
+        acc[stage] = filteredOpps.filter(o => {
+            const normalizedStatus = (o.status === 'new' || !o.status) ? 'Lead' : o.status;
+            return normalizedStatus === stage;
+        })
             // Sort by leadScore (highest first), then by value
             .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0) || (b.value || 0) - (a.value || 0));
         return acc;
@@ -302,9 +357,9 @@ export default function LeadPipelinesKanbanPage() {
             )}
 
             {loading ? (
-                <div className="flex gap-4 overflow-x-auto pb-4 items-start">
+                <div className="flex gap-4 overflow-x-auto pb-4 items-stretch flex-1 min-h-[calc(100vh-220px)]">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 border border-gray-100 rounded-2xl flex flex-col min-h-[460px] border-dashed p-4 gap-4">
+                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 border border-gray-100 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
                             <Skeleton variant="text" height={24} width="120px" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
@@ -314,11 +369,11 @@ export default function LeadPipelinesKanbanPage() {
             ) : (
                 <DndContext
                     sensors={sensors}
-                    collisionDetection={closestCorners}
+                    collisionDetection={customCollisionDetection}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
-                    <div className="flex gap-4 overflow-x-auto pb-6 items-start">
+                    <div className="flex gap-4 overflow-x-auto pb-6 items-stretch flex-1 min-h-[calc(100vh-220px)]">
                         {STAGES.map(stage => (
                             <Column
                                 key={stage}
@@ -384,22 +439,33 @@ interface ColumnProps {
 }
 
 function Column({ id, title, leadPipelines, onEdit, onDelete, onConvert }: ColumnProps) {
-    const { setNodeRef } = useSortable({ id });
+    const { setNodeRef, isOver } = useDroppable({
+        id,
+        data: {
+            type: 'Column',
+            stage: id,
+        },
+    });
     const styles = STAGE_STYLES[id] || STAGE_STYLES['Lead'];
 
     return (
         <div 
             ref={setNodeRef}
-            className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] shrink-0 min-h-[460px] flex flex-col', styles.bg, styles.color)}
+            className={clsx(
+                'rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] shrink-0 min-h-[calc(100vh-220px)] flex flex-col self-stretch transition-all duration-150',
+                styles.bg,
+                styles.color,
+                isOver && 'ring-2 ring-indigo-500 bg-indigo-50/80 shadow-md'
+            )}
         >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 shrink-0">
                 <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-gray-700">{title}</span>
                     <span className={clsx('badge text-xs', styles.badge)}>{leadPipelines.length}</span>
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2.5 pb-4 flex-1 min-h-[200px]">
+            <div className="flex flex-col gap-2.5 pb-4 flex-1 h-full">
                 <SortableContext items={leadPipelines.map(o => o.id)} strategy={verticalListSortingStrategy}>
                     {leadPipelines.map(opp => (
                         <SortableDealCard 
@@ -413,8 +479,11 @@ function Column({ id, title, leadPipelines, onEdit, onDelete, onConvert }: Colum
                 </SortableContext>
 
                 {leadPipelines.length === 0 && (
-                    <div className="flex-1 min-h-[140px] flex items-center justify-center text-gray-300 text-xs select-none">
-                        Drop leads here
+                    <div className={clsx(
+                        "flex-1 flex items-center justify-center text-xs select-none py-12 transition-colors",
+                        isOver ? "text-indigo-600 font-bold" : "text-gray-400/60"
+                    )}>
+                        {isOver ? "Drop here" : "Drop leads here"}
                     </div>
                 )}
             </div>

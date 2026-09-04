@@ -362,7 +362,7 @@ Return ONLY a raw JSON object with this exact structure:
             ? `• **Multi-Step Structure**: ${pages.length} pages (${pages.map(p => p.title).join(' → ')})\n`
             : '';
 
-        const reply = `✨ **${formTitle}** has been synthesized by 180 AI Architect!\n\n` +
+        const reply = `✨ **${formTitle}** has been synthesized by Orbit AI!\n\n` +
             `• **Questions**: ${fields.length} tailored intake questions\n` +
             pageBreakdown +
             `• **Sales Pipeline**: Automatically synced to CRM Leads\n` +

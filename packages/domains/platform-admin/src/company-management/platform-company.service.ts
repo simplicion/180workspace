@@ -4,16 +4,17 @@ import * as bcrypt from 'bcryptjs';
 export class PlatformCompanyService {
     static async list(page: number, limit: number, search: string, status: string) {
         const [companies, total] = await PlatformCompanyRepository.list(page, limit, search, status);
-        return { companies, total, page, totalPages: Math.ceil(total / limit) };
+        const mapped = companies.map(c => ({
+            ...c,
+            companyName: c.name || (c as any).companyName || 'Unnamed Company',
+        }));
+        return { companies: mapped, total, page, totalPages: Math.ceil(total / limit) };
     }
 
     static async getOne(id: string) {
-        const company = await PlatformCompanyRepository.findById(id);
-        if (!company) throw new Error('Company not found');
-
-        const subscriptions = await PlatformCompanyRepository.findSubscriptions(company.id);
-
-        return { company, subscriptions };
+        const result = await PlatformCompanyRepository.getCompanyDetailed(id);
+        if (!result) throw new Error('Company not found');
+        return result;
     }
 
     static async suspend(id: string, reason: string) {

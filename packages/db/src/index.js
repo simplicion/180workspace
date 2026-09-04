@@ -1,144 +1,263 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
+var __values = (this && this.__values) || function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+};
+var e_1, _a;
+var _b;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCompanyPrisma = exports.prisma = exports.basePrisma = exports.requestContext = exports.queryMetricsStorage = exports.Prisma = exports.PrismaClient = void 0;
-const client_1 = require("@prisma/client");
+exports.getCompanyPrisma = exports.prisma = exports.basePrisma = exports.rawPrisma = exports.MAX_ALLOWED_TAKE = exports.SAFE_QUERY_LIMIT = exports.requestContext = exports.queryMetricsStorage = exports.Prisma = exports.PrismaClient = void 0;
+exports.applyQueryGuardrails = applyQueryGuardrails;
+var client_1 = require("@prisma/client");
 Object.defineProperty(exports, "PrismaClient", { enumerable: true, get: function () { return client_1.PrismaClient; } });
 Object.defineProperty(exports, "Prisma", { enumerable: true, get: function () { return client_1.Prisma; } });
-const async_hooks_1 = require("async_hooks");
+var async_hooks_1 = require("async_hooks");
 exports.queryMetricsStorage = new async_hooks_1.AsyncLocalStorage();
 // Global singleton to prevent connection exhaustion in dev
-const globalForPrisma = globalThis;
+var globalForPrisma = globalThis;
 /**
  * Environment-aware Prisma log levels.
  * - Production: only 'error' and 'warn' — never log raw SQL.
  * - Development: 'error' + 'warn', plus 'query' when PRISMA_QUERY_LOGGING=true.
  */
 function getPrismaLogLevels() {
-    const levels = ['error', 'warn'];
+    var levels = ['error', 'warn'];
     if (process.env.NODE_ENV !== 'production' && process.env.PRISMA_QUERY_LOGGING === 'true') {
         levels.push('query');
     }
     return levels;
 }
 exports.requestContext = new async_hooks_1.AsyncLocalStorage();
-exports.basePrisma = globalForPrisma.prisma ??
-    new client_1.PrismaClient();
-if (process.env.NODE_ENV !== 'production')
-    globalForPrisma.prisma = exports.basePrisma;
-exports.prisma = new Proxy(exports.basePrisma, {
-    get(target, prop) {
-        const context = exports.requestContext.getStore();
-        const companyId = context?.companyId;
-        if (companyId) {
-            const companyPrisma = (0, exports.getCompanyPrisma)(companyId);
-            const value = companyPrisma[prop];
-            return typeof value === 'function' ? value.bind(companyPrisma) : value;
+exports.SAFE_QUERY_LIMIT = 100;
+exports.MAX_ALLOWED_TAKE = 500;
+/**
+ * Universal Query Guardrail
+ * Protects database and Node memory from unbounded O(N) queries across all models.
+ */
+function applyQueryGuardrails(model, operation, anyArgs) {
+    var _a, _b;
+    if (operation === 'findMany') {
+        var bypass = (anyArgs === null || anyArgs === void 0 ? void 0 : anyArgs._bypassGuardrail) === true || ((_a = anyArgs === null || anyArgs === void 0 ? void 0 : anyArgs.where) === null || _a === void 0 ? void 0 : _a._bypassGuardrail) === true;
+        if (bypass) {
+            if ((anyArgs === null || anyArgs === void 0 ? void 0 : anyArgs._bypassGuardrail) !== undefined)
+                delete anyArgs._bypassGuardrail;
+            if (((_b = anyArgs === null || anyArgs === void 0 ? void 0 : anyArgs.where) === null || _b === void 0 ? void 0 : _b._bypassGuardrail) !== undefined)
+                delete anyArgs.where._bypassGuardrail;
+            return anyArgs;
         }
-        const value = target[prop];
+        if (anyArgs.take === undefined || anyArgs.take === null) {
+            anyArgs.take = exports.SAFE_QUERY_LIMIT;
+            if (process.env.NODE_ENV !== 'production' && process.env.PRISMA_GUARDRAIL_SILENT !== 'true') {
+                console.warn("[Prisma Guardrail] Auto-capped unbounded findMany on '".concat(model, "' to ").concat(exports.SAFE_QUERY_LIMIT, " records."));
+            }
+        }
+        else if (typeof anyArgs.take === 'number' && anyArgs.take > exports.MAX_ALLOWED_TAKE) {
+            if (process.env.NODE_ENV !== 'production' && process.env.PRISMA_GUARDRAIL_SILENT !== 'true') {
+                console.warn("[Prisma Guardrail] Clamped excessive take (".concat(anyArgs.take, ") on '").concat(model, "' to ").concat(exports.MAX_ALLOWED_TAKE, "."));
+            }
+            anyArgs.take = exports.MAX_ALLOWED_TAKE;
+        }
+    }
+    return anyArgs;
+}
+exports.rawPrisma = (_b = globalForPrisma.prisma) !== null && _b !== void 0 ? _b : new client_1.PrismaClient({ log: getPrismaLogLevels() });
+if (process.env.NODE_ENV !== 'production')
+    globalForPrisma.prisma = exports.rawPrisma;
+exports.basePrisma = exports.rawPrisma.$extends({
+    query: {
+        $allModels: {
+            $allOperations: function (_a) {
+                return __awaiter(this, arguments, void 0, function (_b) {
+                    var anyArgs;
+                    var model = _b.model, operation = _b.operation, args = _b.args, query = _b.query;
+                    return __generator(this, function (_c) {
+                        anyArgs = args || {};
+                        anyArgs = applyQueryGuardrails(model, operation, anyArgs);
+                        return [2 /*return*/, query(anyArgs)];
+                    });
+                });
+            }
+        }
+    }
+});
+exports.prisma = new Proxy(exports.basePrisma, {
+    get: function (target, prop) {
+        var context = exports.requestContext.getStore();
+        var companyId = context === null || context === void 0 ? void 0 : context.companyId;
+        if (companyId) {
+            var companyPrisma = (0, exports.getCompanyPrisma)(companyId);
+            var value_1 = companyPrisma[prop];
+            return typeof value_1 === 'function' ? value_1.bind(companyPrisma) : value_1;
+        }
+        var value = target[prop];
         return typeof value === 'function' ? value.bind(target) : value;
     }
 });
 // Precompute models that have companyId to avoid O(N) traversal on every query
-const modelsWithCompanyId = new Set();
+var modelsWithCompanyId = new Set();
 if (client_1.Prisma.dmmf && client_1.Prisma.dmmf.datamodel && client_1.Prisma.dmmf.datamodel.models) {
-    for (const m of client_1.Prisma.dmmf.datamodel.models) {
-        if (m.fields.some((f) => f.name === 'companyId')) {
-            modelsWithCompanyId.add(m.name);
+    try {
+        for (var _c = __values(client_1.Prisma.dmmf.datamodel.models), _d = _c.next(); !_d.done; _d = _c.next()) {
+            var m = _d.value;
+            if (m.fields.some(function (f) { return f.name === 'companyId'; })) {
+                modelsWithCompanyId.add(m.name);
+            }
         }
     }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
 }
-const GLOBAL_MODELS = new Set([
+var GLOBAL_MODELS = new Set([
     'Company', 'PlatformSettings', 'Plan', 'Coupon', 'SuperAdmin',
     'ActivityLog', 'Announcement', 'DeletionLog',
     'FeatureFlag', 'ReleaseNote', 'SupportTicket', 'DocumentPage',
     'ForumPost', 'ForumReply', 'Chat', 'Message',
     'CalendarContentPiece', 'AiRequestLog', 'CalendarEvent'
 ]);
-const FILTER_OPERATIONS = new Set([
+var FILTER_OPERATIONS = new Set([
     'findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow',
     'findMany', 'update', 'updateMany', 'delete', 'deleteMany',
     'count', 'aggregate', 'groupBy'
 ]);
 // Cache for extended Prisma clients to prevent memory leaks and massive CPU overhead
-const companyClients = new Map();
+var companyClients = new Map();
 /**
  * Creates a company-scoped Prisma Client.
  * Automatically injects `companyId` into all relevant queries
  * to guarantee Row-Level Security (RLS) across the shared PostgreSQL database.
  */
-const getCompanyPrisma = (companyId, onSearchSync) => {
+var getCompanyPrisma = function (companyId, onSearchSync) {
     if (!companyId)
         return exports.basePrisma;
     if (companyClients.has(companyId)) {
         return companyClients.get(companyId);
     }
-    const extendedPrisma = exports.basePrisma.$extends({
+    var extendedPrisma = exports.basePrisma.$extends({
         query: {
             $allModels: {
-                async $allOperations({ model, operation, args, query }) {
-                    // @ts-ignore
-                    let anyArgs = args || {};
-                    // 1. Company Scope Injection (Before Query)
-                    if (!GLOBAL_MODELS.has(model) && modelsWithCompanyId.has(model)) {
-                        if (FILTER_OPERATIONS.has(operation)) {
-                            if (!anyArgs.where) {
-                                anyArgs.where = { companyId };
+                $allOperations: function (_a) {
+                    return __awaiter(this, arguments, void 0, function (_b) {
+                        var anyArgs, i, isProfilerActive, perfData, startTime, result, executionTime;
+                        var model = _b.model, operation = _b.operation, args = _b.args, query = _b.query;
+                        return __generator(this, function (_c) {
+                            switch (_c.label) {
+                                case 0:
+                                    anyArgs = args || {};
+                                    // 1. Company Scope Injection (Before Query)
+                                    if (!GLOBAL_MODELS.has(model) && modelsWithCompanyId.has(model)) {
+                                        if (FILTER_OPERATIONS.has(operation)) {
+                                            if (!anyArgs.where) {
+                                                anyArgs.where = { companyId: companyId };
+                                            }
+                                            else if (anyArgs.where.companyId !== companyId) {
+                                                anyArgs.where.companyId = companyId;
+                                            }
+                                        }
+                                        if (operation === 'create' || operation === 'createMany') {
+                                            if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
+                                                for (i = 0; i < anyArgs.data.length; i++) {
+                                                    if (anyArgs.data[i])
+                                                        anyArgs.data[i].companyId = companyId;
+                                                }
+                                            }
+                                            else if (anyArgs.data) {
+                                                anyArgs.data.companyId = companyId;
+                                            }
+                                        }
+                                        if (operation === 'upsert') {
+                                            if (!anyArgs.where)
+                                                anyArgs.where = { companyId: companyId };
+                                            else
+                                                anyArgs.where.companyId = companyId;
+                                            if (anyArgs.create)
+                                                anyArgs.create.companyId = companyId;
+                                        }
+                                    }
+                                    // 2. Query Guardrail (Prevent Unbounded O(N) Memory Exhaustion)
+                                    anyArgs = applyQueryGuardrails(model, operation, anyArgs);
+                                    isProfilerActive = process.env.PRISMA_PROFILER_LOG === 'true';
+                                    perfData = exports.queryMetricsStorage.getStore();
+                                    if (!isProfilerActive && !perfData && !onSearchSync) {
+                                        return [2 /*return*/, query(anyArgs)];
+                                    }
+                                    startTime = Date.now();
+                                    return [4 /*yield*/, query(anyArgs)];
+                                case 1:
+                                    result = _c.sent();
+                                    executionTime = Date.now() - startTime;
+                                    if (executionTime > 200) {
+                                        console.warn("[Prisma Profiler - SLOW QUERY] Model: ".concat(model, ", Operation: ").concat(operation, ", Time: ").concat(executionTime, "ms"));
+                                    }
+                                    else if (isProfilerActive) {
+                                        console.log("[Prisma Profiler] Model: ".concat(model, ", Operation: ").concat(operation, ", Time: ").concat(executionTime, "ms"));
+                                    }
+                                    if (perfData) {
+                                        perfData.numberOfQueries = (perfData.numberOfQueries || 0) + 1;
+                                        perfData.databaseDuration = (perfData.databaseDuration || 0) + executionTime;
+                                        if (!perfData.slowestQuery || executionTime > perfData.slowestQuery.ms) {
+                                            perfData.slowestQuery = { ms: executionTime, query: "".concat(model, ".").concat(operation) };
+                                        }
+                                    }
+                                    if (onSearchSync) {
+                                        try {
+                                            onSearchSync(model, operation, result, anyArgs);
+                                        }
+                                        catch (e) {
+                                            console.error("[SearchSync] Error syncing ".concat(model, ":"), e);
+                                        }
+                                    }
+                                    return [2 /*return*/, result];
                             }
-                            else if (anyArgs.where.companyId !== companyId) {
-                                anyArgs.where.companyId = companyId;
-                            }
-                        }
-                        if (operation === 'create' || operation === 'createMany') {
-                            if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
-                                for (let i = 0; i < anyArgs.data.length; i++) {
-                                    if (anyArgs.data[i])
-                                        anyArgs.data[i].companyId = companyId;
-                                }
-                            }
-                            else if (anyArgs.data) {
-                                anyArgs.data.companyId = companyId;
-                            }
-                        }
-                        if (operation === 'upsert') {
-                            if (!anyArgs.where)
-                                anyArgs.where = { companyId };
-                            else
-                                anyArgs.where.companyId = companyId;
-                            if (anyArgs.create)
-                                anyArgs.create.companyId = companyId;
-                        }
-                    }
-                    // 2. Fast Path Execution (only log slow queries > 200ms)
-                    const isProfilerActive = process.env.PRISMA_PROFILER_LOG === 'true';
-                    const perfData = exports.queryMetricsStorage.getStore();
-                    if (!isProfilerActive && !perfData && !onSearchSync) {
-                        return query(anyArgs);
-                    }
-                    const startTime = Date.now();
-                    const result = await query(anyArgs);
-                    const executionTime = Date.now() - startTime;
-                    if (executionTime > 200) {
-                        console.warn(`[Prisma Profiler - SLOW QUERY] Model: ${model}, Operation: ${operation}, Time: ${executionTime}ms`);
-                    }
-                    else if (isProfilerActive) {
-                        console.log(`[Prisma Profiler] Model: ${model}, Operation: ${operation}, Time: ${executionTime}ms`);
-                    }
-                    if (perfData) {
-                        perfData.numberOfQueries = (perfData.numberOfQueries || 0) + 1;
-                        perfData.databaseDuration = (perfData.databaseDuration || 0) + executionTime;
-                        if (!perfData.slowestQuery || executionTime > perfData.slowestQuery.ms) {
-                            perfData.slowestQuery = { ms: executionTime, query: `${model}.${operation}` };
-                        }
-                    }
-                    if (onSearchSync) {
-                        try {
-                            onSearchSync(model, operation, result, anyArgs);
-                        }
-                        catch (e) {
-                            console.error(`[SearchSync] Error syncing ${model}:`, e);
-                        }
-                    }
-                    return result;
+                        });
+                    });
                 },
             },
         },

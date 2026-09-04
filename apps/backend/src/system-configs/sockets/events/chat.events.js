@@ -119,4 +119,35 @@ module.exports = (io, socket, onlineUsers) => {
             console.error('[Socket] Mark read error:', err.message);
         }
     });
+
+    // ─── Support Ticket Live Chat Channel ───────────────────────────────────────
+    socket.on('ticket:join', ({ ticketId }) => {
+        if (ticketId) {
+            socket.join(`ticket:${ticketId}`);
+        }
+    });
+
+    socket.on('ticket:leave', ({ ticketId }) => {
+        if (ticketId) {
+            socket.leave(`ticket:${ticketId}`);
+        }
+    });
+
+    socket.on('ticket:message', ({ ticketId, message, status }) => {
+        if (ticketId && message) {
+            io.to(`ticket:${ticketId}`).emit('ticket:message', { ticketId, message, status });
+        }
+    });
+
+    socket.on('ticket:typing', ({ ticketId, senderName, senderRole }) => {
+        if (ticketId) {
+            socket.to(`ticket:${ticketId}`).emit('ticket:typing', { ticketId, senderName, senderRole });
+        }
+    });
+
+    socket.on('ticket:stop_typing', ({ ticketId }) => {
+        if (ticketId) {
+            socket.to(`ticket:${ticketId}`).emit('ticket:stop_typing', { ticketId });
+        }
+    });
 };
