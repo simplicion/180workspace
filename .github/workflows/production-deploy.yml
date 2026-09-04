@@ -130,7 +130,8 @@ jobs:
             npx pm2 kill 2>/dev/null || true
 
             # 9. Graceful Rolling Restart (zero-downtime)
-            docker compose up -d --remove-orphans
+            docker compose up -d --force-recreate --remove-orphans
+
 
             # 10. Health verification
             sleep 5
