@@ -18,6 +18,9 @@ COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
 ENV BUILD_STANDALONE="true"
+ENV NEXT_PUBLIC_API_URL="https://api.180workspace.com"
+ENV NEXT_PUBLIC_ROOT_DOMAIN="180workspace.com"
+ENV NEXT_PUBLIC_MAIN_DOMAIN="180workspace.com"
 RUN mkdir -p /app/apps/admin-web/public
 RUN pnpm turbo run build --filter=admin-web...
 

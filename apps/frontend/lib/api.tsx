@@ -10,20 +10,26 @@ if (!API_URL) {
 }
 
 const getBaseURL = () => {
-    // Prevent build-time hangs: if we are in a build phase on the server, 
-    // and the target is localhost, return a mock or immediate fail.
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
     const isServer = typeof window === 'undefined';
     
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 
-        process.env.NEXT_PUBLIC_BACKEND_URL || 
-        (typeof window !== 'undefined' ? window.location.origin : '');
-        
-    if (isServer && isBuildPhase && apiBaseUrl.includes('localhost')) {
-        return 'http://127.0.0.1:0'; // Immediate connection refusal to avoid hang
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL;
     }
     
-    return apiBaseUrl;
+    if (isServer && isBuildPhase) {
+        return 'http://127.0.0.1:0';
+    }
+    
+    if (isServer) {
+        return process.env.BACKEND_INTERNAL_URL || 'http://backend:4000';
+    }
+    
+    if (window.location.hostname.endsWith('180workspace.com')) {
+        return 'https://api.180workspace.com';
+    }
+    
+    return window.location.origin;
 };
 
 const api = axios.create({
