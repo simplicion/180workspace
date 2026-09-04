@@ -1,146 +1,317 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import SectionHeader from '../../components/ui/SectionHeader.astro';
 import Badge from '../../components/ui/Badge.astro';
 import { prisma } from '@workspace/db';
+import { fallbackBlogs, type BlogPost } from '../../data/fallback-blogs';
 
-const fallbackBlogs = [
-  {
-    title: "The True Cost of Software Tool Fragmentation: Why Paying for 8 Tools Slows Down Growth",
-    slug: "cost-of-software-fragmentation",
-    category: "Operations",
-    authorName: "180 Strategy Team",
-    publishedAt: new Date("2026-08-15"),
-    seoDescription: "Discover how context switching and paying for 8 to 12 disconnected SaaS tools erodes agency profit margins and how Work Graph consolidation solves it."
-  },
-  {
-    title: "Demystifying Work Graph Architecture: How Data Links Across CRM, Invoices & Tasks in Zero Latency",
-    slug: "demystifying-work-graph-architecture",
-    category: "Architecture",
-    authorName: "Engineering Team",
-    publishedAt: new Date("2026-08-28"),
-    seoDescription: "An in-depth look at how 180workspace connects sales leads, project sprints, client invoices, and employee attendance without fragile Zapier webhooks."
-  },
-  {
-    title: "The Media Buyer's Guide to Edge Cloaking & Mitigating 99%+ of Fraudulent Ad Clicks",
-    slug: "media-buyers-guide-edge-cloaking",
-    category: "Growth & Ads",
-    authorName: "Traffic Director Team",
-    publishedAt: new Date("2026-09-01"),
-    seoDescription: "Learn how sub-5ms edge request evaluation shields your Facebook and Google ad budgets from click fraud, scrapers, and ad review bots."
-  }
-];
+let dbBlogs: BlogPost[] = [];
 
-let blogs = [];
 try {
-  blogs = await prisma.marketingBlog.findMany({
-    where: {
-      published: true,
-    },
-    orderBy: {
-      publishedAt: 'desc'
-    },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      category: true,
-      authorName: true,
-      publishedAt: true,
-      seoDescription: true
-    }
-  });
+  const records = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT * FROM "MarketingBlog" WHERE "published" = true ORDER BY "featured" DESC, "publishedAt" DESC`
+  );
+
+  if (records && records.length > 0) {
+    dbBlogs = records.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      category: r.category || 'Operations',
+      excerpt: r.seoDescription || r.title,
+      contentMarkdown: r.contentMarkdown || '',
+      readingTimeMin: r.readingTimeMin || 5,
+      featured: Boolean(r.featured),
+      authorName: r.authorName || '180workspace Team',
+      authorRole: r.authorBio ? 'Author' : 'Editorial Team',
+      authorBio: r.authorBio || '',
+      authorAvatar: undefined,
+      authorSocial: r.authorSocial || undefined,
+      publishedAt: r.publishedAt ? new Date(r.publishedAt) : new Date(),
+      seoTitle: r.seoTitle || r.title,
+      seoDescription: r.seoDescription || '',
+      keywords: Array.isArray(r.keywords) ? r.keywords : (typeof r.keywords === 'string' ? r.keywords.split(',').map((s: string) => s.trim()) : []),
+      keyTakeaways: Array.isArray(r.keyTakeaways) ? r.keyTakeaways : [],
+      faqs: Array.isArray(r.faqs) ? r.faqs : [],
+      relatedAppSlug: r.relatedAppSlug || undefined,
+      ctaHeadline: r.ctaHeadline || undefined,
+      ctaButtonText: r.ctaButtonText || undefined,
+      viewsCount: r.viewsCount || 0
+    }));
+  }
 } catch (error) {
-  console.error("Failed to fetch blogs for SSG, using fallbacks:", error);
+  console.warn("Could not fetch blogs from DB, using fallbacks:", error);
 }
 
-const displayBlogs = blogs.length > 0 ? blogs : fallbackBlogs;
+// Merge or use fallbacks
+const displayBlogs: BlogPost[] = dbBlogs.length > 0 ? dbBlogs : fallbackBlogs;
+
+// Primary Featured Post is either the first marked featured or the newest
+const featuredPost = displayBlogs.find(b => b.featured) || displayBlogs[0];
+const standardPosts = displayBlogs.filter(b => b.id !== featuredPost?.id);
+
+// Extract all unique categories
+const allCategories = ['All Topics', ...new Set(displayBlogs.map(b => b.category))];
 
 const categoryColors: Record<string, string> = {
-  "Operations": "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-800",
-  "Architecture": "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800",
-  "Growth & Ads": "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/60 dark:border-rose-800",
+  "Revenue & Sales": "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/80",
+  "Operations": "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200/80 dark:border-amber-800/80",
+  "Finance": "bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 border-cyan-200/80 dark:border-cyan-800/80",
+  "Architecture": "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-800/80",
+  "Growth & Traffic": "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/80",
+  "Growth & Ads": "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/80",
+  "Growth & Marketing": "bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-400 border-pink-200/80 dark:border-pink-800/80",
+  "Autonomous AI": "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-400 border-violet-200/80 dark:border-violet-800/80",
+  "Productivity": "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border-blue-200/80 dark:border-blue-800/80",
+  "Security & Governance": "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-400 border-red-200/80 dark:border-red-800/80",
+  "Product Updates": "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/80",
 };
 ---
 
 <Layout 
   title="180workspace Blog & Insights | Work Graph Architecture & Growth"
-  description="Explore expert guides on eliminating SaaS tool sprawl, Work Graph architecture, edge traffic routing, and modern agency scaling."
+  description="Explore expert deep dives on eliminating SaaS tool sprawl, Work Graph architecture, sub-5ms edge traffic routing, and modern agency scaling."
+  type="website"
+  canonicalUrl="https://180workspace.com/blog"
 >
-  <main class="w-full relative">
+  <main class="w-full relative min-h-screen">
     
     <!-- Hero Header -->
-    <section class="relative pt-24 pb-16 md:pt-36 md:pb-20 overflow-hidden">
-      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+    <section class="relative pt-20 pb-12 md:pt-32 md:pb-16 overflow-hidden border-b border-slate-200/80 dark:border-slate-800/80">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-indigo-500/10 dark:bg-indigo-500/15 blur-[120px] rounded-full pointer-events-none -z-10"></div>
       <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
 
       <div class="container mx-auto px-4 max-w-5xl text-center">
-        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-8">
-          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Thought Leadership & Insights</span>
+        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-6">
+          <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
+          </svg>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Thought Leadership & Work Graph Insights</span>
         </div>
 
         <h1 class="display-h1 max-w-4xl mx-auto mb-6">
-          Insights on building <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">high-velocity businesses.</span>
+          Engineering <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">high-velocity businesses.</span>
         </h1>
         <p class="body-lead max-w-3xl mx-auto">
-          Deep dives into Work Graph architecture, eliminating software tool fatigue, edge traffic protection, and autonomous AI workflows.
+          Deep dives into Work Graph architecture, SaaS consolidation economics, edge traffic protection, and autonomous AI workflows. Written for founders, operators, and engineering leads.
         </p>
       </div>
     </section>
 
-    <!-- Blog Articles Grid -->
-    <section class="py-8 pb-24 md:pb-32 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayBlogs.map((blog, idx) => (
-          <article class={`glass-card-interactive flex flex-col justify-between overflow-hidden ${idx === 0 && displayBlogs.length >= 3 ? 'md:col-span-2 lg:col-span-1' : ''}`}>
-            {/* Category Color Bar */}
-            <div class="h-1 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500"></div>
+    <!-- Main Content Container -->
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-12 md:py-16">
+      
+      <!-- Category Filter Pills -->
+      <div class="flex items-center justify-start sm:justify-center gap-2 overflow-x-auto pb-4 mb-12 scrollbar-none">
+        {allCategories.map((cat, idx) => (
+          <button 
+            type="button" 
+            class={`category-tab px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+              idx === 0 
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-950 shadow-sm active-tab' 
+                : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+            }`}
+            data-category={cat}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <!-- Featured Hero Article -->
+      {featuredPost && (
+        <div class="mb-16 blog-card-wrapper" data-card-category={featuredPost.category}>
+          <div class="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white/90 via-white/70 to-indigo-50/40 dark:from-slate-900/90 dark:via-slate-900/70 dark:to-indigo-950/20 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300">
+            <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500"></div>
             
-            <div class="p-7 flex flex-col justify-between flex-1">
-              <div>
-                <div class="flex items-center justify-between gap-2 mb-5">
-                  <span class={`badge-pill text-[10px] py-1 px-2.5 ${categoryColors[blog.category] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
-                    {blog.category}
+            <div class="p-8 sm:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div class="lg:col-span-7">
+                <div class="flex flex-wrap items-center gap-3 mb-6">
+                  <span class={`text-[11px] font-bold uppercase tracking-wider py-1 px-3 rounded-full border ${categoryColors[featuredPost.category] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
+                    {featuredPost.category}
                   </span>
-                  <time class="text-[11px] text-slate-400 font-semibold tabular-nums">
-                    {blog.publishedAt ? new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
+                  <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>{featuredPost.readingTimeMin} min read</span>
+                  </span>
+                  <span class="text-slate-300 dark:text-slate-700">•</span>
+                  <time class="text-xs text-slate-500 dark:text-slate-400 font-semibold tabular-nums">
+                    {new Date(featuredPost.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </time>
+                  <span class="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-wider">
+                    Featured Deep Dive
+                  </span>
                 </div>
 
-                <h2 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-3">
-                  <a href={`/blog/${blog.slug}`} class="focus:outline-none">
-                    {blog.title}
+                <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 dark:text-white leading-tight mb-5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  <a href={`/blog/${featuredPost.slug}`}>
+                    {featuredPost.title}
                   </a>
                 </h2>
 
-                <p class="body-standard text-sm line-clamp-3">
-                  {blog.seoDescription}
+                <p class="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed mb-8">
+                  {featuredPost.excerpt}
+                </p>
+
+                <div class="flex flex-wrap items-center justify-between gap-4 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                      {featuredPost.authorName.charAt(0)}
+                    </div>
+                    <div>
+                      <p class="font-bold text-sm text-slate-900 dark:text-white leading-tight">{featuredPost.authorName}</p>
+                      <p class="text-xs text-slate-500 dark:text-slate-400">{featuredPost.authorRole}</p>
+                    </div>
+                  </div>
+
+                  <a 
+                    href={`/blog/${featuredPost.slug}`}
+                    class="btn-primary inline-flex items-center gap-2 text-sm font-bold"
+                  >
+                    <span>Read Deep Dive</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Graphic / Stat Card on Right -->
+              <div class="lg:col-span-5 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white p-6 sm:p-8 rounded-2xl border border-indigo-500/20 shadow-lg">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-6 font-mono">
+                  <span>WORK GRAPH PROTOCOL</span>
+                  <span class="inline-flex items-center gap-1.5 text-emerald-400">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Verified Analysis
+                  </span>
+                </div>
+
+                <div class="space-y-4">
+                  <div class="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                    <div class="text-2xl font-black text-white">$2,850 / mo</div>
+                    <div class="text-xs text-slate-300 mt-1">Average SaaS subscription spend eliminated per 20-seat agency</div>
+                  </div>
+                  <div class="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                    <div class="text-2xl font-black text-indigo-300">0 ms Latency</div>
+                    <div class="text-xs text-slate-300 mt-1">Direct state synchronization between CRM, Projects & Billing</div>
+                  </div>
+                  <div class="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                    <div class="text-2xl font-black text-pink-300">15 Apps Unified</div>
+                    <div class="text-xs text-slate-300 mt-1">One single sign-on & sovereign data fabric across all operations</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <!-- Standard Articles Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="articles-grid">
+        {standardPosts.map((blog) => (
+          <article 
+            class="blog-card-wrapper glass-card-interactive flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm hover:shadow-xl transition-all duration-300 group"
+            data-card-category={blog.category}
+          >
+            <!-- Top Color Stripe -->
+            <div class="h-1 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500"></div>
+
+            <div class="p-6 sm:p-7 flex flex-col justify-between flex-1">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-4">
+                  <span class={`text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full border ${categoryColors[blog.category] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
+                    {blog.category}
+                  </span>
+                  <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>{blog.readingTimeMin} min read</span>
+                  </div>
+                </div>
+
+                <h3 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-3">
+                  <a href={`/blog/${blog.slug}`} class="focus:outline-none">
+                    {blog.title}
+                  </a>
+                </h3>
+
+                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed mb-6">
+                  {blog.excerpt}
                 </p>
               </div>
 
-              <div class="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">
-                    {blog.authorName.charAt(0)}
+              <div>
+                <div class="pt-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">
+                      {blog.authorName.charAt(0)}
+                    </div>
+                    <div>
+                      <p class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-none">{blog.authorName}</p>
+                      <time class="text-[10px] text-slate-400 font-medium tabular-nums">
+                        {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </time>
+                    </div>
                   </div>
-                  <span class="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    {blog.authorName}
-                  </span>
+
+                  <a 
+                    href={`/blog/${blog.slug}`}
+                    class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 group-hover:gap-2 transition-all"
+                  >
+                    <span>Read</span>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                  </a>
                 </div>
-                <a 
-                  href={`/blog/${blog.slug}`}
-                  class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 hover:gap-2.5 transition-all"
-                >
-                  <span>Read Article</span>
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                </a>
               </div>
             </div>
           </article>
         ))}
       </div>
-    </section>
 
+      <!-- Empty State for filtered category -->
+      <div id="empty-state" class="hidden text-center py-16 px-4">
+        <div class="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 text-slate-400">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+        </div>
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">No articles in this category yet</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">New deep dives are published weekly. Check out other categories above.</p>
+      </div>
+
+    </div>
   </main>
+
+  <!-- Client-side Category Filtering Script -->
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tabs = document.querySelectorAll('.category-tab');
+      const cards = document.querySelectorAll('.blog-card-wrapper');
+      const emptyState = document.getElementById('empty-state');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Update active state
+          tabs.forEach(t => {
+            t.classList.remove('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-950', 'active-tab');
+            t.classList.add('bg-white/80', 'dark:bg-slate-900/80', 'text-slate-600', 'dark:text-slate-300');
+          });
+
+          tab.classList.remove('bg-white/80', 'dark:bg-slate-900/80', 'text-slate-600', 'dark:text-slate-300');
+          tab.classList.add('bg-slate-900', 'dark:bg-white', 'text-white', 'dark:text-slate-950', 'active-tab');
+
+          const category = tab.getAttribute('data-category');
+          let visibleCount = 0;
+
+          cards.forEach(card => {
+            const cardCat = card.getAttribute('data-card-category');
+            if (category === 'All Topics' || cardCat === category) {
+              card.style.display = '';
+              visibleCount++;
+            } else {
+              card.style.display = 'none';
+            }
+          });
+
+          if (emptyState) {
+            emptyState.classList.toggle('hidden', visibleCount > 0);
+          }
+        });
+      });
+    });
+  </script>
 </Layout>

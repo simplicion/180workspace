@@ -1,115 +1,467 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Badge from '../../components/ui/Badge.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
 import { prisma } from '@workspace/db';
+import { fallbackBlogs, type BlogPost } from '../../data/fallback-blogs';
+import { renderBlogMarkdown, safeParseJson } from '../../utils/blog-renderer';
 
 export async function getStaticPaths() {
+  const paths: Array<{ params: { slug: string } }> = [];
+
+  // Always include all fallback blog slugs
+  fallbackBlogs.forEach(b => {
+    paths.push({ params: { slug: b.slug } });
+  });
+
+  // Query DB slugs if available
   try {
-    const blogs = await prisma.marketingBlog.findMany({
+    const dbBlogs = await prisma.marketingBlog.findMany({
       where: { published: true },
       select: { slug: true }
     });
-    return blogs.map((b) => ({
-      params: { slug: b.slug }
-    }));
+    dbBlogs.forEach(b => {
+      if (!paths.some(p => p.params.slug === b.slug)) {
+        paths.push({ params: { slug: b.slug } });
+      }
+    });
   } catch (e) {
-    return [];
+    console.warn("Could not query DB for blog static paths, relying on fallback slugs:", e);
   }
+
+  return paths;
 }
 
 const { slug } = Astro.params;
 
-let blog = null;
+let blog: BlogPost | null = null;
+
+// Try to fetch from DB first
 try {
-  blog = await prisma.marketingBlog.findFirst({
-    where: {
-      slug,
-      published: true,
-    },
-    select: {
-      slug: true,
-      title: true,
-      contentHtml: true,
-      category: true,
-      authorName: true,
-      publishedAt: true,
-      seoTitle: true,
-      seoDescription: true,
-      keywords: true,
-    }
-  });
-} catch (error) {
-  console.error("Failed to fetch blog post:", error);
+  const records = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT * FROM "MarketingBlog" WHERE "slug" = $1 AND "published" = true LIMIT 1`,
+    slug
+  );
+
+  if (records && records.length > 0) {
+    const record = records[0];
+    const rawKeywords = record.keywords;
+    const rawTakeaways = record.keyTakeaways;
+    const rawFaqs = record.faqs;
+
+    blog = {
+      id: record.id,
+      title: record.title,
+      slug: record.slug,
+      category: record.category || 'Operations',
+      excerpt: record.excerpt || record.seoDescription || record.title,
+      contentMarkdown: record.contentMarkdown || record.contentHtml || '',
+      readingTimeMin: record.readingTimeMin || 6,
+      featured: Boolean(record.featured),
+      authorName: record.authorName || '180workspace Team',
+      authorRole: record.authorRole || (record.authorBio ? 'Author' : 'Editorial Contributor'),
+      authorBio: record.authorBio || '',
+      authorAvatar: record.authorAvatarUrl || undefined,
+      authorSocial: record.authorSocial || undefined,
+      publishedAt: record.publishedAt ? new Date(record.publishedAt) : new Date(),
+      seoTitle: record.seoTitle || record.title,
+      seoDescription: record.seoDescription || '',
+      keywords: safeParseJson<string[]>(rawKeywords, []),
+      keyTakeaways: safeParseJson<string[]>(rawTakeaways, []),
+      faqs: safeParseJson<Array<{ question: string; answer: string }>>(rawFaqs, []),
+      canonicalUrl: record.canonicalUrl || undefined,
+      ogImageUrl: record.ogImageUrl || undefined,
+      relatedAppSlug: record.relatedAppSlug || 'workspace-tools',
+      ctaHeadline: record.ctaHeadline || 'Consolidate 15+ Disconnected SaaS Tools on 180workspace',
+      ctaButtonText: record.ctaButtonText || 'Start with $12 Plan',
+      viewsCount: record.viewsCount || 0
+    };
+  }
+} catch (err) {
+  console.warn(`Failed to fetch blog post "${slug}" from DB, checking fallback blogs:`, err);
+}
+
+// Fallback lookup
+if (!blog) {
+  blog = fallbackBlogs.find(b => b.slug === slug) || null;
 }
 
 if (!blog) {
   return Astro.redirect('/blog');
 }
 
-// Default structured data for Article schema
-const defaultStructuredData = {
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "headline": blog.seoTitle || blog.title,
-  "description": blog.seoDescription,
-  "author": {
-    "@type": "Person",
-    "name": blog.authorName || "180workspace Team"
-  },
-  "publisher": {
-    "@type": "Organization",
-    "name": "180workspace",
-    "logo": {
-      "@type": "ImageObject",
-      "url": "https://180workspace.com/logo.png"
-    }
-  },
-  "datePublished": blog.publishedAt?.toISOString(),
+// Render Markdown to HTML and extract Table of Contents (TOC)
+const { html: renderedContent, toc } = renderBlogMarkdown(blog.contentMarkdown);
+
+// Related posts (same category or others, excluding current)
+const relatedPosts = fallbackBlogs
+  .filter(b => b.slug !== blog?.slug)
+  .slice(0, 2);
+
+// Category styling
+const categoryColors: Record<string, string> = {
+  "Operations": "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200/80 dark:border-amber-800/80",
+  "Architecture": "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-800/80",
+  "Growth & Traffic": "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/80",
+  "Growth & Ads": "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/80",
+  "Autonomous AI": "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-400 border-violet-200/80 dark:border-violet-800/80",
+  "Product Updates": "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/80",
 };
 
-const jsonLd = JSON.stringify(defaultStructuredData);
+const fullCanonical = blog.canonicalUrl || `https://180workspace.com/blog/${blog.slug}`;
 ---
 
 <Layout 
   title={`${blog.seoTitle || blog.title} | 180workspace Blog`}
-  description={blog.seoDescription || `Read ${blog.title} on the 180workspace blog.`}
+  description={blog.seoDescription || blog.excerpt}
+  image={blog.ogImageUrl || "/og-image.png"}
+  type="article"
+  canonicalUrl={fullCanonical}
+  article={{
+    publishedTime: blog.publishedAt.toISOString(),
+    author: blog.authorName,
+    tags: blog.keywords,
+  }}
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Blog', url: '/blog' },
+    { name: blog.category, url: '/blog' },
+    { name: blog.title, url: `/blog/${blog.slug}` }
+  ]}
+  faqs={blog.faqs}
 >
-  <main class="container mx-auto px-4 py-16 md:py-24 max-w-4xl">
-    
-    <div class="mb-12 border-b border-slate-200 dark:border-slate-800 pb-8">
-      <div class="flex flex-wrap items-center gap-4 text-sm mb-6">
-        <a href="/blog" class="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold transition-colors flex items-center gap-1.5">
-          <span>←</span> Back to Blog
-        </a>
-        <span class="text-slate-300 dark:text-slate-700">•</span>
-        <time datetime={blog.publishedAt?.toISOString()} class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-          {blog.publishedAt ? new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Recent'}
-        </time>
-        <span class="text-slate-300 dark:text-slate-700">•</span>
-        <Badge text={blog.category} variant="crm" size="sm" />
-      </div>
+  <!-- Reading Progress Bar -->
+  <div id="reading-progress-bar" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500 z-50 w-0 transition-all duration-75"></div>
+
+  <main class="w-full relative min-h-screen py-10 md:py-16">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
       
-      <h1 class="display-h1 mb-8 leading-tight">
-        {blog.title}
-      </h1>
-      
-      <div class="flex items-center gap-3.5 mt-6">
-        <div class="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-sm">
-          {blog.authorName ? blog.authorName.charAt(0) : '1'}
+      <!-- Breadcrumb Navigation -->
+      <nav class="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-8 overflow-x-auto pb-2 scrollbar-none" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Home</a>
+        <span>/</span>
+        <a href="/blog" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Blog</a>
+        <span>/</span>
+        <span class="text-slate-700 dark:text-slate-300">{blog.category}</span>
+      </nav>
+
+      <!-- Article Header -->
+      <header class="max-w-4xl mb-12">
+        <div class="flex flex-wrap items-center gap-3 mb-6">
+          <span class={`text-[11px] font-bold uppercase tracking-wider py-1 px-3 rounded-full border ${categoryColors[blog.category] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
+            {blog.category}
+          </span>
+          <span class="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>{blog.readingTimeMin} min read</span>
+          </span>
+          <span class="text-slate-300 dark:text-slate-700">•</span>
+          <time datetime={blog.publishedAt.toISOString()} class="text-xs text-slate-500 dark:text-slate-400 font-semibold tabular-nums">
+            Published on {new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </time>
         </div>
-        <div>
-          <p class="font-bold text-sm text-slate-900 dark:text-white">{blog.authorName || '180workspace Team'}</p>
-          <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Content & Strategy Team</p>
+
+        <h1 class="display-h1 mb-6 leading-tight tracking-tight text-slate-950 dark:text-white">
+          {blog.title}
+        </h1>
+
+        <p class="body-lead text-slate-600 dark:text-slate-300 mb-8">
+          {blog.excerpt}
+        </p>
+
+        <!-- E-E-A-T Author Attribution Card -->
+        <div class="flex items-center justify-between flex-wrap gap-4 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-black text-base flex items-center justify-center shadow-md">
+              {blog.authorName.charAt(0)}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-slate-950 dark:text-white">{blog.authorName}</span>
+                {blog.authorSocial && (
+                  <a href={blog.authorSocial} target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Follow Author">
+                    <svg class="w-3.5 h-3.5 fill-currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  </a>
+                )}
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">{blog.authorRole}</p>
+            </div>
+          </div>
+
+          <!-- Share buttons -->
+          <div class="flex items-center gap-2">
+            <button 
+              id="copy-link-btn"
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white text-xs font-bold transition-all shadow-sm"
+              title="Copy link to clipboard"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+              <span id="copy-btn-label">Copy Link</span>
+            </button>
+            <a 
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(blog.title)}&url=${encodeURIComponent(fullCanonical)}`}
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs transition-all shadow-sm"
+              title="Share on X"
+            >
+              <svg class="w-3.5 h-3.5 fill-currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            </a>
+            <a 
+              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(fullCanonical)}`}
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs transition-all shadow-sm"
+              title="Share on LinkedIn"
+            >
+              <svg class="w-3.5 h-3.5 fill-currentColor" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.77a1.62 1.62 0 1 0 0 3.24 1.62 1.62 0 0 0 0-3.24Z"/></svg>
+            </a>
+          </div>
         </div>
+      </header>
+
+      <!-- 2-Column Content Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        
+        <!-- Left Column: Article Body (8 cols) -->
+        <div class="lg:col-span-8">
+          
+          <!-- Key Takeaways Box (GEO / AI Overview / SearchGPT Optimization) -->
+          {blog.keyTakeaways && blog.keyTakeaways.length > 0 && (
+            <div class="mb-10 p-6 sm:p-7 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/70 via-white/80 to-purple-50/50 dark:from-indigo-950/40 dark:via-slate-900/80 dark:to-purple-950/30 backdrop-blur-md shadow-sm">
+              <div class="flex items-center gap-2.5 mb-4 text-indigo-700 dark:text-indigo-300">
+                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <h2 class="text-sm sm:text-base font-extrabold uppercase tracking-wider">Key Takeaways & Executive Summary</h2>
+              </div>
+              <ul class="space-y-3">
+                {blog.keyTakeaways.map(item => (
+                  <li class="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    <span class="w-4 h-4 rounded-full bg-indigo-200 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <!-- Body Content -->
+          <article class="article-body prose-content text-slate-700 dark:text-slate-300">
+            <div set:html={renderedContent} />
+          </article>
+
+          <!-- In-Article Work Graph Product CTA Card -->
+          <div class="my-14 rounded-2xl overflow-hidden border border-indigo-200/80 dark:border-indigo-800 bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 text-white p-7 sm:p-9 shadow-xl relative">
+            <div class="absolute -right-8 -bottom-8 w-48 h-48 bg-indigo-500/20 blur-[60px] rounded-full pointer-events-none"></div>
+            
+            <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div class="max-w-xl">
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 text-[10px] font-bold uppercase tracking-wider mb-3 border border-indigo-400/30">
+                  Work Graph 2.0
+                </div>
+                <h3 class="text-xl sm:text-2xl font-black text-white mb-2 leading-tight">
+                  {blog.ctaHeadline || "Eliminate 8+ Disconnected SaaS Subscriptions Today"}
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Run your entire business—CRM, Project Management, Invoicing, Team Comms, and AI Copilot—on one sovereign Work Graph.
+                </p>
+              </div>
+
+              <div class="shrink-0 flex flex-col items-start sm:items-end gap-2">
+                <a 
+                  href="/signup?plan=momentum" 
+                  class="btn-primary px-6 py-3 text-sm font-black whitespace-nowrap shadow-lg hover:shadow-indigo-500/30"
+                >
+                  {blog.ctaButtonText || "Start with $12 Plan"} →
+                </a>
+                <span class="text-[11px] text-slate-400 font-medium">No credit card required for 14-day trial</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ Accordion Section -->
+          {blog.faqs && blog.faqs.length > 0 && (
+            <section class="mt-14 pt-10 border-t border-slate-200/80 dark:border-slate-800" id="frequently-asked-questions">
+              <div class="flex items-center gap-2 mb-6">
+                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <h2 class="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">Frequently Asked Questions</h2>
+              </div>
+              <div class="space-y-4">
+                {blog.faqs.map(faq => (
+                  <details class="group rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-5 shadow-sm transition-all open:shadow-md">
+                    <summary class="flex items-center justify-between cursor-pointer list-none font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                      <span>{faq.question}</span>
+                      <span class="ml-4 shrink-0 transition-transform duration-200 group-open:rotate-180 text-indigo-600 dark:text-indigo-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                      </span>
+                    </summary>
+                    <div class="mt-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-100 dark:border-slate-800 pt-3">
+                      {faq.answer}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <!-- Author Bio Box at Footer -->
+          <div class="mt-14 p-7 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-black text-xl flex items-center justify-center shrink-0 shadow-md">
+              {blog.authorName.charAt(0)}
+            </div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between flex-wrap gap-2 mb-1.5">
+                <h3 class="font-extrabold text-base text-slate-950 dark:text-white">{blog.authorName}</h3>
+                <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{blog.authorRole}</span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-3">
+                {blog.authorBio || "Author and technology contributor at 180workspace, analyzing distributed Work Graph systems and operations velocity."}
+              </p>
+              {blog.authorSocial && (
+                <a href={blog.authorSocial} target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                  <span>Connect on Social</span>
+                  <span>→</span>
+                </a>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Sticky Sidebar (4 cols) -->
+        <aside class="lg:col-span-4 space-y-8">
+          
+          <!-- Sticky Table of Contents (TOC) -->
+          {toc.length > 0 && (
+            <div class="sticky top-24 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 shadow-sm">
+              <div class="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+                <span class="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Table of Contents</span>
+              </div>
+              <nav class="toc-nav space-y-2 text-xs leading-relaxed max-h-[50vh] overflow-y-auto pr-1">
+                {toc.map(item => (
+                  <a 
+                    href={`#${item.id}`} 
+                    class={`block py-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${item.level === 3 ? 'pl-3 text-slate-500 dark:text-slate-400' : 'font-bold text-slate-700 dark:text-slate-300'}`}
+                  >
+                    {item.text}
+                  </a>
+                ))}
+              </nav>
+
+              <!-- Mini CTA in Sidebar -->
+              <div class="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+                <div class="p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border border-indigo-100 dark:border-indigo-900/60 text-center">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Momentum Plan</span>
+                  <div class="text-lg font-black text-slate-900 dark:text-white my-1">$12 / month</div>
+                  <p class="text-[11px] text-slate-600 dark:text-slate-400 mb-3">All 15 applications on one Work Graph.</p>
+                  <a 
+                    href="/signup?plan=momentum" 
+                    class="block w-full py-2 px-3 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-sm"
+                  >
+                    Start with $12 Plan
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </aside>
+
       </div>
+
+      <!-- Related Articles Section -->
+      {relatedPosts.length > 0 && (
+        <section class="mt-20 pt-12 border-t border-slate-200/80 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-8">
+            <div>
+              <h2 class="text-2xl font-black text-slate-950 dark:text-white">Related Deep Dives</h2>
+              <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Explore more research on modern software architecture and scaling.</p>
+            </div>
+            <a href="/blog" class="text-xs sm:text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+              <span>View All</span>
+              <span>→</span>
+            </a>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {relatedPosts.map(rel => (
+              <article class="p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between text-xs mb-3">
+                    <span class={`font-bold py-0.5 px-2.5 rounded-full border text-[10px] ${categoryColors[rel.category] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                      {rel.category}
+                    </span>
+                    <span class="text-slate-400 font-semibold">{rel.readingTimeMin} min read</span>
+                  </div>
+                  <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 leading-snug hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    <a href={`/blog/${rel.slug}`}>{rel.title}</a>
+                  </h3>
+                  <p class="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-4 leading-relaxed">{rel.excerpt}</p>
+                </div>
+                <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                  <span class="font-bold text-slate-700 dark:text-slate-300">{rel.authorName}</span>
+                  <a href={`/blog/${rel.slug}`} class="font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                    <span>Read Article</span>
+                    <span>→</span>
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- Universal Bottom CTA -->
+      <div class="mt-20">
+        <AppBottomCTA 
+          appName="180workspace" 
+          headline="Ready to run your business on one connected Work Graph?"
+          subheadline="Eliminate 10+ fragmented SaaS subscriptions. Connect your CRM, Traffic Routing, Finance, Projects, HR, and Orbit AI into one sovereign Work Graph."
+          ctaText="Start with $12 Plan"
+        />
+      </div>
+
     </div>
-
-    <!-- Content Area -->
-    <article class="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-slate-950 dark:prose-headings:text-white prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-a:text-indigo-600 dark:prose-a:text-indigo-400 hover:prose-a:text-indigo-500">
-      <div set:html={blog.contentHtml} />
-    </article>
-
-    <!-- Structured Data (JSON-LD) -->
-    <script type="application/ld+json" set:html={jsonLd} />
   </main>
+
+  <!-- Client-side Scripts: Reading Progress, Copy Link & Analytics Telemetry -->
+  <script is:inline define:vars={{ articleSlug: blog.slug }}>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Reading Progress Bar
+      const progressBar = document.getElementById('reading-progress-bar');
+      window.addEventListener('scroll', () => {
+        const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+        if (totalHeight > 0 && progressBar) {
+          const progress = (window.scrollY / totalHeight) * 100;
+          progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+        }
+      });
+
+      // 2. Copy Link Button with Toast
+      const copyBtn = document.getElementById('copy-link-btn');
+      const copyLabel = document.getElementById('copy-btn-label');
+      if (copyBtn && copyLabel) {
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            copyLabel.textContent = 'Copied!';
+            copyBtn.classList.add('text-emerald-600', 'border-emerald-300');
+            setTimeout(() => {
+              copyLabel.textContent = 'Copy Link';
+              copyBtn.classList.remove('text-emerald-600', 'border-emerald-300');
+            }, 2000);
+          } catch (err) {
+            console.error('Failed to copy link:', err);
+          }
+        });
+      }
+
+      // 3. View Counter Telemetry (Auto-increment in DB)
+      if (articleSlug) {
+        const apiUrl = 'http://localhost:4002/api/public/blogs/' + encodeURIComponent(articleSlug) + '/view';
+        fetch(apiUrl, { method: 'POST' }).catch(() => {});
+      }
+    });
+  </script>
 </Layout>

@@ -98,6 +98,11 @@ router.post('/events/:eventId/register', publicController.submitEventRegistratio
 // --- Domain Registry Endpoints ---
 router.get('/domains/resolve', publicController.resolveDomain);
 
+// --- Public Marketing Blog Endpoints ---
+router.get('/blogs', publicController.getPublicBlogs);
+router.get('/blogs/:slug', publicController.getPublicBlogBySlug);
+router.post('/blogs/:slug/view', publicController.recordBlogView);
+
 export default router;
 
 
