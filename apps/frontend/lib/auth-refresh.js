@@ -71,7 +71,9 @@ async function _doRefresh() {
             localStorage.setItem("platform_refresh_token", data.refreshToken);
         }
         const isProd = window.location.protocol === "https:";
-        const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${isProd ? "; Secure" : ""}`;
+        const is180 = window.location.hostname.endsWith('180workspace.com');
+        const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+        const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? "; Secure" : ""}${domainAttr}`;
         document.cookie = `platform_auth_token=${data.token}${cookieFlags}`;
     }
 
@@ -89,9 +91,13 @@ export function clearAllAuthTokens() {
     localStorage.removeItem("platform_refresh_token");
 
     const hostname = window.location.hostname;
+    const is180 = hostname.endsWith('180workspace.com');
+    const domainAttr = is180 ? '; domain=.180workspace.com' : '';
     const cookieDomain = hostname.includes("localhost")
         ? ".localhost"
         : `.${hostname.split(".").slice(-2).join(".")}`;
     document.cookie = `platform_auth_token=; path=/; max-age=0; Domain=${cookieDomain}`;
+    document.cookie = `platform_auth_token=; path=/; max-age=0${domainAttr}`;
     document.cookie = `platform_auth_token=; path=/; max-age=0;`;
+    document.cookie = `platform_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
 }

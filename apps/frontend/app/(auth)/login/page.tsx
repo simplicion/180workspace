@@ -52,11 +52,20 @@ function LoginForm() {
             }
 
             // Ensure platform_auth_token cookie is synced if available
-            const localToken = localStorage.getItem('platform_auth_token') || token;
-            if (localToken && typeof document !== 'undefined' && !document.cookie.includes('platform_auth_token=')) {
+            const localToken = localStorage.getItem('platform_auth_token') || (session as any)?.platformToken || token;
+            if (localToken && typeof document !== 'undefined') {
                 const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
-                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}`;
+                const is180 = typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com');
+                const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}${domainAttr}`;
                 document.cookie = `platform_auth_token=${localToken}${cookieFlags}`;
+                if (!localStorage.getItem('platform_auth_token')) {
+                    localStorage.setItem('platform_auth_token', localToken);
+                }
+            } else if (!localToken) {
+                // NextAuth has a stale session but we have no backend token; clear it to avoid loops
+                signOut({ redirect: false });
+                return;
             }
 
             if ((user as any).isFirstLogin !== false && !(user as any).isOnboardingComplete) {
@@ -65,8 +74,13 @@ function LoginForm() {
                 return;
             }
 
-            const returnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
-            window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+            const rawReturnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
+            const target = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : '/';
+            if (target === '/login' || target.startsWith('/login?')) {
+                window.location.href = '/';
+            } else {
+                window.location.href = target;
+            }
         }
     }, [isLoading, user, token, router, searchParams]);
 
@@ -76,8 +90,13 @@ function LoginForm() {
             // User is authenticated in backend but NextAuth session is missing
             signIn('platform-token', { token, redirect: false }).then((result) => {
                 if (result?.ok) {
-                    const returnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
-                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                    const rawReturnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
+                    const target = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : '/';
+                    if (target === '/login' || target.startsWith('/login?')) {
+                        window.location.href = '/';
+                    } else {
+                        window.location.href = target;
+                    }
                 }
             });
         }
@@ -105,18 +124,20 @@ function LoginForm() {
         try {
             // 1. Authenticate with Express Backend to get platform_auth_token
             const authRes = await api.post('/api/auth/google', { tokenId: credentialResponse.credential });
-            const { token, refreshToken } = authRes.data;
-            if (token) {
-                localStorage.setItem('platform_auth_token', token);
+            const { token: googleAuthToken, refreshToken } = authRes.data;
+            if (googleAuthToken) {
+                localStorage.setItem('platform_auth_token', googleAuthToken);
                 localStorage.setItem('platform_refresh_token', refreshToken);
                 const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
-                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${isProd ? '; Secure' : ''}`;
-                document.cookie = `platform_auth_token=${token}${cookieFlags}`;
-                api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                const is180 = typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com');
+                const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}${domainAttr}`;
+                document.cookie = `platform_auth_token=${googleAuthToken}${cookieFlags}`;
+                api.defaults.headers.common['Authorization'] = `Bearer ${googleAuthToken}`;
                 
-                // 2. Authenticate with NextAuth using the new platform-token provider
+                // 2. Authenticate with NextAuth using the platform-token provider
                 const result = await signIn('platform-token', { 
-                    token: token,
+                    token: googleAuthToken,
                     redirect: false 
                 });
 
@@ -124,8 +145,13 @@ function LoginForm() {
                     toast.error(result.error);
                 } else if (result?.ok) {
                     toast.success('Logged in successfully!');
-                    const returnUrl = searchParams?.get('returnUrl');
-                    window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                    const rawReturnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
+                    const target = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : '/';
+                    if (target === '/login' || target.startsWith('/login?')) {
+                        window.location.href = '/';
+                    } else {
+                        window.location.href = target;
+                    }
                 }
             }
         } catch (err: any) {
@@ -147,19 +173,21 @@ function LoginForm() {
         try {
             // 1. Authenticate with Express Backend first to get platform_auth_token
             const authRes = await api.post('/api/auth/login', { email, password });
-            const { token, refreshToken } = authRes.data;
-            if (token) {
-                localStorage.setItem('platform_auth_token', token);
+            const { token: authToken, refreshToken } = authRes.data;
+            if (authToken) {
+                localStorage.setItem('platform_auth_token', authToken);
                 localStorage.setItem('platform_refresh_token', refreshToken);
                 const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
-                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${isProd ? '; Secure' : ''}`;
-                document.cookie = `platform_auth_token=${token}${cookieFlags}`;
-                api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                const is180 = typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com');
+                const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}${domainAttr}`;
+                document.cookie = `platform_auth_token=${authToken}${cookieFlags}`;
+                api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
             }
 
             // 2. Authenticate with NextAuth
             const result = await signIn('platform-token', { 
-                token: token,
+                token: authToken,
                 redirect: false 
             });
             
@@ -170,9 +198,13 @@ function LoginForm() {
             
             if (result?.ok) {
                 toast.success('Logged in successfully!');
-                const returnUrl = searchParams?.get('returnUrl');
-                // The Next.js middleware will automatically redirect if onboarding is not complete
-                window.location.href = returnUrl ? decodeURIComponent(returnUrl) : '/';
+                const rawReturnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
+                const target = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : '/';
+                if (target === '/login' || target.startsWith('/login?')) {
+                    window.location.href = '/';
+                } else {
+                    window.location.href = target;
+                }
             }
         } catch (err: any) {
             console.error('Login error:', err);
