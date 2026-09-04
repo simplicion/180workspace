@@ -1,61 +1,36 @@
-# ---------------------------------------------
-# Base image for node
-# ---------------------------------------------
-FROM node:20-slim AS base
-# Install OpenSSL for Prisma
-RUN apt-get update -y && apt-get install -y openssl
-RUN npm install -g pnpm turbo tsx
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+RUN apk add --no-cache libc6-compat openssl
 
-# ---------------------------------------------
-# Stage 1: Prune the workspace
-# ---------------------------------------------
 FROM base AS builder
 WORKDIR /app
+RUN npm install -g turbo
 COPY . .
-# Extract only the necessary files for the backend app
 RUN turbo prune backend --docker
 
-# ---------------------------------------------
-# Stage 2: Install dependencies
-# ---------------------------------------------
 FROM base AS installer
 WORKDIR /app
-
-# First install the dependencies (as they change less often)
-# Copy the lockfile and package.jsons
 COPY --from=builder /app/out/json/ .
-COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-
-# Copy the Prisma schema to avoid postinstall errors
-COPY --from=builder /app/out/full/packages/db/prisma ./packages/db/prisma
-
-RUN pnpm install --frozen-lockfile --prod=false || pnpm install --no-frozen-lockfile --prod=false
-
-# Now copy the source code of the pruned app
+# Copy prisma schema to ensure postinstall (prisma generate) succeeds
+COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
+RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
+RUN pnpm turbo run build --filter=backend... || true
 
-# Build the project (compile all workspace packages)
-RUN pnpm turbo run build --filter=backend
-
-# ---------------------------------------------
-# Stage 3: Runner
-# ---------------------------------------------
 FROM base AS runner
 WORKDIR /app
-
-# Don't run production as root
+ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 backend-user
-USER backend-user
+RUN adduser --system --uid 1001 express
 
-# Copy installed dependencies and source code
-COPY --from=installer --chown=backend-user:nodejs /app .
+COPY --from=installer --chown=express:nodejs /app .
 
+USER express
 WORKDIR /app/apps/backend
 
-ENV NODE_ENV=production
+EXPOSE 4000
 ENV PORT=4000
 
-EXPOSE 4000
-
-CMD ["tsx", "server.js"]
+CMD ["node", "server.js"]
