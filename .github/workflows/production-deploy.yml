@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
 jobs:
   # ====================================================
   # Phase 1: Deploy Marketing Web to Cloudflare Pages
@@ -171,6 +174,7 @@ jobs:
             # 8. Pull latest multi-stage images
             echo "==> Pulling latest production container images..."
             docker compose pull
+            docker compose -f docker-compose.livekit.yml pull || true
 
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
@@ -184,6 +188,7 @@ jobs:
 
             # 11. Graceful Rolling Restart (zero-downtime)
             docker compose up -d --force-recreate --remove-orphans
+            docker compose -f docker-compose.livekit.yml up -d
 
             # 12. Health verification
             sleep 5

@@ -8,8 +8,8 @@ export class VoiceforceWebhooksController {
 
   private static getReceiver(): WebhookReceiver {
     if (!this.receiver) {
-      const apiKey = process.env.LIVEKIT_API_KEY || 'devkey';
-      const apiSecret = process.env.LIVEKIT_API_SECRET || 'secret_180workspace_livekit_key';
+      const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
+      const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
       this.receiver = new WebhookReceiver(apiKey, apiSecret);
     }
     return this.receiver;

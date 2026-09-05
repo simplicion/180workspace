@@ -15,9 +15,9 @@ export class LiveKitTokenService {
   private livekitUrl: string;
 
   constructor() {
-    this.apiKey = process.env.LIVEKIT_API_KEY || 'devkey';
-    this.apiSecret = process.env.LIVEKIT_API_SECRET || 'secret_180workspace_livekit_key';
-    this.livekitUrl = process.env.LIVEKIT_URL || 'ws://localhost:7880';
+    this.apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
+    this.apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
+    this.livekitUrl = process.env.LIVEKIT_URL || 'ws://host.docker.internal:7880';
   }
 
   /**

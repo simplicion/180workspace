@@ -15,7 +15,7 @@ WORKDIR /app
 COPY --from=builder /app/out/json/ .
 # Copy prisma schema to ensure postinstall (prisma generate) succeeds
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --prefer-frozen-lockfile
 COPY --from=builder /app/out/full/ .
 RUN pnpm turbo run build --filter=backend... || true
 

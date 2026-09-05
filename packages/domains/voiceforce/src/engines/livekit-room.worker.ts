@@ -27,9 +27,9 @@ export class LiveKitRoomWorker {
 
   constructor(options: LiveKitRoomWorkerOptions) {
     this.options = options;
-    const apiKey = process.env.LIVEKIT_API_KEY || 'devkey';
-    const apiSecret = process.env.LIVEKIT_API_SECRET || 'secret_180workspace_livekit_key';
-    const livekitHost = process.env.LIVEKIT_HOST || 'http://localhost:7880';
+    const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
+    const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
+    const livekitHost = process.env.LIVEKIT_HOST || process.env.LIVEKIT_URL || 'http://host.docker.internal:7880';
 
     this.roomService = new RoomServiceClient(livekitHost, apiKey, apiSecret);
     this.sipClient = new SipClient(livekitHost, apiKey, apiSecret);
