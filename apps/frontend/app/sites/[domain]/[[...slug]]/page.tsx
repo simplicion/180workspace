@@ -34,9 +34,10 @@ async function resolveDomainData(domain: string, slug?: string | string[]) {
     const cleanDomain = decodeURIComponent(domain || '').split(':')[0].toLowerCase().trim();
     try {
         const candidateBases = [
-            process.env.NEXT_PUBLIC_API_URL,
-            process.env.NEXT_PUBLIC_BACKEND_URL,
             process.env.BACKEND_INTERNAL_URL,
+            process.env.NODE_ENV === 'production' ? 'http://backend:4000' : null,
+            process.env.NEXT_PUBLIC_BACKEND_URL,
+            process.env.NEXT_PUBLIC_API_URL,
             'http://localhost:4004',
             'http://localhost:4002',
             'http://127.0.0.1:4004',
@@ -255,9 +256,10 @@ export default async function PublicWebsitePage({
                 const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : '';
                 const referer = incomingHeaders.get('referer') || '';
 
-                const apiBase = process.env.NEXT_PUBLIC_API_URL || 
+                const apiBase = process.env.BACKEND_INTERNAL_URL || 
+                    (process.env.NODE_ENV === 'production' ? 'http://backend:4000' : null) ||
                     process.env.NEXT_PUBLIC_BACKEND_URL || 
-                    process.env.BACKEND_INTERNAL_URL || 
+                    process.env.NEXT_PUBLIC_API_URL || 
                     (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
 
                 const searchParamsStr = slug ? `?subpath=${encodeURIComponent(Array.isArray(slug) ? slug.join('/') : slug)}` : '';
@@ -265,10 +267,10 @@ export default async function PublicWebsitePage({
                     headers: {
                         'user-agent': userAgent,
                         'referer': referer,
-                        'cf-connecting-ip': incomingHeaders.get('cf-connecting-ip') || '',
-                        'true-client-ip': incomingHeaders.get('true-client-ip') || '',
-                        'x-client-ip': incomingHeaders.get('x-client-ip') || '',
-                        'x-real-ip': incomingHeaders.get('x-real-ip') || incomingHeaders.get('cf-connecting-ip') || clientIp,
+                        // Cloudflare strictly rejects outbound public requests with cf-connecting-ip (Error 1000). Pass via real-ip/forwarded-for instead.
+                        'true-client-ip': incomingHeaders.get('true-client-ip') || clientIp,
+                        'x-client-ip': incomingHeaders.get('x-client-ip') || clientIp,
+                        'x-real-ip': incomingHeaders.get('x-real-ip') || clientIp,
                         'x-forwarded-for': forwardedFor || clientIp,
                         'cf-ipcountry': incomingHeaders.get('cf-ipcountry') || '',
                         'cf-ipcity': incomingHeaders.get('cf-ipcity') || '',
