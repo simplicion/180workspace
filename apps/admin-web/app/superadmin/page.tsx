@@ -231,7 +231,7 @@ export default function SuperAdminOverviewPage() {
                         sub="Across all company workspaces"
                         badgeText="Total Seats"
                         badgeColor="bg-blue-50 text-blue-700"
-                        href="/superadmin/users"
+                        href="/superadmin/companies"
                     />
                     <StatCard
                         label="Gross Monthly MRR"

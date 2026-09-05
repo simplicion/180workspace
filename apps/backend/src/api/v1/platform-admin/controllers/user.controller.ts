@@ -28,3 +28,16 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
   next(err);
 }
 };
+
+export const bulkDelete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { userIds } = req.body;
+        if (!Array.isArray(userIds) || userIds.length === 0) {
+            return res.status(400).json({ error: 'userIds array is required' });
+        }
+        await PlatformUserService.bulkDelete(userIds);
+        res.json({ message: `${userIds.length} users deleted successfully` });
+    } catch (err: any) {
+        next(err);
+    }
+};
