@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   redis:
     image: redis:7-alpine
@@ -20,8 +18,7 @@ services:
     container_name: 180workspace-livekit
     restart: unless-stopped
     network_mode: "host"
-    environment:
-      - LIVEKIT_CONFIG=/etc/livekit.yaml
+    command: --config /etc/livekit.yaml
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml
     depends_on:
@@ -37,8 +34,7 @@ services:
     container_name: 180workspace-livekit-sip
     restart: unless-stopped
     network_mode: "host"
-    environment:
-      - SIP_CONFIG=/etc/livekit-sip.yaml
+    command: --config /etc/livekit-sip.yaml
     volumes:
       - ./livekit-sip.yaml:/etc/livekit-sip.yaml
     depends_on:
