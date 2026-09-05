@@ -17,7 +17,7 @@ export const getHealth = async (req: Request, res: Response, next: NextFunction)
 
     try {
         if (redisClient) {
-            redisConnected = redisClient.status === 'ready';
+            redisConnected = redisClient.status === 'ready' || redisClient.status === 'connect';
         }
     } catch (err) {
   redisConnected = false;
