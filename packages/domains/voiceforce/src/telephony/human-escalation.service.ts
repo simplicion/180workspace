@@ -107,8 +107,8 @@ export class HumanEscalationService {
     operatorUserId: string,
     operatorName: string
   ): Promise<string> {
-    const apiKey = process.env.LIVEKIT_API_KEY || 'devkey';
-    const apiSecret = process.env.LIVEKIT_API_SECRET || 'secret_180workspace_livekit_key';
+    const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
+    const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
 
     const at = new AccessToken(apiKey, apiSecret, {
       identity: `operator_${operatorUserId}`,
