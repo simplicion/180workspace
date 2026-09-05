@@ -43,11 +43,13 @@ export class PlatformCompanyRepository {
             trafficLinksCount,
             formsCount,
             ticketsCount,
-            activityLogs
+            auditLogsRaw,
+            teamActivityLogsRaw,
+            emailLogsRaw
         ] = await Promise.all([
             prisma.company.findUnique({ where: { id } }),
             prisma.user.findMany({
-                where: { companyId: id },
+                where: { companyId: id, deletedAt: null },
                 select: {
                     id: true,
                     name: true,
@@ -84,14 +86,154 @@ export class PlatformCompanyRepository {
             prisma.trafficLink.count({ where: { companyId: id } }).catch(() => 0),
             prisma.form.count({ where: { companyId: id } }).catch(() => 0),
             prisma.supportTicket.count({ where: { companyId: id } }).catch(() => 0),
+            prisma.auditLog.findMany({
+                where: { companyId: id },
+                include: {
+                    user: { select: { id: true, name: true, email: true, role: true } }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 100
+            }).catch(() => []),
             prisma.teamActivityLog.findMany({
                 where: { companyId: id },
+                include: {
+                    actor: { select: { id: true, name: true, email: true, role: true } }
+                },
                 orderBy: { createdAt: 'desc' },
-                take: 20
+                take: 100
+            }).catch(() => []),
+            prisma.emailLog.findMany({
+                where: { companyId: id },
+                include: {
+                    sentBy: { select: { id: true, name: true, email: true, role: true } }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 50
             }).catch(() => [])
         ]);
 
         if (!company) return null;
+
+        // Combine and normalize all logs
+        const normalizedLogs: any[] = [];
+
+        // 1. Audit Logs (Security & Administration)
+        (auditLogsRaw || []).forEach((log: any) => {
+            normalizedLogs.push({
+                id: log.id,
+                logType: 'audit',
+                action: log.action || 'Administrative Event',
+                resourceType: log.resourceType || 'SECURITY',
+                resourceId: log.resourceId || '',
+                details: log.details || {},
+                ipAddress: log.ipAddress || '',
+                userAgent: log.userAgent || '',
+                userName: log.user?.name || company.adminName || 'Admin User',
+                userEmail: log.user?.email || company.adminEmail || '',
+                userRole: log.user?.role || 'admin',
+                createdAt: log.createdAt,
+            });
+        });
+
+        // 2. Team Activity Logs (Workspace Operations)
+        (teamActivityLogsRaw || []).forEach((log: any) => {
+            normalizedLogs.push({
+                id: log.id,
+                logType: 'activity',
+                action: log.actionType || 'Team Operation',
+                resourceType: log.entityType || 'WORKSPACE',
+                resourceId: log.entityId || '',
+                details: log.metadata || {},
+                ipAddress: (log.metadata as any)?.ip || '',
+                userAgent: (log.metadata as any)?.userAgent || '',
+                userName: log.actor?.name || 'Team Member',
+                userEmail: log.actor?.email || '',
+                userRole: log.actor?.role || 'employee',
+                createdAt: log.createdAt,
+            });
+        });
+
+        // 3. Email Logs (Communications)
+        (emailLogsRaw || []).forEach((log: any) => {
+            normalizedLogs.push({
+                id: log.id,
+                logType: 'email',
+                action: `Email Sent: ${log.subject || log.templateName || 'System Notification'}`,
+                resourceType: 'COMMUNICATIONS',
+                resourceId: log.to,
+                details: { to: log.to, template: log.templateName, status: log.status, error: log.errorMessage },
+                ipAddress: '',
+                userAgent: 'Platform Mail Dispatcher',
+                userName: log.sentBy?.name || 'System Mailer',
+                userEmail: log.sentBy?.email || 'mailer@system.180',
+                userRole: 'system',
+                createdAt: log.createdAt,
+            });
+        });
+
+        // 4. Synthesize foundational Company Lifecycle Milestones
+        normalizedLogs.push({
+            id: `lifecycle-reg-${company.id}`,
+            logType: 'lifecycle',
+            action: 'Organization Workspace Initialized & Onboarded',
+            resourceType: 'TENANT',
+            resourceId: company.id,
+            details: {
+                companyName: company.name,
+                adminEmail: company.adminEmail,
+                industry: company.industry || 'General',
+                country: company.country || 'Global',
+            },
+            ipAddress: 'System Core Engine',
+            userAgent: 'Platform Provisioner',
+            userName: company.adminName || 'System Admin',
+            userEmail: company.adminEmail || 'admin@workspace',
+            userRole: 'admin',
+            createdAt: company.createdAt,
+        });
+
+        if (company.trialStartDate || company.subscriptionStatus) {
+            normalizedLogs.push({
+                id: `lifecycle-sub-${company.id}`,
+                logType: 'subscription',
+                action: `Subscription Tier Provisioned: ${(company.subscriptionStatus || 'TRIAL').toUpperCase()}`,
+                resourceType: 'BILLING',
+                resourceId: company.id,
+                details: {
+                    status: company.subscriptionStatus,
+                    trialStart: company.trialStartDate,
+                    trialEnd: company.trialEndDate,
+                    nextChargeDate: company.nextChargeDate,
+                    autopayEnabled: company.autopayEnabled,
+                },
+                ipAddress: 'Billing Gateway',
+                userAgent: 'Subscription Guard Engine',
+                userName: 'Platform Billing Engine',
+                userEmail: 'billing@180workspace.com',
+                userRole: 'system',
+                createdAt: company.trialStartDate || company.createdAt,
+            });
+        }
+
+        if (company.accountStatus === 'suspended') {
+            normalizedLogs.push({
+                id: `lifecycle-susp-${company.id}`,
+                logType: 'security',
+                action: `Company Access Suspended: ${(company.metadata as any)?.suspendedReason || 'Administrative Hold'}`,
+                resourceType: 'SECURITY',
+                resourceId: company.id,
+                details: company.metadata || {},
+                ipAddress: 'SuperAdmin Console',
+                userAgent: 'Administrative Action',
+                userName: 'SuperAdmin Security Officer',
+                userEmail: 'superadmin@180workspace.com',
+                userRole: 'superadmin',
+                createdAt: (company.metadata as any)?.suspendedAt || company.updatedAt,
+            });
+        }
+
+        // Sort all logs newest first
+        normalizedLogs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
         // Calculate storage estimation from documents
         let storageUsedMb = 0;
@@ -124,7 +266,7 @@ export class PlatformCompanyRepository {
                 ticketsCount,
                 storageUsedMb,
             },
-            activityLogs
+            activityLogs: normalizedLogs
         };
     }
 

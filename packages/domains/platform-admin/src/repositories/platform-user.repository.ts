@@ -34,4 +34,24 @@ export class PlatformUserRepository {
             data
         });
     }
+
+    static async deleteUser(id: string) {
+        return prisma.user.update({
+            where: { id },
+            data: {
+                deletedAt: new Date(),
+                isActive: false
+            }
+        });
+    }
+
+    static async bulkDelete(ids: string[]) {
+        return prisma.user.updateMany({
+            where: { id: { in: ids } },
+            data: {
+                deletedAt: new Date(),
+                isActive: false
+            }
+        });
+    }
 }

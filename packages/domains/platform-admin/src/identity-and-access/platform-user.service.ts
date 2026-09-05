@@ -18,6 +18,10 @@ export class PlatformUserService {
     }
 
     static async deleteUser(id: string) {
-        await PlatformUserRepository.update(id, { deletedAt: new Date() });
+        await PlatformUserRepository.deleteUser(id);
+    }
+
+    static async bulkDelete(ids: string[]) {
+        await PlatformUserRepository.bulkDelete(ids);
     }
 }

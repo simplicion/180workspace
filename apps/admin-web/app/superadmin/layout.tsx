@@ -35,7 +35,6 @@ const NAV_SECTIONS: NavSection[] = [
         title: 'Ecosystem & Workspaces',
         items: [
             { href: '/superadmin/companies', label: 'Companies', icon: Building2 },
-            { href: '/superadmin/users', label: 'Platform Users', icon: Users },
         ]
     },
     {
