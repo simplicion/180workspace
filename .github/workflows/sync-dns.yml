@@ -1,0 +1,127 @@
+name: Sync Cloudflare DNS to Company EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ip:
+        description: "Target Elastic IP address"
+        required: true
+        default: "3.209.45.49"
+
+jobs:
+  update-dns:
+    name: Update Cloudflare DNS Records
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect & Update Cloudflare DNS Records
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CF_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          TARGET_IP: ${{ github.event.inputs.target_ip || '3.209.45.49' }}
+        run: |
+          node << 'EOF'
+          const https = require('https');
+
+          const token = process.env.CF_TOKEN;
+          const key = process.env.CF_KEY;
+          const email = process.env.CF_EMAIL;
+          const targetIp = process.env.TARGET_IP;
+
+          console.log(`==> Target IP: ${targetIp}`);
+
+          function cfRequest(path, method = 'GET', body = null) {
+            return new Promise((resolve, reject) => {
+              const headers = { 'Content-Type': 'application/json' };
+              if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+              } else if (key && email) {
+                headers['X-Auth-Key'] = key;
+                headers['X-Auth-Email'] = email;
+              } else {
+                return reject(new Error('No Cloudflare credentials found in secrets'));
+              }
+
+              const req = https.request(`https://api.cloudflare.com/client/v4${path}`, { method, headers }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (!parsed.success) {
+                      return reject(new Error(`CF API Error: ${JSON.stringify(parsed.errors)}`));
+                    }
+                    resolve(parsed.result);
+                  } catch (e) {
+                    reject(new Error(`JSON Parse Error: ${data}`));
+                  }
+                });
+              });
+
+              req.on('error', reject);
+              if (body) req.write(JSON.stringify(body));
+              req.end();
+            });
+          }
+
+          async function main() {
+            // 1. Get Zone ID for 180workspace.com
+            console.log('==> Fetching Zone ID for 180workspace.com...');
+            const zones = await cfRequest('/zones?name=180workspace.com');
+            if (!zones || zones.length === 0) {
+              throw new Error('Zone 180workspace.com not found in Cloudflare account');
+            }
+            const zoneId = zones[0].id;
+            console.log(`==> Found Zone ID: ${zoneId}`);
+
+            // 2. List all DNS records
+            console.log('==> Listing DNS records...');
+            const records = await cfRequest(`/zones/${zoneId}/dns_records?per_page=100`);
+            console.log(`==> Found ${records.length} DNS records:`);
+            records.forEach(r => console.log(`  - ${r.type} ${r.name} -> ${r.content} (proxied: ${r.proxied}) [ID: ${r.id}]`));
+
+            // 3. Targets to update
+            const subdomainsToUpdate = [
+              'api.180workspace.com',
+              'app.180workspace.com',
+              'admin.180workspace.com',
+              'livekit.180workspace.com',
+              '*.180workspace.com'
+            ];
+
+            for (const sub of subdomainsToUpdate) {
+              const existing = records.find(r => r.name === sub && (r.type === 'A' || r.type === 'CNAME'));
+              if (existing) {
+                if (existing.content === targetIp) {
+                  console.log(`==> Record ${sub} already points to ${targetIp}.`);
+                } else {
+                  console.log(`==> Updating ${sub} (${existing.id}) from ${existing.content} to ${targetIp}...`);
+                  await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PATCH', {
+                    type: 'A',
+                    name: sub,
+                    content: targetIp,
+                    proxied: true
+                  });
+                  console.log(`✓ Updated ${sub} -> ${targetIp}`);
+                }
+              } else {
+                console.log(`==> Creating A record for ${sub} -> ${targetIp}...`);
+                await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
+                  type: 'A',
+                  name: sub,
+                  content: targetIp,
+                  ttl: 1,
+                  proxied: true
+                });
+                console.log(`✓ Created ${sub} -> ${targetIp}`);
+              }
+            }
+
+            console.log('==> Cloudflare DNS sync completed successfully!');
+          }
+
+          main().catch(err => {
+            console.error('Fatal Error:', err);
+            process.exit(1);
+          });
+          EOF
