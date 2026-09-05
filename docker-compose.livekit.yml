@@ -1,0 +1,55 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: 180workspace-livekit-redis
+    restart: unless-stopped
+    network_mode: "host"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: 180workspace-livekit
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - LIVEKIT_CONFIG=/etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    depends_on:
+      - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  livekit-sip:
+    image: livekit/sip:latest
+    container_name: 180workspace-livekit-sip
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - SIP_CONFIG=/etc/livekit-sip.yaml
+    volumes:
+      - ./livekit-sip.yaml:/etc/livekit-sip.yaml
+    depends_on:
+      - livekit
+      - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  redis-data:
+

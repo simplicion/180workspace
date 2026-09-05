@@ -45,6 +45,7 @@ const platformBillingRoutes = require('../api/v1/platform-billing/index').defaul
 // Health is now in system
 const insightsRoutes = require('../api/v1/insights/index').default;
 const publicRoutes = require('../api/v1/public/public.routes').default;
+const voiceforceRoutes = require('../api/v1/voiceforce/index').default;
 // ─── Legacy Route Proxy ────────────────────────────────────────────────────
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
 router.use((req, res, next) => {
@@ -314,5 +315,9 @@ const { supportRoutes } = require('../api/v1/settings/support/support.routes');
 router.use('/support/tickets', protect, supportRoutes);
 router.use('/support', protect, supportRoutes);
 router.use('/v1/support', protect, supportRoutes);
+
+// ─── 180 Voiceforce (AI Voice Calling Engine) ──────────────────────────────
+router.use('/voiceforce', voiceforceRoutes);
+router.use('/v1/voiceforce', voiceforceRoutes);
 
 export default router;
