@@ -14,8 +14,11 @@ import { LogoLoader } from '@workspace/ui';
 
 export default function VoiceforceCallDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [call, setCall] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [transcriptSearch, setTranscriptSearch] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCall = async () => {
     try {
@@ -52,10 +55,6 @@ export default function VoiceforceCallDetailPage() {
       </div>
     );
   }
-
-  const router = useRouter();
-  const [transcriptSearch, setTranscriptSearch] = useState('');
-  const [deleting, setDeleting] = useState(false);
 
   const handleDownloadTranscript = () => {
     if (!call?.transcripts || call.transcripts.length === 0) {
