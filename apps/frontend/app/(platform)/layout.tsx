@@ -444,7 +444,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 3);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'voiceforce'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 
@@ -471,7 +471,10 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 
                     // Only check module enablement if this group belongs to a configurable app
                     if (item.appId && isAppEnabled && subItem.id && company?.enabledModules) {
-                        return company.enabledModules.includes(subItem.id);
+                        const isModOn = company.enabledModules.includes(subItem.id) ||
+                            company.enabledModules.includes(`${item.appId}-${subItem.id}`) ||
+                            company.enabledModules.includes(subItem.id.replace(`${item.appId}-`, ''));
+                        return isModOn;
                     }
                     return isAppEnabled;
                 });

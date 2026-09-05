@@ -22,6 +22,8 @@ const APP_COLORS: Record<string, { bg: string; text: string; light: string; tagB
     'workspace-tools': { bg: 'bg-violet-600',  text: 'text-violet-600',  light: 'bg-violet-50',  tagBg: 'bg-violet-50',  tagText: 'text-violet-700' },
     communications:    { bg: 'bg-cyan-600',    text: 'text-cyan-600',    light: 'bg-cyan-50',    tagBg: 'bg-cyan-50',    tagText: 'text-cyan-700' },
     'social-media':    { bg: 'bg-teal-600',    text: 'text-teal-600',    light: 'bg-teal-50',    tagBg: 'bg-teal-50',    tagText: 'text-teal-700' },
+    'traffic-director':{ bg: 'bg-indigo-600',  text: 'text-indigo-600',  light: 'bg-indigo-50',  tagBg: 'bg-indigo-50',  tagText: 'text-indigo-700' },
+    voiceforce:        { bg: 'bg-purple-600',  text: 'text-purple-600',  light: 'bg-purple-50',  tagBg: 'bg-purple-50',  tagText: 'text-purple-700' },
 };
 
 // ─── Filter Tab Definitions ───

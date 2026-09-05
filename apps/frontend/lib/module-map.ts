@@ -293,4 +293,6 @@ export const ALL_APPS = [
     { id: 'insights', name: 'Insights & Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
     { id: 'social-media', name: 'Social Media Management', description: 'Content calendar, asset hub, and social post visualizer.', icon: Share2 },
+    { id: 'traffic-director', name: 'Traffic Director', description: 'Smart routing, dynamic landing pages, and differential analytics.', icon: GitFork },
+    { id: 'voiceforce', name: '180 Voiceforce', description: 'Autonomous AI voice employees for outbound and inbound calling.', icon: PhoneCall },
 ];

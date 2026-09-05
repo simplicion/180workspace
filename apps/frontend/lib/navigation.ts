@@ -77,13 +77,13 @@ export const navigation = [
         group: '180 Voiceforce',
         appId: 'voiceforce',
         icon: PhoneCall,
-        roles: ['admin'],
+        roles: ['admin', 'employee'],
         items: [
-            { id: 'voiceforce-dashboard', name: 'Voiceforce Radar', href: '/voiceforce', exact: true, icon: PhoneCall, roles: ['admin'] },
-            { id: 'voiceforce-agents', name: 'AI Voice Employees', href: '/voiceforce/agents', icon: Bot, roles: ['admin'] },
-            { id: 'voiceforce-numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin'] },
-            { id: 'voiceforce-campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin'] },
-            { id: 'voiceforce-calls', name: 'Live Stream & Logs', href: '/voiceforce/calls', icon: Activity, roles: ['admin'] },
+            { id: 'dashboard', name: 'Voiceforce Radar', href: '/voiceforce', exact: true, icon: PhoneCall, roles: ['admin', 'employee'] },
+            { id: 'agents', name: 'AI Voice Employees', href: '/voiceforce/agents', icon: Bot, roles: ['admin', 'employee'] },
+            { id: 'numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin', 'employee'] },
+            { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
+            { id: 'calls', name: 'Live Stream & Logs', href: '/voiceforce/calls', icon: Activity, roles: ['admin', 'employee'] },
         ]
     },
 
