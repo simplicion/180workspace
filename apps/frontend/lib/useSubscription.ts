@@ -42,6 +42,7 @@ const ALL_PLATFORM_APPS = [
     'advertising',
     'social-media',
     'traffic-director',
+    'voiceforce',
     'ai',
     'storage',
     'database',
