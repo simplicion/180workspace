@@ -3,10 +3,20 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002';
+  const backendUrl = 
+    process.env.BACKEND_INTERNAL_URL || 
+    (process.env.NODE_ENV === 'production' ? 'http://backend:4000' : null) || 
+    process.env.NEXT_PUBLIC_BACKEND_URL || 
+    process.env.NEXT_PUBLIC_API_URL || 
+    'http://localhost:4002';
+
   const resolvedParams = await params;
   const slugPath = Array.isArray(resolvedParams.slug) ? resolvedParams.slug.join('/') : resolvedParams.slug;
   const targetUrl = new URL(`/r/${slugPath}${request.nextUrl.search}`, backendUrl);
+
+  const clientIp = request.headers.get('cf-connecting-ip') || 
+                   request.headers.get('x-real-ip') || 
+                   request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '';
 
   try {
     const res = await fetch(targetUrl.toString(), {
@@ -16,11 +26,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         'accept': request.headers.get('accept') || '*/*',
         'accept-language': request.headers.get('accept-language') || '',
         'referer': request.headers.get('referer') || '',
-        'cf-connecting-ip': request.headers.get('cf-connecting-ip') || '',
-        'true-client-ip': request.headers.get('true-client-ip') || '',
-        'x-client-ip': request.headers.get('x-client-ip') || '',
-        'x-real-ip': request.headers.get('x-real-ip') || request.headers.get('cf-connecting-ip') || (request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || ''),
-        'x-forwarded-for': request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '',
+        // Cloudflare strictly rejects outbound public requests with cf-connecting-ip (Error 1000). Pass via real-ip/forwarded-for instead.
+        'true-client-ip': clientIp,
+        'x-client-ip': clientIp,
+        'x-real-ip': clientIp,
+        'x-forwarded-for': request.headers.get('x-forwarded-for') || clientIp,
         'cf-ipcountry': request.headers.get('cf-ipcountry') || '',
         'cf-ipcity': request.headers.get('cf-ipcity') || '',
         'sec-ch-ua': request.headers.get('sec-ch-ua') || '',
@@ -38,12 +48,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
-    const body = await res.text();
     const headers = new Headers();
     headers.set('Content-Type', res.headers.get('content-type') || 'text/html; charset=utf-8');
     headers.set('Cache-Control', res.headers.get('cache-control') || 'no-store, no-cache, must-revalidate');
 
-    return new NextResponse(body, {
+    return new NextResponse(res.body, {
       status: res.status,
       headers
     });
