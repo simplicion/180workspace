@@ -86,6 +86,7 @@ jobs:
               'app.180workspace.com',
               'admin.180workspace.com',
               'livekit.180workspace.com',
+              'cname.180workspace.com',
               '*.180workspace.com'
             ];
 
