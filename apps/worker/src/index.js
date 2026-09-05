@@ -10,6 +10,7 @@ const setupNotificationWorker = require('./workers/notificationWorker');
 const setupAutomationWorker = require('./workers/automationWorker');
 const setupAIWorker = require('./workers/aiWorker');
 const setupFileWorker = require('./workers/fileWorker');
+const setupVoiceforceWorker = require('./workers/voiceforceWorker');
 
 // Crons
 // Note: subscriptionCron might need minor path updates if it required local files, but it runs on init.
@@ -65,6 +66,8 @@ async function bootstrap() {
     if (autoW) activeWorkers.push(autoW);
     if (aiW) activeWorkers.push(aiW);
     if (fileW) activeWorkers.push(fileW);
+    const voiceforceW = setupVoiceforceWorker();
+    if (voiceforceW) activeWorkers.push(voiceforceW);
 
     if (typeof setupReelWorker === 'function') {
         const reelW = setupReelWorker();

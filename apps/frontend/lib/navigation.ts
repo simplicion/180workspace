@@ -1,5 +1,5 @@
 import { LogoLoader, AILogoIcon } from "@workspace/ui";
-import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork, PhoneCall, Smartphone } from 'lucide-react';
 
 export const navigation = [
     {
@@ -70,6 +70,20 @@ export const navigation = [
             { id: 'links', name: 'Smart Links', href: '/traffic-director/links', icon: Globe, roles: ['admin', 'employee'] },
             { id: 'simulator', name: 'Routing Simulator', href: '/traffic-director/simulator', icon: Sparkles, roles: ['admin', 'employee'] },
             { id: 'logs', name: 'Live Stream Logs', href: '/traffic-director/logs', icon: Activity, roles: ['admin', 'employee'] },
+        ]
+    },
+
+    {
+        group: '180 Voiceforce',
+        appId: 'voiceforce',
+        icon: PhoneCall,
+        roles: ['admin'],
+        items: [
+            { id: 'voiceforce-dashboard', name: 'Voiceforce Radar', href: '/voiceforce', exact: true, icon: PhoneCall, roles: ['admin'] },
+            { id: 'voiceforce-agents', name: 'AI Voice Employees', href: '/voiceforce/agents', icon: Bot, roles: ['admin'] },
+            { id: 'voiceforce-numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin'] },
+            { id: 'voiceforce-campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin'] },
+            { id: 'voiceforce-calls', name: 'Live Stream & Logs', href: '/voiceforce/calls', icon: Activity, roles: ['admin'] },
         ]
     },
 

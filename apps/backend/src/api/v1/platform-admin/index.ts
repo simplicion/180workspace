@@ -13,6 +13,8 @@ import blogRoutes from './routes/blog.routes';
 import logRoutes from './routes/log.routes';
 import ticketRoutes from './routes/ticket.routes';
 
+import { VoiceforceController } from '../voiceforce/voiceforce.controller';
+
 const superAdminAuth = require('../../../system-configs/middleware/auth/superadmin-auth').default;
 
 const router = Router();
@@ -34,5 +36,7 @@ router.use('/release-notes', releaseNoteRoutes);
 router.use('/blogs', blogRoutes);
 router.use('/logs', logRoutes);
 router.use('/tickets', ticketRoutes);
+router.get('/voiceforce', VoiceforceController.getSuperadminOverview);
+router.post('/voiceforce/killswitch', VoiceforceController.superadminKillswitch);
 
 export default router;

@@ -1,0 +1,13 @@
+api_key: "API_KEY_180VOICEFORCE"
+api_secret: "SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN"
+ws_url: "ws://127.0.0.1:7880"
+
+sip_port: 5060
+rtp_port: 10000-20000
+use_external_ip: true
+
+redis:
+  address: "127.0.0.1:6379"
+
+logging:
+  level: "info"

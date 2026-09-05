@@ -1,0 +1,27 @@
+{
+  "name": "@workspace/voiceforce",
+  "version": "1.0.0",
+  "description": "180 Voiceforce autonomous AI voice calling domain for 180workspace",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "@workspace/ai": "workspace:*",
+    "@workspace/backend-infra": "workspace:*",
+    "@workspace/db": "workspace:*",
+    "axios": "^1.7.0",
+    "groq-sdk": "^0.37.0",
+    "livekit-server-sdk": "^2.6.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.10",
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "^5.0.0"
+  }
+}

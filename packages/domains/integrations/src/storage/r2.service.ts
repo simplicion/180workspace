@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3Client = new S3Client({
@@ -10,6 +10,37 @@ const s3Client = new S3Client({
     },
     maxAttempts: 2,
 });
+
+export type R2StorageCategory =
+    | 'voiceforce/recordings'
+    | 'voiceforce/samples'
+    | 'documents'
+    | 'finance/invoices'
+    | 'crm/attachments'
+    | 'advertising/reels'
+    | 'brands/avatars'
+    | 'general';
+
+/**
+ * Generates an enterprise multi-tenant object key for Cloudflare R2
+ */
+export const buildR2Key = (category: R2StorageCategory | string, companyId: string, filename: string): string => {
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    const randomSuffix = Math.round(Math.random() * 1e6);
+    return `${category}/${companyId}/${timestamp}-${randomSuffix}-${sanitizedFilename}`;
+};
+
+/**
+ * Computes public CDN URL for an R2 object key
+ */
+export const getR2PublicUrl = (key: string): string => {
+    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '180workspace';
+    const publicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.REELS_CDN_URL;
+    return publicUrlBase 
+        ? `${publicUrlBase}/${key}`
+        : `https://${bucketName}.r2.dev/${key}`;
+};
 
 export const uploadBufferToR2 = async (buffer: Buffer, key: string, mimetype: string) => {
     const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME;
@@ -26,11 +57,7 @@ export const uploadBufferToR2 = async (buffer: Buffer, key: string, mimetype: st
 
     await s3Client.send(command);
 
-    // Assuming public access is configured via custom domain or R2 dev url
-    const publicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.REELS_CDN_URL;
-    const publicUrl = publicUrlBase 
-        ? `${publicUrlBase}/${key}`
-        : `https://${bucketName}.r2.dev/${key}`;
+    const publicUrl = getR2PublicUrl(key);
 
     return {
         url: publicUrl,
@@ -52,6 +79,23 @@ export const getPresignedUploadUrl = async (key: string, mimetype: string) => {
 
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     return signedUrl;
+};
+
+/**
+ * Generates a signed, time-limited download URL for confidential files (invoices, payroll, contracts)
+ */
+export const getPresignedDownloadUrl = async (key: string, expiresInSeconds = 3600): Promise<string> => {
+    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME;
+    if (!bucketName) {
+        throw new Error('R2 Bucket name is not configured');
+    }
+
+    const command = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+    });
+
+    return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
 };
 
 /**
@@ -155,5 +199,16 @@ export const deleteObjectsFromR2 = async (keysOrUrls: string[]): Promise<{ delet
     }
 
     return { deleted: deletedCount, errors };
+};
+
+export const R2Service = {
+    uploadBufferToR2,
+    getPresignedUploadUrl,
+    getPresignedDownloadUrl,
+    getR2PublicUrl,
+    buildR2Key,
+    extractR2KeyFromUrl,
+    deleteObjectFromR2,
+    deleteObjectsFromR2,
 };
 

@@ -104,6 +104,16 @@ model Company {
   teamActivityLogs         TeamActivityLog[]
   calendarEvents           CalendarEvent[]    @relation("CompanyCalendarEvents")
   trafficLinks             TrafficLink[]
+  voiceAgents              VoiceAgent[]
+  phoneNumbers             PhoneNumber[]
+  callCampaigns            CallCampaign[]
+  callSessions             CallSession[]
+  voiceBalanceInr          Float                  @default(0.0)
+  voiceAutoRecharge        Boolean                @default(false)
+  voiceThresholdInr        Float                  @default(100.0)
+  voiceRechargeAmountInr   Float                  @default(500.0)
+  voiceTransactions        VoiceWalletTransaction[]
+  dncRegistries            DncRegistry[]
 }
 
 model SavedBank {
@@ -2643,5 +2653,229 @@ model TrafficLog {
   @@index([linkId, timestamp])
   @@index([timestamp])
 }
+
+// ==========================================
+// 180 VOICEFORCE (AUTONOMOUS VOICE AGENTS)
+// ==========================================
+
+model VoiceAgent {
+  id                  String         @id @default(uuid())
+  companyId           String
+  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  name                String         // e.g. "Maya - Sales Specialist"
+  role                String         // e.g. "Order & Appointment Assistant"
+  systemPrompt        String         @db.Text
+  language            String         @default("en-US")
+  
+  // Voice Synthesis Configuration
+  voiceProvider       String         @default("cartesia") // "cartesia" | "elevenlabs" | "openai"
+  voiceId             String         // Provider voice ID (e.g. "sonic-english-female-1")
+  voiceTemperature    Float          @default(0.7)
+  voiceSpeed          Float          @default(1.0)
+  
+  // Pipeline Engine Selection
+  engineType          String         @default("cascaded") // "cascaded" | "openai_realtime"
+  llmModel            String         @default("llama-3.3-70b-versatile")
+  sttModel            String         @default("nova-3")
+  
+  // Guardrails & Behaviors
+  firstMessage        String?        @db.Text
+  allowBargeIn        Boolean        @default(true)
+  inactivityTimeoutMs Int            @default(5000)
+  maxDurationSeconds  Int            @default(600)
+  
+  // Allowed Tools from aiToolRegistry (JSON Array of strings)
+  enabledToolNames    Json           @default("[\"search_knowledge_base\", \"create_task\", \"create_crm_client\"]")
+  
+  isActive            Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  assignedNumbers     PhoneNumber[]
+  calls               CallSession[]
+  campaigns           CallCampaign[]
+
+  @@unique([id, companyId])
+  @@index([companyId])
+}
+
+model PhoneNumber {
+  id               String         @id @default(uuid())
+  companyId        String
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  e164Number       String         @unique // e.g. "+14155552671"
+  friendlyName     String?
+  provider         String         // "telnyx" | "twilio" | "verified_caller_id"
+  providerId       String?        // Telnyx DID or Verification ID
+  
+  countryCode      String         @default("US")
+  capabilities     Json           @default("{\"voice\": true, \"sms\": false}")
+  
+  assignedAgentId  String?
+  assignedAgent    VoiceAgent?    @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  
+  status           String         @default("active") // "active" | "cooling_down" | "pending_verification"
+  maxConcurrent    Int            @default(10)
+  currentActive    Int            @default(0)
+  
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  calls            CallSession[]
+
+  @@unique([id, companyId])
+  @@index([companyId])
+}
+
+model CallCampaign {
+  id                String         @id @default(uuid())
+  companyId         String
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  name              String
+  voiceAgentId      String
+  voiceAgent        VoiceAgent     @relation(fields: [voiceAgentId], references: [id], onDelete: Restrict)
+  
+  status            String         @default("draft") // "draft" | "scheduled" | "running" | "paused" | "completed"
+  contactList       Json?          @default("[]")
+  scheduledAt       DateTime?
+  
+  // Concurrency & Pacing Rules
+  maxConcurrent     Int            @default(5)       // Simultaneous active calls
+  callsPerSecond    Float          @default(1.0)     // CPS rate throttle
+  retryCount        Int            @default(2)
+  retryIntervalMins Int            @default(30)
+  
+  totalRecipients   Int            @default(0)
+  completedCalls    Int            @default(0)
+  successfulCalls   Int            @default(0)
+  failedCalls       Int            @default(0)
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  calls             CallSession[]
+
+  @@unique([id, companyId])
+  @@index([companyId])
+}
+
+model CallSession {
+  id                  String         @id @default(uuid())
+  companyId           String
+  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  campaignId          String?
+  campaign            CallCampaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  
+  voiceAgentId        String
+  voiceAgent          VoiceAgent     @relation(fields: [voiceAgentId], references: [id], onDelete: Restrict)
+  
+  phoneNumberId       String?
+  phoneNumber         PhoneNumber?   @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+  
+  direction           String         @default("outbound") // "outbound" | "inbound"
+  recipientPhone      String
+  recipientName       String?
+  
+  // Telephony References
+  livekitRoomName     String?        @unique
+  sipCallId           String?
+  
+  // State Machine
+  status              String         @default("queued")
+  // "queued" | "dialing" | "ringing" | "in_progress" | "completed" | "no_answer" | "busy" | "failed" | "voicemail"
+  
+  disconnectReason    String?
+  
+  durationSeconds     Int            @default(0)
+  billableMinutes     Int            @default(0)
+  estimatedCostInr     Float          @default(0.0)
+  
+  recordingUrl        String?
+  
+  // Post-Call Structured Intelligence
+  summary             String?        @db.Text
+  sentiment           String?
+  callOutcome         String?
+  actionItems         Json?          @default("[]")
+  structuredData      Json?          @default("{}")
+  
+  startedAt           DateTime?
+  answeredAt          DateTime?
+  endedAt             DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  transcripts         CallTranscriptSegment[]
+  toolExecutions      CallToolExecution[]
+
+  @@unique([id, companyId])
+  @@index([companyId, status])
+  @@index([recipientPhone])
+}
+
+model CallTranscriptSegment {
+  id             String       @id @default(uuid())
+  callSessionId  String
+  callSession    CallSession  @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  
+  speaker        String       // "agent" | "user" | "system"
+  text           String       @db.Text
+  startTimeMs    Int
+  endTimeMs      Int
+  
+  interrupted    Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([callSessionId])
+}
+
+model CallToolExecution {
+  id             String       @id @default(uuid())
+  callSessionId  String
+  callSession    CallSession  @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  
+  toolName       String
+  arguments      Json
+  result         Json
+  durationMs     Int
+  isSuccess      Boolean      @default(true)
+  errorMessage   String?
+  
+  createdAt      DateTime     @default(now())
+
+  @@index([callSessionId])
+}
+
+model VoiceWalletTransaction {
+  id              String       @id @default(uuid())
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  amountInr       Float        // Positive for top-up, negative for call deduction
+  balanceAfterInr Float
+  type            String       // "topup" | "call_deduction" | "refund"
+  callSessionId   String?
+  description     String
+  createdAt       DateTime     @default(now())
+
+  @@index([companyId])
+  @@index([callSessionId])
+}
+
+model DncRegistry {
+  id             String       @id @default(uuid())
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  phoneNumber    String       // Normalized E.164 phone
+  reason         String?      // e.g. "Customer requested opt-out during conversation"
+  createdAt      DateTime     @default(now())
+
+  @@unique([companyId, phoneNumber])
+  @@index([companyId])
+}
+
 
 

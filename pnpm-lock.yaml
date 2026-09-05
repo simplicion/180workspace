@@ -256,6 +256,9 @@ importers:
       '@workspace/traffic-director':
         specifier: workspace:*
         version: link:../../packages/domains/traffic-director
+      '@workspace/voiceforce':
+        specifier: workspace:*
+        version: link:../../packages/domains/voiceforce
       '@workspace/workspace-tools':
         specifier: workspace:*
         version: link:../../packages/domains/workspace-tools
@@ -751,6 +754,9 @@ importers:
       '@workspace/db':
         specifier: workspace:^
         version: link:../../packages/db
+      '@workspace/voiceforce':
+        specifier: workspace:*
+        version: link:../../packages/domains/voiceforce
       axios:
         specifier: ^1.19.0
         version: 1.19.0
@@ -1219,6 +1225,49 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../typescript-config
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  packages/domains/voiceforce:
+    dependencies:
+      '@deepgram/sdk':
+        specifier: ^3.9.0
+        version: 3.13.0
+      '@prisma/client':
+        specifier: ^5.0.0
+        version: 5.22.0(prisma@5.22.0)
+      '@workspace/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@workspace/backend-infra':
+        specifier: workspace:*
+        version: link:../../backend-common
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../../db
+      axios:
+        specifier: ^1.7.0
+        version: 1.19.0
+      groq-sdk:
+        specifier: ^0.37.0
+        version: 0.37.0
+      livekit-server-sdk:
+        specifier: ^2.6.0
+        version: 2.18.0
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.3
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../typescript-config
@@ -2546,6 +2595,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@bufbuild/protobuf@1.10.1':
+    resolution: {integrity: sha512-wJ8ReQbHxsAfXhrf9ixl0aYbZorRuOWpBNzm8pL8ftmSxQx/wnJD5Eg861NwJU/czy2VXFIebCeZnZrI9rktIQ==}
+
   '@capacitor/android@8.5.0':
     resolution: {integrity: sha512-Rb3prJeQiTp0pQhSSOReJuG9VgibOGMG4ECs+UhMwr6TCCHZ3NCZO811bDA0HxD0xrT/gCrJAsY5yfEATu84JQ==}
     peerDependencies:
@@ -2958,6 +3010,14 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       postcss: ^8.4
+
+  '@deepgram/captions@1.2.0':
+    resolution: {integrity: sha512-8B1C/oTxTxyHlSFubAhNRgCbQ2SQ5wwvtlByn8sDYZvdDtdn/VE2yEPZ4BvUnrKWmsbTQY6/ooLV+9Ka2qmDSQ==}
+    engines: {node: '>=18.0.0'}
+
+  '@deepgram/sdk@3.13.0':
+    resolution: {integrity: sha512-VFN4gbyIDl5Bj0ApERq4QJHzO2AK4YOoL5Lfoy//q9531+UIzaKCNie4NkBM2Kn/UndHH7tIR335SH14e2r+Ag==}
+    engines: {node: '>=18.0.0'}
 
   '@derhuerst/http-basic@8.2.4':
     resolution: {integrity: sha512-F9rL9k9Xjf5blCz8HsJRO4diy111cayL2vkY2XE4r4t3n0yPXVYy3KD3nJ1qbrSn9743UWSXH4IwuCa/HWlGFw==}
@@ -4953,6 +5013,9 @@ packages:
 
   '@leichtgewicht/ip-codec@2.0.5':
     resolution: {integrity: sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==}
+
+  '@livekit/protocol@1.48.0':
+    resolution: {integrity: sha512-fYHYgltH6YavAsokl3qsHLkBdQeKCl4UORVTub5crS3t8JtKFZ0uinHDFQ+XXdNKS6Ub9gcOjV+UHcDiqnWXoQ==}
 
   '@mapbox/node-pre-gyp@2.0.3':
     resolution: {integrity: sha512-uwPAhccfFJlsfCxMYTwOdVfOz3xqyj8xYL3zJj8f0pb30tLohnnFPhLuqp4/qoEz8sNxe4SESZedcBojRefIzg==}
@@ -8406,6 +8469,9 @@ packages:
     engines: {node: '>=10.14', npm: '>=6', yarn: '>=1'}
     hasBin: true
 
+  cross-fetch@3.2.0:
+    resolution: {integrity: sha512-Q+xVJLoGOeIMXZmbUK4HYk+69cQH6LudR0Vu/pRm2YlU/hDV9CiS0gKUMaWY5f2NeUH9C1nV3bsTlCo0FsTV1Q==}
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -8636,6 +8702,9 @@ packages:
 
   date-fns@4.4.0:
     resolution: {integrity: sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==}
+
+  dayjs@1.11.23:
+    resolution: {integrity: sha512-QDTCU0M0MxR3hQfnlDJfwekQiaanm1ubOD231u73WBckQ/fsamwRLiE2GBz6D3a/xF1NgfiDLJjXBa1hYOYTtQ==}
 
   debounce-fn@4.0.0:
     resolution: {integrity: sha512-8pYCQiL9Xdcg0UPSD3d+0KMlOjp+KGU5EPwYddgzQ7DATsg4fuUDjQtsYLmWjnk2obnNHgV3vE2Y4jejSOJVBQ==}
@@ -11008,6 +11077,10 @@ packages:
 
   linkifyjs@4.3.3:
     resolution: {integrity: sha512-P8aEP5U/D1/IlTY2OeYsErdwh9bGuLE30NcXtKEjgdHcahveQoQwM2yZNsioQHsWFz0P7KKudisbrzCgR0sDHg==}
+
+  livekit-server-sdk@2.18.0:
+    resolution: {integrity: sha512-iUGmkbyi0g4DHKQ0Z4VSVs/V+ddp3T75ccQIe6LX94AYlqgyh+SVSM1lQMjFQuI3Qh6Z9v06T4xxV+vWmp7VeQ==}
+    engines: {node: '>=18'}
 
   loader-utils@2.0.4:
     resolution: {integrity: sha512-xXqpXoINfFhgua9xiqD8fPFHgkoq1mmmpE92WlDbm9rNRd/EbRb+Gqf908T2DMfuHjjJlksiK2RbHVOdD/MqSw==}
@@ -17111,6 +17184,8 @@ snapshots:
   '@bruits/satteri-win32-x64-msvc@0.10.5':
     optional: true
 
+  '@bufbuild/protobuf@1.10.1': {}
+
   '@capacitor/android@8.5.0(@capacitor/core@8.5.0)':
     dependencies:
       '@capacitor/core': 8.5.0
@@ -17530,6 +17605,23 @@ snapshots:
   '@csstools/utilities@2.0.0(postcss@8.5.26)':
     dependencies:
       postcss: 8.5.26
+
+  '@deepgram/captions@1.2.0':
+    dependencies:
+      dayjs: 1.11.23
+
+  '@deepgram/sdk@3.13.0':
+    dependencies:
+      '@deepgram/captions': 1.2.0
+      '@types/node': 18.19.130
+      cross-fetch: 3.2.0
+      deepmerge: 4.3.1
+      events: 3.3.0
+      ws: 8.21.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
 
   '@derhuerst/http-basic@8.2.4':
     dependencies:
@@ -20232,6 +20324,10 @@ snapshots:
       tslib: 2.8.1
 
   '@leichtgewicht/ip-codec@2.0.5': {}
+
+  '@livekit/protocol@1.48.0':
+    dependencies:
+      '@bufbuild/protobuf': 1.10.1
 
   '@mapbox/node-pre-gyp@2.0.3':
     dependencies:
@@ -23871,6 +23967,12 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
 
+  cross-fetch@3.2.0:
+    dependencies:
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -24122,6 +24224,8 @@ snapshots:
   date-fns@3.6.0: {}
 
   date-fns@4.4.0: {}
+
+  dayjs@1.11.23: {}
 
   debounce-fn@4.0.0:
     dependencies:
@@ -27280,6 +27384,12 @@ snapshots:
   lines-and-columns@1.2.4: {}
 
   linkifyjs@4.3.3: {}
+
+  livekit-server-sdk@2.18.0:
+    dependencies:
+      '@bufbuild/protobuf': 1.10.1
+      '@livekit/protocol': 1.48.0
+      jose: 5.10.0
 
   loader-utils@2.0.4:
     dependencies:

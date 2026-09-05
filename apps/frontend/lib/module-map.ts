@@ -69,6 +69,13 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/traffic-director/links': { appId: 'traffic-director', moduleId: 'links' },
   '/traffic-director/simulator': { appId: 'traffic-director', moduleId: 'simulator' },
   '/traffic-director/logs': { appId: 'traffic-director', moduleId: 'logs' },
+
+  // 180 Voiceforce (Autonomous AI Voice Calling Engine)
+  '/voiceforce': { appId: 'voiceforce', moduleId: 'dashboard' },
+  '/voiceforce/agents': { appId: 'voiceforce', moduleId: 'agents' },
+  '/voiceforce/numbers': { appId: 'voiceforce', moduleId: 'numbers' },
+  '/voiceforce/campaigns': { appId: 'voiceforce', moduleId: 'campaigns' },
+  '/voiceforce/calls': { appId: 'voiceforce', moduleId: 'calls' },
 };
 
 export interface ModuleConfig {
@@ -90,7 +97,7 @@ export interface AppConfig {
 
 import { 
     LayoutGrid, Smartphone, Globe, ShieldCheck, Database, CreditCard, Bell,
-    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy, GitFork
+    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy, GitFork, PhoneCall
 } from 'lucide-react';
 
 export const APPS_CONFIG: AppConfig[] = [
@@ -232,6 +239,21 @@ export const APPS_CONFIG: AppConfig[] = [
         modules: [
             { id: 'content-calendar', name: 'Content Calendar' },
             { id: 'social-media-assets', name: 'Social Media Assets' }
+        ]
+    },
+
+    {
+        id: 'voiceforce',
+        name: '180 Voiceforce',
+        icon: PhoneCall,
+        tag: 'Operations',
+        description: 'Autonomous AI voice employees for customer calling, appointments, and order confirmation.',
+        modules: [
+            { id: 'dashboard', name: 'Voiceforce Dashboard' },
+            { id: 'agents', name: 'AI Voice Agents' },
+            { id: 'numbers', name: 'Phone Numbers & DIDs' },
+            { id: 'campaigns', name: 'Call Campaigns' },
+            { id: 'calls', name: 'Call Logs & Transcripts' }
         ]
     }
 ];
