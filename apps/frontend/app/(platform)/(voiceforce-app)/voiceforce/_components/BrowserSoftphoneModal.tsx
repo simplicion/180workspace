@@ -486,9 +486,18 @@ export function BrowserSoftphoneModal({
     setActiveTool(null);
   };
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
+    const activeId = callSessionId;
+    const dur = callDuration;
     endCallCleanup();
-    toast('Call ended. Post-call analysis scheduled.');
+    if (activeId) {
+      try {
+        await api.post(`/api/v1/voiceforce/sessions/${activeId}/end`, { durationSeconds: dur });
+      } catch (e) {
+        console.warn('[Softphone End API notice]:', e);
+      }
+    }
+    toast('Call ended. Post-call analysis completed.');
     if (onCallEnded) onCallEnded();
     onClose();
   };

@@ -244,8 +244,9 @@ async function bootstrap() {
 
             // Initialize Voiceforce BullMQ Outbound & Post-Call Worker
             try {
-                const setupVoiceforceWorker = require('../worker/src/workers/voiceforceWorker');
-                const vfWorker = setupVoiceforceWorker();
+                const { setupVoiceforceWorker } = require('@workspace/voiceforce');
+                const { redis } = require('./src/system-configs/config/redis');
+                const vfWorker = setupVoiceforceWorker(redis);
                 if (vfWorker) {
                     console.log('✅ Voiceforce BullMQ worker active on voiceforce-queue');
                 }
