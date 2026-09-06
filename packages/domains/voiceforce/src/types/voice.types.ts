@@ -33,6 +33,7 @@ export interface VoiceSessionConfig {
   allowBargeIn?: boolean;
   maxDurationSeconds?: number;
   inactivityTimeoutMs?: number;
+  autoGreet?: boolean;
 }
 
 export interface PostCallSummaryResult {
