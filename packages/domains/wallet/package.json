@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/wallet",
+  "version": "1.0.0",
+  "description": "Enterprise Multi-Tenant Prepaid Wallet, Billing & Gateway Domain",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/backend-infra": "workspace:*",
+    "axios": "^1.13.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "@workspace/typescript-config": "workspace:*"
+  }
+}

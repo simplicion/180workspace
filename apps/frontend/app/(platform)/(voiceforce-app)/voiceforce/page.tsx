@@ -5,28 +5,45 @@ import Link from 'next/link';
 import { 
   PhoneCall, Bot, Smartphone, Megaphone, Activity, Plus, Play, 
   RefreshCw, CheckCircle2, Clock, IndianRupee, ArrowUpRight, ShieldCheck, 
-  Radio, X, Sparkles, ChevronRight, Mic
+  Radio, X, Sparkles, ChevronRight, Mic, Users, ArrowRight,
+  Database, Calendar, ShoppingBag, Brain, Gauge, PhoneForwarded,
+  Lock, AlertTriangle
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useSubscription } from '@/lib/useSubscription';
-import { LogoLoader, FeatureLock } from '@workspace/ui';
+import { UniversalSkeleton, FeatureLock, PlatformModal } from '@workspace/ui';
 import { BrowserSoftphoneModal } from './_components/BrowserSoftphoneModal';
+import { WalletLedgerDrawer } from './_components/WalletLedgerDrawer';
+import clsx from 'clsx';
 
+/**
+ * 180 Voiceforce: Central Operations Dashboard
+ * 
+ * Capabilities:
+ * - Enterprise AI voice employee overview with active call metrics
+ * - Live prepaid wallet balance management with atomic recharge & auto-topup rules
+ * - Connected Enterprise Business Brain context widget (Catalog truth + CRM recognition + Calendar)
+ * - Browser WebRTC softphone tester for zero-cost internal testing
+ * - Instant outbound telephone dialer with live BullMQ worker queuing
+ */
 export default function VoiceforceDashboardPage() {
   const { companyConfig, loading: subLoading } = useSubscription();
   const [metrics, setMetrics] = useState<any>(null);
   const [agents, setAgents] = useState<any[]>([]);
   const [numbers, setNumbers] = useState<any[]>([]);
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
+  const [forwardingRulesCount, setForwardingRulesCount] = useState<number>(0);
+  const [queuesCount, setQueuesCount] = useState<number>(0);
+  const [campaignsCount, setCampaignsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  // Quick Dial Modal State
+  // Modals & Drawers State
   const [isDialModalOpen, setIsDialModalOpen] = useState(false);
   const [isSoftphoneOpen, setIsSoftphoneOpen] = useState(false);
-  const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
-  const [rechargeAmount, setRechargeAmount] = useState<number>(250);
-  const [isRecharging, setIsRecharging] = useState(false);
+  const [isWalletDrawerOpen, setIsWalletDrawerOpen] = useState(false);
+
+  // Instant Dial Form State
   const [dialForm, setDialForm] = useState({
     recipientPhone: '',
     recipientName: '',
@@ -41,17 +58,23 @@ export default function VoiceforceDashboardPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [metricsRes, agentsRes, numbersRes, callsRes] = await Promise.all([
+      const [metricsRes, agentsRes, numbersRes, callsRes, rulesRes, queuesRes, campaignsRes] = await Promise.all([
         api.get('/api/v1/voiceforce/metrics').catch(() => ({ data: { data: null } })),
         api.get('/api/v1/voiceforce/agents').catch(() => ({ data: { data: [] } })),
         api.get('/api/v1/voiceforce/numbers').catch(() => ({ data: { data: [] } })),
-        api.get('/api/v1/voiceforce/calls').catch(() => ({ data: { data: [] } }))
+        api.get('/api/v1/voiceforce/calls').catch(() => ({ data: { data: [] } })),
+        api.get('/api/v1/voiceforce/forwarding').catch(() => ({ data: { data: [] } })),
+        api.get('/api/v1/voiceforce/queues').catch(() => ({ data: { data: [] } })),
+        api.get('/api/v1/voiceforce/campaigns').catch(() => ({ data: { data: [] } }))
       ]);
 
       setMetrics(metricsRes.data?.data || null);
       setAgents(agentsRes.data?.data || []);
       setNumbers(numbersRes.data?.data || []);
-      setRecentCalls((callsRes.data?.data || []).slice(0, 10));
+      setRecentCalls((callsRes.data?.data || []).slice(0, 8));
+      setForwardingRulesCount((rulesRes.data?.data || []).length);
+      setQueuesCount((queuesRes.data?.data || []).length);
+      setCampaignsCount((campaignsRes.data?.data || []).length);
 
       if (agentsRes.data?.data?.length > 0 && !dialForm.voiceAgentId) {
         setDialForm(prev => ({ ...prev, voiceAgentId: agentsRes.data.data[0].id }));
@@ -92,36 +115,10 @@ export default function VoiceforceDashboardPage() {
     }
   };
 
-  const handleWalletRecharge = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rechargeAmount || rechargeAmount <= 0) {
-      toast.error('Please enter a valid recharge amount');
-      return;
-    }
-
-    try {
-      setIsRecharging(true);
-      const res = await api.post('/api/v1/voiceforce/wallet/recharge', {
-        amountInr: rechargeAmount,
-        paymentRef: `manual_topup_${Date.now()}`
-      });
-
-      if (res.data?.success) {
-        toast.success(`Wallet credited with ₹${rechargeAmount.toFixed(2)}!`);
-        setIsRechargeModalOpen(false);
-        fetchData();
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to recharge wallet');
-    } finally {
-      setIsRecharging(false);
-    }
-  };
-
   if (subLoading || (loading && !metrics)) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
+      <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm max-w-7xl mx-auto space-y-6">
+        <UniversalSkeleton type="metrics" />
       </div>
     );
   }
@@ -131,462 +128,643 @@ export default function VoiceforceDashboardPage() {
   }
 
   const walletBalance = metrics?.wallet?.balanceInr ?? 0.0;
+  const minRequired = Number(metrics?.wallet?.minRequiredInr || 200);
+  const recommendedInr = Number(metrics?.wallet?.recommendedInr || 1000);
+  const ratePerMinute = Number(metrics?.wallet?.ratePerMinuteInr || 6);
+  const isLocked = metrics?.wallet?.isLocked ?? (walletBalance < minRequired);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-12">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-violet-900/40 via-indigo-900/30 to-purple-900/40 border border-indigo-500/20 backdrop-blur-xl shadow-xl">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-              <PhoneCall className="w-6 h-6 animate-pulse" />
-            </span>
-            <h1 className="text-2xl font-bold text-white tracking-tight">180 Voiceforce</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              LiveKit Room Media + Telnyx Trunk
+    <div className="space-y-6 animate-in fade-in duration-300 pb-16 max-w-7xl mx-auto">
+      {/* Top Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+              180 Voiceforce
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+              Autonomous Voice AI
             </span>
             <button
-              onClick={() => setIsRechargeModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-pointer transition-colors"
+              onClick={() => setIsWalletDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 cursor-pointer transition-colors"
+              title="Open Voice Balance & Ledger"
             >
               <IndianRupee className="w-3 h-3" />
               <span>Balance: ₹{walletBalance.toFixed(2)}</span>
-              <span className="text-[10px] bg-amber-500/30 px-1.5 py-0.2 rounded-full font-bold">+ Top Up</span>
+              <span className="text-[10px] bg-amber-200/70 dark:bg-amber-800/60 px-1.5 py-0.2 rounded-full font-bold">+ Manage</span>
             </button>
           </div>
-          <p className="text-sm text-slate-300">
-            Autonomous AI voice employees for customer calling, appointments, and live catalog orders at ~₹1.28/min.
+          <p className="text-sm text-gray-500 dark:text-gray-400 max-w-2xl">
+            Autonomous AI voice employees for customer calling, appointments, and live catalog orders at ~₹{ratePerMinute.toFixed(2)}/min.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Action Controls */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             onClick={() => fetchData()}
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-colors cursor-pointer"
+            className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700/80 text-gray-600 dark:text-gray-300 border border-gray-200/80 dark:border-gray-700 transition-colors cursor-pointer shadow-sm"
             title="Refresh Data"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={clsx("w-4 h-4", loading && "animate-spin text-indigo-600")} />
           </button>
 
           <Link
             href="/voiceforce/agents"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm font-medium border border-white/10 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 text-gray-700 dark:text-gray-200 text-sm font-semibold border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
           >
-            <Bot className="w-4 h-4 text-indigo-300" />
+            <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <span>AI Employees</span>
+          </Link>
+
+          <Link
+            href="/voiceforce/forwarding"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 text-gray-700 dark:text-gray-200 text-sm font-semibold border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+          >
+            <PhoneForwarded className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Call Forwarding</span>
           </Link>
 
           <button
             onClick={() => setIsSoftphoneOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/25 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-sm font-semibold transition-all cursor-pointer shadow-sm"
           >
-            <Mic className="w-4 h-4 text-violet-200" />
+            <Mic className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             <span>Test in Browser (₹0)</span>
           </button>
 
           <button
-            onClick={() => setIsDialModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 transition-all cursor-pointer"
+            onClick={() => {
+              if (isLocked) {
+                toast.error(`Voiceforce is locked. Minimum ₹${minRequired.toFixed(2)} wallet balance required to make calls. Please top up ₹${recommendedInr.toFixed(2)}.`);
+                setIsWalletDrawerOpen(true);
+                return;
+              }
+              setIsDialModalOpen(true);
+            }}
+            className={clsx(
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold shadow-sm transition-all cursor-pointer",
+              isLocked
+                ? "bg-gray-400 dark:bg-gray-700 hover:bg-gray-500"
+                : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+            )}
           >
-            <Play className="w-4 h-4 fill-white" />
-            <span>Instant Call</span>
+            {isLocked ? <Lock className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
+            <span>{isLocked ? `Locked (Min ₹${minRequired.toFixed(0)})` : 'Instant Call'}</span>
           </button>
         </div>
       </div>
 
-      {/* Metrics Grid */}
+      {/* 5 Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Wallet Balance Card */}
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent border border-amber-500/20 backdrop-blur-md flex flex-col justify-between">
+        {/* Metric 1: Voice Balance */}
+        <div 
+          onClick={() => setIsWalletDrawerOpen(true)}
+          className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-amber-200/80 dark:border-amber-900/40 shadow-sm flex flex-col justify-between hover:border-amber-400 dark:hover:border-amber-700 transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-amber-300">Voice Balance</span>
-            <IndianRupee className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Voice Balance</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+              <IndianRupee className="w-4 h-4" />
+            </div>
           </div>
           <div className="mt-3">
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-amber-300">₹{walletBalance.toFixed(2)}</span>
-            </div>
-            <button
-              onClick={() => setIsRechargeModalOpen(true)}
-              className="mt-2 text-xs text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2 cursor-pointer flex items-center gap-1"
-            >
-              <span>Recharge Wallet</span>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">₹{walletBalance.toFixed(2)}</div>
+            <div className="mt-2 text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+              <span>View Ledger & Top Up</span>
               <ArrowUpRight className="w-3 h-3" />
-            </button>
+            </div>
           </div>
         </div>
 
-        {/* Live Calls */}
-        <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col justify-between">
+        {/* Metric 2: Live Calls */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Active Live Calls</span>
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Live Calls</span>
+            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Radio className="w-4 h-4" />
+            </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white">{metrics?.activeCallsCount || 0}</span>
-            <span className="text-xs text-emerald-400 font-medium">In Progress</span>
+          <div className="mt-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.activeCallsCount || 0}</span>
+              {(metrics?.activeCallsCount || 0) > 0 && (
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Simultaneous active sessions</p>
           </div>
         </div>
 
-        {/* Answer Rate */}
-        <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col justify-between">
+        {/* Metric 3: Total Minutes */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Answer Rate</span>
-            <Activity className="w-4 h-4 text-indigo-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Minutes</span>
+            <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
+              <Clock className="w-4 h-4" />
+            </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white">{metrics?.answerRate ?? 0}%</span>
-            <span className="text-xs text-slate-400 font-medium">connected</span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.totalMinutes || 0} min</div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Avg duration: {metrics?.avgDurationSec || 0}s</p>
           </div>
         </div>
 
-        {/* Avg Duration */}
-        <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col justify-between">
+        {/* Metric 4: Answer Rate */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Avg Duration</span>
-            <Clock className="w-4 h-4 text-purple-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Answer Rate</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white">{metrics?.avgDurationSec ?? 0}</span>
-            <span className="text-xs text-slate-400 font-medium">seconds</span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.answerRate || 0}%</div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{metrics?.totalCalls || 0} lifetime calls</p>
           </div>
         </div>
 
-        {/* Conversion Rate */}
-        <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col justify-between">
+        {/* Metric 5: Conversion Rate */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Conversions</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Goal Conversions</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <Activity className="w-4 h-4" />
+            </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-emerald-400">{metrics?.conversionRate ?? 0}%</span>
-            <span className="text-xs text-slate-400 font-medium">deals/orders</span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.conversionRate || 0}%</div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Orders & appointments</p>
           </div>
         </div>
       </div>
 
-      {/* Quick Access Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link
-          href="/voiceforce/agents"
-          className="group p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] hover:from-white/10 hover:to-white/5 border border-white/10 transition-all shadow-md"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
-              <Bot className="w-5 h-5" />
-            </span>
-            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+      {/* Enterprise Business Brain Context Widget */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-violet-50/70 via-indigo-50/60 to-purple-50/70 dark:from-violet-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 border border-violet-100/90 dark:border-violet-900/40 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-violet-600/20 flex-shrink-0">
+              <Brain className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Connected Enterprise Business Brain</h3>
+                <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                  Live Sync
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                AI employees speak official product pricing, recognize CRM customers, and book appointments into 180 Calendar.
+              </p>
+            </div>
           </div>
-          <h3 className="text-base font-semibold text-white">Configure AI Employees</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Build custom voice personas with prompt guardrails, Cartesia voices, and 180workspace tools.
-          </p>
-        </Link>
 
-        <Link
-          href="/voiceforce/numbers"
-          className="group p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] hover:from-white/10 hover:to-white/5 border border-white/10 transition-all shadow-md"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
-              <Smartphone className="w-5 h-5" />
-            </span>
-            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+          <div className="flex items-center gap-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 shadow-xs">
+              <ShoppingBag className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Authoritative Catalog Pricing</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 shadow-xs">
+              <Users className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+              <span>CRM Client Recognition</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 shadow-xs">
+              <Calendar className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Calendar Booking</span>
+            </div>
           </div>
-          <h3 className="text-base font-semibold text-white">Phone Numbers & Caller ID</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Buy dedicated virtual numbers or verify your existing business mobile for outbound caller ID.
-          </p>
-        </Link>
-
-        <Link
-          href="/voiceforce/campaigns"
-          className="group p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] hover:from-white/10 hover:to-white/5 border border-white/10 transition-all shadow-md"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="p-2 rounded-xl bg-rose-500/10 text-rose-400">
-              <Megaphone className="w-5 h-5" />
-            </span>
-            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
-          </div>
-          <h3 className="text-base font-semibold text-white">Outbound Call Campaigns</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Launch automated multi-call batches with CPS throttles and automatic follow-up task creation.
-          </p>
-        </Link>
-
-        <Link
-          href="/voiceforce/compliance"
-          className="group p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] hover:from-white/10 hover:to-white/5 border border-white/10 transition-all shadow-md"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-              <ShieldCheck className="w-5 h-5" />
-            </span>
-            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
-          </div>
-          <h3 className="text-base font-semibold text-white">Compliance & DNC List</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            TRAI/TCPA legal calling hours, Do-Not-Call suppression, and mandatory recording disclosures.
-          </p>
-        </Link>
+        </div>
       </div>
 
-      {/* Recent Call Logs */}
-      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md overflow-hidden">
-        <div className="p-5 flex items-center justify-between border-b border-white/10">
-          <div>
-            <h2 className="text-base font-semibold text-white">Recent Call Sessions</h2>
-            <p className="text-xs text-slate-400">Real-time transcripts, duration, sentiment, and executed tools.</p>
+      {/* Voiceforce Comprehensive Feature Hub Grid */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Gauge className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Voiceforce Operations & Feature Hub</h2>
           </div>
+          <span className="text-xs text-gray-500 dark:text-gray-400">All 6 core modules active & synchronized</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* 1. AI Voice Employees */}
+          <Link
+            href="/voiceforce/agents"
+            className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 hover:border-indigo-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Bot className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                {agents.length} Deployed
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                AI Voice Employees
+                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Autonomous agents with Cartesia neural TTS, prompt knowledge & tool access.
+              </p>
+            </div>
+          </Link>
+
+          {/* 2. Phone Numbers & DIDs */}
+          <Link
+            href="/voiceforce/numbers"
+            className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 hover:border-emerald-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                {numbers.length} Numbers
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors flex items-center gap-1.5">
+                Phone Numbers & DIDs
+                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Purchase international/local carrier DIDs or verify custom caller IDs for instant use.
+              </p>
+            </div>
+          </Link>
+
+          {/* 3. Call Forwarding & Queues (PREMIER HIGHLIGHT) */}
+          <Link
+            href="/voiceforce/forwarding"
+            className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/50 dark:from-indigo-950/30 dark:via-gray-900 dark:to-purple-950/20 border-2 border-indigo-300/80 dark:border-indigo-700/60 hover:border-indigo-500 hover:shadow-lg transition-all group flex flex-col justify-between relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/10 to-transparent pointer-events-none" />
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+                <PhoneForwarded className="w-5 h-5" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800">
+                  {forwardingRulesCount} Rules
+                </span>
+                {queuesCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800">
+                    {queuesCount} Queues
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-indigo-950 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                  Call Forwarding & Queues
+                  <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </h3>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-indigo-600 text-white uppercase">
+                  Premier
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                Waterfall overflow, simultaneous hunt groups, multi-agent hold queues & business hours.
+              </p>
+            </div>
+          </Link>
+
+          {/* 4. Call Campaigns */}
+          <Link
+            href="/voiceforce/campaigns"
+            className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 hover:border-violet-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Megaphone className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border border-violet-200/60 dark:border-violet-800/60">
+                {campaignsCount} Campaigns
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors flex items-center gap-1.5">
+                Call Campaigns
+                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                High-throughput outbound dialers with automated concurrency and lead list scheduling.
+              </p>
+            </div>
+          </Link>
+
+          {/* 5. Live Stream & Logs */}
           <Link
             href="/voiceforce/calls"
-            className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1"
+            className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 hover:border-blue-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
           >
-            <span>View All Calls</span>
-            <ChevronRight className="w-3.5 h-3.5" />
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Activity className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
+                {metrics?.totalCalls || 0} Total
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                Live Stream & Logs
+                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Real-time audio streaming, full turn-by-turn transcripts, and AI post-call analysis.
+              </p>
+            </div>
+          </Link>
+
+          {/* 6. Compliance & DNC */}
+          <Link
+            href="/voiceforce/compliance"
+            className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 hover:border-amber-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+                TRAI & TCPA
+              </span>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors flex items-center gap-1.5">
+                Compliance & DNC
+                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Global Do-Not-Call list suppression, consent verification, and automatic scrubbing.
+              </p>
+            </div>
           </Link>
         </div>
-
-        {recentCalls.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
-            <PhoneCall className="w-8 h-8 mx-auto text-slate-500 mb-2 opacity-50" />
-            <p className="text-sm">No call sessions recorded yet.</p>
-            <p className="text-xs text-slate-500 mt-1">Click "Instant Call" to launch your first test call.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {recentCalls.map((call) => (
-              <div key={call.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className={`p-2 rounded-xl text-xs font-semibold ${
-                    call.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                    call.status === 'in_progress' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 animate-pulse' :
-                    'bg-slate-500/10 text-slate-400 border border-slate-500/20'
-                  }`}>
-                    <PhoneCall className="w-4 h-4" />
-                  </span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">{call.recipientPhone}</span>
-                      {call.recipientName && (
-                        <span className="text-xs text-slate-400 font-normal">({call.recipientName})</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Agent: <span className="text-indigo-300 font-medium">{call.voiceAgent?.name || 'Voice Agent'}</span> • {new Date(call.createdAt).toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  {call.sentiment && (
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
-                      call.sentiment === 'positive' ? 'bg-emerald-500/10 text-emerald-400' :
-                      call.sentiment === 'negative' ? 'bg-rose-500/10 text-rose-400' :
-                      'bg-slate-500/10 text-slate-300'
-                    }`}>
-                      {call.sentiment}
-                    </span>
-                  )}
-                  <div className="text-right">
-                    <span className="text-sm font-medium text-white">{call.durationSeconds || 0}s</span>
-                    <p className="text-xs text-slate-400">₹{call.estimatedCostInr || '0.00'}</p>
-                  </div>
-                  <Link
-                    href={`/voiceforce/calls/${call.id}`}
-                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
-                  >
-                    <ArrowUpRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Instant Call Modal */}
-      {isDialModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 relative">
+      {/* 2-Column Section: Active AI Employees & Recent Call Stream */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (1 Col): AI Voice Employees */}
+        <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Active AI Employees</h2>
+              </div>
+              <Link
+                href="/voiceforce/agents"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1"
+              >
+                <span>View All ({agents.length})</span>
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {agents.length === 0 ? (
+                <div className="text-center py-8 text-xs text-gray-400">
+                  No AI voice employees configured yet.
+                </div>
+              ) : (
+                agents.slice(0, 4).map((agent) => (
+                  <div
+                    key={agent.id}
+                    className="p-3 rounded-xl bg-gray-50/80 dark:bg-gray-800/60 border border-gray-150 dark:border-gray-750 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-bold text-gray-900 dark:text-white truncate">
+                        {agent.name}
+                      </div>
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                        {agent.role || 'Assistant'} • Cartesia Sonic-3
+                      </div>
+                    </div>
+                    <span className={clsx(
+                      "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
+                      agent.isActive
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60"
+                        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                    )}>
+                      {agent.isActive ? 'Active' : 'Paused'}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <Link
+              href="/voiceforce/numbers"
+              className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-750 text-xs font-semibold text-gray-800 dark:text-gray-200 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Connected Phone Numbers ({numbers.length})</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            </Link>
+
+            <Link
+              href="/voiceforce/forwarding"
+              className="mt-2 flex items-center justify-between p-3 rounded-xl bg-indigo-50/70 hover:bg-indigo-100/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-xs font-semibold text-indigo-900 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <PhoneForwarded className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Call Forwarding & Hunt Groups</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-indigo-400" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Right Column (2 Cols): Live Call Stream & History */}
+        <div className="lg:col-span-2 bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <PhoneCall className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Recent Call Stream</h2>
+              </div>
+              <Link
+                href="/voiceforce/calls"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1"
+              >
+                <span>Full Call Stream</span>
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+
+            <div className="mt-3 divide-y divide-gray-100 dark:divide-gray-800">
+              {recentCalls.length === 0 ? (
+                <div className="text-center py-12 text-xs text-gray-400">
+                  No call sessions recorded yet. Launch an instant call or campaign to begin.
+                </div>
+              ) : (
+                recentCalls.map((call) => (
+                  <Link
+                    key={call.id}
+                    href={`/voiceforce/calls/${call.id}`}
+                    className="p-3 flex items-center justify-between gap-4 hover:bg-gray-50/80 dark:hover:bg-gray-800/50 transition-colors group block rounded-xl"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={clsx(
+                        "w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0",
+                        call.direction === 'inbound'
+                          ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"
+                          : "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400"
+                      )}>
+                        <PhoneCall className="w-3.5 h-3.5" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                            {call.recipientPhone}
+                          </span>
+                          {call.recipientName && (
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                              ({call.recipientName})
+                            </span>
+                          )}
+                          <span className={clsx(
+                            "px-2 py-0.2 rounded-full text-[9px] font-bold uppercase",
+                            call.status === 'completed' ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :
+                            call.status === 'in_progress' ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 animate-pulse" :
+                            "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                          )}>
+                            {call.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                          Agent: <strong className="text-gray-700 dark:text-gray-300 font-medium">{call.voiceAgent?.name || 'Autonomous Agent'}</strong> • {new Date(call.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right flex items-center gap-3 flex-shrink-0">
+                      <div>
+                        <div className="text-xs font-bold text-gray-900 dark:text-white">
+                          ₹{call.estimatedCostInr ? Number(call.estimatedCostInr).toFixed(2) : '0.00'}
+                        </div>
+                        <span className="text-[10px] text-gray-400">
+                          {call.durationSeconds || 0}s
+                        </span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Instant Dial PlatformModal */}
+      <PlatformModal
+        isOpen={isDialModalOpen}
+        onClose={() => setIsDialModalOpen(false)}
+        title="Launch Instant AI Call"
+        icon={PhoneCall}
+        iconColorClass="text-indigo-600 dark:text-indigo-400"
+        iconBgClass="bg-indigo-50 dark:bg-indigo-950/60"
+        onSubmit={handleLaunchCall}
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
             <button
+              type="button"
               onClick={() => setIsDialModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              Cancel
             </button>
-
-            <div className="flex items-center gap-2 mb-4">
-              <span className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
-                <Play className="w-5 h-5 fill-indigo-400" />
-              </span>
-              <div>
-                <h3 className="text-lg font-bold text-white">Instant Outbound Call</h3>
-                <p className="text-xs text-slate-400">Make an AI employee call a customer immediately.</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleLaunchCall} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Select AI Employee</label>
-                <select
-                  value={dialForm.voiceAgentId}
-                  onChange={(e) => setDialForm({ ...dialForm, voiceAgentId: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  required
-                >
-                  {agents.length === 0 ? (
-                    <option value="">No agents found (Create one first)</option>
-                  ) : (
-                    agents.map((ag) => (
-                      <option key={ag.id} value={ag.id}>{ag.name} ({ag.role})</option>
-                    ))
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Customer Phone Number (E.164)</label>
-                <input
-                  type="text"
-                  placeholder="+919876543210 or +14155552671"
-                  value={dialForm.recipientPhone}
-                  onChange={(e) => setDialForm({ ...dialForm, recipientPhone: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Customer Name (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Rahul Sharma"
-                  value={dialForm.recipientName}
-                  onChange={(e) => setDialForm({ ...dialForm, recipientName: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsDialModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={dialing || agents.length === 0}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-50"
-                >
-                  {dialing ? 'Dialing Phone...' : 'Start Call Now'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Voice Wallet Top Up Modal */}
-      {isRechargeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 relative">
             <button
-              onClick={() => setIsRechargeModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              type="submit"
+              disabled={dialing}
+              className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all disabled:opacity-50 cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              {dialing ? 'Dialing...' : 'Dispatch Call Now'}
             </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+              Recipient Phone Number *
+            </label>
+            <input
+              type="tel"
+              required
+              placeholder="+91 98765 43210 (E.164 format with country code)"
+              value={dialForm.recipientPhone}
+              onChange={(e) => setDialForm({ ...dialForm, recipientPhone: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-900 transition-all"
+            />
+          </div>
 
-            <div className="flex items-center gap-2 mb-4">
-              <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
-                <IndianRupee className="w-5 h-5" />
-              </span>
-              <div>
-                <h3 className="text-lg font-bold text-white">Top Up Voice Wallet</h3>
-                <p className="text-xs text-slate-400">Current Balance: ₹{walletBalance.toFixed(2)} (Estimated ~₹1.28/min)</p>
-              </div>
-            </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+              Customer Name (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Rahul Sharma"
+              value={dialForm.recipientName}
+              onChange={(e) => setDialForm({ ...dialForm, recipientName: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-900 transition-all"
+            />
+          </div>
 
-            <form onSubmit={handleWalletRecharge} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">Select Amount (INR)</label>
-                <div className="grid grid-cols-4 gap-2 mb-3">
-                  {[100, 250, 500, 1000].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => setRechargeAmount(amt)}
-                      className={`py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                        rechargeAmount === amt
-                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-sm'
-                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
-                      }`}
-                    >
-                      ₹{amt}
-                    </button>
-                  ))}
-                </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+              Assign AI Voice Employee *
+            </label>
+            <select
+              required
+              value={dialForm.voiceAgentId}
+              onChange={(e) => setDialForm({ ...dialForm, voiceAgentId: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-900 transition-all"
+            >
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name} ({agent.role || 'Sales/Support'})
+                </option>
+              ))}
+            </select>
+          </div>
 
-                <label className="block text-xs font-medium text-slate-400 mb-1">Custom Amount</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm">₹</span>
-                  <input
-                    type="number"
-                    min="10"
-                    step="10"
-                    value={rechargeAmount}
-                    onChange={(e) => setRechargeAmount(Number(e.target.value))}
-                    className="w-full pl-7 pr-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-slate-400 space-y-1">
-                <div className="flex justify-between">
-                  <span>Approximate Calling Time:</span>
-                  <span className="text-white font-medium">~{Math.round(rechargeAmount / 1.28)} mins</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Per-second Billing:</span>
-                  <span className="text-emerald-400 font-medium">Strict 60s minimum + exact</span>
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsRechargeModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-sm cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isRecharging || rechargeAmount <= 0}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
-                >
-                  {isRecharging ? 'Processing...' : `Add ₹${rechargeAmount} to Wallet`}
-                </button>
-              </div>
-            </form>
+          <div className="p-3.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 text-xs text-indigo-800 dark:text-indigo-300">
+            Calls are dispatched through Telnyx SIP with Cartesia Ink-2 speech recognition and Sonic-3 voice synthesis.
           </div>
         </div>
-      )}
+      </PlatformModal>
 
-      {/* Zero-Cost In-Browser Softphone Tester Modal */}
+      {/* Browser WebRTC Softphone Modal (₹0 Telecom Cost) */}
       <BrowserSoftphoneModal
         isOpen={isSoftphoneOpen}
         onClose={() => setIsSoftphoneOpen(false)}
-        agents={agents}
-        onCallEnded={() => fetchData()}
+        agents={agents || []}
+        voiceAgentId={dialForm.voiceAgentId || agents?.[0]?.id}
+        voiceAgentName={agents?.find(a => a.id === dialForm.voiceAgentId)?.name || agents?.[0]?.name || 'Test AI Agent'}
+      />
+
+      {/* Universal Slide Drawer: Wallet Ledger & Auto-Recharge */}
+      <WalletLedgerDrawer
+        isOpen={isWalletDrawerOpen}
+        onClose={() => setIsWalletDrawerOpen(false)}
+        onBalanceUpdated={fetchData}
       />
     </div>
   );

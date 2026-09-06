@@ -191,6 +191,180 @@ export class VoiceforceWebhooksController {
       });
 
       if (!session) {
+        // Handle incoming inbound call from carrier (new incoming call leg)
+        if (eventType === 'call.initiated' && payload?.direction === 'incoming') {
+          const toPhone = payload?.to?.replace(/\s+/g, '');
+          const fromPhone = payload?.from;
+          const { ForwardingRouterService } = await import('@workspace/voiceforce');
+
+          // Find registered company number
+          const phoneNumber = await (prisma as any).phoneNumber.findFirst({
+            where: { e164Number: toPhone },
+            include: { company: true }
+          });
+
+          if (phoneNumber) {
+            const decision = await ForwardingRouterService.evaluateInboundCall(
+              phoneNumber.companyId,
+              toPhone,
+              fromPhone
+            );
+
+            // Create initial inbound callSession
+            const session = await (prisma as any).callSession.create({
+              data: {
+                companyId: phoneNumber.companyId,
+                voiceAgentId: decision.agentId || phoneNumber.assignedAgentId || null,
+                phoneNumberId: phoneNumber.id,
+                recipientPhone: fromPhone || 'Unknown Caller',
+                sipCallId,
+                direction: 'inbound',
+                status: 'initiated',
+                structuredData: {
+                  callerIdNumber: toPhone,
+                  forwardingRuleId: decision.ruleId,
+                  hopIndex: decision.hopIndex,
+                  forwardedToE164: decision.destinationE164
+                }
+              }
+            });
+
+            // Pre-Call Financial Guard: Verify company wallet has >= ₹200.00
+            const { VoiceBillingService } = await import('@workspace/voiceforce');
+            const credit = await VoiceBillingService.validateCredit(phoneNumber.companyId, 200.0);
+            if (!credit.allowed) {
+              console.warn(`[Webhooks Inbound] Call blocked for company ${phoneNumber.companyId}: balance ₹${credit.balance.toFixed(2)} < ₹200.00`);
+              if (payload?.call_control_id && process.env.TELNYX_API_KEY) {
+                try {
+                  const axios = (await import('axios')).default;
+                  await axios.post(
+                    `https://api.telnyx.com/v2/calls/${payload.call_control_id}/actions/reject`,
+                    { cause: 'CALL_REJECTED' },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${process.env.TELNYX_API_KEY}`,
+                        'Content-Type': 'application/json'
+                      },
+                      timeout: 5000
+                    }
+                  ).catch((rejErr: any) => console.warn('[Webhooks] Telnyx reject action note:', rejErr.message));
+                } catch (e: any) {
+                  console.warn('[Webhooks] Could not issue Telnyx reject:', e.message);
+                }
+              }
+
+              await (prisma as any).callSession.update({
+                where: { id: session.id },
+                data: {
+                  status: 'failed',
+                  disconnectReason: 'INSUFFICIENT_WALLET_BALANCE_LOCKED',
+                  endedAt: new Date()
+                }
+              });
+
+              return res.status(200).json({
+                received: true,
+                blocked: true,
+                error: 'INSUFFICIENT_WALLET_BALANCE',
+                balance: credit.balance,
+                minRequired: 200.0
+              });
+            }
+
+            // 1. If decision is PSTN forward, execute Telnyx call transfer
+            if (decision.action === 'pstn_forward' && decision.destinationE164 && payload?.call_control_id) {
+              await ForwardingRouterService.executeTelnyxTransfer(payload.call_control_id, decision.destinationE164);
+            }
+
+            // 2. If decision is Queue, place caller into active hold room
+            if (decision.action === 'queue') {
+              const { CallQueueService } = await import('@workspace/voiceforce');
+              const queue = await (prisma as any).callQueue.findFirst({
+                where: { companyId: phoneNumber.companyId }
+              });
+              if (queue) {
+                await CallQueueService.enqueueCaller(phoneNumber.companyId, queue.id, session.id, fromPhone || 'Inbound Caller');
+              }
+            }
+
+            // 3. If decision is AI Employee answering (direct agent or Hop 1 / fallback)
+            if (decision.action === 'ai_agent' && (decision.agentId || phoneNumber.assignedAgentId)) {
+              const agentId = decision.agentId || phoneNumber.assignedAgentId;
+              const roomName = `inbound_${session.id}`;
+
+              await (prisma as any).callSession.update({
+                where: { id: session.id },
+                data: {
+                  voiceAgentId: agentId,
+                  status: 'in_progress',
+                  livekitRoomName: roomName,
+                  startedAt: new Date()
+                }
+              });
+
+              // Answer carrier leg and transfer audio into LiveKit room via SIP
+              if (payload?.call_control_id && process.env.TELNYX_API_KEY) {
+                try {
+                  const axios = (await import('axios')).default;
+                  // 1. Answer carrier leg
+                  await axios.post(
+                    `https://api.telnyx.com/v2/calls/${payload.call_control_id}/actions/answer`,
+                    {},
+                    {
+                      headers: {
+                        Authorization: `Bearer ${process.env.TELNYX_API_KEY}`,
+                        'Content-Type': 'application/json'
+                      },
+                      timeout: 5000
+                    }
+                  ).catch((ansErr: any) => console.warn('[Webhooks] Telnyx answer action note:', ansErr.message));
+
+                  // 2. Transfer carrier call to LiveKit SIP URI so audio bridges directly into the room
+                  const rawHost = process.env.LIVEKIT_SIP_DOMAIN || process.env.LIVEKIT_URL || 'livekit.180workspace.com';
+                  const livekitSipHost = rawHost.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '').split('/')[0];
+                  const sipUri = `sip:${roomName}@${livekitSipHost}`;
+
+                  await axios.post(
+                    `https://api.telnyx.com/v2/calls/${payload.call_control_id}/actions/transfer`,
+                    {
+                      to: sipUri,
+                      from: fromPhone || toPhone
+                    },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${process.env.TELNYX_API_KEY}`,
+                        'Content-Type': 'application/json'
+                      },
+                      timeout: 5000
+                    }
+                  ).catch((transErr: any) => console.warn('[Webhooks] Telnyx SIP transfer action note:', transErr.message));
+                } catch (bridgeErr: any) {
+                  console.warn('[Webhooks] Error bridging carrier call to LiveKit SIP:', bridgeErr.message);
+                }
+              }
+
+              // Spin up LiveKitRoomWorker to autonomously converse with inbound caller
+              try {
+                const { LiveKitRoomWorker } = await import('@workspace/voiceforce');
+                const roomWorker = new LiveKitRoomWorker({
+                  callSessionId: session.id,
+                  roomName,
+                  companyId: phoneNumber.companyId,
+                  voiceAgentId: agentId,
+                  recipientPhone: fromPhone,
+                  callerIdNumber: toPhone,
+                  isOutbound: false
+                });
+
+                roomWorker.start().catch((err: any) => {
+                  console.error('[Webhooks Inbound RoomWorker Error]:', err.message);
+                });
+              } catch (workerErr: any) {
+                console.error('[Webhooks] Failed to initialize LiveKitRoomWorker:', workerErr.message);
+              }
+            }
+          }
+        }
         return res.status(200).json({ received: true });
       }
 
@@ -229,6 +403,45 @@ export class VoiceforceWebhooksController {
               endedAt: new Date()
             }
           });
+
+          // If this was a busy/unanswered leg in an active forwarding chain, cascade to next hop
+          const sData = (session.structuredData as any) || session.metadata || {};
+          if (['busy', 'no_answer'].includes(status) && sData.forwardingRuleId) {
+            const { ForwardingRouterService } = await import('@workspace/voiceforce');
+            const rule = await (prisma as any).forwardingRule.findFirst({
+              where: { id: sData.forwardingRuleId }
+            });
+            if (rule) {
+              const nextHopIndex = (sData.hopIndex || 0) + 1;
+              const nextDecision = await ForwardingRouterService.evaluateNextHop(rule, nextHopIndex, session.companyId);
+              if (nextDecision.action === 'pstn_forward' && nextDecision.destinationE164 && payload?.call_control_id) {
+                await ForwardingRouterService.executeTelnyxTransfer(payload.call_control_id, nextDecision.destinationE164);
+              }
+            }
+          }
+
+          // If a call completed normally, check if any callers are waiting in an active queue and bridge immediately
+          if (status === 'completed') {
+            try {
+              const { CallQueueService, ForwardingRouterService } = await import('@workspace/voiceforce');
+              const activeQueue = await (prisma as any).callQueue.findFirst({
+                where: { companyId: session.companyId, currentWaiting: { gt: 0 } }
+              });
+
+              if (activeQueue) {
+                const nextQueuedCaller = await CallQueueService.dequeueNextCaller(session.companyId, activeQueue.id);
+                if (nextQueuedCaller) {
+                  console.log(`[AutoQueue] Line freed. Dequeued caller ${nextQueuedCaller.callerPhone} to bridge immediately.`);
+                  const freedTargetE164 = sData.forwardedToE164 || session.recipientPhone;
+                  if (freedTargetE164 && payload?.call_control_id) {
+                    await ForwardingRouterService.executeTelnyxTransfer(payload.call_control_id, freedTargetE164);
+                  }
+                }
+              }
+            } catch (queueErr: any) {
+              console.error('[Webhooks] Error in auto-queue dispatch:', queueErr.message);
+            }
+          }
           break;
         }
 

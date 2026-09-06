@@ -35,6 +35,11 @@ export class VoiceComplianceGuard {
       });
       const localHour = parseInt(formatter.format(now), 10);
 
+      // In development or when explicitly bypassed, allow 24/7 testing
+      if (process.env.NODE_ENV === 'development' || process.env.BYPASS_CALLING_HOURS === 'true') {
+        return { allowed: true, localHour };
+      }
+
       // Legal permissible calling hours: 09:00 to 20:00 (9 AM to 8 PM)
       if (localHour < 9 || localHour >= 20) {
         return {

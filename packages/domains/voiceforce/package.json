@@ -13,6 +13,7 @@
     "@workspace/ai": "workspace:*",
     "@workspace/backend-infra": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/wallet": "workspace:*",
     "axios": "^1.7.0",
     "groq-sdk": "^0.37.0",
     "livekit-server-sdk": "^2.6.0",

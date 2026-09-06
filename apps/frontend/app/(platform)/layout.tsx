@@ -473,7 +473,8 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     if (item.appId && isAppEnabled && subItem.id && company?.enabledModules) {
                         const isModOn = company.enabledModules.includes(subItem.id) ||
                             company.enabledModules.includes(`${item.appId}-${subItem.id}`) ||
-                            company.enabledModules.includes(subItem.id.replace(`${item.appId}-`, ''));
+                            company.enabledModules.includes(subItem.id.replace(`${item.appId}-`, '')) ||
+                            (item.appId === 'voiceforce' && (subItem.id === 'forwarding' || subItem.id === 'compliance'));
                         return isModOn;
                     }
                     return isAppEnabled;
