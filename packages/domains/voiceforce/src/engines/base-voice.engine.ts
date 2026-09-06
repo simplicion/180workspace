@@ -10,7 +10,8 @@ export abstract class BaseVoiceEngine {
   }
 
   abstract start(): Promise<void>;
+  abstract speakGreeting(): Promise<void>;
   abstract processIncomingAudio(pcmChunk: Int16Array | Buffer): void;
   abstract handleBargeIn(): void;
-  abstract stop(): Promise<void>;
+  abstract stop(reason?: string): Promise<void>;
 }

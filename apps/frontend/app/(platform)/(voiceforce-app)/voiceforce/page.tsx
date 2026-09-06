@@ -89,6 +89,18 @@ export default function VoiceforceDashboardPage() {
   useEffect(() => {
     if (hasApp) {
       fetchData();
+      // Auto-refresh every 4s for active call tracking
+      const interval = setInterval(async () => {
+        try {
+          const [metricsRes, callsRes] = await Promise.all([
+            api.get('/api/v1/voiceforce/metrics').catch(() => ({ data: { data: null } })),
+            api.get('/api/v1/voiceforce/calls').catch(() => ({ data: { data: [] } }))
+          ]);
+          if (metricsRes.data?.data) setMetrics(metricsRes.data.data);
+          if (callsRes.data?.data) setRecentCalls((callsRes.data.data || []).slice(0, 8));
+        } catch {}
+      }, 4000);
+      return () => clearInterval(interval);
     }
   }, [hasApp]);
 
@@ -638,12 +650,23 @@ export default function VoiceforceDashboardPage() {
                             </span>
                           )}
                           <span className={clsx(
-                            "px-2 py-0.2 rounded-full text-[9px] font-bold uppercase",
-                            call.status === 'completed' ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :
-                            call.status === 'in_progress' ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 animate-pulse" :
-                            "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase inline-flex items-center gap-1",
+                            call.status === 'completed' ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40" :
+                            call.status === 'in_progress' ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 animate-pulse" :
+                            call.status === 'dialing' ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800 animate-pulse" :
+                            call.status === 'ringing' ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border border-purple-200 dark:border-purple-800 animate-pulse" :
+                            call.status === 'no_answer' ? "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-800" :
+                            call.status === 'busy' ? "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 border border-orange-200 dark:border-orange-800" :
+                            call.status === 'failed' ? "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-800" :
+                            "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800 animate-pulse"
                           )}>
-                            {call.status}
+                            {call.status === 'in_progress' ? 'Live Talking' :
+                             call.status === 'dialing' ? 'Dialing...' :
+                             call.status === 'ringing' ? 'Ringing...' :
+                             call.status === 'no_answer' ? "Didn't Answer" :
+                             call.status === 'busy' ? 'Line Busy' :
+                             call.status === 'failed' ? 'Failed' :
+                             call.status === 'completed' ? 'Completed' : 'Queued'}
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">

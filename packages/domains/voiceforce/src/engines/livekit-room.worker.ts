@@ -4,6 +4,8 @@ import { VoiceSessionConfig } from '../types/voice.types';
 import { prisma } from '@workspace/db';
 import { VoiceComplianceGuard } from '../compliance/voice-compliance.guard';
 import { HumanEscalationService } from '../telephony/human-escalation.service';
+import { VoiceBillingService } from '../billing/voice-billing.service';
+import { VoiceforcePromptService } from '../prompts/voiceforce-prompts';
 
 export interface LiveKitRoomWorkerOptions {
   callSessionId: string;
@@ -25,6 +27,9 @@ export class LiveKitRoomWorker {
   private isRunning: boolean = false;
   private callStartTime: number = 0;
   private timelineMilestones: Array<{ timeMs: number; event: string; details?: any }> = [];
+  private monitorTimer: NodeJS.Timeout | null = null;
+  private hasCustomerAnswered: boolean = false;
+  private greetingDelivered: boolean = false;
 
   constructor(options: LiveKitRoomWorkerOptions) {
     this.options = options;
@@ -85,7 +90,7 @@ export class LiveKitRoomWorker {
         await this.recordMilestone('compliance_blocked_calling_hours', { reason: hoursCheck.reason });
         await prisma.callSession.update({
           where: { id: callSessionId },
-          data: { status: 'failed', disconnectReason: hoursCheck.reason }
+          data: { status: 'failed', disconnectReason: hoursCheck.reason, endedAt: new Date() }
         });
         return;
       }
@@ -95,7 +100,7 @@ export class LiveKitRoomWorker {
         await this.recordMilestone('compliance_blocked_dnc', { reason: dncCheck.reason });
         await prisma.callSession.update({
           where: { id: callSessionId },
-          data: { status: 'failed', disconnectReason: dncCheck.reason }
+          data: { status: 'failed', disconnectReason: dncCheck.reason, endedAt: new Date() }
         });
         return;
       }
@@ -144,7 +149,8 @@ export class LiveKitRoomWorker {
       voiceId: agent.voiceId,
       language: agent.language,
       enabledTools,
-      allowBargeIn: agent.allowBargeIn
+      allowBargeIn: agent.allowBargeIn,
+      autoGreet: !isOutbound // For outbound, wait until customer answers before delivering greeting
     };
 
     // 4. Initialize Call Recording Egress if configured (Cloudflare R2 Object Storage)
@@ -282,7 +288,6 @@ export class LiveKitRoomWorker {
       let fromNumber = this.options.callerIdNumber;
 
       if (!fromNumber) {
-        // 1. Check if call session in DB has callerIdNumber or linked phoneNumber
         const sessionRec = await prisma.callSession.findUnique({
           where: { id: callSessionId },
           include: { phoneNumber: true }
@@ -297,7 +302,6 @@ export class LiveKitRoomWorker {
       }
 
       if (!fromNumber && voiceAgentId) {
-        // 2. Check if agent has an assigned phone number in this company
         const agentPhone = await prisma.phoneNumber.findFirst({
           where: { companyId, assignedAgentId: voiceAgentId, status: 'active' }
         });
@@ -307,7 +311,6 @@ export class LiveKitRoomWorker {
       }
 
       if (!fromNumber && companyId) {
-        // 3. Check if company has any active phone number
         const companyPhone = await prisma.phoneNumber.findFirst({
           where: { companyId, status: 'active' }
         });
@@ -316,12 +319,17 @@ export class LiveKitRoomWorker {
         }
       }
 
-      // 4. Fallback only as absolute last resort
       if (!fromNumber) {
         fromNumber = process.env.TELNYX_CALLER_ID || '+919381420546';
       }
 
       try {
+        // Mark session as dialing
+        await prisma.callSession.update({
+          where: { id: callSessionId },
+          data: { status: 'dialing', startedAt: new Date() }
+        });
+
         await this.sipClient.createSipParticipant(
           trunkId,
           recipientPhone,
@@ -333,10 +341,9 @@ export class LiveKitRoomWorker {
           }
         );
         await this.recordMilestone('sip_participant_created', { recipientPhone, trunkId, fromNumber });
-        await prisma.callSession.update({
-          where: { id: callSessionId },
-          data: { status: 'in_progress', answeredAt: new Date() }
-        });
+
+        // Launch active room participant lifecycle monitor
+        this.startRoomLifecycleMonitor();
       } catch (err: any) {
         console.error('[LiveKitRoomWorker] SIP outbound dial error:', err.message);
         let errorMsg = err.message;
@@ -346,10 +353,90 @@ export class LiveKitRoomWorker {
         await this.recordMilestone('sip_dial_error', { error: errorMsg });
         await prisma.callSession.update({
           where: { id: callSessionId },
-          data: { status: 'failed', disconnectReason: errorMsg }
+          data: { status: 'failed', disconnectReason: errorMsg, endedAt: new Date() }
         });
+        await this.stop('sip_dial_error');
       }
+    } else {
+      // Inbound or Browser session - mark in progress immediately and monitor
+      this.hasCustomerAnswered = true;
+      this.greetingDelivered = true;
+      await prisma.callSession.update({
+        where: { id: callSessionId },
+        data: { status: 'in_progress', startedAt: new Date(), answeredAt: new Date() }
+      });
+      this.startRoomLifecycleMonitor();
     }
+  }
+
+  /**
+   * Periodically monitors the LiveKit room participants to track answer, conversation, and hangup events
+   */
+  private startRoomLifecycleMonitor(): void {
+    if (this.monitorTimer) clearInterval(this.monitorTimer);
+
+    const checkIntervalMs = 1500;
+    const maxRingingTimeoutMs = 45000; // 45 seconds ringing timeout
+
+    this.monitorTimer = setInterval(async () => {
+      if (!this.isRunning) {
+        if (this.monitorTimer) clearInterval(this.monitorTimer);
+        return;
+      }
+
+      try {
+        const participants = await this.roomService.listParticipants(this.options.roomName);
+        const { isOutbound, recipientPhone, callSessionId } = this.options;
+
+        // Find customer / phone participant
+        const phoneParticipant = participants.find(p => 
+          p.identity.startsWith('phone_') || 
+          (recipientPhone && p.identity.includes(recipientPhone.replace(/\s+/g, ''))) ||
+          p.identity.startsWith('user_') ||
+          p.identity.startsWith('browser_')
+        );
+
+        const elapsed = Date.now() - this.callStartTime;
+
+        if (phoneParticipant) {
+          // Participant has connected and answered!
+          if (!this.hasCustomerAnswered) {
+            this.hasCustomerAnswered = true;
+            console.log(`[LiveKitRoomWorker] Participant joined call ${callSessionId}: ${phoneParticipant.identity}`);
+
+            await prisma.callSession.update({
+              where: { id: callSessionId },
+              data: { status: 'in_progress', answeredAt: new Date() }
+            });
+            await this.recordMilestone('customer_answered', { participant: phoneParticipant.identity });
+
+            // Deliver initial AI employee greeting now that customer is listening
+            if (!this.greetingDelivered && this.engine) {
+              this.greetingDelivered = true;
+              await this.engine.speakGreeting().catch((greetErr) => {
+                console.warn('[LiveKitRoomWorker] Greeting delivery note:', greetErr.message);
+              });
+            }
+          }
+        } else {
+          // Participant not currently in room
+          if (this.hasCustomerAnswered) {
+            // Customer answered earlier and now disconnected -> Call Completed
+            console.log(`[LiveKitRoomWorker] Customer disconnected from call ${callSessionId}. Ending session.`);
+            await this.stop('customer_hung_up');
+          } else if (isOutbound && elapsed > maxRingingTimeoutMs) {
+            // Outbound call timed out with no answer after 45s
+            console.log(`[LiveKitRoomWorker] Outbound call ${callSessionId} timed out with no answer.`);
+            await this.stop('no_answer');
+          }
+        }
+      } catch (err: any) {
+        // If room no longer exists, wrap up call cleanly
+        if (err.message && (err.message.includes('not found') || err.message.includes('404'))) {
+          await this.stop('room_closed');
+        }
+      }
+    }, checkIntervalMs);
   }
 
   /**
@@ -371,14 +458,117 @@ export class LiveKitRoomWorker {
   }
 
   /**
-   * Cleanly shuts down room session and engine
+   * Cleanly shuts down room session and engine, records duration, executes billing deduction, and triggers post-call intelligence
    */
   async stop(reason: string = 'normal'): Promise<void> {
+    if (this.monitorTimer) {
+      clearInterval(this.monitorTimer);
+      this.monitorTimer = null;
+    }
+
     if (!this.isRunning) return;
     this.isRunning = false;
 
     if (this.engine) {
-      await this.engine.stop().catch(() => {});
+      await this.engine.stop(reason).catch(() => {});
+    }
+
+    const { callSessionId } = this.options;
+
+    try {
+      const session = await prisma.callSession.findUnique({
+        where: { id: callSessionId }
+      });
+
+      if (session && !['completed', 'failed', 'no_answer', 'busy'].includes(session.status)) {
+        const endedAt = new Date();
+        const startedAt = session.answeredAt || session.startedAt || session.createdAt;
+        let durationSeconds = this.hasCustomerAnswered && session.answeredAt
+          ? Math.max(1, Math.round((endedAt.getTime() - session.answeredAt.getTime()) / 1000))
+          : 0;
+
+        let finalStatus = 'completed';
+        let disconnectReason = session.disconnectReason || reason;
+
+        if (!this.hasCustomerAnswered) {
+          if (reason === 'no_answer' || reason === 'timeout') {
+            finalStatus = 'no_answer';
+            disconnectReason = 'Customer did not answer / timeout';
+          } else if (reason === 'busy' || reason === 'rejected') {
+            finalStatus = 'busy';
+            disconnectReason = 'Line busy / call declined';
+          } else if (reason.includes('error') || reason.includes('restriction')) {
+            finalStatus = 'failed';
+            disconnectReason = disconnectReason || 'Carrier connection failed';
+          } else {
+            finalStatus = 'no_answer';
+            disconnectReason = 'Customer did not answer';
+          }
+        }
+
+        const billableMinutes = Math.ceil(durationSeconds / 60);
+
+        await prisma.callSession.update({
+          where: { id: callSessionId },
+          data: {
+            status: finalStatus,
+            endedAt,
+            durationSeconds,
+            billableMinutes,
+            disconnectReason
+          }
+        });
+
+        // 1. Prepaid Wallet Balance Deduction (only if call connected)
+        if (finalStatus === 'completed' && durationSeconds > 0) {
+          try {
+            await VoiceBillingService.deductCallCost(callSessionId);
+          } catch (billingErr: any) {
+            console.error('[LiveKitRoomWorker] Prepaid deduction error:', billingErr.message);
+          }
+        }
+
+        // 2. Post-Call Intelligence (Summarization, Sentiment, Action Items)
+        try {
+          const promptService = new VoiceforcePromptService();
+          const transcripts = await prisma.callTranscriptSegment.findMany({
+            where: { callSessionId },
+            orderBy: { startTimeMs: 'asc' }
+          });
+
+          if (transcripts.length > 0) {
+            const analysis = await promptService.analyzeTranscript(transcripts);
+            await prisma.callSession.update({
+              where: { id: callSessionId },
+              data: {
+                summary: analysis.summary,
+                sentiment: analysis.sentiment,
+                callOutcome: analysis.callOutcome,
+                actionItems: analysis.actionItems
+              }
+            });
+
+            // Create tasks for action items
+            if (analysis.actionItems && analysis.actionItems.length > 0) {
+              for (const item of analysis.actionItems) {
+                await prisma.task.create({
+                  data: {
+                    title: `[Call Follow-up]: ${item}`,
+                    description: `Action item extracted from call with ${session.recipientPhone}. Summary: ${analysis.summary}`,
+                    companyId: session.companyId,
+                    priority: 'high',
+                    status: 'todo'
+                  }
+                }).catch(() => {});
+              }
+            }
+          }
+        } catch (postCallErr: any) {
+          console.error('[LiveKitRoomWorker] Post-call intelligence error:', postCallErr.message);
+        }
+      }
+    } catch (dbErr: any) {
+      console.error('[LiveKitRoomWorker] Error finalizing callSession in DB:', dbErr.message);
     }
 
     try {

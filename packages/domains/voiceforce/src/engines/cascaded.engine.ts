@@ -90,7 +90,7 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     });
 
     // 4. Initial Greeting (First Message)
-    if (this.config.firstMessage) {
+    if (this.config.firstMessage && this.config.autoGreet !== false) {
       await this.synthesizeAndSpeak(this.config.firstMessage);
     }
 
@@ -105,6 +105,12 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     }, maxDurationSec * 1000);
 
     this.resetInactivityTimer();
+  }
+
+  async speakGreeting(): Promise<void> {
+    if (this.config.firstMessage && !this.isTerminated) {
+      await this.synthesizeAndSpeak(this.config.firstMessage);
+    }
   }
 
   private resetInactivityTimer(): void {
