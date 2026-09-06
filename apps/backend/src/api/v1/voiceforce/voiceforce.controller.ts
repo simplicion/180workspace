@@ -329,7 +329,7 @@ export const VoiceforceController = {
         const purchaseResult = await telnyx.purchaseNumber(phoneNumber);
         if (purchaseResult.success) {
           isLiveCarrier = true;
-          providerId = purchaseResult.id || providerId;
+          providerId = purchaseResult.phoneNumberId || purchaseResult.id || providerId;
           // Automatically bind newly acquired number to Telnyx Call Control / SIP connection
           await telnyx.assignNumberToConnection(phoneNumber).catch((bindErr: any) => {
             console.warn('[Voiceforce] Telnyx connection binding note:', bindErr.message);
@@ -454,7 +454,11 @@ export const VoiceforceController = {
 
       // Automatically release and delete the number from Telnyx carrier exchange
       try {
-        await telnyx.releaseNumber(num.providerId || num.e164Number);
+        const target = num.e164Number || num.providerId;
+        const carrierRes = await telnyx.releaseNumber(target);
+        if (!carrierRes.success && carrierRes.error) {
+          console.warn('[Voiceforce] Telnyx carrier release notice:', carrierRes.error);
+        }
       } catch (tErr: any) {
         console.warn('[Voiceforce] Telnyx carrier release notice:', tErr.message);
       }
