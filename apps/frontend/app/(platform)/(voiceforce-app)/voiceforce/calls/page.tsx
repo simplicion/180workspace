@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/lib/auth-context';
+import { locationService } from '@/lib/location-service';
 import { UniversalSkeleton } from '@workspace/ui';
 import clsx from 'clsx';
 
@@ -22,6 +24,8 @@ import clsx from 'clsx';
  * - Full CSV export with all structured telephony and post-call intelligence columns
  */
 export default function VoiceforceCallsPage() {
+  const { company } = useAuth();
+  const defaultCurrencySymbol = company?.currencySymbol || locationService.getCurrencySymbol(company?.currency || 'USD');
   const [calls, setCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -68,7 +72,7 @@ export default function VoiceforceCallsPage() {
       return;
     }
 
-    const headers = ['Call ID', 'Phone Number', 'Customer Name', 'Direction', 'Status', 'Agent Name', 'Duration (Seconds)', 'Cost (INR)', 'Outcome', 'Sentiment', 'Created At'];
+    const headers = ['Call ID', 'Phone Number', 'Customer Name', 'Direction', 'Status', 'Agent Name', 'Duration (Seconds)', 'Cost', 'Outcome', 'Sentiment', 'Created At'];
     const rows = filteredCalls.map(c => [
       `"${c.id}"`,
       `"${c.recipientPhone || ''}"`,
@@ -77,7 +81,7 @@ export default function VoiceforceCallsPage() {
       `"${c.status || ''}"`,
       `"${(c.voiceAgent?.name || '').replace(/"/g, '""')}"`,
       c.durationSeconds || 0,
-      c.estimatedCostInr ? Number(c.estimatedCostInr).toFixed(2) : '0.00',
+      `${c.companyCurrencySymbol || defaultCurrencySymbol}${c.estimatedCostInr ? Number(c.estimatedCostInr).toFixed(2) : '0.00'}`,
       `"${c.callOutcome || ''}"`,
       `"${c.sentiment || ''}"`,
       `"${new Date(c.createdAt).toISOString()}"`
@@ -353,7 +357,7 @@ export default function VoiceforceCallsPage() {
                         {call.durationSeconds || 0}s
                       </div>
                       <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        ₹{call.estimatedCostInr ? Number(call.estimatedCostInr).toFixed(2) : '0.00'}
+                        {call.companyCurrencySymbol || defaultCurrencySymbol}{call.estimatedCostInr ? Number(call.estimatedCostInr).toFixed(2) : '0.00'}
                       </div>
                     </td>
 

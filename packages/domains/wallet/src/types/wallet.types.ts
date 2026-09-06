@@ -19,6 +19,7 @@ export interface WalletBalanceInfo {
   thresholdInr: number;
   rechargeAmountInr: number;
   currency: string;
+  currencySymbol: string;
 }
 
 export interface CreditCheckResult {

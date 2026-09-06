@@ -1,0 +1,423 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const pillars = [
+  {
+    badge: "Sub-200ms Voice Stream",
+    title: "Cartesia Ink-2 STT & Sonic-3 Generative Speech",
+    description: "Tired of robotic pauses and awkward silences? Voiceforce streams generative audio via Cartesia with sub-90ms synthesis and sub-150ms semantic turn detection.",
+    bullets: [
+      "Natural conversational interruption (barge-in support)",
+      "Zero-latency streaming PCM WebSocket audio directly to PSTN",
+      "Human-like breath, inflection, and semantic pacing"
+    ]
+  },
+  {
+    badge: "Pure BYOK LLM",
+    title: "Bring Your Own Key — Zero Token Markup",
+    description: "Plug in your existing OpenAI (GPT-4o), Anthropic (Claude 3.5 Sonnet), Google Gemini, or Groq API keys in Company Hub. Pay your AI provider directly with 0% middleman token fees.",
+    bullets: [
+      "Compatible with any OpenAI, Anthropic, Gemini or Groq model",
+      "Full data privacy: your prompts route directly through your key",
+      "180workspace charges $0.00 for LLM intelligence tokens"
+    ]
+  },
+  {
+    badge: "180 Work Graph Tools",
+    title: "Live Database Actions During the Phone Call",
+    description: "Voiceforce agents don't just chat—they execute real work. During the call, the AI can query CRM contacts, schedule calendar appointments, and file support tickets live.",
+    bullets: [
+      "Live CRM contact lookup and deal stage progression",
+      "Instant calendar availability check and invite dispatch",
+      "Automated post-call transcription and action item extraction"
+    ]
+  },
+  {
+    badge: "Hard Guardrails",
+    title: "Anti-Hallucination & Deterministic Policy Bounding",
+    description: "Ensure your AI never promises unauthorized discounts, refunds, or illegal commitments. Define strict boundary guardrails enforced by our deterministic validation engine.",
+    bullets: [
+      "Hard rules intercept every tool execution before it triggers",
+      "Safety policy monitoring on live conversational utterances",
+      "Forensic decision inspector recording every agent thought"
+    ]
+  },
+  {
+    badge: "Instant Global Numbers",
+    title: "Dedicated Virtual DIDs or Free Caller ID Verification",
+    description: "Provision local phone numbers across 60+ countries for just ₹299/month ($3.50/mo), or verify your existing business mobile number for free to dial out with your own Caller ID.",
+    bullets: [
+      "Local US, UK, Canada, and EU numbers activated in 1 click",
+      "Free personal caller ID verification with SMS/voice OTP",
+      "Automated inbound call forwarding and concurrent agent routing"
+    ]
+  },
+  {
+    badge: "Transparent Telephony",
+    title: "Itemized Billing with Simple 1.8× Multiplier",
+    description: "No hidden surge pricing or artificial platform inflation. We charge wholesale carrier transit plus Cartesia speech runtime with an honest, predictable 1.8× multiplier.",
+    bullets: [
+      "Exact itemized deduction on every call in your workspace wallet",
+      "PSTN carrier airtime + Cartesia engine (₹1.70/min) × 1.8",
+      "Up to 45% cheaper than Vapi, Bland AI, and Retell AI"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Top-Up Wallet & Claim ₹999 Launch Package",
+    description: "Recharge ₹999 in your Workspace Wallet. Your dedicated US/UK business phone number is provisioned for ₹299/month, leaving ₹700 in calling credits.",
+    actionSnippet: "Workspace Settings → Wallet → Add ₹999 ($12)"
+  },
+  {
+    stepNumber: "02",
+    title: "Plug in Your LLM API Key (BYOK)",
+    description: "Add your OpenAI, Anthropic, or Groq API key in Company Hub. Voiceforce uses your key directly with zero token markups from 180workspace.",
+    actionSnippet: "Company Hub → AI Providers → Add API Key"
+  },
+  {
+    stepNumber: "03",
+    title: "Build Your Voice Agent & Guardrails",
+    description: "Give your agent a persona, first greeting, conversational instructions, and assign tools (CRM Lookup, Meeting Scheduler, or Ticket Creator).",
+    actionSnippet: "Voiceforce → Agents → + New Voice Agent"
+  },
+  {
+    stepNumber: "04",
+    title: "Test in Audio Sandbox & Start Live Calling",
+    description: "Use the browser pre-flight sandbox to test microphone latency, voice inflection, and barge-in before launching live inbound or outbound campaigns.",
+    actionSnippet: "Voiceforce → Sandbox → Live Mic Test → Start Calls"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "Voiceforce (AI Calling)",
+    targetApp: "CRM & Sales",
+    badge: "Instant Lead Callbacks",
+    description: "When a new lead submits a website form or ad, Voiceforce automatically calls them within 30 seconds to qualify their budget and schedule a demo."
+  },
+  {
+    sourceApp: "Voiceforce (AI Calling)",
+    targetApp: "Service Desk",
+    badge: "24/7 Autonomous Triage",
+    description: "Voiceforce answers incoming customer support lines, identifies caller intent, resolves common inquiries, and escalates complex issues with full call context."
+  },
+  {
+    sourceApp: "Voiceforce (AI Calling)",
+    targetApp: "Projects & Calendar",
+    badge: "Meeting Scheduling",
+    description: "Voiceforce inspects team calendar availability during live phone calls and books confirmed appointments directly into attendee calendars."
+  }
+];
+
+const faqs = [
+  {
+    question: "How does the ₹999 Launch Package work?",
+    answer: "You deposit ₹999 (approx. $12 USD) into your workspace wallet. ₹299 is deducted for your dedicated business phone number (US/UK/Canada local DID) for the first month. The remaining ₹700 is your calling credit, which provides approximately 115 minutes of calling for India or 159 minutes for the US/Canada. If you verify your existing business mobile number instead of renting a new number, the entire ₹999 goes toward call minutes (approx. 163 minutes for India)."
+  },
+  {
+    question: "What is the 1.8× pricing formula and how do you calculate call rates?",
+    answer: "We use a transparent Cost-Plus model: Customer Price = Real Infrastructure Cost × 1.8. Real Cost consists of the wholesale Telnyx carrier PSTN airtime plus the Cartesia speech runtime (Unified Ink-2 STT, Sonic-3 TTS, and LiveKit SFU = ₹1.70 / min / $0.0205). Multiplying by 1.8 gives you an honest, transparent rate with an 80% markup (44.4% platform gross margin) without any artificial price gouging."
+  },
+  {
+    question: "Why does calling Nepal cost more than India or the US?",
+    answer: "In countries like the US (₹4.40/min) and India (₹6.10/min), open telecommunications peering drives wholesale PSTN transit costs very low. In Nepal, international incoming calls are strictly routed through state-regulated gateway exchanges (NTC and Ncell) with a mandatory government-mandated International Termination Rate (ITR) and telecom development surcharges, billed on a 60/60 pulse. With the 1.8× formula, Nepal calls cost ₹42.70/min ($0.514), reflecting the underlying carrier landing tariff."
+  },
+  {
+    question: "How does Bring Your Own Key (BYOK) for LLMs work?",
+    answer: "Voiceforce connects directly to your company's own LLM credentials configured in Company Hub (OpenAI GPT-4o, Anthropic Claude 3.5 Sonnet, Google Gemini, or Groq). Your prompts stream directly to your model account with zero token markup from 180workspace. You only pay 180workspace for the voice runtime and carrier connection."
+  },
+  {
+    question: "Can I use my existing company phone number instead of buying a new one?",
+    answer: "Yes! You can verify your existing mobile or landline number in Voiceforce using an instant SMS or voice OTP code. Verification is 100% free ($0/mo number fee). When Voiceforce makes outbound calls, your verified number will appear on the recipient's phone as the Caller ID."
+  },
+  {
+    question: "How does Voiceforce compare to Vapi, Bland AI, and Retell AI?",
+    answer: "180 Voiceforce is built directly into an end-to-end business workspace (CRM, Calendar, Support, Projects), eliminating Zapier glue. At ₹6.10/min ($0.073) for India and ₹4.40/min ($0.053) for the US, Voiceforce is 18% to 45% more affordable than Vapi (₹7.50/min), Bland AI (₹9.00/min), and Retell AI (₹11.00/min), powered by Cartesia's state-of-the-art sub-200ms voice engine."
+  }
+];
+
+const ratesData = [
+  { country: "United States & Canada", code: "+1", carrierInr: "₹0.75", speechInr: "₹1.70", totalInr: "₹4.40 / min", totalUsd: "$0.053 / min", competitorAvg: "₹7.50 – ₹10.00", badge: "Popular" },
+  { country: "United Kingdom", code: "+44", carrierInr: "₹1.00", speechInr: "₹1.70", totalInr: "₹4.90 / min", totalUsd: "$0.059 / min", competitorAvg: "₹8.00 – ₹11.00", badge: "" },
+  { country: "India", code: "+91", carrierInr: "₹1.70", speechInr: "₹1.70", totalInr: "₹6.10 / min", totalUsd: "$0.073 / min", competitorAvg: "₹7.50 – ₹11.00", badge: "Most Popular" },
+  { country: "Singapore", code: "+65", carrierInr: "₹1.80", speechInr: "₹1.70", totalInr: "₹6.30 / min", totalUsd: "$0.076 / min", competitorAvg: "₹8.50 – ₹12.00", badge: "" },
+  { country: "Australia", code: "+61", carrierInr: "₹1.90", speechInr: "₹1.70", totalInr: "₹6.50 / min", totalUsd: "$0.078 / min", competitorAvg: "₹9.00 – ₹12.50", badge: "" },
+  { country: "Germany & France", code: "+49 / +33", carrierInr: "₹1.60", speechInr: "₹1.70", totalInr: "₹5.90 / min", totalUsd: "$0.071 / min", competitorAvg: "₹8.50 – ₹12.00", badge: "" },
+  { country: "UAE / Dubai", code: "+971", carrierInr: "₹9.10", speechInr: "₹1.70", totalInr: "₹19.50 / min", totalUsd: "$0.235 / min", competitorAvg: "₹24.00 – ₹32.00", badge: "Gulf Tier" },
+  { country: "Saudi Arabia", code: "+966", carrierInr: "₹7.80", speechInr: "₹1.70", totalInr: "₹17.10 / min", totalUsd: "$0.206 / min", competitorAvg: "₹22.00 – ₹28.00", badge: "" },
+  { country: "Nepal (NTC / Ncell)", code: "+977", carrierInr: "₹22.00", speechInr: "₹1.70", totalInr: "₹42.70 / min", totalUsd: "$0.514 / min", competitorAvg: "₹48.00 – ₹60.00", badge: "Govt Monopoly" },
+  { country: "Pakistan", code: "+92", carrierInr: "₹16.50", speechInr: "₹1.70", totalInr: "₹32.80 / min", totalUsd: "$0.395 / min", competitorAvg: "₹38.00 – ₹48.00", badge: "" }
+];
+---
+
+<Layout 
+  title="180 Voiceforce: Autonomous AI Phone Agents & Global Telephony"
+  description="Deploy human-realistic AI phone agents for ₹999 with 115 minutes included. Cartesia voice streaming, BYOK LLM, instant phone numbers, and transparent 1.8x pricing."
+>
+  <main class="w-full relative">
+    
+    <!-- Hero Section -->
+    <AppHero 
+      badge="Autonomous AI Phone Workforce"
+      title="Hire autonomous AI phone agents for ₹999 with"
+      highlightText="115 minutes included."
+      description="Sub-200ms conversational phone agents powered by Cartesia streaming voice synthesis and LiveKit WebRTC. Plug in your own LLM API key, get a dedicated business phone number, and automate inbound reception and outbound sales 24/7."
+      primaryCtaText="Start for ₹999 ($12)"
+      primaryCtaLink={`${saasUrl}/signup`}
+      secondaryCtaText="Compare Country Rates"
+      secondaryCtaLink="#rates-table"
+    />
+
+    <!-- ₹999 Kickstart Offer Banner -->
+    <section class="container mx-auto px-4 max-w-5xl -mt-6 mb-16">
+      <div class="relative overflow-hidden rounded-3xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/70 via-slate-900/90 to-purple-950/70 p-8 md:p-10 shadow-2xl shadow-indigo-950/40 backdrop-blur-2xl">
+        <div class="absolute -right-24 -top-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-8">
+          <div class="space-y-4 max-w-xl text-center lg:text-left">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Starter Launch Offer • Complete Package
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-white tracking-tight">
+              Start your AI phone workforce for just <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">₹999</span> (~$12 USD)
+            </h2>
+            <p class="text-slate-300 text-sm md:text-base leading-relaxed">
+              Deposit ₹999 into your workspace wallet. Rent a dedicated US/UK business number for ₹299/mo, and use the remaining ₹700 for <strong>115 minutes of calling in India</strong> or <strong>159 minutes in the US/Canada</strong>. Or verify your own number for free!
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 w-full lg:w-auto shrink-0">
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center backdrop-blur-md">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Business Number</span>
+              <span class="text-2xl font-black text-white">₹299<span class="text-xs text-slate-400 font-normal">/mo</span></span>
+              <span class="text-[11px] text-emerald-400 block mt-1">US/UK/Canada DID</span>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center backdrop-blur-md">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Calling Credits</span>
+              <span class="text-2xl font-black text-emerald-400">₹700</span>
+              <span class="text-[11px] text-slate-300 block mt-1">~115 Mins India</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+            <span>Cartesia Sub-200ms Voice Stream Included</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+            <span>BYOK: OpenAI, Claude, Gemini & Groq</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+            <span>Live CRM & Calendar Tool Actions</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Capability Pillars -->
+    <CapabilityPillars 
+      sectionBadge="Voiceforce Engine Architecture"
+      sectionTitle="Autonomous AI agents built for real phone networks, not just web demo audio."
+      sectionSubtitle="From sub-200ms latency to deterministic guardrails and deep CRM integration, Voiceforce replaces traditional call center overhead."
+      pillars={pillars}
+    />
+
+    <!-- Interactive Country Rates & Pricing Section -->
+    <section id="rates-table" class="py-20 relative bg-slate-900/50 border-y border-slate-800">
+      <div class="container mx-auto px-4 max-w-6xl">
+        <div class="text-center max-w-3xl mx-auto mb-12">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-4">
+            Transparent 1.8× Telephony Rates
+          </div>
+          <h2 class="text-3xl md:text-4xl font-black text-white tracking-tight mb-4">
+            Compare Global Calling Rates by Destination
+          </h2>
+          <p class="text-slate-400 text-base md:text-lg">
+            Every call is billed via our transparent formula: <span class="text-indigo-400 font-mono font-semibold">(Carrier PSTN + Cartesia ₹1.70/min) × 1.8</span>. Up to 45% lower than Vapi, Bland AI, and Retell AI.
+          </p>
+        </div>
+
+        <!-- Interactive Table Card -->
+        <div class="bg-slate-950/80 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl">
+          <!-- Search & Filter Controls -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+            <div class="relative w-full sm:w-80">
+              <input 
+                id="countrySearch" 
+                type="text" 
+                placeholder="Search country (e.g. India, US, Nepal)..." 
+                class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            
+            <div class="flex items-center gap-2 text-xs font-semibold text-slate-400">
+              <span>Currency:</span>
+              <div class="inline-flex bg-slate-900 p-1 rounded-lg border border-slate-800">
+                <button id="currInrBtn" class="px-3 py-1 rounded bg-indigo-600 text-white transition-colors">INR (₹)</button>
+                <button id="currUsdBtn" class="px-3 py-1 rounded text-slate-400 hover:text-white transition-colors">USD ($)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="telephonyTable">
+              <thead>
+                <tr class="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-400">
+                  <th class="py-3 px-4">Destination Country</th>
+                  <th class="py-3 px-4 hidden md:table-cell">Carrier Transit</th>
+                  <th class="py-3 px-4 hidden md:table-cell">Cartesia Voice Engine</th>
+                  <th class="py-3 px-4 font-bold text-indigo-400">180 Voiceforce Rate</th>
+                  <th class="py-3 px-4 text-slate-500 hidden sm:table-cell">Industry Avg (Vapi/Bland)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60 text-sm">
+                {ratesData.map((row) => (
+                  <tr class="hover:bg-slate-900/40 transition-colors country-row" data-country={row.country.toLowerCase()}>
+                    <td class="py-4 px-4 font-semibold text-white">
+                      <div class="flex items-center gap-2">
+                        <span>{row.country}</span>
+                        <span class="text-xs text-slate-500 font-mono">{row.code}</span>
+                        {row.badge && (
+                          <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            {row.badge}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td class="py-4 px-4 text-slate-400 font-mono hidden md:table-cell">{row.carrierInr}</td>
+                    <td class="py-4 px-4 text-slate-400 font-mono hidden md:table-cell">{row.speechInr}</td>
+                    <td class="py-4 px-4 font-bold text-emerald-400 font-mono text-base rate-cell" data-inr={row.totalInr} data-usd={row.totalUsd}>
+                      {row.totalInr}
+                    </td>
+                    <td class="py-4 px-4 text-slate-500 font-mono text-xs hidden sm:table-cell line-through">
+                      {row.competitorAvg}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-6 pt-6 border-t border-slate-800/80 flex flex-col md:flex-row items-center justify-between text-xs text-slate-400 gap-4">
+            <p>
+              * Rates shown are per minute with 1.8× transparent platform multiplier. LLM intelligence is BYOK ($0 platform markup).
+            </p>
+            <div class="flex items-center gap-4 shrink-0">
+              <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 100% Inbound / Outbound</span>
+              <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-indigo-400"></span> 60/60 Carrier Pulse</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Video Playbook / 4-Step Guide -->
+    <VideoPlaybook 
+      sectionBadge="Voiceforce Playbook"
+      title="How to Launch an Autonomous AI Phone Agent in 4 Steps"
+      subtitle="Follow this workflow to provision a number, connect your LLM key, set safety guardrails, and start calling."
+      videoCaption="2-Minute Voiceforce Agent Setup Guide"
+      steps={playbookSteps}
+    />
+
+    <!-- Work Graph Synergy -->
+    <WorkGraphSynergy 
+      currentAppName="Voiceforce (AI Calling)"
+      title="Telephony that drives actions across the entire 180 Work Graph."
+      subtitle="Voiceforce is not a disconnected silo. Every call updates CRM leads, schedules team calendar meetings, and triggers automated sprint tickets."
+      synergies={synergies}
+    />
+
+    <!-- FAQ Accordion -->
+    <FAQAccordion 
+      sectionBadge="Voiceforce FAQs"
+      title="Frequently Asked Questions about 180 Voiceforce"
+      subtitle="Everything you need to know about our ₹999 launch offer, BYOK models, Cartesia latency, and telephony rates."
+      faqs={faqs}
+    />
+
+    <!-- Bottom Call-To-Action -->
+    <AppBottomCTA 
+      appName="Voiceforce" 
+      headline="Hire your autonomous AI phone agent today for ₹999."
+      subheadline="Get your dedicated business phone number, 115 minutes of calling included, sub-200ms voice synthesis, and zero LLM token markup."
+    />
+
+    <!-- JSON-LD SEO Schema -->
+    <JSONLDSchema 
+      appName="Voiceforce (AI Phone Agents)"
+      description="Autonomous AI phone agents powered by Cartesia streaming voice synthesis and LiveKit WebRTC. ₹999 launch package with 115 minutes included."
+      urlPath="/apps/voiceforce"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>
+
+<script>
+  // Client-side currency toggle and search filter for the rates table
+  const searchInput = document.getElementById('countrySearch') as HTMLInputElement | null;
+  const inrBtn = document.getElementById('currInrBtn');
+  const usdBtn = document.getElementById('currUsdBtn');
+  const rateCells = document.querySelectorAll('.rate-cell');
+  const countryRows = document.querySelectorAll('.country-row');
+
+  let currentCurrency: 'inr' | 'usd' = 'inr';
+
+  function updateCurrency(curr: 'inr' | 'usd') {
+    currentCurrency = curr;
+    if (curr === 'inr') {
+      inrBtn?.classList.add('bg-indigo-600', 'text-white');
+      inrBtn?.classList.remove('text-slate-400');
+      usdBtn?.classList.remove('bg-indigo-600', 'text-white');
+      usdBtn?.classList.add('text-slate-400');
+    } else {
+      usdBtn?.classList.add('bg-indigo-600', 'text-white');
+      usdBtn?.classList.remove('text-slate-400');
+      inrBtn?.classList.remove('bg-indigo-600', 'text-white');
+      inrBtn?.classList.add('text-slate-400');
+    }
+
+    rateCells.forEach((cell) => {
+      const el = cell as HTMLElement;
+      if (curr === 'inr') {
+        el.textContent = el.dataset.inr || '';
+      } else {
+        el.textContent = el.dataset.usd || '';
+      }
+    });
+  }
+
+  inrBtn?.addEventListener('click', () => updateCurrency('inr'));
+  usdBtn?.addEventListener('click', () => updateCurrency('usd'));
+
+  searchInput?.addEventListener('input', (e) => {
+    const query = ((e.target as HTMLInputElement).value || '').toLowerCase().trim();
+    countryRows.forEach((row) => {
+      const el = row as HTMLElement;
+      const country = el.dataset.country || '';
+      if (!query || country.includes(query)) {
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+  });
+</script>

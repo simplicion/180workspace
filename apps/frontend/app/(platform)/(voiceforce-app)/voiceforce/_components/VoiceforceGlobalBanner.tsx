@@ -3,10 +3,14 @@
 import { useState, useEffect } from 'react';
 import { Lock, AlertTriangle, AlertCircle, CreditCard, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
+import { locationService } from '@/lib/location-service';
 import { WalletLedgerDrawer } from './WalletLedgerDrawer';
+import { LiveScreenPopModal, ScreenPopData } from './LiveScreenPopModal';
 import clsx from 'clsx';
 
 export function VoiceforceGlobalBanner() {
+  const { company } = useAuth();
   const [wallet, setWallet] = useState<{
     balanceInr: number;
     isLocked: boolean;
@@ -15,6 +19,8 @@ export function VoiceforceGlobalBanner() {
     recommendedInr: number;
   } | null>(null);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [screenPopData, setScreenPopData] = useState<ScreenPopData | null>(null);
+  const [isScreenPopOpen, setIsScreenPopOpen] = useState(false);
 
   const fetchWallet = async () => {
     try {
@@ -36,6 +42,11 @@ export function VoiceforceGlobalBanner() {
   if (!wallet) return null;
 
   const { balanceInr = 0, isLocked = false, isLow = false } = wallet;
+  const currencyCode = ((wallet as any)?.currency || company?.currency || 'USD').toUpperCase();
+  const currencySymbol = (wallet as any)?.currencySymbol || company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
+  const isUsd = currencyCode === 'USD';
+  const recommendedAmount = Number(wallet.recommendedInr || (isUsd ? 50 : 1000));
+  const minRequiredAmount = Number(wallet.minRequiredInr || (isUsd ? 10 : 200));
 
   return (
     <>
@@ -48,14 +59,14 @@ export function VoiceforceGlobalBanner() {
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200">
-                  Voiceforce Calling Suspended (Minimum ₹{(wallet.minRequiredInr || 200).toFixed(2)} Required)
+                  Voiceforce Calling Suspended (Minimum {currencySymbol}{minRequiredAmount.toFixed(2)} Required)
                 </h4>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 uppercase">
                   Locked
                 </span>
               </div>
               <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5 max-w-2xl leading-relaxed">
-                Your current balance is <strong className="font-semibold">₹{balanceInr.toFixed(2)}</strong>. Outbound calls and inbound AI pickup are locked. Top up the recommended ₹{(wallet.recommendedInr || 1000).toFixed(2)} to resume operations and prevent numbers from entering carrier release.
+                Your current balance is <strong className="font-semibold">{currencySymbol}{balanceInr.toFixed(2)}</strong>. Outbound calls and inbound AI pickup are locked. Top up the recommended {currencySymbol}{recommendedAmount.toFixed(2)} to resume operations and prevent numbers from entering carrier release.
               </p>
             </div>
           </div>
@@ -64,7 +75,7 @@ export function VoiceforceGlobalBanner() {
             className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 transition-all cursor-pointer flex-shrink-0"
           >
             <CreditCard className="w-4 h-4" />
-            <span>Recharge ₹{(wallet.recommendedInr || 1000).toLocaleString('en-IN')} via Razorpay</span>
+            <span>Recharge {currencySymbol}{recommendedAmount.toLocaleString()} via Razorpay</span>
           </button>
         </div>
       )}
@@ -85,7 +96,7 @@ export function VoiceforceGlobalBanner() {
                 </span>
               </div>
               <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5 max-w-2xl leading-relaxed">
-                Your wallet balance is <strong className="font-semibold">₹{balanceInr.toFixed(2)}</strong>. Calling locks when balance drops below ₹{(wallet.minRequiredInr || 200).toFixed(2)}. Maintain at least ₹{(wallet.recommendedInr || 1000).toFixed(2)} for uninterrupted calling and number lease continuity.
+                Your wallet balance is <strong className="font-semibold">{currencySymbol}{balanceInr.toFixed(2)}</strong>. Calling locks when balance drops below {currencySymbol}{minRequiredAmount.toFixed(2)}. Maintain at least {currencySymbol}{recommendedAmount.toFixed(2)} for uninterrupted calling and number lease continuity.
               </p>
             </div>
           </div>
@@ -103,6 +114,12 @@ export function VoiceforceGlobalBanner() {
         isOpen={isWalletOpen}
         onClose={() => setIsWalletOpen(false)}
         onBalanceUpdated={fetchWallet}
+      />
+
+      <LiveScreenPopModal
+        isOpen={isScreenPopOpen}
+        onClose={() => setIsScreenPopOpen(false)}
+        data={screenPopData}
       />
     </>
   );

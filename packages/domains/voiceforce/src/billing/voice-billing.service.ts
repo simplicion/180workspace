@@ -10,6 +10,8 @@ import {
   WalletOrderResult
 } from '@workspace/wallet';
 
+import { DynamicRateService, TelephonyRateCard } from './dynamic-rate.service';
+
 const telnyx = new TelnyxService();
 
 export class VoiceBillingService {
@@ -38,7 +40,8 @@ export class VoiceBillingService {
   }
 
   /**
-   * Atomically deducts call cost upon call conclusion based on billable minutes (60s minimum rule @ ₹6.00/min)
+   * Atomically deducts call cost upon call conclusion based on dynamic destination rating
+   * Formula: (Carrier Wholesale USD + Cartesia $0.0205) * 1.8 Multiplier converted to tenant currency.
    */
   static async deductCallCost(callSessionId: string): Promise<{
     success: boolean;
@@ -46,14 +49,36 @@ export class VoiceBillingService {
     newBalance: number;
     billableMinutes: number;
     billableSeconds: number;
-    costInr: number;
+    costLocal: number;
+    costUsd: number;
+    rateCard: TelephonyRateCard;
   }> {
     const session = await (prisma as any).callSession.findUnique({
-      where: { id: callSessionId }
+      where: { id: callSessionId },
+      include: {
+        company: {
+          select: { currency: true, currencySymbol: true, country: true }
+        }
+      }
     });
 
     if (!session) {
       throw new Error(`Call session not found: ${callSessionId}`);
+    }
+
+    // Idempotency guard: prevent duplicate wallet deductions if already completed & rated
+    const existingLedger = (session.structuredData as any)?.financialLedger;
+    if (session.status === 'completed' && existingLedger?.ratedAt) {
+      return {
+        success: true,
+        deductedAmount: session.estimatedCostInr || 0,
+        newBalance: (session.company as any)?.voiceBalanceInr || 0,
+        billableMinutes: session.billableMinutes || 1,
+        billableSeconds: session.durationSeconds || 60,
+        costLocal: session.estimatedCostInr || 0,
+        costUsd: session.totalBilledUsd || 0,
+        rateCard: existingLedger
+      };
     }
 
     let billableMinutes = session.billableMinutes || 0;
@@ -70,36 +95,69 @@ export class VoiceBillingService {
       durationSeconds = 60;
     }
 
-    // Rate: ₹6.00 per billable minute (75% gross margin)
-    const ratePerMinuteInr = VoiceBillingService.RATE_PER_MINUTE_INR;
-    const totalCostInr = parseFloat((billableMinutes * ratePerMinuteInr).toFixed(2));
+    // Dynamic Multi-Currency Rating (Default fallback is USD $)
+    const tenantCurrency = session.company?.currency || 'USD';
+    const rateCard = DynamicRateService.calculateRateForNumber(
+      session.recipientPhone || '',
+      tenantCurrency
+    );
+
+    const totalCostLocal = parseFloat((billableMinutes * rateCard.customerRateLocal).toFixed(2));
+    const totalCostUsd = parseFloat((billableMinutes * rateCard.customerRateUsd).toFixed(4));
 
     // Exclusively delegate deduction to dedicated @workspace/wallet
     const deductResult = await WalletService.deduct({
       companyId: session.companyId,
-      amountInr: totalCostInr,
+      amountInr: totalCostLocal,
       type: 'call_deduction',
       callSessionId: session.id,
-      description: `Voice call to ${session.recipientPhone} (${billableMinutes} min @ ₹${ratePerMinuteInr.toFixed(2)}/min)`
+      description: `Voice call to ${session.recipientPhone} (${rateCard.destinationCountry} • ${billableMinutes} min @ ${rateCard.currencySymbol}${rateCard.customerRateLocal.toFixed(2)}/min)`
     });
 
+    const currentStructuredData = (session.structuredData as any) || {};
     await (prisma as any).callSession.update({
       where: { id: session.id },
       data: {
         status: 'completed',
         durationSeconds,
         billableMinutes,
-        estimatedCostInr: totalCostInr
+        estimatedCostInr: totalCostLocal,
+        carrierCostUsd: rateCard.carrierCostUsd,
+        engineCostUsd: rateCard.engineCostUsd,
+        totalBilledUsd: totalCostUsd,
+        billedCurrency: rateCard.currency,
+        fxRateApplied: rateCard.fxRate,
+        structuredData: {
+          ...currentStructuredData,
+          financialLedger: {
+            destinationCountry: rateCard.destinationCountry,
+            dialCode: rateCard.dialCode,
+            carrierCostUsd: rateCard.carrierCostUsd,
+            engineCostUsd: rateCard.engineCostUsd,
+            realCostUsd: rateCard.realCostUsd,
+            customerRateUsd: rateCard.customerRateUsd,
+            customerRateLocal: rateCard.customerRateLocal,
+            currency: rateCard.currency,
+            currencySymbol: rateCard.currencySymbol,
+            fxRate: rateCard.fxRate,
+            multiplier: rateCard.multiplier,
+            totalBilledUsd: totalCostUsd,
+            totalBilledLocal: totalCostLocal,
+            ratedAt: new Date().toISOString()
+          }
+        }
       }
     });
 
     return {
       success: true,
-      deductedAmount: totalCostInr,
+      deductedAmount: totalCostLocal,
       newBalance: deductResult.newBalance,
       billableMinutes,
       billableSeconds: billableMinutes * 60,
-      costInr: totalCostInr
+      costLocal: totalCostLocal,
+      costUsd: totalCostUsd,
+      rateCard
     };
   }
 
@@ -112,9 +170,10 @@ export class VoiceBillingService {
     amountInr = VoiceBillingService.NUMBER_MONTHLY_RENTAL_INR
   ): Promise<{ success: boolean; newBalance: number }> {
     const wallet = await WalletService.getBalance(companyId);
+    const sym = wallet.currencySymbol || '$';
     if (wallet.balanceInr < amountInr) {
       throw new Error(
-        `Insufficient wallet balance (₹${wallet.balanceInr.toFixed(2)}). Minimum ₹${amountInr.toFixed(2)} required for dedicated line lease.`
+        `Insufficient wallet balance (${sym}${wallet.balanceInr.toFixed(2)}). Minimum ${sym}${amountInr.toFixed(2)} required for dedicated line lease.`
       );
     }
 
@@ -122,7 +181,7 @@ export class VoiceBillingService {
       companyId,
       amountInr,
       type: 'number_purchase',
-      description: `Dedicated line lease for ${phoneNumber} (1 month @ ₹${amountInr.toFixed(2)})`
+      description: `Dedicated line lease for ${phoneNumber} (1 month @ ${sym}${amountInr.toFixed(2)})`
     });
 
     return {
@@ -215,7 +274,7 @@ export class VoiceBillingService {
       },
       include: {
         company: {
-          select: { id: true, voiceBalanceInr: true }
+          select: { id: true, voiceBalanceInr: true, currency: true, currencySymbol: true }
         }
       }
     });
@@ -228,6 +287,7 @@ export class VoiceBillingService {
     for (const num of activeNumbers) {
       const companyId = num.companyId;
       const balance = num.company?.voiceBalanceInr || 0;
+      const sym = num.company?.currencySymbol || '$';
       const rentalCost = num.monthlyRentalInr || VoiceBillingService.NUMBER_MONTHLY_RENTAL_INR;
       const isDue = !num.nextRenewalDate || new Date(num.nextRenewalDate) <= now;
       const isLowBalance = balance < VoiceBillingService.MIN_WALLET_THRESHOLD_INR;
@@ -254,7 +314,7 @@ export class VoiceBillingService {
           await WalletService.recordEvent({
             companyId,
             type: 'number_auto_released',
-            description: `Number ${num.e164Number} auto-released after 5-day grace period expired (Balance: ₹${balance.toFixed(2)})`
+            description: `Number ${num.e164Number} auto-released after 5-day grace period expired (Balance: ${sym}${balance.toFixed(2)})`
           });
 
           released++;
@@ -271,7 +331,7 @@ export class VoiceBillingService {
           companyId,
           amountInr: rentalCost,
           type: 'number_rental',
-          description: `Monthly renewal for ${num.e164Number} (30 days @ ₹${rentalCost.toFixed(2)})`
+          description: `Monthly renewal for ${num.e164Number} (30 days @ ${sym}${rentalCost.toFixed(2)})`
         });
 
         await (prisma as any).phoneNumber.update({
@@ -303,14 +363,14 @@ export class VoiceBillingService {
           await WalletService.recordEvent({
             companyId,
             type: 'grace_period_warning',
-            description: `⚠️ URGENT: Number ${num.e164Number} entered 5-day grace period (Balance: ₹${balance.toFixed(2)} < ₹200.00). Top up ₹1,000.00 to avoid losing this line.`
+            description: `⚠️ URGENT: Number ${num.e164Number} entered 5-day grace period (Balance: ${sym}${balance.toFixed(2)} < ${sym}200.00). Top up ${sym}1,000.00 to avoid losing this line.`
           }).catch(() => {});
 
           // Create actionable task for company admins
           await (prisma as any).task.create({
             data: {
               title: `[Action Required]: Top up wallet to keep line ${num.e164Number}`,
-              description: `Your dedicated phone number ${num.e164Number} is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹${rentalCost.toFixed(2)}) cleared within 5 days, the number will be auto-released from the carrier exchange.`,
+              description: `Your dedicated phone number ${num.e164Number} is in a 5-day grace period. If wallet balance is not restored to >= ${sym}200.00 and monthly rental (${sym}${rentalCost.toFixed(2)}) cleared within 5 days, the number will be auto-released from the carrier exchange.`,
               companyId,
               priority: 'high',
               status: 'todo'

@@ -151,7 +151,7 @@ export class WalletController {
   static async createOrder(req: Request, res: Response) {
     try {
       const companyId = WalletController.getCompanyId(req);
-      const { amountInr, couponCode } = req.body;
+      const { amountInr, couponCode, currency } = req.body;
 
       if (!amountInr || Number(amountInr) <= 0) {
         return res.status(400).json({
@@ -160,10 +160,20 @@ export class WalletController {
         });
       }
 
+      let orderCurrency = currency;
+      if (!orderCurrency) {
+        const company = await (prisma as any).company.findUnique({
+          where: { id: companyId },
+          select: { currency: true }
+        });
+        orderCurrency = company?.currency || 'USD';
+      }
+
       const order = await WalletGatewayService.createOrder(
         companyId,
         Number(amountInr),
-        couponCode ? String(couponCode) : undefined
+        couponCode ? String(couponCode) : undefined,
+        orderCurrency
       );
 
       return res.json({

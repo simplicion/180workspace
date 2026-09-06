@@ -116,6 +116,7 @@ model Company {
   dncRegistries            DncRegistry[]
   forwardingRules          ForwardingRule[]
   callQueues               CallQueue[]
+  dailyVoiceBriefings      DailyVoiceBriefing[]
 }
 
 model SavedBank {
@@ -2697,6 +2698,8 @@ model VoiceAgent {
   assignedNumbers     PhoneNumber[]
   calls               CallSession[]
   campaigns           CallCampaign[]
+  guardrail           VoiceAgentGuardrail?
+  versions            VoiceAgentVersion[]
 
   @@unique([id, companyId])
   @@index([companyId])
@@ -2807,6 +2810,13 @@ model CallSession {
   billableMinutes     Int            @default(0)
   estimatedCostInr     Float          @default(0.0)
   
+  // Financial Audit & Dynamic Rating (1.8x Gold Standard)
+  carrierCostUsd      Float?         @default(0.0)
+  engineCostUsd       Float?         @default(0.0)
+  totalBilledUsd      Float?         @default(0.0)
+  billedCurrency      String?        @default("USD")
+  fxRateApplied       Float?         @default(1.0)
+  
   recordingUrl        String?
   
   // Post-Call Structured Intelligence
@@ -2824,6 +2834,8 @@ model CallSession {
 
   transcripts         CallTranscriptSegment[]
   toolExecutions      CallToolExecution[]
+  escalationEvents    CallEscalationEvent[]
+  auditLogs           ActionAuditLog[]
 
   @@unique([id, companyId])
   @@index([companyId, status])
@@ -2871,7 +2883,7 @@ model VoiceWalletTransaction {
   balanceAfterInr Float
   type            String       // "topup" | "call_deduction" | "refund"
   callSessionId   String?
-  paymentRef      String?      @unique
+  paymentRef      String?
   description     String
   createdAt       DateTime     @default(now())
 
@@ -2956,6 +2968,145 @@ model CallQueue {
   @@unique([id, companyId])
   @@index([companyId])
 }
+
+// ─── AI Employee Safety Guardrails & Boundaries ──────────────────────────────
+model VoiceAgentGuardrail {
+  id                  String      @id @default(uuid())
+  companyId           String
+  voiceAgentId        String      @unique
+  voiceAgent          VoiceAgent  @relation(fields: [voiceAgentId], references: [id], onDelete: Cascade)
+  
+  // Financial Caps
+  maxDiscountPercent  Float       @default(10.0)    // Max discount AI can offer without approval
+  maxDiscountAmount   Float       @default(50.0)    // Max absolute currency discount
+  maxOrderValue       Float       @default(1000.0)  // Orders above this require owner approval
+  
+  // Booking Boundaries
+  minLeadTimeHours    Int         @default(2)       // Minimum hours notice for bookings
+  maxAdvanceDays      Int         @default(30)      // Max days in future to book
+  bufferMinutes       Int         @default(15)      // Buffer between slots
+  
+  // Operational Boundaries
+  maxDeliveryKm       Float?      // Max delivery radius in km
+  forbiddenTopics     Json        @default("[]")    // Array of prohibited topics/competitors
+  pciRedactionEnabled Boolean     @default(true)    // Auto-redact credit cards and PII
+  rules               Json?       @default("{\"dos\": [], \"donts\": []}") // Strongly-typed Do's and Don'ts
+
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([companyId])
+}
+
+// ─── Immutable AI Employee Configuration Versions ────────────────────────────
+model VoiceAgentVersion {
+  id             String      @id @default(uuid())
+  companyId      String
+  voiceAgentId   String
+  voiceAgent     VoiceAgent  @relation(fields: [voiceAgentId], references: [id], onDelete: Cascade)
+  
+  versionNumber  Int
+  changelog      String?
+  snapshot       Json        // Full JSON dump of persona, knowledge, tools, and guardrails
+  createdById    String?
+  
+  createdAt      DateTime    @default(now())
+
+  @@unique([voiceAgentId, versionNumber])
+  @@index([companyId, voiceAgentId])
+}
+
+// ─── Prebuilt Vertical AI Employee Blueprints ────────────────────────────────
+model IndustryTemplate {
+  id             String   @id @default(uuid())
+  slug           String   @unique // e.g. "restaurant", "dental", "automotive", "real-estate"
+  name           String
+  description    String
+  category       String
+  icon           String?
+  
+  defaultConfig  Json     // Persona, sample catalog, questions to ask, objection rules, tools
+  suggestedTools Json     // ["check_product_price", "book_appointment", "create_order"]
+  
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+}
+
+// ─── Zero-Repeat Warm Human Escalation Events ────────────────────────────────
+model CallEscalationEvent {
+  id              String       @id @default(uuid())
+  companyId       String
+  callSessionId   String
+  callSession     CallSession  @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  
+  targetType      String       // "phone" | "user" | "department"
+  targetNumber    String?      // E.164 phone number
+  targetUserId    String?
+  
+  triggerReason   String       // "sentiment_drop" | "customer_request" | "high_value_order"
+  sentimentScore  Float?       // -1.0 to +1.0
+  
+  whisperMessage  String       // Audio whisper spoken to human agent
+  briefingPayload Json         // Full structured customer context, intent, actions taken
+  status          String       @default("initiated") // "initiated" | "connected" | "failed"
+  
+  createdAt       DateTime     @default(now())
+
+  @@index([companyId, callSessionId])
+}
+
+// ─── Autonomous Daily Executive Performance Briefing ─────────────────────────
+model DailyVoiceBriefing {
+  id                 String    @id @default(uuid())
+  companyId          String
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  briefingDate       DateTime  @db.Date
+  
+  totalCalls         Int       @default(0)
+  missedCallsSaved   Int       @default(0)
+  leadsCaptured      Int       @default(0)
+  appointmentsBooked Int       @default(0)
+  ordersCreated      Int       @default(0)
+  revenueInfluenced  Float     @default(0.0)
+  laborHoursSaved    Float     @default(0.0)
+  
+  topInquiries       Json      @default("[]") // Top 5 asked questions
+  unansweredFaqs     Json      @default("[]") // Questions where AI lacked knowledge
+  actionItems        Json      @default("[]") // Recommended business actions
+  
+  deliveredVia       Json      @default("[]") // ["email", "whatsapp", "in_app"]
+  createdAt          DateTime  @default(now())
+
+  @@unique([companyId, briefingDate])
+  @@index([companyId])
+}
+
+// ─── Step-by-Step Action Audit & Decision Telemetry ──────────────────────────
+model ActionAuditLog {
+  id             String       @id @default(uuid())
+  companyId      String
+  callSessionId  String
+  callSession    CallSession  @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  
+  turnIndex      Int
+  customerSpeech String       @db.Text
+  detectedIntent String?
+  confidence     Float?
+  
+  toolName       String?
+  toolArguments  Json?
+  toolResult     Json?
+  
+  policyCheck    String       // "PASSED" | "BLOCKED" | "OVERRIDDEN"
+  policyReason   String?
+  agentUtterance String       @db.Text
+  
+  latencyMs      Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  @@index([companyId, callSessionId])
+}
+
 
 
 

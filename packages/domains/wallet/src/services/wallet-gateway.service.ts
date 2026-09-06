@@ -113,9 +113,11 @@ export class WalletGatewayService {
   static async createOrder(
     companyId: string,
     amountInr: number,
-    couponCode?: string
+    couponCode?: string,
+    currency = 'INR'
   ): Promise<WalletOrderResult> {
     const validId = WalletIsolationGuard.assertCompany(companyId, 'createOrder');
+    const normalizedCurrency = (currency || 'INR').toString().trim().toUpperCase();
 
     if (!amountInr || amountInr <= 0) {
       throw new Error('Recharge amount must be greater than zero');
@@ -157,7 +159,7 @@ export class WalletGatewayService {
         creditedAmount,
         discountAmount,
         couponCode: couponValidation!.code,
-        currency: 'INR',
+        currency: normalizedCurrency,
         newBalance: creditRes.newBalance
       };
     }
@@ -176,7 +178,8 @@ export class WalletGatewayService {
       companyId: validId,
       purpose: 'wallet_topup',
       creditedAmount: String(creditedAmount),
-      discountAmount: String(discountAmount)
+      discountAmount: String(discountAmount),
+      currency: normalizedCurrency
     };
 
     if (couponValidation?.code) {
@@ -187,7 +190,7 @@ export class WalletGatewayService {
       'https://api.razorpay.com/v1/orders',
       {
         amount: amountPaise,
-        currency: 'INR',
+        currency: normalizedCurrency,
         receipt: `topup_${Date.now()}`,
         payment_capture: 1,
         notes: notesPayload
@@ -208,7 +211,7 @@ export class WalletGatewayService {
       creditedAmount,
       discountAmount,
       couponCode: couponValidation?.code,
-      currency: 'INR',
+      currency: normalizedCurrency,
       keyId,
       isFree: false
     };

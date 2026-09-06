@@ -54,8 +54,13 @@ export default function CountryPhoneInput({
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [selectedCountry, setSelectedCountry] = useState<CountryData>(() => {
-    return allCountries.find(c => c.isoCode === 'IN') || 
-           allCountries.find(c => c.isoCode === 'US') || 
+    if (companyCountry) {
+      const compClean = companyCountry.trim().toUpperCase();
+      const match = allCountries.find(c => c.isoCode.toUpperCase() === compClean || c.name.toUpperCase() === compClean);
+      if (match) return match;
+    }
+    return allCountries.find(c => c.isoCode === 'US') || 
+           allCountries.find(c => c.isoCode === 'IN') || 
            allCountries[0];
   });
 

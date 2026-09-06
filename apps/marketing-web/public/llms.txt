@@ -3,10 +3,11 @@
 
 ## System Architecture & Technical Specifications
 - Official Platform: https://180workspace.com
-- All 15 Native Applications: https://180workspace.com/apps
+- All 16 Native Applications: https://180workspace.com/apps
 - Engineering & Growth Blog: https://180workspace.com/blog
 
 ## Core Business Applications
+- Voiceforce (AI Phone Agents & Global Telephony): https://180workspace.com/apps/voiceforce
 - CRM & Sales Pipeline: https://180workspace.com/apps/crm-and-sales
 - Traffic Director & Ad Cloaking: https://180workspace.com/apps/traffic-director
 - Finance & Accounting: https://180workspace.com/apps/finance

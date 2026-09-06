@@ -1,15 +1,30 @@
 import { Request, Response } from 'express';
 import { prisma } from '@workspace/db';
-import { TelnyxService, LiveKitTokenService, LiveKitRoomWorker, VoiceBillingService, ForwardingRouterService, CallQueueService, BusinessBrainService } from '@workspace/voiceforce';
+import {
+  TelnyxService,
+  LiveKitTokenService,
+  LiveKitRoomWorker,
+  VoiceBillingService,
+  ForwardingRouterService,
+  CallQueueService,
+  BusinessBrainService,
+  NaturalLanguageTrainerService,
+  GuardrailEnforcementEngine,
+  DEFAULT_AGENT_GUARDRAIL_RULES,
+  WarmHandoffService,
+  PreFlightSimulatorService,
+  RoiAnalyticsService,
+  DailyBriefingService
+} from '@workspace/voiceforce';
 import { WalletService } from '@workspace/wallet';
 import { AICompanyConfigService, AIProviderService } from '@workspace/ai';
 import axios from 'axios';
-import { redis } from '../../../system-configs/config/redis';
+import { redisClient } from '../../../system-configs/utils/redis';
 import { Queue } from 'bullmq';
 
 const telnyx = new TelnyxService();
 const livekitTokenService = new LiveKitTokenService();
-const voiceforceQueue = new Queue('voiceforce-queue', { connection: redis });
+const voiceforceQueue = new Queue('voiceforce-queue', { connection: redisClient as any });
 
 export const VoiceforceController = {
   // ─── Dashboard Metrics ───────────────────────────────────────────────────
@@ -18,14 +33,14 @@ export const VoiceforceController = {
       const companyId = req.companyId || req.user?.companyId;
       if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
 
-      const [totalAgents, totalNumbers, totalCalls, answeredCalls, completedCalls, activeSessions, wallet] = await Promise.all([
+      const [totalAgents, totalNumbers, totalCalls, answeredCalls, completedCalls, activeSessions, wallet, company] = await Promise.all([
         (prisma as any).voiceAgent.count({ where: { companyId } }),
         (prisma as any).phoneNumber.count({ where: { companyId } }),
         (prisma as any).callSession.count({ where: { companyId } }),
         (prisma as any).callSession.count({ where: { companyId, answeredAt: { not: null } } }),
         (prisma as any).callSession.findMany({
           where: { companyId, status: 'completed' },
-          select: { durationSeconds: true, estimatedCostInr: true, callOutcome: true }
+          select: { durationSeconds: true, estimatedCostInr: true, callOutcome: true, structuredData: true }
         }),
         (prisma as any).callSession.findMany({
           where: { companyId, status: { in: ['dialing', 'ringing', 'in_progress'] } },
@@ -33,7 +48,11 @@ export const VoiceforceController = {
           orderBy: { startedAt: 'desc' },
           include: { voiceAgent: { select: { name: true } } }
         }),
-        VoiceBillingService.getWalletDetails(companyId)
+        VoiceBillingService.getWalletDetails(companyId),
+        (prisma as any).company.findUnique({
+          where: { id: companyId },
+          select: { currency: true, currencySymbol: true, country: true }
+        })
       ]);
 
       const totalMinutes = Math.round(
@@ -68,7 +87,9 @@ export const VoiceforceController = {
           conversionRate,
           activeCallsCount: activeSessions.length,
           activeSessions,
-          wallet
+          wallet,
+          currency: company?.currency || 'USD',
+          currencySymbol: company?.currencySymbol || '$'
         }
       });
     } catch (err: any) {
@@ -90,6 +111,179 @@ export const VoiceforceController = {
         include: { assignedNumbers: { select: { id: true, e164Number: true, friendlyName: true, routingMode: true } } }
       });
       return res.json({ success: true, data: agents });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async getAgentDetails(req: any, res: Response) {
+    try {
+      let companyId = req.companyId || req.user?.companyId;
+      if (!companyId) {
+        const firstCo = await (prisma as any).company.findFirst({ select: { id: true } });
+        companyId = firstCo?.id || '';
+      }
+      const { id } = req.params;
+
+      const agent = await (prisma as any).voiceAgent.findFirst({
+        where: { id, ...(companyId ? { companyId } : {}) },
+        include: {
+          assignedNumbers: {
+            select: { id: true, e164Number: true, friendlyName: true, routingMode: true, provider: true, status: true }
+          },
+          guardrail: true,
+          company: {
+            select: { currency: true, currencySymbol: true }
+          },
+          versions: {
+            orderBy: { versionNumber: 'desc' },
+            take: 5
+          }
+        }
+      });
+
+      if (!agent) {
+        return res.status(404).json({ error: 'AI Voice Employee not found' });
+      }
+
+      // Self-heal: ensure default safety guardrail and boundaries exist
+      if (!agent.guardrail) {
+        agent.guardrail = await (prisma as any).voiceAgentGuardrail.create({
+          data: {
+            companyId: agent.companyId,
+            voiceAgentId: agent.id,
+            maxDiscountPercent: 10.0,
+            maxDiscountAmount: 50.0,
+            maxOrderValue: 1000.0,
+            minLeadTimeHours: 2,
+            pciRedactionEnabled: true,
+            rules: DEFAULT_AGENT_GUARDRAIL_RULES
+          }
+        }).catch(() => null);
+      }
+
+      // Aggregate Performance KPIs for this specific agent
+      const [
+        totalCalls,
+        completedCalls,
+        ongoingCalls,
+        allAgentCalls,
+        runningCampaignsCount,
+        allCampaignsCount
+      ] = await Promise.all([
+        (prisma as any).callSession.count({ where: { voiceAgentId: id } }),
+        (prisma as any).callSession.count({ where: { voiceAgentId: id, status: 'completed' } }),
+        (prisma as any).callSession.count({ where: { voiceAgentId: id, status: { in: ['in_progress', 'dialing', 'ringing'] } } }),
+        (prisma as any).callSession.findMany({
+          where: { voiceAgentId: id },
+          select: {
+            durationSeconds: true,
+            estimatedCostInr: true,
+            sentiment: true,
+            callOutcome: true,
+            status: true
+          }
+        }),
+        (prisma as any).callCampaign.count({ where: { voiceAgentId: id, status: 'running' } }),
+        (prisma as any).callCampaign.count({ where: { voiceAgentId: id } })
+      ]);
+
+      let totalTalkTimeSeconds = 0;
+      let totalCostInr = 0;
+      let positiveCount = 0;
+      let leadsCaptured = 0;
+      let ordersBooked = 0;
+
+      for (const c of allAgentCalls) {
+        totalTalkTimeSeconds += Number(c.durationSeconds || 0);
+        totalCostInr += Number(c.estimatedCostInr || 0);
+
+        if (c.sentiment === 'Positive' || c.callOutcome === 'completed' || c.callOutcome === 'appointment_booked' || c.callOutcome === 'order_created' || c.callOutcome === 'interested') {
+          positiveCount++;
+        }
+        if (c.callOutcome === 'interested' || c.callOutcome === 'lead_captured') {
+          leadsCaptured++;
+        }
+        if (c.callOutcome === 'order_created' || c.callOutcome === 'appointment_booked') {
+          ordersBooked++;
+        }
+      }
+
+      const successRate = completedCalls > 0 ? Math.round((positiveCount / completedCalls) * 100) : 0;
+      const ongoingTasks = ongoingCalls + runningCampaignsCount;
+      const completedTasks = completedCalls;
+
+      // Recent Calls for this agent (take 25, ordered by createdAt desc)
+      const recentCalls = await (prisma as any).callSession.findMany({
+        where: { voiceAgentId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+        select: {
+          id: true,
+          recipientPhone: true,
+          recipientName: true,
+          direction: true,
+          status: true,
+          durationSeconds: true,
+          estimatedCostInr: true,
+          sentiment: true,
+          callOutcome: true,
+          recordingUrl: true,
+          summary: true,
+          disconnectReason: true,
+          billedCurrency: true,
+          totalBilledUsd: true,
+          createdAt: true
+        }
+      });
+
+      // Contextual customer reconnection check for recent calls
+      const recipientPhones = Array.from(new Set(recentCalls.map((c: any) => c.recipientPhone).filter(Boolean)));
+      let pastCallCounts: Record<string, number> = {};
+      if (recipientPhones.length > 0) {
+        const pastCounts = await (prisma as any).callSession.groupBy({
+          by: ['recipientPhone'],
+          where: {
+            recipientPhone: { in: recipientPhones },
+            companyId: agent.companyId
+          },
+          _count: { id: true }
+        });
+        pastCounts.forEach((p: any) => {
+          if (p.recipientPhone) pastCallCounts[p.recipientPhone] = p._count.id;
+        });
+      }
+
+      const currencySymbol = agent.company?.currencySymbol || '₹';
+
+      const formattedCalls = recentCalls.map((c: any) => ({
+        ...c,
+        companyCurrencySymbol: currencySymbol,
+        totalPriorCallsWithCompany: pastCallCounts[c.recipientPhone] || 1,
+        isReturningCustomer: (pastCallCounts[c.recipientPhone] || 1) > 1
+      }));
+
+      return res.json({
+        success: true,
+        data: {
+          agent,
+          metrics: {
+            totalCalls,
+            completedCalls,
+            ongoingCalls,
+            totalTalkTimeSeconds,
+            totalCostInr: parseFloat(totalCostInr.toFixed(2)),
+            successRate,
+            leadsCaptured,
+            ordersBooked,
+            ongoingTasks,
+            completedTasks,
+            totalCampaigns: allCampaignsCount
+          },
+          recentCalls: formattedCalls,
+          briefing: await DailyBriefingService.generateBriefingForAgent(agent.id, agent.companyId)
+        }
+      });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
@@ -132,6 +326,20 @@ export const VoiceforceController = {
           enabledToolNames: enabledToolNames || ['search_knowledge_base', 'create_task', 'create_crm_client']
         }
       });
+
+      // Ensure default safety guardrail and boundaries exist from birth
+      await (prisma as any).voiceAgentGuardrail.create({
+        data: {
+          companyId,
+          voiceAgentId: agent.id,
+          maxDiscountPercent: 10.0,
+          maxDiscountAmount: 50.0,
+          maxOrderValue: 1000.0,
+          minLeadTimeHours: 2,
+          pciRedactionEnabled: true,
+          rules: DEFAULT_AGENT_GUARDRAIL_RULES
+        }
+      }).catch(() => {});
 
       // If user selected a phone number to assign to this agent, link it immediately
       if (assignedPhoneId) {
@@ -1240,6 +1448,26 @@ export const VoiceforceController = {
     }
   },
 
+  async getRateEstimate(req: any, res: Response) {
+    try {
+      const phone = (req.query.phone as string) || '';
+      const companyId = req.companyId || req.user?.companyId;
+      let currency = 'USD';
+      if (companyId) {
+        const co = await (prisma as any).company.findUnique({
+          where: { id: companyId },
+          select: { currency: true, currencySymbol: true }
+        });
+        if (co?.currency) currency = co.currency;
+      }
+      const { DynamicRateService } = await import('@workspace/voiceforce');
+      const rateCard = DynamicRateService.calculateRateForNumber(phone, currency);
+      return res.json({ success: true, data: rateCard });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
   async listCalls(req: any, res: Response) {
     try {
       const companyId = req.companyId || req.user?.companyId;
@@ -1261,7 +1489,7 @@ export const VoiceforceController = {
       const take = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 50));
       const skip = (Math.max(1, parseInt(String(page), 10) || 1) - 1) * take;
 
-      const [calls, total] = await Promise.all([
+      const [calls, total, company] = await Promise.all([
         (prisma as any).callSession.findMany({
           where: whereClause,
           orderBy: { createdAt: 'desc' },
@@ -1272,12 +1500,22 @@ export const VoiceforceController = {
             phoneNumber: { select: { id: true, e164Number: true } }
           }
         }),
-        (prisma as any).callSession.count({ where: whereClause })
+        (prisma as any).callSession.count({ where: whereClause }),
+        companyId ? (prisma as any).company.findUnique({
+          where: { id: companyId },
+          select: { currency: true, currencySymbol: true }
+        }) : null
       ]);
+
+      const formattedCalls = calls.map((c: any) => ({
+        ...c,
+        companyCurrency: company?.currency || 'USD',
+        companyCurrencySymbol: company?.currencySymbol || '$'
+      }));
 
       return res.json({
         success: true,
-        data: calls,
+        data: formattedCalls,
         pagination: { total, page: parseInt(String(page), 10) || 1, limit: take, totalPages: Math.ceil(total / take) }
       });
     } catch (err: any) {
@@ -1290,18 +1528,31 @@ export const VoiceforceController = {
       const companyId = req.companyId || req.user?.companyId;
       const { id } = req.params;
 
-      const call = await (prisma as any).callSession.findFirst({
-        where: { id, companyId },
-        include: {
-          voiceAgent: true,
-          phoneNumber: true,
-          transcripts: { orderBy: { startTimeMs: 'asc' } },
-          toolExecutions: { orderBy: { createdAt: 'asc' } }
-        }
-      });
+      const [call, company] = await Promise.all([
+        (prisma as any).callSession.findFirst({
+          where: { id, companyId },
+          include: {
+            voiceAgent: true,
+            phoneNumber: true,
+            transcripts: { orderBy: { startTimeMs: 'asc' } },
+            toolExecutions: { orderBy: { createdAt: 'asc' } }
+          }
+        }),
+        (prisma as any).company.findUnique({
+          where: { id: companyId },
+          select: { currency: true, currencySymbol: true, country: true }
+        })
+      ]);
 
       if (!call) return res.status(404).json({ error: 'Call session not found' });
-      return res.json({ success: true, data: call });
+      return res.json({
+        success: true,
+        data: {
+          ...call,
+          companyCurrency: company?.currency || 'USD',
+          companyCurrencySymbol: company?.currencySymbol || '$'
+        }
+      });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
@@ -2099,6 +2350,403 @@ export const VoiceforceController = {
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
+  },
+
+  // ─── Natural Language AI Employee Training ──────────────────────────────
+  async parseNaturalLanguageTraining(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+      const { description } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+      if (!description?.trim()) return res.status(400).json({ error: 'Description text is required' });
+
+      const result = await NaturalLanguageTrainerService.parseTrainingDescription(
+        description,
+        companyId,
+        id !== 'new' ? id : undefined
+      );
+
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async applyNaturalLanguageTraining(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { draft } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+      if (!draft) return res.status(400).json({ error: 'Draft payload is required' });
+
+      const result = await NaturalLanguageTrainerService.commitTrainingDraft(
+        companyId,
+        id,
+        draft,
+        userId
+      );
+
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async listAgentVersions(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const versions = await (prisma as any).voiceAgentVersion.findMany({
+        where: { companyId, voiceAgentId: id },
+        orderBy: { versionNumber: 'desc' },
+        take: 20
+      });
+
+      return res.json({ success: true, versions });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async rollbackAgentVersion(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id, versionNumber } = req.params;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const version = await (prisma as any).voiceAgentVersion.findUnique({
+        where: {
+          voiceAgentId_versionNumber: {
+            voiceAgentId: id,
+            versionNumber: parseInt(versionNumber, 10)
+          }
+        }
+      });
+
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+
+      const snapshot = version.snapshot as any;
+      if (snapshot?.previousSystemPrompt) {
+        await (prisma as any).voiceAgent.update({
+          where: { id },
+          data: {
+            systemPrompt: snapshot.previousSystemPrompt,
+            firstMessage: snapshot.previousFirstMessage || undefined
+          }
+        });
+      }
+
+      return res.json({ success: true, message: `Rolled back to version ${versionNumber}` });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Agent Safety Guardrails ─────────────────────────────────────────────
+  async getAgentGuardrails(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      let guardrail = await (prisma as any).voiceAgentGuardrail.findUnique({
+        where: { voiceAgentId: id }
+      });
+
+      if (!guardrail) {
+        guardrail = await (prisma as any).voiceAgentGuardrail.create({
+          data: {
+            companyId,
+            voiceAgentId: id,
+            maxDiscountPercent: 10.0,
+            maxOrderValue: 1000.0,
+            minLeadTimeHours: 2,
+            forbiddenTopics: [],
+            rules: { version: 1, dos: [], donts: [] }
+          }
+        });
+      }
+
+      return res.json({ success: true, guardrail });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async updateAgentGuardrails(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+      const { maxDiscountPercent, maxDiscountAmount, maxOrderValue, minLeadTimeHours, maxDeliveryKm, forbiddenTopics, pciRedactionEnabled, rules } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const guardrail = await (prisma as any).voiceAgentGuardrail.upsert({
+        where: { voiceAgentId: id },
+        create: {
+          companyId,
+          voiceAgentId: id,
+          maxDiscountPercent: Number(maxDiscountPercent ?? 10.0),
+          maxDiscountAmount: Number(maxDiscountAmount ?? 50.0),
+          maxOrderValue: Number(maxOrderValue ?? 1000.0),
+          minLeadTimeHours: Number(minLeadTimeHours ?? 2),
+          maxDeliveryKm: maxDeliveryKm ? Number(maxDeliveryKm) : null,
+          forbiddenTopics: Array.isArray(forbiddenTopics) ? forbiddenTopics : [],
+          pciRedactionEnabled: pciRedactionEnabled ?? true,
+          rules: rules !== undefined ? rules : { version: 1, dos: [], donts: [] }
+        },
+        update: {
+          maxDiscountPercent: maxDiscountPercent !== undefined ? Number(maxDiscountPercent) : undefined,
+          maxDiscountAmount: maxDiscountAmount !== undefined ? Number(maxDiscountAmount) : undefined,
+          maxOrderValue: maxOrderValue !== undefined ? Number(maxOrderValue) : undefined,
+          minLeadTimeHours: minLeadTimeHours !== undefined ? Number(minLeadTimeHours) : undefined,
+          maxDeliveryKm: maxDeliveryKm !== undefined ? (maxDeliveryKm ? Number(maxDeliveryKm) : null) : undefined,
+          forbiddenTopics: Array.isArray(forbiddenTopics) ? forbiddenTopics : undefined,
+          pciRedactionEnabled: pciRedactionEnabled !== undefined ? pciRedactionEnabled : undefined,
+          rules: rules !== undefined ? rules : undefined
+        }
+      });
+
+      return res.json({ success: true, guardrail });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Pre-Flight Sandbox Simulator ────────────────────────────────────────
+  async listSimulationScenarios(req: any, res: Response) {
+    try {
+      const scenarios = PreFlightSimulatorService.getBuiltinScenarios();
+      return res.json({ success: true, scenarios });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async startSimulation(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { voiceAgentId, scenarioId } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+      if (!voiceAgentId) return res.status(400).json({ error: 'VoiceAgent ID required' });
+
+      const session = await PreFlightSimulatorService.startSimulationSession(
+        companyId,
+        voiceAgentId,
+        scenarioId,
+        req.user?.name || 'Tester'
+      );
+
+      return res.json({ success: true, ...session });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Zero-Repeat Warm Human Handoff ──────────────────────────────────────
+  async getLiveHandoffContext(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { callSessionId } = req.params;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const handoff = await WarmHandoffService.prepareHandoff(callSessionId, companyId);
+      return res.json({ success: true, ...handoff });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async triggerWarmHandoff(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { callSessionId, targetPhone, targetUserId, reason } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+      if (!callSessionId) return res.status(400).json({ error: 'CallSession ID required' });
+
+      const handoff = await WarmHandoffService.prepareHandoff(
+        callSessionId,
+        companyId,
+        reason || 'manual_staff_takeover',
+        targetPhone,
+        targetUserId
+      );
+
+      return res.json({ success: true, message: 'Warm handoff initiated', ...handoff });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Executive ROI & Analytics ───────────────────────────────────────────
+  async getRoiAnalytics(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { timeframe = '30d', wage = '18.0', appointmentValue = '100.0' } = req.query;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const report = await RoiAnalyticsService.calculateRoi(
+        companyId,
+        timeframe as any,
+        parseFloat(wage as string) || 18.0,
+        parseFloat(appointmentValue as string) || 100.0
+      );
+
+      return res.json({ success: true, report });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Daily Executive Performance Briefing ────────────────────────────────
+  async getLatestDailyBriefing(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      let briefing = await (prisma as any).dailyVoiceBriefing.findFirst({
+        where: { companyId },
+        orderBy: { briefingDate: 'desc' }
+      });
+
+      if (!briefing) {
+        briefing = await DailyBriefingService.generateBriefingForCompany(companyId);
+      }
+
+      return res.json({ success: true, briefing });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async generateDailyBriefing(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const briefing = await DailyBriefingService.generateBriefingForCompany(companyId);
+      return res.json({ success: true, briefing });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async generateAgentBriefing(req: any, res: Response) {
+    try {
+      const { id } = req.params;
+      const agent = await prisma.voiceAgent.findUnique({
+        where: { id },
+        select: { id: true, companyId: true }
+      });
+      if (!agent) return res.status(404).json({ error: 'Agent not found' });
+      const briefing = await DailyBriefingService.generateBriefingForAgent(agent.id, agent.companyId);
+      return res.json({ success: true, briefing });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+
+  // ─── Industry Vertical Templates ─────────────────────────────────────────
+  async listTemplates(req: any, res: Response) {
+    try {
+      const templates = await (prisma as any).industryTemplate.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' }
+      });
+      return res.json({ success: true, templates });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async instantiateTemplate(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { slug } = req.params;
+      const { agentName } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const template = await (prisma as any).industryTemplate.findUnique({
+        where: { slug }
+      });
+
+      if (!template) return res.status(404).json({ error: `Template ${slug} not found` });
+
+      const cfg = template.defaultConfig as any;
+
+      const agent = await (prisma as any).voiceAgent.create({
+        data: {
+          companyId,
+          name: agentName || template.name,
+          role: cfg.role || 'Assistant',
+          systemPrompt: cfg.systemPrompt || 'You are an autonomous AI employee.',
+          firstMessage: cfg.firstMessage || 'Hello! How can I assist you today?',
+          voiceProvider: 'cartesia',
+          voiceId: '4e045189-a105-4024-921c-dc46b9794f61', // High-fidelity Cartesia Prince voice
+          engineType: 'cascaded',
+          llmModel: 'llama-3.3-70b-versatile',
+          sttModel: 'nova-3',
+          enabledToolNames: template.suggestedTools || ['search_knowledge_base', 'create_task', 'create_crm_client']
+        }
+      });
+
+      // Create guardrail for newly instantiated agent
+      await (prisma as any).voiceAgentGuardrail.create({
+        data: {
+          companyId,
+          voiceAgentId: agent.id,
+          maxDiscountPercent: cfg.guardrails?.maxDiscountPercent ?? 10.0,
+          maxDiscountAmount: cfg.guardrails?.maxDiscountAmount ?? 50.0,
+          maxOrderValue: cfg.guardrails?.maxOrderValue ?? 1000.0,
+          minLeadTimeHours: cfg.guardrails?.minLeadTimeHours ?? 2,
+          pciRedactionEnabled: true,
+          rules: cfg.guardrails?.rules || DEFAULT_AGENT_GUARDRAIL_RULES
+        }
+      }).catch(() => {});
+
+      return res.json({ success: true, agent });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Forensic Call Audit Trail ───────────────────────────────────────────
+  async getCallAuditTrail(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID required' });
+
+      const logs = await (prisma as any).actionAuditLog.findMany({
+        where: {
+          callSessionId: id,
+          ...(companyId ? { companyId } : {})
+        },
+        orderBy: { turnIndex: 'asc' }
+      });
+
+      return res.json({ success: true, logs });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
   }
 };
+
 

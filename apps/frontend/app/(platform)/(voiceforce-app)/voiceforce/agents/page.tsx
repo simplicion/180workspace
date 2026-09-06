@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Bot, Plus, ArrowLeft, Check, Sparkles, Volume2, 
   Trash2, ShieldCheck, Sliders, Phone, BrainCircuit, Headphones, 
-  CheckCircle2, AlertCircle, Edit3, Power, ExternalLink, Copy
+  CheckCircle2, AlertCircle, Edit3, Power, ExternalLink, Copy, Wand2, Mic,
+  ChevronRight
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -50,6 +52,7 @@ When the customer mentions items they want to order, verify prices, check availa
 };
 
 export default function VoiceforceAgentsPage() {
+  const router = useRouter();
   const [agents, setAgents] = useState<any[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,13 +215,13 @@ export default function VoiceforceAgentsPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenCreate}
+        <Link
+          href="/voiceforce/templates"
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Deploy New Employee</span>
-        </button>
+        </Link>
       </div>
 
       {/* Production Launch Checklist Banner */}
@@ -281,12 +284,13 @@ export default function VoiceforceAgentsPage() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto leading-relaxed">
             Create your first AI voice persona (like Maya or Sarah) to handle inbound customer questions and outbound campaigns autonomously.
           </p>
-          <button
-            onClick={handleOpenCreate}
-            className="mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+          <Link
+            href="/voiceforce/templates"
+            className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
           >
-            Deploy Maya (Default Assistant)
-          </button>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Browse Employee Blueprints / Deploy Custom</span>
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -296,23 +300,29 @@ export default function VoiceforceAgentsPage() {
             return (
               <div 
                 key={ag.id} 
-                className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between hover:border-indigo-500/40 hover:shadow-md transition-all duration-200"
+                onClick={() => router.push(`/voiceforce/agents/${ag.id}`)}
+                className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 flex flex-col justify-between hover:border-indigo-500/50 hover:shadow-lg transition-all duration-200 cursor-pointer group relative"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/15 to-violet-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-800/50 font-bold text-lg flex-shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/15 to-violet-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-800/50 font-bold text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
                         {ag.name[0]}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">{ag.name}</h3>
+                        <h3 className="text-base font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                          {ag.name}
+                        </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{ag.role}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => handleToggleActive(ag)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleActive(ag);
+                        }}
                         className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
                           isAgentActive 
                             ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60' 
@@ -324,7 +334,10 @@ export default function VoiceforceAgentsPage() {
                       </button>
 
                       <button
-                        onClick={() => handleOpenEdit(ag)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEdit(ag);
+                        }}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-gray-200/80 dark:border-gray-700/80 transition-colors cursor-pointer"
                         title="Edit Persona & Tools"
                       >
@@ -332,7 +345,10 @@ export default function VoiceforceAgentsPage() {
                       </button>
 
                       <button
-                        onClick={() => setAgentToDelete({ id: ag.id, name: ag.name })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAgentToDelete({ id: ag.id, name: ag.name });
+                        }}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-gray-200/80 dark:border-gray-700/80 transition-colors cursor-pointer"
                         title="Delete Agent"
                       >
@@ -381,7 +397,7 @@ export default function VoiceforceAgentsPage() {
 
                   {/* Direct Dedicated Phone Line for Customers */}
                   {ag.assignedNumbers && ag.assignedNumbers.length > 0 ? (
-                    <div className="mt-4 p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-between gap-2">
+                    <div className="mt-4 p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0">
                           <Phone className="w-3.5 h-3.5" />
@@ -395,7 +411,8 @@ export default function VoiceforceAgentsPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           navigator.clipboard.writeText(ag.assignedNumbers[0].e164Number);
                           toast.success(`Copied ${ag.assignedNumbers[0].e164Number}! Share with your clients.`);
                         }}
@@ -407,34 +424,57 @@ export default function VoiceforceAgentsPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="mt-4 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500">
+                    <div className="mt-4 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500" onClick={(e) => e.stopPropagation()}>
                       <span className="text-[11px] text-gray-400">No direct phone line linked</span>
                       <button
                         type="button"
-                        onClick={() => handleOpenEdit(ag)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEdit(ag);
+                        }}
                         className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                       >
                         + Assign Number
                       </button>
                     </div>
                   )}
+
+                  {/* Action Bar: Natural Language Training & Sandbox Tester */}
+                  <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      href={`/voiceforce/agents/${ag.id}?tab=train`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Wand2 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                      <span>Train with AI</span>
+                    </Link>
+
+                    <Link
+                      href={`/voiceforce/test-bench?agentId=${ag.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Mic className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      <span>Test Mic</span>
+                    </Link>
+                  </div>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <Link 
-                    href="/voiceforce/numbers"
-                    className="hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors"
+                    href={`/voiceforce/agents/${ag.id}?tab=guardrails`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 text-[11px] font-semibold transition-colors"
                   >
-                    <span>{ag.assignedNumbers?.length || 0} phone line(s)</span>
-                    <ExternalLink className="w-3 h-3 opacity-60" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Guardrails</span>
                   </Link>
 
-                  <button
-                    onClick={() => handleOpenEdit(ag)}
-                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                  >
-                    Configure Persona →
-                  </button>
+                  <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
+                    <span>Manage Space</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
                 </div>
               </div>
             );
