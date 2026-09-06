@@ -11,3 +11,4 @@ export * from './compliance/voice-compliance.guard';
 export * from './telephony/human-escalation.service';
 export * from './telephony/forwarding-router.service';
 export * from './telephony/call-queue.service';
+export * from './workers/voiceforce.worker';

@@ -29,20 +29,24 @@ export default function VoiceforceCallsPage() {
   const [sentimentFilter, setSentimentFilter] = useState('all');
   const [outcomeFilter, setOutcomeFilter] = useState('all');
 
-  const fetchCalls = async () => {
+  const fetchCalls = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.get('/api/v1/voiceforce/calls');
       setCalls(res.data?.data || []);
     } catch (err: any) {
-      toast.error('Failed to load call logs');
+      if (!silent) toast.error('Failed to load call logs');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchCalls();
+    const interval = setInterval(() => {
+      fetchCalls(true);
+    }, 3500);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredCalls = calls.filter((c) => {
@@ -91,19 +95,61 @@ export default function VoiceforceCallsPage() {
     toast.success(`Exported ${filteredCalls.length} call records to CSV`);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, disconnectReason?: string) => {
     switch (status?.toLowerCase()) {
       case 'completed':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+        return {
+          label: 'Completed',
+          classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
+          dot: 'bg-emerald-500'
+        };
       case 'in_progress':
       case 'active':
+        return {
+          label: 'Live Talking',
+          classes: 'bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 animate-pulse',
+          dot: 'bg-indigo-500 animate-ping'
+        };
       case 'dialing':
+      case 'initiating':
+        return {
+          label: 'Dialing Carrier...',
+          classes: 'bg-sky-50 text-sky-700 border-sky-200/80 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20 animate-pulse',
+          dot: 'bg-sky-500 animate-ping'
+        };
       case 'ringing':
-        return 'bg-blue-50 text-blue-700 border-blue-200/80 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 animate-pulse';
+        return {
+          label: 'Ringing Customer...',
+          classes: 'bg-blue-50 text-blue-700 border-blue-200/80 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 animate-pulse',
+          dot: 'bg-blue-500 animate-ping'
+        };
       case 'queued':
-        return 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+        return {
+          label: 'Queued (Waiting)',
+          classes: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+          dot: 'bg-amber-500'
+        };
+      case 'no_answer':
+      case 'unanswered':
+        return {
+          label: "Didn't Answer",
+          classes: 'bg-orange-50 text-orange-700 border-orange-200/80 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20',
+          dot: 'bg-orange-500'
+        };
+      case 'busy':
+        return {
+          label: 'Line Busy',
+          classes: 'bg-purple-50 text-purple-700 border-purple-200/80 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
+          dot: 'bg-purple-500'
+        };
+      case 'failed':
+      case 'cancelled':
       default:
-        return 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
+        return {
+          label: disconnectReason ? (disconnectReason.length > 25 ? `${disconnectReason.slice(0, 25)}...` : disconnectReason) : 'Call Failed',
+          classes: 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
+          dot: 'bg-rose-500'
+        };
     }
   };
 
@@ -277,9 +323,22 @@ export default function VoiceforceCallsPage() {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <span className={clsx("px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider", getStatusBadge(call.status))}>
-                        {call.status}
-                      </span>
+                      {(() => {
+                        const badge = getStatusBadge(call.status, call.disconnectReason);
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <span className={clsx("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider w-fit", badge.classes)}>
+                              <span className={clsx("w-1.5 h-1.5 rounded-full", badge.dot)} />
+                              <span>{badge.label}</span>
+                            </span>
+                            {call.disconnectReason && (call.status === 'failed' || call.status === 'no_answer' || call.status === 'busy') && (
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[160px]" title={call.disconnectReason}>
+                                {call.disconnectReason}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     <td className="py-3.5 px-4">
