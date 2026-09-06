@@ -6,7 +6,8 @@ import {
   WalletService,
   WalletGatewayService,
   WalletLedgerService,
-  WalletConstants
+  WalletConstants,
+  WalletOrderResult
 } from '@workspace/wallet';
 
 const telnyx = new TelnyxService();
@@ -157,16 +158,10 @@ export class VoiceBillingService {
    */
   static async createRazorpayOrder(
     companyId: string,
-    amountInr: number
-  ): Promise<{
-    success: boolean;
-    orderId: string;
-    amountInr: number;
-    amountPaise: number;
-    currency: string;
-    keyId: string;
-  }> {
-    return WalletGatewayService.createOrder(companyId, amountInr);
+    amountInr: number,
+    couponCode?: string
+  ): Promise<WalletOrderResult> {
+    return WalletGatewayService.createOrder(companyId, amountInr, couponCode);
   }
 
   /**

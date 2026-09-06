@@ -17,7 +17,7 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
-RUN pnpm turbo run build --filter=backend... || true
+RUN pnpm turbo run build --filter=backend...
 
 FROM base AS runner
 WORKDIR /app
