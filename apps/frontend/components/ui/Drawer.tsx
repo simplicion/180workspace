@@ -83,7 +83,15 @@ export function Drawer({
                         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between shrink-0">
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
-                                    {icon && <span className="text-gray-500 dark:text-gray-400">{icon}</span>}
+                                    {(() => {
+                                        if (!icon) return null;
+                                        if (React.isValidElement(icon)) return <span className="text-gray-500 dark:text-gray-400">{icon}</span>;
+                                        if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null && 'render' in icon)) {
+                                            const IconComp = icon as any;
+                                            return <span className="text-gray-500 dark:text-gray-400"><IconComp className="w-5 h-5" /></span>;
+                                        }
+                                        return null;
+                                    })()}
                                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
                                 </div>
                                 {description && <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>}

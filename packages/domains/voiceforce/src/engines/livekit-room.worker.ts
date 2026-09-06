@@ -11,6 +11,7 @@ export interface LiveKitRoomWorkerOptions {
   companyId: string;
   voiceAgentId: string;
   recipientPhone?: string;
+  callerIdNumber?: string;
   sipTrunkId?: string;
   isOutbound?: boolean;
 }
@@ -29,7 +30,7 @@ export class LiveKitRoomWorker {
     this.options = options;
     const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
     const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
-    const livekitHost = process.env.LIVEKIT_HOST || process.env.LIVEKIT_URL || 'http://host.docker.internal:7880';
+    const livekitHost = process.env.LIVEKIT_URL || process.env.LIVEKIT_HOST || 'https://livekit.180workspace.com';
 
     this.roomService = new RoomServiceClient(livekitHost, apiKey, apiSecret);
     this.sipClient = new SipClient(livekitHost, apiKey, apiSecret);
@@ -273,24 +274,79 @@ export class LiveKitRoomWorker {
     await this.recordMilestone('engine_started');
 
     // 6. If Outbound PSTN Call, dispatch via LiveKit SIP to Telnyx
-    if (isOutbound && recipientPhone && sipTrunkId) {
+    if (isOutbound && recipientPhone) {
+      const trunkId = (sipTrunkId && sipTrunkId.startsWith('ST_'))
+        ? sipTrunkId
+        : (process.env.LIVEKIT_SIP_TRUNK_ID || 'ST_FFXV3xAMx44y');
+      
+      let fromNumber = this.options.callerIdNumber;
+
+      if (!fromNumber) {
+        // 1. Check if call session in DB has callerIdNumber or linked phoneNumber
+        const sessionRec = await prisma.callSession.findUnique({
+          where: { id: callSessionId },
+          include: { phoneNumber: true }
+        });
+        if (sessionRec?.phoneNumber?.e164Number) {
+          fromNumber = sessionRec.phoneNumber.e164Number;
+        } else if ((sessionRec?.structuredData as any)?.callerIdNumber) {
+          fromNumber = (sessionRec?.structuredData as any).callerIdNumber;
+        } else if ((sessionRec as any)?.callerIdNumber) {
+          fromNumber = (sessionRec as any).callerIdNumber;
+        }
+      }
+
+      if (!fromNumber && voiceAgentId) {
+        // 2. Check if agent has an assigned phone number in this company
+        const agentPhone = await prisma.phoneNumber.findFirst({
+          where: { companyId, assignedAgentId: voiceAgentId, status: 'active' }
+        });
+        if (agentPhone) {
+          fromNumber = agentPhone.e164Number;
+        }
+      }
+
+      if (!fromNumber && companyId) {
+        // 3. Check if company has any active phone number
+        const companyPhone = await prisma.phoneNumber.findFirst({
+          where: { companyId, status: 'active' }
+        });
+        if (companyPhone) {
+          fromNumber = companyPhone.e164Number;
+        }
+      }
+
+      // 4. Fallback only as absolute last resort
+      if (!fromNumber) {
+        fromNumber = process.env.TELNYX_CALLER_ID || '+919381420546';
+      }
+
       try {
         await this.sipClient.createSipParticipant(
-          sipTrunkId,
+          trunkId,
           recipientPhone,
           roomName,
           {
             participantIdentity: `phone_${recipientPhone}`,
-            participantName: recipientPhone
+            participantName: recipientPhone,
+            fromNumber
           }
         );
-        await this.recordMilestone('sip_participant_created', { recipientPhone, sipTrunkId });
-      } catch (err: any) {
-        console.error('[LiveKitRoomWorker] SIP outbound dial error:', err.message);
-        await this.recordMilestone('sip_dial_error', { error: err.message });
+        await this.recordMilestone('sip_participant_created', { recipientPhone, trunkId, fromNumber });
         await prisma.callSession.update({
           where: { id: callSessionId },
-          data: { status: 'failed', disconnectReason: err.message }
+          data: { status: 'in_progress', answeredAt: new Date() }
+        });
+      } catch (err: any) {
+        console.error('[LiveKitRoomWorker] SIP outbound dial error:', err.message);
+        let errorMsg = err.message;
+        if (errorMsg.includes('10039') || errorMsg.includes('country') || (recipientPhone.startsWith('+91') && errorMsg.includes('carrier'))) {
+          errorMsg = `Carrier restriction: Telnyx trial account requires upgrade for +91 destinations (https://telnyx.com/upgrade). ${err.message}`;
+        }
+        await this.recordMilestone('sip_dial_error', { error: errorMsg });
+        await prisma.callSession.update({
+          where: { id: callSessionId },
+          data: { status: 'failed', disconnectReason: errorMsg }
         });
       }
     }

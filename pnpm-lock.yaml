@@ -259,6 +259,9 @@ importers:
       '@workspace/voiceforce':
         specifier: workspace:*
         version: link:../../packages/domains/voiceforce
+      '@workspace/wallet':
+        specifier: workspace:*
+        version: link:../../packages/domains/wallet
       '@workspace/workspace-tools':
         specifier: workspace:*
         version: link:../../packages/domains/workspace-tools
@@ -1246,6 +1249,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../db
+      '@workspace/wallet':
+        specifier: workspace:*
+        version: link:../wallet
       axios:
         specifier: ^1.7.0
         version: 1.19.0
@@ -1265,6 +1271,28 @@ importers:
       '@types/ws':
         specifier: ^8.5.10
         version: 8.18.1
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../typescript-config
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  packages/domains/wallet:
+    dependencies:
+      '@workspace/backend-infra':
+        specifier: workspace:*
+        version: link:../../backend-common
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../../db
+      axios:
+        specifier: ^1.13.6
+        version: 1.19.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../typescript-config

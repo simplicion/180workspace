@@ -1,17 +1,33 @@
 'use strict';
 
-const { Worker } = require('bullmq');
+const { Worker, Queue } = require('bullmq');
 const Redis = require('ioredis');
 const { prisma } = require('@workspace/db');
 const { VoiceforcePromptService, LiveKitRoomWorker } = require('@workspace/voiceforce');
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-const redis = new Redis(redisUrl, { maxRetriesPerRequest: null, lazyConnect: true });
+const redis = new Redis(redisUrl, { maxRetriesPerRequest: null });
 
 function setupVoiceforceWorker() {
   if (!redis) return null;
 
   const promptService = new VoiceforcePromptService();
+
+  // Register repeatable daily phone renewal and 5-day grace period audit job (midnight UTC)
+  try {
+    const voiceQueue = new Queue('voiceforce-queue', { connection: redis });
+    voiceQueue.add(
+      'voiceforce-daily-audit',
+      {},
+      {
+        repeat: { pattern: '0 0 * * *' },
+        jobId: 'voiceforce-daily-audit-repeatable',
+        removeOnComplete: true
+      }
+    ).catch(err => console.warn('[VoiceforceWorker] Daily audit cron registration note:', err.message));
+  } catch (err) {
+    console.warn('[VoiceforceWorker] Could not initialize repeatable queue:', err.message);
+  }
 
   const worker = new Worker(
     'voiceforce-queue',
@@ -62,7 +78,8 @@ function setupVoiceforceWorker() {
               companyId,
               voiceAgentId: session.voiceAgentId,
               recipientPhone: session.recipientPhone,
-              sipTrunkId: session.phoneNumber?.providerId || process.env.TELNYX_SIP_TRUNK_ID,
+              callerIdNumber: session.phoneNumber?.e164Number || session.structuredData?.callerIdNumber || session.callerIdNumber || null,
+              sipTrunkId: process.env.LIVEKIT_SIP_TRUNK_ID || 'ST_FFXV3xAMx44y',
               isOutbound: session.direction === 'outbound'
             });
 
@@ -134,8 +151,17 @@ function setupVoiceforceWorker() {
           break;
         }
 
+        case 'renew-number-rentals':
+        case 'voiceforce-daily-audit': {
+          console.log('[VoiceforceWorker] Running daily phone number renewals and 5-day grace period audit...');
+          const { VoiceBillingService } = require('@workspace/voiceforce');
+          const auditResult = await VoiceBillingService.processNumberRenewalsAndGracePeriod();
+          console.log('[VoiceforceWorker] Daily renewal audit completed:', auditResult);
+          break;
+        }
+
         default:
-          console.warn(`[VoiceforceWorker] Unknown job type: ${type}`);
+          console.warn(`[VoiceforceWorker] Unknown job type: ${jobType}`);
       }
     },
     {

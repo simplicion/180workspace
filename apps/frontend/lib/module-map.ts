@@ -59,6 +59,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   
   // System / Settings
   '/help-support': { appId: 'system', moduleId: 'help-support' },
+  '/settings/wallet': { appId: 'system', moduleId: 'wallet' },
   
   // Social Media Management
   '/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
@@ -74,8 +75,10 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/voiceforce': { appId: 'voiceforce', moduleId: 'dashboard' },
   '/voiceforce/agents': { appId: 'voiceforce', moduleId: 'agents' },
   '/voiceforce/numbers': { appId: 'voiceforce', moduleId: 'numbers' },
+  '/voiceforce/forwarding': { appId: 'voiceforce', moduleId: 'forwarding' },
   '/voiceforce/campaigns': { appId: 'voiceforce', moduleId: 'campaigns' },
   '/voiceforce/calls': { appId: 'voiceforce', moduleId: 'calls' },
+  '/voiceforce/compliance': { appId: 'voiceforce', moduleId: 'compliance' },
 };
 
 export interface ModuleConfig {
@@ -252,8 +255,10 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'dashboard', name: 'Voiceforce Dashboard' },
             { id: 'agents', name: 'AI Voice Agents' },
             { id: 'numbers', name: 'Phone Numbers & DIDs' },
+            { id: 'forwarding', name: 'Call Forwarding & Queues' },
             { id: 'campaigns', name: 'Call Campaigns' },
-            { id: 'calls', name: 'Call Logs & Transcripts' }
+            { id: 'calls', name: 'Call Logs & Transcripts' },
+            { id: 'compliance', name: 'Compliance & DNC' }
         ]
     }
 ];

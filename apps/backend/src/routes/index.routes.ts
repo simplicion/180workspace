@@ -46,11 +46,12 @@ const platformBillingRoutes = require('../api/v1/platform-billing/index').defaul
 const insightsRoutes = require('../api/v1/insights/index').default;
 const publicRoutes = require('../api/v1/public/public.routes').default;
 const voiceforceRoutes = require('../api/v1/voiceforce/index').default;
+const walletRoutes = require('../api/v1/wallet/index').default;
 // ─── Legacy Route Proxy ────────────────────────────────────────────────────
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
 router.use((req, res, next) => {
     // Only intercept requests missing /v1/, /auth, /setup, /public, /company-profile
-    if (req.url.startsWith('/v1/') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin')) {
+    if (req.url.startsWith('/v1/') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin')) {
         return next();
     }
 
@@ -319,5 +320,9 @@ router.use('/v1/support', protect, supportRoutes);
 // ─── 180 Voiceforce (AI Voice Calling Engine) ──────────────────────────────
 router.use('/voiceforce', voiceforceRoutes);
 router.use('/v1/voiceforce', voiceforceRoutes);
+
+// ─── 180 Dedicated Prepaid Wallet Engine ──────────────────────────────────
+router.use('/wallet', walletRoutes);
+router.use('/v1/wallet', walletRoutes);
 
 export default router;

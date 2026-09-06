@@ -9,3 +9,5 @@ export * from './billing/voice-billing.service';
 export * from './brain/business-brain.service';
 export * from './compliance/voice-compliance.guard';
 export * from './telephony/human-escalation.service';
+export * from './telephony/forwarding-router.service';
+export * from './telephony/call-queue.service';

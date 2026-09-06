@@ -238,9 +238,20 @@ async function bootstrap() {
         console.log('[Bootstrap] Sockets initialized.');
         
         if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
-            console.log('👷 Starting Worker Services (Delegated to external worker app)');
+            console.log('👷 Starting Worker Services...');
             AIJobsService.init(); // Proactive AI Alerts
             AICronService.initCronJobs(); // AI Background Processes
+
+            // Initialize Voiceforce BullMQ Outbound & Post-Call Worker
+            try {
+                const setupVoiceforceWorker = require('../worker/src/workers/voiceforceWorker');
+                const vfWorker = setupVoiceforceWorker();
+                if (vfWorker) {
+                    console.log('✅ Voiceforce BullMQ worker active on voiceforce-queue');
+                }
+            } catch (vfErr) {
+                console.warn('⚠️ [Bootstrap] Voiceforce worker failed to start:', vfErr.message);
+            }
         }
     } catch (err) {
         console.error('❌ Bootstrap failed:', err);

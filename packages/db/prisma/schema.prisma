@@ -110,10 +110,12 @@ model Company {
   callSessions             CallSession[]
   voiceBalanceInr          Float                  @default(0.0)
   voiceAutoRecharge        Boolean                @default(false)
-  voiceThresholdInr        Float                  @default(100.0)
-  voiceRechargeAmountInr   Float                  @default(500.0)
+  voiceThresholdInr        Float                  @default(200.0)
+  voiceRechargeAmountInr   Float                  @default(1000.0)
   voiceTransactions        VoiceWalletTransaction[]
   dncRegistries            DncRegistry[]
+  forwardingRules          ForwardingRule[]
+  callQueues               CallQueue[]
 }
 
 model SavedBank {
@@ -2719,11 +2721,19 @@ model PhoneNumber {
   status           String         @default("active") // "active" | "cooling_down" | "pending_verification"
   maxConcurrent    Int            @default(10)
   currentActive    Int            @default(0)
+  routingMode      String         @default("direct_agent") // "direct_agent" | "forwarding_rule"
+  
+  monthlyRentalInr Float          @default(149.0)
+  nextRenewalDate  DateTime?
+  autoRenew        Boolean        @default(true)
+  coolingDownSince DateTime?
   
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
   calls            CallSession[]
+  forwardingRules  ForwardingRule[]
+  callCampaigns    CallCampaign[]
 
   @@unique([id, companyId])
   @@index([companyId])
@@ -2738,6 +2748,9 @@ model CallCampaign {
   voiceAgentId      String
   voiceAgent        VoiceAgent     @relation(fields: [voiceAgentId], references: [id], onDelete: Restrict)
   
+  phoneNumberId     String?
+  phoneNumber       PhoneNumber?   @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+
   status            String         @default("draft") // "draft" | "scheduled" | "running" | "paused" | "completed"
   contactList       Json?          @default("[]")
   scheduledAt       DateTime?
@@ -2858,11 +2871,13 @@ model VoiceWalletTransaction {
   balanceAfterInr Float
   type            String       // "topup" | "call_deduction" | "refund"
   callSessionId   String?
+  paymentRef      String?      @unique
   description     String
   createdAt       DateTime     @default(now())
 
   @@index([companyId])
   @@index([callSessionId])
+  @@index([companyId, paymentRef])
 }
 
 model DncRegistry {
@@ -2874,6 +2889,71 @@ model DncRegistry {
   createdAt      DateTime     @default(now())
 
   @@unique([companyId, phoneNumber])
+  @@index([companyId])
+}
+
+// ─── Call Forwarding & Routing Engine ─────────────────────────────────────────
+model ForwardingRule {
+  id                     String         @id @default(uuid())
+  companyId              String
+  company                Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  phoneNumberId          String
+  phoneNumber            PhoneNumber    @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  
+  name                   String         // e.g. "Agency Main Line Waterfall"
+  strategy               String         @default("sequential") // "sequential" | "simultaneous" | "round_robin" | "queue_first"
+  ringTimeoutSec         Int            @default(20) // Seconds to ring before cascading
+  
+  // JSON Array of destinations:
+  // [
+  //   { "type": "agent", "targetId": "uuid", "priority": 1, "timeoutSec": 20 },
+  //   { "type": "phone", "e164": "+919876543210", "name": "Rajesh (Sales)", "priority": 2, "timeoutSec": 25 },
+  //   { "type": "phone", "e164": "+919162051705", "name": "Amit (Backup)", "priority": 3, "timeoutSec": 20 }
+  // ]
+  destinations           Json           @default("[]")
+  
+  // Time-of-Day Schedule
+  scheduleEnabled        Boolean        @default(false)
+  timezone               String         @default("Asia/Kolkata")
+  businessHours          Json?          // { "mon": {"start": "09:00", "end": "18:00"}, ... }
+  
+  // Fallback Failover
+  fallbackType           String         @default("ai_agent") // "ai_agent" | "voicemail" | "queue" | "hangup"
+  fallbackAgentId        String?
+  fallbackVoicemailEmail String?
+  
+  maxHops                Int            @default(4)
+  whisperAnnouncement    String?
+  isActive               Boolean        @default(true)
+  
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  @@unique([id, companyId])
+  @@index([companyId, phoneNumberId])
+}
+
+// ─── Active Call Hold Queue ──────────────────────────────────────────────────
+model CallQueue {
+  id               String         @id @default(uuid())
+  companyId        String
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  name             String         // e.g. "VIP Priority Support Queue"
+  maxQueueSize     Int            @default(25)
+  maxWaitTimeSec   Int            @default(300)
+  holdMusicUrl     String?
+  announcePosition Boolean        @default(true)
+  
+  currentWaiting   Int            @default(0)
+  totalProcessed   Int            @default(0)
+  avgWaitSeconds   Int            @default(0)
+  
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([id, companyId])
   @@index([companyId])
 }
 

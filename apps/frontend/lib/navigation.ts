@@ -1,5 +1,5 @@
 import { LogoLoader, AILogoIcon } from "@workspace/ui";
-import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork, PhoneCall, Smartphone } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork, PhoneCall, Smartphone, PhoneForwarded, ShieldCheck } from 'lucide-react';
 
 export const navigation = [
     {
@@ -82,8 +82,10 @@ export const navigation = [
             { id: 'dashboard', name: 'Voiceforce Radar', href: '/voiceforce', exact: true, icon: PhoneCall, roles: ['admin', 'employee'] },
             { id: 'agents', name: 'AI Voice Employees', href: '/voiceforce/agents', icon: Bot, roles: ['admin', 'employee'] },
             { id: 'numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin', 'employee'] },
+            { id: 'forwarding', name: 'Call Forwarding & Queues', href: '/voiceforce/forwarding', icon: PhoneForwarded, roles: ['admin', 'employee'] },
             { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
             { id: 'calls', name: 'Live Stream & Logs', href: '/voiceforce/calls', icon: Activity, roles: ['admin', 'employee'] },
+            { id: 'compliance', name: 'Compliance & DNC', href: '/voiceforce/compliance', icon: ShieldCheck, roles: ['admin', 'employee'] },
         ]
     },
 
@@ -162,6 +164,7 @@ export const navigation = [
             { id: 'apps', name: 'Apps', href: '/settings/apps', icon: LayoutGrid, roles: ['admin'] },
             { id: 'system-configs', name: 'System Configs', href: '/settings/system-configs', icon: Settings, roles: ['admin'] },
             { id: 'platform-billing', name: 'Platform Billing', href: '/settings/platform-billing', icon: CreditCard, roles: ['admin'] },
+            { id: 'wallet', name: 'Prepaid Wallet', href: '/settings/wallet', icon: Wallet, roles: ['admin'] },
             { id: 'help-support', name: 'Help & Support', href: '/help-support', icon: LifeBuoy, roles: ['admin', 'employee', 'client'] },
         ]
     }

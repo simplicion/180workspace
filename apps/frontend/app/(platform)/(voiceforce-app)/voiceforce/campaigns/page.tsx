@@ -1,41 +1,90 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Megaphone, ArrowLeft, Plus, Play, Pause, Square, Clock, 
-  Users, CheckCircle2, AlertCircle, X, Sliders
+  Users, CheckCircle2, AlertCircle, Sliders, PhoneForwarded,
+  UploadCloud, FileSpreadsheet, Eye, RotateCcw, PhoneCall,
+  CheckCircle, XCircle, PhoneMissed, Voicemail, Lock
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { LogoLoader } from '@workspace/ui';
+import { 
+  UniversalSkeleton 
+} from '@workspace/ui';
+import { UniversalSlideDrawer } from '../_components/UniversalSlideDrawer';
+import clsx from 'clsx';
 
+/**
+ * 180 Voiceforce: Outbound Campaigns Management
+ * 
+ * Features:
+ * - High-throughput campaign batch creation with Calls-Per-Second (CPS) rate limiting
+ * - Outgoing Caller ID line selection (Telnyx DID or Verified Business Line)
+ * - Bulk CSV/Excel contact file upload with automatic E.164 sanitization
+ * - BullMQ queue pacing, concurrency locks, and pre-campaign financial validation (min ₹200.00)
+ * - Real-time campaign contact inspection drawer with per-lead status and one-click retry
+ */
 export default function VoiceforceCampaignsPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  const [numbers, setNumbers] = useState<any[]>([]);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [walletData, setWalletData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Per-contact Inspection Drawer State
+  const [isInspectOpen, setIsInspectOpen] = useState(false);
+  const [inspectCampaignId, setInspectCampaignId] = useState<string | null>(null);
+  const [inspectData, setInspectData] = useState<any | null>(null);
+  const [inspectLoading, setInspectLoading] = useState(false);
+  const [retryingFailed, setRetryingFailed] = useState(false);
+
+  // File upload input ref
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Campaign Form State
   const [form, setForm] = useState({
-    name: 'Lunch Order Re-engagement Batch',
+    name: 'Customer Re-engagement Batch',
     voiceAgentId: '',
+    phoneNumberId: '',
     phoneNumbersText: '+919876543210\n+919812345678',
     maxConcurrent: 5,
     callsPerSecond: 1.0
   });
 
+  /**
+   * Fetch campaigns, voice agents, and verified phone numbers for caller ID selection
+   */
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [campRes, agentsRes] = await Promise.all([
+      const [campRes, agentsRes, numbersRes, walletRes] = await Promise.all([
         api.get('/api/v1/voiceforce/campaigns').catch(() => ({ data: { data: [] } })),
-        api.get('/api/v1/voiceforce/agents').catch(() => ({ data: { data: [] } }))
+        api.get('/api/v1/voiceforce/agents').catch(() => ({ data: { data: [] } })),
+        api.get('/api/v1/voiceforce/numbers').catch(() => ({ data: { data: [] } })),
+        api.get('/api/v1/wallet').catch(() => ({ data: { data: null } }))
       ]);
-      setCampaigns(campRes.data?.data || []);
-      setAgents(agentsRes.data?.data || []);
-      if (agentsRes.data?.data?.length > 0 && !form.voiceAgentId) {
-        setForm(prev => ({ ...prev, voiceAgentId: agentsRes.data.data[0].id }));
+
+      const campList = campRes.data?.data || [];
+      const agentList = agentsRes.data?.data || [];
+      const numList = numbersRes.data?.data || [];
+      const wData = walletRes.data?.data || null;
+
+      setCampaigns(campList);
+      setAgents(agentList);
+      setNumbers(numList);
+      setWalletData(wData);
+      setWalletBalance(wData?.balanceInr ?? 0);
+
+      if (agentList.length > 0 && !form.voiceAgentId) {
+        setForm(prev => ({ ...prev, voiceAgentId: agentList[0].id }));
+      }
+      if (numList.length > 0 && !form.phoneNumberId) {
+        setForm(prev => ({ ...prev, phoneNumberId: numList[0].id }));
       }
     } catch (err: any) {
       toast.error('Failed to load campaigns');
@@ -48,10 +97,55 @@ export default function VoiceforceCampaignsPage() {
     fetchData();
   }, []);
 
+  /**
+   * Parse CSV or Excel Text File Upload
+   */
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string;
+      if (!content) return;
+
+      const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
+      const extractedPhones: string[] = [];
+
+      for (const line of lines) {
+        // Match standard phone numbers (international E.164 or 10-digit Indian numbers)
+        const match = line.match(/\+?[0-9]{10,15}/);
+        if (match) {
+          let phone = match[0];
+          if (!phone.startsWith('+') && phone.length === 10) {
+            phone = `+91${phone}`;
+          }
+          if (!extractedPhones.includes(phone)) {
+            extractedPhones.push(phone);
+          }
+        }
+      }
+
+      if (extractedPhones.length > 0) {
+        setForm(prev => ({
+          ...prev,
+          phoneNumbersText: extractedPhones.join('\n')
+        }));
+        toast.success(`Extracted ${extractedPhones.length} phone numbers from ${file.name}`);
+      } else {
+        toast.error('No valid phone numbers found in file.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  /**
+   * Launch new outbound campaign batch
+   */
   const handleLaunchCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.voiceAgentId || !form.phoneNumbersText.trim()) {
-      toast.error('All fields are required');
+      toast.error('Campaign name, AI employee, and recipient list are required');
       return;
     }
 
@@ -69,10 +163,11 @@ export default function VoiceforceCampaignsPage() {
       setCreating(true);
       const contactList = phones.map(p => ({ phone: p, name: 'Target Contact' }));
 
-      // 1. Create the campaign record
+      // 1. Create campaign record with chosen Outgoing Caller ID
       const createRes = await api.post('/api/v1/voiceforce/campaigns', {
         name: form.name,
         voiceAgentId: form.voiceAgentId,
+        phoneNumberId: form.phoneNumberId || null,
         contactList,
         maxConcurrent: Number(form.maxConcurrent) || 5,
         callsPerSecond: Number(form.callsPerSecond) || 1.0,
@@ -81,7 +176,7 @@ export default function VoiceforceCampaignsPage() {
 
       const campaignId = createRes.data?.data?.id;
       if (campaignId) {
-        // 2. Launch campaign dispatching to BullMQ worker queue with CPS rate limit
+        // 2. Launch campaign into BullMQ queue with pacing
         await api.post(`/api/v1/voiceforce/campaigns/${campaignId}/launch`);
         toast.success(`Dispatched batch of ${phones.length} calls into BullMQ queue!`);
       }
@@ -92,6 +187,68 @@ export default function VoiceforceCampaignsPage() {
       toast.error(err.response?.data?.error || err.message || 'Error creating campaign');
     } finally {
       setCreating(false);
+    }
+  };
+
+  /**
+   * Open Inspect Contacts Drawer
+   */
+  const handleOpenInspect = async (campaignId: string) => {
+    setInspectCampaignId(campaignId);
+    setIsInspectOpen(true);
+    setInspectLoading(true);
+
+    try {
+      const res = await api.get(`/api/v1/voiceforce/campaigns/${campaignId}`);
+      setInspectData(res.data?.data || null);
+    } catch (err: any) {
+      toast.error('Failed to load campaign contact details');
+    } finally {
+      setInspectLoading(false);
+    }
+  };
+
+  /**
+   * Retry Unanswered or Failed Contacts
+   */
+  const handleRetryFailed = async () => {
+    if (!inspectData) return;
+    const calls = inspectData.calls || [];
+    const failedCalls = calls.filter((c: any) => 
+      ['failed', 'no_answer', 'busy', 'customer_declined'].includes(c.status)
+    );
+
+    if (failedCalls.length === 0) {
+      toast('No failed or unanswered contacts to retry.', { icon: 'ℹ️' });
+      return;
+    }
+
+    try {
+      setRetryingFailed(true);
+      const retryPhones = failedCalls.map((c: any) => c.recipientPhone);
+
+      // Create a follow-up retry campaign
+      const createRes = await api.post('/api/v1/voiceforce/campaigns', {
+        name: `${inspectData.name} (Retry Batch)`,
+        voiceAgentId: inspectData.voiceAgentId,
+        phoneNumberId: inspectData.phoneNumberId || null,
+        contactList: retryPhones.map((p: string) => ({ phone: p, name: 'Retry Lead' })),
+        maxConcurrent: inspectData.maxConcurrent || 5,
+        callsPerSecond: inspectData.callsPerSecond || 1.0,
+        retryCount: 1
+      });
+
+      const newId = createRes.data?.data?.id;
+      if (newId) {
+        await api.post(`/api/v1/voiceforce/campaigns/${newId}/launch`);
+        toast.success(`Launched retry campaign for ${retryPhones.length} contacts!`);
+        setIsInspectOpen(false);
+        fetchData();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to launch retry batch');
+    } finally {
+      setRetryingFailed(false);
     }
   };
 
@@ -135,231 +292,486 @@ export default function VoiceforceCampaignsPage() {
     }
   };
 
+  const getCallStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+            <CheckCircle className="w-3 h-3 text-emerald-500" /> Completed
+          </span>
+        );
+      case 'in_progress':
+      case 'ringing':
+      case 'dialing':
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 animate-pulse">
+            <PhoneCall className="w-3 h-3 text-blue-500" /> Dialing
+          </span>
+        );
+      case 'no_answer':
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60">
+            <PhoneMissed className="w-3 h-3 text-amber-500" /> No Answer
+          </span>
+        );
+      case 'busy':
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-200 dark:border-purple-800/60">
+            Busy
+          </span>
+        );
+      case 'voicemail':
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60">
+            <Voicemail className="w-3 h-3 text-indigo-500" /> Voicemail
+          </span>
+        );
+      default:
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+            <XCircle className="w-3 h-3 text-rose-500" /> {status || 'Failed'}
+          </span>
+        );
+    }
+  };
+  const minRequired = Number(walletData?.minRequiredInr || walletData?.constants?.minThresholdInr || 200);
+  const isLocked = walletData?.isLocked ?? (walletBalance < minRequired);
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Link href="/voiceforce" className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+    <div className="space-y-6 animate-in fade-in duration-300 pb-16 max-w-7xl mx-auto">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/voiceforce"
+              className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700/80 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors border border-gray-200/80 dark:border-gray-700"
+              title="Back to Voiceforce Dashboard"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Call Campaigns</h1>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Call Campaigns</h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                Automate high-volume outbound calling with strict Calls-Per-Second (CPS) rate pacing and contact drilldown.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
-            Automate high-volume outbound calling with strict Calls-Per-Second (CPS) rate limits.
-          </p>
         </div>
 
         <button
-          onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 transition-all cursor-pointer"
+          onClick={() => {
+            if (isLocked) {
+              toast.error(`Voiceforce Calling is Locked. A minimum wallet balance of ₹${minRequired.toFixed(2)} is required to launch campaigns.`);
+              return;
+            }
+            setIsCreateOpen(true);
+          }}
+          className={clsx(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md",
+            isLocked
+              ? "bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700 cursor-not-allowed"
+              : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-indigo-500/20 cursor-pointer"
+          )}
         >
-          <Plus className="w-4 h-4" />
-          <span>New Outbound Campaign</span>
+          {isLocked ? <Lock className="w-4 h-4 text-rose-500" /> : <Plus className="w-4 h-4" />}
+          <span>{isLocked ? `Locked (Min ₹${minRequired.toFixed(0)})` : 'New Outbound Campaign'}</span>
         </button>
       </div>
 
+      {/* Campaign List Grid */}
       {loading ? (
-        <div className="flex h-64 items-center justify-center">
-          <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
+        <div className="p-4">
+          <UniversalSkeleton type="kanban" />
         </div>
       ) : campaigns.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white/5 border border-white/10">
-          <Megaphone className="w-12 h-12 text-indigo-400 mx-auto mb-3 opacity-60" />
-          <h3 className="text-base font-semibold text-white">No Active Campaigns</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Launch multi-call re-engagement, appointment setting, or lead qualification batches.
+        <div className="p-12 text-center rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-4 border border-indigo-100 dark:border-indigo-900/50">
+            <Megaphone className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white">No Outbound Campaigns Active</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto leading-relaxed">
+            Launch multi-call re-engagement, appointment setting, or client feedback batches executed autonomously by your AI employees.
           </p>
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="mt-4 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+            className="mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
           >
             Create First Campaign
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {campaigns.map((camp) => (
-            <div key={camp.id} className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-indigo-500/30 transition-all shadow-lg flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-white">{camp.name}</h3>
-                    <p className="text-xs text-slate-400">Agent: {camp.voiceAgent?.name || 'Voice Agent'}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {campaigns.map((camp) => {
+            const total = camp.totalRecipients || 0;
+            const completed = camp.completedCalls || 0;
+            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            return (
+              <div 
+                key={camp.id} 
+                className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 hover:border-indigo-500/40 hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900 dark:text-white">{camp.name}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+                        Agent: <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{camp.voiceAgent?.name || 'Voice Agent'}</span>
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase ${
+                      camp.status === 'running' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60' :
+                      camp.status === 'paused' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60' :
+                      camp.status === 'completed' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/60' :
+                      'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                    }`}>
+                      {camp.status}
+                    </span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border uppercase ${
-                    camp.status === 'running' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                    camp.status === 'paused' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                    camp.status === 'completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                    'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                  }`}>
-                    {camp.status}
-                  </span>
+
+                  {/* Progress Bar */}
+                  <div className="mt-5 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500 dark:text-gray-400">Campaign Progress</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{pct}% ({completed}/{total})</span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-indigo-500 to-violet-600 transition-all duration-300 rounded-full"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2 text-xs text-gray-500 dark:text-gray-400">
+                    <div className="flex justify-between">
+                      <span>Total Contacts</span>
+                      <span className="text-gray-900 dark:text-gray-200 font-semibold">{total}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Completed Calls</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{completed}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Rate Limit Pacing</span>
+                      <span className="text-gray-900 dark:text-gray-200 font-medium">{camp.callsPerSecond || 1.0} calls/sec</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-white/5 space-y-2 text-xs text-slate-400">
-                  <div className="flex justify-between">
-                    <span>Total Recipients</span>
-                    <span className="text-white font-medium">{camp.totalRecipients || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Completed</span>
-                    <span className="text-emerald-400 font-medium">{camp.completedCalls || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Pacing</span>
-                    <span className="text-slate-200">{camp.callsPerSecond} calls/sec</span>
-                  </div>
+                {/* Card Actions: Inspect Contacts & Queue Controls */}
+                <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenInspect(camp.id)}
+                    className="flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 text-xs font-semibold transition-all cursor-pointer"
+                    title="Inspect contact list and call results"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Inspect</span>
+                  </button>
+
+                  {camp.status === 'draft' && (
+                    <button
+                      onClick={() => handleDirectLaunch(camp.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5" /> Launch
+                    </button>
+                  )}
+                  {camp.status === 'running' && (
+                    <button
+                      onClick={() => handlePause(camp.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      <Pause className="w-3.5 h-3.5" /> Pause
+                    </button>
+                  )}
+                  {camp.status === 'paused' && (
+                    <button
+                      onClick={() => handleResume(camp.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5" /> Resume
+                    </button>
+                  )}
+                  {['running', 'paused'].includes(camp.status) && (
+                    <button
+                      onClick={() => handleStop(camp.id)}
+                      className="py-2 px-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 text-xs font-semibold transition-all cursor-pointer"
+                      title="Stop Campaign"
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-2">
-                {camp.status === 'draft' && (
-                  <button
-                    onClick={() => handleDirectLaunch(camp.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer"
-                  >
-                    <Play className="w-3.5 h-3.5" /> Launch
-                  </button>
-                )}
-                {camp.status === 'running' && (
-                  <button
-                    onClick={() => handlePause(camp.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs font-semibold cursor-pointer"
-                  >
-                    <Pause className="w-3.5 h-3.5" /> Pause
-                  </button>
-                )}
-                {camp.status === 'paused' && (
-                  <button
-                    onClick={() => handleResume(camp.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold cursor-pointer"
-                  >
-                    <Play className="w-3.5 h-3.5" /> Resume
-                  </button>
-                )}
-                {['running', 'paused'].includes(camp.status) && (
-                  <button
-                    onClick={() => handleStop(camp.id)}
-                    className="py-1.5 px-3 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-semibold cursor-pointer"
-                  >
-                    <Square className="w-3.5 h-3.5" /> Stop
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Create Campaign Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 relative">
+      {/* Universal Slide Drawer 1: Create Outbound Campaign */}
+      <UniversalSlideDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Create Outbound Campaign"
+        subtitle="Automate telephone calling across target recipient numbers via BullMQ queue."
+        icon={Megaphone}
+        iconColorClass="text-indigo-600 dark:text-indigo-400"
+        iconBgClass="bg-indigo-50 dark:bg-indigo-950/60"
+        maxWidthClass="max-w-xl"
+        onSubmit={handleLaunchCampaign}
+        footer={
+          <>
             <button
+              type="button"
               onClick={() => setIsCreateOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="px-4 py-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-medium transition-colors"
             >
-              <X className="w-5 h-5" />
+              Cancel
             </button>
+            <button
+              type="submit"
+              disabled={creating}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            >
+              {creating ? 'Dispatching Batch...' : 'Launch Campaign'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Campaign Name
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              required
+            />
+          </div>
 
-            <div className="flex items-center gap-2 mb-4">
-              <span className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
-                <Megaphone className="w-5 h-5" />
-              </span>
-              <div>
-                <h3 className="text-lg font-bold text-white">Create Outbound Campaign</h3>
-                <p className="text-xs text-slate-400">Automate calling across a list of target phone numbers.</p>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Assigned AI Employee
+              </label>
+              <select
+                value={form.voiceAgentId}
+                onChange={(e) => setForm({ ...form, voiceAgentId: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                required
+              >
+                {agents.map((ag) => (
+                  <option key={ag.id} value={ag.id}>{ag.name} ({ag.role})</option>
+                ))}
+              </select>
             </div>
 
-            <form onSubmit={handleLaunchCampaign} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Campaign Name</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  required
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Outgoing Caller ID Line
+              </label>
+              <select
+                value={form.phoneNumberId}
+                onChange={(e) => setForm({ ...form, phoneNumberId: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value="">Default Telecom DID (+1 SIP Pool)</option>
+                {numbers.map((num) => (
+                  <option key={num.id} value={num.id}>
+                    {num.e164Number} ({num.friendlyName || num.provider})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Assigned AI Employee</label>
-                <select
-                  value={form.voiceAgentId}
-                  onChange={(e) => setForm({ ...form, voiceAgentId: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  required
-                >
-                  {agents.map((ag) => (
-                    <option key={ag.id} value={ag.id}>{ag.name} ({ag.role})</option>
-                  ))}
-                </select>
-              </div>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Recipient Phone Numbers (E.164 Format)
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Upload CSV / Excel</span>
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Recipient Phone Numbers (One per line, E.164 format)
-                </label>
-                <textarea
-                  rows={4}
-                  value={form.phoneNumbersText}
-                  onChange={(e) => setForm({ ...form, phoneNumbersText: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-indigo-500"
-                  required
-                />
-              </div>
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              accept=".csv,.txt,.xlsx" 
+              onChange={handleFileUpload} 
+              className="hidden" 
+            />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Max Concurrent Calls</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={form.maxConcurrent}
-                    onChange={(e) => setForm({ ...form, maxConcurrent: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Dial Rate (Calls/Sec)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max="10"
-                    value={form.callsPerSecond}
-                    onChange={(e) => setForm({ ...form, callsPerSecond: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
+            <textarea
+              rows={5}
+              value={form.phoneNumbersText}
+              onChange={(e) => setForm({ ...form, phoneNumbersText: e.target.value })}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              placeholder="+919876543210&#10;+919812345678"
+              required
+            />
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+              Supports bulk copy-paste or CSV column upload. Phone numbers are automatically verified against Do-Not-Call (DNC) compliance.
+            </p>
+          </div>
 
-              <div className="pt-3 flex justify-end gap-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 text-slate-400 hover:text-white text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-50"
-                >
-                  {creating ? 'Launching Batch...' : 'Launch Campaign'}
-                </button>
-              </div>
-            </form>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Max Concurrent Calls
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={form.maxConcurrent}
+                onChange={(e) => setForm({ ...form, maxConcurrent: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Dial Rate (Calls/Sec)
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="0.5"
+                max="10"
+                value={form.callsPerSecond}
+                onChange={(e) => setForm({ ...form, callsPerSecond: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
           </div>
         </div>
-      )}
+      </UniversalSlideDrawer>
+
+      {/* Universal Slide Drawer 2: Inspect Campaign Contacts */}
+      <UniversalSlideDrawer
+        isOpen={isInspectOpen}
+        onClose={() => setIsInspectOpen(false)}
+        title={inspectData?.name || "Inspect Campaign Contacts"}
+        subtitle="Individual contact dial status, call durations, and post-call conversational outcomes."
+        icon={Users}
+        iconColorClass="text-violet-600 dark:text-violet-400"
+        iconBgClass="bg-violet-50 dark:bg-violet-950/60"
+        maxWidthClass="max-w-2xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <button
+              type="button"
+              onClick={handleRetryFailed}
+              disabled={retryingFailed || !inspectData?.calls?.some((c: any) => ['failed', 'no_answer', 'busy'].includes(c.status))}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 text-xs font-semibold transition-all disabled:opacity-40 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>{retryingFailed ? 'Dispatching Retries...' : 'Retry Failed / Unanswered'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsInspectOpen(false)}
+              className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        {inspectLoading ? (
+          <div className="p-4 space-y-3">
+            <UniversalSkeleton type="list" />
+          </div>
+        ) : !inspectData ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400 p-4">No data loaded.</p>
+        ) : (
+          <div className="space-y-4">
+            {/* Quick Metrics Header */}
+            <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700 text-center">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-gray-400">Total Leads</span>
+                <p className="text-base font-bold text-gray-900 dark:text-white">{inspectData.totalRecipients || inspectData.calls?.length || 0}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-emerald-500">Connected</span>
+                <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                  {inspectData.calls?.filter((c: any) => c.status === 'completed').length || 0}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-rose-500">Unanswered</span>
+                <p className="text-base font-bold text-rose-600 dark:text-rose-400">
+                  {inspectData.calls?.filter((c: any) => ['failed', 'no_answer', 'busy'].includes(c.status)).length || 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Recipient Calls List */}
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {!inspectData.calls || inspectData.calls.length === 0 ? (
+                <div className="text-center py-8 text-xs text-gray-500 dark:text-gray-400">
+                  No dialed sessions recorded yet. Calls will appear here as BullMQ worker executes the queue.
+                </div>
+              ) : (
+                inspectData.calls.map((call: any) => (
+                  <div 
+                    key={call.id}
+                    className="p-3 rounded-xl bg-white dark:bg-gray-800/80 border border-gray-200/80 dark:border-gray-700/80 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-gray-900 dark:text-white">
+                          {call.recipientPhone}
+                        </span>
+                        {call.recipientName && (
+                          <span className="text-gray-500 dark:text-gray-400">
+                            ({call.recipientName})
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        <span>Duration: {call.durationSeconds || 0}s</span>
+                        {call.callOutcome && (
+                          <>
+                            <span>•</span>
+                            <span className="text-indigo-600 dark:text-indigo-400 font-medium capitalize">
+                              {call.callOutcome.replace(/_/g, ' ')}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {getCallStatusBadge(call.status)}
+                      <Link
+                        href={`/voiceforce/calls/${call.id}`}
+                        className="p-1 rounded-lg text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        title="View Call Details"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </UniversalSlideDrawer>
     </div>
   );
 }
