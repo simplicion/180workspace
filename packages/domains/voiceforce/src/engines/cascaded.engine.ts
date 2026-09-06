@@ -33,18 +33,18 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     // 1. Initialize Cartesia Unified Streaming STT (Ink-2: Sub-150ms with Semantic Turn Detection)
     if (cartesiaKey) {
       this.cartesiaSttWs = new WebSocket(
-        `wss://api.cartesia.ai/stt/websocket?cartesia_version=2026-08-14&encoding=pcm_s16le&sample_rate=16000&api_key=${cartesiaKey}`
+        `wss://api.cartesia.ai/stt/websocket?model=ink-2&cartesia_version=2024-06-10&encoding=pcm_s16le&sample_rate=16000&api_key=${cartesiaKey}`
       );
 
       this.cartesiaSttWs.on('message', (raw: any) => {
         try {
           const msg = JSON.parse(raw.toString());
-          const transcript = msg.transcript || msg.text || '';
-          if (!transcript) return;
+          const transcript = msg.text || msg.transcript || '';
+          if (!transcript || !transcript.trim()) return;
           const isFinal = Boolean(msg.is_final || msg.type === 'turn_end' || msg.final);
-          this.events.onTranscript('user', transcript, isFinal);
+          this.events.onTranscript('user', transcript.trim(), isFinal);
           if (isFinal) {
-            this.handleUserUtterance(transcript);
+            this.handleUserUtterance(transcript.trim());
           }
         } catch {}
       });
@@ -370,11 +370,11 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     this.lastAgentSpokeTimestamp = Date.now();
 
     this.cartesiaWs.send(JSON.stringify({
-      model_id: 'sonic-english',
+      model_id: 'sonic-2',
       transcript: text,
       voice: {
         mode: 'id',
-        id: this.config.voiceId || '694f12bc-9263-4416-a1d8-0402e1c6e1d2'
+        id: this.config.voiceId || '4e045189-a105-4024-921c-dc46b9794f61'
       },
       output_format: {
         container: 'raw',

@@ -1,4 +1,19 @@
-import { RoomServiceClient, SipClient, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload } from 'livekit-server-sdk';
+import { RoomServiceClient, SipClient, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload, AccessToken } from 'livekit-server-sdk';
+import {
+  Room as RtcRoom,
+  AudioSource,
+  LocalAudioTrack,
+  AudioFrame,
+  AudioStream,
+  TrackPublishOptions,
+  TrackSource,
+  TrackKind,
+  RoomEvent,
+  RemoteTrack,
+  RemoteTrackPublication,
+  RemoteParticipant,
+  RemoteAudioTrack
+} from '@livekit/rtc-node';
 import { CascadedVoiceEngine } from './cascaded.engine';
 import { VoiceSessionConfig } from '../types/voice.types';
 import { prisma } from '@workspace/db';
@@ -30,6 +45,11 @@ export class LiveKitRoomWorker {
   private monitorTimer: NodeJS.Timeout | null = null;
   private hasCustomerAnswered: boolean = false;
   private greetingDelivered: boolean = false;
+  private rtcRoom: RtcRoom | null = null;
+  private audioSource: AudioSource | null = null;
+  private audioTrack: LocalAudioTrack | null = null;
+  private audioFrameQueue: AudioFrame[] = [];
+  private isDrainingAudioQueue: boolean = false;
 
   constructor(options: LiveKitRoomWorkerOptions) {
     this.options = options;
@@ -114,6 +134,55 @@ export class LiveKitRoomWorker {
       metadata: JSON.stringify({ callSessionId, companyId, voiceAgentId })
     });
     await this.recordMilestone('livekit_room_created', { roomName });
+
+    // 2b. Connect WebRTC RTC Agent & Publish Audio Track to LiveKit Room
+    try {
+      const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
+      const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
+      const livekitHost = process.env.LIVEKIT_URL || process.env.LIVEKIT_HOST || 'https://livekit.180workspace.com';
+
+      const agentToken = new AccessToken(apiKey, apiSecret, {
+        identity: `agent_${voiceAgentId.slice(0, 8)}_${Date.now()}`,
+        name: 'Voiceforce AI Agent'
+      });
+      agentToken.addGrant({
+        roomJoin: true,
+        room: roomName,
+        canPublish: true,
+        canSubscribe: true,
+        canPublishData: true
+      });
+      const jwt = await agentToken.toJwt();
+
+      this.rtcRoom = new RtcRoom();
+      await this.rtcRoom.connect(livekitHost, jwt);
+
+      this.audioSource = new AudioSource(16000, 1, 10000);
+      this.audioTrack = LocalAudioTrack.createAudioTrack('agent_voice', this.audioSource);
+      await this.rtcRoom.localParticipant?.publishTrack(
+        this.audioTrack,
+        new TrackPublishOptions({ source: TrackSource.SOURCE_MICROPHONE })
+      );
+
+      this.rtcRoom.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+        console.log(`[LiveKitRoomWorker] Subscribed to remote track ${track.sid} (${track.kind}) from ${participant.identity}`);
+        if (track.kind === TrackKind.KIND_AUDIO) {
+          this.attachRemoteAudioStream(track as RemoteAudioTrack);
+        }
+      });
+
+      // Attach any tracks from participants already present in the room
+      for (const [, p] of this.rtcRoom.remoteParticipants) {
+        for (const [, pub] of p.trackPublications) {
+          if (pub.track && pub.track.kind === TrackKind.KIND_AUDIO) {
+            this.attachRemoteAudioStream(pub.track as RemoteAudioTrack);
+          }
+        }
+      }
+      await this.recordMilestone('rtc_agent_audio_bridged');
+    } catch (rtcErr: any) {
+      console.warn('[LiveKitRoomWorker] RTC agent connect warning:', rtcErr.message);
+    }
 
     // 3. Fetch Agent & Compile Dynamic Business Brain (Catalog, Pricing, Past Interactions)
     const agent = await prisma.voiceAgent.findUnique({
@@ -234,7 +303,34 @@ export class LiveKitRoomWorker {
       },
 
       onAudioChunk: async (audioChunk) => {
-        // Broadcast audio chunk to room participants via LiveKit real-time data channel
+        // 1. Enqueue 20ms frames into WebRTC audio track so telephone caller hears agent over RTP
+        if (this.audioSource) {
+          try {
+            const sampleRate = 16000;
+            const channels = 1;
+            const samplesPerFrame = 320; // 20ms frame at 16kHz
+            const bytesPerFrame = samplesPerFrame * 2;
+            const cleanBytes = new Uint8Array(audioChunk);
+
+            for (let offset = 0; offset < cleanBytes.byteLength; offset += bytesPerFrame) {
+              const end = Math.min(offset + bytesPerFrame, cleanBytes.byteLength);
+              const slice = cleanBytes.subarray(offset, end);
+              const numSamples = Math.floor(slice.byteLength / 2);
+              if (numSamples === 0) continue;
+
+              const pcmChunk = new Int16Array(
+                slice.buffer.slice(slice.byteOffset, slice.byteOffset + numSamples * 2)
+              );
+              const frame = new AudioFrame(pcmChunk, sampleRate, channels, numSamples);
+              this.audioFrameQueue.push(frame);
+            }
+            this.drainAudioQueue();
+          } catch (err: any) {
+            console.warn('[LiveKitRoomWorker] audioChunk enqueue note:', err.message);
+          }
+        }
+
+        // 2. Broadcast audio chunk to room participants via LiveKit data channel
         const audioPacket = Buffer.from(JSON.stringify({
           type: 'audio_chunk',
           audioBase64: audioChunk.toString('base64'),
@@ -244,6 +340,10 @@ export class LiveKitRoomWorker {
       },
 
       onInterrupted: async () => {
+        this.audioFrameQueue = [];
+        if (this.audioSource) {
+          this.audioSource.clearQueue();
+        }
         await this.recordMilestone('barge_in_interruption');
       },
 
@@ -440,6 +540,46 @@ export class LiveKitRoomWorker {
   }
 
   /**
+   * Smoothly drains queued 20ms audio frames into WebRTC AudioSource
+   */
+  private async drainAudioQueue(): Promise<void> {
+    if (this.isDrainingAudioQueue || !this.audioSource) return;
+    this.isDrainingAudioQueue = true;
+
+    try {
+      while (this.audioFrameQueue.length > 0) {
+        const frame = this.audioFrameQueue.shift();
+        if (!frame || !this.audioSource) break;
+        try {
+          await this.audioSource.captureFrame(frame);
+        } catch (err: any) {
+          console.warn('[LiveKitRoomWorker] captureFrame note:', err.message);
+        }
+      }
+    } finally {
+      this.isDrainingAudioQueue = false;
+    }
+  }
+
+  /**
+   * Subscribes to remote participant incoming audio stream and feeds PCM frames into AI voice engine
+   */
+  private attachRemoteAudioStream(track: RemoteAudioTrack): void {
+    const stream = new AudioStream(track, 16000, 1);
+    (async () => {
+      try {
+        for await (const frame of stream) {
+          if (!this.isRunning) break;
+          const pcmBuffer = Buffer.from(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength);
+          this.engine?.processIncomingAudio(pcmBuffer);
+        }
+      } catch (streamErr: any) {
+        console.warn('[LiveKitRoomWorker] AudioStream read warning:', streamErr.message);
+      }
+    })();
+  }
+
+  /**
    * Feed raw audio into engine (from WebRTC or softphone websocket)
    */
   processAudio(chunk: Buffer | Int16Array): void {
@@ -452,6 +592,9 @@ export class LiveKitRoomWorker {
    * Handles user barge-in
    */
   bargeIn(): void {
+    if (this.audioSource) {
+      this.audioSource.clearQueue();
+    }
     if (this.engine) {
       this.engine.handleBargeIn();
     }
@@ -468,6 +611,21 @@ export class LiveKitRoomWorker {
 
     if (!this.isRunning) return;
     this.isRunning = false;
+
+    if (this.audioSource) {
+      try {
+        this.audioSource.clearQueue();
+        await this.audioSource.close();
+      } catch {}
+      this.audioSource = null;
+    }
+
+    if (this.rtcRoom) {
+      try {
+        await this.rtcRoom.disconnect();
+      } catch {}
+      this.rtcRoom = null;
+    }
 
     if (this.engine) {
       await this.engine.stop(reason).catch(() => {});

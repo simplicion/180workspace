@@ -38,14 +38,18 @@ export function setupVoiceforceWorker(customRedis?: Redis | any) {
       switch (jobType) {
         case 'dispatch-call': {
           const { callSessionId, companyId, maxConcurrent } = data;
+          // 1. Check Company Active Call Concurrency (DB-backed + Redis safety)
+          const maxAllowed = maxConcurrent || 10;
+          const activeSessions = await (prisma as any).callSession.count({
+            where: {
+              companyId,
+              id: { not: callSessionId },
+              status: { in: ['dialing', 'ringing', 'in_progress'] }
+            }
+          });
 
-          // 1. Check Company Active Call Concurrency
-          const activeKey = `voiceforce:active:${companyId}`;
-          const currentCount = await redis.incr(activeKey);
-
-          if (currentCount > (maxConcurrent || 5)) {
-            await redis.decr(activeKey);
-            throw new Error('CONCURRENCY_LIMIT_REACHED');
+          if (activeSessions >= maxAllowed) {
+            throw new Error(`CONCURRENCY_LIMIT_REACHED (${activeSessions}/${maxAllowed} active calls)`);
           }
 
           try {
@@ -55,7 +59,6 @@ export function setupVoiceforceWorker(customRedis?: Redis | any) {
             });
 
             if (!session) {
-              await redis.decr(activeKey);
               return;
             }
 
@@ -86,7 +89,6 @@ export function setupVoiceforceWorker(customRedis?: Redis | any) {
             await roomWorker.start();
             console.log(`[VoiceforceWorker] Call ${callSessionId} dispatched into room ${roomName}`);
           } catch (err: any) {
-            await redis.decr(activeKey);
             console.error(`[VoiceforceWorker] Call ${callSessionId} dispatch failure:`, err.message);
             await (prisma as any).callSession.update({
               where: { id: callSessionId },
@@ -110,10 +112,6 @@ export function setupVoiceforceWorker(customRedis?: Redis | any) {
           });
 
           if (!session) break;
-
-          // Release active concurrency slot
-          const activeKey = `voiceforce:active:${companyId}`;
-          await redis.decr(activeKey).catch(() => {});
 
           // Extract Post-Call Summary & Actions if transcripts exist
           let analysis: any = {
