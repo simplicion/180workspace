@@ -7,10 +7,12 @@ import {
   PhoneCall, ArrowLeft, Bot, Clock, IndianRupee, ShieldCheck, 
   Sparkles, CheckCircle2, AlertCircle, Wrench, Play, Pause, Volume2,
   VolumeX, Download, Trash2, Search, User, Copy, Check, Radio, 
-  Headphones, ListChecks, CheckSquare, Square, ArrowUpRight, Gauge
+  Headphones, ListChecks, CheckSquare, Square, ArrowUpRight, Gauge, Calculator
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/lib/auth-context';
+import { locationService } from '@/lib/location-service';
 import { UniversalSkeleton, ConfirmModal } from '@workspace/ui';
 import clsx from 'clsx';
 
@@ -26,9 +28,12 @@ import clsx from 'clsx';
  * - Telephony architecture metadata (Telnyx SIP + LiveKit SFU + Cartesia TTS)
  */
 export default function VoiceforceCallDetailPage() {
+  const { company } = useAuth();
   const { id } = useParams();
   const router = useRouter();
   const [call, setCall] = useState<any>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'transcript' | 'forensic'>('transcript');
   const [loading, setLoading] = useState(true);
   const [transcriptSearch, setTranscriptSearch] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -49,8 +54,12 @@ export default function VoiceforceCallDetailPage() {
   const fetchCall = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/v1/voiceforce/calls/${id}`);
+      const [res, auditRes] = await Promise.all([
+        api.get(`/api/v1/voiceforce/calls/${id}`),
+        api.get(`/api/v1/voiceforce/calls/${id}/audit-trail`).catch(() => ({ data: { logs: [] } }))
+      ]);
       setCall(res.data?.data || null);
+      setAuditLogs(auditRes.data?.logs || []);
     } catch (err: any) {
       toast.error('Failed to load call details');
     } finally {
@@ -144,7 +153,7 @@ export default function VoiceforceCallDetailPage() {
       `Recipient: ${call.recipientPhone} (${call.recipientName || 'Customer'})`,
       `AI Employee: ${call.voiceAgent?.name || 'AI Voice Agent'}`,
       `Duration: ${call.durationSeconds || 0} seconds`,
-      `Estimated Cost: ₹${call.estimatedCostInr ? Number(call.estimatedCostInr).toFixed(2) : '0.00'}`,
+      `Estimated Cost: ${call?.companyCurrencySymbol || '$'}${call.estimatedCostInr ? Number(call.estimatedCostInr).toFixed(2) : '0.00'}`,
       `Call Outcome: ${call.callOutcome || 'Completed'}`,
       `Sentiment: ${call.sentiment || 'Neutral'}`,
       `Summary: ${call.summary || 'N/A'}`,
@@ -297,8 +306,8 @@ export default function VoiceforceCallDetailPage() {
         <div className="flex items-center gap-3 self-end sm:self-auto flex-wrap">
           <div className="text-right pr-2 border-r border-gray-100 dark:border-gray-800 hidden sm:block">
             <div className="text-base font-bold text-gray-900 dark:text-white flex items-center justify-end gap-1">
-              <IndianRupee className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>₹{call.estimatedCostInr ? Number(call.estimatedCostInr).toFixed(2) : '0.00'}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">{call?.companyCurrencySymbol || '$'}</span>
+              <span>{call.estimatedCostInr ? Number(call.estimatedCostInr).toFixed(2) : '0.00'}</span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Duration: {call.durationSeconds || 0}s ({call.billableMinutes || Math.ceil((call.durationSeconds || 0) / 60)} min)
@@ -322,6 +331,17 @@ export default function VoiceforceCallDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Carrier Disconnection / Failure Reason Banner */}
+      {call.disconnectReason && (call.status === 'failed' || call.status === 'no_answer' || call.status === 'busy' || call.status === 'customer_declined') && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-bold text-rose-900 dark:text-rose-300">Carrier Rejection / Disconnection Cause</h4>
+            <p className="text-xs text-rose-700 dark:text-rose-400 mt-0.5">{call.disconnectReason}</p>
+          </div>
+        </div>
+      )}
 
       {/* HTML5 Audio Waveform Player Widget (When Recording is Available) */}
       {call.recordingUrl && (
@@ -462,89 +482,204 @@ export default function VoiceforceCallDetailPage() {
 
       {/* Main 2-Column Section: Dialogue Transcript & Extracted Tools/Action Items */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Full Dialogue Transcript */}
+        {/* Left 2 Cols: Full Dialogue Transcript / Forensic Decision Inspector */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                Conversation Transcript
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200/80 dark:border-gray-700">
-                {call.transcripts?.length || 0} turns
-              </span>
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Tab Controls */}
+            <div className="flex items-center gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+              <button
+                onClick={() => setActiveTab('transcript')}
+                className={clsx(
+                  "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  activeTab === 'transcript'
+                    ? "bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                )}
+              >
+                <span>Dialogue Transcript</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                  {call.transcripts?.length || 0}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('forensic')}
+                className={clsx(
+                  "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  activeTab === 'forensic'
+                    ? "bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                )}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Forensic Decision Inspector</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  {auditLogs.length}
+                </span>
+              </button>
             </div>
 
-            {/* Search Dialogue Input */}
-            <div className="relative max-w-xs w-full">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search dialogue phrases..."
-                value={transcriptSearch}
-                onChange={(e) => setTranscriptSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-900 transition-all placeholder:text-gray-400"
-              />
-            </div>
+            {/* Search Dialogue Input (Only on Transcript tab) */}
+            {activeTab === 'transcript' && (
+              <div className="relative max-w-xs w-full">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search dialogue phrases..."
+                  value={transcriptSearch}
+                  onChange={(e) => setTranscriptSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-900 transition-all placeholder:text-gray-400"
+                />
+              </div>
+            )}
           </div>
 
           {/* Transcript Dialogue Feed */}
-          <div className="space-y-3">
-            {filteredTranscripts.length === 0 ? (
-              <div className="bg-white dark:bg-gray-900 p-12 text-center rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm">
-                <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-3 text-gray-400">
-                  <Headphones className="w-6 h-6" />
+          {activeTab === 'transcript' ? (
+            <div className="space-y-3">
+              {filteredTranscripts.length === 0 ? (
+                <div className="bg-white dark:bg-gray-900 p-12 text-center rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-3 text-gray-400">
+                    <Headphones className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">No transcript turns recorded</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                    Audio segments stream in real-time as speech is recognized and processed by Cartesia Ink-2.
+                  </p>
                 </div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">No transcript turns recorded</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
-                  Audio segments stream in real-time as speech is recognized and processed by Cartesia Ink-2.
-                </p>
-              </div>
-            ) : (
-              filteredTranscripts.map((t: any, idx: number) => {
-                const isAgent = t.speaker === 'agent';
-                return (
-                  <div
-                    key={idx}
-                    className={clsx(
-                      "p-4 rounded-2xl border transition-all",
-                      isAgent
-                        ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-100/90 dark:border-indigo-900/40 mr-4 sm:mr-8"
-                        : "bg-white dark:bg-gray-900 border-gray-200/80 dark:border-gray-800 ml-4 sm:ml-8"
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className={clsx(
-                          "w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold",
-                          isAgent 
-                            ? "bg-indigo-600 text-white" 
-                            : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                        )}>
-                          {isAgent ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+              ) : (
+                filteredTranscripts.map((t: any, idx: number) => {
+                  const isAgent = t.speaker === 'agent';
+                  return (
+                    <div
+                      key={idx}
+                      className={clsx(
+                        "p-4 rounded-2xl border transition-all",
+                        isAgent
+                          ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-100/90 dark:border-indigo-900/40 mr-4 sm:mr-8"
+                          : "bg-white dark:bg-gray-900 border-gray-200/80 dark:border-gray-800 ml-4 sm:ml-8"
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className={clsx(
+                            "w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold",
+                            isAgent 
+                              ? "bg-indigo-600 text-white" 
+                              : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                          )}>
+                            {isAgent ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+                          </div>
+                          <span className="text-xs font-bold text-gray-900 dark:text-white">
+                            {isAgent ? (call.voiceAgent?.name || 'AI Employee') : (call.recipientName || 'Customer')}
+                          </span>
+                          {t.interrupted && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200/60">
+                              Interrupted
+                            </span>
+                          )}
                         </div>
-                        <span className="text-xs font-bold text-gray-900 dark:text-white">
-                          {isAgent ? (call.voiceAgent?.name || 'AI Employee') : (call.recipientName || 'Customer')}
+
+                        <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
+                          {t.startTimeMs ? `${(t.startTimeMs / 1000).toFixed(1)}s` : '0.0s'}
                         </span>
-                        {t.interrupted && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200/60">
-                            Interrupted
+                      </div>
+
+                      <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed pl-8">
+                        {t.text}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            /* Forensic Decision Inspector Tab Feed */
+            <div className="space-y-3">
+              {auditLogs.length === 0 ? (
+                <div className="bg-white dark:bg-gray-900 p-12 text-center rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm space-y-2">
+                  <ShieldCheck className="w-10 h-10 text-gray-400 mx-auto" />
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">No Decision Logs Found</h3>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                    Action audit logs are recorded turn-by-turn as the AI employee validates safety policies and executes business tools.
+                  </p>
+                </div>
+              ) : (
+                auditLogs.map((log: any, idx: number) => (
+                  <div
+                    key={log.id || idx}
+                    className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm space-y-3"
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                          Turn #{log.turnIndex}
+                        </span>
+                        {log.detectedIntent && (
+                          <span className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200/60 font-semibold">
+                            Intent: {log.detectedIntent}
                           </span>
                         )}
                       </div>
 
-                      <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
-                        {t.startTimeMs ? `${(t.startTimeMs / 1000).toFixed(1)}s` : '0.0s'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-mono text-gray-400">
+                          ⚡ {log.latencyMs}ms
+                        </span>
+                        <span className={clsx(
+                          "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border",
+                          log.policyCheck === 'PASSED' ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300" :
+                          log.policyCheck === 'BLOCKED' ? "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-300" :
+                          "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-300"
+                        )}>
+                          {log.policyCheck}
+                        </span>
+                      </div>
                     </div>
 
-                    <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed pl-8">
-                      {t.text}
-                    </p>
+                    {/* Customer Speech & Intent */}
+                    <div className="space-y-1 text-xs">
+                      <div className="text-gray-500 font-semibold">Customer Speech:</div>
+                      <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded-xl border border-gray-100 dark:border-gray-800">
+                        &ldquo;{log.customerSpeech}&rdquo;
+                      </p>
+                    </div>
+
+                    {/* Policy Reason if blocked/overridden */}
+                    {log.policyReason && (
+                      <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200">
+                        <strong>Policy Enforcement:</strong> {log.policyReason}
+                      </div>
+                    )}
+
+                    {/* Tool Execution if any */}
+                    {log.toolName && (
+                      <div className="space-y-1 text-xs pt-1">
+                        <div className="flex items-center justify-between text-gray-500 font-semibold">
+                          <span>Tool Action: <strong className="text-indigo-600 dark:text-indigo-400">{log.toolName}</strong></span>
+                        </div>
+                        {log.toolArguments && (
+                          <pre className="text-[10px] font-mono bg-gray-50 dark:bg-gray-800 p-2 rounded-xl border border-gray-200/60 dark:border-gray-700 overflow-x-auto text-gray-700 dark:text-gray-300">
+                            {typeof log.toolArguments === 'object' ? JSON.stringify(log.toolArguments, null, 2) : log.toolArguments}
+                          </pre>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Spoken Output */}
+                    {log.agentUtterance && (
+                      <div className="space-y-1 text-xs pt-1">
+                        <div className="text-gray-500 font-semibold">AI Spoken Commitment:</div>
+                        <p className="text-indigo-900 dark:text-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/40 p-2.5 rounded-xl border border-indigo-100/60 dark:border-indigo-900/40">
+                          {log.agentUtterance}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                );
-              })
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right 1 Col: Extracted Action Items & Executed Tools & Telephony Engine */}
@@ -643,6 +778,83 @@ export default function VoiceforceCallDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Itemized Dynamic Rate Ledger Card */}
+          {(() => {
+            const ledger = call.structuredData?.financialLedger;
+            const currencyCode = (call.companyCurrency || ledger?.currency || company?.currency || 'USD').toUpperCase();
+            const currencySym = call.companyCurrencySymbol || ledger?.currencySymbol || company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
+            const countryName = ledger?.destinationCountry || (call.recipientPhone?.startsWith('+91') ? 'India' : call.recipientPhone?.startsWith('+1') ? 'United States' : call.recipientPhone?.startsWith('+977') ? 'Nepal' : 'International');
+            const dialPrefix = ledger?.dialCode || (call.recipientPhone?.startsWith('+91') ? '+91' : call.recipientPhone?.startsWith('+1') ? '+1' : call.recipientPhone?.startsWith('+977') ? '+977' : '+');
+            const carrierRate = ledger ? `$${Number(ledger.carrierCostUsd).toFixed(4)} / min` : (dialPrefix === '+1' ? '$0.0090 / min' : dialPrefix === '+977' ? '$0.2640 / min' : '$0.0200 / min');
+            const engineRate = ledger ? `$${Number(ledger.engineCostUsd).toFixed(4)} / min` : '$0.0205 / min';
+            const realCostUsd = ledger ? `$${Number(ledger.realCostUsd).toFixed(4)} / min` : (dialPrefix === '+1' ? '$0.0295 / min' : dialPrefix === '+977' ? '$0.2845 / min' : '$0.0405 / min');
+            const isUsdSym = currencyCode === 'USD';
+            const defaultCustomerRate = isUsdSym
+              ? (dialPrefix === '+1' ? '$0.053 / min' : dialPrefix === '+977' ? '$0.512 / min' : '$0.073 / min')
+              : (dialPrefix === '+1' ? `${currencySym}4.40 / min` : dialPrefix === '+977' ? `${currencySym}42.70 / min` : `${currencySym}6.10 / min`);
+            const customerRateLocal = ledger ? `${currencySym}${Number(ledger.customerRateLocal).toFixed(2)} / min` : defaultCustomerRate;
+            const multiplier = ledger?.multiplier || 1.8;
+
+            return (
+              <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                      <Calculator className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Telephony Rate Ledger</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">1.8× Dynamic Margin Engine</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200/60">
+                    USD Base + FX
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500 dark:text-gray-400">Destination</span>
+                    <span className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                      <span className="font-mono text-indigo-600 dark:text-indigo-400">{dialPrefix}</span>
+                      <span>{countryName}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500 dark:text-gray-400">Carrier PSTN (Telnyx)</span>
+                    <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{carrierRate}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500 dark:text-gray-400">Voice Engine (Cartesia)</span>
+                    <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{engineRate}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500 dark:text-gray-400">Real Cost (Wholesale USD)</span>
+                    <span className="font-mono font-semibold text-gray-900 dark:text-white">{realCostUsd}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40">
+                    <span className="text-indigo-700 dark:text-indigo-300 font-medium">Platform Formula</span>
+                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">Real Cost × {multiplier}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 mt-1">
+                    <div>
+                      <span className="text-xs font-bold text-emerald-900 dark:text-emerald-300 block">Billed Rate</span>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400">Customer presentation</span>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300 font-mono">
+                      {customerRateLocal}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Technical Telephony Architecture */}
           <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm">

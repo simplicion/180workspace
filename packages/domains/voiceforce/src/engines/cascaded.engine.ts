@@ -1,6 +1,8 @@
 import { BaseVoiceEngine } from './base-voice.engine';
 import { VoiceSessionConfig, VoiceEngineEvents } from '../types/voice.types';
 import { aiToolRegistry, AIProviderService, AICompanyConfigService } from '@workspace/ai';
+import { GuardrailEnforcementEngine } from '../guardrails/guardrail-enforcement.engine';
+import { prisma } from '@workspace/db';
 import Groq from 'groq-sdk';
 import WebSocket from 'ws';
 
@@ -239,23 +241,68 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
 
           this.events.onToolCallStart(tc.name, parsedArgs);
 
-          const execContext = {
-            companyId: this.config.companyId,
-            userId: this.config.userId
-          };
+          // 1. Intercept with Deterministic Guardrails Engine
+          const guardrailCheck = await GuardrailEnforcementEngine.validateToolAction(
+            this.config.voiceAgentId || '',
+            this.config.companyId,
+            tc.name,
+            parsedArgs
+          );
 
+          let finalArgs = parsedArgs;
           let toolResult: any;
-          try {
-            toolResult = await aiToolRegistry.executeTool(tc.name, parsedArgs, execContext);
-          } catch (toolErr: any) {
-            console.warn(`[CascadedVoiceEngine] Gracefully caught tool error on ${tc.name}:`, toolErr.message);
+
+          if (!guardrailCheck.allowed) {
             toolResult = {
-              status: 'error',
-              message: `Action failed: ${toolErr.message || 'Service temporarily unavailable'}`
+              status: 'blocked',
+              message: guardrailCheck.reason || 'Action blocked by safety guardrail policy.'
             };
+          } else {
+            finalArgs = guardrailCheck.sanitizedArguments || parsedArgs;
+            const execContext = {
+              companyId: this.config.companyId,
+              userId: this.config.userId
+            };
+
+            try {
+              toolResult = await aiToolRegistry.executeTool(tc.name, finalArgs, execContext);
+              if (guardrailCheck.overridden && guardrailCheck.reason) {
+                toolResult = {
+                  ...toolResult,
+                  guardrailNote: guardrailCheck.reason
+                };
+              }
+            } catch (toolErr: any) {
+              console.warn(`[CascadedVoiceEngine] Gracefully caught tool error on ${tc.name}:`, toolErr.message);
+              toolResult = {
+                status: 'error',
+                message: `Action failed: ${toolErr.message || 'Service temporarily unavailable'}`
+              };
+            }
           }
 
           this.events.onToolCallEnd(tc.name, toolResult);
+
+          // 2. Asynchronously persist forensic ActionAuditLog
+          if (this.config.callSessionId) {
+            (prisma as any).actionAuditLog.create({
+              data: {
+                companyId: this.config.companyId,
+                callSessionId: this.config.callSessionId,
+                turnIndex: this.conversationHistory.length,
+                customerSpeech: userInput,
+                detectedIntent: tc.name,
+                confidence: 1.0,
+                toolName: tc.name,
+                toolArguments: finalArgs,
+                toolResult,
+                policyCheck: guardrailCheck.overridden ? 'OVERRIDDEN' : (guardrailCheck.allowed ? 'PASSED' : 'BLOCKED'),
+                policyReason: guardrailCheck.reason || null,
+                agentUtterance: assistantText || '',
+                latencyMs: 120
+              }
+            }).catch(() => {});
+          }
 
           this.conversationHistory.push({
             role: 'tool',

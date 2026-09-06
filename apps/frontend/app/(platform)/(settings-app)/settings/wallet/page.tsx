@@ -31,6 +31,7 @@ import {
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
+import { locationService } from '@/lib/location-service';
 import { LogoLoader, PlatformModal } from '@workspace/ui';
 import clsx from 'clsx';
 
@@ -59,6 +60,10 @@ export default function DedicatedWalletSettingsPage() {
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const currencyCode = (wallet?.currency || company?.currency || 'USD').toUpperCase();
+  const currencySymbol = wallet?.currencySymbol || company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
+  const isUsd = currencyCode === 'USD';
 
   // Top-Up State
   const [rechargeAmount, setRechargeAmount] = useState<number>(1000);
@@ -111,8 +116,13 @@ export default function DedicatedWalletSettingsPage() {
 
       if (data) {
         setAutoRecharge(Boolean(data.autoRecharge));
-        setThresholdInr(Number(data.thresholdInr) || 200);
-        setAutoRefillAmount(Number(data.rechargeAmountInr) || 1000);
+        setThresholdInr(Number(data.thresholdInr) || (data.currency === 'USD' ? 10 : 200));
+        setAutoRefillAmount(Number(data.rechargeAmountInr) || (data.currency === 'USD' ? 50 : 1000));
+        if (data.currency === 'USD') {
+          setRechargeAmount(50);
+        } else if (data.recommendedInr) {
+          setRechargeAmount(Number(data.recommendedInr));
+        }
       }
     } catch (err: any) {
       console.error('Failed to load wallet data:', err);
@@ -251,9 +261,10 @@ export default function DedicatedWalletSettingsPage() {
   // Process Razorpay Top-Up with Custom Coupon Code Support
   const handleTopup = async () => {
     const amountToCharge = customAmount ? Number(customAmount) : rechargeAmount;
+    const minTopup = isUsd ? 10 : 100;
 
-    if (!amountToCharge || amountToCharge < 100) {
-      toast.error('Minimum top-up amount is ₹100.00');
+    if (!amountToCharge || amountToCharge < minTopup) {
+      toast.error(`Minimum top-up amount is ${currencySymbol}${minTopup.toFixed(2)}`);
       return;
     }
 
@@ -272,7 +283,7 @@ export default function DedicatedWalletSettingsPage() {
       // Case 1: 100% Free Coupon - Instant credit with Zero Payment Gateway Interruption
       if (orderRes.data.data?.isFree) {
         toast.success(
-          `🎉 Coupon ${appliedCoupon?.code} Applied! ₹${amountToCharge.toFixed(2)} credited directly to your wallet for FREE!`,
+          `🎉 Coupon ${appliedCoupon?.code} Applied! ${currencySymbol}${amountToCharge.toFixed(2)} credited directly to your wallet for FREE!`,
           { duration: 6000 }
         );
         setCustomAmount('');
@@ -291,11 +302,11 @@ export default function DedicatedWalletSettingsPage() {
         const options = {
           key: keyId,
           amount: amountPaise,
-          currency: 'INR',
+          currency: currencyCode,
           name: '180workspace',
           description: appliedCoupon
-            ? `Prepaid Wallet Top-up (Pay ₹${netPayable.toFixed(2)} for ₹${amountToCharge.toFixed(2)} credit)`
-            : `Prepaid Wallet Top-up (₹${amountToCharge.toFixed(2)})`,
+            ? `Prepaid Wallet Top-up (Pay ${currencySymbol}${netPayable.toFixed(2)} for ${currencySymbol}${amountToCharge.toFixed(2)} credit)`
+            : `Prepaid Wallet Top-up (${currencySymbol}${amountToCharge.toFixed(2)})`,
           order_id: orderId,
           handler: async (response: any) => {
             try {
@@ -310,7 +321,7 @@ export default function DedicatedWalletSettingsPage() {
               });
 
               if (verifyRes.data?.success) {
-                toast.success(`Success! ₹${amountToCharge.toFixed(2)} credited to your dedicated wallet.`, { id: 'wallet-verify' });
+                toast.success(`Success! ${currencySymbol}${amountToCharge.toFixed(2)} credited to your dedicated wallet.`, { id: 'wallet-verify' });
                 setCustomAmount('');
                 setAppliedCoupon(null);
                 setCouponCodeInput('');
@@ -323,7 +334,7 @@ export default function DedicatedWalletSettingsPage() {
           },
           prefill: {
             name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email || company?.name || 'Workspace Administrator' : (company?.name || 'Workspace Administrator'),
-            email: user?.email || company?.billingEmail || ''
+            email: user?.email || (company as any)?.billingEmail || (company as any)?.email || ''
           },
           theme: { color: '#4f46e5' }
         };
@@ -394,7 +405,7 @@ export default function DedicatedWalletSettingsPage() {
   const balance = Number(wallet?.balanceInr || 0);
   const isLocked = Boolean(wallet?.isLocked);
   const isLow = Boolean(wallet?.isLow);
-  const minRequired = Number(wallet?.minRequiredInr || 200);
+  const minRequired = Number(wallet?.minRequiredInr || (isUsd ? 10 : 200));
   const summary = wallet?.summary;
 
   return (
@@ -445,10 +456,10 @@ export default function DedicatedWalletSettingsPage() {
             </div>
             <div className="flex-1 text-sm">
               <p className="font-semibold text-rose-900 dark:text-rose-200">
-                Voiceforce Telephony Operations are Hard-Locked (Balance: ₹{balance.toFixed(2)})
+                Voiceforce Telephony Operations are Hard-Locked (Balance: {currencySymbol}{balance.toFixed(2)})
               </p>
               <p className="mt-0.5 text-xs text-rose-700 dark:text-rose-300">
-                A minimum balance of ₹{minRequired.toFixed(2)} is required to dial or receive calls. Top up ₹{Number(wallet?.recommendedInr || 1000).toFixed(2)} to immediately unlock all telephony services.
+                A minimum balance of {currencySymbol}{minRequired.toFixed(2)} is required to dial or receive calls. Top up {currencySymbol}{Number(wallet?.recommendedInr || (isUsd ? 50 : 1000)).toFixed(2)} to immediately unlock all telephony services.
               </p>
             </div>
           </motion.div>
@@ -468,10 +479,10 @@ export default function DedicatedWalletSettingsPage() {
             </div>
             <div className="flex-1 text-sm">
               <p className="font-semibold text-amber-900 dark:text-amber-200">
-                Low Wallet Balance Warning (₹{balance.toFixed(2)})
+                Low Wallet Balance Warning ({currencySymbol}{balance.toFixed(2)})
               </p>
               <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
-                Your wallet is approaching the ₹{minRequired.toFixed(2)} lock threshold. Top up now to prevent carrier call interruptions.
+                Your wallet is approaching the {currencySymbol}{minRequired.toFixed(2)} lock threshold. Top up now to prevent carrier call interruptions.
               </p>
             </div>
           </motion.div>
@@ -498,11 +509,11 @@ export default function DedicatedWalletSettingsPage() {
             </span>
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">₹{balance.toFixed(2)}</span>
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">INR</span>
+            <span className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">{currencySymbol}{balance.toFixed(2)}</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{currencyCode}</span>
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>Lock Threshold: ₹{minRequired.toFixed(2)}</span>
+            <span>Lock Threshold: {currencySymbol}{minRequired.toFixed(2)}</span>
             <span className="font-mono text-[11px] text-gray-400 dark:text-gray-500">ID: {wallet?.companyId?.slice(0, 8)}...</span>
           </div>
         </div>
@@ -517,7 +528,7 @@ export default function DedicatedWalletSettingsPage() {
           </div>
           <div className="mt-4 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-              ₹{Number(wallet?.constants?.ratePerMinuteInr || 6).toFixed(2)}
+              {currencySymbol}{Number(wallet?.constants?.ratePerMinuteInr || (isUsd ? 0.053 : 6)).toFixed(2)}
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400">/ billable min</span>
           </div>
@@ -536,7 +547,7 @@ export default function DedicatedWalletSettingsPage() {
           </div>
           <div className="mt-4 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-              ₹{Number(wallet?.constants?.numberRentalInr || 149).toFixed(2)}
+              {currencySymbol}{Number(wallet?.constants?.numberRentalInr || (isUsd ? 2.5 : 149)).toFixed(2)}
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400">/ month</span>
           </div>
@@ -554,7 +565,7 @@ export default function DedicatedWalletSettingsPage() {
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">₹{summary?.thirtyDayBurnInr?.toFixed(2) || '0.00'}</span>
+            <span className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">{currencySymbol}{summary?.thirtyDayBurnInr?.toFixed(2) || '0.00'}</span>
             <span className="text-xs text-gray-500 dark:text-gray-400">spent</span>
           </div>
           <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
@@ -584,9 +595,12 @@ export default function DedicatedWalletSettingsPage() {
             <div className="mt-6">
               <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Select Top-Up Amount</label>
               <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[500, Number(wallet?.recommendedInr || 1000), 2000, 5000].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b).map((amt) => {
+                {(isUsd
+                  ? [25, 50, 100, 250]
+                  : [500, Number(wallet?.recommendedInr || 1000), 2000, 5000].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b)
+                ).map((amt) => {
                   const isSelected = !customAmount && rechargeAmount === amt;
-                  const isRecommended = amt === Number(wallet?.recommendedInr || 1000);
+                  const isRecommended = amt === Number(wallet?.recommendedInr || (isUsd ? 50 : 1000));
                   return (
                     <button
                       key={amt}
@@ -602,7 +616,7 @@ export default function DedicatedWalletSettingsPage() {
                           : 'border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700 font-semibold'
                       )}
                     >
-                      <span className="text-sm font-bold">₹{amt}</span>
+                      <span className="text-sm font-bold">{currencySymbol}{amt}</span>
                       {isRecommended && (
                         <span className="mt-1 rounded bg-indigo-600 dark:bg-indigo-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                           Recommended
@@ -616,14 +630,14 @@ export default function DedicatedWalletSettingsPage() {
 
             {/* Custom Amount Input */}
             <div className="mt-5">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Or Custom Amount (INR)</label>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Or Custom Amount ({currencyCode})</label>
               <div className="relative mt-1.5">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500 font-semibold">₹</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500 font-semibold">{currencySymbol}</span>
                 <input
                   type="number"
-                  min="100"
-                  step="50"
-                  placeholder="Enter custom amount (min ₹100)"
+                  min={isUsd ? 10 : 100}
+                  step={isUsd ? 5 : 50}
+                  placeholder={`Enter custom amount (min ${currencySymbol}${isUsd ? 10 : 100})`}
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 pl-8 pr-4 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
@@ -691,11 +705,11 @@ export default function DedicatedWalletSettingsPage() {
                         <span className="rounded bg-emerald-200/80 dark:bg-emerald-800/80 px-1.5 py-0.5 text-[10px] font-bold text-emerald-900 dark:text-emerald-100">
                           {appliedCoupon.discountType === 'percentage'
                             ? `${appliedCoupon.discountValue}% OFF`
-                            : `₹${appliedCoupon.discountValue} OFF`}
+                            : `${currencySymbol}${appliedCoupon.discountValue} OFF`}
                         </span>
                       </div>
                       <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
-                        {appliedCoupon.isFree ? '100% Free - Zero payment required!' : `Discount savings: ₹${appliedCoupon.discountAmount.toFixed(2)}`}
+                        {appliedCoupon.isFree ? '100% Free - Zero payment required!' : `Discount savings: ${currencySymbol}${appliedCoupon.discountAmount.toFixed(2)}`}
                       </p>
                     </div>
                   </div>
@@ -723,19 +737,19 @@ export default function DedicatedWalletSettingsPage() {
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>Wallet Credit Value</span>
                   <span className="font-semibold text-gray-900 dark:text-white">
-                    ₹{(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)}
+                    {currencySymbol}{(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                   <span>Coupon Discount ({appliedCoupon.code})</span>
                   <span className="font-semibold">
-                    -₹{appliedCoupon.discountAmount.toFixed(2)}
+                    -{currencySymbol}{appliedCoupon.discountAmount.toFixed(2)}
                   </span>
                 </div>
                 <div className="pt-1.5 border-t border-gray-200/60 dark:border-gray-700/60 flex justify-between font-bold text-sm text-gray-900 dark:text-white">
                   <span>Net Payable Amount</span>
                   <span className={appliedCoupon.isFree ? 'text-emerald-600 dark:text-emerald-400' : ''}>
-                    {appliedCoupon.isFree ? 'FREE (₹0.00)' : `₹${appliedCoupon.finalPayableAmount.toFixed(2)}`}
+                    {appliedCoupon.isFree ? `FREE (${currencySymbol}0.00)` : `${currencySymbol}${appliedCoupon.finalPayableAmount.toFixed(2)}`}
                   </span>
                 </div>
               </div>
@@ -761,10 +775,10 @@ export default function DedicatedWalletSettingsPage() {
               {isRecharging
                 ? 'Processing Top-Up...'
                 : appliedCoupon?.isFree
-                ? `Claim 100% Free ₹${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} Credit`
+                ? `Claim 100% Free ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} Credit`
                 : appliedCoupon
-                ? `Pay ₹${appliedCoupon.finalPayableAmount.toFixed(2)} via Razorpay (Get ₹${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} Credit)`
-                : `Top Up ₹${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} via Razorpay`}
+                ? `Pay ${currencySymbol}${appliedCoupon.finalPayableAmount.toFixed(2)} via Razorpay (Get ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} Credit)`
+                : `Top Up ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} via Razorpay`}
             </button>
             <p className="mt-2.5 text-center text-[11px] text-gray-400 dark:text-gray-500">
               {appliedCoupon?.isFree
@@ -817,38 +831,38 @@ export default function DedicatedWalletSettingsPage() {
 
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Trigger Threshold (INR)</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Trigger Threshold ({currencyCode})</label>
                 <div className="relative mt-1.5">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500 font-semibold">₹</span>
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500 font-semibold">{currencySymbol}</span>
                   <input
                     type="number"
-                    min="200"
-                    step="50"
+                    min={isUsd ? 10 : 200}
+                    step={isUsd ? 5 : 50}
                     value={thresholdInr}
                     onChange={(e) => setThresholdInr(Number(e.target.value))}
                     className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2 pl-8 pr-3 text-sm text-gray-900 dark:text-white focus:bg-white dark:focus:bg-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>
                 <span className="mt-1 block text-[11px] text-gray-400 dark:text-gray-500">
-                  Minimum: ₹{minRequired.toFixed(2)} (Calling lock threshold)
+                  Minimum: {currencySymbol}{minRequired.toFixed(2)} (Calling lock threshold)
                 </span>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Suggested Refill (INR)</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Suggested Refill ({currencyCode})</label>
                 <div className="relative mt-1.5">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500 font-semibold">₹</span>
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-gray-500 font-semibold">{currencySymbol}</span>
                   <input
                     type="number"
-                    min="500"
-                    step="100"
+                    min={isUsd ? 25 : 500}
+                    step={isUsd ? 10 : 100}
                     value={autoRefillAmount}
                     onChange={(e) => setAutoRefillAmount(Number(e.target.value))}
                     className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2 pl-8 pr-3 text-sm text-gray-900 dark:text-white focus:bg-white dark:focus:bg-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>
                 <span className="mt-1 block text-[11px] text-gray-400 dark:text-gray-500">
-                  Recommended: ₹{Number(wallet?.recommendedInr || 1000).toFixed(2)} (~{Math.floor(autoRefillAmount / (Number(wallet?.constants?.ratePerMinuteInr) || 6))} mins calling)
+                  Recommended: {currencySymbol}{Number(wallet?.recommendedInr || (isUsd ? 50 : 1000)).toFixed(2)} (~{Math.floor(autoRefillAmount / (Number(wallet?.constants?.ratePerMinuteInr) || (isUsd ? 0.053 : 6)))} mins calling)
                 </span>
               </div>
             </div>
@@ -1017,12 +1031,12 @@ export default function DedicatedWalletSettingsPage() {
                               : 'text-rose-600 dark:text-rose-400'
                           )}
                         >
-                          {isCredit ? `+₹${tx.amountInr.toFixed(2)}` : `₹${tx.amountInr.toFixed(2)}`}
+                          {isCredit ? `+${currencySymbol}${tx.amountInr.toFixed(2)}` : `${currencySymbol}${tx.amountInr.toFixed(2)}`}
                         </span>
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-3.5 text-right font-mono font-medium text-gray-900 dark:text-white">
-                        ₹{Number(tx.balanceAfterInr || 0).toFixed(2)}
+                        {currencySymbol}{Number(tx.balanceAfterInr || 0).toFixed(2)}
                       </td>
 
                       <td className="whitespace-nowrap py-3.5 pl-3 pr-2 text-right">
@@ -1142,7 +1156,7 @@ export default function DedicatedWalletSettingsPage() {
                     </td>
                     <td className="py-3 px-2 text-center font-mono font-medium">{selectedReceipt.hsnSacCode}</td>
                     <td className="py-3 px-3 text-right font-mono font-semibold text-gray-900 dark:text-white">
-                      ₹{selectedReceipt.baseAmountInr.toFixed(2)}
+                      {currencySymbol}{selectedReceipt.baseAmountInr.toFixed(2)}
                     </td>
                   </tr>
                 </tbody>
@@ -1152,19 +1166,19 @@ export default function DedicatedWalletSettingsPage() {
             <div className="space-y-1.5 rounded-xl bg-gray-50/70 dark:bg-gray-800/40 p-4 border border-gray-200 dark:border-gray-700 text-[11px]">
               <div className="flex justify-between text-gray-500 dark:text-gray-400">
                 <span>Base Taxable Amount:</span>
-                <span className="font-mono text-gray-900 dark:text-white font-medium">₹{selectedReceipt.baseAmountInr.toFixed(2)}</span>
+                <span className="font-mono text-gray-900 dark:text-white font-medium">{currencySymbol}{selectedReceipt.baseAmountInr.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-500 dark:text-gray-400">
                 <span>CGST ({((Number(selectedReceipt.gstRatePercent) || 18) / 2).toFixed(1)}%):</span>
-                <span className="font-mono text-gray-900 dark:text-white font-medium">₹{selectedReceipt.cgstInr.toFixed(2)}</span>
+                <span className="font-mono text-gray-900 dark:text-white font-medium">{currencySymbol}{selectedReceipt.cgstInr.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-500 dark:text-gray-400">
                 <span>SGST ({((Number(selectedReceipt.gstRatePercent) || 18) / 2).toFixed(1)}%):</span>
-                <span className="font-mono text-gray-900 dark:text-white font-medium">₹{selectedReceipt.sgstInr.toFixed(2)}</span>
+                <span className="font-mono text-gray-900 dark:text-white font-medium">{currencySymbol}{selectedReceipt.sgstInr.toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                 <span>Total Amount Paid:</span>
-                <span className="font-mono font-bold">₹{selectedReceipt.totalAmountInr.toFixed(2)}</span>
+                <span className="font-mono font-bold">{currencySymbol}{selectedReceipt.totalAmountInr.toFixed(2)}</span>
               </div>
             </div>
 

@@ -15,8 +15,11 @@ import {
   ConfirmModal,
   UniversalSkeleton 
 } from '@workspace/ui';
+import { useAuth } from '@/lib/auth-context';
+import { locationService } from '@/lib/location-service';
 
 export default function VoiceforceNumbersPage() {
+  const { company } = useAuth();
   const [numbers, setNumbers] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [wallet, setWallet] = useState<any>(null);
@@ -73,8 +76,11 @@ export default function VoiceforceNumbersPage() {
     fetchData();
   }, []);
 
-  const rentalRate = Number(wallet?.constants?.numberRentalInr || 149);
-  const lockThreshold = Number(wallet?.minRequiredInr || wallet?.constants?.minThresholdInr || 200);
+  const currencyCode = (wallet?.currency || company?.currency || 'USD').toUpperCase();
+  const currencySymbol = wallet?.currencySymbol || company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
+  const isUsd = currencyCode === 'USD';
+  const rentalRate = Number(wallet?.constants?.numberRentalInr || (isUsd ? 2.5 : 149));
+  const lockThreshold = Number(wallet?.minRequiredInr || wallet?.constants?.minThresholdInr || (isUsd ? 10 : 200));
   const graceDays = Number(wallet?.constants?.graceDays || 5);
   const totalRequired = rentalRate + lockThreshold;
 
@@ -283,7 +289,7 @@ export default function VoiceforceNumbersPage() {
               onClick={() => { setIsBuyModalOpen(true); handleSearchAvailable(); }}
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
             >
-              Buy New Virtual Line (₹{rentalRate}/mo)
+              Buy New Virtual Line ({currencySymbol}{rentalRate}/mo)
             </button>
           </div>
         </div>
@@ -512,9 +518,9 @@ export default function VoiceforceNumbersPage() {
 
           {/* Dedicated Lease Terms Notice */}
           <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-300">
-            <span className="font-bold">Dedicated Number Terms:</span> ₹{rentalRate.toFixed(2)} / month (Auto-renews every 30 days).
+            <span className="font-bold">Dedicated Number Terms:</span> {currencySymbol}{rentalRate.toFixed(2)} / month (Auto-renews every 30 days).
             <p className="text-[11px] text-indigo-700 dark:text-indigo-400 mt-0.5">
-              Requires ₹{totalRequired.toFixed(2)} total wallet balance (₹{rentalRate} lease + ₹{lockThreshold} calling reserve). Unpaid numbers enter a {graceDays}-day grace period before carrier release.
+              Requires {currencySymbol}{totalRequired.toFixed(2)} total wallet balance ({currencySymbol}{rentalRate} lease + {currencySymbol}{lockThreshold} calling reserve). Unpaid numbers enter a {graceDays}-day grace period before carrier release.
             </p>
           </div>
 
@@ -553,7 +559,7 @@ export default function VoiceforceNumbersPage() {
                     disabled={purchasing}
                     className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
                   >
-                    {purchasing ? 'Acquiring...' : `Buy for ₹${rentalRate}/mo`}
+                    {purchasing ? 'Acquiring...' : `Buy for ${currencySymbol}${rentalRate}/mo`}
                   </button>
                 </div>
               );
@@ -745,7 +751,7 @@ export default function VoiceforceNumbersPage() {
               <span>No Refund for Current Billing Period</span>
             </div>
             <p className="text-[11px] leading-relaxed text-rose-700/90 dark:text-rose-300/90">
-              Telecom carrier lease fees (₹{numberToDelete?.monthlyRentalInr || 149}/month) are non-refundable once activated. Disconnecting this number will <strong>not issue a refund or prorated balance</strong> back to your wallet.
+              Telecom carrier lease fees ({currencySymbol}{numberToDelete?.monthlyRentalInr || (isUsd ? 2.5 : 149)}/month) are non-refundable once activated. Disconnecting this number will <strong>not issue a refund or prorated balance</strong> back to your wallet.
             </p>
           </div>
 

@@ -7,7 +7,7 @@ export interface VoiceToolDefinition {
   allowedRoles: string[];
   category: string;
   parameters: Record<string, any>;
-  execute: (args: any, context: { companyId?: string; userId?: string; userRole?: string }) => Promise<any>;
+  execute: (args: any, context: { companyId?: string; userId?: string; userRole?: string; currencySymbol?: string }) => Promise<any>;
 }
 
 /**
@@ -95,13 +95,14 @@ export const createSalesOrderTool: VoiceToolDefinition = {
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
     const amount = Number(args.amountInr) || 0;
 
+    const sym = context.currencySymbol || '$';
     return {
       success: true,
       orderNumber,
       customerName: args.customerName,
       productName: args.productName,
       amountInr: amount,
-      message: `Sales Order **#${orderNumber}** for **${args.productName}** (₹${amount > 0 ? amount.toFixed(2) : 'Catalog Price'}) has been created for **${args.customerName}**.`
+      message: `Sales Order **#${orderNumber}** for **${args.productName}** (${sym}${amount > 0 ? amount.toFixed(2) : 'Catalog Price'}) has been created for **${args.customerName}**.`
     };
   }
 };

@@ -40,12 +40,12 @@ export class VoiceComplianceGuard {
         return { allowed: true, localHour };
       }
 
-      // Legal permissible calling hours: 09:00 to 20:00 (9 AM to 8 PM)
-      if (localHour < 9 || localHour >= 20) {
+      // Hardcoded permissible calling hours: 09:00 to 21:00 (9:00 AM to 9:00 PM local recipient time)
+      if (localHour < 9 || localHour >= 21) {
         return {
           allowed: false,
           localHour,
-          reason: `Outbound calling restricted outside 09:00 - 20:00 (current local hour in ${timeZone}: ${localHour}:00)`
+          reason: `Outbound calling restricted outside 09:00 - 21:00 (current local hour in ${timeZone}: ${localHour}:00)`
         };
       }
 
@@ -116,6 +116,7 @@ export class VoiceComplianceGuard {
 
   /**
    * Prepends mandatory AI identity & recording disclosures if missing
+   * Spoken quickly and smoothly at the onset of outbound calls
    */
   static formatComplianceGreeting(agentName: string, companyName: string, baseGreeting?: string): string {
     const raw = (baseGreeting || '').trim();
@@ -126,7 +127,8 @@ export class VoiceComplianceGuard {
       return raw;
     }
 
-    const disclosure = `Hello, this is ${agentName || 'Maya'}, an automated AI employee calling from ${companyName || 'our company'}. This call is recorded for quality and compliance. `;
+    const brand = companyName && companyName !== 'Our Company' ? companyName : 'our company';
+    const disclosure = `This is an automated assistant calling from ${brand}, this call is recorded for quality and compliance. `;
 
     if (!raw) return disclosure;
     return disclosure + raw;

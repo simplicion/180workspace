@@ -22,6 +22,7 @@ export const GET: APIRoute = async () => {
 
   // All 16 Business Applications
   const appSlugs = [
+    'voiceforce',
     'crm-and-sales',
     'traffic-director',
     'finance',

@@ -9,9 +9,37 @@ router.get('/metrics', VoiceforceController.getMetrics);
 
 // Agents
 router.get('/agents', VoiceforceController.listAgents);
+router.get('/agents/:id', VoiceforceController.getAgentDetails);
 router.post('/agents', VoiceforceController.createAgent);
 router.put('/agents/:id', VoiceforceController.updateAgent);
 router.delete('/agents/:id', VoiceforceController.deleteAgent);
+router.post('/agents/:id/train/natural-language', VoiceforceController.parseNaturalLanguageTraining);
+router.post('/agents/:id/train/apply', VoiceforceController.applyNaturalLanguageTraining);
+router.get('/agents/:id/versions', VoiceforceController.listAgentVersions);
+router.post('/agents/:id/versions/:versionNumber/rollback', VoiceforceController.rollbackAgentVersion);
+router.get('/agents/:id/guardrails', VoiceforceController.getAgentGuardrails);
+router.put('/agents/:id/guardrails', VoiceforceController.updateAgentGuardrails);
+router.post('/agents/:id/briefing/generate', VoiceforceController.generateAgentBriefing);
+
+
+// Pre-Flight Sandbox Simulator
+router.get('/simulate/scenarios', VoiceforceController.listSimulationScenarios);
+router.post('/simulate/start', VoiceforceController.startSimulation);
+
+// Zero-Repeat Warm Human Escalation
+router.get('/handoff/live-context/:callSessionId', VoiceforceController.getLiveHandoffContext);
+router.post('/handoff/trigger', VoiceforceController.triggerWarmHandoff);
+
+// Executive ROI & Analytics
+router.get('/analytics/roi', VoiceforceController.getRoiAnalytics);
+
+// Daily Executive Briefings
+router.get('/briefings/latest', VoiceforceController.getLatestDailyBriefing);
+router.post('/briefings/generate', VoiceforceController.generateDailyBriefing);
+
+// Prebuilt Industry Templates
+router.get('/templates', VoiceforceController.listTemplates);
+router.post('/templates/:slug/instantiate', VoiceforceController.instantiateTemplate);
 
 // Numbers
 router.get('/numbers', VoiceforceController.listNumbers);
@@ -48,9 +76,13 @@ router.post('/campaigns/:id/pause', VoiceforceController.pauseCampaign);
 router.post('/campaigns/:id/resume', VoiceforceController.resumeCampaign);
 router.post('/campaigns/:id/stop', VoiceforceController.stopCampaign);
 
+// Dynamic Telephony Rate Estimation
+router.get('/rates/estimate', VoiceforceController.getRateEstimate);
+
 // Calls
 router.get('/calls', VoiceforceController.listCalls);
 router.get('/calls/:id', VoiceforceController.getCallDetails);
+router.get('/calls/:id/audit-trail', VoiceforceController.getCallAuditTrail);
 router.delete('/calls/:id', VoiceforceController.deleteCall);
 router.post('/calls/dispatch-single', VoiceforceController.launchSingleCall);
 

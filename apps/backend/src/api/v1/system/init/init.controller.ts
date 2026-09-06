@@ -277,6 +277,9 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                 name: (company as any).name,
                 slug: (company as any).slug,
                 logoUrl: (company as any).logoUrl,
+                country: (company as any).country || 'US',
+                currency: (company as any).currency || 'USD',
+                currencySymbol: (company as any).currencySymbol || getCurrencySymbol((company as any).currency || 'USD'),
                 databaseConfigured: (company as any).databaseConfigured,
                 isSuspended: (company as any).accountStatus === 'suspended',
                 suspendedReason: null,
@@ -329,6 +332,9 @@ export const getBootstrap = async (req: Request | any, res: Response, next: any)
           logoUrl: true,
           customDomain: true,
           isOnboardingComplete: true,
+          country: true,
+          currency: true,
+          currencySymbol: true,
         }
       }) : null,
       prisma.userPreference.findFirst({

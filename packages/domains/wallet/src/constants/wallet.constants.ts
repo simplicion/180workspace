@@ -11,9 +11,10 @@ export class WalletConstants {
   static readonly RECOMMENDED_WALLET_INR = 1000.0;
 
   /**
-   * Telephony call metering rate: ₹6.00 per billable minute (60s minimum increment).
+   * Base India telephony call metering rate: ₹6.10 per billable minute (Telnyx + Cartesia 1.8x formula).
+   * Note: Actual call deductions are calculated dynamically per destination via DynamicRateService.
    */
-  static readonly RATE_PER_MINUTE_INR = 6.0;
+  static readonly RATE_PER_MINUTE_INR = 6.10;
 
   /**
    * Monthly dedicated virtual DID lease price.

@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  IndianRupee, CreditCard, ArrowUpRight, ArrowDownLeft, Clock, 
+  Coins, CreditCard, ArrowUpRight, ArrowDownLeft, Clock, 
   Download, RefreshCw, CheckCircle2, ShieldCheck, Zap, Sliders, AlertCircle, AlertTriangle, Lock
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
+import { locationService } from '@/lib/location-service';
 import { UniversalSlideDrawer } from './UniversalSlideDrawer';
 import { UniversalSkeleton } from '@workspace/ui';
 import clsx from 'clsx';
@@ -112,12 +113,13 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
       if (orderRes.data?.success && scriptLoaded && (window as any).Razorpay) {
         const { orderId, amountPaise, keyId } = orderRes.data.data;
 
+        const orderCurr = orderRes.data?.data?.currency || currencyCode;
         const options = {
           key: keyId,
           amount: amountPaise,
-          currency: 'INR',
+          currency: orderCurr,
           name: '180 Voiceforce',
-          description: `Prepaid Voice Wallet Top-up (₹${amountToCharge})`,
+          description: `Prepaid Voice Wallet Top-up (${currencySymbol}${amountToCharge})`,
           order_id: orderId,
           handler: async (response: any) => {
             try {
@@ -130,7 +132,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
               });
 
               if (verifyRes.data?.success) {
-                toast.success(`Payment verified! ₹${amountToCharge.toFixed(2)} credited to your 180 Wallet.`, { id: 'rzp-verify' });
+                toast.success(`Payment verified! ${currencySymbol}${amountToCharge.toFixed(2)} credited to your 180 Wallet.`, { id: 'rzp-verify' });
                 setCustomAmount('');
                 fetchWallet();
                 if (onBalanceUpdated) onBalanceUpdated();
@@ -141,7 +143,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
           },
           prefill: {
             name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email || company?.name || 'Workspace Admin' : (company?.name || 'Workspace Admin'),
-            email: user?.email || company?.billingEmail || ''
+            email: user?.email || (company as any)?.billingEmail || ''
           },
           theme: { color: '#f59e0b' }
         };
@@ -159,7 +161,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
         });
 
         if (res.data?.success) {
-          toast.success(`Wallet successfully credited with ₹${amountToCharge.toFixed(2)}!`);
+          toast.success(`Wallet successfully credited with ${currencySymbol}${amountToCharge.toFixed(2)}!`);
           setCustomAmount('');
           fetchWallet();
           if (onBalanceUpdated) onBalanceUpdated();
@@ -220,9 +222,14 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
     toast.success('Statement CSV exported');
   };
 
+  const currencyCode = (wallet?.currency || company?.currency || 'USD').toUpperCase();
+  const currencySymbol = wallet?.currencySymbol || company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
+  const isUsd = currencyCode === 'USD';
+
   const balance = Number(wallet?.balanceInr ?? 0);
-  const isLocked = balance < 200.0;
-  const isLow = balance >= 200.0 && balance <= 300.0;
+  const minRequired = Number(wallet?.minRequiredInr || 200.0);
+  const isLocked = balance < minRequired;
+  const isLow = balance >= minRequired && balance <= minRequired + 100.0;
 
   return (
     <UniversalSlideDrawer
@@ -230,7 +237,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
       onClose={onClose}
       title="180 Voiceforce Wallet & Billing"
       subtitle="Corporate balance, Razorpay instant top-ups, and transaction statement."
-      icon={IndianRupee}
+      icon={Coins}
       iconColorClass="text-amber-600 dark:text-amber-400"
       iconBgClass="bg-amber-50 dark:bg-amber-950/60"
       maxWidthClass="max-w-2xl"
@@ -282,7 +289,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
               <div>
                 <h4 className="text-xs font-bold text-rose-800 dark:text-rose-300">Voiceforce Calling is Locked</h4>
                 <p className="text-[11px] text-rose-700/90 dark:text-rose-400/90 mt-0.5">
-                  Your wallet balance is ₹{balance.toFixed(2)}. A minimum balance of ₹{(wallet?.minRequiredInr || 200).toFixed(2)} is required to operate calls. 
+                  Your wallet balance is {currencySymbol}{balance.toFixed(2)}. A minimum balance of {currencySymbol}{minRequired.toFixed(2)} is required to operate calls. 
                   Unpaid numbers enter a {wallet?.constants?.graceDays || 5}-day grace period before being released to the carrier.
                 </p>
               </div>
@@ -295,7 +302,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
               <div>
                 <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300">Wallet Balance Running Low</h4>
                 <p className="text-[11px] text-amber-700/90 dark:text-amber-400/90 mt-0.5">
-                  Your balance is ₹{balance.toFixed(2)}. Top up to the recommended ₹{(wallet?.recommendedInr || 1000).toFixed(2)} to prevent calls from locking when balance drops below ₹{(wallet?.minRequiredInr || 200).toFixed(2)}.
+                  Your balance is {currencySymbol}{balance.toFixed(2)}. Top up to the recommended {currencySymbol}{Number(wallet?.recommendedInr || (isUsd ? 50 : 1000)).toFixed(2)} to prevent calls from locking when balance drops below {currencySymbol}{minRequired.toFixed(2)}.
                 </p>
               </div>
             </div>
@@ -323,20 +330,20 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
                     ? "bg-amber-900/60 text-amber-200 border-amber-400/40"
                     : "bg-emerald-900/60 text-emerald-200 border-emerald-400/40"
                 )}>
-                  {isLocked ? `Locked (< ₹${(wallet?.minRequiredInr || 200).toFixed(0)})` : isLow ? 'Low Balance' : 'Active & Ready'}
+                  {isLocked ? `Locked (< ${currencySymbol}${minRequired.toFixed(0)})` : isLow ? 'Low Balance' : 'Active & Ready'}
                 </span>
               </div>
               <div className="text-3xl font-extrabold tracking-tight mt-1">
-                ₹{balance.toFixed(2)}
+                {currencySymbol}{balance.toFixed(2)}
               </div>
               <p className="text-xs text-white/80 mt-1">
-                Calls metered at ₹{Number(wallet?.constants?.ratePerMinuteInr || 6).toFixed(2)}/min. Numbers leased at ₹{Number(wallet?.constants?.numberRentalInr || 149).toFixed(2)}/month.
+                Calls metered at {currencySymbol}{Number(wallet?.constants?.ratePerMinuteInr || (isUsd ? 0.053 : 6)).toFixed(2)}/min. Numbers leased at {currencySymbol}{Number(wallet?.constants?.numberRentalInr || (isUsd ? 2.5 : 149)).toFixed(2)}/month.
               </p>
             </div>
 
             <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 sm:border-l border-white/20 pt-3 sm:pt-0 sm:pl-5 text-xs text-white/90 gap-1.5">
-              <div>Minimum Required: <span className="font-bold text-white">₹{(wallet?.minRequiredInr || 200).toFixed(2)}</span></div>
-              <div>Recommended Reserve: <span className="font-bold text-white">₹{(wallet?.recommendedInr || 1000).toFixed(2)}</span></div>
+              <div>Minimum Required: <span className="font-bold text-white">{currencySymbol}{minRequired.toFixed(2)}</span></div>
+              <div>Recommended Reserve: <span className="font-bold text-white">{currencySymbol}{Number(wallet?.recommendedInr || (isUsd ? 50 : 1000)).toFixed(2)}</span></div>
             </div>
           </div>
 
@@ -353,12 +360,20 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                { amt: 1000, label: '₹1,000', recommended: 1000 === Number(wallet?.recommendedInr || 1000) },
-                { amt: 500, label: '₹500', recommended: 500 === Number(wallet?.recommendedInr || 1000) },
-                { amt: 2500, label: '₹2,500', recommended: 2500 === Number(wallet?.recommendedInr || 1000) },
-                { amt: 5000, label: '₹5,000', recommended: 5000 === Number(wallet?.recommendedInr || 1000) }
-              ].map(({ amt, label, recommended }) => (
+              {(isUsd
+                ? [
+                    { amt: 50, label: '$50', recommended: true },
+                    { amt: 25, label: '$25', recommended: false },
+                    { amt: 100, label: '$100', recommended: false },
+                    { amt: 250, label: '$250', recommended: false }
+                  ]
+                : [
+                    { amt: 1000, label: `${currencySymbol}1,000`, recommended: true },
+                    { amt: 500, label: `${currencySymbol}500`, recommended: false },
+                    { amt: 2500, label: `${currencySymbol}2,500`, recommended: false },
+                    { amt: 5000, label: `${currencySymbol}5,000`, recommended: false }
+                  ]
+              ).map(({ amt, label, recommended }) => (
                 <button
                   key={amt}
                   type="button"
@@ -385,11 +400,11 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
 
             <div className="flex items-center gap-2 pt-1">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">{currencySymbol}</span>
                 <input
                   type="number"
-                  min="200"
-                  placeholder="Custom amount (e.g. 1500)"
+                  min={isUsd ? 10 : 200}
+                  placeholder={`Custom amount (e.g. ${isUsd ? '75' : '1500'})`}
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   className="w-full pl-7 pr-3 py-2.5 rounded-xl text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -403,7 +418,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-xs font-bold shadow-md shadow-amber-500/20 disabled:opacity-50 transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5"
               >
                 <CreditCard className="w-3.5 h-3.5" />
-                <span>{isRecharging ? 'Opening Razorpay...' : `Pay ₹${customAmount ? Number(customAmount) || 0 : rechargeAmount}`}</span>
+                <span>{isRecharging ? 'Opening Razorpay...' : `Pay ${currencySymbol}${customAmount ? Number(customAmount) || 0 : rechargeAmount}`}</span>
               </button>
             </div>
           </div>
@@ -434,13 +449,13 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
               <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-200">
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Trigger Threshold (INR)
+                    Trigger Threshold ({currencyCode})
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">{currencySymbol}</span>
                     <input
                       type="number"
-                      min="200"
+                      min={isUsd ? 10 : 200}
                       value={thresholdInr}
                       onChange={(e) => setThresholdInr(Number(e.target.value))}
                       className="w-full pl-7 pr-3 py-1.5 rounded-xl text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -450,13 +465,13 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
 
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Auto-Refill Amount (INR)
+                    Auto-Refill Amount ({currencyCode})
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">{currencySymbol}</span>
                     <input
                       type="number"
-                      min="500"
+                      min={isUsd ? 25 : 500}
                       value={autoRefillAmount}
                       onChange={(e) => setAutoRefillAmount(Number(e.target.value))}
                       className="w-full pl-7 pr-3 py-1.5 rounded-xl text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -533,11 +548,11 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
                             </td>
                             <td className="py-2.5 px-3 font-semibold font-mono whitespace-nowrap">
                               <span className={isTopup ? "text-emerald-600 dark:text-emerald-400" : isAutoReleased ? "text-gray-500" : "text-rose-600 dark:text-rose-400"}>
-                                {isTopup ? '+' : tx.amountInr === 0 ? '₹' : '-₹'}{Math.abs(tx.amountInr).toFixed(2)}
+                                {isTopup ? '+' : tx.amountInr === 0 ? currencySymbol : `-${currencySymbol}`}{Math.abs(tx.amountInr).toFixed(2)}
                               </span>
                             </td>
                             <td className="py-2.5 px-3 font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                              ₹{Number(tx.balanceAfterInr ?? 0).toFixed(2)}
+                              {currencySymbol}{Number(tx.balanceAfterInr ?? 0).toFixed(2)}
                             </td>
                             <td className="py-2.5 px-3 text-gray-500 dark:text-gray-400 max-w-xs truncate">
                               {tx.description || 'Prepaid transaction'}

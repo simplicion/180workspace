@@ -206,13 +206,13 @@ class LocationService {
         }
 
         return {
-            address: 'India',
+            address: 'United States',
             city: '',
             state: '',
-            country: 'India',
-            countryCode: 'IN',
-            currencyCode: 'INR',
-            currencySymbol: '₹',
+            country: 'United States',
+            countryCode: 'US',
+            currencyCode: 'USD',
+            currencySymbol: '$',
         };
     }
 }

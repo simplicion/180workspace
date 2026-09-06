@@ -181,7 +181,7 @@ export class VoiceforceWebhooksController {
         return res.status(200).json({ received: true });
       }
 
-      const session = await (prisma as any).callSession.findFirst({
+      let session = await (prisma as any).callSession.findFirst({
         where: {
           OR: [
             { sipCallId },
@@ -189,6 +189,19 @@ export class VoiceforceWebhooksController {
           ]
         }
       });
+
+      // Outbound SIP trunking fallback: match recent active outbound call session by destination number
+      if (!session && payload?.to) {
+        const cleanTo = payload.to.replace(/\s+/g, '');
+        session = await (prisma as any).callSession.findFirst({
+          where: {
+            recipientPhone: { contains: cleanTo.slice(-8) },
+            direction: 'outbound',
+            status: { in: ['initiated', 'dialing', 'ringing'] }
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+      }
 
       if (!session) {
         // Handle incoming inbound call from carrier (new incoming call leg)
@@ -389,17 +402,30 @@ export class VoiceforceWebhooksController {
         }
 
         case 'call.hangup': {
-          const hangupCause = payload?.hangup_cause || 'NORMAL_CLEARING';
+          const rawCause = (payload?.hangup_cause || 'NORMAL_CLEARING').toLowerCase();
+          const telnyxErr = payload?.telnyx_error;
           let status = 'completed';
-          if (['USER_BUSY', 'BUSY'].includes(hangupCause)) status = 'busy';
-          else if (['NO_ANSWER', 'TIMEOUT'].includes(hangupCause)) status = 'no_answer';
-          else if (['CALL_REJECTED', 'DECLINED'].includes(hangupCause)) status = 'customer_declined';
+          let disconnectReason = payload?.hangup_cause || 'NORMAL_CLEARING';
+
+          if (telnyxErr) {
+            status = 'failed';
+            disconnectReason = `Carrier Error: ${telnyxErr.error_description || telnyxErr.error_code || 'Carrier Rejected'} (SIP ${telnyxErr.sip_code || 403})`;
+          } else if (rawCause.includes('busy')) {
+            status = 'busy';
+            disconnectReason = 'Line busy';
+          } else if (rawCause.includes('no_answer') || rawCause.includes('timeout')) {
+            status = 'no_answer';
+            disconnectReason = 'Customer did not answer / timeout';
+          } else if (rawCause.includes('reject') || rawCause.includes('decline')) {
+            status = 'failed';
+            disconnectReason = 'Carrier or recipient rejected call';
+          }
 
           await (prisma as any).callSession.update({
             where: { id: session.id },
             data: {
               status,
-              disconnectReason: hangupCause,
+              disconnectReason,
               endedAt: new Date()
             }
           });

@@ -1,4 +1,5 @@
 import { prisma } from '@workspace/db';
+import { GuardrailEnforcementEngine } from '../guardrails/guardrail-enforcement.engine';
 
 export class BusinessBrainService {
   /**
@@ -28,7 +29,8 @@ export class BusinessBrainService {
     const [agent, company, offerings, pastCalls, clientRecord] = await Promise.all([
       voiceAgentId
         ? (prisma as any).voiceAgent.findUnique({
-            where: { id: voiceAgentId }
+            where: { id: voiceAgentId },
+            include: { guardrail: true }
           })
         : null,
       (prisma as any).company.findUnique({
@@ -77,7 +79,7 @@ export class BusinessBrainService {
         : null
     ]);
 
-    const currency = company?.currencySymbol || '₹';
+    const currency = company?.currencySymbol || '$';
     const catalogList = (offerings || []).map((o: any) => {
       const priceStr = o.startingPrice ? `${currency}${o.startingPrice}` : 'Custom quote';
       return `- ${o.name}: ${priceStr} (${o.description || 'Standard offering'})`;
@@ -105,6 +107,7 @@ export class BusinessBrainService {
       : '';
 
     const basePrompt = agent?.systemPrompt || fallbackPrompt || 'You are an autonomous AI voice employee for this company.';
+    const guardrailDirectives = GuardrailEnforcementEngine.compileGuardrailsToPrompt(agent?.guardrail?.rules);
 
     return `${basePrompt}\n\n` +
       `COMPANY CONTEXT:\n` +
@@ -114,10 +117,13 @@ export class BusinessBrainService {
       `${catalogSection}\n` +
       clientSection +
       historySection +
+      guardrailDirectives +
       `\nCRITICAL CONVERSATIONAL & ACCURACY RULES:\n` +
       `1. ALWAYS use the exact product names and pricing listed above. Never invent discounts, special deals, or modified rates.\n` +
       `2. If asked about a product or service not listed in your catalog, say politely: "We don't currently offer that, but I can connect you with our team."\n` +
       `3. Keep responses conversational, natural, and concise (1 to 2 sentences per response). Never speak bullet points, markdown symbols, asterisks, or URLs over the phone.\n` +
-      `4. When the customer confirms an action (e.g., booking an appointment or creating a CRM record), execute the tool immediately and speak the confirmation to them.`;
+      `4. When the customer confirms an action (e.g., booking an appointment or creating a CRM record), execute the tool immediately and speak the confirmation to them.\n` +
+      `5. OPENING DISCLOSURE: Speak any opening compliance statement ("This is an automated assistant calling from... call is recorded for quality and compliance") briskly, crisply, and naturally without long pauses before smoothly transitioning to the purpose of your call.\n` +
+      `6. OPT-OUT & STOP CALLING REQUESTS: If the customer requests not to be called again, asks to be removed, or expresses that they do not want calls, immediately apologize for the interruption, confirm: "I understand completely. I have marked your number on our Do-Not-Call list and you will not be contacted again. Have a great day," and conclude the call.`;
   }
 }

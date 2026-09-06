@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Megaphone, ArrowLeft, Plus, Play, Pause, Square, Clock, 
   Users, CheckCircle2, AlertCircle, Sliders, PhoneForwarded,
-  UploadCloud, FileSpreadsheet, Eye, RotateCcw, PhoneCall,
+  FileSpreadsheet, Eye, RotateCcw, PhoneCall,
   CheckCircle, XCircle, PhoneMissed, Voicemail, Lock
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -13,7 +13,10 @@ import toast from 'react-hot-toast';
 import { 
   UniversalSkeleton 
 } from '@workspace/ui';
+import { useAuth } from '@/lib/auth-context';
+import { locationService } from '@/lib/location-service';
 import { UniversalSlideDrawer } from '../_components/UniversalSlideDrawer';
+import { CreateCampaignDrawer } from '../_components/CreateCampaignDrawer';
 import clsx from 'clsx';
 
 /**
@@ -27,6 +30,7 @@ import clsx from 'clsx';
  * - Real-time campaign contact inspection drawer with per-lead status and one-click retry
  */
 export default function VoiceforceCampaignsPage() {
+  const { company } = useAuth();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [numbers, setNumbers] = useState<any[]>([]);
@@ -34,7 +38,6 @@ export default function VoiceforceCampaignsPage() {
   const [walletData, setWalletData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
 
   // Per-contact Inspection Drawer State
   const [isInspectOpen, setIsInspectOpen] = useState(false);
@@ -42,19 +45,6 @@ export default function VoiceforceCampaignsPage() {
   const [inspectData, setInspectData] = useState<any | null>(null);
   const [inspectLoading, setInspectLoading] = useState(false);
   const [retryingFailed, setRetryingFailed] = useState(false);
-
-  // File upload input ref
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Campaign Form State
-  const [form, setForm] = useState({
-    name: 'Customer Re-engagement Batch',
-    voiceAgentId: '',
-    phoneNumberId: '',
-    phoneNumbersText: '+919876543210\n+919812345678',
-    maxConcurrent: 5,
-    callsPerSecond: 1.0
-  });
 
   /**
    * Fetch campaigns, voice agents, and verified phone numbers for caller ID selection
@@ -79,13 +69,6 @@ export default function VoiceforceCampaignsPage() {
       setNumbers(numList);
       setWalletData(wData);
       setWalletBalance(wData?.balanceInr ?? 0);
-
-      if (agentList.length > 0 && !form.voiceAgentId) {
-        setForm(prev => ({ ...prev, voiceAgentId: agentList[0].id }));
-      }
-      if (numList.length > 0 && !form.phoneNumberId) {
-        setForm(prev => ({ ...prev, phoneNumberId: numList[0].id }));
-      }
     } catch (err: any) {
       toast.error('Failed to load campaigns');
     } finally {
@@ -96,99 +79,6 @@ export default function VoiceforceCampaignsPage() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  /**
-   * Parse CSV or Excel Text File Upload
-   */
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const content = evt.target?.result as string;
-      if (!content) return;
-
-      const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
-      const extractedPhones: string[] = [];
-
-      for (const line of lines) {
-        // Match standard phone numbers (international E.164 or 10-digit Indian numbers)
-        const match = line.match(/\+?[0-9]{10,15}/);
-        if (match) {
-          let phone = match[0];
-          if (!phone.startsWith('+') && phone.length === 10) {
-            phone = `+91${phone}`;
-          }
-          if (!extractedPhones.includes(phone)) {
-            extractedPhones.push(phone);
-          }
-        }
-      }
-
-      if (extractedPhones.length > 0) {
-        setForm(prev => ({
-          ...prev,
-          phoneNumbersText: extractedPhones.join('\n')
-        }));
-        toast.success(`Extracted ${extractedPhones.length} phone numbers from ${file.name}`);
-      } else {
-        toast.error('No valid phone numbers found in file.');
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  /**
-   * Launch new outbound campaign batch
-   */
-  const handleLaunchCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.voiceAgentId || !form.phoneNumbersText.trim()) {
-      toast.error('Campaign name, AI employee, and recipient list are required');
-      return;
-    }
-
-    const phones = form.phoneNumbersText
-      .split('\n')
-      .map(p => p.trim())
-      .filter(p => p.length > 5);
-
-    if (phones.length === 0) {
-      toast.error('Please enter at least one valid phone number');
-      return;
-    }
-
-    try {
-      setCreating(true);
-      const contactList = phones.map(p => ({ phone: p, name: 'Target Contact' }));
-
-      // 1. Create campaign record with chosen Outgoing Caller ID
-      const createRes = await api.post('/api/v1/voiceforce/campaigns', {
-        name: form.name,
-        voiceAgentId: form.voiceAgentId,
-        phoneNumberId: form.phoneNumberId || null,
-        contactList,
-        maxConcurrent: Number(form.maxConcurrent) || 5,
-        callsPerSecond: Number(form.callsPerSecond) || 1.0,
-        retryCount: 2
-      });
-
-      const campaignId = createRes.data?.data?.id;
-      if (campaignId) {
-        // 2. Launch campaign into BullMQ queue with pacing
-        await api.post(`/api/v1/voiceforce/campaigns/${campaignId}/launch`);
-        toast.success(`Dispatched batch of ${phones.length} calls into BullMQ queue!`);
-      }
-
-      setIsCreateOpen(false);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.message || 'Error creating campaign');
-    } finally {
-      setCreating(false);
-    }
-  };
 
   /**
    * Open Inspect Contacts Drawer
@@ -334,7 +224,10 @@ export default function VoiceforceCampaignsPage() {
         );
     }
   };
-  const minRequired = Number(walletData?.minRequiredInr || walletData?.constants?.minThresholdInr || 200);
+  const currencyCode = (walletData?.currency || company?.currency || 'USD').toUpperCase();
+  const currencySymbol = walletData?.currencySymbol || company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
+  const isUsd = currencyCode === 'USD';
+  const minRequired = Number(walletData?.minRequiredInr || walletData?.constants?.minThresholdInr || (isUsd ? 10 : 200));
   const isLocked = walletData?.isLocked ?? (walletBalance < minRequired);
 
   return (
@@ -353,7 +246,7 @@ export default function VoiceforceCampaignsPage() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Call Campaigns</h1>
               <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Automate high-volume outbound calling with strict Calls-Per-Second (CPS) rate pacing and contact drilldown.
+                Bulk AI automated outreach with concurrency pacing, call outcomes, and live conversion analytics.
               </p>
             </div>
           </div>
@@ -362,7 +255,7 @@ export default function VoiceforceCampaignsPage() {
         <button
           onClick={() => {
             if (isLocked) {
-              toast.error(`Voiceforce Calling is Locked. A minimum wallet balance of ₹${minRequired.toFixed(2)} is required to launch campaigns.`);
+              toast.error(`Voiceforce Calling is Locked. A minimum wallet balance of ${currencySymbol}${minRequired.toFixed(2)} is required to launch campaigns.`);
               return;
             }
             setIsCreateOpen(true);
@@ -375,7 +268,7 @@ export default function VoiceforceCampaignsPage() {
           )}
         >
           {isLocked ? <Lock className="w-4 h-4 text-rose-500" /> : <Plus className="w-4 h-4" />}
-          <span>{isLocked ? `Locked (Min ₹${minRequired.toFixed(0)})` : 'New Outbound Campaign'}</span>
+          <span>{isLocked ? `Locked (Min ${currencySymbol}${minRequired.toFixed(0)})` : 'New Outbound Campaign'}</span>
         </button>
       </div>
 
@@ -511,153 +404,14 @@ export default function VoiceforceCampaignsPage() {
         </div>
       )}
 
-      {/* Universal Slide Drawer 1: Create Outbound Campaign */}
-      <UniversalSlideDrawer
+      {/* Universal Slide Drawer 1: Create Outbound Campaign (Dual-Mode: Bulk & Single Number) */}
+      <CreateCampaignDrawer
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="Create Outbound Campaign"
-        subtitle="Automate telephone calling across target recipient numbers via BullMQ queue."
-        icon={Megaphone}
-        iconColorClass="text-indigo-600 dark:text-indigo-400"
-        iconBgClass="bg-indigo-50 dark:bg-indigo-950/60"
-        maxWidthClass="max-w-xl"
-        onSubmit={handleLaunchCampaign}
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="px-4 py-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-medium transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={creating}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-            >
-              {creating ? 'Dispatching Batch...' : 'Launch Campaign'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Campaign Name
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Assigned AI Employee
-              </label>
-              <select
-                value={form.voiceAgentId}
-                onChange={(e) => setForm({ ...form, voiceAgentId: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                required
-              >
-                {agents.map((ag) => (
-                  <option key={ag.id} value={ag.id}>{ag.name} ({ag.role})</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Outgoing Caller ID Line
-              </label>
-              <select
-                value={form.phoneNumberId}
-                onChange={(e) => setForm({ ...form, phoneNumberId: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              >
-                <option value="">Default Telecom DID (+1 SIP Pool)</option>
-                {numbers.map((num) => (
-                  <option key={num.id} value={num.id}>
-                    {num.e164Number} ({num.friendlyName || num.provider})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Recipient Phone Numbers (E.164 Format)
-              </label>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <UploadCloud className="w-3.5 h-3.5" />
-                <span>Upload CSV / Excel</span>
-              </button>
-            </div>
-
-            <input 
-              ref={fileInputRef}
-              type="file" 
-              accept=".csv,.txt,.xlsx" 
-              onChange={handleFileUpload} 
-              className="hidden" 
-            />
-
-            <textarea
-              rows={5}
-              value={form.phoneNumbersText}
-              onChange={(e) => setForm({ ...form, phoneNumbersText: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              placeholder="+919876543210&#10;+919812345678"
-              required
-            />
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-              Supports bulk copy-paste or CSV column upload. Phone numbers are automatically verified against Do-Not-Call (DNC) compliance.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Max Concurrent Calls
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="50"
-                value={form.maxConcurrent}
-                onChange={(e) => setForm({ ...form, maxConcurrent: Number(e.target.value) })}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                Dial Rate (Calls/Sec)
-              </label>
-              <input
-                type="number"
-                step="0.5"
-                min="0.5"
-                max="10"
-                value={form.callsPerSecond}
-                onChange={(e) => setForm({ ...form, callsPerSecond: Number(e.target.value) })}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
-            </div>
-          </div>
-        </div>
-      </UniversalSlideDrawer>
+        agents={agents}
+        numbers={numbers}
+        onSuccess={fetchData}
+      />
 
       {/* Universal Slide Drawer 2: Inspect Campaign Contacts */}
       <UniversalSlideDrawer

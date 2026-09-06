@@ -474,7 +474,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                         const isModOn = company.enabledModules.includes(subItem.id) ||
                             company.enabledModules.includes(`${item.appId}-${subItem.id}`) ||
                             company.enabledModules.includes(subItem.id.replace(`${item.appId}-`, '')) ||
-                            (item.appId === 'voiceforce' && (subItem.id === 'forwarding' || subItem.id === 'compliance'));
+                            (item.appId === 'voiceforce');
                         return isModOn;
                     }
                     return isAppEnabled;

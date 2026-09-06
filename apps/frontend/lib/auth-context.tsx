@@ -31,6 +31,9 @@ interface Company {
     companyLogo?: string; // Alias for consistency with SettingsContext
     accountStatus?: string;
     subscriptionStatus?: string;
+    country?: string;
+    currency?: string;
+    currencySymbol?: string;
     metadata?: any;
     settings?: any;
     branding?: any;

@@ -185,9 +185,10 @@ export class LiveKitRoomWorker {
     }
 
     // 3. Fetch Agent & Compile Dynamic Business Brain (Catalog, Pricing, Past Interactions)
-    const agent = await prisma.voiceAgent.findUnique({
-      where: { id: voiceAgentId }
-    });
+    const [agent, company] = await Promise.all([
+      prisma.voiceAgent.findUnique({ where: { id: voiceAgentId } }),
+      prisma.company.findUnique({ where: { id: companyId }, select: { name: true } })
+    ]);
 
     if (!agent) {
       throw new Error(`VoiceAgent ${voiceAgentId} not found in database`);
@@ -202,7 +203,7 @@ export class LiveKitRoomWorker {
 
     // Format mandatory AI & recording compliance disclosure if outbound
     const firstMessage = isOutbound
-      ? VoiceComplianceGuard.formatComplianceGreeting(agent.name, '180workspace', agent.firstMessage || undefined)
+      ? VoiceComplianceGuard.formatComplianceGreeting(agent.name, company?.name || '180workspace', agent.firstMessage || undefined)
       : agent.firstMessage || undefined;
 
     const enabledTools = Array.isArray(agent.enabledToolNames)
@@ -485,8 +486,20 @@ export class LiveKitRoomWorker {
       }
 
       try {
-        const participants = await this.roomService.listParticipants(this.options.roomName);
         const { isOutbound, recipientPhone, callSessionId } = this.options;
+
+        // Check if carrier webhook or external event marked callSession as failed/busy/ended
+        const dbSession = await prisma.callSession.findUnique({
+          where: { id: callSessionId },
+          select: { status: true, disconnectReason: true }
+        });
+
+        if (dbSession && ['failed', 'busy', 'completed', 'customer_declined'].includes(dbSession.status)) {
+          await this.stop(dbSession.disconnectReason || dbSession.status);
+          return;
+        }
+
+        const participants = await this.roomService.listParticipants(this.options.roomName);
 
         // Find customer / phone participant
         const phoneParticipant = participants.find(p => 
@@ -649,18 +662,24 @@ export class LiveKitRoomWorker {
         let disconnectReason = session.disconnectReason || reason;
 
         if (!this.hasCustomerAnswered) {
-          if (reason === 'no_answer' || reason === 'timeout') {
+          if (
+            session.status === 'failed' ||
+            (session.disconnectReason && (session.disconnectReason.includes('Carrier') || session.disconnectReason.includes('Error') || session.disconnectReason.includes('disabled') || session.disconnectReason.includes('SIP'))) ||
+            reason.includes('error') ||
+            reason.includes('restriction') ||
+            reason.includes('Carrier')
+          ) {
+            finalStatus = 'failed';
+            disconnectReason = session.disconnectReason || reason || 'Carrier connection failed';
+          } else if (reason === 'no_answer' || reason === 'timeout') {
             finalStatus = 'no_answer';
             disconnectReason = 'Customer did not answer / timeout';
           } else if (reason === 'busy' || reason === 'rejected') {
             finalStatus = 'busy';
             disconnectReason = 'Line busy / call declined';
-          } else if (reason.includes('error') || reason.includes('restriction')) {
-            finalStatus = 'failed';
-            disconnectReason = disconnectReason || 'Carrier connection failed';
           } else {
             finalStatus = 'no_answer';
-            disconnectReason = 'Customer did not answer';
+            disconnectReason = session.disconnectReason || 'Customer did not answer';
           }
         }
 
@@ -705,6 +724,15 @@ export class LiveKitRoomWorker {
                 actionItems: analysis.actionItems
               }
             });
+
+            // Automatic DNC Blacklisting: Detect customer opt-out under the hood
+            const optOutDetected = /stop calling|remove me|do not call|don't call|unsubscribe|opt out|blacklist|never call/i.test(
+              `${analysis.summary || ''} ${(analysis.actionItems || []).join(' ')} ${transcripts.map(t => t.text).join(' ')}`
+            );
+            if (optOutDetected && session.recipientPhone) {
+              await VoiceComplianceGuard.addToDnc(session.companyId, session.recipientPhone, 'customer_opt_out_detected');
+              console.log(`[VoiceComplianceGuard] Automatically blacklisted ${session.recipientPhone} in DNC registry based on call transcript opt-out.`);
+            }
 
             // Create tasks for action items
             if (analysis.actionItems && analysis.actionItems.length > 0) {

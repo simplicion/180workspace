@@ -26,7 +26,9 @@ export class WalletService {
         voiceBalanceInr: true,
         voiceAutoRecharge: true,
         voiceThresholdInr: true,
-        voiceRechargeAmountInr: true
+        voiceRechargeAmountInr: true,
+        currency: true,
+        currencySymbol: true
       }
     });
 
@@ -49,7 +51,8 @@ export class WalletService {
       autoRecharge: Boolean(company.voiceAutoRecharge),
       thresholdInr: minRequiredInr,
       rechargeAmountInr: company.voiceRechargeAmountInr ?? WalletConstants.RECOMMENDED_WALLET_INR,
-      currency: WalletConstants.CURRENCY
+      currency: company.currency || 'USD',
+      currencySymbol: company.currencySymbol || '$'
     };
   }
 
@@ -71,7 +74,7 @@ export class WalletService {
       recommended: wallet.recommendedInr,
       message: allowed
         ? undefined
-        : `Prepaid wallet balance (₹${wallet.balanceInr.toFixed(2)}) is below the required threshold of ₹${minRequiredInr.toFixed(2)}. Operations are hard-locked until wallet top-up.`
+        : `Prepaid wallet balance (${wallet.currencySymbol}${wallet.balanceInr.toFixed(2)}) is below the required threshold of ${wallet.currencySymbol}${minRequiredInr.toFixed(2)}. Operations are hard-locked until wallet top-up.`
     };
   }
 
@@ -149,10 +152,16 @@ export class WalletService {
         });
 
         if (!existingTask) {
+          const comp = await (prisma as any).company.findUnique({
+            where: { id: validId },
+            select: { currencySymbol: true }
+          });
+          const currSym = comp?.currencySymbol || '$';
+
           await (prisma as any).task.create({
             data: {
-              title: `[Urgent Action Required]: Prepaid Wallet Locked (< ₹200.00)`,
-              description: `Your prepaid wallet balance is ₹${result.newBalance.toFixed(2)}. Outbound calls and telephony operations are hard-locked. Top up at least ₹${WalletConstants.MIN_WALLET_THRESHOLD_INR.toFixed(2)} (recommended ₹${WalletConstants.RECOMMENDED_WALLET_INR.toFixed(2)}) to resume operations.`,
+              title: `[Urgent Action Required]: Prepaid Wallet Locked (< ${currSym}${WalletConstants.MIN_WALLET_THRESHOLD_INR.toFixed(2)})`,
+              description: `Your prepaid wallet balance is ${currSym}${result.newBalance.toFixed(2)}. Outbound calls and telephony operations are hard-locked. Top up at least ${currSym}${WalletConstants.MIN_WALLET_THRESHOLD_INR.toFixed(2)} (recommended ${currSym}${WalletConstants.RECOMMENDED_WALLET_INR.toFixed(2)}) to resume operations.`,
               priority: 'high',
               status: 'todo',
               companyId: validId
