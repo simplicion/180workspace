@@ -142,20 +142,62 @@ export class TelnyxService {
   }
 
   /**
-   * Release a phone number on Telnyx carrier exchange
+   * Release / Delete a phone number or verified caller ID permanently from Telnyx
    */
   async releaseNumber(phoneNumberIdOrE164: string): Promise<{ success: boolean; error?: string }> {
     if (!this.apiKey) return { success: false, error: 'Telnyx API key not configured' };
+    const cleanTarget = phoneNumberIdOrE164.replace(/\s+/g, '');
+    let deleted = false;
+    let lastError = '';
+
+    // 1. If it's a virtual DID purchased on Telnyx, find its exact Telnyx resource ID
     try {
-      const cleanTarget = encodeURIComponent(phoneNumberIdOrE164.replace(/\s+/g, ''));
-      await axios.delete(
-        `${this.baseUrl}/phone_numbers/${cleanTarget}`,
+      let targetId = cleanTarget;
+      // If passing an E.164 phone number, query Telnyx to get the resource ID
+      if (cleanTarget.startsWith('+')) {
+        const searchRes = await axios.get(`${this.baseUrl}/phone_numbers`, {
+          headers: this.headers,
+          params: { 'filter[phone_number]': cleanTarget }
+        });
+        const found = searchRes.data?.data?.[0];
+        if (found?.id) {
+          targetId = found.id;
+        }
+      }
+
+      const response = await axios.delete(
+        `${this.baseUrl}/phone_numbers/${encodeURIComponent(targetId)}`,
         { headers: this.headers }
       );
-      return { success: true };
+      if (response.status === 200 || response.status === 204) {
+        deleted = true;
+      }
     } catch (err: any) {
-      const detail = err.response?.data?.errors?.[0]?.detail || err.message;
-      return { success: false, error: detail };
+      lastError = err.response?.data?.errors?.[0]?.detail || err.message;
     }
+
+    // 2. Also attempt deletion from verified_numbers in case it is a verified business caller ID
+    if (cleanTarget.startsWith('+')) {
+      try {
+        const vResponse = await axios.delete(
+          `${this.baseUrl}/verified_numbers/${encodeURIComponent(cleanTarget)}`,
+          { headers: this.headers }
+        );
+        if (vResponse.status === 200 || vResponse.status === 204) {
+          deleted = true;
+        }
+      } catch (vErr: any) {
+        // If not in verified_numbers (404), that's expected for purchased DIDs
+        if (vErr.response?.status !== 404) {
+          lastError = vErr.response?.data?.errors?.[0]?.detail || vErr.message;
+        }
+      }
+    }
+
+    return { 
+      success: deleted || lastError.toLowerCase().includes('not found') || lastError.includes('10005'), 
+      error: deleted ? undefined : lastError 
+    };
   }
 }
+

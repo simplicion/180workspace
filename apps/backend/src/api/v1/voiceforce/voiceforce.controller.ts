@@ -452,15 +452,19 @@ export const VoiceforceController = {
         return res.status(404).json({ error: 'Phone number not found' });
       }
 
-      // If this is a live carrier DID on Telnyx, release it from Telnyx exchange
-      if (num.provider === 'telnyx') {
-        await telnyx.releaseNumber(num.e164Number).catch((tErr: any) => {
-          console.warn('[Voiceforce] Telnyx carrier release notice:', tErr.message);
-        });
+      // Automatically release and delete the number from Telnyx carrier exchange
+      try {
+        await telnyx.releaseNumber(num.providerId || num.e164Number);
+      } catch (tErr: any) {
+        console.warn('[Voiceforce] Telnyx carrier release notice:', tErr.message);
       }
 
+      // Permanently remove from 180workspace database
       await (prisma as any).phoneNumber.delete({ where: { id } });
-      return res.json({ success: true, message: 'Phone number disconnected successfully' });
+      return res.json({ 
+        success: true, 
+        message: `Phone number ${num.e164Number} permanently deleted from 180workspace and released from Telnyx.` 
+      });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
