@@ -707,7 +707,7 @@ export default function VoiceforceNumbersPage() {
         onClose={() => setNumberToDelete(null)}
         onConfirm={handleConfirmDelete}
         title="Disconnect Phone Number"
-        message={`Are you sure you want to disconnect ${numberToDelete?.number}? Inbound calls will no longer route to your AI employees.`}
+        message={`Are you sure you want to disconnect ${numberToDelete?.number}? This will permanently remove the line from 180workspace and release it on the carrier. Inbound calls will no longer route to your AI employees.`}
         confirmText={deleting ? "Disconnecting..." : "Disconnect Line"}
         cancelText="Keep Line"
         isDestructive={true}

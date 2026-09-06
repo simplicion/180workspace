@@ -331,7 +331,7 @@ export const VoiceforceController = {
           isLiveCarrier = true;
           providerId = purchaseResult.id || providerId;
           // Automatically bind newly acquired number to Telnyx Call Control / SIP connection
-          await telnyx.assignNumberToConnection(providerId || phoneNumber).catch((bindErr: any) => {
+          await telnyx.assignNumberToConnection(phoneNumber).catch((bindErr: any) => {
             console.warn('[Voiceforce] Telnyx connection binding note:', bindErr.message);
           });
         } else {
@@ -444,7 +444,22 @@ export const VoiceforceController = {
     try {
       const companyId = req.companyId || req.user?.companyId;
       const { id } = req.params;
-      await (prisma as any).phoneNumber.delete({ where: { id, companyId } });
+
+      const num = await (prisma as any).phoneNumber.findFirst({
+        where: { id, companyId }
+      });
+      if (!num) {
+        return res.status(404).json({ error: 'Phone number not found' });
+      }
+
+      // If this is a live carrier DID on Telnyx, release it from Telnyx exchange
+      if (num.provider === 'telnyx') {
+        await telnyx.releaseNumber(num.e164Number).catch((tErr: any) => {
+          console.warn('[Voiceforce] Telnyx carrier release notice:', tErr.message);
+        });
+      }
+
+      await (prisma as any).phoneNumber.delete({ where: { id } });
       return res.json({ success: true, message: 'Phone number disconnected successfully' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
