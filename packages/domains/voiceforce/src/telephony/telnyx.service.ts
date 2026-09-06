@@ -57,7 +57,7 @@ export class TelnyxService {
   /**
    * Purchase a virtual phone number (DID)
    */
-  async purchaseNumber(phoneNumber: string): Promise<{ success: boolean; id?: string; error?: string }> {
+  async purchaseNumber(phoneNumber: string): Promise<{ success: boolean; id?: string; phoneNumberId?: string; error?: string }> {
     if (!this.apiKey) return { success: false, error: 'Telnyx API key not configured' };
     try {
       const connId = process.env.TELNYX_SIP_CONNECTION_ID || process.env.TELNYX_APPLICATION_ID;
@@ -70,7 +70,10 @@ export class TelnyxService {
         payload,
         { headers: this.headers }
       );
-      return { success: true, id: response.data.data?.id };
+      const orderData = response.data?.data;
+      const orderedPhone = orderData?.phone_numbers?.[0];
+      const phoneNumberId = orderedPhone?.id || null;
+      return { success: true, id: orderData?.id, phoneNumberId: phoneNumberId || undefined };
     } catch (err: any) {
       return { success: false, error: err.response?.data?.errors?.[0]?.detail || err.message };
     }
@@ -142,61 +145,132 @@ export class TelnyxService {
   }
 
   /**
-   * Release / Delete a phone number or verified caller ID permanently from Telnyx
+   * Release / Delete a phone number or verified caller ID permanently from Telnyx carrier exchange
    */
-  async releaseNumber(phoneNumberIdOrE164: string): Promise<{ success: boolean; error?: string }> {
+  async releaseNumber(phoneNumberOrId: string): Promise<{ success: boolean; error?: string }> {
     if (!this.apiKey) return { success: false, error: 'Telnyx API key not configured' };
-    const cleanTarget = phoneNumberIdOrE164.replace(/\s+/g, '');
+    const rawTarget = (phoneNumberOrId || '').trim();
+    if (!rawTarget) return { success: true };
+
+    const cleanTarget = rawTarget.replace(/\s+/g, '');
     let deleted = false;
     let lastError = '';
 
-    // 1. If it's a virtual DID purchased on Telnyx, find its exact Telnyx resource ID
+    // If it's a virtual mock ID like did_virtual_..., no carrier action needed
+    if (cleanTarget.startsWith('did_virtual_')) {
+      return { success: true };
+    }
+
     try {
-      let targetId = cleanTarget;
-      // If passing an E.164 phone number, query Telnyx to get the resource ID
-      if (cleanTarget.startsWith('+')) {
-        const searchRes = await axios.get(`${this.baseUrl}/phone_numbers`, {
-          headers: this.headers,
-          params: { 'filter[phone_number]': cleanTarget }
-        });
-        const found = searchRes.data?.data?.[0];
-        if (found?.id) {
-          targetId = found.id;
+      let resolvedPhoneId: string | null = null;
+      let deletionLocked = false;
+
+      // 1. Resolve phone number via inventory query if input looks like a phone number
+      const phoneDigits = cleanTarget.replace(/[^0-9+]/g, '');
+      const searchCandidates: string[] = [];
+      if (phoneDigits.startsWith('+')) {
+        searchCandidates.push(phoneDigits);
+        searchCandidates.push(phoneDigits.substring(1));
+      } else if (/^\d{10,15}$/.test(phoneDigits)) {
+        searchCandidates.push(`+${phoneDigits}`);
+        searchCandidates.push(phoneDigits);
+      }
+
+      for (const candidate of searchCandidates) {
+        if (resolvedPhoneId) break;
+        try {
+          const searchRes = await axios.get(`${this.baseUrl}/phone_numbers`, {
+            headers: this.headers,
+            params: { 'filter[phone_number]': candidate }
+          });
+          const found = searchRes.data?.data?.[0];
+          if (found?.id) {
+            resolvedPhoneId = found.id;
+            deletionLocked = Boolean(found.deletion_lock_enabled);
+            break;
+          }
+        } catch {
+          // ignore and try next format
         }
       }
 
-      const response = await axios.delete(
-        `${this.baseUrl}/phone_numbers/${encodeURIComponent(targetId)}`,
-        { headers: this.headers }
-      );
-      if (response.status === 200 || response.status === 204) {
-        deleted = true;
+      // If not resolved yet and cleanTarget looks like a Telnyx resource ID
+      if (!resolvedPhoneId && /^[0-9a-fA-F-]+$/.test(cleanTarget)) {
+        try {
+          const getRes = await axios.get(`${this.baseUrl}/phone_numbers/${encodeURIComponent(cleanTarget)}`, {
+            headers: this.headers
+          });
+          if (getRes.data?.data?.id) {
+            resolvedPhoneId = getRes.data.data.id;
+            deletionLocked = Boolean(getRes.data.data.deletion_lock_enabled);
+          }
+        } catch {
+          // May be an order ID or not found
+        }
+      }
+
+      // If resolved a phone number resource ID, unlock (if needed) and delete
+      if (resolvedPhoneId) {
+        if (deletionLocked) {
+          try {
+            await axios.patch(
+              `${this.baseUrl}/phone_numbers/${encodeURIComponent(resolvedPhoneId)}`,
+              { deletion_lock_enabled: false },
+              { headers: this.headers }
+            );
+          } catch (lockErr: any) {
+            console.warn('[TelnyxService] Notice: Could not clear deletion lock:', lockErr.message);
+          }
+        }
+
+        const delRes = await axios.delete(
+          `${this.baseUrl}/phone_numbers/${encodeURIComponent(resolvedPhoneId)}`,
+          { headers: this.headers }
+        );
+        if (delRes.status === 200 || delRes.status === 204 || delRes.data?.data?.status === 'deleted') {
+          deleted = true;
+        }
+      } else if (cleanTarget.startsWith('+') || /^\d{10,15}$/.test(phoneDigits)) {
+        // Fallback direct delete attempt by target
+        try {
+          const directDel = await axios.delete(
+            `${this.baseUrl}/phone_numbers/${encodeURIComponent(cleanTarget)}`,
+            { headers: this.headers }
+          );
+          if (directDel.status === 200 || directDel.status === 204) {
+            deleted = true;
+          }
+        } catch (dErr: any) {
+          lastError = dErr.response?.data?.errors?.[0]?.detail || dErr.message;
+        }
       }
     } catch (err: any) {
       lastError = err.response?.data?.errors?.[0]?.detail || err.message;
     }
 
-    // 2. Also attempt deletion from verified_numbers in case it is a verified business caller ID
-    if (cleanTarget.startsWith('+')) {
-      try {
-        const vResponse = await axios.delete(
-          `${this.baseUrl}/verified_numbers/${encodeURIComponent(cleanTarget)}`,
-          { headers: this.headers }
-        );
-        if (vResponse.status === 200 || vResponse.status === 204) {
-          deleted = true;
-        }
-      } catch (vErr: any) {
-        // If not in verified_numbers (404), that's expected for purchased DIDs
-        if (vErr.response?.status !== 404) {
-          lastError = vErr.response?.data?.errors?.[0]?.detail || vErr.message;
-        }
+    // 2. Also remove from verified_numbers if it was an external verified business caller ID
+    const normalizedE164 = cleanTarget.startsWith('+') ? cleanTarget : `+${cleanTarget}`;
+    try {
+      const vResponse = await axios.delete(
+        `${this.baseUrl}/verified_numbers/${encodeURIComponent(normalizedE164)}`,
+        { headers: this.headers }
+      );
+      if (vResponse.status === 200 || vResponse.status === 204) {
+        deleted = true;
+      }
+    } catch (vErr: any) {
+      if (vErr.response?.status !== 404 && !deleted) {
+        lastError = vErr.response?.data?.errors?.[0]?.detail || vErr.message;
       }
     }
 
+    const isAlreadyGone = lastError.toLowerCase().includes('not found') || 
+                          lastError.includes('10005') || 
+                          lastError.toLowerCase().includes('does not exist');
+
     return { 
-      success: deleted || lastError.toLowerCase().includes('not found') || lastError.includes('10005'), 
-      error: deleted ? undefined : lastError 
+      success: deleted || isAlreadyGone, 
+      error: (deleted || isAlreadyGone) ? undefined : lastError 
     };
   }
 }
