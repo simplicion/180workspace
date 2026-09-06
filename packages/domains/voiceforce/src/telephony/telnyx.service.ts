@@ -60,9 +60,14 @@ export class TelnyxService {
   async purchaseNumber(phoneNumber: string): Promise<{ success: boolean; id?: string; error?: string }> {
     if (!this.apiKey) return { success: false, error: 'Telnyx API key not configured' };
     try {
+      const connId = process.env.TELNYX_SIP_CONNECTION_ID || process.env.TELNYX_APPLICATION_ID;
+      const payload: any = { phone_numbers: [{ phone_number: phoneNumber }] };
+      if (connId) {
+        payload.connection_id = connId;
+      }
       const response = await axios.post(
         `${this.baseUrl}/number_orders`,
-        { phone_numbers: [{ phone_number: phoneNumber }] },
+        payload,
         { headers: this.headers }
       );
       return { success: true, id: response.data.data?.id };
