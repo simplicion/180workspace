@@ -237,7 +237,8 @@ async function bootstrap() {
         initSocket(server);
         console.log('[Bootstrap] Sockets initialized.');
         
-        if (RUN_MODE === 'both' || RUN_MODE === 'worker') {
+        const shouldRunWorker = RUN_MODE === 'both' || RUN_MODE === 'worker' || process.env.NODE_ENV === 'development';
+        if (shouldRunWorker) {
             console.log('👷 Starting Worker Services...');
             AIJobsService.init(); // Proactive AI Alerts
             AICronService.initCronJobs(); // AI Background Processes
@@ -262,4 +263,4 @@ async function bootstrap() {
 bootstrap();
 
 module.exports = app;
-// Reload trigger: SupportService superadminUpdateStatus updated
+// Reload trigger: Voiceforce WebRTC Audio Bridge active - 2026-09-06

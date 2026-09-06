@@ -9,6 +9,7 @@
     "dev": "tsc -w"
   },
   "dependencies": {
+    "@livekit/rtc-node": "^0.13.34",
     "@prisma/client": "^5.0.0",
     "@workspace/ai": "workspace:*",
     "@workspace/backend-infra": "workspace:*",
