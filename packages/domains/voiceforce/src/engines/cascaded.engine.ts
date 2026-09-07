@@ -13,6 +13,7 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
   private cartesiaWs: WebSocket | null = null;
   private conversationHistory: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string; name?: string }> = [];
   private isAgentSpeaking: boolean = false;
+  private isGeneratingResponse: boolean = false;
   private currentLlmAbortController: AbortController | null = null;
   private isTerminated: boolean = false;
   private inactivityTimer: NodeJS.Timeout | null = null;
@@ -21,6 +22,18 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
   private lastAgentSpokeTimestamp: number = 0;
   private interruptedThought: string | null = null;
   private currentSpeakingSentence: string = '';
+  
+  // Turn Management & Utterance Debouncing
+  private turnEpoch: number = 0;
+  private activeTtsContextId: string = 'call_init';
+  private pendingUtteranceBuffer: string = '';
+  private utteranceDebounceTimer: NodeJS.Timeout | null = null;
+  private sustainedSpeechFrames: number = 0;
+  private sentenceStreamer: SentenceStreamer = new SentenceStreamer({ minWordsPerChunk: 3, maxWordsPerChunk: 20 });
+
+  private static readonly FILLER_WORDS = new Set([
+    'uh', 'um', 'ah', 'er', 'hmm', 'hm', 'like', 'yeah', 'so', 'and', 'well', 'okay', 'wait'
+  ]);
 
   constructor(config: VoiceSessionConfig, events: VoiceEngineEvents) {
     super(config, events);
@@ -33,21 +46,36 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
   async start(): Promise<void> {
     const cartesiaKey = process.env.CARTESIA_API_KEY;
 
-    // 1. Initialize Cartesia Unified Streaming STT (Ink-2: Sub-120ms with Acoustic + Semantic Turn Detection)
+    // 1. Initialize Cartesia Unified Streaming STT with Industry Standard Telephony Thresholds
+    // turn_end_threshold=0.7 (prevents premature cutoffs), turn_end_timeout_ms=900 (natural speech cadence)
     if (cartesiaKey) {
       this.cartesiaSttWs = new WebSocket(
-        `wss://api.cartesia.ai/stt/websocket?model=ink-2&cartesia_version=2026-08-14&encoding=pcm_s16le&sample_rate=16000&api_key=${cartesiaKey}&turn_end_threshold=0.25&turn_end_timeout_ms=450`
+        `wss://api.cartesia.ai/stt/websocket?model=ink-2&cartesia_version=2026-08-14&encoding=pcm_s16le&sample_rate=16000&api_key=${cartesiaKey}&turn_end_threshold=0.7&turn_end_timeout_ms=900`
       );
 
       this.cartesiaSttWs.on('message', (raw: any) => {
         try {
           const msg = JSON.parse(raw.toString());
-          const transcript = msg.text || msg.transcript || '';
-          if (!transcript || !transcript.trim()) return;
+          const transcript = (msg.text || msg.transcript || '').trim();
+          if (!transcript) return;
           const isFinal = Boolean(msg.is_final || msg.type === 'turn_end' || msg.final);
-          this.events.onTranscript('user', transcript.trim(), isFinal);
-          if (isFinal) {
-            this.handleUserUtterance(transcript.trim());
+
+          this.events.onTranscript('user', transcript, isFinal);
+
+          if (!isFinal) {
+            // Eager Barge-in: if agent is currently speaking or generating response, interrupt immediately on human speech
+            if (this.isAgentSpeaking || this.isGeneratingResponse) {
+              if (this.isAcousticEcho(transcript)) {
+                return;
+              }
+              if (transcript.length >= 2) {
+                console.log(`[CascadedEngine] Instant barge-in triggered on interim transcript: "${transcript}"`);
+                this.handleBargeIn();
+              }
+            }
+          } else {
+            // Final transcript: route through utterance debouncer & aggregator
+            this.handleFinalTranscript(transcript);
           }
         } catch {}
       });
@@ -66,12 +94,16 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
       this.cartesiaWs.on('message', (data: any) => {
         try {
           const response = JSON.parse(data.toString());
+          // Context ID Guard: Discard any audio chunks arriving from an older/interrupted turn
+          if (response.context_id && response.context_id !== this.activeTtsContextId) {
+            return;
+          }
           if (response.data) {
             const audioChunk = Buffer.from(response.data, 'base64');
             this.events.onAudioChunk(audioChunk);
           }
         } catch {
-          if (Buffer.isBuffer(data)) {
+          if (Buffer.isBuffer(data) && this.isAgentSpeaking) {
             this.events.onAudioChunk(data);
           }
         }
@@ -82,14 +114,16 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
       });
     }
 
-    // 3. Initialize System Conversation History with 180workspace context
+    // 3. Initialize System Conversation History with 180workspace context & strict conversational rules
     this.conversationHistory.push({
       role: 'system',
       content: `${this.config.systemPrompt}\n\n` +
-        `IMPORTANT VOICE AGENT RULES:\n` +
-        `1. Keep answers concise, direct, and conversational (1 to 2 sentences max per response).\n` +
-        `2. Never output markdown formatting, bullet points, asterisks, or URLs because you are speaking over a phone call.\n` +
-        `3. When confirming an action, execute the appropriate tool immediately and speak the confirmation to the customer.`
+        `IMPORTANT VOICE AGENT PRODUCTION CONVERSATIONAL RULES:\n` +
+        `1. NEVER repeatedly say "Hello", "Hi there", or greet again once the call is in progress. The opening greeting has already occurred.\n` +
+        `2. Keep responses concise, direct, and conversational (1 to 2 spoken sentences maximum per turn).\n` +
+        `3. Never output markdown formatting, bullet points, asterisks, or URLs because you are speaking over a live telephone call.\n` +
+        `4. Seamlessly match the caller's language: if they speak Hindi, respond in fluent natural Hindi; if English, respond in English; if Hinglish, respond in Hinglish.\n` +
+        `5. When confirming an action, execute the appropriate tool immediately and naturally speak the confirmation to the caller.`
     });
 
     // 4. Initial Greeting (First Message)
@@ -125,7 +159,7 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
 
     const timeoutMs = this.config.inactivityTimeoutMs || 8000;
     this.inactivityTimer = setTimeout(async () => {
-      if (this.isTerminated || this.isAgentSpeaking) return;
+      if (this.isTerminated || this.isAgentSpeaking || this.isGeneratingResponse) return;
 
       this.inactivityPromptCount++;
       if (this.inactivityPromptCount === 1) {
@@ -142,12 +176,29 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     if (this.isTerminated) return;
     this.resetInactivityTimer();
 
-    // PSTN Acoustic Echo Cancellation Debounce (120ms threshold)
-    // Avoids processing micro-echoes bounced back through cellular carrier phone speakers
-    const now = Date.now();
-    if (this.isAgentSpeaking || (now - this.lastAgentSpokeTimestamp < 120)) {
-      // Packets received while speaking or immediately after speaking (<120ms) are evaluated
-      // to prevent agent from interrupting itself
+    // Fast Acoustic Energy (RMS) VAD for sub-50ms Barge-In Interruption
+    if (this.isAgentSpeaking) {
+      const pcm = pcmChunk instanceof Int16Array
+        ? pcmChunk
+        : new Int16Array(pcmChunk.buffer, pcmChunk.byteOffset, Math.floor(pcmChunk.byteLength / 2));
+      
+      let sumSquares = 0;
+      for (let i = 0; i < pcm.length; i++) {
+        sumSquares += pcm[i] * pcm[i];
+      }
+      const rms = Math.sqrt(sumSquares / (pcm.length || 1));
+
+      // Telephony voice RMS threshold: > 1400 indicates active speech
+      if (rms > 1400) {
+        this.sustainedSpeechFrames++;
+        if (this.sustainedSpeechFrames >= 3) { // ~60ms sustained speech
+          this.sustainedSpeechFrames = 0;
+          console.log(`[CascadedEngine] Energy VAD barge-in triggered (RMS: ${Math.round(rms)})`);
+          this.handleBargeIn();
+        }
+      } else {
+        this.sustainedSpeechFrames = Math.max(0, this.sustainedSpeechFrames - 1);
+      }
     }
 
     if (this.cartesiaSttWs && this.cartesiaSttWs.readyState === WebSocket.OPEN) {
@@ -158,39 +209,112 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
 
   handleBargeIn(): void {
     this.resetInactivityTimer();
-    if (this.isAgentSpeaking) {
-      if (this.currentSpeakingSentence.trim()) {
-        this.interruptedThought = this.currentSpeakingSentence.trim();
-      }
-      if (this.currentLlmAbortController) {
-        this.currentLlmAbortController.abort();
-        this.currentLlmAbortController = null;
-      }
-      if (this.cartesiaWs && this.cartesiaWs.readyState === WebSocket.OPEN) {
-        this.cartesiaWs.send(JSON.stringify({ context_id: 'active_call', cancel: true }));
-      }
-      this.isAgentSpeaking = false;
-      this.lastAgentSpokeTimestamp = Date.now();
-      this.currentSpeakingSentence = '';
+    if (this.utteranceDebounceTimer) {
+      clearTimeout(this.utteranceDebounceTimer);
+      this.utteranceDebounceTimer = null;
+    }
+
+    const wasActive = this.isAgentSpeaking || this.isGeneratingResponse;
+
+    if (this.currentSpeakingSentence.trim()) {
+      this.interruptedThought = this.currentSpeakingSentence.trim();
+    }
+
+    if (this.currentLlmAbortController) {
+      this.currentLlmAbortController.abort();
+      this.currentLlmAbortController = null;
+    }
+
+    this.sentenceStreamer.reset();
+
+    // Terminate in-flight audio synthesis on Cartesia WebSocket
+    if (this.cartesiaWs && this.cartesiaWs.readyState === WebSocket.OPEN) {
+      this.cartesiaWs.send(JSON.stringify({ context_id: this.activeTtsContextId, cancel: true }));
+    }
+
+    // Invalidate active context so any late-arriving packets are dropped immediately
+    this.activeTtsContextId = `cancelled_${Date.now()}`;
+    this.isAgentSpeaking = false;
+    this.isGeneratingResponse = false;
+    this.lastAgentSpokeTimestamp = Date.now();
+    this.currentSpeakingSentence = '';
+
+    if (wasActive) {
       this.events.onInterrupted();
     }
   }
 
-  private async handleUserUtterance(userInput: string): Promise<void> {
-    if (this.isTerminated || !userInput.trim()) return;
+  private isAcousticEcho(userInput: string): boolean {
+    if (!this.currentSpeakingSentence && !this.lastAgentSpokeTimestamp) return false;
+    const now = Date.now();
+    if (!this.isAgentSpeaking && (now - this.lastAgentSpokeTimestamp > 1500)) return false;
 
-    // PSTN Acoustic Echo Cancellation:
-    // If the transcribed text matches what the agent is currently speaking or just spoke, drop it as an echo
-    if (this.isAgentSpeaking && this.currentSpeakingSentence) {
-      const cleanUser = userInput.toLowerCase().replace(/[^\w\s]/g, '').trim();
-      const cleanAgent = this.currentSpeakingSentence.toLowerCase().replace(/[^\w\s]/g, '').trim();
-      if (cleanUser && (cleanAgent.includes(cleanUser) || (cleanUser.length > 4 && cleanAgent.startsWith(cleanUser)))) {
-        console.log(`[CascadedEngine] Filtered acoustic speaker echo: "${userInput}"`);
-        return;
-      }
+    const cleanUser = userInput.toLowerCase().replace(/[^\w\s]/g, '').trim();
+    const cleanAgent = this.currentSpeakingSentence.toLowerCase().replace(/[^\w\s]/g, '').trim();
+    if (!cleanUser || !cleanAgent) return false;
+
+    if (cleanAgent.includes(cleanUser) || (cleanUser.length > 4 && cleanAgent.startsWith(cleanUser))) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Aggregates rapid-fire sentence fragments and buffers filler words before triggering LLM
+   */
+  private handleFinalTranscript(transcript: string): void {
+    if (this.isTerminated || !transcript.trim()) return;
+
+    if (this.isAcousticEcho(transcript)) {
+      console.log(`[CascadedEngine] Filtered acoustic speaker echo: "${transcript}"`);
+      return;
     }
 
+    const clean = transcript.trim();
+    const words = clean.toLowerCase().split(/\s+/);
+    const isPureFiller = words.length === 1 && CascadedVoiceEngine.FILLER_WORDS.has(words[0].replace(/[^\w]/g, ''));
+
+    if (isPureFiller) {
+      this.pendingUtteranceBuffer = (this.pendingUtteranceBuffer + ' ' + clean).trim();
+      console.log(`[CascadedEngine] Buffered filler: "${clean}" (buffer: "${this.pendingUtteranceBuffer}")`);
+      if (this.utteranceDebounceTimer) clearTimeout(this.utteranceDebounceTimer);
+      this.utteranceDebounceTimer = setTimeout(() => {
+        this.pendingUtteranceBuffer = '';
+      }, 1200);
+      return;
+    }
+
+    // Accumulate all consecutive fragments into the turn buffer
+    this.pendingUtteranceBuffer = (this.pendingUtteranceBuffer + ' ' + clean).trim();
+
+    if (this.utteranceDebounceTimer) {
+      clearTimeout(this.utteranceDebounceTimer);
+      this.utteranceDebounceTimer = null;
+    }
+
+    // 400ms debounce: If the user pauses for a split second between compound clauses, merge them into 1 atomic turn
+    this.utteranceDebounceTimer = setTimeout(() => {
+      const fullTurnText = this.pendingUtteranceBuffer.trim();
+      this.pendingUtteranceBuffer = '';
+      if (fullTurnText) {
+        this.executeUserTurn(fullTurnText);
+      }
+    }, 400);
+  }
+
+  /**
+   * Executes an atomic, single-turn LLM generation with execution mutex & context isolation
+   */
+  private async executeUserTurn(userInput: string): Promise<void> {
+    if (this.isTerminated || !userInput.trim()) return;
+
+    // Terminate any previous generation or playback immediately
     this.handleBargeIn();
+
+    this.isGeneratingResponse = true;
+    this.turnEpoch++;
+    const turnId = this.turnEpoch;
+    this.activeTtsContextId = `turn_${turnId}_${Date.now()}`;
 
     // Check if user requested resumption of previously interrupted thought
     if (this.interruptedThought && /continue|go ahead|resume|what were you saying|carry on|finish/i.test(userInput)) {
@@ -203,6 +327,7 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
 
     this.conversationHistory.push({ role: 'user', content: userInput });
     this.currentLlmAbortController = new AbortController();
+    const signal = this.currentLlmAbortController.signal;
 
     // Dynamically retrieve permitted tools from @workspace/ai registry
     const registeredTools = aiToolRegistry.getAllTools();
@@ -224,26 +349,31 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     try {
       let assistantText = '';
       let toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
-      const sentenceStreamer = new SentenceStreamer({ minWordsPerChunk: 3, maxWordsPerChunk: 20 });
+      this.sentenceStreamer.reset();
 
       // Execute with Multi-Provider LLM Fallback (Groq primary -> Gemini / ProviderService fallback)
       assistantText = await this.generateStreamingCompletion(
         this.conversationHistory,
         activeTools,
-        this.currentLlmAbortController.signal,
+        signal,
         (tokenChunk) => {
-          const sentences = sentenceStreamer.push(tokenChunk);
+          if (signal.aborted || this.turnEpoch !== turnId) return;
+          const sentences = this.sentenceStreamer.push(tokenChunk);
           for (const s of sentences) {
-            this.streamTtsChunk(s, false);
+            if (signal.aborted || this.turnEpoch !== turnId) break;
+            this.streamTtsChunk(s, false, this.activeTtsContextId);
           }
         },
         (calls) => { toolCallsMap = calls; }
       );
 
+      if (signal.aborted || this.turnEpoch !== turnId) return;
+
       // Flush any trailing sentence buffer to Cartesia TTS
-      const remainingSentences = sentenceStreamer.flush();
+      const remainingSentences = this.sentenceStreamer.flush();
       for (const s of remainingSentences) {
-        this.streamTtsChunk(s, true);
+        if (signal.aborted || this.turnEpoch !== turnId) break;
+        this.streamTtsChunk(s, true, this.activeTtsContextId);
       }
 
       if (assistantText.trim()) {
@@ -253,8 +383,9 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
 
       // Execute any invoked tools
       const toolCalls = Object.values(toolCallsMap);
-      if (toolCalls.length > 0) {
+      if (toolCalls.length > 0 && !signal.aborted && this.turnEpoch === turnId) {
         for (const tc of toolCalls) {
+          if (signal.aborted || this.turnEpoch !== turnId) break;
           let parsedArgs = {};
           try {
             parsedArgs = JSON.parse(tc.arguments || '{}');
@@ -335,11 +466,17 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
         }
 
         // Re-invoke with tool result so AI naturally states the outcome to the caller
-        await this.handleUserUtterance('Continue and report the result of the action.');
+        if (!signal.aborted && this.turnEpoch === turnId) {
+          await this.executeUserTurn('Continue and report the result of the action.');
+        }
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       this.events.onError(err);
+    } finally {
+      if (this.turnEpoch === turnId) {
+        this.isGeneratingResponse = false;
+      }
     }
   }
 
@@ -368,6 +505,7 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
         }, { signal });
 
         for await (const chunk of stream) {
+          if (signal.aborted) break;
           const delta = chunk.choices[0]?.delta;
           if (delta?.content) {
             assistantText += delta.content;
@@ -430,13 +568,13 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     this.currentSpeakingSentence = text;
     this.lastAgentSpokeTimestamp = Date.now();
     this.events.onTranscript('agent', text, true);
-    this.streamTtsChunk(text, true);
+    this.streamTtsChunk(text, true, this.activeTtsContextId);
   }
 
-  private streamTtsChunk(text: string, flush = false): void {
+  private streamTtsChunk(text: string, flush = false, contextId: string = 'active_call'): void {
     if (!this.cartesiaWs || this.cartesiaWs.readyState !== WebSocket.OPEN) return;
     this.isAgentSpeaking = true;
-    this.currentSpeakingSentence += text;
+    this.currentSpeakingSentence += ' ' + text;
     this.lastAgentSpokeTimestamp = Date.now();
 
     this.cartesiaWs.send(JSON.stringify({
@@ -444,14 +582,14 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
       transcript: text,
       voice: {
         mode: 'id',
-        id: this.config.voiceId || '4e045189-a105-4024-921c-dc46b9794f61'
+        id: this.config.voiceId || 'cb9c954d-bcaa-43ed-82bf-aeb5e88a3cb5'
       },
       output_format: {
         container: 'raw',
         encoding: 'pcm_s16le',
         sample_rate: 16000
       },
-      context_id: 'active_call',
+      context_id: contextId,
       continue: !flush
     }));
   }
@@ -465,6 +603,10 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     if (this.maxDurationTimer) {
       clearTimeout(this.maxDurationTimer);
       this.maxDurationTimer = null;
+    }
+    if (this.utteranceDebounceTimer) {
+      clearTimeout(this.utteranceDebounceTimer);
+      this.utteranceDebounceTimer = null;
     }
     if (this.currentLlmAbortController) {
       this.currentLlmAbortController.abort();

@@ -442,9 +442,9 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     isAppEnabled = true; // Settings, Dashboard, etc.
                 } else if (hasActivePlan) {
                     // Check against the plan's max apps
-                    const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 3);
+                    const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 50);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'voiceforce', 'ai'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'operations', 'voiceforce', 'ai'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 
@@ -456,7 +456,8 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     if (isDefaultApp) {
                         isAppEnabled = item.appId === 'ai' || companyEnabledApps.includes(item.appId);
                     } else {
-                        isAppEnabled = allowedSubset.includes(item.appId);
+                        isAppEnabled = allowedSubset.includes(item.appId) || 
+                            (item.appId === 'traffic-director' && (allowedSubset.includes('operations') || companyEnabledApps.includes('traffic-director')));
                     }
                 } else {
                     // No active plan: only allow default apps if they are in enabledApps
