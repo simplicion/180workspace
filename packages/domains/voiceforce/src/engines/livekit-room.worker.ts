@@ -1,19 +1,17 @@
 import { RoomServiceClient, SipClient, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload, AccessToken } from 'livekit-server-sdk';
-import {
-  Room as RtcRoom,
-  AudioSource,
-  LocalAudioTrack,
-  AudioFrame,
-  AudioStream,
-  TrackPublishOptions,
-  TrackSource,
-  TrackKind,
-  RoomEvent,
-  RemoteTrack,
-  RemoteTrackPublication,
-  RemoteParticipant,
-  RemoteAudioTrack
-} from '@livekit/rtc-node';
+
+// Safe lazy accessor for @livekit/rtc-node to prevent server crashes in environments without native binaries (e.g. musl/Alpine)
+let _rtcNodeModule: any = undefined;
+function getRtcNode(): any {
+  if (_rtcNodeModule !== undefined) return _rtcNodeModule;
+  try {
+    _rtcNodeModule = require('@livekit/rtc-node');
+  } catch (err: any) {
+    console.warn('[LiveKitRoomWorker] Optional @livekit/rtc-node native module not loaded:', err.message);
+    _rtcNodeModule = null;
+  }
+  return _rtcNodeModule;
+}
 import { CascadedVoiceEngine } from './cascaded.engine';
 import { VoiceSessionConfig } from '../types/voice.types';
 import { prisma } from '@workspace/db';
@@ -45,10 +43,10 @@ export class LiveKitRoomWorker {
   private monitorTimer: NodeJS.Timeout | null = null;
   private hasCustomerAnswered: boolean = false;
   private greetingDelivered: boolean = false;
-  private rtcRoom: RtcRoom | null = null;
-  private audioSource: AudioSource | null = null;
-  private audioTrack: LocalAudioTrack | null = null;
-  private audioFrameQueue: AudioFrame[] = [];
+  private rtcRoom: any = null;
+  private audioSource: any = null;
+  private audioTrack: any = null;
+  private audioFrameQueue: any[] = [];
   private isDrainingAudioQueue: boolean = false;
 
   constructor(options: LiveKitRoomWorkerOptions) {
@@ -154,32 +152,37 @@ export class LiveKitRoomWorker {
       });
       const jwt = await agentToken.toJwt();
 
-      this.rtcRoom = new RtcRoom();
-      await this.rtcRoom.connect(livekitHost, jwt);
+      const rtc = getRtcNode();
+      if (!rtc) {
+        console.warn('[LiveKitRoomWorker] RTC agent connect skipped: native RTC driver unavailable.');
+      } else {
+        this.rtcRoom = new rtc.Room();
+        await this.rtcRoom.connect(livekitHost, jwt);
 
-      this.audioSource = new AudioSource(16000, 1, 10000);
-      this.audioTrack = LocalAudioTrack.createAudioTrack('agent_voice', this.audioSource);
-      await this.rtcRoom.localParticipant?.publishTrack(
-        this.audioTrack,
-        new TrackPublishOptions({ source: TrackSource.SOURCE_MICROPHONE })
-      );
+        this.audioSource = new rtc.AudioSource(16000, 1, 10000);
+        this.audioTrack = rtc.LocalAudioTrack.createAudioTrack('agent_voice', this.audioSource);
+        await this.rtcRoom.localParticipant?.publishTrack(
+          this.audioTrack,
+          new rtc.TrackPublishOptions({ source: rtc.TrackSource.SOURCE_MICROPHONE })
+        );
 
-      this.rtcRoom.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
-        console.log(`[LiveKitRoomWorker] Subscribed to remote track ${track.sid} (${track.kind}) from ${participant.identity}`);
-        if (track.kind === TrackKind.KIND_AUDIO) {
-          this.attachRemoteAudioStream(track as RemoteAudioTrack);
-        }
-      });
+        this.rtcRoom.on(rtc.RoomEvent.TrackSubscribed, (track: any, publication: any, participant: any) => {
+          console.log(`[LiveKitRoomWorker] Subscribed to remote track ${track.sid} (${track.kind}) from ${participant.identity}`);
+          if (track.kind === rtc.TrackKind.KIND_AUDIO) {
+            this.attachRemoteAudioStream(track);
+          }
+        });
 
-      // Attach any tracks from participants already present in the room
-      for (const [, p] of this.rtcRoom.remoteParticipants) {
-        for (const [, pub] of p.trackPublications) {
-          if (pub.track && pub.track.kind === TrackKind.KIND_AUDIO) {
-            this.attachRemoteAudioStream(pub.track as RemoteAudioTrack);
+        // Attach any tracks from participants already present in the room
+        for (const [, p] of this.rtcRoom.remoteParticipants) {
+          for (const [, pub] of (p as any).trackPublications) {
+            if (pub.track && pub.track.kind === rtc.TrackKind.KIND_AUDIO) {
+              this.attachRemoteAudioStream(pub.track);
+            }
           }
         }
+        await this.recordMilestone('rtc_agent_audio_bridged');
       }
-      await this.recordMilestone('rtc_agent_audio_bridged');
     } catch (rtcErr: any) {
       console.warn('[LiveKitRoomWorker] RTC agent connect warning:', rtcErr.message);
     }
@@ -322,8 +325,11 @@ export class LiveKitRoomWorker {
               const pcmChunk = new Int16Array(
                 slice.buffer.slice(slice.byteOffset, slice.byteOffset + numSamples * 2)
               );
-              const frame = new AudioFrame(pcmChunk, sampleRate, channels, numSamples);
-              this.audioFrameQueue.push(frame);
+              const rtc = getRtcNode();
+              if (rtc) {
+                const frame = new rtc.AudioFrame(pcmChunk, sampleRate, channels, numSamples);
+                this.audioFrameQueue.push(frame);
+              }
             }
             this.drainAudioQueue();
           } catch (err: any) {
@@ -577,8 +583,10 @@ export class LiveKitRoomWorker {
   /**
    * Subscribes to remote participant incoming audio stream and feeds PCM frames into AI voice engine
    */
-  private attachRemoteAudioStream(track: RemoteAudioTrack): void {
-    const stream = new AudioStream(track, 16000, 1);
+  private attachRemoteAudioStream(track: any): void {
+    const rtc = getRtcNode();
+    if (!rtc) return;
+    const stream = new rtc.AudioStream(track, 16000, 1);
     (async () => {
       try {
         for await (const frame of stream) {
