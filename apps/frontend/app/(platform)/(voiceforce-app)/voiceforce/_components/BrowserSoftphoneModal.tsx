@@ -129,11 +129,49 @@ export function BrowserSoftphoneModal({
   const audioQueueRef = useRef<Array<{ audioBase64: string; text: string }>>([]);
   const isPlayingChunkRef = useRef<boolean>(false);
   const currentStreamAbortControllerRef = useRef<AbortController | null>(null);
+  const currentSpeakingTextRef = useRef<string>('');
+  const recentSpokenTextsRef = useRef<string[]>([]);
+
+  // Robust Acoustic Self-Echo Filter: prevents laptop speaker bleed from looping back into mic
+  const isSelfEcho = (text: string): boolean => {
+    if (!isAgentSpeaking && !isPlayingChunkRef.current) {
+      return false;
+    }
+
+    const clean = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+    const candidate = clean(text);
+    if (!candidate) return true;
+
+    // 1. Check against the sentence the agent is currently speaking
+    const current = clean(currentSpeakingTextRef.current);
+    if (current && (current.includes(candidate) || candidate.includes(current))) {
+      return true;
+    }
+
+    // 2. Check against recent sentences spoken by the agent in the last few seconds
+    for (const recent of recentSpokenTextsRef.current) {
+      const cleanRecent = clean(recent);
+      if (cleanRecent && (cleanRecent.includes(candidate) || candidate.includes(cleanRecent))) {
+        return true;
+      }
+      // Word overlap heuristic: if >=60% of significant words match the agent's utterance
+      const candidateWords = candidate.split(/\s+/).filter(w => w.length > 2);
+      if (candidateWords.length > 0) {
+        const matchingWords = candidateWords.filter(w => cleanRecent.includes(w));
+        if (matchingWords.length / candidateWords.length >= 0.6) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
 
   // Instantly halt any playing neural audio or browser synthesis (Barge-in / Re-Interruption)
   const stopAnyPlayingAudio = () => {
     audioQueueRef.current = [];
     isPlayingChunkRef.current = false;
+    currentSpeakingTextRef.current = '';
     setIsAgentThinking(false);
 
     // Abort in-flight LLM/TTS stream immediately on interruption
@@ -174,6 +212,14 @@ export function BrowserSoftphoneModal({
     const nextItem = audioQueueRef.current.shift();
     if (!nextItem) return;
 
+    currentSpeakingTextRef.current = nextItem.text || '';
+    if (nextItem.text) {
+      recentSpokenTextsRef.current.push(nextItem.text);
+      if (recentSpokenTextsRef.current.length > 6) {
+        recentSpokenTextsRef.current.shift();
+      }
+    }
+
     if (nextItem.audioBase64) {
       try {
         const audio = new Audio(nextItem.audioBase64);
@@ -209,10 +255,16 @@ export function BrowserSoftphoneModal({
     }
   };
 
-  // Play high-fidelity neural audio with seamless browser synthesis fallback
   const playAgentAudio = (audioBase64: string | null | undefined, text: string) => {
     stopAnyPlayingAudio();
     setIsAgentSpeaking(true);
+    currentSpeakingTextRef.current = text || '';
+    if (text) {
+      recentSpokenTextsRef.current.push(text);
+      if (recentSpokenTextsRef.current.length > 6) {
+        recentSpokenTextsRef.current.shift();
+      }
+    }
 
     if (audioBase64) {
       try {
@@ -247,8 +299,14 @@ export function BrowserSoftphoneModal({
     try {
       setIsConnecting(true);
 
-      // 1. Request microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 1. Request microphone access with browser hardware AEC
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
       microphoneStreamRef.current = stream;
 
       // 2. Setup Web Audio API for real-time visualizer
@@ -621,10 +679,6 @@ export function BrowserSoftphoneModal({
     recognition.lang = 'en-IN'; // Robust support for Indian English, Hindi, and multilingual accents
 
     recognition.onresult = (event: any) => {
-      // Instant Barge-in / Re-Interruption:
-      // If agent is speaking, thinking, or playing audio, interrupt immediately!
-      stopAnyPlayingAudio();
-
       let interimTranscript = '';
       let finalTranscript = '';
 
@@ -641,21 +695,39 @@ export function BrowserSoftphoneModal({
       }
 
       const liveDisplay = (accumulatedFinalTextRef.current + ' ' + interimTranscript).trim();
-      if (liveDisplay) {
-        setInterimUserText(liveDisplay);
+      if (!liveDisplay) return;
+
+      // ── Acoustic Self-Echo Shield ──────────────────────────────────────────
+      // If agent is speaking and the heard sound matches the agent's words, drop it!
+      if (isSelfEcho(liveDisplay)) {
+        return;
       }
+
+      // Valid customer speech: if agent is currently speaking, barge in and stop agent audio!
+      if (isAgentSpeaking || isPlayingChunkRef.current) {
+        const words = liveDisplay.split(/\s+/).filter(Boolean);
+        if (words.length >= 1) {
+          stopAnyPlayingAudio();
+        }
+      }
+
+      setInterimUserText(liveDisplay);
 
       // Dynamic Silence Debounce Timer based on natural speech grammar & sentence completeness
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
       }
 
-      const currentSpeech = (accumulatedFinalTextRef.current + ' ' + interimTranscript).trim();
-      const dynamicTimeout = calculateDynamicSilenceTimeout(currentSpeech);
+      const dynamicTimeout = calculateDynamicSilenceTimeout(liveDisplay);
 
       silenceTimeoutRef.current = setTimeout(() => {
         const completeText = (accumulatedFinalTextRef.current + ' ' + interimTranscript).trim();
         if (completeText) {
+          if (isSelfEcho(completeText)) {
+            accumulatedFinalTextRef.current = '';
+            setInterimUserText('');
+            return;
+          }
           accumulatedFinalTextRef.current = '';
           setInterimUserText('');
           sendTurnExchange(completeText, activeSessionId);

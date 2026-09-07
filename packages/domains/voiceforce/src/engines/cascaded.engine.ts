@@ -179,6 +179,17 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
   private async handleUserUtterance(userInput: string): Promise<void> {
     if (this.isTerminated || !userInput.trim()) return;
 
+    // PSTN Acoustic Echo Cancellation:
+    // If the transcribed text matches what the agent is currently speaking or just spoke, drop it as an echo
+    if (this.isAgentSpeaking && this.currentSpeakingSentence) {
+      const cleanUser = userInput.toLowerCase().replace(/[^\w\s]/g, '').trim();
+      const cleanAgent = this.currentSpeakingSentence.toLowerCase().replace(/[^\w\s]/g, '').trim();
+      if (cleanUser && (cleanAgent.includes(cleanUser) || (cleanUser.length > 4 && cleanAgent.startsWith(cleanUser)))) {
+        console.log(`[CascadedEngine] Filtered acoustic speaker echo: "${userInput}"`);
+        return;
+      }
+    }
+
     this.handleBargeIn();
 
     // Check if user requested resumption of previously interrupted thought
