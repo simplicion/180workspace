@@ -288,6 +288,15 @@ export default function DocumentsPage() {
             .catch(() => {});
     }, [search]);
 
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('drawer') === 'vaults') {
+                setShowVaultsDrawer(true);
+            }
+        }
+    }, []);
+
     async function handleApprove(doc: any) {
         try {
             setApprovingId(doc.id || doc._id);
@@ -361,16 +370,28 @@ export default function DocumentsPage() {
     const HR_CATEGORIES = ['HR', 'ID Proof', 'Joining Letter', 'Experience Letter', 'Appraisal Letter', 'OFFER_LETTER', 'WARNING_LETTER'];
     const FINANCE_CATEGORIES = ['Finance', 'Payslip', 'INVOICE', 'QUOTATION'];
 
-    // Combine newly unified documents and file vault
-    const allDocs = [
+    // Combine newly unified documents and file vault with ID deduplication
+    const rawDocs = [
         ...(unifiedData?.documents || []).map((d: any) => ({
             ...d,
             id: d.id || d._id,
             name: d.title || d.name,
             folder: d.category || d.documentType || 'General'
         })),
-        ...docs.map(d => ({ ...d, isArticle: false, isVault: true }))
+        ...docs.map(d => ({ ...d, id: d.id || (d as any)._id, isArticle: false, isVault: true }))
     ];
+
+    const seenDocIds = new Set<string>();
+    const allDocs: any[] = [];
+    for (const d of rawDocs) {
+        const id = d.id || (d as any)._id;
+        if (id) {
+            const idStr = String(id);
+            if (seenDocIds.has(idStr)) continue;
+            seenDocIds.add(idStr);
+        }
+        allDocs.push(d);
+    }
 
     const totalStorageBytes = (storageStats as any)?.usedBytes ?? (
         docs.reduce((acc, d) => acc + ((d as any).fileSize || 0), 0) + ((unifiedData?.documents?.length || 0) * 24 * 1024)
@@ -488,6 +509,7 @@ export default function DocumentsPage() {
                 isOpen={showVaultsDrawer} 
                 onClose={() => setShowVaultsDrawer(false)} 
                 onOpenCreate={() => { setShowVaultsDrawer(false); setShowCreateVaultModal(true); }} 
+                onVaultCreated={() => loadDocs()}
             />
             {showCreateAI && <CreateWithAIModal isOpen={showCreateAI} onClose={() => setShowCreateAI(false)} />}
             {showUpload && <FileUploadModal relatedModel="Vault" onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); loadDocs(); }} />}
@@ -559,56 +581,22 @@ export default function DocumentsPage() {
                 />
             )}
 
-            {/* RAG Memory Vaults Modals */}
-            <CreateRagVaultModal
-                isOpen={showCreateVaultModal}
-                onClose={() => setShowCreateVaultModal(false)}
-                onVaultCreated={() => {
-                    setShowCreateVaultModal(false);
-                    loadDocs();
-                }}
-            />
-            <RagVaultsDrawer
-                isOpen={showVaultsDrawer}
-                onClose={() => setShowVaultsDrawer(false)}
-                onOpenCreate={() => {
-                    setShowVaultsDrawer(false);
-                    setShowCreateVaultModal(true);
-                }}
-            />
-
             {/* Page Header */}
             <div className="page-header">
                 <div className="flex items-start justify-between flex-wrap gap-4">
                     <div>
                         <h1 className="page-title">180 Documents & Commercial Hub</h1>
-                        <p className="page-subtitle">Centralized document engine, 5GB RAG memory vaults, e-signatures & commercial workflows</p>
+                        <p className="page-subtitle">Centralized document engine, 50MB RAG memory vaults, e-signatures & commercial workflows</p>
                     </div>
                     <div className="flex items-center gap-2.5 flex-wrap">
-                        {/* RAG Memory Vault Buttons */}
-                        <Link
-                            href="/vaults"
-                            className="flex items-center gap-2 px-3.5 py-2.5 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs transition-colors"
-                            title="Universal RAG Memory Vaults Command Center"
-                        >
-                            <Database className="w-4 h-4 text-indigo-400" />
-                            <span>Vaults Command Center</span>
-                        </Link>
-
-                        <button
-                            onClick={() => setShowCreateVaultModal(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-500 hover:to-purple-500 rounded-xl shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] cursor-pointer"
-                        >
-                            <Plus className="w-4 h-4 text-indigo-200" />
-                            <span>Create RAG Vault</span>
-                        </button>
-
+                        {/* RAG Memory Vaults Action */}
                         <button
                             onClick={() => setShowVaultsDrawer(true)}
-                            className="flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors cursor-pointer shadow-xs"
+                            className="flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-xl transition-colors cursor-pointer shadow-xs"
+                            title="Open RAG Vaults Management"
                         >
-                            <Layers className="w-4 h-4 text-purple-600" />
-                            <span>Memory Vaults</span>
+                            <Database className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <span>RAG Vaults</span>
                         </button>
 
                         {/* Prominent Create with AI button */}
@@ -620,20 +608,17 @@ export default function DocumentsPage() {
                             Create with AI
                         </button>
 
-                        <button 
-                            onClick={() => setShowTemplates(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors"
-                        >
-                            <LayoutTemplate className="w-4 h-4 text-indigo-600" /> Templates (20)
-                        </button>
-
-                        <button onClick={() => setShowUpload(true)} className="btn-secondary">
+                        <button onClick={() => setShowUpload(true)} className="btn-secondary cursor-pointer">
                             <Upload className="w-4 h-4" /> Upload
                         </button>
 
-                        <Link href="/document-editor" className="btn-primary shadow-md shadow-indigo-600/20">
+                        {/* New Document Button: Directly opens Template & Blank Canvas Drawer */}
+                        <button 
+                            onClick={() => setShowTemplates(true)} 
+                            className="btn-primary shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer"
+                        >
                             <Plus className="w-4 h-4" /> New Document
-                        </Link>
+                        </button>
                     </div>
                 </div>
 
@@ -771,13 +756,13 @@ export default function DocumentsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                    {filtered.map((doc: any) => {
-                        const docId = doc.id || doc._id;
+                    {filtered.map((doc: any, index: number) => {
+                        const docId = doc.id || doc._id || `doc-${index}`;
                         const isSelected = selectedDocIds.includes(docId);
 
                         return (
                             <DocumentCard
-                                key={docId}
+                                key={`${docId}-${index}`}
                                 doc={doc}
                                 isSelected={isSelected}
                                 isAdminHrFinance={isAdminHrFinance}

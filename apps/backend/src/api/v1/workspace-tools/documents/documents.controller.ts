@@ -37,48 +37,20 @@ export const getDocumentById = async (req: Request, res: Response, next: NextFun
 async function triggerLakehouseAutoIndex(document: any, companyId: string) {
     if (!document || !companyId) return;
     const docId = document.id || document._id;
-    const docTitle = document.title || document.name || 'Workspace Document';
-    const category = document.category || document.documentType || 'General';
-    const textContent = document.content || document.body || (Array.isArray(document.blocks) ? JSON.stringify(document.blocks) : '') || docTitle;
-
-    if (!textContent || textContent.trim().length < 5) return;
+    if (!docId) return;
 
     setImmediate(async () => {
         try {
-            const { DocumentChunker, EmbeddingEngine } = await import('@workspace/rag');
-            const { prisma } = await import('@workspace/db');
-
-            const chunker = new DocumentChunker({ maxWordsPerChunk: 350, overlapWords: 60 });
-            const chunks = chunker.chunkText(textContent, docTitle, {
-                category,
-                documentTitle: docTitle
-            });
-
-            const engine = new EmbeddingEngine();
-            const embeddings = await engine.generateBatchEmbeddings(chunks.map(c => c.content));
-
-            // Delete existing chunks for this document
-            await (prisma as any).knowledgeChunk.deleteMany({
-                where: { documentId: docId }
-            }).catch(() => {});
-
-            // Create new chunks for Orbit AI Lakehouse
-            await (prisma as any).knowledgeChunk.createMany({
-                data: chunks.map((c, idx) => ({
-                    companyId,
-                    documentId: docId,
-                    content: c.content,
-                    category,
-                    embedding: embeddings[idx] || [],
-                    metadata: {
-                        ...c.metadata,
-                        documentTitle: docTitle,
-                        category
-                    }
-                }))
+            const { centralRagIndexer } = await import('@workspace/rag');
+            await centralRagIndexer.indexDocument({
+                id: docId,
+                companyId,
+                title: document.title || document.name || 'Workspace Document',
+                content: document.content || document.body || document.blocks,
+                category: document.category || document.documentType || 'General'
             });
         } catch (err: any) {
-            console.warn('[LakehouseAutoIndexer] Non-blocking auto-indexing warning:', err.message);
+            console.warn('[LakehouseAutoIndexer] Central RAG auto-indexing warning:', err.message);
         }
     });
 }
@@ -222,6 +194,16 @@ export const deleteDocument = async (req: Request, res: Response, next: NextFunc
     try {
         const { id } = req.params;
         const result = await DocumentService.deleteDocument(id);
+        
+        setImmediate(async () => {
+            try {
+                const { centralRagIndexer } = await import('@workspace/rag');
+                await centralRagIndexer.removeDocumentChunks(id);
+            } catch (err: any) {
+                console.warn('[CentralRagIndexer] Error removing chunks for deleted document:', err.message);
+            }
+        });
+
         res.json({ success: true, message: result.message });
     } catch (error: any) {
         next(error);

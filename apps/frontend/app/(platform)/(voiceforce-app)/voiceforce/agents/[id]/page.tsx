@@ -9,7 +9,7 @@ import {
   Mic, Wand2, Trash2, Edit3, Activity, Zap, BarChart3, 
   DollarSign, RefreshCw, AlertCircle, PhoneCall, ChevronRight,
   Settings2, ShieldAlert, Layers, MessageSquare, Headphones, FileText,
-  Volume2, Radio, Globe, Languages, Cpu, RotateCcw, HelpCircle, Database
+  Volume2, Radio, Globe, Languages, Cpu, RotateCcw, HelpCircle, Database, Plus
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ import { UniversalSkeleton, PlatformModal } from '@workspace/ui';
 import { BrowserSoftphoneModal } from '../../_components/BrowserSoftphoneModal';
 import { CreateCampaignDrawer } from '../../_components/CreateCampaignDrawer';
 import { AgentGuardrailsEditor } from '../../_components/AgentGuardrailsEditor';
-import { BusinessBrainTabs } from '../../_components/BusinessBrainTabs';
+import { LinkExistingRagVaultDrawer } from '../../_components/LinkExistingRagVaultModal';
 import { CartesiaVoiceSelectorModal, CartesiaVoiceItem } from '../../_components/CartesiaVoiceSelectorModal';
 import { VoiceCloningModal } from '../../_components/VoiceCloningModal';
 import { 
@@ -37,7 +37,7 @@ const CARTESIA_VOICES = [
 ];
 
 const AVAILABLE_TOOLS = [
-  { id: 'search_business_knowledge', label: 'Dedicated Business RAG (5GB Documents)', desc: 'Instant semantic vector search across uploaded company manuals, policies, and catalogs' },
+  { id: 'search_business_knowledge', label: 'Dedicated Business RAG (50MB Documents)', desc: 'Instant semantic vector search across uploaded company manuals, policies, and catalogs' },
   { id: 'search_knowledge_base', label: 'Search Workspace Documents', desc: 'Autonomous semantic search across general corporate documents' },
   { id: 'check_product_price', label: 'Live Catalog & Price Query', desc: 'Queries real-time product prices from company offerings' },
   { id: 'create_crm_client', label: 'Create CRM Leads & Clients', desc: 'Save contact details and client inquiries directly to CRM' },
@@ -56,9 +56,14 @@ function AgentDetailContent() {
   const currencyCode = (company?.currency || 'USD').toUpperCase();
   const currencySymbol = company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
 
-  const [activeTab, setActiveTab] = useState<'activity' | 'config' | 'brain' | 'guardrails'>(
-    initialTab === 'brain' ? 'brain' : initialTab === 'guardrails' ? 'guardrails' : initialTab === 'config' ? 'config' : 'activity'
+  const [activeTab, setActiveTab] = useState<'activity' | 'config' | 'guardrails'>(
+    initialTab === 'guardrails' ? 'guardrails' : initialTab === 'config' ? 'config' : 'activity'
   );
+
+  // Dedicated RAG Memory Vaults State
+  const [linkedVaults, setLinkedVaults] = useState<any[]>([]);
+  const [loadingVaults, setLoadingVaults] = useState(false);
+  const [isLinkVaultDrawerOpen, setIsLinkVaultDrawerOpen] = useState(false);
   const [data, setData] = useState<any>(null);
   const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,8 +264,47 @@ function AgentDetailContent() {
     }
   };
 
+  const fetchLinkedVaults = async () => {
+    if (!id) return;
+    try {
+      setLoadingVaults(true);
+      const res = await api.get(`/api/v1/voiceforce/agents/${id}/vaults`);
+      if (res.data?.linkedVaults) {
+        setLinkedVaults(res.data.linkedVaults);
+      } else if (res.data?.vaults) {
+        setLinkedVaults(res.data.vaults);
+      }
+    } catch (err) {
+      console.warn('Failed to load linked vaults for agent', err);
+    } finally {
+      setLoadingVaults(false);
+    }
+  };
+
+  const handleUnlinkVault = async (vaultId: string) => {
+    const updatedIds = linkedVaults.filter(v => v.id !== vaultId).map(v => v.id);
+    try {
+      await api.put(`/api/v1/voiceforce/agents/${id}/vaults`, { vaultIds: updatedIds });
+      setLinkedVaults(prev => prev.filter(v => v.id !== vaultId));
+      toast.success('RAG Memory Vault unlinked');
+    } catch {
+      toast.error('Failed to unlink RAG vault');
+    }
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
   useEffect(() => {
-    if (id) fetchAgent();
+    if (id) {
+      fetchAgent();
+      fetchLinkedVaults();
+    }
   }, [id]);
 
   useEffect(() => {
@@ -489,7 +533,6 @@ function AgentDetailContent() {
           {[
             { id: 'activity', label: 'Activity & Performance', icon: Activity },
             { id: 'config', label: 'Configuration & Persona', icon: Settings2 },
-            { id: 'brain', label: 'Business Data & RAG Brain', icon: Database },
             { id: 'guardrails', label: 'Guardrails & Trust', icon: ShieldAlert }
           ].map((tab) => {
             const Icon = tab.icon;
@@ -1343,14 +1386,97 @@ function AgentDetailContent() {
               })}
             </div>
           </div>
-        </form>
-      )}
 
-      {/* ─── Tab 3: Universal Business Data & RAG Brain ─────────────────────────── */}
-      {activeTab === 'brain' && (
-        <div className="animate-in fade-in duration-200">
-          <BusinessBrainTabs agentId={id} agentName={configForm.name} />
-        </div>
+          {/* Section 7: Add Your RAG & Custom Memory Vaults */}
+          <div className="rounded-2xl border border-purple-200 dark:border-purple-900/40 bg-purple-50/30 dark:bg-purple-950/20 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1.5">
+                    <Database className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                    RAG Knowledge Engine
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                    {linkedVaults.length} Vault(s) Connected
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white mt-1.5">
+                  Add Your RAG & Custom Memory Vaults
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Attach custom created 50MB RAG memory vaults (product catalogs, repair manuals, warranty policies, FAQs) to empower this voice employee with deep facts.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsLinkVaultDrawerOpen(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all cursor-pointer self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{linkedVaults.length > 0 ? 'Manage Linked RAG' : 'Add Your RAG'}</span>
+              </button>
+            </div>
+
+            {/* Linked Vaults Grid or Empty State */}
+            {loadingVaults ? (
+              <div className="py-6 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-500" />
+                <span>Loading linked RAG vaults...</span>
+              </div>
+            ) : linkedVaults.length === 0 ? (
+              <div
+                onClick={() => setIsLinkVaultDrawerOpen(true)}
+                className="p-5 rounded-xl border border-dashed border-purple-300 dark:border-purple-800/60 bg-white/60 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 transition-all text-center cursor-pointer group"
+              >
+                <Database className="w-7 h-7 text-purple-400 mx-auto mb-1.5 group-hover:scale-110 transition-transform" />
+                <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                  No RAG memory vaults linked to this agent yet
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                  Click here or &quot;Add Your RAG&quot; to open the side drawer and connect custom created 50MB vaults from 180 Documents.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {linkedVaults.map((vault) => (
+                  <div
+                    key={vault.id}
+                    className="p-3.5 rounded-xl bg-white dark:bg-gray-900 border border-purple-100 dark:border-purple-900/40 shadow-xs flex flex-col justify-between gap-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{vault.name}</h4>
+                        <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[9px] font-mono rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                          #{vault.category || vault.mode || 'vault'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUnlinkVault(vault.id)}
+                        className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                        title="Unlink this vault"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {vault.purposeDescription && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1">
+                        {vault.purposeDescription}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-1.5 font-mono">
+                      <span>{vault.totalChunks || 0} chunks</span>
+                      <span>{formatBytes(vault.totalSizeBytes || 0)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </form>
       )}
 
       {/* ─── Tab 4: Guardrails & Trust ──────────────────────────────────────── */}
@@ -1458,6 +1584,15 @@ function AgentDetailContent() {
           />
         </div>
       </PlatformModal>
+
+      {/* Slide-over Side Drawer for Adding Custom RAG Vaults */}
+      <LinkExistingRagVaultDrawer
+        isOpen={isLinkVaultDrawerOpen}
+        onClose={() => setIsLinkVaultDrawerOpen(false)}
+        agentId={id}
+        agentName={configForm.name || 'AI Voice Employee'}
+        onSuccess={fetchLinkedVaults}
+      />
     </div>
   );
 }

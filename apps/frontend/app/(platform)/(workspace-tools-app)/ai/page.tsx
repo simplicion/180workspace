@@ -293,6 +293,15 @@ export default function AIAssistantPage() {
         return () => clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('drawer') === 'requests') {
+                setIsAgentDrawerOpen(true);
+            }
+        }
+    }, []);
+
     // Switch to a previous chat session
     const handleSelectSession = async (sessionId: string) => {
         if (sessionId === currentSessionId) return;

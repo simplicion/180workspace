@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Sparkles, UploadCloud, Plus, Trash2, X, 
   Check, CheckCircle2, AlertCircle, RefreshCw, Layers, 
-  Package, Users, Database, ShieldCheck, Tag, ArrowRight
+  Package, Users, Database, ShieldCheck, Tag, ArrowRight,
+  FileSpreadsheet, Paperclip, HardDrive, PhoneCall, Info
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/lib/auth-context';
-import { locationService } from '@/lib/location-service';
+import { PlatformModal } from '@workspace/ui';
 import clsx from 'clsx';
 
 interface CategoryItem {
@@ -19,18 +19,9 @@ interface CategoryItem {
   description?: string;
 }
 
-interface OfferingItem {
-  name: string;
-  startingPrice: string;
-  description: string;
-  inStock: boolean;
-}
-
-interface CustomerItem {
-  name: string;
-  phone: string;
-  status: string;
-  lastOutcome: string;
+interface UploadedFileItem {
+  file: File;
+  category: 'general' | 'catalog' | 'customers';
 }
 
 export function CreateRagVaultModal({
@@ -42,10 +33,6 @@ export function CreateRagVaultModal({
   onClose: () => void;
   onVaultCreated?: (vault: any) => void;
 }) {
-  const { company } = useAuth();
-  const currencyCode = (company?.currency || 'USD').toUpperCase();
-  const currencySymbol = company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
-
   const [mode, setMode] = useState<'general' | 'business_driven'>('general');
   const [vaultName, setVaultName] = useState('');
   const [purposeDescription, setPurposeDescription] = useState('');
@@ -54,17 +41,10 @@ export function CreateRagVaultModal({
   const [newCatName, setNewCatName] = useState('');
   const [isCreatingCat, setIsCreatingCat] = useState(false);
 
-  // Uploaded Files State
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  // Uploaded Files State categorized by intent
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([]);
+  const activeUploadCategoryRef = useRef<'general' | 'catalog' | 'customers'>('general');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Mode 2: Business-Driven Structured Fields
-  const [offerings, setOfferings] = useState<OfferingItem[]>([
-    { name: 'Standard Consultation', startingPrice: '99', description: 'Initial 45-minute assessment and diagnosis', inStock: true }
-  ]);
-  const [customers, setCustomers] = useState<CustomerItem[]>([
-    { name: 'John Doe', phone: '+1 (555) 019-2834', status: 'Active VIP', lastOutcome: 'Requested service proposal' }
-  ]);
 
   // Submission & Progress State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,7 +66,6 @@ export function CreateRagVaultModal({
         }
       }
     } catch {
-      // Fallback categories
       setCategories([
         { id: '1', name: 'General', color: '#6366f1' },
         { id: '2', name: 'Contracts & Legal', color: '#ec4899' },
@@ -115,59 +94,63 @@ export function CreateRagVaultModal({
     }
   };
 
+  const triggerUpload = (category: 'general' | 'catalog' | 'customers') => {
+    activeUploadCategoryRef.current = category;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArr = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...filesArr]);
+      const cat = activeUploadCategoryRef.current;
+      const newItems: UploadedFileItem[] = filesArr.map(file => ({
+        file,
+        category: cat
+      }));
+      setUploadedFiles(prev => [...prev, ...newItems]);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, category: 'general' | 'catalog' | 'customers') => {
+    e.preventDefault();
+    if (e.dataTransfer.files) {
+      const filesArr = Array.from(e.dataTransfer.files);
+      const newItems: UploadedFileItem[] = filesArr.map(file => ({
+        file,
+        category
+      }));
+      setUploadedFiles(prev => [...prev, ...newItems]);
     }
   };
 
   const removeFile = (idx: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+    setUploadedFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const addOfferingRow = () => {
-    setOfferings(prev => [
-      ...prev,
-      { name: '', startingPrice: '', description: '', inStock: true }
-    ]);
-  };
+  const totalBytesUploaded = uploadedFiles.reduce((acc, item) => acc + item.file.size, 0);
+  const MAX_BYTES = 50 * 1024 * 1024; // 50MB
+  const usedPercent = Math.min(100, Math.round((totalBytesUploaded / MAX_BYTES) * 100));
 
-  const updateOffering = (idx: number, field: keyof OfferingItem, val: any) => {
-    setOfferings(prev => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: val };
-      return copy;
-    });
-  };
-
-  const removeOffering = (idx: number) => {
-    setOfferings(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const addCustomerRow = () => {
-    setCustomers(prev => [
-      ...prev,
-      { name: '', phone: '', status: 'Lead', lastOutcome: '' }
-    ]);
-  };
-
-  const updateCustomer = (idx: number, field: keyof CustomerItem, val: any) => {
-    setCustomers(prev => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: val };
-      return copy;
-    });
-  };
-
-  const removeCustomer = (idx: number) => {
-    setCustomers(prev => prev.filter((_, i) => i !== idx));
+  const formatBytes = (bytes: number) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vaultName.trim()) {
       toast.error('Please provide a name for this RAG Memory Vault');
+      return;
+    }
+
+    if (totalBytesUploaded > MAX_BYTES) {
+      toast.error('Total files exceed the 50MB limit per vault');
       return;
     }
 
@@ -182,14 +165,17 @@ export function CreateRagVaultModal({
       formData.append('category', selectedCategory);
       formData.append('visibility', 'public_voice');
 
-      if (mode === 'business_driven') {
-        formData.append('offeringsData', JSON.stringify(offerings.filter(o => o.name.trim())));
-        formData.append('customerData', JSON.stringify(customers.filter(c => c.name.trim() || c.phone.trim())));
-      }
-
-      selectedFiles.forEach(file => {
-        formData.append('files', file);
+      // Append all uploaded files
+      uploadedFiles.forEach(item => {
+        formData.append('files', item.file);
       });
+
+      // Pass file categories metadata
+      formData.append('fileMetadata', JSON.stringify(uploadedFiles.map(item => ({
+        name: item.file.name,
+        category: item.category,
+        size: item.file.size
+      }))));
 
       // Simulated progressive percentage bar
       const pTimer = setInterval(() => {
@@ -214,50 +200,35 @@ export function CreateRagVaultModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden">
-        
-        {/* Header with Mode Switcher */}
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-indigo-900/30 via-purple-900/10 to-transparent">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                <Database className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-gray-900 dark:text-white">
-                  Create RAG Memory Vault
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Build custom 5GB vector memory collections for AI Voice Employees & Orbit Copilot.
-                </p>
-              </div>
-            </div>
+    <PlatformModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Create RAG Memory Vault"
+      icon={Database}
+      iconBgClass="bg-indigo-500/10 text-indigo-500"
+      iconColorClass="text-indigo-600 dark:text-indigo-400"
+      maxWidthClass="max-w-3xl"
+      bodyClassName="space-y-5"
+      subHeader={
+        <div className="px-6 pb-4 pt-1 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Build custom 50MB vector memory collections for AI Voice Employees & Orbit Copilot.
+          </p>
 
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Mode Selector Tabs */}
-          <div className="grid grid-cols-2 gap-2 mt-5 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl border border-gray-200/50 dark:border-gray-700/50">
+          {/* Universal Mode Switcher Tabs */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-xl border border-gray-200/50 dark:border-gray-700/50">
             <button
               type="button"
               onClick={() => setMode('general')}
               className={clsx(
-                "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer",
                 mode === 'general'
-                  ? "bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-gray-200/60 dark:border-gray-700"
+                  ? "bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-xs border border-gray-200/60 dark:border-gray-700"
                   : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
               )}
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3.5 h-3.5" />
               <span>Mode 1: General Knowledge Vault</span>
             </button>
 
@@ -265,311 +236,346 @@ export function CreateRagVaultModal({
               type="button"
               onClick={() => setMode('business_driven')}
               className={clsx(
-                "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer",
                 mode === 'business_driven'
-                  ? "bg-white dark:bg-gray-900 text-purple-600 dark:text-purple-400 shadow-sm border border-gray-200/60 dark:border-gray-700"
+                  ? "bg-white dark:bg-gray-900 text-purple-600 dark:text-purple-400 shadow-xs border border-gray-200/60 dark:border-gray-700"
                   : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
               )}
             >
-              <Sparkles className="w-4 h-4 text-purple-500" />
+              <Sparkles className="w-3.5 h-3.5" />
               <span>Mode 2: Business-Driven Vault</span>
             </button>
           </div>
         </div>
-
-        {/* Modal Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
-          
-          {/* Progress Indicator */}
-          {isSubmitting && (
-            <div className="p-4 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 space-y-2 animate-pulse">
-              <div className="flex items-center justify-between text-xs font-bold text-white">
-                <span className="flex items-center gap-2">
-                  <RefreshCw className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
-                  Generating Sliding Chunks & 1536-dim Vector Embeddings...
-                </span>
-                <span className="text-indigo-300 font-mono">{progressPercent}%</span>
-              </div>
-              <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Core Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                Vault Name *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder={mode === 'general' ? "e.g. Legal Contracts & SLAs" : "e.g. Auto Repair Customer Desk Vault"}
-                value={vaultName}
-                onChange={(e) => setVaultName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
+      }
+      footer={
+        <div className="flex items-center justify-between w-full">
+          {/* Capacity Usage Indicator */}
+          <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+            <HardDrive className="w-3.5 h-3.5 text-indigo-500" />
+            <span>
+              <b>{formatBytes(totalBytesUploaded)}</b> / 50MB ({usedPercent}%)
+            </span>
+            <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden ml-1">
+              <div 
+                className={clsx("h-full transition-all", usedPercent > 90 ? "bg-rose-500" : "bg-indigo-600")}
+                style={{ width: `${usedPercent}%` }}
               />
             </div>
-
-            {/* Dynamic Custom Category Selector */}
-            <div>
-              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                Dynamic Category Tag (Zero Hardcoding)
-              </label>
-              <div className="flex gap-2">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                >
-                  {categories.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setIsCreatingCat(!isCreatingCat)}
-                  className="px-3 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all cursor-pointer shrink-0"
-                  title="Create custom category"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Inline Custom Category Creator */}
-              {isCreatingCat && (
-                <div className="flex items-center gap-2 mt-2">
-                  <input
-                    type="text"
-                    placeholder="New category name (e.g. Warranty Policies)"
-                    value={newCatName}
-                    onChange={(e) => setNewCatName(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-indigo-500/50 text-xs text-gray-900 dark:text-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCreateCategory}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs"
-                  >
-                    Save
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Purpose & Context Directive */}
-          <div>
-            <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">
-              {mode === 'general' ? 'Purpose & Semantic Context Description' : 'Agent Operational Mission & Conversational Context'}
-            </label>
-            <textarea
-              rows={2}
-              placeholder={
-                mode === 'general' 
-                  ? "e.g. Authoritative source for legal SLAs, payment dispute resolutions, and vendor compliance terms."
-                  : "e.g. Handle customer repair inquiries, quote diagnostic prices, and confirm appointment slots."
-              }
-              value={purposeDescription}
-              onChange={(e) => setPurposeDescription(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white leading-relaxed focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-
-          {/* ─── MODE 2 SPECIFIC: Offerings & Customers ────────────────────── */}
-          {mode === 'business_driven' && (
-            <div className="space-y-6 pt-2 border-t border-gray-100 dark:border-gray-800">
-              
-              {/* Offerings & Services Catalog */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 text-indigo-500" />
-                      1. Offerings & Services Catalog
-                    </h4>
-                    <p className="text-[11px] text-gray-400">Strict authoritative pricing and deliverables for phone agents.</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={addOfferingRow}
-                    className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> Add Item
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {offerings.map((off, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row items-center gap-2 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60">
-                      <input
-                        type="text"
-                        placeholder="Offering / Service Name"
-                        value={off.name}
-                        onChange={(e) => updateOffering(idx, 'name', e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white"
-                      />
-                      <input
-                        type="number"
-                        placeholder={`Price (${currencySymbol})`}
-                        value={off.startingPrice}
-                        onChange={(e) => updateOffering(idx, 'startingPrice', e.target.value)}
-                        className="w-24 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Description & Scope"
-                        value={off.description}
-                        onChange={(e) => updateOffering(idx, 'description', e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeOffering(idx)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Customer List & CRM Directory */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-purple-500" />
-                      2. Existing Customer List & CRM Directory
-                    </h4>
-                    <p className="text-[11px] text-gray-400">Caller-ID recognition memory for active clients and VIPs.</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={addCustomerRow}
-                    className="px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> Add Client
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {customers.map((c, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row items-center gap-2 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60">
-                      <input
-                        type="text"
-                        placeholder="Customer Name"
-                        value={c.name}
-                        onChange={(e) => updateCustomer(idx, 'name', e.target.value)}
-                        className="w-36 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Phone Number (+1...)"
-                        value={c.phone}
-                        onChange={(e) => updateCustomer(idx, 'phone', e.target.value)}
-                        className="w-36 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Status / VIP / Past Call Notes"
-                        value={c.lastOutcome}
-                        onChange={(e) => updateCustomer(idx, 'lastOutcome', e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeCustomer(idx)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* Document Dropzone */}
-          <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block">
-                {mode === 'general' ? 'Upload Documents for this Vault' : '3. Extra Knowledge Documents (PDF, DOCX, CSV, TXT, MD)'}
-              </label>
-              <span className="text-[11px] text-gray-400">Up to 5GB vector capacity</span>
-            </div>
-
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-indigo-500 rounded-2xl text-center cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-800/50 group"
-            >
-              <UploadCloud className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 mx-auto mb-1.5 transition-all" />
-              <p className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                Click or drag & drop files to attach to this RAG Vault
-              </p>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                PDF manuals, warranty policies, hardware specs, CSV price tables
-              </p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.docx,.txt,.csv,.json,.md"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-
-            {/* Selected Files Chips */}
-            {selectedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {selectedFiles.map((f, idx) => (
-                  <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs">
-                    <FileText className="w-3.5 h-3.5" />
-                    <span className="font-semibold truncate max-w-[200px]">{f.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(idx)}
-                      className="text-gray-400 hover:text-red-400 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer disabled:opacity-50"
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !vaultName.trim()}
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
             >
-              {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              <span>{isSubmitting ? 'Indexing Vault Chunks...' : 'Create & Index Vault'}</span>
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Indexing ({progressPercent}%)...</span>
+                </>
+              ) : (
+                <>
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Create Vault</span>
+                </>
+              )}
             </button>
           </div>
-        </form>
+        </div>
+      }
+    >
+      {/* Hidden Multi-Type File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Vault Meta Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">
+            Vault Name <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Acme Tech Support, Pricing & Customer History"
+            value={vaultName}
+            onChange={(e) => setVaultName(e.target.value)}
+            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+              Category Tag
+            </label>
+            {!isCreatingCat && (
+              <button
+                type="button"
+                onClick={() => setIsCreatingCat(true)}
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3 h-3" /> New Tag
+              </button>
+            )}
+          </div>
+
+          {isCreatingCat ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="New Category Tag..."
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={handleCreateCategory}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsCreatingCat(false)}
+                className="px-2 py-2 text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Purpose / Scope Directive */}
+      <div>
+        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">
+          Agent Operational Mission & Context
+        </label>
+        <textarea
+          rows={2}
+          placeholder="e.g. Handle customer repair inquiries, quote diagnostic prices, and recognize returning clients by phone number to recall their previous service logs."
+          value={purposeDescription}
+          onChange={(e) => setPurposeDescription(e.target.value)}
+          className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      {/* Mode-Specific Direct Document Upload Options (No manual line-by-line entry) */}
+      {mode === 'business_driven' ? (
+        <div className="space-y-4">
+          <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-indigo-900 dark:text-indigo-200 leading-relaxed">
+              <b>Fast Automated Ingestion:</b> Upload your catalogs and customer spreadsheets directly. The RAG vector engine automatically chunks records and matches incoming caller phone numbers against past interaction notes.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Upload 1: Offerings & Pricing Catalog */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleDrop(e, 'catalog')}
+              className="p-4 rounded-2xl border-2 border-dashed border-purple-200 dark:border-purple-900/50 bg-purple-50/30 dark:bg-purple-950/20 hover:border-purple-400 transition-all flex flex-col justify-between gap-3 text-left"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                    Products & Pricing Catalog
+                  </h4>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Upload CSV, Excel, PDF, JSON, or TXT pricing sheets. AI Voice Employees quote these exact rates.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => triggerUpload('catalog')}
+                className="w-full py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Upload Catalog File</span>
+              </button>
+            </div>
+
+            {/* Upload 2: Customer Directory & Caller-ID History */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleDrop(e, 'customers')}
+              className="p-4 rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/20 hover:border-emerald-400 transition-all flex flex-col justify-between gap-3 text-left"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <PhoneCall className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                    Customer Records & Interaction History
+                  </h4>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Upload CSV, Excel, vCard, or TXT with names, phone numbers, & past notes for automatic caller recognition.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => triggerUpload('customers')}
+                className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Upload Customer Records</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Upload 3: Extra Knowledge Documents */}
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleDrop(e, 'general')}
+            className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex items-center justify-between gap-4 flex-wrap"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                  Extra Knowledge Documents & SOPs
+                </h4>
+                <p className="text-[11px] text-gray-400">
+                  Attach warranty terms, technical manuals, or company policies (PDF, DOCX, MD).
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => triggerUpload('general')}
+              className="px-3 py-1.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 text-xs font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Attach Documents</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Mode 1: General Knowledge Vault Dropzone */
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => handleDrop(e, 'general')}
+          className="p-6 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 text-center space-y-3"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto">
+            <UploadCloud className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+              Drop documents here or click to browse
+            </h4>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              Supports PDF manuals, technical specs, warranty policies, CSV tables, Word (.docx), and Markdown (up to 50MB).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => triggerUpload('general')}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+          >
+            <Paperclip className="w-3.5 h-3.5" />
+            <span>Select Files</span>
+          </button>
+        </div>
+      )}
+
+      {/* Selected Files List Display */}
+      {uploadedFiles.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
+            <span>Attached Files ({uploadedFiles.length})</span>
+            <span className="text-[11px] text-gray-400 font-normal">
+              Ready for 1536d FastPath vector indexing
+            </span>
+          </div>
+
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {uploadedFiles.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between p-2.5 rounded-xl border border-gray-200/80 dark:border-gray-800 bg-white dark:bg-gray-850 text-xs"
+              >
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                  {item.category === 'catalog' ? (
+                    <Package className="w-4 h-4 text-purple-500 shrink-0" />
+                  ) : item.category === 'customers' ? (
+                    <PhoneCall className="w-4 h-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
+                  )}
+
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">
+                      {item.file.name}
+                    </p>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                      <span>{formatBytes(item.file.size)}</span>
+                      <span>•</span>
+                      <span className={clsx(
+                        "font-bold uppercase tracking-wider",
+                        item.category === 'catalog' ? "text-purple-500" :
+                        item.category === 'customers' ? "text-emerald-500" : "text-indigo-500"
+                      )}>
+                        {item.category === 'catalog' ? 'Catalog & Pricing' :
+                         item.category === 'customers' ? 'Customer Records' : 'Knowledge Doc'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => removeFile(idx)}
+                  className="p-1 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                  title="Remove file"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </PlatformModal>
   );
 }

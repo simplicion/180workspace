@@ -151,6 +151,30 @@ export class BusinessBrainService {
           .join('\n')
       : '';
 
+    // 50MB Scoped RAG Caller-ID Lookup (Matches phone in customer directories, interaction logs, or uploaded files)
+    let ragCustomerSection = '';
+    if (recipientPhone && activeVaults.length > 0) {
+      const cleanDigits = recipientPhone.replace(/\D/g, '').slice(-10);
+      if (cleanDigits.length >= 7) {
+        try {
+          const matchingChunks = await (prisma as any).knowledgeChunk.findMany({
+            where: {
+              vaultId: { in: activeVaults.map((v: any) => v.id) },
+              content: { contains: cleanDigits }
+            },
+            take: 3,
+            select: { content: true }
+          });
+          if (matchingChunks && matchingChunks.length > 0) {
+            ragCustomerSection = `\nMATCHED CUSTOMER DOSSIER & PREVIOUS INTERACTIONS FROM 50MB RAG VAULT (PHONE: ${recipientPhone}):\n` +
+              matchingChunks.map((m: any) => `• ${m.content}`).join('\n') + '\n';
+          }
+        } catch {
+          // Non-blocking fallback
+        }
+      }
+    }
+
     // Active Campaign & Strategic Objectives
     const activeGoal = campaignGoal || campaignRecord?.campaignGoal || campaignRecord?.objective;
     const activeOffer = specialOffer || campaignRecord?.specialOffer;
@@ -173,6 +197,7 @@ export class BusinessBrainService {
       campaignSection +
       clientSection +
       historySection +
+      ragCustomerSection +
       guardrailDirectives +
       `\nCRITICAL CONVERSATIONAL & ACCURACY RULES:\n` +
       `1. ALWAYS use the exact product names and pricing listed above. Never invent discounts, special deals, or modified rates unless explicitly authorized in the Active Campaign section.\n` +

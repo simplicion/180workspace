@@ -150,9 +150,11 @@ export const getCompanyPrisma = (
             if (operation === 'create' || operation === 'createMany') {
               if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
                 for (let i = 0; i < anyArgs.data.length; i++) {
-                  if (anyArgs.data[i]) anyArgs.data[i].companyId = companyId;
+                  if (anyArgs.data[i] && !anyArgs.data[i].company && !anyArgs.data[i].companyId) {
+                    anyArgs.data[i].companyId = companyId;
+                  }
                 }
-              } else if (anyArgs.data) {
+              } else if (anyArgs.data && !anyArgs.data.company && !anyArgs.data.companyId) {
                 anyArgs.data.companyId = companyId;
               }
             }
@@ -160,7 +162,9 @@ export const getCompanyPrisma = (
             if (operation === 'upsert') {
                if (!anyArgs.where) anyArgs.where = { companyId };
                else anyArgs.where.companyId = companyId;
-               if (anyArgs.create) anyArgs.create.companyId = companyId;
+               if (anyArgs.create && !anyArgs.create.company && !anyArgs.create.companyId) {
+                 anyArgs.create.companyId = companyId;
+               }
             }
           }
 

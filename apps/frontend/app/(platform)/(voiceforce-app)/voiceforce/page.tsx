@@ -339,18 +339,18 @@ export default function VoiceforceDashboardPage() {
                 </span>
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5 max-w-2xl">
-                AI employees speak official product pricing, recognize CRM customers, access 5GB scoped RAG vaults, and book appointments into 180 Calendar.
+                AI employees speak official product pricing, recognize CRM customers, access 50MB scoped RAG vaults, and book appointments into 180 Calendar.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <Link
-              href="/voiceforce/brain"
+              href="/documents?drawer=vaults"
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-sm shadow-violet-600/20 transition-all cursor-pointer"
             >
-              <Brain className="w-3.5 h-3.5" />
-              <span>Open Business Brain & Vaults</span>
+              <Database className="w-3.5 h-3.5" />
+              <span>Open Scoped RAG Vaults</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
 
@@ -379,7 +379,7 @@ export default function VoiceforceDashboardPage() {
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-violet-100 dark:border-violet-900/40 shadow-2xs">
             <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>5GB Scoped RAG Vaults</span>
+            <span>50MB Scoped RAG Vaults</span>
           </div>
         </div>
       </div>
