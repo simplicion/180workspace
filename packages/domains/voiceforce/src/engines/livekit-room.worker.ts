@@ -366,6 +366,11 @@ export class LiveKitRoomWorker {
         if (this.audioSource) {
           this.audioSource.clearQueue();
         }
+        const interruptPacket = Buffer.from(JSON.stringify({
+          type: 'interrupted',
+          timestamp: Date.now()
+        }));
+        await this.roomService.sendData(roomName, interruptPacket, 0).catch(() => {});
         await this.recordMilestone('barge_in_interruption');
       },
 

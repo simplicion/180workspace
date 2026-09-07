@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   PhoneCall, ArrowLeft, Bot, Clock, IndianRupee, ShieldCheck, 
-  Sparkles, CheckCircle2, AlertCircle, Wrench, Play, Pause, Volume2,
+  Sparkles, CheckCircle2, AlertCircle, AlertTriangle, Wrench, Play, Pause, Volume2,
   VolumeX, Download, Trash2, Search, User, Copy, Check, Radio, 
   Headphones, ListChecks, CheckSquare, Square, ArrowUpRight, Gauge, Calculator,
   RotateCcw, RotateCw
@@ -362,6 +362,30 @@ export default function VoiceforceCallDetailPage() {
         </div>
       )}
 
+      {/* Voice Engine Audio / Neural Speech Warning Banner */}
+      {(() => {
+        const engineErrors = (call?.structuredData?.timeline || []).filter((t: any) => t.event === 'engine_error');
+        if (engineErrors.length === 0) return null;
+        const lastErr = engineErrors[engineErrors.length - 1];
+        const msg = lastErr?.details?.message || 'Voice Engine Audio Error';
+        const isQuota = msg.includes('402');
+        return (
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300">
+                {isQuota ? 'Voice Engine Alert: Speech Credits Limit Reached (Cartesia HTTP 402)' : 'Voice Engine Audio Warning'}
+              </h4>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                {isQuota 
+                  ? 'Your Cartesia neural voice engine quota is exhausted. The telephony call connected successfully, but no audio could be synthesized or transcribed. Please top up your Cartesia credits at https://play.cartesia.ai/subscription or update CARTESIA_API_KEY.'
+                  : msg}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* HTML5 Audio Waveform Player Widget (When Recording is Available) */}
       {call.recordingUrl ? (
         <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 text-white shadow-xl border border-indigo-700/50 backdrop-blur-sm relative overflow-hidden">
@@ -499,7 +523,45 @@ export default function VoiceforceCallDetailPage() {
             Recording
           </span>
         </div>
-      ) : null}
+      ) : call.recordingStatus === 'processing' || call.recordingStatus === 'recording' ? (
+        <div className="p-5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <Headphones className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Call Audio Recording</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                  Processing Audio Archive...
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                The telephony audio recording is being finalized by the carrier and will appear here shortly.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-400 flex items-center justify-center flex-shrink-0">
+              <Headphones className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Call Audio Recording</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  Not Recorded
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Historical session: Recording was not active when this call took place. Call recording is now active (<code className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded font-mono text-[11px]">ENABLE_CALL_RECORDING=true</code>) and will automatically be captured for upcoming sessions.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Post-Call Autonomous Intelligence Banner */}
       <div className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/60 dark:from-gray-900 dark:via-indigo-950/20 dark:to-purple-950/20 border border-indigo-100/90 dark:border-indigo-900/40 shadow-sm">
