@@ -34,12 +34,65 @@ export const getDocumentById = async (req: Request, res: Response, next: NextFun
     }
 };
 
+async function triggerLakehouseAutoIndex(document: any, companyId: string) {
+    if (!document || !companyId) return;
+    const docId = document.id || document._id;
+    const docTitle = document.title || document.name || 'Workspace Document';
+    const category = document.category || document.documentType || 'General';
+    const textContent = document.content || document.body || (Array.isArray(document.blocks) ? JSON.stringify(document.blocks) : '') || docTitle;
+
+    if (!textContent || textContent.trim().length < 5) return;
+
+    setImmediate(async () => {
+        try {
+            const { DocumentChunker, EmbeddingEngine } = await import('@workspace/rag');
+            const { prisma } = await import('@workspace/db');
+
+            const chunker = new DocumentChunker({ maxWordsPerChunk: 350, overlapWords: 60 });
+            const chunks = chunker.chunkText(textContent, docTitle, {
+                category,
+                documentTitle: docTitle
+            });
+
+            const engine = new EmbeddingEngine();
+            const embeddings = await engine.generateBatchEmbeddings(chunks.map(c => c.content));
+
+            // Delete existing chunks for this document
+            await (prisma as any).knowledgeChunk.deleteMany({
+                where: { documentId: docId }
+            }).catch(() => {});
+
+            // Create new chunks for Orbit AI Lakehouse
+            await (prisma as any).knowledgeChunk.createMany({
+                data: chunks.map((c, idx) => ({
+                    companyId,
+                    documentId: docId,
+                    content: c.content,
+                    category,
+                    embedding: embeddings[idx] || [],
+                    metadata: {
+                        ...c.metadata,
+                        documentTitle: docTitle,
+                        category
+                    }
+                }))
+            });
+        } catch (err: any) {
+            console.warn('[LakehouseAutoIndexer] Non-blocking auto-indexing warning:', err.message);
+        }
+    });
+}
+
 export const createDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user?.id || (req as any).user?._id;
+        const companyId = (req as any).user?.companyId;
         const data = req.body;
 
         const document = await DocumentService.createDocument(userId, data);
+        if (companyId) {
+            triggerLakehouseAutoIndex(document, companyId);
+        }
         res.json({ success: true, article: document, document, data: document });
     } catch (error: any) {
         require('fs').appendFileSync('document_debug.log', new Date().toISOString() + ' ERROR: ' + error.stack + '\n');
@@ -50,10 +103,14 @@ export const createDocument = async (req: Request, res: Response, next: NextFunc
 export const updateDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user?.id || (req as any).user?._id;
+        const companyId = (req as any).user?.companyId;
         const { id } = req.params;
         const data = req.body;
 
         const document = await DocumentService.updateDocument(userId, id, data);
+        if (companyId) {
+            triggerLakehouseAutoIndex(document, companyId);
+        }
         res.json({ success: true, article: document, document, data: document });
     } catch (error: any) {
         require('fs').appendFileSync('document_debug.log', new Date().toISOString() + ' ERROR: ' + error.stack + '\n');

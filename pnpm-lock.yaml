@@ -1175,6 +1175,28 @@ importers:
         specifier: workspace:*
         version: link:../../typescript-config
 
+  packages/domains/rag:
+    dependencies:
+      '@prisma/client':
+        specifier: ^5.0.0
+        version: 5.22.0(prisma@5.22.0)
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../../db
+      axios:
+        specifier: ^1.7.0
+        version: 1.19.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../typescript-config
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
   packages/domains/settings:
     dependencies:
       '@workspace/common':

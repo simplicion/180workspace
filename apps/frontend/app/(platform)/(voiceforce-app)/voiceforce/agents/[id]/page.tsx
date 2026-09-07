@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -8,16 +8,25 @@ import {
   Sparkles, Sliders, Clock, Users, ArrowUpRight, Copy, Check,
   Mic, Wand2, Trash2, Edit3, Activity, Zap, BarChart3, 
   DollarSign, RefreshCw, AlertCircle, PhoneCall, ChevronRight,
-  Settings2, ShieldAlert, Layers, MessageSquare, Headphones, FileText
+  Settings2, ShieldAlert, Layers, MessageSquare, Headphones, FileText,
+  Volume2, Radio, Globe, Languages, Cpu, RotateCcw, HelpCircle, Database
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { locationService } from '@/lib/location-service';
-import { UniversalSkeleton, ConfirmModal, PlatformModal } from '@workspace/ui';
+import { UniversalSkeleton, PlatformModal } from '@workspace/ui';
 import { BrowserSoftphoneModal } from '../../_components/BrowserSoftphoneModal';
 import { CreateCampaignDrawer } from '../../_components/CreateCampaignDrawer';
 import { AgentGuardrailsEditor } from '../../_components/AgentGuardrailsEditor';
+import { BusinessBrainTabs } from '../../_components/BusinessBrainTabs';
+import { CartesiaVoiceSelectorModal, CartesiaVoiceItem } from '../../_components/CartesiaVoiceSelectorModal';
+import { VoiceCloningModal } from '../../_components/VoiceCloningModal';
+import { 
+  CARTESIA_SUPPORTED_LANGUAGES, 
+  CARTESIA_REGIONAL_GROUPS, 
+  getCartesiaLanguageByCode 
+} from '@/lib/cartesia-languages';
 import clsx from 'clsx';
 
 const CARTESIA_VOICES = [
@@ -28,7 +37,8 @@ const CARTESIA_VOICES = [
 ];
 
 const AVAILABLE_TOOLS = [
-  { id: 'search_knowledge_base', label: 'Search Knowledge Base (RAG)', desc: 'Autonomous semantic search across uploaded corporate documents' },
+  { id: 'search_business_knowledge', label: 'Dedicated Business RAG (5GB Documents)', desc: 'Instant semantic vector search across uploaded company manuals, policies, and catalogs' },
+  { id: 'search_knowledge_base', label: 'Search Workspace Documents', desc: 'Autonomous semantic search across general corporate documents' },
   { id: 'check_product_price', label: 'Live Catalog & Price Query', desc: 'Queries real-time product prices from company offerings' },
   { id: 'create_crm_client', label: 'Create CRM Leads & Clients', desc: 'Save contact details and client inquiries directly to CRM' },
   { id: 'book_appointment', label: 'Schedule Appointments', desc: 'Creates calendar events in 180 Calendar with availability check' },
@@ -46,8 +56,8 @@ function AgentDetailContent() {
   const currencyCode = (company?.currency || 'USD').toUpperCase();
   const currencySymbol = company?.currencySymbol || locationService.getCurrencySymbol(currencyCode);
 
-  const [activeTab, setActiveTab] = useState<'activity' | 'config' | 'guardrails'>(
-    initialTab === 'guardrails' ? 'guardrails' : initialTab === 'config' ? 'config' : 'activity'
+  const [activeTab, setActiveTab] = useState<'activity' | 'config' | 'brain' | 'guardrails'>(
+    initialTab === 'brain' ? 'brain' : initialTab === 'guardrails' ? 'guardrails' : initialTab === 'config' ? 'config' : 'activity'
   );
   const [data, setData] = useState<any>(null);
   const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
@@ -56,6 +66,23 @@ function AgentDetailContent() {
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [briefing, setBriefing] = useState<any>(null);
   const [generatingBriefing, setGeneratingBriefing] = useState(false);
+
+  // Cartesia Voice Studio & Modals
+  const [isVoiceSelectorOpen, setIsVoiceSelectorOpen] = useState(false);
+  const [isCloningModalOpen, setIsCloningModalOpen] = useState(false);
+  const [selectedVoiceDetails, setSelectedVoiceDetails] = useState<{
+    id: string;
+    name: string;
+    description?: string;
+    language?: string;
+    gender?: string;
+    isCloned?: boolean;
+  } | null>(null);
+
+  // In-line Live Audio Preview Player State
+  const [isPlayingTestAudio, setIsPlayingTestAudio] = useState(false);
+  const [generatingTestAudio, setGeneratingTestAudio] = useState(false);
+  const testAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Operational Modals
   const [isAssignWorkOpen, setIsAssignWorkOpen] = useState(false);
@@ -69,12 +96,23 @@ function AgentDetailContent() {
     name: '',
     role: '',
     language: 'en-US',
-    voiceId: CARTESIA_VOICES[0].id,
+    voiceId: 'cfce9402-0067-458b-95a7-95846f469406',
+    voiceName: 'Sheryl - Warm Briefing',
+    modelId: 'sonic-3.6',
+    voiceSpeed: 1.0,
+    voiceVolume: 1.0,
+    voiceTemperature: 0.7,
+    emotionPreset: 'positivity:high',
+    sttModel: 'ink-2',
+    turnStartThreshold: 0.8,
+    turnEndTimeoutMs: 5600,
+    keyterms: '180workspace, Support, Order, Booking',
+    sampleRate: 44100,
+    normalization: 'auto',
     firstMessage: '',
     systemPrompt: '',
     allowBargeIn: true,
-    voiceSpeed: 1.0,
-    voiceTemperature: 0.7,
+    inactivityTimeoutMs: 5000,
     maxDurationSeconds: 600,
     isActive: true,
     assignedPhoneId: '',
@@ -84,9 +122,10 @@ function AgentDetailContent() {
   const fetchAgent = async () => {
     try {
       setLoading(true);
-      const [agentRes, numbersRes] = await Promise.all([
+      const [agentRes, numbersRes, voicesRes] = await Promise.all([
         api.get(`/api/v1/voiceforce/agents/${id}`),
-        api.get('/api/v1/voiceforce/numbers').catch(() => ({ data: { data: [] } }))
+        api.get('/api/v1/voiceforce/numbers').catch(() => ({ data: { data: [] } })),
+        api.get('/api/v1/voiceforce/voices').catch(() => ({ data: { data: [] } }))
       ]);
 
       if (agentRes.data?.success && agentRes.data.data) {
@@ -97,18 +136,44 @@ function AgentDetailContent() {
           setBriefing(agentRes.data.data.briefing);
         }
 
+        const allVoices: CartesiaVoiceItem[] = voicesRes.data?.data || [];
+        const matchedVoice = allVoices.find(v => v.id === ag.voiceId);
+        if (matchedVoice) {
+          setSelectedVoiceDetails(matchedVoice);
+        } else {
+          setSelectedVoiceDetails({
+            id: ag.voiceId || 'cfce9402-0067-458b-95a7-95846f469406',
+            name: ag.name ? `${ag.name} Persona` : 'Cartesia Studio Voice',
+            description: 'Custom Neural Persona',
+            language: ag.language || 'en',
+            gender: 'female',
+            isCloned: false
+          });
+        }
+
         const currentPhoneId = ag.assignedNumbers?.[0]?.id || '';
         setConfigForm({
           name: ag.name || '',
           role: ag.role || '',
           language: ag.language || 'en-US',
-          voiceId: ag.voiceId || CARTESIA_VOICES[0].id,
+          voiceId: ag.voiceId || 'cfce9402-0067-458b-95a7-95846f469406',
+          voiceName: matchedVoice?.name || ag.name || 'Sheryl - Warm Briefing',
+          modelId: ag.llmModel?.includes('sonic') ? ag.llmModel : 'sonic-3.6',
+          voiceSpeed: ag.voiceSpeed ?? 1.0,
+          voiceVolume: 1.0,
+          voiceTemperature: ag.voiceTemperature ?? 0.7,
+          emotionPreset: 'positivity:high',
+          sttModel: ag.sttModel || 'ink-2',
+          turnStartThreshold: 0.8,
+          turnEndTimeoutMs: 5600,
+          keyterms: `${ag.name || '180workspace'}, Support, Booking, Orders`,
+          sampleRate: 44100,
+          normalization: 'auto',
           firstMessage: ag.firstMessage || '',
           systemPrompt: ag.systemPrompt || '',
           allowBargeIn: ag.allowBargeIn ?? true,
-          voiceSpeed: ag.voiceSpeed || 1.0,
-          voiceTemperature: ag.voiceTemperature || 0.7,
-          maxDurationSeconds: ag.maxDurationSeconds || 600,
+          inactivityTimeoutMs: ag.inactivityTimeoutMs ?? 5000,
+          maxDurationSeconds: ag.maxDurationSeconds ?? 600,
           isActive: ag.isActive ?? true,
           assignedPhoneId: currentPhoneId,
           enabledToolNames: Array.isArray(ag.enabledToolNames) ? ag.enabledToolNames : ['search_knowledge_base']
@@ -118,6 +183,64 @@ function AgentDetailContent() {
       toast.error('Failed to load employee details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTestVoiceAudio = async () => {
+    if (isPlayingTestAudio && testAudioRef.current) {
+      testAudioRef.current.pause();
+      setIsPlayingTestAudio(false);
+      return;
+    }
+
+    try {
+      setGeneratingTestAudio(true);
+      const matchedLang = getCartesiaLanguageByCode(configForm.language);
+      const textToSpeak = configForm.firstMessage?.trim() ||
+        matchedLang?.sampleGreeting ||
+        `Hello! I am ${configForm.name || 'your AI employee'}. How can I assist your business today?`;
+
+      const emotionTag = configForm.emotionPreset === 'warm' ? ['positivity:high'] :
+        configForm.emotionPreset === 'curious' ? ['curiosity'] :
+        configForm.emotionPreset === 'urgent' ? ['surprise'] :
+        configForm.emotionPreset === 'professional' ? ['neutral'] :
+        ['positivity:high'];
+
+      const res = await api.post('/api/v1/voiceforce/voices/preview', {
+        voiceId: configForm.voiceId,
+        text: textToSpeak,
+        modelId: configForm.modelId || 'sonic-3.6',
+        speed: configForm.voiceSpeed,
+        volume: configForm.voiceVolume || 1.0,
+        emotion: configForm.emotionPreset === 'professional' ? 'neutral' : configForm.emotionPreset === 'curious' ? 'calm' : 'neutral',
+        locale: configForm.language,
+        normalization: configForm.normalization,
+        sampleRate: configForm.sampleRate || 44100
+      });
+
+      if (res.data?.data?.audioBase64) {
+        if (testAudioRef.current) testAudioRef.current.pause();
+        const audio = new Audio(res.data.data.audioBase64);
+        testAudioRef.current = audio;
+        setIsPlayingTestAudio(true);
+        setGeneratingTestAudio(false);
+
+        audio.onended = () => {
+          setIsPlayingTestAudio(false);
+          testAudioRef.current = null;
+        };
+        audio.onerror = () => {
+          setIsPlayingTestAudio(false);
+          testAudioRef.current = null;
+          toast.error('Failed to play audio sample');
+        };
+
+        await audio.play();
+      }
+    } catch (err: any) {
+      setGeneratingTestAudio(false);
+      setIsPlayingTestAudio(false);
+      toast.error(err.response?.data?.error || 'Voice test preview failed');
     }
   };
 
@@ -362,10 +485,11 @@ function AgentDetailContent() {
         </div>
 
         {/* Top-Level Tabs */}
-        <div className="mt-8 flex gap-2 border-b border-gray-100 dark:border-gray-800 pt-2">
+        <div className="mt-8 flex gap-2 border-b border-gray-100 dark:border-gray-800 pt-2 overflow-x-auto">
           {[
             { id: 'activity', label: 'Activity & Performance', icon: Activity },
-            { id: 'config', label: 'Configuration & Brain', icon: Settings2 },
+            { id: 'config', label: 'Configuration & Persona', icon: Settings2 },
+            { id: 'brain', label: 'Business Data & RAG Brain', icon: Database },
             { id: 'guardrails', label: 'Guardrails & Trust', icon: ShieldAlert }
           ].map((tab) => {
             const Icon = tab.icon;
@@ -708,82 +832,101 @@ function AgentDetailContent() {
         </div>
       )}
 
-      {/* ─── Tab 2: Configuration & Brain ──────────────────────────────────── */}
+      {/* ─── Tab 2: Configuration & Brain (Cartesia Neural Voice Studio) ────── */}
       {activeTab === 'config' && (
-        <form onSubmit={handleSaveConfig} className="p-6 md:p-8 rounded-3xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm space-y-6 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+        <form onSubmit={handleSaveConfig} className="p-6 md:p-8 rounded-3xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm space-y-7 animate-in fade-in duration-200">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-5">
             <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Settings2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                Employee Persona & Brain Settings
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Configure voice acoustic synthesis, prompt cadence, and connected 180workspace business tools.
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Employee Persona, Voice Studio & Brain Settings
+                </h3>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Customize Cartesia neural speech synthesis, speaking pace, emotion vibe, and connected business tools.
               </p>
             </div>
 
             <button
               type="submit"
               disabled={savingConfig}
-              className="inline-flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-purple-500/20 active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-purple-500/20 active:scale-95 disabled:opacity-50 transition-all cursor-pointer flex-shrink-0"
             >
               {savingConfig ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              <span>{savingConfig ? 'Saving...' : 'Save Configuration'}</span>
+              <span>{savingConfig ? 'Saving Studio...' : 'Save Configuration'}</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {/* Section 1: Core Identity & Assigned Lines */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
-                Employee Name
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                Employee Name *
               </label>
               <input
                 type="text"
                 required
                 value={configForm.name}
                 onChange={(e) => setConfigForm({ ...configForm, name: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2 px-3 text-xs text-gray-900 dark:text-white"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 px-3.5 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
-                Job Role / Specialty
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                Job Role / Specialty *
               </label>
               <input
                 type="text"
                 required
                 value={configForm.role}
                 onChange={(e) => setConfigForm({ ...configForm, role: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2 px-3 text-xs text-gray-900 dark:text-white"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 px-3.5 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
-                Cartesia Neural Voice
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  Primary Spoken Language
+                </label>
+                <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200/60 dark:border-purple-850">
+                  {CARTESIA_SUPPORTED_LANGUAGES.length}+ Languages & Accents
+                </span>
+              </div>
               <select
-                value={configForm.voiceId}
-                onChange={(e) => setConfigForm({ ...configForm, voiceId: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2 px-3 text-xs text-gray-900 dark:text-white"
+                value={configForm.language}
+                onChange={(e) => setConfigForm({ ...configForm, language: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 px-3 text-xs text-gray-900 dark:text-white outline-none cursor-pointer font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
               >
-                {CARTESIA_VOICES.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
+                {CARTESIA_REGIONAL_GROUPS.map((region) => {
+                  const regionalLangs = CARTESIA_SUPPORTED_LANGUAGES.filter(l => l.region === region);
+                  if (regionalLangs.length === 0) return null;
+                  return (
+                    <optgroup key={region} label={`─── ${region} (${regionalLangs.length}) ───`}>
+                      {regionalLangs.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                          {lang.flag} {lang.nativeName} — {lang.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
-                Dedicated Direct Phone Line
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                Dedicated Direct Line
               </label>
               <select
                 value={configForm.assignedPhoneId}
                 onChange={(e) => setConfigForm({ ...configForm, assignedPhoneId: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2 px-3 text-xs text-gray-900 dark:text-white"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 px-3 text-xs text-gray-900 dark:text-white outline-none cursor-pointer"
               >
                 <option value="">No Direct Line Assigned</option>
                 {phoneNumbers.map((p) => (
@@ -795,31 +938,372 @@ function AgentDetailContent() {
             </div>
           </div>
 
+          {/* Section 2: Cartesia Neural Voice Persona Card (Hero Studio Box) */}
+          <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-purple-50/70 via-indigo-50/40 to-pink-50/40 dark:from-purple-950/30 dark:via-indigo-950/20 dark:to-pink-950/20 border border-purple-200/80 dark:border-purple-800/60 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={clsx(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm shadow-md flex-shrink-0 text-white",
+                  selectedVoiceDetails?.isCloned
+                    ? "bg-gradient-to-tr from-amber-500 to-orange-400"
+                    : selectedVoiceDetails?.gender === 'female'
+                      ? "bg-gradient-to-tr from-pink-500 to-purple-600"
+                      : "bg-gradient-to-tr from-blue-500 to-indigo-600"
+                )}>
+                  {(selectedVoiceDetails?.name || configForm.voiceName || 'SV').slice(0, 2).toUpperCase()}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
+                      Active Cartesia Voice Persona
+                    </span>
+                    {selectedVoiceDetails?.isCloned ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                        CUSTOM CLONE
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                        SONIC 3.6 NEURAL
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-base font-bold text-gray-900 dark:text-white mt-0.5">
+                    {selectedVoiceDetails?.name || configForm.voiceName}
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                    {selectedVoiceDetails?.description || 'Sub-90ms Generative Neural Voice Persona'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                {/* Live Test Audio Button */}
+                <button
+                  type="button"
+                  onClick={handleTestVoiceAudio}
+                  disabled={generatingTestAudio}
+                  className={clsx(
+                    "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer",
+                    isPlayingTestAudio
+                      ? "bg-rose-600 text-white shadow-rose-600/20 scale-105"
+                      : "bg-white dark:bg-gray-800 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 hover:bg-purple-50"
+                  )}
+                >
+                  {generatingTestAudio ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Synthesizing...</span>
+                    </>
+                  ) : isPlayingTestAudio ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5 fill-current" />
+                      <span>Stop Preview</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>Test Spoken Voice</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Browse 900+ Voices */}
+                <button
+                  type="button"
+                  onClick={() => setIsVoiceSelectorOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Browse 900+ Voices</span>
+                </button>
+
+                {/* Clone New Voice */}
+                <button
+                  type="button"
+                  onClick={() => setIsCloningModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Clone your own voice"
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>Clone</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Audio waveform / playback indicator */}
+            {isPlayingTestAudio && (
+              <div className="p-3 rounded-xl bg-purple-100/70 dark:bg-purple-900/40 border border-purple-200 dark:border-purple-800 flex items-center justify-between text-xs text-purple-900 dark:text-purple-200 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-600 animate-ping" />
+                  <span className="font-semibold">Playing live neural synthesis preview...</span>
+                </div>
+                <span className="text-[11px] font-mono text-purple-700 dark:text-purple-300">
+                  Cartesia Sonic-3.6 ({configForm.voiceSpeed}x pace)
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Acoustic Synthesis & Tone Engine */}
+          <div className="p-5 sm:p-6 rounded-2xl bg-gray-50/70 dark:bg-gray-850/60 border border-gray-200 dark:border-gray-800 space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                  Acoustic Synthesis & Audio Format Controls
+                </h4>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Cartesia API: 2026-08-14</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Cartesia Model Engine */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Cartesia TTS Model
+                </label>
+                <select
+                  value={configForm.modelId}
+                  onChange={(e) => setConfigForm({ ...configForm, modelId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-900 dark:text-white outline-none cursor-pointer"
+                >
+                  <option value="sonic-3.6">Sonic 3.6 (Flagship Sub-90ms - Best Quality)</option>
+                  <option value="sonic-multilingual">Sonic Multilingual (35+ Languages & Indic)</option>
+                  <option value="sonic-english">Sonic English (Ultra-Low Latency)</option>
+                  <option value="sonic-3.5">Sonic 3.5 (Stable Enterprise)</option>
+                  <option value="sonic-turbo">Sonic Turbo (High Concurrency)</option>
+                </select>
+              </div>
+
+              {/* Speaking Pace / Speed */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Speaking Pace / Speed
+                  </label>
+                  <span className="text-xs font-mono font-bold text-purple-600 dark:text-purple-400">
+                    {configForm.voiceSpeed.toFixed(2)}x
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.6"
+                  max="1.5"
+                  step="0.05"
+                  value={configForm.voiceSpeed}
+                  onChange={(e) => setConfigForm({ ...configForm, voiceSpeed: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
+                  <button type="button" onClick={() => setConfigForm({ ...configForm, voiceSpeed: 0.85 })} className="hover:text-purple-600 cursor-pointer">0.85x</button>
+                  <button type="button" onClick={() => setConfigForm({ ...configForm, voiceSpeed: 1.0 })} className="hover:text-purple-600 font-bold text-gray-600 dark:text-gray-300 cursor-pointer">1.0x</button>
+                  <button type="button" onClick={() => setConfigForm({ ...configForm, voiceSpeed: 1.15 })} className="hover:text-purple-600 cursor-pointer">1.15x</button>
+                  <button type="button" onClick={() => setConfigForm({ ...configForm, voiceSpeed: 1.3 })} className="hover:text-purple-600 cursor-pointer">1.3x</button>
+                </div>
+              </div>
+
+              {/* Volume Gain (0.5x to 2.0x) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Acoustic Output Volume
+                  </label>
+                  <span className="text-xs font-mono font-bold text-purple-600 dark:text-purple-400">
+                    {(configForm.voiceVolume || 1.0).toFixed(2)}x
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2.0"
+                  step="0.05"
+                  value={configForm.voiceVolume || 1.0}
+                  onChange={(e) => setConfigForm({ ...configForm, voiceVolume: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
+                  <button type="button" onClick={() => setConfigForm({ ...configForm, voiceVolume: 0.75 })} className="hover:text-purple-600 cursor-pointer">0.75x Soft</button>
+                  <button type="button" onClick={() => setConfigForm({ ...configForm, voiceVolume: 1.0 })} className="hover:text-purple-600 font-bold text-gray-600 dark:text-gray-300 cursor-pointer">1.0x Natural</button>
+                  <button type="button" onClick={() => setConfigForm({ ...configForm, voiceVolume: 1.35 })} className="hover:text-purple-600 cursor-pointer">1.35x Boost</button>
+                </div>
+              </div>
+
+              {/* Audio Format & Sample Rate */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Acoustic Pipeline Sample Rate
+                </label>
+                <select
+                  value={configForm.sampleRate || 44100}
+                  onChange={(e) => setConfigForm({ ...configForm, sampleRate: parseInt(e.target.value, 10) })}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-900 dark:text-white outline-none cursor-pointer"
+                >
+                  <option value={44100}>44,100 Hz (Studio High-Fi - Softphone & Web)</option>
+                  <option value={24000}>24,000 Hz (Wideband HD Voice)</option>
+                  <option value={16000}>16,000 Hz (Standard Telephony PSTN / SIP)</option>
+                  <option value={8000}>8,000 Hz (Narrowband Legacy G.711)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Sonic Emotion & Energy Presets */}
+            <div className="pt-2">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Sonic Emotion & Conversational Energy Tone
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {[
+                  { id: 'positivity:high', label: '🌟 Upbeat & Cheerful', desc: 'Customer Delight' },
+                  { id: 'warm', label: '💖 Warm & Empathetic', desc: 'Support & Care' },
+                  { id: 'curious', label: '🔍 Inquisitive & Engaging', desc: 'Lead Discovery' },
+                  { id: 'professional', label: '👔 Crisp & Executive', desc: 'Corporate Desk' },
+                  { id: 'urgent', label: '⚡ Energetic & Direct', desc: 'High-Impact Sales' }
+                ].map((emo) => (
+                  <button
+                    key={emo.id}
+                    type="button"
+                    onClick={() => setConfigForm({ ...configForm, emotionPreset: emo.id })}
+                    className={clsx(
+                      "p-2.5 rounded-xl border text-left transition-all cursor-pointer",
+                      configForm.emotionPreset === emo.id
+                        ? "bg-purple-50 dark:bg-purple-950/50 border-purple-500 text-purple-900 dark:text-purple-200 ring-2 ring-purple-500/20"
+                        : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-750 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    )}
+                  >
+                    <div className="text-xs font-bold">{emo.label}</div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{emo.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: STT Real-Time Turn Detection & Keyterms Boosting */}
+          <div className="p-5 sm:p-6 rounded-2xl bg-gray-50/70 dark:bg-gray-850/60 border border-gray-200 dark:border-gray-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Real-Time STT Engine & Auto Turn Detection</span>
+                </h4>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                  Powered by Cartesia Ink-2 / Ink-Preview: joint speech transcription with transformer turn-taking.
+                </p>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={configForm.allowBargeIn}
+                  onChange={(e) => setConfigForm({ ...configForm, allowBargeIn: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-gray-200 dark:border-gray-750 text-xs">
+              {/* STT Model */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  STT Model Architecture
+                </label>
+                <select
+                  value={configForm.sttModel}
+                  onChange={(e) => setConfigForm({ ...configForm, sttModel: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-900 dark:text-white outline-none cursor-pointer"
+                >
+                  <option value="ink-2">Cartesia Ink-2 (Auto Turn Detection - Recommended)</option>
+                  <option value="ink-preview">Cartesia Ink-Preview (Auto Multi-language & Indic)</option>
+                  <option value="ink-whisper">Cartesia Ink-Whisper (Continuous Dictation)</option>
+                  <option value="nova-3">Deepgram Nova-3 (Cascaded Fallback)</option>
+                </select>
+              </div>
+
+              {/* Turn Detection Sensitivity */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Turn Start Sensitivity: {configForm.turnStartThreshold || 0.8}
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="0.9"
+                  step="0.05"
+                  value={configForm.turnStartThreshold || 0.8}
+                  onChange={(e) => setConfigForm({ ...configForm, turnStartThreshold: parseFloat(e.target.value) })}
+                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">Higher = requires clear speech start. Default: 0.8</p>
+              </div>
+
+              {/* Turn End Timeout */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Turn End Timeout: {((configForm.turnEndTimeoutMs || 5600) / 1000).toFixed(1)}s
+                </label>
+                <input
+                  type="range"
+                  min="1000"
+                  max="8000"
+                  step="200"
+                  value={configForm.turnEndTimeoutMs || 5600}
+                  onChange={(e) => setConfigForm({ ...configForm, turnEndTimeoutMs: parseInt(e.target.value, 10) })}
+                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">Max silence before turn closure. Default: 5.6s</p>
+              </div>
+            </div>
+
+            {/* Keyterms Acoustic Boosting */}
+            <div className="pt-2">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Domain Keyterms Acoustic Prompting (Brand Names, Products, Medical SKUs)
+              </label>
+              <input
+                type="text"
+                value={configForm.keyterms}
+                onChange={(e) => setConfigForm({ ...configForm, keyterms: e.target.value })}
+                placeholder="e.g. 180workspace, Invoice #, Order Status, Dr. Sharma, Oil Change"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-2 px-3 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500/20"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                Cartesia STT will prioritize and accurately transcribe these exact words even in loud background noise (up to 100 terms).
+              </p>
+            </div>
+          </div>
+
+          {/* Section 5: First Spoken Greeting & System Prompt */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
               First Spoken Greeting (Upon Call Pickup)
             </label>
             <input
               type="text"
               value={configForm.firstMessage}
               onChange={(e) => setConfigForm({ ...configForm, firstMessage: e.target.value })}
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2 px-3 text-xs text-gray-900 dark:text-white"
+              placeholder="e.g. Hi there! Thanks for calling our service center. How can I help you today?"
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 px-3.5 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
               Autonomous Behavior System Prompt
             </label>
             <textarea
               rows={8}
               value={configForm.systemPrompt}
               onChange={(e) => setConfigForm({ ...configForm, systemPrompt: e.target.value })}
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 px-3 text-xs font-mono text-gray-900 dark:text-white leading-relaxed"
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-3 px-3.5 text-xs font-mono text-gray-900 dark:text-white leading-relaxed outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
             />
           </div>
 
-          {/* Permitted Tools Checkboxes */}
+          {/* Section 6: Permitted 180workspace Business Tools */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
               Permitted 180workspace Business Tools ({configForm.enabledToolNames.length} Enabled)
@@ -862,7 +1346,14 @@ function AgentDetailContent() {
         </form>
       )}
 
-      {/* ─── Tab 3: Guardrails & Trust ──────────────────────────────────────── */}
+      {/* ─── Tab 3: Universal Business Data & RAG Brain ─────────────────────────── */}
+      {activeTab === 'brain' && (
+        <div className="animate-in fade-in duration-200">
+          <BusinessBrainTabs agentId={id} agentName={configForm.name} />
+        </div>
+      )}
+
+      {/* ─── Tab 4: Guardrails & Trust ──────────────────────────────────────── */}
       {activeTab === 'guardrails' && (
         <AgentGuardrailsEditor
           agentId={agent.id}
@@ -872,6 +1363,39 @@ function AgentDetailContent() {
       )}
 
       {/* ─── Modals ────────────────────────────────────────────────────────── */}
+      {/* Cartesia 900+ Voice Catalog Selector Modal */}
+      <CartesiaVoiceSelectorModal
+        isOpen={isVoiceSelectorOpen}
+        onClose={() => setIsVoiceSelectorOpen(false)}
+        selectedVoiceId={configForm.voiceId}
+        onSelectVoice={(voice) => {
+          setSelectedVoiceDetails(voice);
+          setConfigForm((prev) => ({
+            ...prev,
+            voiceId: voice.id,
+            voiceName: voice.name,
+            language: voice.language === 'hi' ? 'hi-IN' : prev.language
+          }));
+          toast.success(`Selected voice: ${voice.name}`);
+        }}
+        onOpenCloning={() => setIsCloningModalOpen(true)}
+      />
+
+      {/* Instant Voice Cloning Modal */}
+      <VoiceCloningModal
+        isOpen={isCloningModalOpen}
+        onClose={() => setIsCloningModalOpen(false)}
+        onVoiceCloned={(newVoice) => {
+          setSelectedVoiceDetails(newVoice);
+          setConfigForm((prev) => ({
+            ...prev,
+            voiceId: newVoice.id,
+            voiceName: newVoice.name
+          }));
+          toast.success(`Voice cloned & selected for ${agent.name}!`);
+        }}
+      />
+
       {/* Outbound Campaign & Direct Dispatch Drawer */}
       <CreateCampaignDrawer
         isOpen={isAssignWorkOpen}
@@ -963,3 +1487,4 @@ export default function AgentDetailPage() {
     </Suspense>
   );
 }
+

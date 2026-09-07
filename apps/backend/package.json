@@ -36,6 +36,7 @@
     "@workspace/platform-billing": "workspace:*",
     "@workspace/projects-and-tasks-domain": "workspace:*",
     "@workspace/public": "workspace:*",
+    "@workspace/rag": "workspace:*",
     "@workspace/settings": "workspace:*",
     "@workspace/social-media": "workspace:*",
     "@workspace/traffic-director": "workspace:*",

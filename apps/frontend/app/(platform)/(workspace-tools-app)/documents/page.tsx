@@ -21,6 +21,8 @@ import EmailQuoteModal from '@/app/(platform)/(workspace-tools-app)/_components/
 import DigitalSignatureModal from '@/app/(platform)/(workspace-tools-app)/_components/DigitalSignatureModal';
 import RecordPaymentModal from '@/app/(platform)/(workspace-tools-app)/_components/RecordPaymentModal';
 import ShareDocumentModal from '@/app/(platform)/(workspace-tools-app)/_components/ShareDocumentModal';
+import { CreateRagVaultModal } from './_components/CreateRagVaultModal';
+import { RagVaultsDrawer } from './_components/RagVaultsDrawer';
 import { DocumentCard } from './_components/DocumentCard';
 
 interface Document { 
@@ -204,6 +206,9 @@ export default function DocumentsPage() {
     const [showUpload, setShowUpload] = useState(false);
     const [showTemplates, setShowTemplates] = useState(false);
     const [showCreateAI, setShowCreateAI] = useState(false);
+    const [showCreateVaultModal, setShowCreateVaultModal] = useState(false);
+    const [showVaultsDrawer, setShowVaultsDrawer] = useState(false);
+    const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
     const [showAiChat, setShowAiChat] = useState(false);
@@ -272,7 +277,16 @@ export default function DocumentsPage() {
         refetchArticles();
     }
 
-    useEffect(() => { loadDocs(); }, [search]);
+    useEffect(() => { 
+        loadDocs(); 
+        api.get('/api/v1/workspace-tools/vaults/categories')
+            .then(res => {
+                if (res.data?.categories) {
+                    setCustomCategories(res.data.categories);
+                }
+            })
+            .catch(() => {});
+    }, [search]);
 
     async function handleApprove(doc: any) {
         try {
@@ -363,7 +377,13 @@ export default function DocumentsPage() {
     );
     // Use plan maxStorageBytes if available, else fallback to storageStats or 10GB
     const storageQuotaBytes = ((subscription as any)?.plan?.maxStorageBytes) || (storageStats as any)?.totalQuotaBytes || 10 * 1024 * 1024 * 1024;
-    const storagePercentage = storageQuotaBytes > 0 ? Math.min(100, Number(((totalStorageBytes / storageQuotaBytes) * 100).toFixed(1))) : 0;
+    const storagePercentage = storageQuotaBytes > 0 ? Math.min(100, Math.round((totalStorageBytes / storageQuotaBytes) * 100)) : 0;
+    const displayCategories = [
+        ...CATEGORIES,
+        ...customCategories
+            .filter(cat => !CATEGORIES.some(c => c.key.toLowerCase() === cat.name.toLowerCase()))
+            .map(cat => ({ key: cat.name, label: cat.name }))
+    ];
 
     const filtered = allDocs.filter(d => {
         const isVoiceNote = (d.title || d.name || '').toLowerCase().includes('voice-note') || (d.url || '').toLowerCase().endsWith('.webm');
@@ -459,6 +479,16 @@ export default function DocumentsPage() {
     return (
         <div className="min-h-full pb-16 relative">
             {/* Modals & Drawers */}
+            <CreateRagVaultModal 
+                isOpen={showCreateVaultModal} 
+                onClose={() => setShowCreateVaultModal(false)} 
+                onVaultCreated={() => loadDocs()} 
+            />
+            <RagVaultsDrawer 
+                isOpen={showVaultsDrawer} 
+                onClose={() => setShowVaultsDrawer(false)} 
+                onOpenCreate={() => { setShowVaultsDrawer(false); setShowCreateVaultModal(true); }} 
+            />
             {showCreateAI && <CreateWithAIModal isOpen={showCreateAI} onClose={() => setShowCreateAI(false)} />}
             {showUpload && <FileUploadModal relatedModel="Vault" onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); loadDocs(); }} />}
             {showTemplates && <TemplatesListDrawer onClose={() => setShowTemplates(false)} onSuccess={() => { setShowTemplates(false); loadDocs(); }} />}
@@ -491,7 +521,7 @@ export default function DocumentsPage() {
             <ConfirmModal
                 isOpen={deleteAllModalOpen}
                 title={`Delete All ${filtered.length} Documents in View?`}
-                message={`Are you sure you want to delete ALL ${filtered.length} documents currently displayed in the "${CATEGORIES.find(c => c.key === activeCategory)?.label || 'All Documents'}" view? This action is permanent.`}
+                message={`Are you sure you want to delete ALL ${filtered.length} documents currently displayed in the "${displayCategories.find(c => c.key === activeCategory)?.label || 'All Documents'}" view? This action is permanent.`}
                 confirmText={isBatchDeleting ? "Deleting All..." : `Delete All (${filtered.length})`}
                 variant="danger"
                 onConfirm={handleDeleteAllFiltered}
@@ -534,15 +564,32 @@ export default function DocumentsPage() {
                 <div className="flex items-start justify-between flex-wrap gap-4">
                     <div>
                         <h1 className="page-title">180 Documents & Commercial Hub</h1>
-                        <p className="page-subtitle">Centralized document engine, e-signatures, automated ledger billing & AI generation</p>
+                        <p className="page-subtitle">Centralized document engine, 5GB RAG memory vaults, e-signatures & commercial workflows</p>
                     </div>
                     <div className="flex items-center gap-2.5 flex-wrap">
+                        {/* RAG Memory Vault Buttons */}
+                        <button
+                            onClick={() => setShowCreateVaultModal(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-500 hover:to-purple-500 rounded-xl shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] cursor-pointer"
+                        >
+                            <Database className="w-4 h-4 text-indigo-200" />
+                            <span>Create RAG Memory Vault</span>
+                        </button>
+
+                        <button
+                            onClick={() => setShowVaultsDrawer(true)}
+                            className="flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors cursor-pointer shadow-xs"
+                        >
+                            <Layers className="w-4 h-4 text-purple-600" />
+                            <span>Memory Vaults</span>
+                        </button>
+
                         {/* Prominent Create with AI button */}
                         <button 
                             onClick={() => router.push('/document-editor?ai=open')}
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl shadow-md shadow-purple-500/20 transition-all hover:scale-[1.02] cursor-pointer"
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl shadow-md shadow-purple-500/20 transition-all hover:scale-[1.02] cursor-pointer"
                         >
-                            <Sparkles className="w-4 h-4 animate-spin" />
+                            <Sparkles className="w-4 h-4" />
                             Create with AI
                         </button>
 
@@ -602,7 +649,7 @@ export default function DocumentsPage() {
                     </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
                         <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                            {CATEGORIES.map(cat => (
+                            {displayCategories.map(cat => (
                                 <button
                                     key={cat.key}
                                     onClick={() => { setActiveCategory(cat.key); setSelectedDocIds([]); }}

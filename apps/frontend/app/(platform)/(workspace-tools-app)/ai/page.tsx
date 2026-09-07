@@ -18,6 +18,7 @@ import { MarkdownRenderer } from './_components/MarkdownRenderer';
 import { InteractiveActionCard } from './_components/InteractiveActionCard';
 import { InteractiveEntitySelectorCard, EntitySelectorDirective, EntitySelectorOption } from './_components/InteractiveEntitySelectorCard';
 import { FeatureGuideCard } from './_components/FeatureGuideCard';
+import { AgentRequestsDrawer } from './_components/AgentRequestsDrawer';
 
 interface AttachedDoc {
     name: string;
@@ -270,8 +271,26 @@ export default function AIAssistantPage() {
         }
     };
 
+    // Agent Request Queue state
+    const [isAgentDrawerOpen, setIsAgentDrawerOpen] = useState(false);
+    const [agentRequestsCount, setAgentRequestsCount] = useState(0);
+
+    const fetchAgentRequestsCount = async () => {
+        try {
+            const res = await api.get('/api/v1/ai/requests', { params: { limit: 1 } }).catch(() => null);
+            if (res?.data?.counts) {
+                const active = (res.data.counts.pending || 0) + (res.data.counts.needs_review || 0) + (res.data.counts.auto_scheduled || 0);
+                setAgentRequestsCount(active);
+            }
+        } catch {
+            // silent fallback
+        }
+    };
+
     useEffect(() => {
-        fetchSessions();
+        fetchAgentRequestsCount();
+        const interval = setInterval(fetchAgentRequestsCount, 20000);
+        return () => clearInterval(interval);
     }, []);
 
     // Switch to a previous chat session
@@ -742,6 +761,20 @@ export default function AIAssistantPage() {
                             <span>New Chat</span>
                         </button>
 
+                        <button
+                            onClick={() => setIsAgentDrawerOpen(true)}
+                            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-800 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
+                            title="Internal Agent Requests from Voiceforce"
+                        >
+                            <Bot className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Agent Requests</span>
+                            {agentRequestsCount > 0 && (
+                                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-indigo-600 text-white font-bold text-[10px] animate-pulse">
+                                    {agentRequestsCount}
+                                </span>
+                            )}
+                        </button>
+
                         <button 
                             onClick={() => router.push('/settings/ai')}
                             className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -1057,6 +1090,14 @@ export default function AIAssistantPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Internal Voiceforce Agent Requests Slide-Over Drawer */}
+            <AgentRequestsDrawer 
+                isOpen={isAgentDrawerOpen} 
+                onClose={() => setIsAgentDrawerOpen(false)} 
+                onRequestCountChange={setAgentRequestsCount}
+            />
         </div>
     );
 }
+

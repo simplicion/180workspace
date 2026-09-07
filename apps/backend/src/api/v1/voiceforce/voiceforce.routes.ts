@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { VoiceforceController } from './voiceforce.controller';
 import { VoiceforceWebhooksController } from './webhooks.controller';
+import multer from 'multer';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB per file chunk
+});
 
 const router: Router = Router();
 
@@ -20,6 +26,13 @@ router.post('/agents/:id/versions/:versionNumber/rollback', VoiceforceController
 router.get('/agents/:id/guardrails', VoiceforceController.getAgentGuardrails);
 router.put('/agents/:id/guardrails', VoiceforceController.updateAgentGuardrails);
 router.post('/agents/:id/briefing/generate', VoiceforceController.generateAgentBriefing);
+
+// Cartesia Neural Voice Studio & Persona Customization
+router.get('/voices', VoiceforceController.listCartesiaVoices);
+router.post('/voices/preview', VoiceforceController.previewCartesiaVoice);
+router.post('/voices/clone', VoiceforceController.cloneCartesiaVoice);
+router.post('/stt/transcribe', VoiceforceController.transcribeCartesiaAudio);
+router.get('/engine/specs', VoiceforceController.getCartesiaEngineSpecs);
 
 
 // Pre-Flight Sandbox Simulator
@@ -94,6 +107,7 @@ router.delete('/dnc/:id', VoiceforceController.removeDnc);
 // Browser Softphone WebRTC Tester (₹0 Telecom Cost)
 router.post('/tokens/generate', VoiceforceController.generateSoftphoneToken);
 router.post('/softphone/exchange', VoiceforceController.processSoftphoneTurn);
+router.post('/softphone/exchange-stream', VoiceforceController.processSoftphoneTurnStream);
 router.post('/sessions/:id/turn', VoiceforceController.processSoftphoneTurn);
 router.post('/sessions/:id/end', VoiceforceController.endSoftphoneCall);
 
@@ -104,6 +118,14 @@ router.post('/wallet/verify', VoiceforceController.verifyWalletPayment);
 router.post('/wallet/recharge', VoiceforceController.rechargeWallet);
 router.put('/wallet/auto-recharge', VoiceforceController.updateAutoRecharge);
 router.post('/webhooks/razorpay', VoiceforceController.handleRazorpayWebhook);
+
+// Universal Enterprise Business Brain & Dedicated RAG Knowledge Pipeline
+router.post('/knowledge/upload', upload.single('file'), VoiceforceController.uploadKnowledgeDocument);
+router.get('/knowledge/documents', VoiceforceController.listKnowledgeDocuments);
+router.delete('/knowledge/documents/:id', VoiceforceController.deleteKnowledgeDocument);
+router.post('/knowledge/query', VoiceforceController.queryKnowledgeBase);
+router.put('/agents/:id/vaults', VoiceforceController.linkAgentVaults);
+router.get('/agents/:id/vaults', VoiceforceController.getAgentLinkedVaults);
 
 // Superadmin Voice Platform Operations
 router.get('/superadmin/overview', VoiceforceController.getSuperadminOverview);

@@ -475,6 +475,93 @@ export const searchKnowledgeBaseTool: AIToolDefinition = {
 };
 
 /**
+ * Tool 8B: Dedicated Universal Business Brain & 5GB RAG Search
+ */
+export const searchBusinessKnowledgeTool: AIToolDefinition = {
+    name: 'search_business_knowledge',
+    description: 'Searches company uploaded business documents, product catalogs, service manuals, warranty terms, and FAQs to retrieve authoritative facts.',
+    allowedRoles: ['all'],
+    category: 'knowledge',
+    parameters: {
+        query: { type: 'string', description: 'The exact question, product name, or topic to look up in the business knowledge base', required: true },
+        topK: { type: 'number', description: 'Number of relevant chunks to retrieve (default: 3)' },
+        category: { type: 'string', description: 'Optional dynamic category tag to filter search by (e.g. Finance, HR, Engineering)' },
+        vaultId: { type: 'string', description: 'Optional specific 5GB RAG memory vault ID to scope search to' },
+        vaultIds: { type: 'array', description: 'Optional array of RAG vault IDs to search across' }
+    },
+    execute: async (args, context) => {
+        const { companyId } = context;
+        if (!companyId) return { error: 'Company ID is required for knowledge lookup' };
+
+        try {
+            let HybridSearchService: any;
+            try {
+                const ragMod = await import('@workspace/rag');
+                HybridSearchService = ragMod.HybridSearchService;
+            } catch {
+                try {
+                    const ragMod = require('../../../rag');
+                    HybridSearchService = ragMod.HybridSearchService;
+                } catch {
+                    const ragMod = require('../../../rag/dist');
+                    HybridSearchService = ragMod.HybridSearchService;
+                }
+            }
+            const searchService = new HybridSearchService();
+            const results = await searchService.search(
+                companyId, 
+                args.query, 
+                args.topK || 3,
+                {
+                    vaultId: args.vaultId,
+                    vaultIds: args.vaultIds,
+                    category: args.category,
+                    fastPath: true
+                }
+            );
+
+            if (!results || results.length === 0) {
+                return {
+                    success: true,
+                    query: args.query,
+                    matchCount: 0,
+                    found: false,
+                    message: `No specific business documents matched "${args.query}". Please advise the customer according to standard policy or connect them with a representative.`
+                };
+            }
+
+            const formattedSnippets = results
+                .map((r, i) => `[Fact ${i + 1} from "${r.documentTitle || 'Knowledge Document'}"] (Relevance: ${Math.round(r.score * 100)}%):\n${r.content}`)
+                .join('\n\n');
+
+            return {
+                success: true,
+                query: args.query,
+                matchCount: results.length,
+                found: true,
+                facts: formattedSnippets,
+                results: results.map(r => ({
+                    document: r.documentTitle,
+                    score: r.score,
+                    category: r.category,
+                    vaultId: r.vaultId,
+                    snippet: r.content.slice(0, 300)
+                })),
+                message: `Found ${results.length} authoritative business knowledge references:\n\n${formattedSnippets}`
+            };
+        } catch (err: any) {
+            console.warn('[searchBusinessKnowledgeTool] Error querying RAG service:', err.message);
+            return {
+                success: false,
+                query: args.query,
+                error: err.message,
+                message: 'Unable to retrieve knowledge documents at this moment.'
+            };
+        }
+    }
+};
+
+/**
  * Tool 9: Universal Document AST Generator
  */
 export const generateDocumentAstTool: AIToolDefinition = {
@@ -1777,6 +1864,202 @@ export const featureNavigationGuideTool: AIToolDefinition = {
 };
 
 /**
+ * Tool: List Internal Agent Requests (Voiceforce to Orbit Delegation Queue)
+ */
+export const listAgentRequestsTool: AIToolDefinition = {
+    name: 'list_agent_requests',
+    description: 'Fetches real-time incoming meeting requests, customer bookings, and delegation tickets created by Voiceforce AI voice agents.',
+    allowedRoles: ['admin', 'employee'],
+    requiredPermissions: ['calendar:view', 'calendar:all'],
+    category: 'voiceforce',
+    parameters: {
+        status: { type: 'string', description: 'Filter by status: all, pending, auto_scheduled, confirmed, rejected, needs_review' },
+        limit: { type: 'number', description: 'Maximum number of requests to fetch (default: 10)' }
+    },
+    execute: async (args, context) => {
+        const { companyId } = context;
+        if (!companyId) return { error: 'Company ID is required' };
+
+        const where: any = { companyId };
+        if (args.status && args.status !== 'all') {
+            where.status = args.status;
+        }
+
+        const [requests, counts] = await Promise.all([
+            (prisma as any).agentRequest.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: args.limit || 10,
+                include: {
+                    voiceAgent: { select: { name: true } },
+                    calendarEvent: { select: { id: true, title: true, startDate: true, endDate: true } }
+                }
+            }).catch(() => []),
+            Promise.all([
+                (prisma as any).agentRequest.count({ where: { companyId, status: 'pending' } }).catch(() => 0),
+                (prisma as any).agentRequest.count({ where: { companyId, status: 'auto_scheduled' } }).catch(() => 0),
+                (prisma as any).agentRequest.count({ where: { companyId, status: 'confirmed' } }).catch(() => 0)
+            ])
+        ]);
+
+        const [pendingCount, autoScheduledCount, confirmedCount] = counts;
+
+        const requestList = requests.map((r: any) => {
+            const timeStr = r.scheduledStart ? new Date(r.scheduledStart).toLocaleString() : (r.requestedTimeRaw || 'Time TBD');
+            return `- **${r.customerName}** (${r.customerPhone || r.customerEmail || 'No contact'})\n  • Topic: *${r.topic}*\n  • Scheduled: \`${timeStr}\`\n  • Status: \`${r.status}\` | Agent: *${r.voiceAgentName || r.voiceAgent?.name || 'Voice AI'}*\n  • ID: \`${r.id}\``;
+        }).join('\n\n');
+
+        const message = `📋 **Voiceforce Agent Request Queue**\n\n` +
+            `• **Pending Review:** ${pendingCount}\n` +
+            `• **Auto-Scheduled:** ${autoScheduledCount}\n` +
+            `• **Confirmed:** ${confirmedCount}\n\n` +
+            (requestList || 'No agent requests found for this filter.') +
+            `\n\n👉 [Manage Agent Requests in Orbit AI](/ai)`;
+
+        return {
+            success: true,
+            total: requests.length,
+            pendingCount,
+            autoScheduledCount,
+            confirmedCount,
+            requests,
+            message
+        };
+    }
+};
+
+/**
+ * Tool: Process / Approve / Reschedule / Reject Agent Request
+ */
+export const processAgentRequestTool: AIToolDefinition = {
+    name: 'process_agent_request',
+    description: 'Approves, confirms, reschedules, or rejects an incoming Voiceforce agent meeting request.',
+    allowedRoles: ['admin', 'employee'],
+    requiredPermissions: ['calendar:create', 'calendar:all'],
+    category: 'voiceforce',
+    parameters: {
+        requestId: { type: 'string', description: 'UUID of the AgentRequest ticket', required: true },
+        action: { type: 'string', description: 'Action to perform: approve, confirm, reschedule, or reject', required: true },
+        newTime: { type: 'string', description: 'ISO date string or human readable new time if action is reschedule' },
+        notes: { type: 'string', description: 'Resolution or feedback notes' }
+    },
+    execute: async (args, context) => {
+        const { companyId, userId } = context;
+        if (!companyId) return { error: 'Company ID is required' };
+        if (!args.requestId) return { error: 'requestId is required' };
+
+        const request = await (prisma as any).agentRequest.findFirst({
+            where: { id: args.requestId, companyId },
+            include: { calendarEvent: true }
+        });
+
+        if (!request) return { error: `Agent request with ID ${args.requestId} not found.` };
+
+        const action = (args.action || 'approve').toLowerCase();
+
+        if (action === 'reject' || action === 'dismiss') {
+            await (prisma as any).agentRequest.update({
+                where: { id: request.id },
+                data: {
+                    status: 'rejected',
+                    resolvedById: userId || null,
+                    resolvedAt: new Date(),
+                    resolutionNotes: args.notes || 'Rejected via Orbit AI Copilot'
+                }
+            });
+
+            // Delete or cancel calendar event if existed
+            if (request.calendarEventId) {
+                await (prisma as any).calendarEvent.delete({ where: { id: request.calendarEventId } }).catch(() => {});
+            }
+
+            return {
+                success: true,
+                requestId: request.id,
+                status: 'rejected',
+                message: `❌ Meeting request for **${request.customerName}** has been rejected.`
+            };
+        }
+
+        if (action === 'reschedule') {
+            const newDate = args.newTime ? new Date(args.newTime) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const durationMin = request.metadata?.durationMinutes || 30;
+            const newEnd = new Date(newDate.getTime() + durationMin * 60 * 1000);
+
+            if (request.calendarEventId) {
+                await (prisma as any).calendarEvent.update({
+                    where: { id: request.calendarEventId },
+                    data: {
+                        startDate: newDate,
+                        endDate: newEnd,
+                        startTime: newDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        endTime: newEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }
+                }).catch(() => {});
+            }
+
+            await (prisma as any).agentRequest.update({
+                where: { id: request.id },
+                data: {
+                    scheduledStart: newDate,
+                    scheduledEnd: newEnd,
+                    status: 'confirmed',
+                    resolvedById: userId || null,
+                    resolvedAt: new Date(),
+                    resolutionNotes: args.notes || 'Rescheduled via Orbit AI Copilot'
+                }
+            });
+
+            return {
+                success: true,
+                requestId: request.id,
+                status: 'confirmed',
+                scheduledStart: newDate.toISOString(),
+                message: `📅 Meeting for **${request.customerName}** has been rescheduled to **${newDate.toLocaleString()}** and updated in 180 Calendar.`
+            };
+        }
+
+        // Action: approve / confirm
+        let calendarEventId = request.calendarEventId;
+        if (!calendarEventId) {
+            const start = request.scheduledStart || new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const end = request.scheduledEnd || new Date(start.getTime() + 30 * 60 * 1000);
+            const event = await (prisma as any).calendarEvent.create({
+                data: {
+                    companyId,
+                    title: `${request.topic} - ${request.customerName}`,
+                    description: request.notes || `Meeting with ${request.customerName}`,
+                    startDate: start,
+                    endDate: end,
+                    location: request.locationOrPlatform || 'Google Meet',
+                    externalAttendees: request.customerEmail ? [request.customerEmail] : []
+                }
+            }).catch(() => null);
+            calendarEventId = event?.id || null;
+        }
+
+        await (prisma as any).agentRequest.update({
+            where: { id: request.id },
+            data: {
+                status: 'confirmed',
+                calendarEventId,
+                resolvedById: userId || null,
+                resolvedAt: new Date(),
+                resolutionNotes: args.notes || 'Approved & Confirmed via Orbit AI Copilot'
+            }
+        });
+
+        return {
+            success: true,
+            requestId: request.id,
+            status: 'confirmed',
+            calendarEventId,
+            message: `✅ Meeting request for **${request.customerName}** has been confirmed and locked into 180 Calendar!`
+        };
+    }
+};
+
+/**
  * Initialize all built-in deterministic tools into the singleton registry
  */
 export function registerAllBuiltInTools(targetRegistry?: any) {
@@ -1792,6 +2075,7 @@ export function registerAllBuiltInTools(targetRegistry?: any) {
     reg.registerTool(batchCreateTasksTool);
     reg.registerTool(createProjectTool);
     reg.registerTool(searchKnowledgeBaseTool);
+    reg.registerTool(searchBusinessKnowledgeTool);
     reg.registerTool(generateDocumentAstTool);
     reg.registerTool({ ...generateDocumentAstTool, name: 'create_document' });
     reg.registerTool(getPayrollAndSalarySummaryTool);
@@ -1832,6 +2116,13 @@ export function registerAllBuiltInTools(targetRegistry?: any) {
     reg.registerTool({ ...getFormSubmissionsTool, name: 'get_form_leads' });
     reg.registerTool({ ...getFormSubmissionsTool, name: 'get_forms_analytics' });
 
+    // Inter-Agent & Voiceforce Delegation Queue Tools
+    reg.registerTool(listAgentRequestsTool);
+    reg.registerTool({ ...listAgentRequestsTool, name: 'get_agent_requests' });
+    reg.registerTool({ ...listAgentRequestsTool, name: 'view_agent_queue' });
+    reg.registerTool(processAgentRequestTool);
+    reg.registerTool({ ...processAgentRequestTool, name: 'approve_agent_request' });
+
     // Employee Self-Service & Guidance Tools
     reg.registerTool(getMyTasksTool);
     reg.registerTool(logMyTimesheetTool);
@@ -1842,3 +2133,4 @@ export function registerAllBuiltInTools(targetRegistry?: any) {
 
 // Automatically register upon module import
 registerAllBuiltInTools();
+

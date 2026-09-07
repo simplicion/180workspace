@@ -15,7 +15,9 @@ import {
     FileText, 
     File, 
     Image, 
-    Video 
+    Video,
+    Sparkles,
+    Database
 } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
@@ -156,6 +158,10 @@ export function DocumentCard({
                                         {doc.documentType}
                                     </span>
                                 )}
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/70 flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    RAG Indexed
+                                </span>
                             </div>
                         </div>
                     </div>

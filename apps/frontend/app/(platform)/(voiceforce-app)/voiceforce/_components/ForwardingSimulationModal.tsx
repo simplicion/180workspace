@@ -21,20 +21,30 @@ export function ForwardingSimulationModal({
   rule
 }: ForwardingSimulationModalProps) {
   const [callerPhone, setCallerPhone] = useState('+14155551234');
-  const [simulateBusyHop, setSimulateBusyHop] = useState(false);
-  const [forceAfterHours, setForceAfterHours] = useState(false);
+  const [busyHopSelection, setBusyHopSelection] = useState<string>('none');
+  const [scheduleMode, setScheduleMode] = useState<'business_hours' | 'after_hours' | 'realtime'>('business_hours');
   const [simulating, setSimulating] = useState(false);
   const [result, setResult] = useState<any | null>(null);
 
   if (!isOpen || !rule) return null;
 
+  const destinations: any[] = Array.isArray(rule.destinations) ? rule.destinations : [];
+
   const handleRunSimulation = async () => {
     try {
       setSimulating(true);
+      let busyHopValue: number | null = null;
+      if (busyHopSelection === 'all') {
+        busyHopValue = 999; // triggers all hops busy
+      } else if (busyHopSelection !== 'none') {
+        busyHopValue = parseInt(busyHopSelection, 10);
+      }
+
       const res = await api.post(`/api/v1/voiceforce/forwarding/${rule.id}/simulate`, {
         callerPhone,
-        simulateBusyHop: simulateBusyHop ? 0 : null,
-        forceAfterHours
+        simulateBusyHop: busyHopValue,
+        forceBusinessHours: scheduleMode === 'business_hours',
+        forceAfterHours: scheduleMode === 'after_hours'
       });
       setResult(res.data?.data);
       toast.success('Simulation completed!');
@@ -48,6 +58,8 @@ export function ForwardingSimulationModal({
   const resetSimulation = () => {
     setResult(null);
   };
+
+  const stepsList = result ? (result.steps || result.trace || []) : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -71,7 +83,7 @@ export function ForwardingSimulationModal({
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Testing rule: <span className="font-semibold text-gray-800 dark:text-gray-200">{rule.name}</span>
+                Testing rule: <span className="font-semibold text-gray-800 dark:text-gray-200">{rule.name}</span> ({rule.strategy})
               </p>
             </div>
           </div>
@@ -106,31 +118,41 @@ export function ForwardingSimulationModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={simulateBusyHop}
-                  onChange={(e) => setSimulateBusyHop(e.target.checked)}
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <div>
-                  <div className="text-xs font-semibold text-gray-900 dark:text-white">Simulate Line 1 Busy</div>
-                  <div className="text-[11px] text-gray-500">Triggers waterfall cascade to Hop #2</div>
-                </div>
-              </label>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Simulate Busy / Unanswered Target
+                </label>
+                <select
+                  value={busyHopSelection}
+                  onChange={(e) => setBusyHopSelection(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                >
+                  <option value="none">None (Target line answers)</option>
+                  {destinations.map((d: any, idx: number) => (
+                    <option key={idx} value={String(idx)}>
+                      Hop #{idx + 1}: {d.name || d.e164 || d.targetId || 'Destination'} is Busy
+                    </option>
+                  ))}
+                  {destinations.length > 1 && (
+                    <option value="all">All Hops Busy (Test Safety Fallback)</option>
+                  )}
+                </select>
+              </div>
 
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={forceAfterHours}
-                  onChange={(e) => setForceAfterHours(e.target.checked)}
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <div>
-                  <div className="text-xs font-semibold text-gray-900 dark:text-white">Simulate After-Hours Call</div>
-                  <div className="text-[11px] text-gray-500">Tests out-of-office schedule deflection</div>
-                </div>
-              </label>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Operating Hours Evaluation
+                </label>
+                <select
+                  value={scheduleMode}
+                  onChange={(e) => setScheduleMode(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                >
+                  <option value="business_hours">Simulate Business Hours (Active)</option>
+                  <option value="after_hours">Simulate After-Hours (Deflection)</option>
+                  <option value="realtime">Use Real Server Clock</option>
+                </select>
+              </div>
             </div>
 
             <button
@@ -160,7 +182,7 @@ export function ForwardingSimulationModal({
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-2">
                   <span>Routing Execution Trace</span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                    {result.trace?.length || 0} Steps Evaluated
+                    {stepsList.length} Steps ({result.totalDurationMs || 0}ms)
                   </span>
                 </h4>
                 <button
@@ -173,10 +195,10 @@ export function ForwardingSimulationModal({
 
               {/* Step Timeline */}
               <div className="space-y-2.5">
-                {result.trace?.map((step: any, idx: number) => {
-                  const isSuccess = step.status === 'success';
-                  const isWarning = step.status === 'warning';
-                  const isFailed = step.status === 'failed';
+                {stepsList.map((step: any, idx: number) => {
+                  const isSuccess = step.status === 'success' || step.status === 'passed' || step.status === 'routed';
+                  const isWarning = step.status === 'warning' || step.status === 'busy';
+                  const isFailed = step.status === 'failed' || step.status === 'deflected';
 
                   return (
                     <div 
@@ -215,7 +237,7 @@ export function ForwardingSimulationModal({
                           </span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
-                          {step.description}
+                          {step.details || step.description}
                         </p>
                       </div>
                     </div>
@@ -257,6 +279,11 @@ export function ForwardingSimulationModal({
                       <Volume2 className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                       <span>Whisper: "{result.finalDecision.whisperText}"</span>
                     </div>
+                  )}
+                  {result.finalDecision.reason && (
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 italic pt-1">
+                      Reason: {result.finalDecision.reason}
+                    </p>
                   )}
                 </div>
               )}

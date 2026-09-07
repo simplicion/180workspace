@@ -4,11 +4,15 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Bot, Phone, Sparkles, X, ArrowRight, ShieldCheck, CheckCircle2, 
-  HelpCircle, User, Briefcase, FileText
+  HelpCircle, User, Briefcase, FileText, Globe
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { PlatformModal } from '@workspace/ui';
+import { 
+  CARTESIA_SUPPORTED_LANGUAGES, 
+  CARTESIA_REGIONAL_GROUPS 
+} from '@/lib/cartesia-languages';
 import clsx from 'clsx';
 
 interface QuickAgentDeployModalProps {
@@ -24,6 +28,7 @@ export function QuickAgentDeployModal({ isOpen, onClose, phoneNumbers = [] }: Qu
   const [form, setForm] = useState({
     name: '',
     role: '',
+    language: 'en-US',
     systemPrompt: `You are an autonomous AI voice employee for this company. You are warm, professional, empathetic, and efficient.
 When customers call or when reaching out to leads, actively assist with their requests, verify catalog pricing, check availability, and use your permitted business tools. Keep spoken answers concise (under 2 sentences) for natural pacing.`,
     assignedPhoneId: ''
@@ -51,7 +56,7 @@ When customers call or when reaching out to leads, actively assist with their re
         firstMessage: `Hello! This is ${form.name.trim()} from our team. How may I help you today?`,
         voiceProvider: 'cartesia',
         voiceId: '694f12bc-9263-4416-a1d8-0402e1c6e1d2', // Maya / High-quality natural voice
-        language: 'en-US',
+        language: form.language || 'en-US',
         allowBargeIn: true,
         isActive: true,
         assignedPhoneId: form.assignedPhoneId || undefined,
@@ -145,7 +150,39 @@ When customers call or when reaching out to leads, actively assist with their re
           </div>
         </div>
 
-        {/* Step 2: Dedicated Phone Number */}
+        {/* Step 2: Primary Spoken Language */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              Primary Spoken Language & Dialect *
+            </span>
+            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold lowercase">
+              {CARTESIA_SUPPORTED_LANGUAGES.length}+ languages
+            </span>
+          </label>
+          <select
+            value={form.language}
+            onChange={(e) => setForm({ ...form, language: e.target.value })}
+            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 px-3 text-xs text-gray-900 dark:text-white focus:bg-white dark:focus:bg-gray-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all font-medium cursor-pointer"
+          >
+            {CARTESIA_REGIONAL_GROUPS.map((region) => {
+              const regionalLangs = CARTESIA_SUPPORTED_LANGUAGES.filter(l => l.region === region);
+              if (regionalLangs.length === 0) return null;
+              return (
+                <optgroup key={region} label={`─── ${region} ───`}>
+                  {regionalLangs.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.nativeName} — {lang.name}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Step 3: Dedicated Phone Number */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1 flex items-center justify-between">
             <span className="flex items-center gap-1.5">

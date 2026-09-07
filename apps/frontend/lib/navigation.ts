@@ -1,5 +1,5 @@
 import { LogoLoader, AILogoIcon } from "@workspace/ui";
-import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork, PhoneCall, Smartphone, PhoneForwarded } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork, PhoneCall, Smartphone, PhoneForwarded, Brain } from 'lucide-react';
 
 export const navigation = [
     {
@@ -28,9 +28,12 @@ export const navigation = [
         roles: ['admin', 'employee'],
         items: [
             { id: 'calendar', name: 'Calendar', href: '/calendar', icon: Calendar, roles: ['admin', 'employee'] },
-            { id: 'documents', name: '180 Documents', href: '/documents', icon: FolderOpen, roles: ['admin', 'employee'] },
-            { id: 'assets', name: 'IT Assets', href: '/assets', icon: Monitor, roles: ['admin'] },
-            { id: 'ai-assistant', name: 'Orbit Copilot', href: '/ai', icon: AILogoIcon, roles: ['admin', 'employee'] },
+            { id: 'documents', name: '180 Documents', href: '/documents', icon: FileText, roles: ['admin', 'employee'] },
+            { id: 'notes', name: 'Notes', href: '/notes', icon: BookOpen, roles: ['admin', 'employee'] },
+            { id: 'reminders', name: 'Reminders', href: '/reminders', icon: Clock, roles: ['admin', 'employee'] },
+            { id: 'goals', name: 'Goals', href: '/goals', icon: Target, roles: ['admin', 'employee'] },
+            { id: 'assets', name: 'Assets & Creds', href: '/assets', icon: Star, roles: ['admin', 'employee'] },
+            { id: 'forum', name: 'Pulse Forum', href: '/forum', icon: Globe, roles: ['admin', 'employee'] },
         ]
     },
 
@@ -61,12 +64,12 @@ export const navigation = [
     },
 
     {
-        group: 'Traffic Director',
-        appId: 'traffic-director',
+        group: 'Operations',
+        appId: 'operations',
         icon: GitFork,
         roles: ['admin', 'employee'],
         items: [
-            { id: 'overview', name: 'Traffic Overview', href: '/traffic-director', icon: GitFork, roles: ['admin', 'employee'] },
+            { id: 'dashboard', name: 'Operations Overview', href: '/traffic-director', exact: true, icon: Activity, roles: ['admin', 'employee'] },
             { id: 'links', name: 'Smart Links', href: '/traffic-director/links', icon: Globe, roles: ['admin', 'employee'] },
             { id: 'simulator', name: 'Routing Simulator', href: '/traffic-director/simulator', icon: Sparkles, roles: ['admin', 'employee'] },
             { id: 'logs', name: 'Live Stream Logs', href: '/traffic-director/logs', icon: Activity, roles: ['admin', 'employee'] },
@@ -81,9 +84,12 @@ export const navigation = [
         items: [
             { id: 'dashboard', name: 'Voiceforce Radar', href: '/voiceforce', exact: true, icon: PhoneCall, roles: ['admin', 'employee'] },
             { id: 'agents', name: 'AI Voice Employees', href: '/voiceforce/agents', icon: Bot, roles: ['admin', 'employee'] },
+            { id: 'brain', name: 'Business Brain & RAG', href: '/voiceforce/brain', icon: Brain, roles: ['admin', 'employee'] },
             { id: 'numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin', 'employee'] },
             { id: 'forwarding', name: 'Call Forwarding & Queues', href: '/voiceforce/forwarding', icon: PhoneForwarded, roles: ['admin', 'employee'] },
             { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
+            { id: 'calls', name: 'Call Stream & Audio', href: '/voiceforce/calls', icon: PhoneCall, roles: ['admin', 'employee'] },
+            { id: 'templates', name: 'Industry Templates', href: '/voiceforce/templates', icon: Sparkles, roles: ['admin', 'employee'] },
         ]
     },
 

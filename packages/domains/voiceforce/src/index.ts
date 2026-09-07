@@ -19,3 +19,7 @@ export * from './telephony/warm-handoff.service';
 export * from './simulation/preflight-simulator.service';
 export * from './analytics/roi-analytics.service';
 export * from './workers/daily-briefing.service';
+export * from './engines/cartesia-voice.service';
+export * from './constants/cartesia-languages';
+export * from './streaming/sentence-streamer';
+export * from './tools/voiceforce-tools';
