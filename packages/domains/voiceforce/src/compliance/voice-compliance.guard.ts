@@ -118,17 +118,18 @@ export class VoiceComplianceGuard {
    * Prepends mandatory AI identity & recording disclosures if missing
    * Spoken quickly and smoothly at the onset of outbound calls
    */
-  static formatComplianceGreeting(agentName: string, companyName: string, baseGreeting?: string): string {
+  static formatComplianceGreeting(agentName: string, companyName: string, baseGreeting?: string, customConsentText?: string | null): string {
     const raw = (baseGreeting || '').trim();
     const hasAiDisclosure = /ai|automated|virtual assistant|artificial intelligence/i.test(raw);
-    const hasRecordingDisclosure = /recorded|quality assurance|compliance/i.test(raw);
+    const hasRecordingDisclosure = /recorded|quality assurance|compliance|recording/i.test(raw);
 
     if (hasAiDisclosure && hasRecordingDisclosure) {
       return raw;
     }
 
     const brand = companyName && companyName !== 'Our Company' ? companyName : 'our company';
-    const disclosure = `This is an automated assistant calling from ${brand}, this call is recorded for quality and compliance. `;
+    const consent = customConsentText?.trim() || 'this call is recorded for quality and compliance.';
+    const disclosure = `This is an automated assistant calling from ${brand}, ${consent} `;
 
     if (!raw) return disclosure;
     return disclosure + raw;

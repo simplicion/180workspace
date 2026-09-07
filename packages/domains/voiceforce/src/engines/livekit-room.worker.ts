@@ -204,10 +204,22 @@ export class LiveKitRoomWorker {
       recipientPhone
     );
 
-    // Format mandatory AI & recording compliance disclosure if outbound
-    const firstMessage = isOutbound
-      ? VoiceComplianceGuard.formatComplianceGreeting(agent.name, company?.name || '180workspace', agent.firstMessage || undefined)
-      : agent.firstMessage || undefined;
+    // Format mandatory AI & recording compliance disclosure if outbound, or if inbound with recording enabled
+    let firstMessage = agent.firstMessage || undefined;
+    if (isOutbound) {
+      firstMessage = VoiceComplianceGuard.formatComplianceGreeting(
+        agent.name,
+        company?.name || '180workspace',
+        agent.firstMessage || undefined,
+        (agent as any).recordCalls !== false ? (agent as any).recordConsentText : null
+      );
+    } else if ((agent as any).recordCalls !== false && (agent as any).recordConsentText) {
+      const raw = (firstMessage || '').trim();
+      const hasRecordingDisclosure = /recorded|quality assurance|compliance|recording/i.test(raw);
+      if (!hasRecordingDisclosure) {
+        firstMessage = `${(agent as any).recordConsentText.trim()} ${raw}`.trim();
+      }
+    }
 
     const enabledTools = Array.isArray(agent.enabledToolNames)
       ? (agent.enabledToolNames as string[])
@@ -226,8 +238,8 @@ export class LiveKitRoomWorker {
       autoGreet: !isOutbound // For outbound, wait until customer answers before delivering greeting
     };
 
-    // 4. Initialize Call Recording Egress if configured (Cloudflare R2 Object Storage)
-    if (this.egressClient) {
+    // 4. Initialize Call Recording Egress if configured and agent permits (Cloudflare R2 Object Storage)
+    if (this.egressClient && (agent as any).recordCalls !== false) {
       try {
         const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || process.env.VOICE_RECORDINGS_S3_BUCKET || '180workspace';
         const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT || process.env.R2_ENDPOINT || '';
@@ -254,13 +266,16 @@ export class LiveKitRoomWorker {
           }
         });
 
-        await this.egressClient.startRoomCompositeEgress(roomName, { file: fileOutput }).catch((e) => {
+        await this.egressClient.startRoomCompositeEgress(roomName, { file: fileOutput, audioOnly: true } as any).catch((e) => {
           console.warn('[LiveKitRoomWorker] Egress composite start warning:', e.message);
         });
 
         await prisma.callSession.update({
           where: { id: callSessionId },
-          data: { recordingUrl }
+          data: {
+            recordingUrl,
+            recordingStatus: 'recording'
+          } as any
         });
         await this.recordMilestone('recording_egress_started', { recordingUrl });
       } catch (egressErr: any) {
@@ -693,6 +708,12 @@ export class LiveKitRoomWorker {
 
         const billableMinutes = Math.ceil(durationSeconds / 60);
 
+        const currentSession = await prisma.callSession.findUnique({
+          where: { id: callSessionId },
+          select: { recordingUrl: true, recordingStatus: true } as any
+        }) as any;
+        const shouldMarkRecordingReady = Boolean(currentSession?.recordingUrl || currentSession?.recordingStatus === 'recording');
+
         await prisma.callSession.update({
           where: { id: callSessionId },
           data: {
@@ -700,8 +721,9 @@ export class LiveKitRoomWorker {
             endedAt,
             durationSeconds,
             billableMinutes,
-            disconnectReason
-          }
+            disconnectReason,
+            ...(shouldMarkRecordingReady ? { recordingStatus: 'ready', recordingDurationSeconds: durationSeconds } : {})
+          } as any
         });
 
         // 1. Prepaid Wallet Balance Deduction (only if call connected)

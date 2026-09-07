@@ -7,7 +7,8 @@ import {
   PhoneCall, ArrowLeft, Bot, Clock, IndianRupee, ShieldCheck, 
   Sparkles, CheckCircle2, AlertCircle, Wrench, Play, Pause, Volume2,
   VolumeX, Download, Trash2, Search, User, Copy, Check, Radio, 
-  Headphones, ListChecks, CheckSquare, Square, ArrowUpRight, Gauge, Calculator
+  Headphones, ListChecks, CheckSquare, Square, ArrowUpRight, Gauge, Calculator,
+  RotateCcw, RotateCw
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -122,6 +123,24 @@ export default function VoiceforceCallDetailPage() {
     setPlaybackRate(speed);
     if (audioRef.current) {
       audioRef.current.playbackRate = speed;
+    }
+  };
+
+  const handleSkip = (seconds: number) => {
+    if (!audioRef.current) return;
+    const maxDur = audioDuration || call?.durationSeconds || 999999;
+    const newTime = Math.max(0, Math.min(maxDur, audioRef.current.currentTime + seconds));
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  const handleSeekToTranscript = (startTimeMs: number) => {
+    if (!audioRef.current || !call?.recordingUrl) return;
+    const seekSec = Math.max(0, (startTimeMs || 0) / 1000);
+    audioRef.current.currentTime = seekSec;
+    setCurrentTime(seekSec);
+    if (!isPlaying) {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   };
 
@@ -344,8 +363,10 @@ export default function VoiceforceCallDetailPage() {
       )}
 
       {/* HTML5 Audio Waveform Player Widget (When Recording is Available) */}
-      {call.recordingUrl && (
-        <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-950 to-purple-950 text-white shadow-md border border-indigo-800/60">
+      {call.recordingUrl ? (
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 text-white shadow-xl border border-indigo-700/50 backdrop-blur-sm relative overflow-hidden">
+          <div className="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
+          
           <audio 
             ref={audioRef}
             src={call.recordingUrl}
@@ -355,36 +376,65 @@ export default function VoiceforceCallDetailPage() {
             className="hidden"
           />
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
               <button
                 onClick={handleTogglePlay}
-                className="w-12 h-12 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white flex items-center justify-center shadow-md shadow-indigo-500/30 transition-transform active:scale-95 cursor-pointer"
+                className="w-12 h-12 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 transition-transform active:scale-95 cursor-pointer flex-shrink-0"
+                aria-label={isPlaying ? 'Pause call recording' : 'Play call recording'}
               >
                 {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
               </button>
+
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white">Call Audio Recording</h3>
-                  <span className="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-indigo-500/30 border border-indigo-400/40 text-indigo-200">
-                    Stereo 24kHz
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Mono 32kbps • R2 CDN
                   </span>
+                  {isPlaying && (
+                    <div className="hidden sm:flex items-center gap-0.5 h-3 ml-1">
+                      <span className="w-1 bg-indigo-400 rounded-full animate-[bounce_0.8s_infinite_100ms] h-3" />
+                      <span className="w-1 bg-indigo-400 rounded-full animate-[bounce_0.8s_infinite_300ms] h-2" />
+                      <span className="w-1 bg-indigo-400 rounded-full animate-[bounce_0.8s_infinite_200ms] h-3.5" />
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-indigo-300 mt-0.5">
-                  LiveKit SFU Egress Cloud Recording (Lossless SIP Audio)
+                  Zero-Latency Telephony Recording • Synchronized with Dialogue Transcript
                 </p>
               </div>
             </div>
 
-            {/* Playback Controls: Speeds & Scrubber */}
-            <div className="flex items-center gap-3 flex-wrap">
+            {/* Playback Controls: Speeds, Skips, Mute & Download */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              {/* Skip Controls */}
               <div className="flex items-center gap-1 bg-white/10 rounded-xl p-1 text-xs">
-                {[1.0, 1.25, 1.5].map((speed) => (
+                <button
+                  onClick={() => handleSkip(-5)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-indigo-200 hover:text-white transition-colors cursor-pointer"
+                  title="Rewind 5 seconds"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => handleSkip(5)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-indigo-200 hover:text-white transition-colors cursor-pointer"
+                  title="Skip forward 5 seconds"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Variable Speed Controls */}
+              <div className="flex items-center gap-1 bg-white/10 rounded-xl p-1 text-xs">
+                {[0.75, 1.0, 1.25, 1.5, 2.0].map((speed) => (
                   <button
                     key={speed}
                     onClick={() => handleSpeedChange(speed)}
                     className={clsx(
-                      "px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer",
+                      "px-2 py-0.5 rounded-lg font-semibold transition-colors cursor-pointer text-[11px]",
                       playbackRate === speed ? "bg-white text-indigo-900 shadow-sm" : "text-indigo-200 hover:text-white"
                     )}
                   >
@@ -393,6 +443,7 @@ export default function VoiceforceCallDetailPage() {
                 ))}
               </div>
 
+              {/* Volume / Mute */}
               <button
                 onClick={handleToggleMute}
                 className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white transition-colors cursor-pointer"
@@ -401,38 +452,54 @@ export default function VoiceforceCallDetailPage() {
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </button>
 
+              {/* Direct Audio Download */}
               <a
                 href={call.recordingUrl}
-                download={`call-${call.id}.mp3`}
+                download={`voiceforce-call-${call.id}.mp3`}
                 target="_blank"
                 rel="noreferrer"
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white transition-colors cursor-pointer"
-                title="Download Audio MP3"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs"
+                title="Download Audio File"
               >
                 <Download className="w-4 h-4" />
+                <span className="hidden sm:inline text-[11px]">Export Audio</span>
               </a>
             </div>
           </div>
 
           {/* Time Scrubber */}
           <div className="mt-4 flex items-center gap-3">
-            <span className="text-xs font-mono text-indigo-300 w-10 text-right">
+            <span className="text-xs font-mono text-indigo-300 w-10 text-right font-medium">
               {formatAudioTime(currentTime)}
             </span>
-            <input 
-              type="range"
-              min="0"
-              max={audioDuration || call.durationSeconds || 100}
-              value={currentTime}
-              onChange={handleSeek}
-              className="flex-1 h-1.5 bg-indigo-800 rounded-lg appearance-none cursor-pointer accent-indigo-400"
-            />
-            <span className="text-xs font-mono text-indigo-300 w-10">
+            <div className="relative flex-1 flex items-center">
+              <input 
+                type="range"
+                min="0"
+                max={audioDuration || call.durationSeconds || 100}
+                value={currentTime}
+                onChange={handleSeek}
+                className="w-full h-2 bg-indigo-950/80 rounded-lg appearance-none cursor-pointer accent-indigo-400 transition-all hover:bg-indigo-900"
+              />
+            </div>
+            <span className="text-xs font-mono text-indigo-300 w-10 font-medium">
               {formatAudioTime(audioDuration || call.durationSeconds || 0)}
             </span>
           </div>
         </div>
-      )}
+      ) : call.status === 'in_progress' ? (
+        <div className="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+            <span className="font-semibold text-indigo-900 dark:text-indigo-200">
+              Live Call In Progress — Recording stream active. Audio archive will finalize upon call completion.
+            </span>
+          </div>
+          <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 rounded-full">
+            Recording
+          </span>
+        </div>
+      ) : null}
 
       {/* Post-Call Autonomous Intelligence Banner */}
       <div className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/60 dark:from-gray-900 dark:via-indigo-950/20 dark:to-purple-950/20 border border-indigo-100/90 dark:border-indigo-900/40 shadow-sm">
@@ -550,15 +617,24 @@ export default function VoiceforceCallDetailPage() {
               ) : (
                 filteredTranscripts.map((t: any, idx: number) => {
                   const isAgent = t.speaker === 'agent';
+                  const startMs = t.startTimeMs || 0;
+                  const endMs = t.endTimeMs || (startMs + 3000);
+                  const currentMs = currentTime * 1000;
+                  const isSegmentActive = isPlaying && currentMs >= startMs && currentMs <= endMs;
+
                   return (
                     <div
                       key={idx}
+                      onClick={() => handleSeekToTranscript(t.startTimeMs)}
                       className={clsx(
-                        "p-4 rounded-2xl border transition-all",
-                        isAgent
-                          ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-100/90 dark:border-indigo-900/40 mr-4 sm:mr-8"
-                          : "bg-white dark:bg-gray-900 border-gray-200/80 dark:border-gray-800 ml-4 sm:ml-8"
+                        "p-4 rounded-2xl border transition-all cursor-pointer group relative",
+                        isSegmentActive
+                          ? "ring-2 ring-indigo-500 shadow-md bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700"
+                          : isAgent
+                            ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-100/90 dark:border-indigo-900/40 hover:border-indigo-300 dark:hover:border-indigo-700 mr-4 sm:mr-8"
+                            : "bg-white dark:bg-gray-900 border-gray-200/80 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 ml-4 sm:ml-8"
                       )}
+                      title={call.recordingUrl ? "Click to play recording from this timestamp" : undefined}
                     >
                       <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-2">
@@ -578,11 +654,32 @@ export default function VoiceforceCallDetailPage() {
                               Interrupted
                             </span>
                           )}
+                          {isSegmentActive && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white flex items-center gap-1 shadow-sm">
+                              <Volume2 className="w-3 h-3 animate-pulse" />
+                              <span>Now Playing</span>
+                            </span>
+                          )}
                         </div>
 
-                        <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
-                          {t.startTimeMs ? `${(t.startTimeMs / 1000).toFixed(1)}s` : '0.0s'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {call.recordingUrl && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSeekToTranscript(t.startTimeMs);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 transition-opacity cursor-pointer bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-lg"
+                            >
+                              <Play className="w-2.5 h-2.5 fill-indigo-600 dark:fill-indigo-400" />
+                              <span>Play</span>
+                            </button>
+                          )}
+                          <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
+                            {t.startTimeMs ? `${(t.startTimeMs / 1000).toFixed(1)}s` : '0.0s'}
+                          </span>
+                        </div>
                       </div>
 
                       <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed pl-8">

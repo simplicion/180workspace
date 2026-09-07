@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   X, Mic, MicOff, PhoneOff, Sparkles, Volume2, 
   Activity, ShieldCheck, CheckCircle2, MessageSquare, Loader2,
-  Check, Phone, ArrowDownLeft, ArrowUpRight
+  Check, Phone, ArrowDownLeft, ArrowUpRight, Hand, Zap
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -31,6 +31,7 @@ interface TranscriptItem {
   speaker: 'user' | 'agent';
   text: string;
   timestamp: string;
+  interrupted?: boolean;
 }
 
 export function BrowserSoftphoneModal({
@@ -71,6 +72,9 @@ export function BrowserSoftphoneModal({
   const accumulatedFinalTextRef = useRef<string>('');
   const isExchangingRef = useRef<boolean>(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  const destinationNodeRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedAudioChunksRef = useRef<Blob[]>([]);
 
   // Auto-scroll to bottom of transcripts
   useEffect(() => {
@@ -128,13 +132,30 @@ export function BrowserSoftphoneModal({
 
   const audioQueueRef = useRef<Array<{ audioBase64: string; text: string }>>([]);
   const isPlayingChunkRef = useRef<boolean>(false);
+  const isAgentSpeakingRef = useRef<boolean>(false);
+  const vadSpeechCounterRef = useRef<number>(0);
+  const [wasInterrupted, setWasInterrupted] = useState<boolean>(false);
   const currentStreamAbortControllerRef = useRef<AbortController | null>(null);
   const currentSpeakingTextRef = useRef<string>('');
   const recentSpokenTextsRef = useRef<string[]>([]);
 
+  // Spacebar to instantly interrupt / barge-in while on call
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && isConnected && (isAgentSpeakingRef.current || isPlayingChunkRef.current || currentAudioRef.current)) {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+        e.preventDefault();
+        stopAnyPlayingAudio();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isConnected]);
+
   // Robust Acoustic Self-Echo Filter: prevents laptop speaker bleed from looping back into mic
   const isSelfEcho = (text: string): boolean => {
-    if (!isAgentSpeaking && !isPlayingChunkRef.current) {
+    if (!isAgentSpeakingRef.current && !isPlayingChunkRef.current && !currentAudioRef.current) {
       return false;
     }
 
@@ -144,23 +165,15 @@ export function BrowserSoftphoneModal({
 
     // 1. Check against the sentence the agent is currently speaking
     const current = clean(currentSpeakingTextRef.current);
-    if (current && (current.includes(candidate) || candidate.includes(current))) {
+    if (current && (current === candidate || (current.length > 20 && current.includes(candidate)))) {
       return true;
     }
 
     // 2. Check against recent sentences spoken by the agent in the last few seconds
     for (const recent of recentSpokenTextsRef.current) {
       const cleanRecent = clean(recent);
-      if (cleanRecent && (cleanRecent.includes(candidate) || candidate.includes(cleanRecent))) {
+      if (cleanRecent && (cleanRecent === candidate || (cleanRecent.length > 25 && cleanRecent.includes(candidate)))) {
         return true;
-      }
-      // Word overlap heuristic: if >=60% of significant words match the agent's utterance
-      const candidateWords = candidate.split(/\s+/).filter(w => w.length > 2);
-      if (candidateWords.length > 0) {
-        const matchingWords = candidateWords.filter(w => cleanRecent.includes(w));
-        if (matchingWords.length / candidateWords.length >= 0.6) {
-          return true;
-        }
       }
     }
 
@@ -171,6 +184,8 @@ export function BrowserSoftphoneModal({
   const stopAnyPlayingAudio = () => {
     audioQueueRef.current = [];
     isPlayingChunkRef.current = false;
+    isAgentSpeakingRef.current = false;
+    setIsAgentSpeaking(false);
     currentSpeakingTextRef.current = '';
     setIsAgentThinking(false);
 
@@ -195,19 +210,39 @@ export function BrowserSoftphoneModal({
         window.speechSynthesis.cancel();
       } catch (e) {}
     }
-    setIsAgentSpeaking(false);
+
+    // Mark previous agent utterance as interrupted
+    setTranscripts((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1].speaker === 'agent') {
+        const last = prev[prev.length - 1];
+        if (!last.interrupted) {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...last,
+            interrupted: true
+          };
+          return updated;
+        }
+      }
+      return prev;
+    });
+
+    setWasInterrupted(true);
+    setTimeout(() => setWasInterrupted(false), 2000);
   };
 
   // Play next audio snippet in queue for seamless gapless multi-sentence speech
   const playNextQueuedAudio = () => {
     if (audioQueueRef.current.length === 0) {
       isPlayingChunkRef.current = false;
+      isAgentSpeakingRef.current = false;
       setIsAgentSpeaking(false);
       currentAudioRef.current = null;
       return;
     }
 
     isPlayingChunkRef.current = true;
+    isAgentSpeakingRef.current = true;
     setIsAgentSpeaking(true);
     const nextItem = audioQueueRef.current.shift();
     if (!nextItem) return;
@@ -224,7 +259,17 @@ export function BrowserSoftphoneModal({
       try {
         const audio = new Audio(nextItem.audioBase64);
         currentAudioRef.current = audio;
-        audio.onplay = () => setIsAgentSpeaking(true);
+        try {
+          if (audioContextRef.current && destinationNodeRef.current && audioContextRef.current.state !== 'closed') {
+            const elSource = audioContextRef.current.createMediaElementSource(audio);
+            elSource.connect(destinationNodeRef.current);
+            elSource.connect(audioContextRef.current.destination);
+          }
+        } catch {}
+        audio.onplay = () => {
+          isAgentSpeakingRef.current = true;
+          setIsAgentSpeaking(true);
+        };
         audio.onended = () => {
           currentAudioRef.current = null;
           playNextQueuedAudio();
@@ -257,6 +302,8 @@ export function BrowserSoftphoneModal({
 
   const playAgentAudio = (audioBase64: string | null | undefined, text: string) => {
     stopAnyPlayingAudio();
+    isAgentSpeakingRef.current = true;
+    isPlayingChunkRef.current = true;
     setIsAgentSpeaking(true);
     currentSpeakingTextRef.current = text || '';
     if (text) {
@@ -270,18 +317,36 @@ export function BrowserSoftphoneModal({
       try {
         const audio = new Audio(audioBase64);
         currentAudioRef.current = audio;
-        audio.onplay = () => setIsAgentSpeaking(true);
+        try {
+          if (audioContextRef.current && destinationNodeRef.current && audioContextRef.current.state !== 'closed') {
+            const elSource = audioContextRef.current.createMediaElementSource(audio);
+            elSource.connect(destinationNodeRef.current);
+            elSource.connect(audioContextRef.current.destination);
+          }
+        } catch {}
+        audio.onplay = () => {
+          isAgentSpeakingRef.current = true;
+          setIsAgentSpeaking(true);
+        };
         audio.onended = () => {
+          isPlayingChunkRef.current = false;
+          isAgentSpeakingRef.current = false;
           setIsAgentSpeaking(false);
           currentAudioRef.current = null;
         };
         audio.onerror = (e) => {
           console.warn('[Audio Player Error, falling back to Web Speech]:', e);
+          isPlayingChunkRef.current = false;
+          isAgentSpeakingRef.current = false;
+          setIsAgentSpeaking(false);
           currentAudioRef.current = null;
           speakAgentGreeting(text);
         };
         audio.play().catch((playErr) => {
           console.warn('[Audio Autoplay notice, falling back to Web Speech]:', playErr);
+          isPlayingChunkRef.current = false;
+          isAgentSpeakingRef.current = false;
+          setIsAgentSpeaking(false);
           currentAudioRef.current = null;
           speakAgentGreeting(text);
         });
@@ -320,6 +385,28 @@ export function BrowserSoftphoneModal({
 
       const source = audioCtx.createMediaStreamSource(stream);
       source.connect(analyser);
+
+      // 2b. Setup mixed MediaStreamDestination to record both caller and agent audio
+      try {
+        const destination = audioCtx.createMediaStreamDestination();
+        destinationNodeRef.current = destination;
+        source.connect(destination);
+
+        recordedAudioChunksRef.current = [];
+        const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm';
+        const recorder = new MediaRecorder(destination.stream, { mimeType });
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            recordedAudioChunksRef.current.push(event.data);
+          }
+        };
+        recorder.start(1000);
+        mediaRecorderRef.current = recorder;
+      } catch (recErr) {
+        console.warn('[Softphone Recording Tap Notice]:', recErr);
+      }
 
       drawWaveform();
 
@@ -385,6 +472,31 @@ export function BrowserSoftphoneModal({
     const render = () => {
       animationFrameRef.current = requestAnimationFrame(render);
       analyser.getByteFrequencyData(dataArray);
+
+      // ── Real-Time Voice Activity Detection (VAD) Barge-In Tap ─────────
+      // When agent is speaking and user mic volume spikes, immediately cut off agent audio in sub-30ms!
+      if (isAgentSpeakingRef.current || isPlayingChunkRef.current || currentAudioRef.current) {
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const avgEnergy = sum / bufferLength;
+
+        // Threshold for intentional user speech over background noise / speaker bleed
+        if (avgEnergy > 26) {
+          vadSpeechCounterRef.current++;
+          // If speech energy persists for >= 2 consecutive frames (~32ms)
+          if (vadSpeechCounterRef.current >= 2) {
+            console.log(`[Barge-In] User voice detected via VAD (energy: ${avgEnergy.toFixed(1)}). Instantly interrupting agent.`);
+            stopAnyPlayingAudio();
+            vadSpeechCounterRef.current = 0;
+          }
+        } else {
+          vadSpeechCounterRef.current = Math.max(0, vadSpeechCounterRef.current - 1);
+        }
+      } else {
+        vadSpeechCounterRef.current = 0;
+      }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -703,12 +815,10 @@ export function BrowserSoftphoneModal({
         return;
       }
 
-      // Valid customer speech: if agent is currently speaking, barge in and stop agent audio!
-      if (isAgentSpeaking || isPlayingChunkRef.current) {
-        const words = liveDisplay.split(/\s+/).filter(Boolean);
-        if (words.length >= 1) {
-          stopAnyPlayingAudio();
-        }
+      // Valid customer speech: if agent is currently speaking, barge in and immediately stop agent audio!
+      if (isAgentSpeakingRef.current || isPlayingChunkRef.current || currentAudioRef.current) {
+        console.log('[Barge-In] Customer spoke during agent playback. Halting agent audio.');
+        stopAnyPlayingAudio();
       }
 
       setInterimUserText(liveDisplay);
@@ -806,6 +916,14 @@ export function BrowserSoftphoneModal({
       audioContextRef.current = null;
     }
 
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+      mediaRecorderRef.current = null;
+    }
+    destinationNodeRef.current = null;
+
     setIsConnected(false);
     setIsConnecting(false);
     setIsAgentSpeaking(false);
@@ -815,15 +933,39 @@ export function BrowserSoftphoneModal({
   const handleEndCall = async () => {
     const activeId = callSessionId;
     const dur = callDuration;
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+    const audioChunks = [...recordedAudioChunksRef.current];
+
     endCallCleanup();
+
     if (activeId) {
       try {
         await api.post(`/api/v1/voiceforce/sessions/${activeId}/end`, { durationSeconds: dur });
       } catch (e) {
         console.warn('[Softphone End API notice]:', e);
       }
+
+      // Upload recorded audio if chunks exist
+      if (audioChunks.length > 0) {
+        try {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          if (blob.size > 1000) {
+            const formData = new FormData();
+            formData.append('audio', blob, `call-${activeId}.webm`);
+            await api.post(`/api/v1/voiceforce/calls/${activeId}/recording`, formData);
+            console.log(`[Softphone] Recording uploaded successfully for call ${activeId} (${blob.size} bytes)`);
+          }
+        } catch (uploadErr: any) {
+          console.warn('[Softphone Recording Upload Note]:', uploadErr.message);
+        }
+      }
     }
-    toast('Call ended. Post-call analysis completed.');
+    toast('Call ended. Audio recording & post-call analysis finalized.');
     if (onCallEnded) onCallEnded();
     onClose();
   };
@@ -1043,6 +1185,25 @@ export function BrowserSoftphoneModal({
             </div>
           </div>
 
+          {/* Live Interruption / Barge-in Control */}
+          {isAgentSpeaking && (
+            <button
+              type="button"
+              onClick={stopAnyPlayingAudio}
+              className="w-full py-1.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer animate-pulse"
+            >
+              <Hand className="h-3.5 w-3.5" />
+              <span>Tap or speak to interrupt {currentAgent?.name || 'Agent'} (Spacebar)</span>
+            </button>
+          )}
+
+          {wasInterrupted && (
+            <div className="py-1 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold flex items-center justify-center gap-1.5 animate-fade-in">
+              <Zap className="h-3 w-3 text-amber-500" />
+              <span>Interrupted • Listening to your voice...</span>
+            </div>
+          )}
+
           {/* Real-time Audio Canvas Waveform */}
           <div className="relative h-24 rounded-xl bg-gray-950 border border-gray-800 overflow-hidden flex items-center justify-center">
             <canvas ref={canvasRef} width={500} height={96} className="w-full h-full" />
@@ -1083,8 +1244,13 @@ export function BrowserSoftphoneModal({
                       : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200/80 dark:border-gray-700 rounded-bl-none'
                   }`}
                 >
-                  <div className="text-[10px] opacity-70 mb-0.5">
-                    {t.speaker === 'user' ? 'You' : currentAgent?.name || 'Maya'} • {t.timestamp}
+                  <div className="text-[10px] opacity-70 mb-0.5 flex items-center justify-between gap-2">
+                    <span>{t.speaker === 'user' ? 'You' : currentAgent?.name || 'Maya'} • {t.timestamp}</span>
+                    {t.interrupted && (
+                      <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                        <Zap className="w-2.5 h-2.5" /> Interrupted
+                      </span>
+                    )}
                   </div>
                   {t.text}
                 </div>

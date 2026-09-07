@@ -154,6 +154,25 @@ export class VoiceforceWebhooksController {
           break;
         }
 
+        case 'egress_ended': {
+          const egressInfo = event.egressInfo;
+          const fileResult = egressInfo?.fileResults?.[0];
+          const location = fileResult?.location || fileResult?.filename;
+          const durationSec = egressInfo?.fileResults?.[0]?.duration ? Math.round(Number(egressInfo.fileResults[0].duration) / 1000000000) : undefined;
+          if (location && callSession) {
+            await (prisma as any).callSession.update({
+              where: { id: callSession.id },
+              data: {
+                recordingUrl: location,
+                recordingStatus: 'ready',
+                ...(durationSec ? { recordingDurationSeconds: durationSec } : {})
+              }
+            });
+            console.log(`[Voiceforce Webhook] Egress recording saved for call ${callSession.id}: ${location}`);
+          }
+          break;
+        }
+
         default:
           break;
       }
@@ -510,6 +529,23 @@ export class VoiceforceWebhooksController {
               where: { id: session.id },
               data: { status: 'voicemail' }
             });
+          }
+          break;
+        }
+
+        case 'call.recording.saved': {
+          const recordingUrl = payload?.recording_urls?.mp3 || payload?.recording_urls?.wav || payload?.public_recording_urls?.mp3;
+          const durationSeconds = payload?.duration_millis ? Math.round(payload.duration_millis / 1000) : undefined;
+          if (recordingUrl && session) {
+            await (prisma as any).callSession.update({
+              where: { id: session.id },
+              data: {
+                recordingUrl,
+                recordingStatus: 'ready',
+                ...(durationSeconds ? { recordingDurationSeconds: durationSeconds } : {})
+              }
+            });
+            console.log(`[Voiceforce Telnyx Webhook] Saved recording URL for call ${session.id}: ${recordingUrl}`);
           }
           break;
         }
