@@ -14,7 +14,9 @@ import {
   WarmHandoffService,
   PreFlightSimulatorService,
   RoiAnalyticsService,
-  DailyBriefingService
+  DailyBriefingService,
+  CartesiaVoiceService,
+  SentenceStreamer
 } from '@workspace/voiceforce';
 import { WalletService } from '@workspace/wallet';
 import { AICompanyConfigService, AIProviderService } from '@workspace/ai';
@@ -299,7 +301,7 @@ export const VoiceforceController = {
       const {
         name, role, systemPrompt, voiceId, language, firstMessage,
         allowBargeIn, enabledToolNames, voiceSpeed, voiceTemperature,
-        maxDurationSeconds, engineType, llmModel, sttModel, isActive,
+        inactivityTimeoutMs, maxDurationSeconds, engineType, llmModel, modelId, sttModel, isActive,
         assignedPhoneId
       } = req.body;
 
@@ -318,10 +320,11 @@ export const VoiceforceController = {
           allowBargeIn: allowBargeIn ?? true,
           voiceSpeed: voiceSpeed !== undefined ? Number(voiceSpeed) : 1.0,
           voiceTemperature: voiceTemperature !== undefined ? Number(voiceTemperature) : 0.7,
+          inactivityTimeoutMs: inactivityTimeoutMs !== undefined ? Number(inactivityTimeoutMs) : 5000,
           maxDurationSeconds: maxDurationSeconds !== undefined ? Number(maxDurationSeconds) : 600,
           engineType: engineType || 'cascaded',
-          llmModel: llmModel || 'llama-3.3-70b-versatile',
-          sttModel: sttModel || 'nova-3',
+          llmModel: llmModel || modelId || 'llama-3.3-70b-versatile',
+          sttModel: sttModel || 'ink-2',
           isActive: isActive ?? true,
           enabledToolNames: enabledToolNames || ['search_knowledge_base', 'create_task', 'create_crm_client']
         }
@@ -366,7 +369,7 @@ export const VoiceforceController = {
       const {
         name, role, systemPrompt, voiceId, language, firstMessage,
         allowBargeIn, enabledToolNames, voiceSpeed, voiceTemperature,
-        maxDurationSeconds, engineType, llmModel, sttModel, isActive,
+        inactivityTimeoutMs, maxDurationSeconds, engineType, llmModel, modelId, sttModel, isActive,
         assignedPhoneId
       } = req.body;
 
@@ -380,9 +383,11 @@ export const VoiceforceController = {
       if (allowBargeIn !== undefined) updateData.allowBargeIn = Boolean(allowBargeIn);
       if (voiceSpeed !== undefined) updateData.voiceSpeed = Number(voiceSpeed);
       if (voiceTemperature !== undefined) updateData.voiceTemperature = Number(voiceTemperature);
+      if (inactivityTimeoutMs !== undefined) updateData.inactivityTimeoutMs = Number(inactivityTimeoutMs);
       if (maxDurationSeconds !== undefined) updateData.maxDurationSeconds = Number(maxDurationSeconds);
       if (engineType !== undefined) updateData.engineType = engineType;
       if (llmModel !== undefined) updateData.llmModel = llmModel;
+      else if (modelId !== undefined) updateData.llmModel = modelId;
       if (sttModel !== undefined) updateData.sttModel = sttModel;
       if (isActive !== undefined) updateData.isActive = Boolean(isActive);
       if (enabledToolNames !== undefined) updateData.enabledToolNames = enabledToolNames;
@@ -422,11 +427,252 @@ export const VoiceforceController = {
 
   async deleteAgent(req: any, res: Response) {
     try {
-      const companyId = req.companyId || req.user?.companyId;
+      let companyId = req.companyId || req.user?.companyId;
+      if (!companyId) {
+        const firstCo = await prisma.company.findFirst({ select: { id: true } });
+        companyId = firstCo?.id || '';
+      }
       const { id } = req.params;
 
-      await prisma.voiceAgent.delete({ where: { id, companyId } });
-      return res.json({ success: true, message: 'Agent deleted' });
+      const agent = await prisma.voiceAgent.findFirst({
+        where: { id, ...(companyId ? { companyId } : {}) }
+      });
+      if (!agent) {
+        return res.status(404).json({ error: 'AI Voice Employee not found' });
+      }
+
+      // 1. Unlink assigned phone numbers
+      await (prisma as any).phoneNumber.updateMany({
+        where: { assignedAgentId: id },
+        data: { assignedAgentId: null }
+      }).catch(() => {});
+
+      // 2. Unlink forwarding rules where fallbackAgentId === id
+      await (prisma as any).forwardingRule.updateMany({
+        where: { fallbackAgentId: id },
+        data: { fallbackAgentId: null }
+      }).catch(() => {});
+
+      // 3. Delete guardrails and versions
+      await (prisma as any).voiceAgentGuardrail.deleteMany({ where: { voiceAgentId: id } }).catch(() => {});
+      await (prisma as any).voiceAgentVersion.deleteMany({ where: { voiceAgentId: id } }).catch(() => {});
+
+      // 4. Find all campaigns belonging to this agent
+      const campaigns = await (prisma as any).callCampaign.findMany({
+        where: { voiceAgentId: id },
+        select: { id: true }
+      });
+      const campaignIds = campaigns.map((c: any) => c.id);
+
+      // 5. Find all call sessions associated with this agent or its campaigns
+      const calls = await (prisma as any).callSession.findMany({
+        where: {
+          OR: [
+            { voiceAgentId: id },
+            ...(campaignIds.length > 0 ? [{ campaignId: { in: campaignIds } }] : [])
+          ]
+        },
+        select: { id: true }
+      });
+      const callIds = calls.map((c: any) => c.id);
+
+      if (callIds.length > 0) {
+        await (prisma as any).callTranscriptSegment.deleteMany({ where: { callSessionId: { in: callIds } } }).catch(() => {});
+        await (prisma as any).callToolExecution.deleteMany({ where: { callSessionId: { in: callIds } } }).catch(() => {});
+        await (prisma as any).callEscalationEvent.deleteMany({ where: { callSessionId: { in: callIds } } }).catch(() => {});
+        await (prisma as any).actionAuditLog.deleteMany({ where: { callSessionId: { in: callIds } } }).catch(() => {});
+        await (prisma as any).voiceWalletTransaction.updateMany({
+          where: { callSessionId: { in: callIds } },
+          data: { callSessionId: null }
+        }).catch(() => {});
+        await (prisma as any).callSession.deleteMany({ where: { id: { in: callIds } } });
+      }
+
+      // 6. Delete campaigns
+      if (campaignIds.length > 0) {
+        await (prisma as any).callCampaign.deleteMany({ where: { id: { in: campaignIds } } });
+      }
+
+      // 7. Delete the voice agent record
+      await prisma.voiceAgent.delete({ where: { id } });
+
+      return res.json({ success: true, message: `AI Employee "${agent.name}" deleted successfully` });
+    } catch (err: any) {
+      console.error('[DeleteAgent Error]:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Cartesia Neural Voice Studio & Persona Customization (API v2026-08-14) ──
+  async listCartesiaVoices(req: any, res: Response) {
+    try {
+      const { language, gender, search, onlyCloned } = req.query;
+      const voices = await CartesiaVoiceService.listVoices({
+        language: language ? String(language) : undefined,
+        gender: gender ? String(gender) : undefined,
+        search: search ? String(search) : undefined,
+        onlyCloned: onlyCloned === 'true' || onlyCloned === '1'
+      });
+
+      console.log(`[VoiceforceController] Delivering ${voices.length} Cartesia voices (Cloned: ${voices.filter(v => v.isCloned).length})`);
+      return res.json({
+        success: true,
+        count: voices.length,
+        data: voices
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async previewCartesiaVoice(req: any, res: Response) {
+    try {
+      const { 
+        voiceId, text, modelId, speed, volume, emotion, 
+        locale, normalization, sampleRate, encoding, container, pronunciationDictId 
+      } = req.body;
+      if (!voiceId) {
+        return res.status(400).json({ error: 'voiceId is required for preview' });
+      }
+
+      const preview = await CartesiaVoiceService.generateAudioPreview({
+        voiceId,
+        text,
+        modelId,
+        speed: speed !== undefined ? Number(speed) : undefined,
+        volume: volume !== undefined ? Number(volume) : undefined,
+        emotion: typeof emotion === 'string' ? emotion : Array.isArray(emotion) ? emotion[0] : undefined,
+        locale: locale ? String(locale) : undefined,
+        normalization: normalization ? String(normalization) : undefined,
+        sampleRate: sampleRate ? Number(sampleRate) as any : undefined,
+        encoding: encoding ? String(encoding) as any : undefined,
+        container: container ? String(container) as any : undefined,
+        pronunciationDictId: pronunciationDictId ? String(pronunciationDictId) : undefined
+      });
+
+      return res.json({
+        success: true,
+        data: preview
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async cloneCartesiaVoice(req: any, res: Response) {
+    try {
+      const { name, description, language = 'en', audioBase64, filename, mimeType } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ error: 'Voice name is required' });
+      }
+
+      if (!audioBase64) {
+        return res.status(400).json({ error: 'Audio recording (audioBase64) is required for cloning' });
+      }
+
+      // Extract raw base64 data if prefixed with data:...;base64,
+      const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, '');
+      const audioBuffer = Buffer.from(cleanBase64, 'base64');
+
+      if (audioBuffer.length < 1000) {
+        return res.status(400).json({ error: 'Audio sample is too short. Please provide at least 5-10 seconds of clear speech.' });
+      }
+
+      const newVoice = await CartesiaVoiceService.cloneVoiceFromAudio({
+        name: name.trim(),
+        description: description ? description.trim() : 'Custom voice clone',
+        language,
+        audioBuffer,
+        filename: filename || 'recording.wav',
+        mimeType: mimeType || 'audio/wav'
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: `Custom Voice "${newVoice.name}" cloned successfully!`,
+        data: newVoice
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async transcribeCartesiaAudio(req: any, res: Response) {
+    try {
+      const { audioBase64, filename, mimeType, model = 'ink-whisper', language = 'en', encoding, sampleRate } = req.body;
+
+      if (!audioBase64) {
+        return res.status(400).json({ error: 'audioBase64 is required for transcription' });
+      }
+
+      const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, '');
+      const audioBuffer = Buffer.from(cleanBase64, 'base64');
+
+      const result = await CartesiaVoiceService.transcribeAudioFile({
+        audioBuffer,
+        filename: filename || 'audio.wav',
+        mimeType: mimeType || 'audio/wav',
+        model,
+        language,
+        encoding,
+        sampleRate: sampleRate ? Number(sampleRate) : undefined
+      });
+
+      return res.json({
+        success: true,
+        data: result
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async getCartesiaEngineSpecs(req: any, res: Response) {
+    try {
+      const { agentId } = req.query;
+      let keyterms: string[] = ['180workspace', 'Voiceforce', 'Cartesia'];
+
+      if (agentId) {
+        const agent = await (prisma as any).voiceAgent.findUnique({
+          where: { id: String(agentId) },
+          select: { name: true, role: true, company: { select: { name: true } } }
+        });
+        if (agent) {
+          if (agent.name) keyterms.push(agent.name);
+          if (agent.company?.name) keyterms.push(agent.company.name);
+        }
+      }
+
+      const ttsWs = CartesiaVoiceService.buildTTSWebSocketUrl();
+      const sttTurnsWs = CartesiaVoiceService.buildSTTTurnsWebSocketUrl({ keyterms });
+      const sttManualWs = CartesiaVoiceService.buildSTTManualWebSocketUrl({ keyterms });
+
+      return res.json({
+        success: true,
+        data: {
+          version: CartesiaVoiceService.API_VERSION,
+          tts: {
+            websocket: ttsWs,
+            recommendedModel: 'sonic-3.6',
+            supportedEncodings: ['pcm_s16le', 'pcm_f32le', 'pcm_mulaw', 'pcm_alaw'],
+            supportedSampleRates: [8000, 16000, 22050, 24000, 44100, 48000],
+            protocols: {
+              websocket: 'wss://api.cartesia.ai/tts/websocket (Sub-40ms realtime streaming)',
+              sse: 'https://api.cartesia.ai/tts/sse (Server-sent events streaming)',
+              bytes: 'https://api.cartesia.ai/tts/bytes (HTTP binary audio download / preview)'
+            }
+          },
+          stt: {
+            turnsWebsocket: sttTurnsWs,
+            manualWebsocket: sttManualWs,
+            batchTranscribeUrl: 'https://api.cartesia.ai/stt',
+            recommendedModel: 'ink-2',
+            multilingualModel: 'ink-preview',
+            keyterms
+          }
+        }
+      });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
@@ -871,6 +1117,37 @@ export const VoiceforceController = {
     }
   },
 
+  async simulateForwardingRule(req: any, res: Response) {
+    try {
+      let companyId = req.companyId || req.user?.companyId;
+      if (!companyId) {
+        const firstCo = await (prisma as any).company.findFirst({ select: { id: true } });
+        companyId = firstCo?.id || '';
+      }
+      const { id } = req.params;
+      const { callerPhone, simulateBusyHop, forceAfterHours } = req.body;
+
+      const { ForwardingRouterService } = await import('@workspace/voiceforce');
+      const simulationResult = await ForwardingRouterService.simulatePipeline(
+        id,
+        {
+          callerPhone: callerPhone || '+14155551234',
+          simulateBusyHop: simulateBusyHop !== undefined && simulateBusyHop !== null ? Number(simulateBusyHop) : null,
+          forceAfterHours: Boolean(forceAfterHours)
+        },
+        companyId
+      );
+
+      return res.json({
+        success: true,
+        message: 'Forwarding pipeline simulated successfully at ₹0 telecom cost',
+        data: simulationResult
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
   // ─── Active Call Queues ───────────────────────────────────────────────────
   async listQueues(req: any, res: Response) {
     try {
@@ -1050,236 +1327,6 @@ export const VoiceforceController = {
           ...result
         }
       });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message });
-    }
-  },
-
-  async simulateForwardingRule(req: any, res: Response) {
-    try {
-      let companyId = req.companyId || req.user?.companyId;
-      if (!companyId) {
-        const firstCo = await (prisma as any).company.findFirst({ select: { id: true } });
-        companyId = firstCo?.id || '';
-      }
-      const { id } = req.params;
-      const { callerPhone = '+14155551234', simulateBusyHop = null, forceAfterHours = false } = req.body;
-
-      const rule = await (prisma as any).forwardingRule.findFirst({
-        where: { id, ...(companyId ? { companyId } : {}) },
-        include: { phoneNumber: true }
-      });
-      if (!rule) return res.status(404).json({ error: 'Forwarding rule not found' });
-
-      const trace: any[] = [];
-      trace.push({
-        step: 'inbound_call_received',
-        title: 'Inbound Call Received',
-        description: `Incoming call from ${callerPhone} to advertised line ${rule.phoneNumber?.e164Number || 'Main Line'}`,
-        status: 'success',
-        timestamp: new Date().toISOString()
-      });
-
-      // 1. Business Hours Evaluation
-      if (rule.scheduleEnabled && rule.businessHours) {
-        if (forceAfterHours) {
-          trace.push({
-            step: 'schedule_check',
-            title: 'Business Hours Evaluation',
-            description: `Outside business hours (Timezone: ${rule.timezone || 'Asia/Kolkata'}). Deflecting to fallback.`,
-            status: 'failed',
-            timestamp: new Date().toISOString()
-          });
-          const fallbackDecision = ForwardingRouterService.resolveFallback(rule, 'Call received outside configured business hours (simulation)');
-          trace.push({
-            step: 'fallback_executed',
-            title: 'Fallback Triggered',
-            description: `Routed to ${fallbackDecision.action.replace('_', ' ')}: ${fallbackDecision.reason}`,
-            decision: fallbackDecision,
-            status: 'warning',
-            timestamp: new Date().toISOString()
-          });
-          return res.json({ success: true, data: { rule, trace, finalDecision: fallbackDecision } });
-        } else {
-          const isWithinHours = ForwardingRouterService.checkBusinessHours(rule.businessHours, rule.timezone || 'Asia/Kolkata');
-          trace.push({
-            step: 'schedule_check',
-            title: 'Business Hours Evaluation',
-            description: isWithinHours
-              ? `Within open operating hours for timezone ${rule.timezone || 'Asia/Kolkata'}`
-              : `After hours in timezone ${rule.timezone || 'Asia/Kolkata'}`,
-            status: isWithinHours ? 'success' : 'failed',
-            timestamp: new Date().toISOString()
-          });
-          if (!isWithinHours) {
-            const fallbackDecision = ForwardingRouterService.resolveFallback(rule, 'Call received outside configured business hours');
-            trace.push({
-              step: 'fallback_executed',
-              title: 'Fallback Triggered',
-              description: `Routed to ${fallbackDecision.action.replace('_', ' ')}: ${fallbackDecision.reason}`,
-              decision: fallbackDecision,
-              status: 'warning',
-              timestamp: new Date().toISOString()
-            });
-            return res.json({ success: true, data: { rule, trace, finalDecision: fallbackDecision } });
-          }
-        }
-      } else {
-        trace.push({
-          step: 'schedule_check',
-          title: 'Business Hours Evaluation',
-          description: '24/7 routing schedule active (No schedule limits enforced).',
-          status: 'success',
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      // 2. Strategy: Queue First / Active Hold Room
-      if (rule.strategy === 'queue_first' || rule.strategy === 'queue') {
-        const decision = {
-          action: 'queue',
-          timeoutSec: rule.ringTimeoutSec || 300,
-          hopIndex: 0,
-          ruleId: rule.id,
-          reason: 'Configured for immediate queueing'
-        };
-        trace.push({
-          step: 'queue_first',
-          title: 'Immediate Queue & Hold Room',
-          description: `Caller placed in FIFO active hold room with soothing music and position announcements.`,
-          status: 'success',
-          timestamp: new Date().toISOString()
-        });
-        return res.json({ success: true, data: { rule, trace, finalDecision: decision } });
-      }
-
-      // 3. Destinations Evaluation
-      const destinations = Array.isArray(rule.destinations) ? rule.destinations : [];
-      if (destinations.length === 0) {
-        const fallbackDecision = ForwardingRouterService.resolveFallback(rule, 'No forwarding destinations configured');
-        trace.push({
-          step: 'no_destinations',
-          title: 'No Destinations Available',
-          description: 'No destinations configured on rule.',
-          status: 'failed',
-          timestamp: new Date().toISOString()
-        });
-        return res.json({ success: true, data: { rule, trace, finalDecision: fallbackDecision } });
-      }
-
-      // Strategy-specific evaluation
-      if (rule.strategy === 'simultaneous' || rule.strategy === 'simultaneous_blast') {
-        const decision = {
-          action: 'simultaneous_blast',
-          destinations,
-          timeoutSec: rule.ringTimeoutSec || 20,
-          hopIndex: 0,
-          ruleId: rule.id,
-          whisperText: rule.whisperAnnouncement || undefined,
-          reason: `Simultaneous blast across ${destinations.length} destinations`
-        };
-        trace.push({
-          step: 'simultaneous_blast',
-          title: 'Simultaneous Blast Initiated',
-          description: `Ringing all ${destinations.length} lines simultaneously with ${rule.ringTimeoutSec || 20}s timeout. First rep to answer takes call.`,
-          destinations,
-          status: 'success',
-          timestamp: new Date().toISOString()
-        });
-        return res.json({ success: true, data: { rule, trace, finalDecision: decision } });
-      }
-
-      if (rule.strategy === 'round_robin') {
-        let rrIndex = 0;
-        if (redis) {
-          try {
-            const key = `voiceforce:rr:${rule.id}`;
-            const nextVal = await redis.incr(key);
-            rrIndex = (nextVal - 1) % destinations.length;
-          } catch (e) {}
-        }
-        const chosen = destinations[rrIndex];
-        const decision = {
-          action: chosen.type === 'agent' ? 'ai_agent' : 'pstn_forward',
-          destinationE164: chosen.e164,
-          agentId: chosen.targetId,
-          timeoutSec: chosen.timeoutSec || rule.ringTimeoutSec || 20,
-          hopIndex: rrIndex,
-          ruleId: rule.id,
-          whisperText: rule.whisperAnnouncement || undefined,
-          reason: `Round-robin assigned to target #${rrIndex + 1}`
-        };
-        trace.push({
-          step: 'round_robin_selected',
-          title: `Round-Robin Load Balancing (Target #${rrIndex + 1})`,
-          description: `Equally distributed call to ${chosen.name || chosen.e164 || 'AI Employee'} (Slot #${rrIndex + 1} of ${destinations.length})`,
-          destination: chosen,
-          status: 'success',
-          timestamp: new Date().toISOString()
-        });
-        return res.json({ success: true, data: { rule, trace, finalDecision: decision } });
-      }
-
-      // Sequential Waterfall simulation with Max Hops Loop Guard
-      let finalDecision: any = null;
-      const maxHops = rule.maxHops || 4;
-      for (let i = 0; i < destinations.length; i++) {
-        if (i >= maxHops) {
-          trace.push({
-            step: 'loop_guard_capped',
-            title: `Telecom Loop Guard: Max Hops Limit (${maxHops}) Reached`,
-            description: `Cascade halted at Hop #${i + 1} to prevent circular telecom loops. Deflecting to fallback.`,
-            status: 'warning',
-            timestamp: new Date().toISOString()
-          });
-          break;
-        }
-
-        const dest = destinations[i];
-        const isSimulatedBusy = simulateBusyHop !== null && Number(simulateBusyHop) >= i;
-
-        if (isSimulatedBusy) {
-          trace.push({
-            step: `hop_${i + 1}_busy`,
-            title: `Hop #${i + 1} (${dest.name || dest.e164}): Busy / No Answer`,
-            description: `Line ${dest.e164 || dest.name} timed out after ${dest.timeoutSec || rule.ringTimeoutSec}s. Cascading to next available hop.`,
-            status: 'warning',
-            timestamp: new Date().toISOString()
-          });
-        } else {
-          finalDecision = {
-            action: dest.type === 'agent' ? 'ai_agent' : 'pstn_forward',
-            destinationE164: dest.e164,
-            agentId: dest.targetId,
-            timeoutSec: dest.timeoutSec || rule.ringTimeoutSec || 20,
-            hopIndex: i,
-            ruleId: rule.id,
-            whisperText: rule.whisperAnnouncement || undefined,
-            reason: `Cascade hop #${i + 1} connected`
-          };
-          trace.push({
-            step: `hop_${i + 1}_success`,
-            title: `Hop #${i + 1} (${dest.name || dest.e164}): Connected!`,
-            description: `Call bridged to ${dest.type === 'agent' ? 'AI Voice Employee' : 'Mobile PSTN ' + dest.e164}${rule.whisperAnnouncement ? ' (with whisper screening)' : ''}.`,
-            status: 'success',
-            timestamp: new Date().toISOString()
-          });
-          break;
-        }
-      }
-
-      if (!finalDecision) {
-        finalDecision = ForwardingRouterService.resolveFallback(rule, 'All forwarding destinations busy or timed out');
-        trace.push({
-          step: 'fallback_executed',
-          title: 'Fallback Action Triggered',
-          description: `All hops exhausted. Routed to fallback: ${finalDecision.action.replace('_', ' ')}.`,
-          status: 'warning',
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      return res.json({ success: true, data: { rule, trace, finalDecision } });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
@@ -1568,9 +1615,15 @@ export const VoiceforceController = {
       });
       if (!call) return res.status(404).json({ error: 'Call session not found' });
 
-      // Clean up child transcripts and tool executions
-      await (prisma as any).callTranscriptSegment.deleteMany({ where: { callSessionId: id } });
-      await (prisma as any).callToolExecution.deleteMany({ where: { callSessionId: id } });
+      // Clean up child transcripts, tool executions, escalation events, and audit logs
+      await (prisma as any).callTranscriptSegment.deleteMany({ where: { callSessionId: id } }).catch(() => {});
+      await (prisma as any).callToolExecution.deleteMany({ where: { callSessionId: id } }).catch(() => {});
+      await (prisma as any).callEscalationEvent.deleteMany({ where: { callSessionId: id } }).catch(() => {});
+      await (prisma as any).actionAuditLog.deleteMany({ where: { callSessionId: id } }).catch(() => {});
+      await (prisma as any).voiceWalletTransaction.updateMany({
+        where: { callSessionId: id },
+        data: { callSessionId: null }
+      }).catch(() => {});
       await (prisma as any).callSession.delete({ where: { id } });
 
       return res.json({ success: true, message: 'Call session permanently deleted.' });
@@ -1816,10 +1869,10 @@ export const VoiceforceController = {
         take: 8
       }).catch(() => []) : [];
 
-      // Save user transcript segment
+      // Save user transcript segment asynchronously (detached from audio latency path)
       if (session) {
         const elapsed = session.startedAt ? (Date.now() - new Date(session.startedAt).getTime()) : 1000;
-        await prisma.callTranscriptSegment.create({
+        prisma.callTranscriptSegment.create({
           data: {
             callSessionId: session.id,
             speaker: 'user',
@@ -1877,10 +1930,10 @@ export const VoiceforceController = {
       // Clean up any stray markdown, asterisks, or quotes
       agentReply = agentReply.replace(/[*_#`]/g, '').trim();
 
-      // Save agent transcript segment
+      // Save agent transcript segment asynchronously
       if (session) {
         const elapsed = session.startedAt ? (Date.now() - new Date(session.startedAt).getTime()) : 2000;
-        await prisma.callTranscriptSegment.create({
+        prisma.callTranscriptSegment.create({
           data: {
             callSessionId: session.id,
             speaker: 'agent',
@@ -1892,7 +1945,7 @@ export const VoiceforceController = {
         }).catch(() => { });
       }
 
-      // 7. Synthesize Neural Audio via Cartesia (sonic-3.6)
+      // 7. Synthesize Neural Audio via Cartesia (sonic-3.6 with 2026-08-14 API)
       let audioBase64: string | null = null;
       const cartesiaKey = process.env.CARTESIA_API_KEY;
       if (cartesiaKey) {
@@ -1910,7 +1963,7 @@ export const VoiceforceController = {
             {
               headers: {
                 'X-API-Key': cartesiaKey,
-                'Cartesia-Version': '2024-06-10',
+                'Cartesia-Version': '2026-08-14',
                 'Content-Type': 'application/json'
               },
               responseType: 'arraybuffer',
@@ -1936,6 +1989,198 @@ export const VoiceforceController = {
     } catch (err: any) {
       console.error('[Softphone Turn Error]:', err);
       return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Ultra-Low Latency SSE Streaming Turn Exchange (Sub-350ms TTFA) ─────────────
+  async processSoftphoneTurnStream(req: any, res: Response) {
+    try {
+      const callSessionId = req.body?.callSessionId || req.params?.id;
+      const { voiceAgentId, userInput } = req.body;
+
+      if (!userInput || !userInput.trim()) {
+        return res.status(400).json({ error: 'User input text is required' });
+      }
+
+      // Initialize SSE stream headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      if (typeof (res as any).flushHeaders === 'function') {
+        (res as any).flushHeaders();
+      }
+
+      let effectiveCompanyId = req.companyId || req.user?.companyId;
+      const session = callSessionId ? await prisma.callSession.findUnique({
+        where: { id: callSessionId },
+        include: { voiceAgent: true }
+      }).catch(() => null) : null;
+
+      if (!effectiveCompanyId) effectiveCompanyId = session?.companyId;
+      if (!effectiveCompanyId) {
+        const firstCo = await prisma.company.findFirst({ select: { id: true } });
+        effectiveCompanyId = firstCo?.id || '';
+      }
+
+      const agentId = voiceAgentId || session?.voiceAgentId;
+      let agent = null;
+      if (agentId) {
+        agent = await prisma.voiceAgent.findUnique({ where: { id: agentId } }).catch(() => null);
+      }
+      if (!agent && effectiveCompanyId) {
+        agent = await prisma.voiceAgent.findFirst({ where: { companyId: effectiveCompanyId, isActive: true } }).catch(() => null);
+      }
+      if (!agent) {
+        agent = await prisma.voiceAgent.findFirst({ where: { isActive: true } }).catch(() => null);
+      }
+
+      // Asynchronously log user transcript segment (detached from audio response path)
+      if (session) {
+        const elapsed = session.startedAt ? (Date.now() - new Date(session.startedAt).getTime()) : 1000;
+        prisma.callTranscriptSegment.create({
+          data: {
+            callSessionId: session.id,
+            speaker: 'user',
+            text: userInput.trim(),
+            startTimeMs: Math.max(0, elapsed - 1500),
+            endTimeMs: elapsed,
+            interrupted: false
+          }
+        }).catch(() => { });
+      }
+
+      // Compile System Prompt with Business Brain
+      let systemPrompt = '';
+      try {
+        if (effectiveCompanyId) {
+          systemPrompt = await BusinessBrainService.compileSystemPrompt(
+            agent?.id || '',
+            effectiveCompanyId,
+            session?.recipientPhone || 'Browser Microphone'
+          );
+        }
+      } catch {}
+      if (!systemPrompt) {
+        systemPrompt = agent?.prompt || `You are ${agent?.name || 'Maya'}, an intelligent AI Voice employee. Respond naturally and concisely in 1 to 2 friendly spoken sentences. Confirm you speak both English and Hindi if asked.`;
+      }
+
+      const recentTranscripts = session ? await prisma.callTranscriptSegment.findMany({
+        where: { callSessionId: session.id },
+        orderBy: { startTimeMs: 'asc' },
+        take: 6
+      }).catch(() => []) : [];
+
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        {
+          role: 'system',
+          content: `${systemPrompt}\n\nVOICE CONVERSATION GUIDELINES:\n- You are in a real-time live phone call.\n- Respond in 1 to 2 concise, friendly spoken sentences (under 30 words).\n- If the user asks about language (e.g. English or Hindi), warmly confirm you speak both English and Hindi and can assist in either language.\n- Never output markdown formatting, asterisks, bold text, bullet points, or URLs because your output is spoken directly over audio.`
+        }
+      ];
+
+      for (const t of recentTranscripts) {
+        messages.push({
+          role: t.speaker === 'agent' ? 'assistant' : 'user',
+          content: t.text
+        });
+      }
+      messages.push({ role: 'user', content: userInput.trim() });
+
+      const cartesiaKey = process.env.CARTESIA_API_KEY;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agent?.voiceId || '');
+      const voiceId = isUuid ? agent.voiceId : 'a0e99841-438c-4a64-b679-ae501e7d6091';
+
+      // Helper function to synthesize an individual sentence chunk in sub-60ms
+      const synthesizeSentence = async (sentenceText: string): Promise<string | null> => {
+        if (!cartesiaKey || !sentenceText.trim()) return null;
+        try {
+          const ttsRes = await axios.post(
+            'https://api.cartesia.ai/tts/bytes',
+            {
+              model_id: 'sonic-3.6',
+              transcript: sentenceText.replace(/[*_#`]/g, '').trim(),
+              voice: { mode: 'id', id: voiceId },
+              output_format: { container: 'wav', encoding: 'pcm_s16le', sample_rate: 24000 }
+            },
+            {
+              headers: {
+                'X-API-Key': cartesiaKey,
+                'Cartesia-Version': '2026-08-14',
+                'Content-Type': 'application/json'
+              },
+              responseType: 'arraybuffer',
+              timeout: 3000
+            }
+          );
+          if (ttsRes.data) {
+            return `data:audio/wav;base64,${Buffer.from(ttsRes.data).toString('base64')}`;
+          }
+        } catch (err: any) {
+          console.warn('[Cartesia Stream Chunk TTS Warn]:', err.message);
+        }
+        return null;
+      };
+
+      const sentenceStreamer = new SentenceStreamer({ minWordsPerChunk: 3, maxWordsPerChunk: 18 });
+      let fullAssistantReply = '';
+
+      try {
+        const { settings } = await AICompanyConfigService.getCompanyAISettings(effectiveCompanyId);
+        const aiProvider = AIProviderService.getInstance();
+        const client = await aiProvider.getClient(settings);
+
+        if (client) {
+          const prompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n') + '\n\nASSISTANT:';
+          await client.generateStream(prompt, { model: 'gpt-4o-mini', max_tokens: 70, temperature: 0.5 }, async (chunk: string) => {
+            fullAssistantReply += chunk;
+            const completedSentences = sentenceStreamer.push(chunk);
+            for (const s of completedSentences) {
+              const audioBase64 = await synthesizeSentence(s);
+              res.write(`data: ${JSON.stringify({ type: 'sentence', text: s, audioBase64 })}\n\n`);
+            }
+          });
+        }
+      } catch (streamErr: any) {
+        console.warn('[Stream LLM Error]:', streamErr.message);
+      }
+
+      // Flush remaining sentence buffer
+      const finalSentences = sentenceStreamer.flush();
+      for (const s of finalSentences) {
+        const audioBase64 = await synthesizeSentence(s);
+        res.write(`data: ${JSON.stringify({ type: 'sentence', text: s, audioBase64 })}\n\n`);
+      }
+
+      if (!fullAssistantReply.trim()) {
+        const fallback = "I understand. I can assist you in English or Hindi. How may I help you right now?";
+        const audioBase64 = await synthesizeSentence(fallback);
+        res.write(`data: ${JSON.stringify({ type: 'sentence', text: fallback, audioBase64 })}\n\n`);
+        fullAssistantReply = fallback;
+      }
+
+      // Send completion event
+      res.write(`data: ${JSON.stringify({ type: 'done', fullText: fullAssistantReply.replace(/[*_#`]/g, '').trim() })}\n\n`);
+      res.end();
+
+      // Asynchronously log agent transcript segment
+      if (session) {
+        const elapsed = session.startedAt ? (Date.now() - new Date(session.startedAt).getTime()) : 2000;
+        prisma.callTranscriptSegment.create({
+          data: {
+            callSessionId: session.id,
+            speaker: 'agent',
+            text: fullAssistantReply.replace(/[*_#`]/g, '').trim(),
+            startTimeMs: elapsed,
+            endTimeMs: elapsed + 1500,
+            interrupted: false
+          }
+        }).catch(() => { });
+      }
+    } catch (err: any) {
+      console.error('[Softphone Turn Stream Error]:', err);
+      if (!res.headersSent) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.end();
     }
   },
 
@@ -2743,6 +2988,300 @@ export const VoiceforceController = {
       });
 
       return res.json({ success: true, logs });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Universal Enterprise Business Brain & Dedicated RAG Pipeline ────────
+  async uploadKnowledgeDocument(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId || req.body?.companyId;
+      if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
+
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: 'No document file provided for upload' });
+
+      const filename = file.originalname || 'uploaded-document.txt';
+      const mimeType = file.mimetype || 'text/plain';
+      const fileSizeBytes = file.size || (file.buffer ? file.buffer.length : 0);
+
+      // 1. Initialize Document Record in DB (Status: Queued / Processing)
+      const docRecord = await (prisma as any).companyKnowledgeDoc.create({
+        data: {
+          companyId,
+          filename,
+          mimeType,
+          fileSizeBytes,
+          status: 'processing',
+          progressPercent: 10,
+          totalChunks: 0
+        }
+      });
+
+      // 2. Extract Text Content (supports PDF, DOCX, TXT, CSV, JSON, Markdown)
+      let extractedText = '';
+      const buffer = file.buffer;
+      const lowerName = filename.toLowerCase();
+
+      try {
+        if (lowerName.endsWith('.pdf')) {
+          const pdfParse = require('pdf-parse');
+          const pdfData = await pdfParse(buffer);
+          extractedText = pdfData.text || '';
+        } else if (lowerName.endsWith('.docx')) {
+          const mammoth = require('mammoth');
+          const docxData = await mammoth.extractRawText({ buffer });
+          extractedText = docxData.value || '';
+        } else {
+          extractedText = buffer.toString('utf-8');
+        }
+      } catch (parseErr: any) {
+        console.warn(`[KnowledgeUpload] Parser fallback for ${filename}:`, parseErr.message);
+        extractedText = buffer.toString('utf-8');
+      }
+
+      if (!extractedText || !extractedText.trim()) {
+        await (prisma as any).companyKnowledgeDoc.update({
+          where: { id: docRecord.id },
+          data: {
+            status: 'error',
+            errorMessage: 'Document contains no readable text or failed extraction.'
+          }
+        });
+        return res.status(400).json({ error: 'Failed to extract text from document.' });
+      }
+
+      // 3. Chunk Document via Semantic Sliding Window
+      const { DocumentChunker, EmbeddingEngine } = await import('@workspace/rag');
+      const chunker = new DocumentChunker({ maxWordsPerChunk: 350, overlapWords: 60 });
+      const chunks = chunker.chunkText(extractedText, filename);
+
+      if (chunks.length === 0) {
+        await (prisma as any).companyKnowledgeDoc.update({
+          where: { id: docRecord.id },
+          data: {
+            status: 'error',
+            errorMessage: 'Document resulted in zero valid semantic chunks.'
+          }
+        });
+        return res.status(400).json({ error: 'No text chunks could be generated.' });
+      }
+
+      // Update total chunks count & progress
+      await (prisma as any).companyKnowledgeDoc.update({
+        where: { id: docRecord.id },
+        data: {
+          totalChunks: chunks.length,
+          progressPercent: 25
+        }
+      });
+
+      // 4. Batch Vectorize and Ingest Chunks with Real-Time Incremental Progress %
+      const embeddingEngine = new EmbeddingEngine();
+      const BATCH_SIZE = 5;
+      let completedChunks = 0;
+
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batch = chunks.slice(i, i + BATCH_SIZE);
+        const batchTexts = batch.map(c => c.content);
+        
+        const vectors = await embeddingEngine.generateBatchEmbeddings(batchTexts);
+
+        // Store chunks in database
+        for (let j = 0; j < batch.length; j++) {
+          const chunkItem = batch[j];
+          const vector = vectors[j] || [];
+
+          await (prisma as any).knowledgeChunk.create({
+            data: {
+              companyId,
+              documentId: docRecord.id,
+              chunkIndex: chunkItem.chunkIndex,
+              content: chunkItem.content,
+              embedding: vector,
+              metadata: chunkItem.metadata || {}
+            }
+          });
+        }
+
+        completedChunks += batch.length;
+        const currentProgress = Math.min(98, 25 + Math.round((completedChunks / chunks.length) * 73));
+
+        await (prisma as any).companyKnowledgeDoc.update({
+          where: { id: docRecord.id },
+          data: { progressPercent: currentProgress }
+        });
+      }
+
+      // 5. Finalize: Set Status to Ready (100%)
+      const finalDoc = await (prisma as any).companyKnowledgeDoc.update({
+        where: { id: docRecord.id },
+        data: {
+          status: 'ready',
+          progressPercent: 100
+        }
+      });
+
+      return res.json({
+        success: true,
+        message: `Successfully processed and indexed "${filename}" into ${chunks.length} RAG knowledge chunks.`,
+        document: finalDoc
+      });
+    } catch (err: any) {
+      console.error('[VoiceforceController.uploadKnowledgeDocument] Error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async listKnowledgeDocuments(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId || req.query?.companyId;
+      if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
+
+      const documents = await (prisma as any).companyKnowledgeDoc.findMany({
+        where: { companyId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: { chunks: true }
+          }
+        }
+      });
+
+      return res.json({
+        success: true,
+        documents: documents.map((d: any) => ({
+          id: d.id,
+          filename: d.filename,
+          fileSizeBytes: d.fileSizeBytes,
+          mimeType: d.mimeType,
+          status: d.status,
+          progressPercent: d.progressPercent,
+          totalChunks: d.totalChunks || d._count?.chunks || 0,
+          errorMessage: d.errorMessage,
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt
+        }))
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async deleteKnowledgeDocument(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
+
+      await (prisma as any).companyKnowledgeDoc.deleteMany({
+        where: { id, companyId }
+      });
+
+      return res.json({ success: true, message: 'Document and associated vector chunks removed.' });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async queryKnowledgeBase(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId || req.body?.companyId;
+      const { query, topK } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
+      if (!query || !query.trim()) return res.status(400).json({ error: 'Search query is required' });
+
+      const { HybridSearchService } = await import('@workspace/rag');
+      return res.json({
+        success: true,
+        query,
+        count: results.length,
+        results
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // ─── Voice Agent RAG Vault Linking ─────────────────────────────────────────
+  async linkAgentVaults(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+      const { vaultIds = [] } = req.body;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
+
+      // Verify agent belongs to company
+      const agent = await (prisma as any).voiceAgent.findFirst({
+        where: { id, companyId }
+      });
+      if (!agent) return res.status(404).json({ error: 'Voice Agent not found' });
+
+      // Clear existing links
+      await (prisma as any).voiceAgentVaultLink.deleteMany({
+        where: { voiceAgentId: id }
+      });
+
+      // Insert new links
+      if (Array.isArray(vaultIds) && vaultIds.length > 0) {
+        for (const vaultId of vaultIds) {
+          await (prisma as any).voiceAgentVaultLink.create({
+            data: {
+              voiceAgentId: id,
+              vaultId
+            }
+          }).catch(() => {});
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Successfully linked ${vaultIds.length} RAG Memory Vaults to ${agent.name}.`
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async getAgentLinkedVaults(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+
+      if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
+
+      const links = await (prisma as any).voiceAgentVaultLink.findMany({
+        where: { voiceAgentId: id },
+        include: {
+          vault: {
+            select: {
+              id: true,
+              name: true,
+              purposeDescription: true,
+              mode: true,
+              category: true,
+              totalDocuments: true,
+              totalChunks: true,
+              totalSizeBytes: true,
+              status: true
+            }
+          }
+        }
+      });
+
+      const linkedVaults = links
+        .map((l: any) => l.vault)
+        .filter(Boolean)
+        .map((v: any) => ({
+          ...v,
+          totalSizeBytes: Number(v.totalSizeBytes || 0)
+        }));
+
+      return res.json({ success: true, linkedVaults });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

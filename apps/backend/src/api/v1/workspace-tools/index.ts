@@ -5,6 +5,7 @@ import calendarRoutes from './calendar/calendar.routes';
 import documentsRoutes from './documents/documents.routes';
 import storageRoutes from './storage/storage.routes';
 import assetRoutes from './assets/asset.routes';
+import vaultsRoutes from './vaults/vaults.routes';
 
 const router = Router();
 
@@ -13,5 +14,6 @@ router.use('/calendar', calendarRoutes);
 router.use('/documents', documentsRoutes);
 router.use('/storage', storageRoutes);
 router.use('/assets', assetRoutes);
+router.use('/vaults', vaultsRoutes);
 
 export default router;

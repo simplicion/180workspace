@@ -856,6 +856,62 @@ export default function VoiceforceCallDetailPage() {
             );
           })()}
 
+          {/* Forwarding & Routing Telemetry Card */}
+          {(() => {
+            const sData = (call.structuredData as any) || {};
+            const isForwarded = Boolean(sData.forwardingRuleId || sData.forwardedToE164 || (sData.hopHistory && sData.hopHistory.length > 0));
+            if (!isForwarded) return null;
+
+            return (
+              <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                      <Radio className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Forwarding Telemetry</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Waterfall Cascade & Inbound Route</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400 border border-indigo-200/60">
+                    Hop #{((sData.hopIndex ?? 0) + 1)}
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  {sData.forwardedToE164 && (
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                      <span className="text-gray-500 dark:text-gray-400">Forwarded Target</span>
+                      <span className="font-mono font-semibold text-gray-900 dark:text-white">{sData.forwardedToE164}</span>
+                    </div>
+                  )}
+
+                  {sData.callerIdNumber && (
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                      <span className="text-gray-500 dark:text-gray-400">Inbound DID Line</span>
+                      <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{sData.callerIdNumber}</span>
+                    </div>
+                  )}
+
+                  {sData.hopHistory && Array.isArray(sData.hopHistory) && sData.hopHistory.length > 0 && (
+                    <div className="pt-2 space-y-1.5">
+                      <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 block">Cascade History</span>
+                      {sData.hopHistory.map((h: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 text-[11px]">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">Hop #{h.hop + 1} ({h.target})</span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                            {h.outcome}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Technical Telephony Architecture */}
           <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-sm">
             <div className="flex items-center gap-2 mb-4">

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { AIController } from './ai.controller';
+import agentRequestsRoutes from './agent-requests.routes';
 import { protect } from '../../../system-configs/middleware/auth/auth';
 import multer from 'multer';
 
@@ -9,6 +10,9 @@ const upload = multer({
 });
 
 const router = Router();
+
+// Inter-Agent & Voiceforce Delegation Queue
+router.use('/requests', agentRequestsRoutes);
 
 // Status & Key Testing
 router.get('/status', protect, AIController.getStatus);

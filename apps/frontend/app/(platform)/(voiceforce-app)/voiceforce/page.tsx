@@ -324,38 +324,62 @@ export default function VoiceforceDashboardPage() {
       </div>
 
       {/* Enterprise Business Brain Context Widget */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-violet-50/70 via-indigo-50/60 to-purple-50/70 dark:from-violet-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 border border-violet-100/90 dark:border-violet-900/40 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-violet-50/80 via-indigo-50/70 to-purple-50/80 dark:from-violet-950/30 dark:via-indigo-950/30 dark:to-purple-950/30 border border-violet-200/90 dark:border-violet-800/50 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-violet-600/20 flex-shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-violet-600/25 flex-shrink-0">
               <Brain className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Connected Enterprise Business Brain</h3>
-                <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Connected Enterprise Business Brain & RAG Vaults</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live Sync
                 </span>
               </div>
-              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
-                AI employees speak official product pricing, recognize CRM customers, and book appointments into 180 Calendar.
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5 max-w-2xl">
+                AI employees speak official product pricing, recognize CRM customers, access 5GB scoped RAG vaults, and book appointments into 180 Calendar.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 shadow-xs">
-              <ShoppingBag className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Authoritative Catalog Pricing</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 shadow-xs">
-              <Users className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-              <span>CRM Client Recognition</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 shadow-xs">
-              <Calendar className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Calendar Booking</span>
-            </div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Link
+              href="/voiceforce/brain"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-sm shadow-violet-600/20 transition-all cursor-pointer"
+            >
+              <Brain className="w-3.5 h-3.5" />
+              <span>Open Business Brain & Vaults</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+
+            <Link
+              href="/documents"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-200 border border-gray-200/80 dark:border-gray-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>180 Documents</span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-3.5 border-t border-violet-100 dark:border-violet-900/40 flex items-center gap-3 text-xs font-semibold text-gray-700 dark:text-gray-300 flex-wrap">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-violet-100 dark:border-violet-900/40 shadow-2xs">
+            <ShoppingBag className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Authoritative Catalog Pricing</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-violet-100 dark:border-violet-900/40 shadow-2xs">
+            <Users className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+            <span>CRM Client Recognition</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-violet-100 dark:border-violet-900/40 shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+            <span>Calendar Booking</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-violet-100 dark:border-violet-900/40 shadow-2xs">
+            <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>5GB Scoped RAG Vaults</span>
           </div>
         </div>
       </div>

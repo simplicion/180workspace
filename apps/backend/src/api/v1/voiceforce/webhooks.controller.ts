@@ -289,7 +289,16 @@ export class VoiceforceWebhooksController {
               await ForwardingRouterService.executeTelnyxTransfer(payload.call_control_id, decision.destinationE164);
             }
 
-            // 2. If decision is Queue, place caller into active hold room
+            // 2. If decision is simultaneous blast, ring multiple numbers
+            if (decision.action === 'simultaneous_blast' && decision.destinations && payload?.call_control_id) {
+              await ForwardingRouterService.executeTelnyxSimultaneousBlast(
+                payload.call_control_id,
+                decision.destinations,
+                toPhone
+              );
+            }
+
+            // 3. If decision is Queue, place caller into active hold room
             if (decision.action === 'queue') {
               const { CallQueueService } = await import('@workspace/voiceforce');
               const queue = await (prisma as any).callQueue.findFirst({
@@ -300,7 +309,7 @@ export class VoiceforceWebhooksController {
               }
             }
 
-            // 3. If decision is AI Employee answering (direct agent or Hop 1 / fallback)
+            // 4. If decision is AI Employee answering (direct agent or Hop 1 / fallback)
             if (decision.action === 'ai_agent' && (decision.agentId || phoneNumber.assignedAgentId)) {
               const agentId = decision.agentId || phoneNumber.assignedAgentId;
               const roomName = `inbound_${session.id}`;
@@ -440,6 +449,30 @@ export class VoiceforceWebhooksController {
             if (rule) {
               const nextHopIndex = (sData.hopIndex || 0) + 1;
               const nextDecision = await ForwardingRouterService.evaluateNextHop(rule, nextHopIndex, session.companyId);
+
+              const currentHistory = Array.isArray(sData.hopHistory) ? sData.hopHistory : [];
+              const updatedHistory = [
+                ...currentHistory,
+                {
+                  hop: sData.hopIndex || 0,
+                  target: sData.forwardedToE164 || session.voiceAgentId || 'AI Employee',
+                  outcome: status,
+                  timestamp: new Date().toISOString()
+                }
+              ];
+
+              await (prisma as any).callSession.update({
+                where: { id: session.id },
+                data: {
+                  structuredData: {
+                    ...sData,
+                    hopIndex: nextHopIndex,
+                    forwardedToE164: nextDecision.destinationE164,
+                    hopHistory: updatedHistory
+                  }
+                }
+              });
+
               if (nextDecision.action === 'pstn_forward' && nextDecision.destinationE164 && payload?.call_control_id) {
                 await ForwardingRouterService.executeTelnyxTransfer(payload.call_control_id, nextDecision.destinationE164);
               }

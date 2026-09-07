@@ -16,6 +16,10 @@ import {
   UniversalSkeleton 
 } from '@workspace/ui';
 import { UniversalSlideDrawer } from '../_components/UniversalSlideDrawer';
+import { 
+  CARTESIA_SUPPORTED_LANGUAGES, 
+  CARTESIA_REGIONAL_GROUPS 
+} from '@/lib/cartesia-languages';
 
 const CARTESIA_VOICES = [
   { id: '694f12bc-9263-4416-a1d8-0402e1c6e1d2', name: 'Maya - Indian English (Warm & Professional)', gender: 'Female' },
@@ -172,12 +176,12 @@ export default function VoiceforceAgentsPage() {
     if (!agentToDelete) return;
     try {
       setDeleting(true);
-      await api.delete(`/api/v1/voiceforce/agents/${agentToDelete.id}`);
-      toast.success(`Agent "${agentToDelete.name}" deleted`);
+      const res = await api.delete(`/api/v1/voiceforce/agents/${agentToDelete.id}`);
+      toast.success(res.data?.message || `Agent "${agentToDelete.name}" deleted`);
       setAgentToDelete(null);
       fetchAgents();
     } catch (err: any) {
-      toast.error('Failed to delete agent');
+      toast.error(err.response?.data?.error || 'Failed to delete agent');
     } finally {
       setDeleting(false);
     }
@@ -546,6 +550,36 @@ export default function VoiceforceAgentsPage() {
           <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             2. Voice Persona & Accent
           </h4>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Primary Spoken Language
+              </label>
+              <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200/60 dark:border-purple-850">
+                {CARTESIA_SUPPORTED_LANGUAGES.length}+ Languages
+              </span>
+            </div>
+            <select
+              value={form.language}
+              onChange={(e) => setForm({ ...form, language: e.target.value })}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer font-medium"
+            >
+              {CARTESIA_REGIONAL_GROUPS.map((region) => {
+                const regionalLangs = CARTESIA_SUPPORTED_LANGUAGES.filter(l => l.region === region);
+                if (regionalLangs.length === 0) return null;
+                return (
+                  <optgroup key={region} label={`─── ${region} ───`}>
+                    {regionalLangs.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.nativeName} ({lang.name})
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
               Cartesia Sonic Neural Voice (Sub-90ms First-Chunk Audio)

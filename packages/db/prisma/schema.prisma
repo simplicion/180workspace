@@ -117,6 +117,10 @@ model Company {
   forwardingRules          ForwardingRule[]
   callQueues               CallQueue[]
   dailyVoiceBriefings      DailyVoiceBriefing[]
+  knowledgeDocs            CompanyKnowledgeDoc[]
+  ragVaults                RagMemoryVault[]
+  documentCategories       DocumentCategory[]
+  agentRequests            AgentRequest[]
 }
 
 model SavedBank {
@@ -375,6 +379,7 @@ model User {
   reviewsGiven                       Review[]             @relation("ReviewManager")
   salaries                           Salary[]             @relation("SalaryEmployee")
   salariesGenerated                  Salary[]             @relation("SalaryGeneratedBy")
+  resolvedAgentRequests              AgentRequest[]       @relation("ResolvedAgentRequests")
   savedPosts                         SavedPost[]          @relation("UserSavedPosts")
   sessions                           Session[]
   assignedTasks                      Task[]               @relation("TaskAssignee")
@@ -647,6 +652,7 @@ model CalendarEvent {
   meetingLogs_EventMeetingLogs MeetingLog[] @relation("EventMeetingLogs")
   attendees                    User[]       @relation("MeetingAttendees")
   clients                      Client[]     @relation("CalendarEventClients")
+  agentRequests                AgentRequest[]
 
   @@index([companyId])
 }
@@ -1218,6 +1224,7 @@ model Document {
   employee         User?             @relation("EmployeeDocuments", fields: [employeeId], references: [id], onDelete: SetNull)
 
   versions         DocumentVersion[]
+  vaultItems       VaultDocumentItem[]
 
   @@index([uploadedById])
   @@index([relatedId, relatedModel])
@@ -2700,6 +2707,8 @@ model VoiceAgent {
   campaigns           CallCampaign[]
   guardrail           VoiceAgentGuardrail?
   versions            VoiceAgentVersion[]
+  linkedVaults        VoiceAgentVaultLink[]
+  agentRequests       AgentRequest[]
 
   @@unique([id, companyId])
   @@index([companyId])
@@ -2757,6 +2766,8 @@ model CallCampaign {
   status            String         @default("draft") // "draft" | "scheduled" | "running" | "paused" | "completed"
   contactList       Json?          @default("[]")
   scheduledAt       DateTime?
+  campaignGoal      String?        @db.Text
+  specialOffer      String?        @db.Text
   
   // Concurrency & Pacing Rules
   maxConcurrent     Int            @default(5)       // Simultaneous active calls
@@ -3107,6 +3118,180 @@ model ActionAuditLog {
   @@index([companyId, callSessionId])
 }
 
+// ─── Universal Enterprise Business Brain & RAG ──────────────────────────────
+model CompanyKnowledgeDoc {
+  id              String           @id @default(uuid())
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  filename        String
+  fileUrl         String?
+  fileSizeBytes   Int              @default(0)
+  mimeType        String           @default("application/pdf")
+  
+  status          String           @default("queued") // "queued" | "processing" | "ready" | "error"
+  progressPercent Int              @default(0)        // 0 to 100%
+  totalChunks     Int              @default(0)
+  errorMessage    String?          @db.Text
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  chunks          KnowledgeChunk[]
 
+  @@index([companyId])
+  @@index([companyId, status])
+}
 
+model KnowledgeChunk {
+  id              String              @id @default(uuid())
+  companyId       String
+  documentId      String
+  document        CompanyKnowledgeDoc @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  vaultId         String?
+  category        String?             @default("General")
+  
+  chunkIndex      Int
+  content         String              @db.Text
+  embedding       Json?               // 1536-dimensional float vector stored as JSON array
+  metadata        Json?               @default("{}")
+  
+  createdAt       DateTime            @default(now())
 
+  @@index([companyId])
+  @@index([documentId])
+  @@index([vaultId])
+}
+
+// ─── Central Dynamic Document Categories (Zero Hardcoding) ──────────────────
+model DocumentCategory {
+  id          String    @id @default(uuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  name        String    // e.g. "HR", "Legal", "Contracts", "Hardware Specs", "Pricing"
+  color       String?   @default("#6366f1")
+  description String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+// ─── Universal & Scoped RAG Memory Vaults ────────────────────────────────────
+model RagMemoryVault {
+  id                 String                @id @default(uuid())
+  companyId          String
+  company            Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  name               String                // e.g. "Customer Support Vault", "Sales & Catalogs"
+  purposeDescription String?               @db.Text // Context anchor for semantic vector search
+  mode               String                @default("general") // "general" | "business_driven"
+  category           String?               @default("General")
+  visibility         String                @default("public_voice") // "public_voice" | "internal_orbit" | "restricted_admin"
+  
+  // Business-Driven Structured Fields
+  offeringsData      Json?                 @default("[]") // Catalog items with price & availability
+  customerData       Json?                 @default("[]") // VIP client directory & phone numbers
+  
+  // Telemetry & Indexing Status
+  totalDocuments     Int                   @default(0)
+  totalChunks        Int                   @default(0)
+  totalSizeBytes     BigInt                @default(0)
+  status             String                @default("ready") // "ready" | "processing" | "error"
+  progressPercent    Int                   @default(100)
+  
+  documents          VaultDocumentItem[]
+  linkedAgents       VoiceAgentVaultLink[]
+  
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, mode])
+}
+
+// ─── Pivot: Document to Vault ────────────────────────────────────────────────
+model VaultDocumentItem {
+  id              String         @id @default(uuid())
+  vaultId         String
+  vault           RagMemoryVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  documentId      String
+  document        Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  status          String         @default("ready")
+  chunksCount     Int            @default(0)
+  
+  createdAt       DateTime       @default(now())
+
+  @@unique([vaultId, documentId])
+  @@index([vaultId])
+  @@index([documentId])
+}
+
+// ─── Pivot: Voice Agent to Vault Link ────────────────────────────────────────
+model VoiceAgentVaultLink {
+  id              String         @id @default(uuid())
+  voiceAgentId    String
+  voiceAgent      VoiceAgent     @relation(fields: [voiceAgentId], references: [id], onDelete: Cascade)
+  
+  vaultId         String
+  vault           RagMemoryVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime       @default(now())
+
+  @@unique([voiceAgentId, vaultId])
+  @@index([voiceAgentId])
+  @@index([vaultId])
+}
+
+// ─── Agent Request Queue (Voiceforce to Orbit AI Delegation) ───────────────────
+model AgentRequest {
+  id                  String         @id @default(uuid())
+  companyId           String
+  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  voiceAgentId        String?
+  voiceAgent          VoiceAgent?    @relation(fields: [voiceAgentId], references: [id], onDelete: SetNull)
+  voiceAgentName      String?
+  callSessionId       String?
+
+  type                String         @default("schedule_meeting") // "schedule_meeting" | "customer_inquiry" | "order_booking" | "human_escalation"
+  priority            String         @default("medium") // "urgent" | "high" | "medium" | "low"
+  status              String         @default("pending") // "pending" | "auto_scheduled" | "confirmed" | "rejected" | "needs_review"
+
+  customerName        String
+  customerPhone       String?
+  customerEmail       String?
+  topic               String
+  requestedTimeRaw    String?
+  scheduledStart      DateTime?
+  scheduledEnd        DateTime?
+  locationOrPlatform  String?        @default("google_meet") // "google_meet" | "zoom" | "phone" | "in_person"
+  notes               String?
+
+  calendarEventId     String?
+  calendarEvent       CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+
+  resolvedById        String?
+  resolvedBy          User?          @relation("ResolvedAgentRequests", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt          DateTime?
+  resolutionNotes     String?
+
+  metadata            Json?          @default("{}")
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, type])
+  @@index([voiceAgentId])
+  @@index([calendarEventId])
+  @@index([resolvedById])
+  @@index([createdAt])
+}

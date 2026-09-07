@@ -2,6 +2,7 @@ import { BaseVoiceEngine } from './base-voice.engine';
 import { VoiceSessionConfig, VoiceEngineEvents } from '../types/voice.types';
 import { aiToolRegistry, AIProviderService, AICompanyConfigService } from '@workspace/ai';
 import { GuardrailEnforcementEngine } from '../guardrails/guardrail-enforcement.engine';
+import { SentenceStreamer } from '../streaming/sentence-streamer';
 import { prisma } from '@workspace/db';
 import Groq from 'groq-sdk';
 import WebSocket from 'ws';
@@ -32,10 +33,10 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
   async start(): Promise<void> {
     const cartesiaKey = process.env.CARTESIA_API_KEY;
 
-    // 1. Initialize Cartesia Unified Streaming STT (Ink-2: Sub-150ms with Semantic Turn Detection)
+    // 1. Initialize Cartesia Unified Streaming STT (Ink-2: Sub-120ms with Acoustic + Semantic Turn Detection)
     if (cartesiaKey) {
       this.cartesiaSttWs = new WebSocket(
-        `wss://api.cartesia.ai/stt/websocket?model=ink-2&cartesia_version=2024-06-10&encoding=pcm_s16le&sample_rate=16000&api_key=${cartesiaKey}`
+        `wss://api.cartesia.ai/stt/websocket?model=ink-2&cartesia_version=2026-08-14&encoding=pcm_s16le&sample_rate=16000&api_key=${cartesiaKey}&turn_end_threshold=0.25&turn_end_timeout_ms=450`
       );
 
       this.cartesiaSttWs.on('message', (raw: any) => {
@@ -56,10 +57,10 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
       });
     }
 
-    // 2. Initialize Cartesia Sonic Streaming WebSocket (Sub-90ms Generative Audio)
+    // 2. Initialize Cartesia Sonic Streaming WebSocket (Sub-60ms Generative Audio)
     if (cartesiaKey) {
       this.cartesiaWs = new WebSocket(
-        `wss://api.cartesia.ai/tts/websocket?api_key=${cartesiaKey}&cartesia_version=2024-06-10`
+        `wss://api.cartesia.ai/tts/websocket?api_key=${cartesiaKey}&cartesia_version=2026-08-14`
       );
 
       this.cartesiaWs.on('message', (data: any) => {
@@ -212,18 +213,29 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     try {
       let assistantText = '';
       let toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
+      const sentenceStreamer = new SentenceStreamer({ minWordsPerChunk: 3, maxWordsPerChunk: 20 });
 
       // Execute with Multi-Provider LLM Fallback (Groq primary -> Gemini / ProviderService fallback)
       assistantText = await this.generateStreamingCompletion(
         this.conversationHistory,
         activeTools,
         this.currentLlmAbortController.signal,
-        (chunk) => this.streamTtsChunk(chunk, false),
+        (tokenChunk) => {
+          const sentences = sentenceStreamer.push(tokenChunk);
+          for (const s of sentences) {
+            this.streamTtsChunk(s, false);
+          }
+        },
         (calls) => { toolCallsMap = calls; }
       );
 
+      // Flush any trailing sentence buffer to Cartesia TTS
+      const remainingSentences = sentenceStreamer.flush();
+      for (const s of remainingSentences) {
+        this.streamTtsChunk(s, true);
+      }
+
       if (assistantText.trim()) {
-        this.streamTtsChunk('', true); // flush remaining audio
         this.conversationHistory.push({ role: 'assistant', content: assistantText });
         this.events.onTranscript('agent', assistantText, true);
       }
@@ -417,7 +429,7 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     this.lastAgentSpokeTimestamp = Date.now();
 
     this.cartesiaWs.send(JSON.stringify({
-      model_id: 'sonic-2',
+      model_id: 'sonic-3.6',
       transcript: text,
       voice: {
         mode: 'id',

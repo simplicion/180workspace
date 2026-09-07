@@ -526,6 +526,15 @@ export default function VoiceforceCampaignsPage() {
           </div>
         )}
       </UniversalSlideDrawer>
+
+      {/* Create Campaign Drawer */}
+      <CreateCampaignDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        agents={agents}
+        numbers={numbers}
+        onSuccess={fetchData}
+      />
     </div>
   );
 }

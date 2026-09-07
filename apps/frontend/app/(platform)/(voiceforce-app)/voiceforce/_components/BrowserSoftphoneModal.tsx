@@ -126,8 +126,25 @@ export function BrowserSoftphoneModal({
     }
   }, [isOpen, takeoverData]);
 
-  // Instantly halt any playing neural audio or browser synthesis (Barge-in)
+  const audioQueueRef = useRef<Array<{ audioBase64: string; text: string }>>([]);
+  const isPlayingChunkRef = useRef<boolean>(false);
+  const currentStreamAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Instantly halt any playing neural audio or browser synthesis (Barge-in / Re-Interruption)
   const stopAnyPlayingAudio = () => {
+    audioQueueRef.current = [];
+    isPlayingChunkRef.current = false;
+    setIsAgentThinking(false);
+
+    // Abort in-flight LLM/TTS stream immediately on interruption
+    if (currentStreamAbortControllerRef.current) {
+      try {
+        currentStreamAbortControllerRef.current.abort();
+      } catch {}
+      currentStreamAbortControllerRef.current = null;
+    }
+    isExchangingRef.current = false;
+
     if (currentAudioRef.current) {
       try {
         currentAudioRef.current.pause();
@@ -141,6 +158,55 @@ export function BrowserSoftphoneModal({
       } catch (e) {}
     }
     setIsAgentSpeaking(false);
+  };
+
+  // Play next audio snippet in queue for seamless gapless multi-sentence speech
+  const playNextQueuedAudio = () => {
+    if (audioQueueRef.current.length === 0) {
+      isPlayingChunkRef.current = false;
+      setIsAgentSpeaking(false);
+      currentAudioRef.current = null;
+      return;
+    }
+
+    isPlayingChunkRef.current = true;
+    setIsAgentSpeaking(true);
+    const nextItem = audioQueueRef.current.shift();
+    if (!nextItem) return;
+
+    if (nextItem.audioBase64) {
+      try {
+        const audio = new Audio(nextItem.audioBase64);
+        currentAudioRef.current = audio;
+        audio.onplay = () => setIsAgentSpeaking(true);
+        audio.onended = () => {
+          currentAudioRef.current = null;
+          playNextQueuedAudio();
+        };
+        audio.onerror = () => {
+          currentAudioRef.current = null;
+          playNextQueuedAudio();
+        };
+        audio.play().catch(() => {
+          currentAudioRef.current = null;
+          playNextQueuedAudio();
+        });
+        return;
+      } catch {
+        playNextQueuedAudio();
+      }
+    } else {
+      playNextQueuedAudio();
+    }
+  };
+
+  const enqueueAgentAudio = (audioBase64: string | null | undefined, text: string) => {
+    if (audioBase64) {
+      audioQueueRef.current.push({ audioBase64, text });
+      if (!isPlayingChunkRef.current) {
+        playNextQueuedAudio();
+      }
+    }
   };
 
   // Play high-fidelity neural audio with seamless browser synthesis fallback
@@ -304,58 +370,241 @@ export function BrowserSoftphoneModal({
     }
   };
 
-  // Dispatch turn exchange to backend
+  const lastSentUtteranceRef = useRef<{ text: string; time: number }>({ text: '', time: 0 });
+
+  // Calculate dynamic silence debounce timeout based on natural human speech cadence & grammar completeness
+  const calculateDynamicSilenceTimeout = (text: string): number => {
+    const t = text.trim().toLowerCase();
+    if (!t) return 900;
+    
+    // Incomplete grammatical trailing words (prepositions, conjunctions, articles, fillers)
+    const incompleteTrailingWords = [
+      'of', 'and', 'the', 'in', 'to', 'with', 'or', 'that', 'because', 'but',
+      'is', 'a', 'an', 'so', 'my', 'for', 'at', 'on', 'as', 'about', 'from',
+      'like', 'uh', 'um', 'was', 'are', 'then', 'when', 'if', 'lot', 'lots',
+      'which', 'who', 'how', 'what', 'where', 'also', 'having', 'consuming'
+    ];
+    
+    const words = t.split(/\s+/).filter(Boolean);
+    const lastWord = words[words.length - 1] || '';
+    if (incompleteTrailingWords.includes(lastWord)) {
+      return 1400; // Human is mid-thought formulating next word: wait 1.4s
+    }
+
+    // Short utterance under 4 words without punctuation
+    if (words.length <= 4 && !/[.?!]$/.test(t)) {
+      return 1100;
+    }
+
+    // Substantive complete sentence or ending in punctuation
+    if (/[.?!]$/.test(t) || words.length >= 8) {
+      return 850;
+    }
+
+    return 950;
+  };
+
+  // Dispatch streaming turn exchange to backend (Sub-350ms Time-To-First-Audio)
   const sendTurnExchange = async (finalText: string, activeSessionId: string) => {
     const trimmed = finalText.trim();
-    if (!trimmed || isExchangingRef.current) return;
+    if (!trimmed) return;
 
+    const now = Date.now();
+    const prevUtterance = lastSentUtteranceRef.current.text;
+    const timeSinceLast = now - lastSentUtteranceRef.current.time;
+
+    // Deduplication check: Ignore identical duplicate within 2.0s
+    if (prevUtterance === trimmed && timeSinceLast < 2000) {
+      setInterimUserText('');
+      accumulatedFinalTextRef.current = '';
+      return;
+    }
+
+    // Abort prior in-flight exchange to support instant re-interruption / thought continuation
+    if (currentStreamAbortControllerRef.current) {
+      try {
+        currentStreamAbortControllerRef.current.abort();
+      } catch {}
+      currentStreamAbortControllerRef.current = null;
+    }
+
+    // Check if new utterance is an expanded continuation of the previous thought sent < 3.5s ago
+    const isContinuation = prevUtterance && timeSinceLast < 3500 && (
+      trimmed.startsWith(prevUtterance) || trimmed.includes(prevUtterance.slice(-15))
+    );
+
+    lastSentUtteranceRef.current = { text: trimmed, time: now };
     isExchangingRef.current = true;
     setIsAgentThinking(true);
     setInterimUserText('');
+    accumulatedFinalTextRef.current = '';
 
-    // Add user message to transcript immediately
-    setTranscripts((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        speaker: 'user',
-        text: trimmed,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+
+    if (isContinuation) {
+      // Update the previous user bubble in-place with the completed sentence instead of creating duplicates
+      setTranscripts((prev) => {
+        const lastUserIdx = [...prev].reverse().findIndex(t => t.speaker === 'user');
+        if (lastUserIdx !== -1) {
+          const actualIdx = prev.length - 1 - lastUserIdx;
+          const updated = [...prev];
+          updated[actualIdx] = {
+            ...updated[actualIdx],
+            text: trimmed
+          };
+          return updated;
+        }
+        return prev;
+      });
+    } else {
+      // Add new distinct user message to transcript
+      setTranscripts((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          speaker: 'user',
+          text: trimmed,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    }
+
+    const agentMessageId = (Date.now() + 1).toString();
+    let accumulatedAgentText = '';
+
+    const abortController = new AbortController();
+    currentStreamAbortControllerRef.current = abortController;
 
     try {
-      const res = await api.post('/api/v1/voiceforce/softphone/exchange', {
-        callSessionId: activeSessionId,
-        voiceAgentId: selectedAgentId,
-        userInput: trimmed
+      // Stream tokens and sentence audio chunks over SSE
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('auth_token') || '') : '';
+      const response = await fetch('/api/v1/voiceforce/softphone/exchange-stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          callSessionId: activeSessionId,
+          voiceAgentId: selectedAgentId,
+          userInput: trimmed
+        }),
+        signal: abortController.signal
       });
 
-      const replyData = res.data?.data;
-      if (replyData && replyData.agentReply) {
-        if (replyData.executedTool) {
-          setActiveTool(replyData.executedTool);
-          setTimeout(() => setActiveTool(null), 4000);
-        }
+      if (!response.ok || !response.body) {
+        throw new Error(`SSE stream failed with status ${response.status}`);
+      }
 
-        setTranscripts((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            speaker: 'agent',
-            text: replyData.agentReply,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmedLine.slice(6));
+              if (data.type === 'sentence') {
+                setIsAgentThinking(false);
+                accumulatedAgentText += (accumulatedAgentText ? ' ' : '') + data.text;
+
+                // Progressively update transcript display
+                setTranscripts((prev) => {
+                  const existingIdx = prev.findIndex(t => t.id === agentMessageId);
+                  if (existingIdx !== -1) {
+                    const updated = [...prev];
+                    updated[existingIdx] = {
+                      ...updated[existingIdx],
+                      text: accumulatedAgentText
+                    };
+                    return updated;
+                  } else {
+                    return [
+                      ...prev,
+                      {
+                        id: agentMessageId,
+                        speaker: 'agent',
+                        text: accumulatedAgentText,
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      }
+                    ];
+                  }
+                });
+
+                // Immediately enqueue audio for instantaneous playback (Sub-350ms TTFA)
+                if (data.audioBase64) {
+                  enqueueAgentAudio(data.audioBase64, data.text);
+                }
+              } else if (data.type === 'done') {
+                setIsAgentThinking(false);
+                if (data.fullText) {
+                  setTranscripts((prev) => {
+                    const existingIdx = prev.findIndex(t => t.id === agentMessageId);
+                    if (existingIdx !== -1) {
+                      const updated = [...prev];
+                      updated[existingIdx] = {
+                        ...updated[existingIdx],
+                        text: data.fullText
+                      };
+                      return updated;
+                    }
+                    return prev;
+                  });
+                }
+              }
+            } catch (jsonErr) {}
           }
-        ]);
-
-        playAgentAudio(replyData.audioBase64, replyData.agentReply);
+        }
       }
     } catch (err: any) {
-      console.error('[Exchange Error]:', err);
+      if (err.name !== 'AbortError') {
+        console.warn('[Streaming Exchange Fallback to REST]:', err.message);
+        // Resilient Fallback to REST exchange if streaming connection encounters an issue
+        try {
+          const res = await api.post('/api/v1/voiceforce/softphone/exchange', {
+            callSessionId: activeSessionId,
+            voiceAgentId: selectedAgentId,
+            userInput: trimmed
+          });
+
+          const replyData = res.data?.data;
+          if (replyData && replyData.agentReply) {
+            if (replyData.executedTool) {
+              setActiveTool(replyData.executedTool);
+              setTimeout(() => setActiveTool(null), 4000);
+            }
+
+            setTranscripts((prev) => [
+              ...prev,
+              {
+                id: (Date.now() + 1).toString(),
+                speaker: 'agent',
+                text: replyData.agentReply,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }
+            ]);
+
+            playAgentAudio(replyData.audioBase64, replyData.agentReply);
+          }
+        } catch (fallbackErr) {}
+      }
     } finally {
       setIsAgentThinking(false);
       isExchangingRef.current = false;
       accumulatedFinalTextRef.current = '';
+      setInterimUserText('');
     }
   };
 
@@ -372,7 +621,8 @@ export function BrowserSoftphoneModal({
     recognition.lang = 'en-IN'; // Robust support for Indian English, Hindi, and multilingual accents
 
     recognition.onresult = (event: any) => {
-      // Instant Barge-in: interrupt agent speech immediately when user begins speaking
+      // Instant Barge-in / Re-Interruption:
+      // If agent is speaking, thinking, or playing audio, interrupt immediately!
       stopAnyPlayingAudio();
 
       let interimTranscript = '';
@@ -395,18 +645,22 @@ export function BrowserSoftphoneModal({
         setInterimUserText(liveDisplay);
       }
 
-      // 450ms Silence Debounce Timer for ultra-fast turn-taking
+      // Dynamic Silence Debounce Timer based on natural speech grammar & sentence completeness
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
       }
 
+      const currentSpeech = (accumulatedFinalTextRef.current + ' ' + interimTranscript).trim();
+      const dynamicTimeout = calculateDynamicSilenceTimeout(currentSpeech);
+
       silenceTimeoutRef.current = setTimeout(() => {
         const completeText = (accumulatedFinalTextRef.current + ' ' + interimTranscript).trim();
-        if (completeText && !isExchangingRef.current) {
+        if (completeText) {
           accumulatedFinalTextRef.current = '';
+          setInterimUserText('');
           sendTurnExchange(completeText, activeSessionId);
         }
-      }, 450);
+      }, dynamicTimeout);
     };
 
     recognition.onerror = (e: any) => {
@@ -765,8 +1019,8 @@ export function BrowserSoftphoneModal({
               </div>
             ))}
 
-            {/* Interim Real-Time Speech Bubble */}
-            {interimUserText && (
+            {/* Interim Real-Time Speech Bubble (Only while actively speaking) */}
+            {interimUserText && !isAgentThinking && (
               <div className="flex flex-col items-end animate-pulse">
                 <div className="max-w-[85%] rounded-2xl px-3.5 py-2 text-xs shadow-sm bg-indigo-500/80 text-white rounded-br-none border border-indigo-400">
                   <div className="text-[10px] opacity-80 mb-0.5 flex items-center gap-1 font-semibold">

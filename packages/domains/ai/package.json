@@ -15,6 +15,7 @@
     "@types/node-cron": "^3.0.11",
     "@workspace/backend-infra": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/rag": "workspace:*",
     "axios": "^1.19.0",
     "mammoth": "^1.12.1",
     "node-cron": "^3.0.3",
