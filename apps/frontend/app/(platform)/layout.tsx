@@ -433,7 +433,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
         return navigation.map(item => {
             if ('group' in item) {
                 // 1. App Level Toggling with Subscription Limits
-                const defaultApps = ['projects', 'communications', 'workspace-tools'];
+                const defaultApps = ['projects', 'communications', 'workspace-tools', 'ai'];
                 const isDefaultApp = item.appId ? defaultApps.includes(item.appId) : false;
                 const hasActivePlan = !isExpired && status !== 'expired' && status !== 'cancelled' && status !== 'No Active Plan';
                 
@@ -444,7 +444,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 3);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'voiceforce'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'voiceforce', 'ai'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 

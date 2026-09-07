@@ -559,6 +559,24 @@ export default function DocumentsPage() {
                 />
             )}
 
+            {/* RAG Memory Vaults Modals */}
+            <CreateRagVaultModal
+                isOpen={showCreateVaultModal}
+                onClose={() => setShowCreateVaultModal(false)}
+                onVaultCreated={() => {
+                    setShowCreateVaultModal(false);
+                    loadDocs();
+                }}
+            />
+            <RagVaultsDrawer
+                isOpen={showVaultsDrawer}
+                onClose={() => setShowVaultsDrawer(false)}
+                onOpenCreate={() => {
+                    setShowVaultsDrawer(false);
+                    setShowCreateVaultModal(true);
+                }}
+            />
+
             {/* Page Header */}
             <div className="page-header">
                 <div className="flex items-start justify-between flex-wrap gap-4">
@@ -568,12 +586,21 @@ export default function DocumentsPage() {
                     </div>
                     <div className="flex items-center gap-2.5 flex-wrap">
                         {/* RAG Memory Vault Buttons */}
+                        <Link
+                            href="/vaults"
+                            className="flex items-center gap-2 px-3.5 py-2.5 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs transition-colors"
+                            title="Universal RAG Memory Vaults Command Center"
+                        >
+                            <Database className="w-4 h-4 text-indigo-400" />
+                            <span>Vaults Command Center</span>
+                        </Link>
+
                         <button
                             onClick={() => setShowCreateVaultModal(true)}
                             className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-500 hover:to-purple-500 rounded-xl shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] cursor-pointer"
                         >
-                            <Database className="w-4 h-4 text-indigo-200" />
-                            <span>Create RAG Memory Vault</span>
+                            <Plus className="w-4 h-4 text-indigo-200" />
+                            <span>Create RAG Vault</span>
                         </button>
 
                         <button
