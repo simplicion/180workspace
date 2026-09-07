@@ -194,17 +194,26 @@ export function CreateCampaignDrawer({
       }
     } else {
       // Single Call Mode
-      if (!singlePhone.trim()) {
+      let raw = singlePhone.trim().replace(/[\s\-\(\)]/g, '');
+      if (!raw) {
         toast.error('Please enter the recipient phone number');
         return;
       }
 
-      let phone = singlePhone.trim();
-      if (!phone.startsWith('+') && phone.length === 10) {
-        phone = `+91${phone}`;
-      } else if (!phone.startsWith('+')) {
-        phone = `+${phone}`;
+      // If user typed 10 digits without country code, default to +91
+      if (/^\d{10}$/.test(raw)) {
+        raw = `+91${raw}`;
+      } else if (!raw.startsWith('+') && /^\d+$/.test(raw)) {
+        raw = `+${raw}`;
       }
+
+      // Strict E.164 phone number validation: + followed by 8 to 15 digits only
+      const e164Regex = /^\+[1-9]\d{7,14}$/;
+      if (!e164Regex.test(raw)) {
+        toast.error('Invalid phone number. Must include valid country code and digits only (e.g. +919876543210 or +9779801234567).');
+        return;
+      }
+      const phone = raw;
 
       try {
         setCreating(true);

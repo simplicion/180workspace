@@ -68,7 +68,8 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
               if (this.isAcousticEcho(transcript)) {
                 return;
               }
-              if (transcript.length >= 2) {
+              const agentSpeakingDuration = Date.now() - this.lastAgentSpokeTimestamp;
+              if (transcript.length >= 4 && agentSpeakingDuration > 600) {
                 console.log(`[CascadedEngine] Instant barge-in triggered on interim transcript: "${transcript}"`);
                 this.handleBargeIn();
               }
@@ -112,6 +113,9 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
       this.cartesiaWs.on('error', (err: any) => {
         this.events.onError(new Error(`Cartesia error: ${err.message || err}`));
       });
+
+      // Pre-warm Cartesia WebSocket connection
+      await this.waitForCartesiaTts(2000).catch(() => {});
     }
 
     // 3. Initialize System Conversation History with 180workspace context & strict conversational rules
@@ -146,6 +150,7 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
 
   async speakGreeting(): Promise<void> {
     if (this.config.firstMessage && !this.isTerminated) {
+      await this.waitForCartesiaTts(3000);
       await this.synthesizeAndSpeak(this.config.firstMessage);
     }
   }
@@ -188,10 +193,13 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
       }
       const rms = Math.sqrt(sumSquares / (pcm.length || 1));
 
-      // Telephony voice RMS threshold: > 1400 indicates active speech
-      if (rms > 1400) {
+      // Telephony voice RMS threshold: ignore residual line echo and handset feedback (< 2600)
+      const agentSpeakingDuration = Date.now() - this.lastAgentSpokeTimestamp;
+      const minGracePeriodPassed = agentSpeakingDuration > 800;
+
+      if (minGracePeriodPassed && rms > 2800) {
         this.sustainedSpeechFrames++;
-        if (this.sustainedSpeechFrames >= 3) { // ~60ms sustained speech
+        if (this.sustainedSpeechFrames >= 4) { // ~80ms sustained speech
           this.sustainedSpeechFrames = 0;
           console.log(`[CascadedEngine] Energy VAD barge-in triggered (RMS: ${Math.round(rms)})`);
           this.handleBargeIn();
@@ -563,7 +571,37 @@ export class CascadedVoiceEngine extends BaseVoiceEngine {
     return assistantText;
   }
 
+  /**
+   * Guarantees Cartesia TTS WebSocket connection is OPEN before dispatching speech frames
+   */
+  private async waitForCartesiaTts(timeoutMs: number = 3000): Promise<boolean> {
+    if (!this.cartesiaWs) return false;
+    if (this.cartesiaWs.readyState === WebSocket.OPEN) return true;
+    if (this.cartesiaWs.readyState !== WebSocket.CONNECTING) return false;
+
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        resolve(this.cartesiaWs?.readyState === WebSocket.OPEN);
+      }, timeoutMs);
+
+      this.cartesiaWs?.once('open', () => {
+        clearTimeout(timer);
+        resolve(true);
+      });
+      this.cartesiaWs?.once('error', () => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
+  }
+
   private async synthesizeAndSpeak(text: string): Promise<void> {
+    if (!text || !text.trim() || this.isTerminated) return;
+    const isReady = await this.waitForCartesiaTts(2500);
+    if (!isReady) {
+      console.warn(`[CascadedEngine] Cartesia WebSocket not open (state: ${this.cartesiaWs?.readyState}). Cannot synthesize text.`);
+      return;
+    }
     this.isAgentSpeaking = true;
     this.currentSpeakingSentence = text;
     this.lastAgentSpokeTimestamp = Date.now();
