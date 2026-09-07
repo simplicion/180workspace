@@ -266,20 +266,22 @@ export class LiveKitRoomWorker {
           }
         });
 
-        await this.egressClient.startRoomCompositeEgress(roomName, { file: fileOutput, audioOnly: true } as any).catch((e) => {
-          console.warn('[LiveKitRoomWorker] Egress composite start warning:', e.message);
-        });
-
-        await prisma.callSession.update({
-          where: { id: callSessionId },
-          data: {
-            recordingUrl,
-            recordingStatus: 'recording'
-          } as any
-        });
-        await this.recordMilestone('recording_egress_started', { recordingUrl });
+        // Start room composite egress asynchronously; do NOT set recordingUrl until file is finalized
+        this.egressClient.startRoomCompositeEgress(roomName, { file: fileOutput, audioOnly: true } as any)
+          .then(async (egressRes: any) => {
+            if (egressRes?.egressId) {
+              await prisma.callSession.update({
+                where: { id: callSessionId },
+                data: { recordingStatus: 'recording' } as any
+              });
+              await this.recordMilestone('recording_egress_started', { egressId: egressRes.egressId });
+            }
+          })
+          .catch((e: any) => {
+            console.warn('[LiveKitRoomWorker] LiveKit Egress skipped/offline. Carrier Telnyx recording will capture call:', e.message);
+          });
       } catch (egressErr: any) {
-        console.warn('[LiveKitRoomWorker] Recording Egress setup skipped:', egressErr.message);
+        console.warn('[LiveKitRoomWorker] Recording setup note:', egressErr.message);
       }
     }
 
@@ -717,7 +719,8 @@ export class LiveKitRoomWorker {
           where: { id: callSessionId },
           select: { recordingUrl: true, recordingStatus: true } as any
         }) as any;
-        const shouldMarkRecordingReady = Boolean(currentSession?.recordingUrl || currentSession?.recordingStatus === 'recording');
+        const hasValidRecordingUrl = Boolean(currentSession?.recordingUrl);
+        const isRecordingActive = currentSession?.recordingStatus === 'recording';
 
         await prisma.callSession.update({
           where: { id: callSessionId },
@@ -727,7 +730,11 @@ export class LiveKitRoomWorker {
             durationSeconds,
             billableMinutes,
             disconnectReason,
-            ...(shouldMarkRecordingReady ? { recordingStatus: 'ready', recordingDurationSeconds: durationSeconds } : {})
+            ...(hasValidRecordingUrl
+              ? { recordingStatus: 'ready', recordingDurationSeconds: durationSeconds }
+              : isRecordingActive
+              ? { recordingStatus: 'processing' }
+              : {})
           } as any
         });
 
