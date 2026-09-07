@@ -1,5 +1,17 @@
 import { LogoLoader, AILogoIcon } from "@workspace/ui";
-import { LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, Target, Star, Settings, LogOut, ChevronDown, ChevronRight, DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, Share2, Bookmark, GitFork, PhoneCall, Smartphone, PhoneForwarded, Brain } from 'lucide-react';
+import { 
+    LayoutDashboard, FolderKanban, CheckSquare, Users, Building2, 
+    LayoutGrid, Calendar, MessageSquare, BarChart3, Briefcase, 
+    Target, Star, Settings, LogOut, ChevronDown, ChevronRight, 
+    DollarSign, FileText, BookOpen, Sparkles, CalendarDays, Clock, 
+    Receipt, FilePlus2, HelpCircle, Monitor, Globe, LifeBuoy, 
+    CreditCard, TrendingUp, Magnet, Landmark, PieChart, Activity, 
+    FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, 
+    Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, 
+    Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, 
+    Share2, Bookmark, GitFork, PhoneCall, Smartphone, PhoneForwarded, 
+    Brain 
+} from 'lucide-react';
 
 export const navigation = [
     {
@@ -7,6 +19,17 @@ export const navigation = [
         href: '/',
         icon: LayoutDashboard,
         roles: ['admin', 'employee', 'client']
+    },
+
+    {
+        group: 'Orbit AI Operating System',
+        appId: 'ai',
+        icon: Sparkles,
+        roles: ['admin', 'employee'],
+        items: [
+            { id: 'orbit-copilot', name: 'Orbit AI Copilot', href: '/ai', icon: Bot, roles: ['admin', 'employee'] },
+            { id: 'agent-requests', name: 'Agent Requests Queue', href: '/ai/requests', icon: Sparkles, roles: ['admin', 'employee'] },
+        ]
     },
 
     {
@@ -29,11 +52,9 @@ export const navigation = [
         items: [
             { id: 'calendar', name: 'Calendar', href: '/calendar', icon: Calendar, roles: ['admin', 'employee'] },
             { id: 'documents', name: '180 Documents', href: '/documents', icon: FileText, roles: ['admin', 'employee'] },
-            { id: 'notes', name: 'Notes', href: '/notes', icon: BookOpen, roles: ['admin', 'employee'] },
-            { id: 'reminders', name: 'Reminders', href: '/reminders', icon: Clock, roles: ['admin', 'employee'] },
-            { id: 'goals', name: 'Goals', href: '/goals', icon: Target, roles: ['admin', 'employee'] },
+            { id: 'vaults', name: 'RAG Memory Vaults', href: '/vaults', icon: Database, roles: ['admin', 'employee'] },
+            { id: 'document-editor', name: 'Document Editor', href: '/document-editor', icon: FileText, roles: ['admin', 'employee'] },
             { id: 'assets', name: 'Assets & Creds', href: '/assets', icon: Star, roles: ['admin', 'employee'] },
-            { id: 'forum', name: 'Pulse Forum', href: '/forum', icon: Globe, roles: ['admin', 'employee'] },
         ]
     },
 
@@ -46,7 +67,7 @@ export const navigation = [
             { id: 'sales', name: 'Sales Overview', href: '/sales', exact: true, icon: TrendingUp, roles: ['admin'] },
             { id: 'leads', name: 'Leads Pipeline', href: '/sales/leads-pipeline', icon: Magnet, roles: ['admin'] },
             { id: 'deals', name: 'Deals Pipeline', href: '/sales/deals', icon: PieChart, roles: ['admin'] },
-            { id: 'ai-insights', name: 'AI Insights', href: '/sales/ai-insights', icon: Sparkles, roles: ['admin'] },
+            { id: 'ai-insights', name: 'AI Sales Insights', href: '/sales/ai-insights', icon: Sparkles, roles: ['admin'] },
             { id: 'productivity', name: 'Productivity', href: '/sales/productivity', icon: ClipboardList, roles: ['admin'] },
             { id: 'clients', name: 'Clients', href: '/clients', icon: Building2, roles: ['admin'] },
         ]
@@ -89,6 +110,7 @@ export const navigation = [
             { id: 'forwarding', name: 'Call Forwarding & Queues', href: '/voiceforce/forwarding', icon: PhoneForwarded, roles: ['admin', 'employee'] },
             { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
             { id: 'calls', name: 'Call Stream & Audio', href: '/voiceforce/calls', icon: PhoneCall, roles: ['admin', 'employee'] },
+            { id: 'test-bench', name: 'Pre-Flight Test Bench', href: '/voiceforce/test-bench', icon: Activity, roles: ['admin', 'employee'] },
             { id: 'templates', name: 'Industry Templates', href: '/voiceforce/templates', icon: Sparkles, roles: ['admin', 'employee'] },
         ]
     },
@@ -113,6 +135,7 @@ export const navigation = [
             { id: 'projects', name: 'Active Projects', href: '/projects', icon: FolderKanban, roles: ['admin', 'employee', 'client'] },
             { id: 'tasks', name: 'Task Board', href: '/tasks', icon: CheckSquare, roles: ['admin', 'employee'] },
             { id: 'work-logs', name: 'Work Logs', href: '/work-logs', icon: Clock, roles: ['admin', 'employee'] },
+            { id: 'activity', name: 'Activity Stream', href: '/activity', icon: Activity, roles: ['admin', 'employee'] },
         ]
     },
 
@@ -123,11 +146,12 @@ export const navigation = [
         roles: ['admin', 'employee'],
         items: [
             { id: 'finance-overview', name: 'Finance Overview', href: '/finance', icon: BarChart3, roles: ['admin'] },
-            { id: 'finance-overview', name: 'Transactions', href: '/transactions', icon: Activity, roles: ['admin'] },
+            { id: 'transactions', name: 'Transactions', href: '/transactions', icon: Activity, roles: ['admin'] },
             { id: 'invoices', name: 'Invoices', href: '/invoices', icon: Receipt, roles: ['admin'] },
             { id: 'bills-and-expenses', name: 'Bills and Expenses', href: '/bills-and-expenses', icon: Wallet, roles: ['admin', 'employee'] },
             { id: 'salary', name: 'Salary Ledger', href: '/salary', icon: Banknote, roles: ['admin', 'employee'] },
             { id: 'vendors', name: 'Vendors', href: '/vendors', icon: Building2, roles: ['admin'] },
+            { id: 'wallet', name: 'Financial Wallet', href: '/wallet', icon: Wallet, roles: ['admin', 'employee'] },
         ]
     },
 
@@ -146,7 +170,6 @@ export const navigation = [
         ]
     },
 
-
     {
         group: 'Insights',
         appId: 'insights',
@@ -155,6 +178,7 @@ export const navigation = [
         items: [
             { id: 'analytics', name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin'] },
             { id: 'reports', name: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin'] },
+            { id: 'website-analytics', name: 'Website Traffic', href: '/analytics/website', icon: Globe, roles: ['admin'] },
         ]
     },
 
@@ -166,6 +190,7 @@ export const navigation = [
             { id: 'company-hub', name: 'Company Hub', href: '/company', icon: Building2, roles: ['admin'] },
             { id: 'roles', name: 'Roles & Access', href: '/settings/roles-access', icon: UserSquare, roles: ['admin'] },
             { id: 'apps', name: 'Apps', href: '/settings/apps', icon: LayoutGrid, roles: ['admin'] },
+            { id: 'ai-config', name: 'AI Configurations', href: '/settings/ai', icon: Bot, roles: ['admin'] },
             { id: 'system-configs', name: 'System Configs', href: '/settings/system-configs', icon: Settings, roles: ['admin'] },
             { id: 'platform-billing', name: 'Platform Billing', href: '/settings/platform-billing', icon: CreditCard, roles: ['admin'] },
             { id: 'wallet', name: 'Prepaid Wallet', href: '/settings/wallet', icon: Wallet, roles: ['admin'] },
