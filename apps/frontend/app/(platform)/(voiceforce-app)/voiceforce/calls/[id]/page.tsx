@@ -48,6 +48,7 @@ export default function VoiceforceCallDetailPage() {
   const [audioDuration, setAudioDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
+  const [audioError, setAudioError] = useState(false);
 
   // Checked Action Items
   const [completedItems, setCompletedItems] = useState<Record<number, boolean>>({});
@@ -95,7 +96,17 @@ export default function VoiceforceCallDetailPage() {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      audioRef.current.play()
+        .then(() => {
+          setIsPlaying(true);
+          setAudioError(false);
+        })
+        .catch((err) => {
+          console.warn('[Audio Player] Playback error:', err.message);
+          setIsPlaying(false);
+          setAudioError(true);
+          toast.error('Audio file is still being finalized by the carrier archive. Please try again in a few seconds.');
+        });
     }
   };
 
@@ -395,7 +406,14 @@ export default function VoiceforceCallDetailPage() {
             ref={audioRef}
             src={call.recordingUrl}
             onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
+            onLoadedMetadata={() => {
+              handleLoadedMetadata();
+              setAudioError(false);
+            }}
+            onError={() => {
+              setAudioError(true);
+              setIsPlaying(false);
+            }}
             onEnded={() => setIsPlaying(false)}
             className="hidden"
           />
@@ -413,10 +431,17 @@ export default function VoiceforceCallDetailPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white">Call Audio Recording</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Mono 32kbps • R2 CDN
-                  </span>
+                  {audioError ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 border border-amber-400/30 text-amber-300 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      Archiving to CDN...
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Dual-Channel MP3 • Carrier Audio
+                    </span>
+                  )}
                   {isPlaying && (
                     <div className="hidden sm:flex items-center gap-0.5 h-3 ml-1">
                       <span className="w-1 bg-indigo-400 rounded-full animate-[bounce_0.8s_infinite_100ms] h-3" />
