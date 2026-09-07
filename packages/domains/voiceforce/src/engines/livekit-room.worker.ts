@@ -48,6 +48,7 @@ export class LiveKitRoomWorker {
   private audioTrack: any = null;
   private audioFrameQueue: any[] = [];
   private isDrainingAudioQueue: boolean = false;
+  private pcmAccumulator: Buffer = Buffer.alloc(0);
 
   constructor(options: LiveKitRoomWorkerOptions) {
     this.options = options;
@@ -324,31 +325,30 @@ export class LiveKitRoomWorker {
       },
 
       onAudioChunk: async (audioChunk) => {
-        // 1. Enqueue 20ms frames into WebRTC audio track so telephone caller hears agent over RTP
+        // 1. Enqueue exactly 20ms aligned frames (640 bytes = 320 samples @ 16kHz) into WebRTC audio track
         if (this.audioSource) {
           try {
-            const sampleRate = 16000;
-            const channels = 1;
-            const samplesPerFrame = 320; // 20ms frame at 16kHz
-            const bytesPerFrame = samplesPerFrame * 2;
-            const cleanBytes = new Uint8Array(audioChunk);
+            const rtc = getRtcNode();
+            if (rtc) {
+              const chunkBuf = Buffer.isBuffer(audioChunk) ? audioChunk : Buffer.from(audioChunk);
+              this.pcmAccumulator = Buffer.concat([this.pcmAccumulator, chunkBuf]);
 
-            for (let offset = 0; offset < cleanBytes.byteLength; offset += bytesPerFrame) {
-              const end = Math.min(offset + bytesPerFrame, cleanBytes.byteLength);
-              const slice = cleanBytes.subarray(offset, end);
-              const numSamples = Math.floor(slice.byteLength / 2);
-              if (numSamples === 0) continue;
+              const FRAME_BYTES = 640; // exactly 320 samples at 16kHz 16-bit mono = 20ms
+              while (this.pcmAccumulator.length >= FRAME_BYTES) {
+                const frameSlice = Buffer.from(this.pcmAccumulator.subarray(0, FRAME_BYTES));
+                this.pcmAccumulator = this.pcmAccumulator.subarray(FRAME_BYTES);
 
-              const pcmChunk = new Int16Array(
-                slice.buffer.slice(slice.byteOffset, slice.byteOffset + numSamples * 2)
-              );
-              const rtc = getRtcNode();
-              if (rtc) {
-                const frame = new rtc.AudioFrame(pcmChunk, sampleRate, channels, numSamples);
+                // Create aligned 16-bit PCM view without memory offset shifts
+                const pcmChunk = new Int16Array(
+                  frameSlice.buffer,
+                  frameSlice.byteOffset,
+                  320
+                );
+                const frame = new rtc.AudioFrame(pcmChunk, 16000, 1, 320);
                 this.audioFrameQueue.push(frame);
               }
+              this.drainAudioQueue();
             }
-            this.drainAudioQueue();
           } catch (err: any) {
             console.warn('[LiveKitRoomWorker] audioChunk enqueue note:', err.message);
           }
@@ -365,6 +365,7 @@ export class LiveKitRoomWorker {
 
       onInterrupted: async () => {
         this.audioFrameQueue = [];
+        this.pcmAccumulator = Buffer.alloc(0);
         if (this.audioSource) {
           this.audioSource.clearQueue();
         }
@@ -554,9 +555,14 @@ export class LiveKitRoomWorker {
             // Deliver initial AI employee greeting now that customer is listening
             if (!this.greetingDelivered && this.engine) {
               this.greetingDelivered = true;
-              await this.engine.speakGreeting().catch((greetErr) => {
-                console.warn('[LiveKitRoomWorker] Greeting delivery note:', greetErr.message);
-              });
+              setTimeout(async () => {
+                if (this.engine) {
+                  console.log(`[LiveKitRoomWorker] Delivering initial greeting to answered customer on ${callSessionId}`);
+                  await this.engine.speakGreeting().catch((greetErr) => {
+                    console.warn('[LiveKitRoomWorker] Greeting delivery note:', greetErr.message);
+                  });
+                }
+              }, 350);
             }
           }
         } else {

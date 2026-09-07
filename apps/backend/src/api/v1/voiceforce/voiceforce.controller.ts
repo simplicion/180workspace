@@ -1392,8 +1392,24 @@ export const VoiceforceController = {
       if (!companyId) return res.status(401).json({ error: 'Company ID is required' });
       const { name, voiceAgentId, phoneNumberId, contactList, maxConcurrent, callsPerSecond, retryCount } = req.body;
 
+      const e164Regex = /^\+[1-9]\d{7,14}$/;
+
       if (!name || !voiceAgentId || !contactList || !Array.isArray(contactList) || contactList.length === 0) {
         return res.status(400).json({ error: 'Name, voiceAgentId, and non-empty contactList are required' });
+      }
+
+      // Sanitize and validate every contact phone number
+      const sanitizedContacts = contactList.map((c: any) => {
+        let p = (c.phone || '').trim().replace(/[\s\-\(\)]/g, '');
+        if (/^\d{10}$/.test(p)) p = `+91${p}`;
+        else if (!p.startsWith('+') && /^\d+$/.test(p)) p = `+${p}`;
+        return { ...c, phone: p };
+      }).filter((c: any) => e164Regex.test(c.phone));
+
+      if (sanitizedContacts.length === 0) {
+        return res.status(400).json({
+          error: 'No valid phone numbers found. All recipient phone numbers must be in valid E.164 format (e.g. +919876543210 or +9779801234567).'
+        });
       }
 
       const campaign = await (prisma as any).callCampaign.create({
@@ -1402,11 +1418,11 @@ export const VoiceforceController = {
           name,
           voiceAgentId,
           phoneNumberId: phoneNumberId || null,
-          contactList,
+          contactList: sanitizedContacts,
           maxConcurrent: maxConcurrent || 5,
           callsPerSecond: callsPerSecond || 1.0,
           retryCount: retryCount || 2,
-          totalRecipients: contactList.length,
+          totalRecipients: sanitizedContacts.length,
           status: 'draft'
         }
       });
@@ -1420,11 +1436,22 @@ export const VoiceforceController = {
   async launchSingleCall(req: any, res: Response) {
     try {
       const companyId = req.companyId || req.user?.companyId;
-      const { voiceAgentId, phoneNumberId, recipientPhone, recipientName } = req.body;
+      let { voiceAgentId, phoneNumberId, recipientPhone, recipientName } = req.body;
 
       if (!voiceAgentId || !recipientPhone) {
         return res.status(400).json({ error: 'Agent ID and Recipient Phone are required' });
       }
+
+      // E.164 validation
+      const e164Regex = /^\+[1-9]\d{7,14}$/;
+      let cleanPhone = (recipientPhone || '').trim().replace(/[\s\-\(\)]/g, '');
+      if (/^\d{10}$/.test(cleanPhone)) cleanPhone = `+91${cleanPhone}`;
+      else if (!cleanPhone.startsWith('+') && /^\d+$/.test(cleanPhone)) cleanPhone = `+${cleanPhone}`;
+
+      if (!e164Regex.test(cleanPhone)) {
+        return res.status(400).json({ error: 'Invalid recipient phone number. Must be in valid E.164 format (e.g. +919876543210).' });
+      }
+      recipientPhone = cleanPhone;
 
       // Pre-Call Financial Guardrail: Verify minimum prepaid balance (₹200.00 hard lock)
       const credit = await VoiceBillingService.validateCredit(companyId, 200.0);
@@ -2405,7 +2432,7 @@ export const VoiceforceController = {
             maxConcurrent: campaign.maxConcurrent || 5
           }, {
             delay: idx * cpsThrottleMs,
-            attempts: campaign.retryCount || 2
+            attempts: 1 // Single attempt to avoid immediate duplicate redials on telecom failure
           });
         } catch (queueErr: any) {
           console.warn(`[BullMQ Campaign Dispatch]: Failed to enqueue job for session ${session.id}:`, queueErr.message);

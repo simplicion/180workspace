@@ -38,21 +38,32 @@ export function setupVoiceforceWorker(customRedis?: Redis | any) {
       switch (jobType) {
         case 'dispatch-call': {
           const { callSessionId, companyId, maxConcurrent } = data;
-          // 1. Check Company Active Call Concurrency (DB-backed + Redis safety)
-          const maxAllowed = maxConcurrent || 10;
-          const activeSessions = await (prisma as any).callSession.count({
-            where: {
-              companyId,
-              id: { not: callSessionId },
-              status: { in: ['dialing', 'ringing', 'in_progress'] }
-            }
-          });
-
-          if (activeSessions >= maxAllowed) {
-            throw new Error(`CONCURRENCY_LIMIT_REACHED (${activeSessions}/${maxAllowed} active calls)`);
-          }
 
           try {
+            // 1. Check Company Active Call Concurrency (DB-backed + Redis safety)
+            const maxAllowed = maxConcurrent || 10;
+            const activeSessions = await (prisma as any).callSession.count({
+              where: {
+                companyId,
+                id: { not: callSessionId },
+                status: { in: ['dialing', 'ringing', 'in_progress'] }
+              }
+            });
+
+            if (activeSessions >= maxAllowed) {
+              const msg = `CONCURRENCY_LIMIT_REACHED (${activeSessions}/${maxAllowed} active calls)`;
+              await (prisma as any).callSession.update({
+                where: { id: callSessionId },
+                data: {
+                  status: 'failed',
+                  disconnectReason: msg,
+                  endedAt: new Date()
+                }
+              }).catch(() => {});
+              console.warn(`[VoiceforceWorker] Call ${callSessionId} blocked: ${msg}`);
+              return;
+            }
+
             const session = await (prisma as any).callSession.findUnique({
               where: { id: callSessionId },
               include: { phoneNumber: true }
@@ -98,7 +109,7 @@ export function setupVoiceforceWorker(customRedis?: Redis | any) {
                 endedAt: new Date()
               }
             }).catch(() => {});
-            throw err;
+            // Do not re-throw to BullMQ to avoid immediate duplicate redials
           }
           break;
         }
