@@ -247,6 +247,9 @@ importers:
       '@workspace/public':
         specifier: workspace:*
         version: link:../../packages/domains/public
+      '@workspace/rag':
+        specifier: workspace:*
+        version: link:../../packages/domains/rag
       '@workspace/settings':
         specifier: workspace:*
         version: link:../../packages/domains/settings
@@ -865,6 +868,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../db
+      '@workspace/rag':
+        specifier: workspace:*
+        version: link:../rag
       axios:
         specifier: ^1.19.0
         version: 1.19.0
@@ -1274,6 +1280,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../db
+      '@workspace/rag':
+        specifier: workspace:*
+        version: link:../rag
       '@workspace/wallet':
         specifier: workspace:*
         version: link:../wallet
