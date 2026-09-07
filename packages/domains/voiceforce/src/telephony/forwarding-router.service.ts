@@ -419,6 +419,9 @@ export class ForwardingRouterService {
         `${this.telnyxBaseUrl}/calls/${callControlId}/actions/transfer`,
         {
           to: primary.e164,
+          record: 'record-from-answer',
+          format: 'mp3',
+          channels: 'dual',
           ...(fromE164 ? { from: fromE164 } : {})
         },
         {
@@ -703,6 +706,36 @@ export class ForwardingRouterService {
       finalDecision: finalHopDecision,
       steps
     };
+  }
+
+  /**
+   * Executes a SIP or PSTN transfer on Telnyx with carrier recording enabled
+   */
+  static async executeTelnyxTransfer(callControlId: string, destinationE164: string, record = true): Promise<any> {
+    const apiKey = process.env.TELNYX_API_KEY;
+    if (!apiKey || !callControlId) return null;
+
+    try {
+      const axios = (await import('axios')).default;
+      const response = await axios.post(
+        `https://api.telnyx.com/v2/calls/${callControlId}/actions/transfer`,
+        {
+          to: destinationE164,
+          ...(record ? { record: 'record-from-answer', format: 'mp3', channels: 'dual' } : {})
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000
+        }
+      );
+      return response.data;
+    } catch (err: any) {
+      console.warn('[ForwardingRouterService.executeTelnyxTransfer Notice]:', err.response?.data || err.message);
+      return null;
+    }
   }
 }
 

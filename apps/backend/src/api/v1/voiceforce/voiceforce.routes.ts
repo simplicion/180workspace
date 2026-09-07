@@ -95,6 +95,8 @@ router.get('/rates/estimate', VoiceforceController.getRateEstimate);
 // Calls
 router.get('/calls', VoiceforceController.listCalls);
 router.get('/calls/:id', VoiceforceController.getCallDetails);
+router.get('/calls/:id/recording-url', VoiceforceController.getCallRecordingUrl);
+router.post('/calls/:id/recording', upload.single('audio'), VoiceforceController.uploadCallRecording);
 router.get('/calls/:id/audit-trail', VoiceforceController.getCallAuditTrail);
 router.delete('/calls/:id', VoiceforceController.deleteCall);
 router.post('/calls/dispatch-single', VoiceforceController.launchSingleCall);
@@ -110,6 +112,7 @@ router.post('/softphone/exchange', VoiceforceController.processSoftphoneTurn);
 router.post('/softphone/exchange-stream', VoiceforceController.processSoftphoneTurnStream);
 router.post('/sessions/:id/turn', VoiceforceController.processSoftphoneTurn);
 router.post('/sessions/:id/end', VoiceforceController.endSoftphoneCall);
+router.post('/sessions/:id/recording', upload.single('audio'), VoiceforceController.uploadCallRecording);
 
 // Voice Wallet & Billing
 router.get('/wallet', VoiceforceController.getWallet);

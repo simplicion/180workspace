@@ -121,7 +121,9 @@ function AgentDetailContent() {
     maxDurationSeconds: 600,
     isActive: true,
     assignedPhoneId: '',
-    enabledToolNames: [] as string[]
+    enabledToolNames: [] as string[],
+    recordCalls: true,
+    recordConsentText: 'This call may be recorded for quality and compliance purposes.'
   });
 
   const fetchAgent = async () => {
@@ -181,7 +183,9 @@ function AgentDetailContent() {
           maxDurationSeconds: ag.maxDurationSeconds ?? 600,
           isActive: ag.isActive ?? true,
           assignedPhoneId: currentPhoneId,
-          enabledToolNames: Array.isArray(ag.enabledToolNames) ? ag.enabledToolNames : ['search_knowledge_base']
+          enabledToolNames: Array.isArray(ag.enabledToolNames) ? ag.enabledToolNames : ['search_knowledge_base'],
+          recordCalls: ag.recordCalls ?? true,
+          recordConsentText: ag.recordConsentText || 'This call may be recorded for quality and compliance purposes.'
         });
       }
     } catch (err: any) {
@@ -1476,6 +1480,77 @@ function AgentDetailContent() {
               </div>
             )}
           </div>
+
+          {/* Section 8: Call Recording & Compliance */}
+          <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-emerald-950/20 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                    <Radio className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    Call Recording
+                  </span>
+                  <span className={clsx(
+                    "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                    configForm.recordCalls
+                      ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-700"
+                  )}>
+                    {configForm.recordCalls ? 'Recording Active' : 'Recording Off'}
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white mt-1.5">
+                  Automatic Call Recording & Compliance Announcement
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  When enabled, all inbound, outbound, and browser softphone calls are recorded and stored securely in Cloudflare R2. Zero latency impact on the conversational pipeline.
+                </p>
+              </div>
+
+              {/* Toggle Switch */}
+              <button
+                type="button"
+                onClick={() => setConfigForm({ ...configForm, recordCalls: !configForm.recordCalls })}
+                className={clsx(
+                  "relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  configForm.recordCalls ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+                )}
+              >
+                <span
+                  className={clsx(
+                    "pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                    configForm.recordCalls ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+            </div>
+
+            {/* Consent Announcement Text */}
+            {configForm.recordCalls && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  Recording Consent Announcement
+                </label>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  This message is automatically spoken by the AI Employee at the start of each call when recording is enabled. Customize it to match your jurisdiction's legal requirements.
+                </p>
+                <textarea
+                  value={configForm.recordConsentText}
+                  onChange={(e) => setConfigForm({ ...configForm, recordConsentText: e.target.value })}
+                  rows={2}
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/50 py-2.5 px-3.5 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                  placeholder="This call may be recorded for quality and compliance purposes."
+                />
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-100/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/50">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                    <strong>Compliance Note:</strong> Many jurisdictions require consent before recording calls. This announcement ensures your AI employee complies with local regulations (GDPR, CCPA, TCPA, HIPAA). Recordings are stored with strict multi-tenant isolation.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
         </form>
       )}
 

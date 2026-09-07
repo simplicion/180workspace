@@ -2697,6 +2697,10 @@ model VoiceAgent {
   // Allowed Tools from aiToolRegistry (JSON Array of strings)
   enabledToolNames    Json           @default("[\"search_knowledge_base\", \"create_task\", \"create_crm_client\"]")
   
+  // Call Recording & Compliance
+  recordCalls         Boolean        @default(true)
+  recordConsentText   String?        @default("This call may be recorded for quality and compliance purposes.")
+  
   isActive            Boolean        @default(true)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
@@ -2828,6 +2832,8 @@ model CallSession {
   fxRateApplied       Float?         @default(1.0)
   
   recordingUrl        String?
+  recordingDurationSeconds Int?
+  recordingStatus     String?        @default("none") // "none" | "recording" | "ready" | "failed"
   
   // Post-Call Structured Intelligence
   summary             String?        @db.Text

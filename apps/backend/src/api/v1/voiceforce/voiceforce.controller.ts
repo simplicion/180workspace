@@ -302,12 +302,12 @@ export const VoiceforceController = {
         name, role, systemPrompt, voiceId, language, firstMessage,
         allowBargeIn, enabledToolNames, voiceSpeed, voiceTemperature,
         inactivityTimeoutMs, maxDurationSeconds, engineType, llmModel, modelId, sttModel, isActive,
-        assignedPhoneId
+        assignedPhoneId, recordCalls, recordConsentText
       } = req.body;
 
       if (!name) return res.status(400).json({ error: 'Agent name is required' });
 
-      const agent = await prisma.voiceAgent.create({
+      const agent = await (prisma as any).voiceAgent.create({
         data: {
           companyId,
           name,
@@ -326,6 +326,8 @@ export const VoiceforceController = {
           llmModel: llmModel || modelId || 'llama-3.3-70b-versatile',
           sttModel: sttModel || 'ink-2',
           isActive: isActive ?? true,
+          recordCalls: recordCalls !== undefined ? Boolean(recordCalls) : true,
+          recordConsentText: recordConsentText !== undefined ? recordConsentText : 'This call may be recorded for quality and compliance purposes.',
           enabledToolNames: enabledToolNames || ['search_knowledge_base', 'create_task', 'create_crm_client']
         }
       });
@@ -370,7 +372,7 @@ export const VoiceforceController = {
         name, role, systemPrompt, voiceId, language, firstMessage,
         allowBargeIn, enabledToolNames, voiceSpeed, voiceTemperature,
         inactivityTimeoutMs, maxDurationSeconds, engineType, llmModel, modelId, sttModel, isActive,
-        assignedPhoneId
+        assignedPhoneId, recordCalls, recordConsentText
       } = req.body;
 
       const updateData: any = {};
@@ -391,6 +393,8 @@ export const VoiceforceController = {
       if (sttModel !== undefined) updateData.sttModel = sttModel;
       if (isActive !== undefined) updateData.isActive = Boolean(isActive);
       if (enabledToolNames !== undefined) updateData.enabledToolNames = enabledToolNames;
+      if (recordCalls !== undefined) updateData.recordCalls = Boolean(recordCalls);
+      if (recordConsentText !== undefined) updateData.recordConsentText = recordConsentText || null;
 
       const agent = await prisma.voiceAgent.update({
         where: { id },
@@ -1632,6 +1636,69 @@ export const VoiceforceController = {
     }
   },
 
+  async uploadCallRecording(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No audio file provided' });
+      }
+
+      const session = await (prisma as any).callSession.findFirst({
+        where: { id, companyId }
+      });
+      if (!session) {
+        return res.status(404).json({ error: 'Call session not found' });
+      }
+
+      const { uploadBufferToR2, buildR2Key } = await import('@workspace/integrations');
+      const mimetype = req.file.mimetype || 'audio/webm';
+      const ext = mimetype.includes('webm') ? 'webm' : mimetype.includes('mp4') ? 'mp4' : mimetype.includes('ogg') ? 'ogg' : 'mp3';
+      const r2Key = buildR2Key('voiceforce/recordings', companyId, `${id}.${ext}`);
+
+      const r2Result = await uploadBufferToR2(req.file.buffer, r2Key, mimetype);
+
+      await (prisma as any).callSession.update({
+        where: { id },
+        data: {
+          recordingUrl: r2Result.url,
+          recordingStatus: 'ready'
+        }
+      });
+
+      return res.json({
+        success: true,
+        recordingUrl: r2Result.url
+      });
+    } catch (err: any) {
+      console.error('[VoiceforceController.uploadCallRecording Error]:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async getCallRecordingUrl(req: any, res: Response) {
+    try {
+      const companyId = req.companyId || req.user?.companyId;
+      const { id } = req.params;
+
+      const session = await (prisma as any).callSession.findFirst({
+        where: { id, companyId },
+        select: { id: true, recordingUrl: true }
+      });
+
+      if (!session) return res.status(404).json({ error: 'Call session not found' });
+      if (!session.recordingUrl) return res.status(404).json({ error: 'No recording available for this call' });
+
+      return res.json({
+        success: true,
+        recordingUrl: session.recordingUrl
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
   // ─── Do-Not-Call (DNC) Compliance Registry ────────────────────────────────
   async listDnc(req: any, res: Response) {
     try {
@@ -1862,12 +1929,13 @@ export const VoiceforceController = {
         systemPrompt = agent?.prompt || `You are ${agent?.name || 'Maya'}, an intelligent AI Voice employee. Respond naturally and concisely in 1 to 2 friendly spoken sentences. Confirm you speak both English and Hindi if asked.`;
       }
 
-      // 4. Fetch recent transcript context for this session
-      const recentTranscripts = session ? await prisma.callTranscriptSegment.findMany({
+      // 4. Fetch recent transcript context for this session (most recent 24 turns in chronological order)
+      const recentTranscriptsRaw = session ? await prisma.callTranscriptSegment.findMany({
         where: { callSessionId: session.id },
-        orderBy: { startTimeMs: 'asc' },
-        take: 8
+        orderBy: { startTimeMs: 'desc' },
+        take: 24
       }).catch(() => []) : [];
+      const recentTranscripts = recentTranscriptsRaw.reverse();
 
       // Save user transcript segment asynchronously (detached from audio latency path)
       if (session) {
@@ -1888,7 +1956,7 @@ export const VoiceforceController = {
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
         {
           role: 'system',
-          content: `${systemPrompt}\n\nVOICE CONVERSATION GUIDELINES:\n- You are in a real-time live phone call.\n- Respond in 1 to 2 concise, friendly spoken sentences (under 30 words).\n- If the user asks about language (e.g. English or Hindi), warmly confirm you speak both English and Hindi and can assist in either language.\n- Never output markdown formatting, asterisks, bold text, bullet points, or URLs because your output is spoken directly over audio.`
+          content: `${systemPrompt}\n\nVOICE CONVERSATION GUIDELINES:\n- You are in a real-time live phone call.\n- Respond in 1 to 2 concise, friendly spoken sentences (under 30 words).\n- Carefully retain and build on all details the customer has already shared (e.g. name, vehicle make/model/year, symptoms, contact info). Do NOT repeat questions for information the user has already provided earlier in the call.\n- If the user requests to schedule a meeting, appointment, or consultation, acknowledge their request directly, collect any missing meeting details (preferred time/date or contact info), and confirm the appointment.\n- If the user asks about language (e.g. English or Hindi), warmly confirm you speak both English and Hindi and can assist in either language.\n- Never output markdown formatting, asterisks, bold text, bullet points, or URLs because your output is spoken directly over audio.`
         }
       ];
 
@@ -2064,16 +2132,17 @@ export const VoiceforceController = {
         systemPrompt = agent?.prompt || `You are ${agent?.name || 'Maya'}, an intelligent AI Voice employee. Respond naturally and concisely in 1 to 2 friendly spoken sentences. Confirm you speak both English and Hindi if asked.`;
       }
 
-      const recentTranscripts = session ? await prisma.callTranscriptSegment.findMany({
+      const recentTranscriptsRaw = session ? await prisma.callTranscriptSegment.findMany({
         where: { callSessionId: session.id },
-        orderBy: { startTimeMs: 'asc' },
-        take: 6
+        orderBy: { startTimeMs: 'desc' },
+        take: 24
       }).catch(() => []) : [];
+      const recentTranscripts = recentTranscriptsRaw.reverse();
 
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
         {
           role: 'system',
-          content: `${systemPrompt}\n\nVOICE CONVERSATION GUIDELINES:\n- You are in a real-time live phone call.\n- Respond in 1 to 2 concise, friendly spoken sentences (under 30 words).\n- If the user asks about language (e.g. English or Hindi), warmly confirm you speak both English and Hindi and can assist in either language.\n- Never output markdown formatting, asterisks, bold text, bullet points, or URLs because your output is spoken directly over audio.`
+          content: `${systemPrompt}\n\nVOICE CONVERSATION GUIDELINES:\n- You are in a real-time live phone call.\n- Respond in 1 to 2 concise, friendly spoken sentences (under 30 words).\n- Carefully retain and build on all details the customer has already shared (e.g. name, vehicle make/model/year, symptoms, contact info). Do NOT repeat questions for information the user has already provided earlier in the call.\n- If the user requests to schedule a meeting, appointment, or consultation, acknowledge their request directly, collect any missing meeting details (preferred time/date or contact info), and confirm the appointment.\n- If the user asks about language (e.g. English or Hindi), warmly confirm you speak both English and Hindi and can assist in either language.\n- Never output markdown formatting, asterisks, bold text, bullet points, or URLs because your output is spoken directly over audio.`
         }
       ];
 
@@ -2084,6 +2153,11 @@ export const VoiceforceController = {
         });
       }
       messages.push({ role: 'user', content: userInput.trim() });
+
+      let isClientAborted = false;
+      req.on('close', () => {
+        isClientAborted = true;
+      });
 
       const cartesiaKey = process.env.CARTESIA_API_KEY;
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agent?.voiceId || '');
@@ -2131,16 +2205,24 @@ export const VoiceforceController = {
         if (client) {
           const prompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n') + '\n\nASSISTANT:';
           await client.generateStream(prompt, { model: 'gpt-4o-mini', max_tokens: 70, temperature: 0.5 }, async (chunk: string) => {
+            if (isClientAborted) return;
             fullAssistantReply += chunk;
             const completedSentences = sentenceStreamer.push(chunk);
             for (const s of completedSentences) {
+              if (isClientAborted) break;
               const audioBase64 = await synthesizeSentence(s);
+              if (isClientAborted) break;
               res.write(`data: ${JSON.stringify({ type: 'sentence', text: s, audioBase64 })}\n\n`);
             }
           });
         }
       } catch (streamErr: any) {
         console.warn('[Stream LLM Error]:', streamErr.message);
+      }
+
+      if (isClientAborted) {
+        res.end();
+        return;
       }
 
       // Flush remaining sentence buffer

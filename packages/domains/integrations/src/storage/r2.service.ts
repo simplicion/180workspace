@@ -201,8 +201,23 @@ export const deleteObjectsFromR2 = async (keysOrUrls: string[]): Promise<{ delet
     return { deleted: deletedCount, errors };
 };
 
+/**
+ * Uploads an enterprise call recording with multi-tenant company prefix to Cloudflare R2
+ */
+export const uploadCallRecording = async (
+    buffer: Buffer,
+    companyId: string,
+    callSessionId: string,
+    mimetype = 'audio/webm'
+) => {
+    const ext = mimetype.includes('webm') ? 'webm' : mimetype.includes('mp4') ? 'mp4' : mimetype.includes('ogg') ? 'ogg' : 'mp3';
+    const key = `voiceforce/recordings/${companyId}/${callSessionId}.${ext}`;
+    return await uploadBufferToR2(buffer, key, mimetype);
+};
+
 export const R2Service = {
     uploadBufferToR2,
+    uploadCallRecording,
     getPresignedUploadUrl,
     getPresignedDownloadUrl,
     getR2PublicUrl,
