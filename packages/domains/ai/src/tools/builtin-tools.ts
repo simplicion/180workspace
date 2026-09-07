@@ -452,30 +452,78 @@ export const createProjectTool: AIToolDefinition = {
  */
 export const searchKnowledgeBaseTool: AIToolDefinition = {
     name: 'search_knowledge_base',
-    description: 'Searches internal workspace documents, contracts, notes, and procedures using vector embeddings.',
+    description: 'Searches internal workspace documents, contracts, notes, policies, and procedures from 180 Documents using central RAG memory.',
     allowedRoles: ['all'],
     category: 'knowledge',
     parameters: {
         query: { type: 'string', description: 'Search term or question to search the workspace for', required: true },
-        limit: { type: 'number', description: 'Number of results to retrieve (default: 3)' }
+        limit: { type: 'number', description: 'Number of results to retrieve (default: 3)' },
+        category: { type: 'string', description: 'Optional document category (e.g. Legal, HR, Finance, Contracts)' }
     },
     execute: async (args, context) => {
         const { companyId } = context;
-        const matches = await vectorStore.search(args.query, args.limit || 3, companyId);
-        return {
-            query: args.query,
-            matchCount: matches.length,
-            results: matches.map(m => ({
-                title: m.documentTitle,
-                snippet: m.text.slice(0, 200) + '...',
-                score: m.score
-            }))
-        };
+        if (!companyId) return { error: 'Company ID is required' };
+
+        try {
+            let HybridSearchService: any;
+            try {
+                const ragMod = await import('@workspace/rag');
+                HybridSearchService = ragMod.HybridSearchService;
+            } catch {
+                try {
+                    const ragMod = require('../../../rag');
+                    HybridSearchService = ragMod.HybridSearchService;
+                } catch {
+                    const ragMod = require('../../../rag/dist');
+                    HybridSearchService = ragMod.HybridSearchService;
+                }
+            }
+
+            const searchService = new HybridSearchService();
+            const results = await searchService.search(
+                companyId,
+                args.query,
+                args.limit || 3,
+                {
+                    category: args.category,
+                    fastPath: false
+                }
+            );
+
+            if (!results || results.length === 0) {
+                return {
+                    query: args.query,
+                    matchCount: 0,
+                    results: [],
+                    message: `No matching documents found in 180 Documents RAG memory for "${args.query}".`
+                };
+            }
+
+            return {
+                query: args.query,
+                matchCount: results.length,
+                results: results.map((r: any) => ({
+                    title: r.documentTitle || 'Knowledge Document',
+                    snippet: (r.content || '').slice(0, 300) + '...',
+                    score: r.score,
+                    category: r.category
+                })),
+                message: results.map((r: any, i: number) => `**[${i + 1}] ${r.documentTitle}**:\n${r.content}`).join('\n\n')
+            };
+        } catch (err: any) {
+            console.warn('[searchKnowledgeBaseTool] Fallback search error:', err.message);
+            return {
+                query: args.query,
+                matchCount: 0,
+                results: [],
+                message: `Error searching knowledge base: ${err.message}`
+            };
+        }
     }
 };
 
 /**
- * Tool 8B: Dedicated Universal Business Brain & 5GB RAG Search
+ * Tool 8B: Dedicated Business Brain & 50MB Scoped RAG Search
  */
 export const searchBusinessKnowledgeTool: AIToolDefinition = {
     name: 'search_business_knowledge',
@@ -486,7 +534,7 @@ export const searchBusinessKnowledgeTool: AIToolDefinition = {
         query: { type: 'string', description: 'The exact question, product name, or topic to look up in the business knowledge base', required: true },
         topK: { type: 'number', description: 'Number of relevant chunks to retrieve (default: 3)' },
         category: { type: 'string', description: 'Optional dynamic category tag to filter search by (e.g. Finance, HR, Engineering)' },
-        vaultId: { type: 'string', description: 'Optional specific 5GB RAG memory vault ID to scope search to' },
+        vaultId: { type: 'string', description: 'Optional specific 50MB RAG memory vault ID to scope search to' },
         vaultIds: { type: 'array', description: 'Optional array of RAG vault IDs to search across' }
     },
     execute: async (args, context) => {

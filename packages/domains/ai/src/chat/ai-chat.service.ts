@@ -310,6 +310,29 @@ IMPORTANT: If an employee asks to perform administrative actions (e.g. terminati
             contextText += `Recent Websites:\n` + recentWebsitesList.map((w: any) => `- "${w.name}" (URL: /advertising/${w.id}/edit)`).join('\n') + `\n\n`;
         }
 
+        // Real-Time RAG Memory Injection from 180 Documents
+        try {
+            if (message && message.trim().length > 6 && companyId) {
+                let HybridSearchService: any;
+                try {
+                    const ragMod = await import('@workspace/rag');
+                    HybridSearchService = ragMod.HybridSearchService;
+                } catch {
+                    const ragMod = require('../../../rag');
+                    HybridSearchService = ragMod.HybridSearchService;
+                }
+                const hybridSearcher = new HybridSearchService();
+                const ragMatches = await hybridSearcher.search(companyId, message, 3, { fastPath: true }).catch(() => []);
+                if (ragMatches && ragMatches.length > 0) {
+                    contextText += `Enterprise Knowledge & Document Excerpts (from 180 Documents Central RAG Memory):\n` +
+                        ragMatches.map((m: any, i: number) => `[Source ${i + 1}: "${m.documentTitle}" (Score: ${Math.round(m.score * 100)}%)]:\n${m.content}`).join('\n\n') +
+                        `\n\n`;
+                }
+            }
+        } catch (ragErr: any) {
+            // Non-blocking fallback
+        }
+
         contextText += `CONTINUOUS MULTI-TURN MEMORY & ENTITY LINKING INSTRUCTIONS:
 1. CONTINUOUS AWARENESS: You have persistent memory of all previous messages in this conversation. Never lose track of what action you just performed, what employee you just hired, or what document/website/form was just synthesized.
 2. DIRECT LINK RESOLUTION: If the user asks for "the link", "the document", "the offer letter", "the contract", "the operator" (typo for offer letter), or asks where to view something created earlier:

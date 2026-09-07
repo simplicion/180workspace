@@ -117,7 +117,6 @@ model Company {
   forwardingRules          ForwardingRule[]
   callQueues               CallQueue[]
   dailyVoiceBriefings      DailyVoiceBriefing[]
-  knowledgeDocs            CompanyKnowledgeDoc[]
   ragVaults                RagMemoryVault[]
   documentCategories       DocumentCategory[]
   agentRequests            AgentRequest[]
@@ -3119,35 +3118,11 @@ model ActionAuditLog {
 }
 
 // ─── Universal Enterprise Business Brain & RAG ──────────────────────────────
-model CompanyKnowledgeDoc {
-  id              String           @id @default(uuid())
-  companyId       String
-  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
-  filename        String
-  fileUrl         String?
-  fileSizeBytes   Int              @default(0)
-  mimeType        String           @default("application/pdf")
-  
-  status          String           @default("queued") // "queued" | "processing" | "ready" | "error"
-  progressPercent Int              @default(0)        // 0 to 100%
-  totalChunks     Int              @default(0)
-  errorMessage    String?          @db.Text
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  chunks          KnowledgeChunk[]
-
-  @@index([companyId])
-  @@index([companyId, status])
-}
-
 model KnowledgeChunk {
   id              String              @id @default(uuid())
   companyId       String
   documentId      String
-  document        CompanyKnowledgeDoc @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentTitle   String?
   
   vaultId         String?
   category        String?             @default("General")

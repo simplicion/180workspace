@@ -63,6 +63,11 @@ export const VaultsController = {
 
       // 3. Process any uploaded files (PDF, DOCX, TXT, CSV, JSON, MD)
       const files: any[] = req.files || (req.file ? [req.file] : []);
+      const MAX_VAULT_BYTES = 50 * 1024 * 1024; // 50MB limit
+      const incomingFilesSize = files.reduce((acc: number, f: any) => acc + (f.size || (f.buffer ? f.buffer.length : 0)), 0);
+      if (incomingFilesSize > MAX_VAULT_BYTES) {
+        return res.status(400).json({ error: 'Total uploaded file size exceeds the 50MB limit per vault.' });
+      }
       const chunker = new DocumentChunker({ maxWordsPerChunk: 350, overlapWords: 60 });
       const embeddingEngine = new EmbeddingEngine();
       let totalGeneratedChunks = 0;

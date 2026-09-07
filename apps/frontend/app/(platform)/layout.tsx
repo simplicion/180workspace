@@ -454,13 +454,13 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     
                     // Default apps are always available and don't count towards the limit
                     if (isDefaultApp) {
-                        isAppEnabled = companyEnabledApps.includes(item.appId);
+                        isAppEnabled = item.appId === 'ai' || companyEnabledApps.includes(item.appId);
                     } else {
                         isAppEnabled = allowedSubset.includes(item.appId);
                     }
                 } else {
                     // No active plan: only allow default apps if they are in enabledApps
-                    isAppEnabled = isDefaultApp && (company?.enabledApps || []).includes(item.appId);
+                    isAppEnabled = isDefaultApp && (item.appId === 'ai' || (company?.enabledApps || []).includes(item.appId));
                 }
 
                 // 2. Filter individual modules within the group
@@ -471,10 +471,14 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 
                     // Only check module enablement if this group belongs to a configurable app
                     if (item.appId && isAppEnabled && subItem.id && company?.enabledModules) {
-                        const isModOn = company.enabledModules.includes(subItem.id) ||
+                        const isModOn = (item.appId === 'ai') ||
+                            (item.appId === 'voiceforce') ||
+                            (subItem.id === 'orbit-copilot') ||
+                            (subItem.id === 'agent-requests') ||
+                            company.enabledModules.includes(subItem.id) ||
                             company.enabledModules.includes(`${item.appId}-${subItem.id}`) ||
                             company.enabledModules.includes(subItem.id.replace(`${item.appId}-`, '')) ||
-                            (item.appId === 'voiceforce');
+                            (subItem.id === 'orbit-copilot' && company.enabledModules.includes('ai-assistant'));
                         return isModOn;
                     }
                     return isAppEnabled;

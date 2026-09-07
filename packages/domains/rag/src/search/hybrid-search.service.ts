@@ -53,11 +53,6 @@ export class HybridSearchService {
     // Fetch chunks for this company and scope
     const chunks = await (prisma as any).knowledgeChunk.findMany({
       where: whereClause,
-      include: {
-        document: {
-          select: { filename: true }
-        }
-      },
       take: options.fastPath ? 80 : 250 // Sub-sample top relevant candidates for ultra low-latency voice scoring
     }).catch(() => []);
 
@@ -96,7 +91,7 @@ export class HybridSearchService {
       if (hybridScore > 0.20 || keywordHits > 0) {
         scoredResults.push({
           chunkId: chunk.id,
-          documentTitle: chunk.document?.filename || chunk.metadata?.documentTitle || 'Knowledge Document',
+          documentTitle: chunk.documentTitle || chunk.metadata?.documentTitle || 'Knowledge Document',
           content: chunk.content,
           score: Math.round(hybridScore * 100) / 100,
           metadata: {

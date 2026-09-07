@@ -22,17 +22,6 @@ export const navigation = [
     },
 
     {
-        group: 'Orbit AI Operating System',
-        appId: 'ai',
-        icon: Sparkles,
-        roles: ['admin', 'employee'],
-        items: [
-            { id: 'orbit-copilot', name: 'Orbit AI Copilot', href: '/ai', icon: Bot, roles: ['admin', 'employee'] },
-            { id: 'agent-requests', name: 'Agent Requests Queue', href: '/ai/requests', icon: Sparkles, roles: ['admin', 'employee'] },
-        ]
-    },
-
-    {
         group: 'Communications',
         appId: 'communications',
         icon: MessageSquare,
@@ -50,9 +39,9 @@ export const navigation = [
         icon: FolderOpen,
         roles: ['admin', 'employee'],
         items: [
+            { id: 'orbit-copilot', name: 'Orbit AI Copilot', href: '/ai', icon: Bot, roles: ['admin', 'employee'] },
             { id: 'calendar', name: 'Calendar', href: '/calendar', icon: Calendar, roles: ['admin', 'employee'] },
             { id: 'documents', name: '180 Documents', href: '/documents', icon: FileText, roles: ['admin', 'employee'] },
-            { id: 'vaults', name: 'RAG Memory Vaults', href: '/vaults', icon: Database, roles: ['admin', 'employee'] },
             { id: 'document-editor', name: 'Document Editor', href: '/document-editor', icon: FileText, roles: ['admin', 'employee'] },
             { id: 'assets', name: 'Assets & Creds', href: '/assets', icon: Star, roles: ['admin', 'employee'] },
         ]
@@ -105,13 +94,9 @@ export const navigation = [
         items: [
             { id: 'dashboard', name: 'Voiceforce Radar', href: '/voiceforce', exact: true, icon: PhoneCall, roles: ['admin', 'employee'] },
             { id: 'agents', name: 'AI Voice Employees', href: '/voiceforce/agents', icon: Bot, roles: ['admin', 'employee'] },
-            { id: 'brain', name: 'Business Brain & RAG', href: '/voiceforce/brain', icon: Brain, roles: ['admin', 'employee'] },
             { id: 'numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin', 'employee'] },
             { id: 'forwarding', name: 'Call Forwarding & Queues', href: '/voiceforce/forwarding', icon: PhoneForwarded, roles: ['admin', 'employee'] },
             { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
-            { id: 'calls', name: 'Call Stream & Audio', href: '/voiceforce/calls', icon: PhoneCall, roles: ['admin', 'employee'] },
-            { id: 'test-bench', name: 'Pre-Flight Test Bench', href: '/voiceforce/test-bench', icon: Activity, roles: ['admin', 'employee'] },
-            { id: 'templates', name: 'Industry Templates', href: '/voiceforce/templates', icon: Sparkles, roles: ['admin', 'employee'] },
         ]
     },
 

@@ -53,6 +53,27 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
             folder
         });
 
+        const companyId = (req as any).user?.companyId;
+        if (result?.document && companyId) {
+            setImmediate(async () => {
+                try {
+                    const { centralRagIndexer } = await import('@workspace/rag');
+                    await centralRagIndexer.indexUploadedFile({
+                        id: result.document.id,
+                        companyId,
+                        name: result.document.name,
+                        fileUrl: result.document.fileUrl,
+                        fileType: result.document.fileType,
+                        buffer: req.file?.buffer,
+                        textContent: req.body?.textContent || result.document.description,
+                        category: result.document.category || 'Storage'
+                    });
+                } catch (e: any) {
+                    console.warn('[CentralRagIndexer] File upload indexing warning:', e.message);
+                }
+            });
+        }
+
         res.status(201).json({
             ...result
         });
@@ -101,6 +122,14 @@ export const deleteFile = async (req: Request, res: Response, next: NextFunction
     try {
         const result = await StorageService.deleteFile({
             id: req.params.id
+        });
+        setImmediate(async () => {
+            try {
+                const { centralRagIndexer } = await import('@workspace/rag');
+                await centralRagIndexer.removeDocumentChunks(req.params.id);
+            } catch (err: any) {
+                console.warn('[CentralRagIndexer] File deletion chunk cleanup warning:', err.message);
+            }
         });
         res.json(result);
     } catch (err) { next(err); }
@@ -151,12 +180,20 @@ export const getPresignedUrl = async (req: Request, res: Response, next: NextFun
 export const getStorageStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { prisma } = require('@workspace/db');
+        const companyId = (req as any).user?.companyId;
+        const docWhere: any = { deletedAt: null };
+        const articleWhere: any = {};
+        if (companyId) {
+            docWhere.companyId = companyId;
+            articleWhere.companyId = companyId;
+        }
+
         const agg = await prisma.document.aggregate({
-            where: { deletedAt: null },
+            where: docWhere,
             _sum: { fileSize: true },
             _count: { id: true }
         });
-        const articlesCount = await prisma.article.count({ where: { deletedAt: null } });
+        const articlesCount = prisma.knowledgeArticle ? await prisma.knowledgeArticle.count({ where: articleWhere }) : 0;
         const usedBytes = Number(agg._sum.fileSize || 0) + (articlesCount * 24 * 1024); // ~24KB per AST doc
         const totalQuotaBytes = 10 * 1024 * 1024 * 1024; // 10 GB
         res.json({

@@ -74,7 +74,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // 180 Voiceforce (Autonomous AI Voice Calling Engine)
   '/voiceforce': { appId: 'voiceforce', moduleId: 'dashboard' },
   '/voiceforce/agents': { appId: 'voiceforce', moduleId: 'agents' },
-  '/voiceforce/brain': { appId: 'voiceforce', moduleId: 'brain' },
   '/voiceforce/numbers': { appId: 'voiceforce', moduleId: 'numbers' },
   '/voiceforce/forwarding': { appId: 'voiceforce', moduleId: 'forwarding' },
   '/voiceforce/campaigns': { appId: 'voiceforce', moduleId: 'campaigns' },
