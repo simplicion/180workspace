@@ -85,9 +85,24 @@ const allowedOrigins = process.env.CLIENT_URL
 // ─── Public Traffic Director CORS bypass ──────────────────────────────────────
 // These endpoints are called from third-party advertiser domains (any origin).
 // They MUST bypass the global CORS whitelist since the tag/script runs on external sites.
+// Note: We MUST ONLY match the public edge endpoints, NOT the authenticated dashboard management routes (/api/v1/traffic-director/links, etc.)
 app.use((req, res, next) => {
-    const publicPaths = ['/api/v1/traffic-director/', '/api/evaluate/', '/evaluate/', '/tag/', '/r/', '/shield/'];
-    const isPublicTD = publicPaths.some(p => req.path.startsWith(p));
+    const publicPaths = [
+        '/api/v1/traffic-director/evaluate',
+        '/api/v1/traffic-director/tag',
+        '/api/v1/traffic-director/stream-proxy',
+        '/api/v1/traffic-director/asset-proxy',
+        '/api/evaluate',
+        '/evaluate',
+        '/tag',
+        '/r/',
+        '/shield/'
+    ];
+    const isPublicTD = publicPaths.some(p => 
+        req.path === p || 
+        req.path.startsWith(p + '/') || 
+        (p.endsWith('/') && req.path.startsWith(p))
+    );
     if (isPublicTD) {
         res.header('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
@@ -104,12 +119,20 @@ app.use((req, res, next) => {
 app.use(cors({
     origin: (origin, callback) => {
         const rootDomain = process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com';
-        if (!origin || allowedOrigins.includes(origin) || (rootDomain && origin.endsWith(`.${rootDomain}`)) || process.env.NODE_ENV === 'development') {
+        if (
+            !origin || 
+            allowedOrigins.includes(origin) || 
+            (rootDomain && (origin === `https://${rootDomain}` || origin === `http://${rootDomain}` || origin.endsWith(`.${rootDomain}`))) || 
+            process.env.NODE_ENV === 'development'
+        ) {
             return callback(null, true);
         }
         return callback(new Error('CORS policy violation'), false);
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-company-id', 'x-workspace-id', 'x-requested-with', 'Accept', 'Origin', 'Range'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range', 'Content-Disposition'],
 }));
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
