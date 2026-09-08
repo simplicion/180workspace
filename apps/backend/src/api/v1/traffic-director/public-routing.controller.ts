@@ -364,12 +364,47 @@ export class PublicRoutingController {
       res.setHeader('Content-Type', streamResult.contentType);
       res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=86400');
       res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       return res.status(streamResult.statusCode || 200).send(streamResult.html);
     } catch (err: any) {
       console.error('[PublicRoutingController.handleProxyStream]', err);
       return res.status(500).send('Proxy Stream Error: ' + (err.message || 'Internal error'));
     }
   }
+
+  static async handleProxyAsset(req: Request, res: Response) {
+    try {
+      const assetUrl = String(req.query.url || '').trim();
+      if (!assetUrl || !ReverseProxyService.isSafeUrl(assetUrl)) {
+        return res.status(400).send('Invalid or blocked asset URL');
+      }
+
+      const assetResult = await ReverseProxyService.fetchAndStreamAsset(assetUrl, {
+        customHeaders: {
+          'user-agent': req.get('user-agent') || '',
+          'accept-language': req.get('accept-language') || '',
+          'accept': req.get('accept') || '*/*'
+        }
+      });
+
+      res.removeHeader('Cross-Origin-Opener-Policy');
+      res.removeHeader('Cross-Origin-Resource-Policy');
+      res.removeHeader('Content-Security-Policy');
+      res.removeHeader('X-Frame-Options');
+
+      res.setHeader('Content-Type', assetResult.contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+      res.setHeader('Timing-Allow-Origin', '*');
+      return res.status(assetResult.statusCode || 200).send(assetResult.body);
+    } catch (err: any) {
+      console.error('[PublicRoutingController.handleProxyAsset]', err);
+      return res.status(500).send('Proxy Asset Error: ' + (err.message || 'Internal error'));
+    }
+  }
 }
+
 
 

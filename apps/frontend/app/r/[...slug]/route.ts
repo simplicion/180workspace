@@ -51,12 +51,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const headers = new Headers();
     headers.set('Content-Type', res.headers.get('content-type') || 'text/html; charset=utf-8');
     headers.set('Cache-Control', res.headers.get('cache-control') || 'no-store, no-cache, must-revalidate');
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+    headers.set('Access-Control-Allow-Headers', '*');
+    headers.set('Timing-Allow-Origin', '*');
 
     return new NextResponse(res.body, {
       status: res.status,
       headers
     });
   } catch (err: any) {
-    return new NextResponse(`Traffic Director Edge Error: ${err.message}`, { status: 502 });
+    return new NextResponse(`Traffic Director Edge Error: ${err.message}`, { 
+      status: 502,
+      headers: {
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, HEAD',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Max-Age': '86400'
+    }
+  });
 }
