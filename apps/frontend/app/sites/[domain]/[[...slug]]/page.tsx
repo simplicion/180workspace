@@ -110,6 +110,39 @@ export async function generateMetadata({
         };
     }
 
+    if (data.type === 'TRAFFIC_LINK') {
+        const link = data.payload || {};
+        const title = link.name || cleanDomain;
+        const fallbackUrl = link.fallbackUrl || '';
+        let targetOrigin = '';
+        try {
+            if (fallbackUrl) {
+                const u = new URL(fallbackUrl);
+                targetOrigin = `${u.protocol}//${u.host}`;
+            }
+        } catch (e) {}
+
+        const faviconUrl = targetOrigin 
+            ? `/r/_proxy/asset?url=${encodeURIComponent(targetOrigin + '/favicon.ico')}` 
+            : '/favicon.ico';
+
+        return {
+            title: { absolute: title },
+            description: `Official website of ${title}`,
+            icons: {
+                icon: faviconUrl,
+                shortcut: faviconUrl,
+                apple: faviconUrl,
+            },
+            openGraph: {
+                title,
+                description: `Official website of ${title}`,
+                siteName: title,
+                type: 'website'
+            }
+        };
+    }
+
     if (data.type === 'ADVERTISING_WEBSITE') {
         const website = data.payload || {};
         const config = website.config || {};
@@ -292,18 +325,12 @@ export default async function PublicWebsitePage({
 
                 const contentType = evalRes.headers.get('content-type') || '';
                 if (contentType.includes('text/html')) {
-                    const targetFallbackUrl = registryData.payload?.fallbackUrl || '';
-                    const streamUrl = `/r/_proxy/stream?url=${encodeURIComponent(targetFallbackUrl)}`;
+                    const htmlText = await evalRes.text();
                     return (
-                        <div className="fixed inset-0 w-screen h-screen m-0 p-0 overflow-hidden bg-black z-[9999]">
-                            <iframe
-                                id="viewport-frame"
-                                src={streamUrl}
-                                className="w-full h-full border-0 m-0 p-0 block bg-black"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowFullScreen
-                            />
-                        </div>
+                        <div 
+                            className="w-full min-h-screen m-0 p-0 overflow-x-hidden" 
+                            dangerouslySetInnerHTML={{ __html: htmlText }} 
+                        />
                     );
                 }
 
