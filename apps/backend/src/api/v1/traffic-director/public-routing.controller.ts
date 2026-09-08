@@ -391,7 +391,21 @@ export class PublicRoutingController {
 
   static async handleProxyAsset(req: Request, res: Response) {
     try {
-      const assetUrl = String(req.query.url || '').trim();
+      let assetUrl = String(req.query.url || '').trim();
+      
+      // If requested with ?slug=xxx&path=/logo.png, dynamically resolve target origin
+      if (!assetUrl && req.query.slug && req.query.path) {
+        try {
+          const cleanSlug = String(req.query.slug).trim();
+          const link = await TrafficLinksService.getLinkBySlug(cleanSlug);
+          if (link && link.fallbackUrl) {
+            const u = new URL(link.fallbackUrl);
+            const rawPath = String(req.query.path).replace(/^\/+/, '');
+            assetUrl = `${u.protocol}//${u.host}/${rawPath}`;
+          }
+        } catch (e) {}
+      }
+
       if (!assetUrl || !ReverseProxyService.isSafeUrl(assetUrl)) {
         return res.status(400).send('Invalid or blocked asset URL');
       }
