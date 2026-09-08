@@ -213,46 +213,65 @@ export class ReverseProxyService {
       const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
       const pageTitle = titleMatch ? titleMatch[1].trim() : 'Website';
 
-      // 1. Neutralize top-level frame-busting scripts & CSP / X-Frame meta headers
+      // 1. Strip any embedded Traffic Director client evaluation tags (e.g. /tag/*.js, foodandus.js, etc.)
+      // so they don't execute client-side window.location.replace when served via reverse proxy
+      html = html.replace(/<script[^>]*src=["'][^"']*(?:\/tag\/|\/shield\/|\/evaluate\/|\.180workspace\.com\/tag)[^"']*["'][^>]*>\s*<\/script>/gi, '');
+      html = html.replace(/<script[^>]*src=["'][^"']*(?:\/tag\/|\/shield\/|\/evaluate\/|\.180workspace\.com\/tag)[^"']*["'][^>]*\/>/gi, '');
+
+      // 2. Neutralize top-level frame-busting scripts & CSP / X-Frame meta headers
       html = html.replace(/if\s*\(\s*top\s*!==?\s*self\s*\)/gi, 'if (false)');
       html = html.replace(/top\.location\s*=/gi, 'window.location =');
       html = html.replace(/window\.top\.location\s*=/gi, 'window.location =');
       html = html.replace(/<meta[^>]*http-equiv=["']?(Content-Security-Policy|X-Frame-Options)["']?[^>]*>/gi, '');
 
-      // 2. Strip all crossorigin and integrity attributes to eliminate browser CORS blocks on subresources
+      // 3. Strip all crossorigin and integrity attributes to eliminate browser CORS blocks on subresources
       html = html.replace(/\s+crossorigin(=["'][^"']*["']|(?=[\s>]))/gi, '');
       html = html.replace(/\s+integrity=["'][^"']*["']/gi, '');
 
-      // 3. Rewrite scripts, stylesheets, modulepreloads, and favicons through the edge asset proxy (/r/_proxy/asset)
+      // 4. Rewrite scripts, stylesheets, modulepreloads, and favicons through the edge asset proxy (/r/_proxy/asset)
       // This guarantees same-origin delivery with universal CORS (Access-Control-Allow-Origin: *)
       html = html.replace(/<(script|link)([^>]*?)>/gi, (_match, tag, attrs) => {
         let updatedAttrs = attrs;
         const tagLower = tag.toLowerCase();
         
-        // Rewrite src on scripts
+        // Rewrite src on scripts (clean single-pass replacement)
         if (tagLower === 'script') {
-          updatedAttrs = updatedAttrs.replace(/\bsrc=["'](\/[^"']*)["']/i, (_m: string, srcPath: string) => {
-            if (srcPath.startsWith('//')) return `src="${parsedUrl.protocol}${srcPath}"`;
-            const absoluteAsset = `${origin}${srcPath}`;
-            return `src="${assetProxyBase}?url=${encodeURIComponent(absoluteAsset)}"`;
-          });
-          // Also rewrite absolute src pointing to the same target origin
-          updatedAttrs = updatedAttrs.replace(new RegExp(`\\bsrc=["'](${origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[^"']*)["']`, 'i'), (_m: string, fullUrl: string) => {
-            return `src="${assetProxyBase}?url=${encodeURIComponent(fullUrl)}"`;
-          });
+          const srcMatch = updatedAttrs.match(/\bsrc=["']([^"']+)["']/i);
+          if (srcMatch) {
+            const rawSrc = srcMatch[1];
+            let absoluteAsset = '';
+            if (rawSrc.startsWith('//')) {
+              absoluteAsset = `${parsedUrl.protocol}${rawSrc}`;
+            } else if (rawSrc.startsWith('/')) {
+              absoluteAsset = `${origin}${rawSrc}`;
+            } else if (rawSrc.startsWith(origin)) {
+              absoluteAsset = rawSrc;
+            }
+            if (absoluteAsset) {
+              const proxiedSrc = `${assetProxyBase}?url=${encodeURIComponent(absoluteAsset)}`;
+              updatedAttrs = updatedAttrs.replace(/\bsrc=["'][^"']+["']/i, `src="${proxiedSrc}"`);
+            }
+          }
         }
         
         // Rewrite href on link tags (stylesheets, modulepreload, icons, shortcut icons, apple-touch-icon, fonts)
         if (tagLower === 'link') {
-          updatedAttrs = updatedAttrs.replace(/\bhref=["'](\/[^"']*)["']/i, (_m: string, hrefPath: string) => {
-            if (hrefPath.startsWith('//')) return `href="${parsedUrl.protocol}${hrefPath}"`;
-            const absoluteAsset = `${origin}${hrefPath}`;
-            return `href="${assetProxyBase}?url=${encodeURIComponent(absoluteAsset)}"`;
-          });
-          // Also rewrite absolute href pointing to the same target origin
-          updatedAttrs = updatedAttrs.replace(new RegExp(`\\bhref=["'](${origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[^"']*)["']`, 'i'), (_m: string, fullUrl: string) => {
-            return `href="${assetProxyBase}?url=${encodeURIComponent(fullUrl)}"`;
-          });
+          const hrefMatch = updatedAttrs.match(/\bhref=["']([^"']+)["']/i);
+          if (hrefMatch) {
+            const rawHref = hrefMatch[1];
+            let absoluteAsset = '';
+            if (rawHref.startsWith('//')) {
+              absoluteAsset = `${parsedUrl.protocol}${rawHref}`;
+            } else if (rawHref.startsWith('/')) {
+              absoluteAsset = `${origin}${rawHref}`;
+            } else if (rawHref.startsWith(origin)) {
+              absoluteAsset = rawHref;
+            }
+            if (absoluteAsset) {
+              const proxiedHref = `${assetProxyBase}?url=${encodeURIComponent(absoluteAsset)}`;
+              updatedAttrs = updatedAttrs.replace(/\bhref=["'][^"']+["']/i, `href="${proxiedHref}"`);
+            }
+          }
         }
 
         return `<${tag}${updatedAttrs}>`;
@@ -268,16 +287,17 @@ export class ReverseProxyService {
       }
 
       // 5. Rewrite remaining general root-relative assets (images, audio, video posters, etc.) to absolute target URLs
+      // (Explicitly excluding our edge asset proxy path /r/_proxy/)
       html = html
-        .replace(/\b(src|poster|data-src)=["']\/(?!\/)([^"']*)["']/gi, `$1="${origin}/$2"`)
+        .replace(/\b(src|poster|data-src)=["']\/(?!r\/_proxy\/|\/)([^"']*)["']/gi, `$1="${origin}/$2"`)
         .replace(/\bsrcset=["']([^"']+)["']/gi, (_m, val) => {
           const rewritten = val.split(',').map((part: string) => {
             const p = part.trim();
-            return p.startsWith('/') && !p.startsWith('//') ? `${origin}${p}` : p;
+            return p.startsWith('/') && !p.startsWith('//') && !p.startsWith('/r/_proxy/') ? `${origin}${p}` : p;
           }).join(', ');
           return `srcset="${rewritten}"`;
         })
-        .replace(/url\(\s*["']?\/(?!\/)([^"')]+)["']?\s*\)/gi, `url("${origin}/$1")`);
+        .replace(/url\(\s*["']?\/(?!r\/_proxy\/|\/)([^"')]+)["']?\s*\)/gi, `url("${origin}/$1")`);
 
       // 6. Inject SPA path normalizer, network interceptor & animation fallback into <head> (WITHOUT <base href>)
       const targetPath = parsedUrl.pathname || '/';
