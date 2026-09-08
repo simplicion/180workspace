@@ -166,15 +166,16 @@ export class ReverseProxyService {
   }
 
   /**
-   * Fetches target URL and strips framing/CORS restrictions while rewriting assets
+   * Fetches target URL, removes framing/CORS restrictions, and rewrites assets & favicons
    */
   static async fetchAndStreamHtml(
     targetUrl: string,
     options: {
+      requestOrigin?: string;
       customHeaders?: Record<string, string>;
       timeoutMs?: number;
     } = {}
-  ): Promise<{ statusCode: number; html: string; contentType: string }> {
+  ): Promise<{ statusCode: number; html: string; contentType: string; title: string }> {
     const cleanUrl = targetUrl.trim();
     if (!this.isSafeUrl(cleanUrl)) {
       throw new Error(`Invalid or blocked destination URL: ${cleanUrl}`);
@@ -182,10 +183,9 @@ export class ReverseProxyService {
 
     const parsedUrl = new URL(cleanUrl);
     const origin = `${parsedUrl.protocol}//${parsedUrl.host}`;
-    const basePath = parsedUrl.pathname.endsWith('/') 
-      ? `${origin}${parsedUrl.pathname}` 
-      : `${origin}${parsedUrl.pathname.substring(0, parsedUrl.pathname.lastIndexOf('/') + 1)}`;
-    const baseHref = basePath.endsWith('/') ? basePath : `${basePath}/`;
+    const assetProxyBase = options.requestOrigin 
+      ? `${options.requestOrigin.replace(/\/+$/, '')}/r/_proxy/asset` 
+      : '/r/_proxy/asset';
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 8000);
@@ -208,6 +208,10 @@ export class ReverseProxyService {
 
       let html = await response.text();
 
+      // Extract real document title
+      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+      const pageTitle = titleMatch ? titleMatch[1].trim() : 'Website';
+
       // 1. Neutralize top-level frame-busting scripts & CSP / X-Frame meta headers
       html = html.replace(/if\s*\(\s*top\s*!==?\s*self\s*\)/gi, 'if (false)');
       html = html.replace(/top\.location\s*=/gi, 'window.location =');
@@ -218,41 +222,51 @@ export class ReverseProxyService {
       html = html.replace(/\s+crossorigin(=["'][^"']*["']|(?=[\s>]))/gi, '');
       html = html.replace(/\s+integrity=["'][^"']*["']/gi, '');
 
-      // 3. Rewrite root-relative scripts and stylesheets through the edge asset proxy (/r/_proxy/asset)
+      // 3. Rewrite scripts, stylesheets, modulepreloads, and favicons through the edge asset proxy (/r/_proxy/asset)
       // This guarantees same-origin delivery with universal CORS (Access-Control-Allow-Origin: *)
       html = html.replace(/<(script|link)([^>]*?)>/gi, (_match, tag, attrs) => {
         let updatedAttrs = attrs;
+        const tagLower = tag.toLowerCase();
         
         // Rewrite src on scripts
-        if (tag.toLowerCase() === 'script') {
+        if (tagLower === 'script') {
           updatedAttrs = updatedAttrs.replace(/\bsrc=["'](\/[^"']*)["']/i, (_m: string, srcPath: string) => {
             if (srcPath.startsWith('//')) return `src="${parsedUrl.protocol}${srcPath}"`;
             const absoluteAsset = `${origin}${srcPath}`;
-            return `src="/r/_proxy/asset?url=${encodeURIComponent(absoluteAsset)}"`;
+            return `src="${assetProxyBase}?url=${encodeURIComponent(absoluteAsset)}"`;
           });
           // Also rewrite absolute src pointing to the same target origin
           updatedAttrs = updatedAttrs.replace(new RegExp(`\\bsrc=["'](${origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[^"']*)["']`, 'i'), (_m: string, fullUrl: string) => {
-            return `src="/r/_proxy/asset?url=${encodeURIComponent(fullUrl)}"`;
+            return `src="${assetProxyBase}?url=${encodeURIComponent(fullUrl)}"`;
           });
         }
         
-        // Rewrite href on link tags (stylesheets, modulepreload, icons, preload)
-        if (tag.toLowerCase() === 'link') {
+        // Rewrite href on link tags (stylesheets, modulepreload, icons, shortcut icons, apple-touch-icon, fonts)
+        if (tagLower === 'link') {
           updatedAttrs = updatedAttrs.replace(/\bhref=["'](\/[^"']*)["']/i, (_m: string, hrefPath: string) => {
             if (hrefPath.startsWith('//')) return `href="${parsedUrl.protocol}${hrefPath}"`;
             const absoluteAsset = `${origin}${hrefPath}`;
-            return `href="/r/_proxy/asset?url=${encodeURIComponent(absoluteAsset)}"`;
+            return `href="${assetProxyBase}?url=${encodeURIComponent(absoluteAsset)}"`;
           });
           // Also rewrite absolute href pointing to the same target origin
           updatedAttrs = updatedAttrs.replace(new RegExp(`\\bhref=["'](${origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[^"']*)["']`, 'i'), (_m: string, fullUrl: string) => {
-            return `href="/r/_proxy/asset?url=${encodeURIComponent(fullUrl)}"`;
+            return `href="${assetProxyBase}?url=${encodeURIComponent(fullUrl)}"`;
           });
         }
 
         return `<${tag}${updatedAttrs}>`;
       });
 
-      // 4. Rewrite remaining general root-relative assets (images, video posters, etc.) to absolute URLs
+      // 4. Ensure a real destination favicon is present in <head>
+      if (!/<link[^>]*rel=["'](icon|shortcut icon)["']/i.test(html)) {
+        const defaultFaviconUrl = `${origin}/favicon.ico`;
+        const faviconTag = `\n  <link rel="icon" href="${assetProxyBase}?url=${encodeURIComponent(defaultFaviconUrl)}">`;
+        if (/<head[^>]*>/i.test(html)) {
+          html = html.replace(/(<head[^>]*>)/i, `$1${faviconTag}`);
+        }
+      }
+
+      // 5. Rewrite remaining general root-relative assets (images, audio, video posters, etc.) to absolute target URLs
       html = html
         .replace(/\b(src|poster|data-src)=["']\/(?!\/)([^"']*)["']/gi, `$1="${origin}/$2"`)
         .replace(/\bsrcset=["']([^"']+)["']/gi, (_m, val) => {
@@ -264,13 +278,14 @@ export class ReverseProxyService {
         })
         .replace(/url\(\s*["']?\/(?!\/)([^"')]+)["']?\s*\)/gi, `url("${origin}/$1")`);
 
-      // 5. Inject base href, SPA path normalizer, network interceptor & animation fallback into <head>
+      // 6. Inject SPA path normalizer, network interceptor & animation fallback into <head> (WITHOUT <base href>)
       const targetPath = parsedUrl.pathname || '/';
       const compatScript = `<script id="__td_compat__">
 (function() {
   try {
     var targetOrigin = "${origin}";
     var targetPath = "${targetPath}";
+    var assetProxyBase = "${assetProxyBase}";
 
     // SPA Router Path Normalizer (Next.js App Router, Vite, Nuxt, Remix, SvelteKit)
     var curPath = window.location.pathname;
@@ -296,7 +311,7 @@ export class ReverseProxyService {
             if (fullTarget) {
               var isGet = !init || !init.method || init.method.toUpperCase() === 'GET';
               if (isGet) {
-                var proxiedUrl = '/r/_proxy/asset?url=' + encodeURIComponent(fullTarget);
+                var proxiedUrl = assetProxyBase + '?url=' + encodeURIComponent(fullTarget);
                 if (typeof resource === 'string') {
                   resource = proxiedUrl;
                 } else {
@@ -324,7 +339,7 @@ export class ReverseProxyService {
               fullTarget = url;
             }
             if (fullTarget && (!method || method.toUpperCase() === 'GET')) {
-              url = '/r/_proxy/asset?url=' + encodeURIComponent(fullTarget);
+              url = assetProxyBase + '?url=' + encodeURIComponent(fullTarget);
             }
           }
         } catch(xe) {}
@@ -341,26 +356,21 @@ export class ReverseProxyService {
 </script>`;
 
       const animationFallback = `<style id="__td_anim_fix__">@keyframes __td_reveal{to{opacity:1 !important; visibility:visible !important; transform:none !important; filter:none !important;}} [style*="opacity: 0"], [style*="opacity:0"], [class*="opacity-0"] { animation: __td_reveal 0.01s forwards 0.35s !important; }</style>`;
-      const injection = `\n  <base href="${baseHref}">\n  ${animationFallback}\n  ${compatScript}`;
+      const injection = `\n  ${animationFallback}\n  ${compatScript}`;
 
-      if (!/<base\s+[^>]*href=/i.test(html)) {
-        if (/<head[^>]*>/i.test(html)) {
-          html = html.replace(/(<head[^>]*>)/i, `$1${injection}`);
-        } else if (/<html[^>]*>/i.test(html)) {
-          html = html.replace(/(<html[^>]*>)/i, `$1\n<head>${injection}</head>`);
-        } else {
-          html = `<head>${injection}</head>\n${html}`;
-        }
+      if (/<head[^>]*>/i.test(html)) {
+        html = html.replace(/(<head[^>]*>)/i, `$1${injection}`);
+      } else if (/<html[^>]*>/i.test(html)) {
+        html = html.replace(/(<html[^>]*>)/i, `$1\n<head>${injection}</head>`);
       } else {
-        if (/<head[^>]*>/i.test(html)) {
-          html = html.replace(/(<head[^>]*>)/i, `$1\n  ${animationFallback}\n  ${compatScript}`);
-        }
+        html = `<head>${injection}</head>\n${html}`;
       }
 
       return {
         statusCode: response.status,
         html,
-        contentType: response.headers.get('content-type') || 'text/html; charset=utf-8'
+        contentType: response.headers.get('content-type') || 'text/html; charset=utf-8',
+        title: pageTitle
       };
     } catch (err: any) {
       clearTimeout(timeoutId);

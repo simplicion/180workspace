@@ -74,18 +74,30 @@ export class PublicRoutingController {
 
       if (shouldProxyInPlace) {
         try {
-          const containerHtml = ReverseProxyService.renderSeamlessContainer(finalDestination);
+          const host = req.get('host') || '';
+          const proto = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+          const requestOrigin = host ? `${proto}://${host}` : undefined;
+
+          const streamResult = await ReverseProxyService.fetchAndStreamHtml(finalDestination, {
+            requestOrigin,
+            customHeaders: {
+              'user-agent': req.get('user-agent') || '',
+              'accept-language': req.get('accept-language') || ''
+            }
+          });
+
           res.removeHeader('Cross-Origin-Opener-Policy');
           res.removeHeader('Cross-Origin-Resource-Policy');
           res.removeHeader('Content-Security-Policy');
           res.removeHeader('X-Frame-Options');
 
-          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Content-Type', streamResult.contentType);
           res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
           res.setHeader('Access-Control-Allow-Origin', '*');
-          return res.status(200).send(containerHtml);
+          res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+          return res.status(streamResult.statusCode || 200).send(streamResult.html);
         } catch (proxyErr: any) {
-          console.warn('[PublicRoutingController] Reverse proxy fallback to 302:', proxyErr.message);
+          console.warn('[PublicRoutingController] Reverse proxy direct stream fallback to 302:', proxyErr.message);
         }
       }
 
@@ -349,7 +361,12 @@ export class PublicRoutingController {
         return res.status(400).send('Invalid or blocked proxy destination URL');
       }
 
+      const host = req.get('host') || '';
+      const proto = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+      const requestOrigin = host ? `${proto}://${host}` : undefined;
+
       const streamResult = await ReverseProxyService.fetchAndStreamHtml(targetUrl, {
+        requestOrigin,
         customHeaders: {
           'user-agent': req.get('user-agent') || '',
           'accept-language': req.get('accept-language') || ''
