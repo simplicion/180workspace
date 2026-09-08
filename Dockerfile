@@ -22,12 +22,9 @@ RUN pnpm turbo run build --filter=backend...
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 express
 
-COPY --from=installer --chown=express:nodejs /app .
+COPY --from=installer /app .
 
-USER express
 WORKDIR /app/apps/backend
 
 EXPOSE 4000
