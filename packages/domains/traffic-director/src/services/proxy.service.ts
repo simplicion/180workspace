@@ -90,7 +90,8 @@ export class ReverseProxyService {
     const cleanPath = urlPath.split('?')[0].toLowerCase();
     if (cleanPath.endsWith('.js') || cleanPath.endsWith('.mjs')) return 'application/javascript; charset=utf-8';
     if (cleanPath.endsWith('.css')) return 'text/css; charset=utf-8';
-    if (cleanPath.endsWith('.json')) return 'application/json; charset=utf-8';
+    if (cleanPath.endsWith('.json') || cleanPath.endsWith('.map')) return 'application/json; charset=utf-8';
+    if (cleanPath.endsWith('.webmanifest') || cleanPath.endsWith('.manifest')) return 'application/manifest+json';
     if (cleanPath.endsWith('.svg')) return 'image/svg+xml';
     if (cleanPath.endsWith('.png')) return 'image/png';
     if (cleanPath.endsWith('.jpg') || cleanPath.endsWith('.jpeg')) return 'image/jpeg';
