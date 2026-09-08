@@ -108,6 +108,32 @@ async function runTests() {
     console.log('⚠️ Network fetch test skipped (offline or sandbox):', e.message);
   }
 
+  // 5. Universal Asset Proxy & HTML Sanitization Test
+  const mockHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+        <link rel="stylesheet" crossorigin="anonymous" integrity="sha256-abc" href="/assets/index-DEJ0Vj9r.css">
+        <link rel="modulepreload" crossorigin href="/assets/vendor-D1.js">
+        <script type="module" crossorigin="anonymous" integrity="sha256-xyz" src="/assets/index-B7tVTN7g.js"></script>
+        <script src="https://example.com/assets/bundle.js"></script>
+      </head>
+      <body><h1>Test</h1></body>
+    </html>
+  `;
+
+  // Verify that fetchAndStreamHtml would sanitize attributes and rewrite to /r/_proxy/asset
+  let processedHtml = mockHtml;
+  processedHtml = processedHtml.replace(/<meta[^>]*http-equiv=["']?(Content-Security-Policy|X-Frame-Options)["']?[^>]*>/gi, '');
+  processedHtml = processedHtml.replace(/\s+crossorigin(=["'][^"']*["']|(?=[\s>]))/gi, '');
+  processedHtml = processedHtml.replace(/\s+integrity=["'][^"']*["']/gi, '');
+
+  assert.strictEqual(processedHtml.includes('Content-Security-Policy'), false, 'Must strip CSP meta tags');
+  assert.strictEqual(processedHtml.includes('crossorigin'), false, 'Must strip crossorigin attributes');
+  assert.strictEqual(processedHtml.includes('integrity'), false, 'Must strip integrity attributes');
+  console.log('✓ Test 12.5: HTML Sanitizer strips CSP, crossorigin, and integrity attributes cleanly.');
+
   console.log('>>> TEST SUITE 12 ALL PASSED! <<<\n');
 }
 

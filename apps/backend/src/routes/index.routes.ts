@@ -229,6 +229,15 @@ router.all('/v1/traffic-director/stream-proxy', (req, res, next) => {
         next(err);
     }
 });
+router.all('/v1/traffic-director/asset-proxy', (req, res, next) => {
+    try {
+        const mod = require('../api/v1/traffic-director/public-routing.controller');
+        const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
+        return ctrl.handleProxyAsset(req, res);
+    } catch (err) {
+        next(err);
+    }
+});
 router.post('/v1/traffic-director/verify-tag', (req, res, next) => {
     try {
         const mod = require('../api/v1/traffic-director/traffic-director.controller');

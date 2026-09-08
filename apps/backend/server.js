@@ -86,12 +86,14 @@ const allowedOrigins = process.env.CLIENT_URL
 // These endpoints are called from third-party advertiser domains (any origin).
 // They MUST bypass the global CORS whitelist since the tag/script runs on external sites.
 app.use((req, res, next) => {
-    const publicPaths = ['/api/v1/traffic-director/evaluate/', '/api/evaluate/', '/evaluate/', '/tag/', '/r/', '/shield/'];
+    const publicPaths = ['/api/v1/traffic-director/', '/api/evaluate/', '/evaluate/', '/tag/', '/r/', '/shield/'];
     const isPublicTD = publicPaths.some(p => req.path.startsWith(p));
     if (isPublicTD) {
         res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+        res.header('Access-Control-Allow-Headers', '*');
+        res.header('Access-Control-Expose-Headers', '*');
+        res.header('Timing-Allow-Origin', '*');
         if (req.method === 'OPTIONS') {
             return res.status(200).end();
         }
@@ -154,7 +156,9 @@ app.use(globalLimiter);
 // ─── Public Traffic Director Edge Routing (Zero-overhead Unauthenticated Edge) ───
 const { PublicRoutingController } = require('./src/api/v1/traffic-director/public-routing.controller');
 app.get('/r/_proxy/stream', (req, res, next) => PublicRoutingController.handleProxyStream(req, res).catch(next));
+app.get('/r/_proxy/asset', (req, res, next) => PublicRoutingController.handleProxyAsset(req, res).catch(next));
 app.get('/api/v1/traffic-director/stream-proxy', (req, res, next) => PublicRoutingController.handleProxyStream(req, res).catch(next));
+app.get('/api/v1/traffic-director/asset-proxy', (req, res, next) => PublicRoutingController.handleProxyAsset(req, res).catch(next));
 app.get('/r/:slug', (req, res, next) => PublicRoutingController.handleRedirect(req, res).catch(next));
 app.get('/shield/:slug', (req, res, next) => PublicRoutingController.handleShieldRoute(req, res).catch(next));
 app.all('/tag/:slug', (req, res, next) => PublicRoutingController.handleDynamicTag(req, res).catch(next));

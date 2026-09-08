@@ -8,6 +8,15 @@ export interface ProxyResponse {
   latencyMs: number;
 }
 
+export interface ProxyAssetResponse {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: Buffer;
+  contentType: string;
+  isCached: boolean;
+  latencyMs: number;
+}
+
 export interface ProxyCacheEntry {
   html: string;
   statusCode: number;
@@ -15,10 +24,21 @@ export interface ProxyCacheEntry {
   expiresAt: number;
 }
 
+export interface ProxyAssetCacheEntry {
+  body: Buffer;
+  statusCode: number;
+  contentType: string;
+  headers: Record<string, string>;
+  expiresAt: number;
+}
+
 export class ReverseProxyService {
   private static cache = new Map<string, ProxyCacheEntry>();
+  private static assetCache = new Map<string, ProxyAssetCacheEntry>();
   private static MAX_CACHE_ENTRIES = 500;
+  private static MAX_ASSET_CACHE_ENTRIES = 1000;
   private static CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  private static ASSET_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
   /**
    * Validates if a target URL is safe to fetch (Prevents SSRF attacks)
@@ -61,6 +81,32 @@ export class ReverseProxyService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Helper to detect MIME type from extension or URL
+   */
+  private static detectMimeType(urlPath: string, upstreamType?: string | null): string {
+    const cleanPath = urlPath.split('?')[0].toLowerCase();
+    if (cleanPath.endsWith('.js') || cleanPath.endsWith('.mjs')) return 'application/javascript; charset=utf-8';
+    if (cleanPath.endsWith('.css')) return 'text/css; charset=utf-8';
+    if (cleanPath.endsWith('.json')) return 'application/json; charset=utf-8';
+    if (cleanPath.endsWith('.svg')) return 'image/svg+xml';
+    if (cleanPath.endsWith('.png')) return 'image/png';
+    if (cleanPath.endsWith('.jpg') || cleanPath.endsWith('.jpeg')) return 'image/jpeg';
+    if (cleanPath.endsWith('.webp')) return 'image/webp';
+    if (cleanPath.endsWith('.avif')) return 'image/avif';
+    if (cleanPath.endsWith('.ico')) return 'image/x-icon';
+    if (cleanPath.endsWith('.woff2')) return 'font/woff2';
+    if (cleanPath.endsWith('.woff')) return 'font/woff';
+    if (cleanPath.endsWith('.ttf')) return 'font/ttf';
+    if (cleanPath.endsWith('.otf')) return 'font/otf';
+    if (cleanPath.endsWith('.html') || cleanPath.endsWith('.htm')) return 'text/html; charset=utf-8';
+    
+    if (upstreamType && upstreamType !== 'text/plain') {
+      return upstreamType;
+    }
+    return 'application/octet-stream';
   }
 
   /**
@@ -142,7 +188,7 @@ export class ReverseProxyService {
     const baseHref = basePath.endsWith('/') ? basePath : `${basePath}/`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 6000);
+    const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 8000);
 
     try {
       const response = await fetch(cleanUrl, {
@@ -162,14 +208,53 @@ export class ReverseProxyService {
 
       let html = await response.text();
 
-      // 1. Neutralize top-level frame-busting scripts
+      // 1. Neutralize top-level frame-busting scripts & CSP / X-Frame meta headers
       html = html.replace(/if\s*\(\s*top\s*!==?\s*self\s*\)/gi, 'if (false)');
       html = html.replace(/top\.location\s*=/gi, 'window.location =');
       html = html.replace(/window\.top\.location\s*=/gi, 'window.location =');
+      html = html.replace(/<meta[^>]*http-equiv=["']?(Content-Security-Policy|X-Frame-Options)["']?[^>]*>/gi, '');
 
-      // 2. Rewrite root-relative assets to absolute URLs
+      // 2. Strip all crossorigin and integrity attributes to eliminate browser CORS blocks on subresources
+      html = html.replace(/\s+crossorigin(=["'][^"']*["']|(?=[\s>]))/gi, '');
+      html = html.replace(/\s+integrity=["'][^"']*["']/gi, '');
+
+      // 3. Rewrite root-relative scripts and stylesheets through the edge asset proxy (/r/_proxy/asset)
+      // This guarantees same-origin delivery with universal CORS (Access-Control-Allow-Origin: *)
+      html = html.replace(/<(script|link)([^>]*?)>/gi, (_match, tag, attrs) => {
+        let updatedAttrs = attrs;
+        
+        // Rewrite src on scripts
+        if (tag.toLowerCase() === 'script') {
+          updatedAttrs = updatedAttrs.replace(/\bsrc=["'](\/[^"']*)["']/i, (_m: string, srcPath: string) => {
+            if (srcPath.startsWith('//')) return `src="${parsedUrl.protocol}${srcPath}"`;
+            const absoluteAsset = `${origin}${srcPath}`;
+            return `src="/r/_proxy/asset?url=${encodeURIComponent(absoluteAsset)}"`;
+          });
+          // Also rewrite absolute src pointing to the same target origin
+          updatedAttrs = updatedAttrs.replace(new RegExp(`\\bsrc=["'](${origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[^"']*)["']`, 'i'), (_m: string, fullUrl: string) => {
+            return `src="/r/_proxy/asset?url=${encodeURIComponent(fullUrl)}"`;
+          });
+        }
+        
+        // Rewrite href on link tags (stylesheets, modulepreload, icons, preload)
+        if (tag.toLowerCase() === 'link') {
+          updatedAttrs = updatedAttrs.replace(/\bhref=["'](\/[^"']*)["']/i, (_m: string, hrefPath: string) => {
+            if (hrefPath.startsWith('//')) return `href="${parsedUrl.protocol}${hrefPath}"`;
+            const absoluteAsset = `${origin}${hrefPath}`;
+            return `href="/r/_proxy/asset?url=${encodeURIComponent(absoluteAsset)}"`;
+          });
+          // Also rewrite absolute href pointing to the same target origin
+          updatedAttrs = updatedAttrs.replace(new RegExp(`\\bhref=["'](${origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[^"']*)["']`, 'i'), (_m: string, fullUrl: string) => {
+            return `href="/r/_proxy/asset?url=${encodeURIComponent(fullUrl)}"`;
+          });
+        }
+
+        return `<${tag}${updatedAttrs}>`;
+      });
+
+      // 4. Rewrite remaining general root-relative assets (images, video posters, etc.) to absolute URLs
       html = html
-        .replace(/\b(href|src|poster|data-src)=["']\/(?!\/)([^"']*)["']/gi, `$1="${origin}/$2"`)
+        .replace(/\b(src|poster|data-src)=["']\/(?!\/)([^"']*)["']/gi, `$1="${origin}/$2"`)
         .replace(/\bsrcset=["']([^"']+)["']/gi, (_m, val) => {
           const rewritten = val.split(',').map((part: string) => {
             const p = part.trim();
@@ -179,7 +264,7 @@ export class ReverseProxyService {
         })
         .replace(/url\(\s*["']?\/(?!\/)([^"')]+)["']?\s*\)/gi, `url("${origin}/$1")`);
 
-      // 3. Inject base href, SPA path normalizer, network interceptor & animation fallback into <head>
+      // 5. Inject base href, SPA path normalizer, network interceptor & animation fallback into <head>
       const targetPath = parsedUrl.pathname || '/';
       const compatScript = `<script id="__td_compat__">
 (function() {
@@ -195,34 +280,54 @@ export class ReverseProxyService {
       }
     }
 
-    // Intercept window.fetch for RSC flight payloads (/?_rsc=...) and static chunks
+    // Intercept window.fetch for RSC flight payloads, RUM beacons, and dynamic asset chunks
     var originalFetch = window.fetch;
     if (originalFetch) {
       window.fetch = function(resource, init) {
-        if (typeof resource === 'string') {
-          if (resource.startsWith('/_next/') || resource.startsWith('/_astro/') || resource.startsWith('/assets/') || resource.startsWith('/?_rsc=') || resource.includes('_rsc=')) {
-            resource = targetOrigin + (resource.startsWith('/') ? resource : '/' + resource);
+        try {
+          var urlStr = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+          if (urlStr) {
+            var fullTarget = '';
+            if (urlStr.startsWith('/') && !urlStr.startsWith('/r/_proxy/')) {
+              fullTarget = targetOrigin + urlStr;
+            } else if (urlStr.startsWith(targetOrigin)) {
+              fullTarget = urlStr;
+            }
+            if (fullTarget) {
+              var isGet = !init || !init.method || init.method.toUpperCase() === 'GET';
+              if (isGet) {
+                var proxiedUrl = '/r/_proxy/asset?url=' + encodeURIComponent(fullTarget);
+                if (typeof resource === 'string') {
+                  resource = proxiedUrl;
+                } else {
+                  resource = new Request(proxiedUrl, resource);
+                }
+              }
+            }
           }
-        } else if (resource && resource.url && typeof resource.url === 'string') {
-          var url = resource.url;
-          if (url.startsWith('/_next/') || url.startsWith('/_astro/') || url.startsWith('/assets/') || url.includes('_rsc=')) {
-            resource = new Request(targetOrigin + (url.startsWith('/') ? url : '/' + url), resource);
-          }
-        }
+        } catch(fe) {}
         return originalFetch.call(this, resource, init);
       };
     }
 
-    // Intercept XMLHttpRequest for relative XHR calls
+    // Intercept XMLHttpRequest for relative XHR / Beacon calls
     var OriginalXHR = window.XMLHttpRequest;
     if (OriginalXHR) {
       var origOpen = OriginalXHR.prototype.open;
       OriginalXHR.prototype.open = function(method, url, async, user, password) {
-        if (typeof url === 'string') {
-          if (url.startsWith('/_next/') || url.startsWith('/_astro/') || url.startsWith('/assets/') || url.includes('_rsc=')) {
-            url = targetOrigin + (url.startsWith('/') ? url : '/' + url);
+        try {
+          if (typeof url === 'string') {
+            var fullTarget = '';
+            if (url.startsWith('/') && !url.startsWith('/r/_proxy/')) {
+              fullTarget = targetOrigin + url;
+            } else if (url.startsWith(targetOrigin)) {
+              fullTarget = url;
+            }
+            if (fullTarget && (!method || method.toUpperCase() === 'GET')) {
+              url = '/r/_proxy/asset?url=' + encodeURIComponent(fullTarget);
+            }
           }
-        }
+        } catch(xe) {}
         return origOpen.call(this, method, url, async !== false, user, password);
       };
     }
@@ -260,6 +365,108 @@ export class ReverseProxyService {
     } catch (err: any) {
       clearTimeout(timeoutId);
       throw new Error(`Failed to stream proxied page: ${err.message}`);
+    }
+  }
+
+  /**
+   * Universal Asset Streamer: Fetches JS, CSS, Fonts, Images, and Beacons with Universal CORS
+   */
+  static async fetchAndStreamAsset(
+    assetUrl: string,
+    options: {
+      customHeaders?: Record<string, string>;
+      timeoutMs?: number;
+      bypassCache?: boolean;
+    } = {}
+  ): Promise<ProxyAssetResponse> {
+    const startTime = performance.now();
+    const cleanUrl = assetUrl.trim();
+
+    if (!this.isSafeUrl(cleanUrl)) {
+      throw new Error(`Invalid or blocked asset URL: ${cleanUrl}`);
+    }
+
+    const now = Date.now();
+    const cacheKey = cleanUrl;
+
+    // 1. Check memory cache for static assets
+    if (!options.bypassCache) {
+      const cached = this.assetCache.get(cacheKey);
+      if (cached && cached.expiresAt > now) {
+        const latencyMs = Math.round(performance.now() - startTime);
+        return {
+          statusCode: cached.statusCode,
+          headers: cached.headers,
+          body: cached.body,
+          contentType: cached.contentType,
+          isCached: true,
+          latencyMs
+        };
+      }
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 10000);
+
+    try {
+      const response = await fetch(cleanUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': options.customHeaders?.['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          'Accept': options.customHeaders?.['accept'] || '*/*',
+          'Accept-Language': options.customHeaders?.['accept-language'] || 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      const arrayBuffer = await response.arrayBuffer();
+      const body = Buffer.from(arrayBuffer);
+      const upstreamContentType = response.headers.get('content-type');
+      const contentType = this.detectMimeType(cleanUrl, upstreamContentType);
+
+      const headers: Record<string, string> = {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Expose-Headers': '*',
+        'Timing-Allow-Origin': '*',
+        'X-Powered-By': '180workspace-Traffic-Director'
+      };
+
+      // Cache if under 10MB
+      if (body.length < 10 * 1024 * 1024) {
+        if (this.assetCache.size >= this.MAX_ASSET_CACHE_ENTRIES) {
+          const firstKey = this.assetCache.keys().next().value;
+          if (firstKey) this.assetCache.delete(firstKey);
+        }
+
+        this.assetCache.set(cacheKey, {
+          body,
+          statusCode: response.status,
+          contentType,
+          headers,
+          expiresAt: now + this.ASSET_CACHE_TTL_MS
+        });
+      }
+
+      const latencyMs = Math.round(performance.now() - startTime);
+
+      return {
+        statusCode: response.status,
+        headers,
+        body,
+        contentType,
+        isCached: false,
+        latencyMs
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      throw new Error(`Failed to fetch proxied asset: ${err.message}`);
     }
   }
 
@@ -341,8 +548,10 @@ export class ReverseProxyService {
   static clearCache(targetUrl?: string) {
     if (targetUrl) {
       this.cache.delete(targetUrl.trim());
+      this.assetCache.delete(targetUrl.trim());
     } else {
       this.cache.clear();
+      this.assetCache.clear();
     }
   }
 }
