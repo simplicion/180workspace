@@ -142,46 +142,19 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
           <div>
             <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
               <span>HTTP Action Type</span>
-              <InfoTooltip content="Choose whether to stream content in-place without changing the URL or redirect the browser to the destination." />
+              <InfoTooltip content="302 is recommended for cloaking and dynamic routing because it avoids client-side browser caching." />
             </label>
             <CustomSelect
               value={actionType}
               onChange={(e: any) => setActionType(e.target.value)}
               options={[
-                { value: 'proxy_target_offer', label: '🛡️ In-Place Reverse Proxy (HTTP 200 - URL Stays Same)' },
-                { value: 'redirect_302', label: '🔀 302 Temporary Redirect (Browser Address Changes)' },
-                { value: 'js_replace', label: '⚡ Client-Side JavaScript Replace (Clean History)' },
-                { value: 'redirect_307', label: '🔀 307 Temporary Redirect (Preserve Method)' },
-                { value: 'redirect_301', label: '🔀 301 Permanent Redirect (SEO Link)' }
+                { value: 'proxy_target_offer', label: '🛡️ In-Place Reverse Proxy (200 OK - URL Preserved)' },
+                { value: 'redirect_302', label: '🔀 302 Temporary Redirect (Standard Browser Redirect)' },
+                { value: 'js_replace', label: '⚡ Client-Side JavaScript Replace (Clean Back Button)' },
+                { value: 'redirect_307', label: '📦 307 Temporary Redirect (Preserve Method)' },
+                { value: 'redirect_301', label: '🔗 301 Permanent Redirect (SEO Link Equity)' }
               ]}
             />
-            <p className="mt-1 text-[11px]">
-              {actionType === 'proxy_target_offer' && (
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ Content opens directly on your link with zero URL change.
-                </span>
-              )}
-              {actionType === 'redirect_302' && (
-                <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-                  → Forwards the visitor's browser directly to the destination URL.
-                </span>
-              )}
-              {actionType === 'js_replace' && (
-                <span className="text-purple-600 dark:text-purple-400 font-medium">
-                  ⚡ Client-side JavaScript DOM navigation without back-button loops.
-                </span>
-              )}
-              {actionType === 'redirect_307' && (
-                <span className="text-amber-600 dark:text-amber-400 font-medium">
-                  → 307 Temporary Redirect (preserves POST/PUT methods).
-                </span>
-              )}
-              {actionType === 'redirect_301' && (
-                <span className="text-blue-600 dark:text-blue-400 font-medium">
-                  → 301 Permanent Redirect cached by browsers.
-                </span>
-              )}
-            </p>
           </div>
         </div>
 

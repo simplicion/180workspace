@@ -119,12 +119,6 @@ export async function middleware(req: NextRequest) {
     // This allows raw HTML streaming with native scripts and stylesheets, avoiding React Server Component DOM wrapping.
     const trafficLinkSlug = await getTrafficLinkSlug(domainKey);
     if (trafficLinkSlug) {
-      // Check if this is a static asset request (e.g. /logo.png, /assets/..., /photo-*.avif, fonts, etc.)
-      const isStaticAsset = /\.(png|jpg|jpeg|gif|svg|webp|avif|ico|css|js|woff|woff2|ttf|eot|mp4|webm|mp3|json|map)$/i.test(pathname);
-      if (isStaticAsset) {
-        return NextResponse.rewrite(new URL(`/r/_proxy/asset?slug=${encodeURIComponent(trafficLinkSlug)}&path=${encodeURIComponent(pathname)}`, req.url));
-      }
-
       const subpathParam = pathname && pathname !== '/' ? `subpath=${encodeURIComponent(pathname.replace(/^\/+/, ''))}` : '';
       let targetQuery = '';
       if (search && subpathParam) {
