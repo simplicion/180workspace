@@ -15,12 +15,14 @@ router.get('/links', TrafficDirectorController.getLinks);
 router.post('/links', TrafficDirectorController.createLink);
 router.get('/links/:linkId', TrafficDirectorController.getLinkById);
 router.put('/links/:linkId', TrafficDirectorController.updateLink);
+router.patch('/links/:linkId', TrafficDirectorController.updateLink);
 router.delete('/links/:linkId', TrafficDirectorController.deleteLink);
 
 // Rules CRUD
 router.get('/links/:linkId/rules', TrafficDirectorController.getRules);
 router.post('/links/:linkId/rules', TrafficDirectorController.createRule);
 router.put('/rules/:ruleId', TrafficDirectorController.updateRule);
+router.patch('/rules/:ruleId', TrafficDirectorController.updateRule);
 router.delete('/rules/:ruleId', TrafficDirectorController.deleteRule);
 router.post('/links/:linkId/rules/reorder', TrafficDirectorController.reorderRules);
 
