@@ -3,6 +3,61 @@ import { getToken } from "next-auth/jwt";
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "5196aa96c36083e22fda242c96eb50b636d481f16da7117177ba037334341575";
 
+const domainRegistryCache = new Map<string, { type: string; slug?: string; expiresAt: number }>();
+
+async function getTrafficLinkSlug(domainKey: string): Promise<string | null> {
+  const now = Date.now();
+  const cached = domainRegistryCache.get(domainKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.type === 'TRAFFIC_LINK' ? (cached.slug || null) : null;
+  }
+
+  try {
+    const candidateBases = [
+      process.env.BACKEND_INTERNAL_URL,
+      process.env.NODE_ENV === 'production' ? 'http://backend:4000' : null,
+      process.env.NEXT_PUBLIC_BACKEND_URL,
+      process.env.NEXT_PUBLIC_API_URL,
+      'http://localhost:4004',
+      'http://localhost:4002',
+      'http://127.0.0.1:4004',
+      'http://127.0.0.1:4002',
+      'https://api.180workspace.com'
+    ].filter(Boolean) as string[];
+
+    const uniqueBases = Array.from(new Set(candidateBases));
+
+    for (const apiBase of uniqueBases) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
+        const res = await fetch(`${apiBase}/api/public/domains/resolve?domain=${encodeURIComponent(domainKey)}`, {
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const type = data?.type || '';
+          const slug = data?.payload?.slug || '';
+          domainRegistryCache.set(domainKey, {
+            type,
+            slug,
+            expiresAt: now + 60 * 1000 // 1 min TTL
+          });
+          return type === 'TRAFFIC_LINK' && slug ? slug : null;
+        }
+      } catch (e) {
+        // Try next candidate base
+      }
+    }
+  } catch (err) {
+    // Fallthrough to /sites
+  }
+  return null;
+}
+
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const pathname = url.pathname;
@@ -59,6 +114,23 @@ export async function middleware(req: NextRequest) {
     }
 
     const domainKey = hostname.split(':')[0].toLowerCase();
+
+    // Check if domain is a Traffic Director Smart Link to rewrite directly to Route Handler (/r/:slug)
+    // This allows raw HTML streaming with native scripts and stylesheets, avoiding React Server Component DOM wrapping.
+    const trafficLinkSlug = await getTrafficLinkSlug(domainKey);
+    if (trafficLinkSlug) {
+      const subpathParam = pathname && pathname !== '/' ? `subpath=${encodeURIComponent(pathname.replace(/^\/+/, ''))}` : '';
+      let targetQuery = '';
+      if (search && subpathParam) {
+        targetQuery = `${search}&${subpathParam}`;
+      } else if (search) {
+        targetQuery = search;
+      } else if (subpathParam) {
+        targetQuery = `?${subpathParam}`;
+      }
+      return NextResponse.rewrite(new URL(`/r/${trafficLinkSlug}${targetQuery}`, req.url));
+    }
+
     return NextResponse.rewrite(new URL(`/sites/${domainKey}${pathname}${search}`, req.url));
   }
 

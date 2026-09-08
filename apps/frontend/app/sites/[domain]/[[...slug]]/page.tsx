@@ -282,70 +282,8 @@ export default async function PublicWebsitePage({
     if (registryData?.type === 'TRAFFIC_LINK') {
         const linkSlug = registryData.payload?.slug;
         if (linkSlug) {
-            try {
-                const incomingHeaders = await headers();
-                const userAgent = incomingHeaders.get('user-agent') || '';
-                const forwardedFor = incomingHeaders.get('x-forwarded-for') || '';
-                const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : '';
-                const referer = incomingHeaders.get('referer') || '';
-
-                const apiBase = process.env.BACKEND_INTERNAL_URL || 
-                    (process.env.NODE_ENV === 'production' ? 'http://backend:4000' : null) ||
-                    process.env.NEXT_PUBLIC_BACKEND_URL || 
-                    process.env.NEXT_PUBLIC_API_URL || 
-                    (process.env.NODE_ENV === 'development' ? 'http://localhost:4002' : 'https://api.180workspace.com');
-
-                const searchParamsStr = slug ? `?subpath=${encodeURIComponent(Array.isArray(slug) ? slug.join('/') : slug)}` : '';
-                const evalRes = await fetch(`${apiBase}/r/${linkSlug}${searchParamsStr}`, {
-                    headers: {
-                        'user-agent': userAgent,
-                        'referer': referer,
-                        // Cloudflare strictly rejects outbound public requests with cf-connecting-ip (Error 1000). Pass via real-ip/forwarded-for instead.
-                        'true-client-ip': incomingHeaders.get('true-client-ip') || clientIp,
-                        'x-client-ip': incomingHeaders.get('x-client-ip') || clientIp,
-                        'x-real-ip': incomingHeaders.get('x-real-ip') || clientIp,
-                        'x-forwarded-for': forwardedFor || clientIp,
-                        'cf-ipcountry': incomingHeaders.get('cf-ipcountry') || '',
-                        'cf-ipcity': incomingHeaders.get('cf-ipcity') || '',
-                        'sec-ch-ua': incomingHeaders.get('sec-ch-ua') || '',
-                        'sec-ch-ua-mobile': incomingHeaders.get('sec-ch-ua-mobile') || '',
-                        'sec-ch-ua-platform': incomingHeaders.get('sec-ch-ua-platform') || '',
-                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-                    },
-                    redirect: 'manual',
-                    cache: 'no-store'
-                });
-
-                if (evalRes.status >= 300 && evalRes.status < 400) {
-                    const location = evalRes.headers.get('location');
-                    if (location) {
-                        redirect(location);
-                    }
-                }
-
-                const contentType = evalRes.headers.get('content-type') || '';
-                if (contentType.includes('text/html')) {
-                    const htmlText = await evalRes.text();
-                    return (
-                        <div 
-                            className="w-full min-h-screen m-0 p-0 overflow-x-hidden" 
-                            dangerouslySetInnerHTML={{ __html: htmlText }} 
-                        />
-                    );
-                }
-
-                const location = evalRes.headers.get('location');
-                if (location) {
-                    redirect(location);
-                }
-            } catch (err: any) {
-                // If redirect was thrown by Next.js, let it propagate
-                if (err.message === 'NEXT_REDIRECT' || err.digest?.includes('NEXT_REDIRECT') || String(err?.message || '').includes('NEXT_REDIRECT')) {
-                    throw err;
-                }
-                console.error('[sites/TRAFFIC_LINK] In-place proxy error:', err);
-                redirect(`/r/${linkSlug}`);
-            }
+            const subpathStr = slug ? `?subpath=${encodeURIComponent(Array.isArray(slug) ? slug.join('/') : slug)}` : '';
+            redirect(`/r/${linkSlug}${subpathStr}`);
         }
     }
 
