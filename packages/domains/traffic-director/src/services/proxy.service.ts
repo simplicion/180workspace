@@ -184,9 +184,9 @@ export class ReverseProxyService {
 
     const parsedUrl = new URL(cleanUrl);
     const origin = `${parsedUrl.protocol}//${parsedUrl.host}`;
-    const assetProxyBase = options.requestOrigin 
-      ? `${options.requestOrigin.replace(/\/+$/, '')}/r/_proxy/asset` 
-      : '/r/_proxy/asset';
+    // Always use root-relative path for asset proxying so subresources resolve seamlessly on any custom domain or subdomain
+    // without leaking internal container hostnames (e.g. backend:4000).
+    const assetProxyBase = '/r/_proxy/asset';
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 8000);
