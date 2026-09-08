@@ -61,12 +61,53 @@ export class PublicRoutingController {
         }
       });
 
-      // 5. Append query params from original request if present
+      // 5. Compute destination URL and handle subpaths for assets or deep routes
       let finalDestination = result.destinationUrl;
-      const originalQuery = req.url.includes('?') ? req.url.split('?')[1] : '';
-      if (originalQuery) {
+      const subpath = req.query.subpath ? String(req.query.subpath).replace(/^\/+/, '') : '';
+      
+      if (subpath) {
+        try {
+          const parsedDest = new URL(finalDestination);
+          const targetOrigin = `${parsedDest.protocol}//${parsedDest.host}`;
+          const isStaticAsset = /\.(png|jpe?g|svg|webp|avif|ico|gif|mp4|webm|woff2?|ttf|eot|css|js|map|json|webmanifest)$/i.test(subpath.split('?')[0]);
+          
+          if (isStaticAsset) {
+            // Direct static asset streaming proxy (e.g. /logo.png, /favicon.ico)
+            const assetUrl = `${targetOrigin}/${subpath}`;
+            const assetResult = await ReverseProxyService.fetchAndStreamAsset(assetUrl, {
+              customHeaders: {
+                'user-agent': req.get('user-agent') || '',
+                'accept-language': req.get('accept-language') || '',
+                'accept': req.get('accept') || '*/*'
+              }
+            });
+
+            res.removeHeader('Cross-Origin-Opener-Policy');
+            res.removeHeader('Cross-Origin-Resource-Policy');
+            res.removeHeader('Content-Security-Policy');
+            res.removeHeader('X-Frame-Options');
+
+            res.setHeader('Content-Type', assetResult.contentType);
+            res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', '*');
+            res.setHeader('Timing-Allow-Origin', '*');
+            return res.status(assetResult.statusCode || 200).send(assetResult.body);
+          } else {
+            // Append page subpath to destination
+            finalDestination = `${targetOrigin}/${subpath}`;
+          }
+        } catch (e) {}
+      }
+
+      // Preserve non-subpath query params from original request
+      const urlObj = new URL(req.url, 'http://localhost');
+      urlObj.searchParams.delete('subpath');
+      const extraQuery = urlObj.searchParams.toString();
+      if (extraQuery) {
         const separator = finalDestination.includes('?') ? '&' : '?';
-        finalDestination = `${finalDestination}${separator}${originalQuery}`;
+        finalDestination = `${finalDestination}${separator}${extraQuery}`;
       }
 
       // 6. Action Execution: Reverse Proxy (HTTP 200 OK) vs JavaScript Replace vs Standard 302 Redirect
@@ -74,12 +115,7 @@ export class PublicRoutingController {
 
       if (shouldProxyInPlace) {
         try {
-          const host = req.get('host') || '';
-          const proto = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-          const requestOrigin = host ? `${proto}://${host}` : undefined;
-
           const streamResult = await ReverseProxyService.fetchAndStreamHtml(finalDestination, {
-            requestOrigin,
             customHeaders: {
               'user-agent': req.get('user-agent') || '',
               'accept-language': req.get('accept-language') || ''
@@ -391,21 +427,7 @@ export class PublicRoutingController {
 
   static async handleProxyAsset(req: Request, res: Response) {
     try {
-      let assetUrl = String(req.query.url || '').trim();
-      
-      // If requested with ?slug=xxx&path=/logo.png, dynamically resolve target origin
-      if (!assetUrl && req.query.slug && req.query.path) {
-        try {
-          const cleanSlug = String(req.query.slug).trim();
-          const link = await TrafficLinksService.getLinkBySlug(cleanSlug);
-          if (link && link.fallbackUrl) {
-            const u = new URL(link.fallbackUrl);
-            const rawPath = String(req.query.path).replace(/^\/+/, '');
-            assetUrl = `${u.protocol}//${u.host}/${rawPath}`;
-          }
-        } catch (e) {}
-      }
-
+      const assetUrl = String(req.query.url || '').trim();
       if (!assetUrl || !ReverseProxyService.isSafeUrl(assetUrl)) {
         return res.status(400).send('Invalid or blocked asset URL');
       }

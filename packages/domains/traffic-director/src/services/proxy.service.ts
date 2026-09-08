@@ -368,27 +368,51 @@ export class ReverseProxyService {
       };
     }
 
-    // Intercept dynamic client-side <img> src setter for React/Vue/Vite SPAs
-    try {
-      var imgDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-      if (imgDescriptor && imgDescriptor.set) {
-        var origImgSrcSet = imgDescriptor.set;
-        Object.defineProperty(HTMLImageElement.prototype, 'src', {
-          set: function(val) {
-            if (typeof val === 'string') {
-              if (val.startsWith('/') && !val.startsWith('/r/_proxy/')) {
-                val = assetProxyBase + '?url=' + encodeURIComponent(targetOrigin + val);
-              } else if (val.startsWith(targetOrigin)) {
-                val = assetProxyBase + '?url=' + encodeURIComponent(val);
-              }
-            }
-            return origImgSrcSet.call(this, val);
+    // Intercept dynamic client-side image loading (e.g. React /logo.png, <img src="/logo.png">)
+    var imgProto = window.HTMLImageElement ? window.HTMLImageElement.prototype : null;
+    if (imgProto) {
+      var origSrcDesc = Object.getOwnPropertyDescriptor(imgProto, 'src') || 
+                        Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, 'src') ||
+                        Object.getOwnPropertyDescriptor(window.Element.prototype, 'src');
+      if (origSrcDesc && origSrcDesc.set) {
+        var origSet = origSrcDesc.set;
+        var origGet = origSrcDesc.get;
+        Object.defineProperty(imgProto, 'src', {
+          get: function() {
+            return origGet ? origGet.call(this) : this.getAttribute('src');
           },
-          get: imgDescriptor.get,
-          configurable: true
+          set: function(val) {
+            try {
+              if (typeof val === 'string' && val) {
+                if (val.startsWith('/') && !val.startsWith('/r/_proxy/')) {
+                  val = assetProxyBase + '?url=' + encodeURIComponent(targetOrigin + val);
+                } else if (val.startsWith(targetOrigin)) {
+                  val = assetProxyBase + '?url=' + encodeURIComponent(val);
+                }
+              }
+            } catch(ie) {}
+            return origSet.call(this, val);
+          },
+          configurable: true,
+          enumerable: true
         });
       }
-    } catch(ie) {}
+    }
+
+    // Auto-recover any broken image loads to target origin
+    window.addEventListener('error', function(e) {
+      try {
+        var target = e.target;
+        if (target && target.tagName === 'IMG' && target.src && !target.dataset.tdRetried) {
+          target.dataset.tdRetried = 'true';
+          var rawSrc = target.getAttribute('src') || target.src;
+          if (rawSrc && rawSrc.indexOf('/r/_proxy/asset') === -1) {
+            var fullTarget = rawSrc.startsWith('/') ? targetOrigin + rawSrc : (rawSrc.indexOf('http') !== 0 ? targetOrigin + '/' + rawSrc : rawSrc);
+            target.src = assetProxyBase + '?url=' + encodeURIComponent(fullTarget);
+          }
+        }
+      } catch(ee) {}
+    }, true);
 
     // Title broadcaster for parent container
     if (document.title && window.parent && window.parent !== window) {
