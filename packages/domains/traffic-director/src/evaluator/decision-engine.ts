@@ -137,8 +137,8 @@ export class DecisionEngine {
         return {
           matchedRuleId: rule.id,
           matchedRuleName: rule.name,
-          destinationUrl: rule.destinationUrl,
-          actionType: (rule.actionType as any) || 'redirect_302',
+          destinationUrl: rule.destinationUrl || (rule as any).targetUrl,
+          actionType: (rule.actionType as any) || (rule as any).action || 'redirect_302',
           isFallback: false,
           evaluationLatencyMs: elapsed,
           signals
