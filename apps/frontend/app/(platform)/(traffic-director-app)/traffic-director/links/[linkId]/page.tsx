@@ -531,53 +531,63 @@ export default function SmartLinkRuleCanvasPage() {
                 Fallback Delivery Action
               </span>
               <span className="text-[11px] text-gray-400">
-                When review bots or non-matching traffic visit
+                Applied when review bots or non-matching visitors hit your link
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => {
-                  setSafePageProxyMode(false);
-                  api.put(`/api/v1/traffic-director/links/${linkId}`, { safePageProxyMode: false })
-                    .then(() => toast.success('Delivery mode: 302 Redirect'))
+                  setSafePageProxyMode(true);
+                  api.put(`/api/v1/traffic-director/links/${linkId}`, { safePageProxyMode: true })
+                    .then(() => toast.success('Delivery mode: In-Place Reverse Proxy (HTTP 200)'))
                     .catch(() => toast.error('Failed to update delivery mode'));
                 }}
-                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
-                  !safePageProxyMode
-                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col gap-1 ${
+                  safePageProxyMode
+                    ? 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/30 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/20 shadow-xs'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-bold text-xs">
-                  <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>302 Browser Redirect (Standard)</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>🛡️ In-Place Reverse Proxy (HTTP 200)</span>
+                  </div>
+                  {safePageProxyMode && (
+                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-semibold">Active</span>
+                  )}
                 </div>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
-                  Browser address bar changes directly to destination URL. Best for DMs and bio links.
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">
+                  Mirrors safe page without changing the URL. Best for Meta/Google Ads cloaking & review bot compliance.
                 </p>
               </button>
 
               <button
                 type="button"
                 onClick={() => {
-                  setSafePageProxyMode(true);
-                  api.put(`/api/v1/traffic-director/links/${linkId}`, { safePageProxyMode: true })
-                    .then(() => toast.success('Delivery mode: In-Place Proxy'))
+                  setSafePageProxyMode(false);
+                  api.put(`/api/v1/traffic-director/links/${linkId}`, { safePageProxyMode: false })
+                    .then(() => toast.success('Delivery mode: 302 Browser Redirect'))
                     .catch(() => toast.error('Failed to update delivery mode'));
                 }}
-                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
-                  safePageProxyMode
-                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col gap-1 ${
+                  !safePageProxyMode
+                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-2 ring-indigo-500/20 shadow-xs'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-bold text-xs">
-                  <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>In-Place Reverse Proxy (HTTP 200)</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>🔀 302 Browser Redirect (Standard)</span>
+                  </div>
+                  {!safePageProxyMode && (
+                    <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-semibold">Active</span>
+                  )}
                 </div>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
-                  Mirrors safe page without changing URL. Best for Meta/Google Ads compliance.
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">
+                  Browser address bar changes directly to destination URL. Best for DMs, bio links, and standard affiliate hops.
                 </p>
               </button>
             </div>

@@ -368,6 +368,28 @@ export class ReverseProxyService {
       };
     }
 
+    // Intercept dynamic client-side <img> src setter for React/Vue/Vite SPAs
+    try {
+      var imgDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+      if (imgDescriptor && imgDescriptor.set) {
+        var origImgSrcSet = imgDescriptor.set;
+        Object.defineProperty(HTMLImageElement.prototype, 'src', {
+          set: function(val) {
+            if (typeof val === 'string') {
+              if (val.startsWith('/') && !val.startsWith('/r/_proxy/')) {
+                val = assetProxyBase + '?url=' + encodeURIComponent(targetOrigin + val);
+              } else if (val.startsWith(targetOrigin)) {
+                val = assetProxyBase + '?url=' + encodeURIComponent(val);
+              }
+            }
+            return origImgSrcSet.call(this, val);
+          },
+          get: imgDescriptor.get,
+          configurable: true
+        });
+      }
+    } catch(ie) {}
+
     // Title broadcaster for parent container
     if (document.title && window.parent && window.parent !== window) {
       window.parent.postMessage({ type: '__TD_TITLE__', title: document.title }, '*');
