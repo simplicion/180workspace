@@ -4,36 +4,63 @@ import { UserService } from '@workspace/identity';
 export class UserController {
     static async getUsers(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await UserService.getUsers(req.query);
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            const result = await UserService.getUsers(req.query, companyId);
             res.json(result);
         } catch (err) { next(err); }
     }
 
     static async getUserById(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await UserService.getUserById(req.params.id, (req as any).user.role);
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            const result = await UserService.getUserById(req.params.id, (req as any).user.role, companyId);
             res.json(result);
-        } catch (err) { next(err); }
+        } catch (err: any) {
+            if (err.message === 'User not found') return res.status(404).json({ error: 'User not found' });
+            next(err);
+        }
     }
 
     static async updateUser(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await UserService.updateUser(req.params.id, req.body, (req as any).user, req);
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            const result = await UserService.updateUser(req.params.id, req.body, (req as any).user, req, companyId);
             res.json(result);
         } catch (err: any) { 
             if (err.message === 'User not found' || (err.code && err.code === 'P2025')) return res.status(404).json({ error: 'User not found' });
+            if (err.message && err.message.includes('already assigned')) return res.status(400).json({ error: err.message });
+            if (err.message && err.message.includes('workspace')) return res.status(403).json({ error: err.message });
             next(err); 
         }
     }
 
     static async deleteUser(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await UserService.deleteUser(req.params.id, (req as any).user, req);
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            const result = await UserService.deleteUser(req.params.id, (req as any).user, req, companyId);
             res.json(result);
         } catch (err: any) { 
             if (err.message === 'Cannot delete your own account') return res.status(400).json({ error: err.message });
             if (err.message === 'User not found') return res.status(404).json({ error: err.message });
+            if (err.message && err.message.includes('workspace')) return res.status(403).json({ error: err.message });
             next(err); 
+        }
+    }
+
+    static async bulkDeleteUsers(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { ids } = req.body;
+            if (!ids || !Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ error: 'Please provide an array of employee IDs to delete.' });
+            }
+            const companyId = (req as any).company?.id || (req as any).user?.companyId;
+            const result = await UserService.bulkDeleteUsers(ids, (req as any).user, req, companyId);
+            res.json(result);
+        } catch (err: any) {
+            if (err.message && (err.message.includes('Cannot delete') || err.message.includes('No matching employees'))) {
+                return res.status(400).json({ error: err.message });
+            }
+            next(err);
         }
     }
 

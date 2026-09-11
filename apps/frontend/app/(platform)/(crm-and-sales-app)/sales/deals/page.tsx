@@ -5,13 +5,13 @@ import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import api from '@/lib/api';
 import {
-    Search, Plus, CheckCircle2, GripVertical, FileUp, Edit, Zap, ArrowRight
+    Search, Plus, CheckCircle2, GripVertical, FileUp, Edit, Zap, ArrowRight,
+    Check, Trash2, ArrowRightLeft, MoreHorizontal, CheckSquare, Building, User, Phone, Mail
 } from 'lucide-react';
-import { Skeleton } from "@workspace/ui";
+import { Skeleton, LogoLoader, ConfirmModal, BulkActionBar } from "@workspace/ui";
 import clsx from 'clsx';
 import Papa from 'papaparse';
 import toast from 'react-hot-toast';
-import { ConfirmModal } from "@workspace/ui";
 import { useRouter } from 'next/navigation';
 import {
     DndContext,
@@ -60,6 +60,8 @@ const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }>
 
 export default function DealsPage() {
     const { user } = useAuth();
+    const { company } = useSettings();
+    const currencySymbol = company?.currencySymbol || '$';
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -70,6 +72,14 @@ export default function DealsPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [activeId, setActiveId] = useState<string | null>(null);
+
+    // Multi-selection state
+    const [selectedDealIds, setSelectedDealIds] = useState<string[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [isBulkMoving, setIsBulkMoving] = useState(false);
+    const [isMoveStageMenuOpen, setIsMoveStageMenuOpen] = useState(false);
+    const moveStageMenuRef = useRef<HTMLDivElement>(null);
+
     const router = useRouter();
 
     const sensors = useSensors(
@@ -83,6 +93,17 @@ export default function DealsPage() {
         })
     );
 
+    // Close stage mover dropdown on outside click
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (moveStageMenuRef.current && !moveStageMenuRef.current.contains(e.target as Node)) {
+                setIsMoveStageMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
     const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
 
@@ -91,7 +112,6 @@ export default function DealsPage() {
         const cached = swrCacheRef.current.get(cacheKey);
 
         if (cached) {
-            // Instant 0ms Paint
             setLeads(cached.data || []);
             setLoading(false);
         } else {
@@ -108,7 +128,6 @@ export default function DealsPage() {
                     timestamp: Date.now()
                 });
 
-                // Track Visit (Phase 6)
                 api.post('/api/user-preferences/recent', {
                     recordId: 'active-client-pipeline',
                     type: 'Pipeline',
@@ -172,6 +191,7 @@ export default function DealsPage() {
         try {
             await api.delete(`/api/sales/deals/${deletingId}`);
             setLeads(prev => prev.filter(l => l.id !== deletingId));
+            setSelectedDealIds(prev => prev.filter(id => id !== deletingId));
             toast.success('Deal deleted successfully');
         } catch (err) {
             toast.error('Failed to delete deal');
@@ -180,6 +200,100 @@ export default function DealsPage() {
             setDeletingId(null);
         }
     };
+
+    // Selection Handlers
+    const filteredLeads = leads.filter(deal => 
+        (deal.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         deal.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    const handleToggleSelectDeal = (id: string) => {
+        setSelectedDealIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAllDeals = () => {
+        setSelectedDealIds(filteredLeads.map(d => d.id));
+    };
+
+    const handleDeselectAllDeals = () => {
+        setSelectedDealIds([]);
+    };
+
+    const handleSelectAmount = (amount: number) => {
+        const targetAmount = Math.min(amount, filteredLeads.length);
+        const selectedSlice = filteredLeads.slice(0, targetAmount).map(d => d.id);
+        setSelectedDealIds(selectedSlice);
+        toast.success(`Selected first ${selectedSlice.length} deals`);
+    };
+
+    const handleToggleStageSelection = (stage: string) => {
+        const stageDealIds = filteredLeads
+            .filter(deal => normalizeStage(deal.stage || deal.status || 'ContractPending') === stage)
+            .map(d => d.id);
+
+        if (stageDealIds.length === 0) return;
+
+        const allInStageSelected = stageDealIds.every(id => selectedDealIds.includes(id));
+        if (allInStageSelected) {
+            setSelectedDealIds(prev => prev.filter(id => !stageDealIds.includes(id)));
+        } else {
+            setSelectedDealIds(prev => Array.from(new Set([...prev, ...stageDealIds])));
+            toast.success(`Selected all ${stageDealIds.length} deals in ${STAGE_LABELS[stage] || stage}`);
+        }
+    };
+
+    const handleBulkDeleteSelected = async () => {
+        if (selectedDealIds.length === 0) return;
+        setIsBulkDeleting(true);
+        try {
+            await api.post('/api/sales/deals/bulk-delete', { ids: selectedDealIds });
+            toast.success(`Successfully deleted ${selectedDealIds.length} deals`);
+            setLeads(prev => prev.filter(d => !selectedDealIds.includes(d.id)));
+            swrCacheRef.current.clear();
+            setSelectedDealIds([]);
+        } catch (error: any) {
+            try {
+                await Promise.all(selectedDealIds.map(id => api.delete(`/api/sales/deals/${id}`)));
+                toast.success(`Deleted ${selectedDealIds.length} deals`);
+                setLeads(prev => prev.filter(d => !selectedDealIds.includes(d.id)));
+                swrCacheRef.current.clear();
+                setSelectedDealIds([]);
+            } catch (fallbackError: any) {
+                toast.error(error.response?.data?.error || 'Failed to delete selected deals');
+            }
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
+    const handleBulkMoveStage = async (newStage: string) => {
+        if (selectedDealIds.length === 0) return;
+        setIsBulkMoving(true);
+        setIsMoveStageMenuOpen(false);
+        try {
+            await api.post('/api/sales/deals/bulk-status', { 
+                ids: selectedDealIds, 
+                stage: newStage 
+            });
+            toast.success(`Moved ${selectedDealIds.length} deals to ${STAGE_LABELS[newStage] || newStage}`);
+            setLeads(prev => prev.map(d => 
+                selectedDealIds.includes(d.id) ? { ...d, stage: newStage } : d
+            ));
+            swrCacheRef.current.clear();
+            setSelectedDealIds([]);
+        } catch (error: any) {
+            toast.error('Failed to move selected deals');
+            loadLeads();
+        } finally {
+            setIsBulkMoving(false);
+        }
+    };
+
+    const selectedPipelineValue = leads
+        .filter(l => selectedDealIds.includes(l.id))
+        .reduce((sum, l) => sum + (Number(l.value) || 0), 0);
 
     const customCollisionDetection: CollisionDetection = (args) => {
         const pointerCollisions = pointerWithin(args);
@@ -210,13 +324,11 @@ export default function DealsPage() {
         const draggedId = active.id as string;
         const overId = over.id as string;
 
-        // Find the deal and the new status
         const deal = leads.find(o => o.id === draggedId);
         if (!deal) return;
 
         let newStatus = overId;
         if (!STAGES.includes(newStatus)) {
-            // If dropped over a card instead of a column, find the column of that card
             const overDeal = leads.find(o => o.id === overId);
             if (overDeal) newStatus = normalizeStage(overDeal.stage || overDeal.status || 'ContractPending');
         }
@@ -224,7 +336,6 @@ export default function DealsPage() {
         if (!STAGES.includes(newStatus)) return;
         if (deal.stage === newStatus) return;
 
-        // Optimistic UI update
         const updatedDeals = leads.map(o => 
             o.id === draggedId ? { ...o, stage: newStatus } : o
         );
@@ -236,67 +347,57 @@ export default function DealsPage() {
             toast.success(`Moved to ${STAGE_LABELS[newStatus] || newStatus}`);
         } catch (error) {
             toast.error('Failed to move deal');
-            loadLeads(); // Revert on failure
+            loadLeads();
         }
     };
-
-    const filteredLeads = leads.filter(deal => 
-        (deal.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-         deal.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
 
     const normalizeStage = (status: string) => {
         if (STAGES.includes(status)) return status;
         if (status === 'Qualified' || status === 'Demo' || status === 'Proposal' || status === 'Negotiation') return 'ContractPending';
-        if (status === 'ClosedWon' || status === 'converted' || status === 'Won') return 'ContractSigned';
+        if (status === 'ClosedWon' || status === 'lead_converted' || status === 'converted' || status === 'won') return 'ContractPending';
+        if (status === 'ClosedLost' || status === 'lost') return 'ContractPending';
+        if (status === 'new' || status === 'contacted' || status === 'kickoff') return 'ContractPending';
         return 'ContractPending';
     };
 
-    // Group by stage
     const grouped = STAGES.reduce((acc, stage) => {
-        acc[stage] = filteredLeads.filter(o => {
-            let s = normalizeStage(o.stage || o.status || 'ContractPending');
-            return s === stage;
-        })
-            // Sort by priorityScore (highest first), then by value
-            .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0) || (b.value || 0) - (a.value || 0));
+        acc[stage] = filteredLeads.filter(deal => normalizeStage(deal.stage || deal.status || 'ContractPending') === stage);
         return acc;
     }, {} as Record<string, any[]>);
 
     return (
-        <div className="flex flex-col gap-4 pb-12">
-            <div className="page-header flex justify-between items-start shrink-0 mb-0">
+        <div className="flex flex-col gap-4 pb-20">
+            {/* Header / Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800">
                 <div>
-                    <h1 className="page-title text-indigo-900 flex items-center gap-2">
-                        <CheckCircle2 className="w-6 h-6 text-indigo-600" />
-                        Deals Pipeline
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <span>Active Client Pipeline</span>
                     </h1>
-                    <p className="page-subtitle mt-1">Manage active deals, client contracts & revenue fulfillment.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Post-sale execution & delivery workflow for converted clients</p>
                 </div>
+                
                 <div className="flex items-center gap-3">
-                    <div className="relative w-64">
+                    <div className="relative w-full sm:w-64">
                         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
                             placeholder="Search deals..."
-                            className="input pl-10 w-full"
+                            className="input pl-9 w-full bg-gray-50 dark:bg-slate-800 text-sm py-1.5"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    
-                    <input
-                        type="file"
-                        accept=".csv"
-                        className="hidden"
-                        ref={fileInputRef}
-                        onChange={handleFileUpload}
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileUpload} 
+                        accept=".csv" 
+                        className="hidden" 
                     />
-                    
-                    <button 
+                    <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={importing}
-                        className="btn bg-white border-2 border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50 flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-semibold shadow-sm text-sm"
+                        className="btn btn-secondary flex items-center gap-1.5 py-1.5 px-3 text-xs whitespace-nowrap cursor-pointer"
                     >
                         <FileUp className="w-4 h-4" />
                         {importing ? 'Importing...' : 'Import CSV'}
@@ -312,7 +413,7 @@ export default function DealsPage() {
                 </div>
                 <button
                     onClick={() => router.push('/sales/leads-pipeline')}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 shadow-sm"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                     <span>Go to Leads Pipeline</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -328,7 +429,7 @@ export default function DealsPage() {
             {loading ? (
                 <div className="flex gap-4 overflow-x-auto pb-4 items-stretch flex-1 min-h-[calc(100vh-220px)]">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 border border-gray-100 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
+                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
                             <Skeleton variant="text" height={24} width="120px" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
@@ -349,6 +450,9 @@ export default function DealsPage() {
                                 id={stage}
                                 title={STAGE_LABELS[stage]}
                                 deals={grouped[stage]}
+                                selectedDealIds={selectedDealIds}
+                                onToggleSelect={handleToggleSelectDeal}
+                                onToggleStageSelect={() => handleToggleStageSelection(stage)}
                                 onDelete={(id) => setDeletingId(id)}
                             />
                         ))}
@@ -358,12 +462,60 @@ export default function DealsPage() {
                         {activeId ? (
                             <DealCard
                                 deal={leads.find(o => o.id === activeId)}
+                                isSelected={selectedDealIds.includes(activeId)}
                                 isDragging
                             />
                         ) : null}
                     </DragOverlay>
                 </DndContext>
             )}
+
+            {/* Bulk Actions Bar */}
+            <BulkActionBar
+                selectedCount={selectedDealIds.length}
+                totalCount={filteredLeads.length}
+                itemLabel="deals"
+                sublabel={selectedPipelineValue > 0 ? `${currencySymbol}${selectedPipelineValue.toLocaleString()} selected deal value` : undefined}
+                presetAmounts={[5, 10, 25, 50]}
+                onSelectAll={handleSelectAllDeals}
+                onDeselectAll={handleDeselectAllDeals}
+                onSelectAmount={handleSelectAmount}
+                onDeleteSelected={handleBulkDeleteSelected}
+                isDeleting={isBulkDeleting}
+                deleteModalTitle={`Delete ${selectedDealIds.length} Selected Deals`}
+                deleteModalMessage={`Are you sure you want to permanently delete these ${selectedDealIds.length} deals? This action cannot be undone.`}
+            >
+                {/* Stage Mover Popover */}
+                <div className="relative" ref={moveStageMenuRef}>
+                    <button
+                        onClick={() => setIsMoveStageMenuOpen(prev => !prev)}
+                        disabled={isBulkMoving}
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition-all cursor-pointer"
+                        title="Move all selected deals to another stage"
+                    >
+                        {isBulkMoving ? <LogoLoader className="w-3.5 h-3.5 animate-spin" /> : <ArrowRightLeft className="w-3.5 h-3.5" />}
+                        <span>Move Stage</span>
+                        <MoreHorizontal className="w-3 h-3" />
+                    </button>
+
+                    {isMoveStageMenuOpen && (
+                        <div className="absolute left-0 bottom-full mb-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                Move Selected Deals To
+                            </div>
+                            {STAGES.map(stage => (
+                                <button
+                                    key={stage}
+                                    onClick={() => handleBulkMoveStage(stage)}
+                                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 rounded-lg transition-colors flex items-center justify-between cursor-pointer"
+                                >
+                                    <span>{STAGE_LABELS[stage] || stage}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </BulkActionBar>
 
             <ConfirmModal
                 isOpen={!!deletingId}
@@ -385,10 +537,21 @@ interface ColumnProps {
     id: string;
     title: string;
     deals: any[];
+    selectedDealIds: string[];
+    onToggleSelect: (id: string) => void;
+    onToggleStageSelect: () => void;
     onDelete: (id: string) => void;
 }
 
-function Column({ id, title, deals, onDelete }: ColumnProps) {
+function Column({ 
+    id, 
+    title, 
+    deals, 
+    selectedDealIds, 
+    onToggleSelect, 
+    onToggleStageSelect, 
+    onDelete 
+}: ColumnProps) {
     const { setNodeRef, isOver } = useDroppable({
         id,
         data: {
@@ -397,6 +560,9 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
         },
     });
     const styles = STAGE_STYLES[id] || STAGE_STYLES['new'];
+
+    const allInStageSelected = deals.length > 0 && deals.every(o => selectedDealIds.includes(o.id));
+    const someInStageSelected = deals.some(o => selectedDealIds.includes(o.id));
 
     return (
         <div 
@@ -410,7 +576,29 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
         >
             <div className="flex items-center justify-between mb-3 shrink-0">
                 <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm text-gray-700">{title}</span>
+                    {deals.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleStageSelect();
+                            }}
+                            title={allInStageSelected ? "Deselect column" : `Select all ${deals.length} in ${title}`}
+                            className="p-1 -ml-1 text-gray-400 hover:text-indigo-600 rounded transition-colors cursor-pointer"
+                        >
+                            <span className={clsx(
+                                "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 bg-white"
+                            )}>
+                                {allInStageSelected ? (
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                ) : someInStageSelected ? (
+                                    <span className="w-2 h-0.5 bg-indigo-600 rounded-full" />
+                                ) : null}
+                            </span>
+                        </button>
+                    )}
+                    <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">{title}</span>
                     <span className={clsx('badge text-xs', styles.badge)}>{deals.length}</span>
                 </div>
             </div>
@@ -421,6 +609,8 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
                         <SortableDealCard 
                             key={deal.id} 
                             deal={deal} 
+                            isSelected={selectedDealIds.includes(deal.id)}
+                            onToggleSelect={onToggleSelect}
                             onDelete={() => onDelete(deal.id)}
                         />
                     ))}
@@ -439,7 +629,7 @@ function Column({ id, title, deals, onDelete }: ColumnProps) {
     );
 }
 
-function SortableDealCard({ deal, onDelete }: any) {
+function SortableDealCard({ deal, isSelected, onToggleSelect, onDelete }: any) {
     const {
         attributes,
         listeners,
@@ -458,6 +648,8 @@ function SortableDealCard({ deal, onDelete }: any) {
         <div ref={setNodeRef} style={style as React.CSSProperties}>
             <DealCard 
                 deal={deal} 
+                isSelected={isSelected}
+                onToggleSelect={onToggleSelect}
                 dragHandleProps={{ ...attributes, ...listeners }} 
                 isDragging={isDragging}
                 onDelete={onDelete}
@@ -466,50 +658,130 @@ function SortableDealCard({ deal, onDelete }: any) {
     );
 }
 
-function DealCard({ deal, dragHandleProps, isDragging, onDelete }: any) {
+function DealCard({ deal, isSelected, onToggleSelect, dragHandleProps, isDragging, onDelete }: any) {
     const { company } = useSettings();
     const currencySymbol = company?.currencySymbol || '$';
 
     if (!deal) return null;
 
     const dotColor = deal.priorityScore >= 80 ? 'bg-orange-500' : deal.priorityScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
+    const clientName = deal.client?.name || deal.client?.contactPersonName || deal.lead?.name || null;
+    const rawCompanyName = deal.client?.companyName || deal.client?.company || deal.lead?.companyName || deal.lead?.company || null;
+    const companyName = rawCompanyName && rawCompanyName !== clientName ? rawCompanyName : null;
+    const phone = deal.client?.phone || deal.lead?.phone || null;
+    const email = deal.client?.email || deal.lead?.email || null;
 
     return (
         <div 
             className={clsx(
-                'card p-3 cursor-pointer hover:shadow-md transition-all select-none group',
-                isDragging && 'opacity-40 scale-95 border-indigo-200'
+                "p-3.5 hover:shadow-lg transition-all select-none group border rounded-2xl bg-white dark:bg-slate-900 relative flex flex-col gap-2.5 cursor-default",
+                isSelected 
+                    ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs" 
+                    : "border-gray-200/90 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 shadow-2xs",
+                isDragging && "shadow-2xl ring-2 ring-indigo-500/40 cursor-grabbing rotate-1 scale-[1.02]"
             )}
             {...dragHandleProps}
         >
-            <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-start gap-2">
-                    <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor)} />
-                    <p className="text-sm font-medium text-gray-900 leading-snug">{deal.title}</p>
+            {/* Header Row: Checkbox + Priority Score Dot + Title + Delete Action */}
+            <div className="flex items-start gap-2.5">
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (onToggleSelect) onToggleSelect(deal.id);
+                    }}
+                    className="mt-0.5 p-0.5 -ml-0.5 -mt-0.5 rounded cursor-pointer transition-colors"
+                    title={isSelected ? "Deselect" : "Select deal"}
+                >
+                    <span className={clsx(
+                        "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                        isSelected 
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-xs" 
+                            : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-500"
+                    )}>
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </span>
+                </button>
+
+                <div className="flex-1 min-w-0 flex items-start gap-1.5">
+                    <span className={clsx('w-2 h-2 rounded-full mt-1.5 shrink-0', dotColor)} title={`Priority Score: ${deal.priorityScore || 0}`} />
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {deal.title}
+                    </h4>
                 </div>
+
                 {onDelete && (
                     <button 
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        className="p-1 text-gray-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1 -mr-1 -mt-0.5 text-gray-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded"
+                        title="Delete deal"
                     >
-                        <TrashIcon className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" />
                     </button>
                 )}
             </div>
-            
-            <p className="text-xs text-gray-500 mb-3 truncate">
-                {deal.client?.name || deal.client?.companyName || 'Unknown Company'}
-            </p>
 
-            <div className="flex items-center justify-between mt-auto">
-                <div className="flex items-center gap-2">
-                    {deal.owner ? (
-                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold" title={deal.owner.name}>
-                            {(deal.owner.name || '').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
-                        </div>
-                    ) : <div />}
+            {/* Client & Organization Section */}
+            <div className="flex flex-col gap-1 text-xs">
+                {clientName ? (
+                    <div className="flex items-center gap-1.5 font-medium text-gray-800 dark:text-gray-200 truncate">
+                        <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                        <span className="truncate">{clientName}</span>
+                        <span className="text-[9px] uppercase font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0.2 rounded border border-indigo-100 dark:border-indigo-800/50 shrink-0">Client</span>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500 italic">
+                        <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="truncate">No client attached</span>
+                    </div>
+                )}
+                {companyName && (
+                    <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 truncate">
+                        <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="truncate">{companyName}</span>
+                    </div>
+                )}
+                {phone && (
+                    <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 truncate">
+                        <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                        <span className="truncate">{phone}</span>
+                    </div>
+                )}
+                {email && !phone && (
+                    <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 truncate">
+                        <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                        <span className="truncate">{email}</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Footer Row: WhatsApp Chat + Assignee + Deal Value */}
+            <div className="flex items-center justify-between mt-1 pt-2.5 border-t border-gray-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-2 min-w-0">
+                    {phone ? (
+                        <button 
+                            type="button"
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                const phoneNumber = phone.replace(/[^0-9]/g, '');
+                                window.open(`https://wa.me/${phoneNumber}`, '_blank');
+                            }}
+                            title={`Chat on WhatsApp (${phone})`}
+                            className="text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 p-1.5 rounded-lg transition-colors flex items-center justify-center border border-emerald-200/60 dark:border-emerald-900/50 cursor-pointer shadow-2xs shrink-0"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+                            </svg>
+                        </button>
+                    ) : null}
+                    <div className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500 truncate">
+                        <User className="w-3 h-3 text-gray-400 shrink-0" />
+                        <span className="truncate max-w-[100px]">{deal.owner?.name?.split(' ')[0] || 'System'}</span>
+                    </div>
                 </div>
-                <div className="text-xs font-bold text-gray-400">
+
+                <div className="text-xs font-bold text-gray-800 dark:text-gray-100 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-gray-100 dark:border-slate-700/80 shadow-2xs shrink-0">
                     {currencySymbol}{deal.value?.toLocaleString() || '0'}
                 </div>
             </div>
@@ -526,21 +798,3 @@ const dropAnimation: DropAnimation = {
         },
     }),
 };
-
-const TrashIcon = (props: any) => (
-    <svg 
-        {...props} 
-        xmlns="http://www.w3.org/2000/svg" 
-        width="24" height="24" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-    >
-        <path d="M3 6h18"/>
-        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-    </svg>
-);

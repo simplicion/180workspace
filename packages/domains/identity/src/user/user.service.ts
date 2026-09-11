@@ -5,16 +5,28 @@ import { logAction } from '@workspace/backend-infra';
 import { deleteFromCloudinary } from '@workspace/backend-infra';
 
 export class UserService {
-    static async getUsers(queryParams: any) {
+    static async getUsers(queryParams: any, explicitCompanyId?: string) {
         const User = prisma.user;
         const { search, role, page = 1, limit = 50 } = queryParams;
-        const query: any = {};
+        const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
+        
+        const query: any = {
+            deletedAt: null
+        };
+        
+        if (companyId) {
+            query.companyId = companyId;
+        }
         
         if (search) {
-            query.OR = [
-                { name: { contains: search, mode: 'insensitive' } },
-                { email: { contains: search, mode: 'insensitive' } },
-                { employeeId: { contains: search, mode: 'insensitive' } }
+            query.AND = [
+                {
+                    OR: [
+                        { name: { contains: search, mode: 'insensitive' } },
+                        { email: { contains: search, mode: 'insensitive' } },
+                        { employeeId: { contains: search, mode: 'insensitive' } }
+                    ]
+                }
             ];
         }
         if (role) query.role = role;
@@ -36,9 +48,13 @@ export class UserService {
         return { users, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) };
     }
 
-    static async getUserById(id: string, currentUserRole: string) {
+    static async getUserById(id: string, currentUserRole: string, explicitCompanyId?: string) {
         const User = prisma.user;
-        const user = await User.findUnique({ where: { id } });
+        const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
+        const where: any = { id, deletedAt: null };
+        if (companyId) where.companyId = companyId;
+
+        const user = await User.findFirst({ where });
         
         if (!user) throw new Error('User not found');
         
@@ -52,7 +68,7 @@ export class UserService {
         return { user };
     }
 
-    static async updateUser(id: string, body: any, currentUser: any, reqObj: any) {
+    static async updateUser(id: string, body: any, currentUser: any, reqObj: any, explicitCompanyId?: string) {
         const User = prisma.user;
         const forbidden = ['password', 'email', 'refreshTokens', 'mfaSecret'];
         
@@ -62,11 +78,15 @@ export class UserService {
         forbidden.forEach((f) => delete body[f]);
 
         const existingUser = await User.findUnique({ where: { id } });
-        if (!existingUser) throw new Error('User not found');
+        if (!existingUser || existingUser.deletedAt !== null) throw new Error('User not found');
+
+        const companyId = explicitCompanyId || existingUser.companyId || (requestContext.getStore()?.companyId as string);
+        if (companyId && existingUser.companyId && existingUser.companyId !== companyId) {
+            throw new Error('User does not belong to this company workspace');
+        }
 
         if (body.employeeId !== undefined && body.employeeId !== null && body.employeeId !== '') {
             const trimmedEmpId = String(body.employeeId).trim();
-            const companyId = existingUser.companyId || (requestContext.getStore()?.companyId as string);
             if (companyId) {
                 const duplicate = await User.findFirst({
                     where: {
@@ -82,8 +102,6 @@ export class UserService {
             body.employeeId = trimmedEmpId;
         }
 
-        if (body.designationId === "") body.designationId = null;
-        if (body.managerId === "") body.managerId = null;
         if (body.salary !== undefined) body.salary = parseFloat(body.salary) || 0;
         if (body.leaveBalance !== undefined) body.leaveBalance = parseFloat(body.leaveBalance) || 0;
         
@@ -104,24 +122,55 @@ export class UserService {
             delete body.photo;
         }
 
-        if (body.designationId) {
-            const designationId = body.designationId;
-            const Designation = prisma.designation;
-            if (Designation) {
-                const companyId = requestContext.getStore()?.companyId as string;
-                let existing = await Designation.findFirst({ 
-                    where: { 
-                        name: { equals: designationId, mode: 'insensitive' },
-                        OR: [{ companyId }, { companyId: null }]
-                    } 
-                });
-                if (!existing) {
-                    existing = await Designation.create({ 
-                        data: { name: designationId, isCustom: true, companyId } 
+        if (body.designationId !== undefined) {
+            if (body.designationId && typeof body.designationId === 'string' && body.designationId.trim()) {
+                const desVal = body.designationId.trim();
+                const Designation = prisma.designation;
+                if (Designation) {
+                    const compId = companyId || (requestContext.getStore()?.companyId as string);
+                    let existing = await Designation.findFirst({ 
+                        where: { 
+                            name: { equals: desVal, mode: 'insensitive' },
+                            OR: [{ companyId: compId }, { companyId: null }]
+                        } 
                     });
+                    if (!existing) {
+                        const byId = await Designation.findFirst({
+                            where: {
+                                id: desVal,
+                                OR: [{ companyId: compId }, { companyId: null }]
+                            }
+                        });
+                        if (byId) {
+                            existing = byId;
+                        } else {
+                            existing = await Designation.create({ 
+                                data: { name: desVal, isCustom: true, companyId: compId } 
+                            });
+                        }
+                    }
+                    body.designation = { connect: { id: existing.id } };
                 }
-                body.designationId = existing.id;
+            } else {
+                body.designation = { disconnect: true };
             }
+            delete body.designationId;
+        }
+
+        if (body.managerId !== undefined) {
+            if (body.managerId && typeof body.managerId === 'string' && body.managerId.trim()) {
+                body.manager = { connect: { id: body.managerId.trim() } };
+            } else {
+                body.manager = { disconnect: true };
+            }
+            delete body.managerId;
+        }
+
+        if (body.companyId !== undefined) {
+            if (body.companyId && typeof body.companyId === 'string' && body.companyId.trim()) {
+                body.company = { connect: { id: body.companyId.trim() } };
+            }
+            delete body.companyId;
         }
 
         const user = await User.update({
@@ -133,7 +182,7 @@ export class UserService {
         return { user };
     }
 
-    static async deleteUser(id: string, currentUser: any, reqObj: any) {
+    static async deleteUser(id: string, currentUser: any, reqObj: any, explicitCompanyId?: string) {
         const User = prisma.user;
         const reqUserId = currentUser.id;
 
@@ -142,7 +191,12 @@ export class UserService {
         }
 
         const targetUser = await User.findUnique({ where: { id } });
-        if (!targetUser) throw new Error('User not found');
+        if (!targetUser || targetUser.deletedAt !== null) throw new Error('User not found');
+
+        const companyId = explicitCompanyId || currentUser.companyId || (requestContext.getStore()?.companyId as string);
+        if (companyId && targetUser.companyId && targetUser.companyId !== companyId) {
+            throw new Error('User does not belong to this company workspace');
+        }
 
         const originalEmail = targetUser.email;
 
@@ -153,25 +207,91 @@ export class UserService {
             } catch (_) { }
         }
 
-        const scrubbed = {
-            name: `Deleted User`,
-            email: `deleted_${id}@removed.invalid`,
-            password: 'REDACTED',
-            phone: '',
-            photoUrl: '',
-            emergencyContact: '',
-            mfaEnabled: false,
-            mfaSecret: null,
-            apiKey: null,
-            apiKeyEnabled: false,
-            bankAccount: '',
-            isActive: false,
-            deletedAt: new Date(),
-        };
+        // Try hard delete first if no constraints, fallback to scrub and soft-delete
+        try {
+            await User.delete({ where: { id } });
+        } catch (_) {
+            const scrubbed = {
+                name: `Deleted User`,
+                email: `deleted_${id}_${Date.now()}@removed.invalid`,
+                password: 'REDACTED',
+                phone: '',
+                photoUrl: '',
+                emergencyContact: '',
+                mfaEnabled: false,
+                mfaSecret: null,
+                apiKey: null,
+                apiKeyEnabled: false,
+                bankAccount: '',
+                isActive: false,
+                deletedAt: new Date(),
+            };
+            await User.update({ where: { id }, data: scrubbed });
+        }
 
-        await User.update({ where: { id }, data: scrubbed });
         await logAction(reqUserId, 'DELETE_USER', 'user', id, { originalEmail }, reqObj);
-        return { message: 'User account and personal data deleted successfully. Company data has been retained.' };
+        return { success: true, message: 'Employee deleted successfully.' };
+    }
+
+    static async bulkDeleteUsers(ids: string[], currentUser: any, reqObj: any, explicitCompanyId?: string) {
+        const User = prisma.user;
+        const reqUserId = String(currentUser.id);
+
+        const validIds = (ids || []).filter(id => id && String(id) !== reqUserId);
+        if (validIds.length === 0) {
+            throw new Error('Cannot delete your own account or no valid employee IDs provided');
+        }
+
+        const companyId = explicitCompanyId || currentUser.companyId || (requestContext.getStore()?.companyId as string);
+        const whereClause: any = {
+            id: { in: validIds },
+            deletedAt: null
+        };
+        if (companyId) {
+            whereClause.companyId = companyId;
+        }
+
+        const targetUsers = await User.findMany({ where: whereClause });
+        if (!targetUsers || targetUsers.length === 0) {
+            throw new Error('No matching employees found in this workspace');
+        }
+
+        let deletedCount = 0;
+        for (const targetUser of targetUsers) {
+            const id = targetUser.id;
+            if (targetUser.photoUrl) {
+                try {
+                    const publicId = targetUser.photoUrl.split('/').pop().split('.')[0];
+                    await deleteFromCloudinary(publicId);
+                } catch (_) { }
+            }
+
+            try {
+                await User.delete({ where: { id } });
+                deletedCount++;
+            } catch (_) {
+                const scrubbed = {
+                    name: `Deleted User`,
+                    email: `deleted_${id}_${Date.now()}@removed.invalid`,
+                    password: 'REDACTED',
+                    phone: '',
+                    photoUrl: '',
+                    emergencyContact: '',
+                    mfaEnabled: false,
+                    mfaSecret: null,
+                    apiKey: null,
+                    apiKeyEnabled: false,
+                    bankAccount: '',
+                    isActive: false,
+                    deletedAt: new Date(),
+                };
+                await User.update({ where: { id }, data: scrubbed });
+                deletedCount++;
+            }
+        }
+
+        await logAction(currentUser.id, 'BULK_DELETE_USERS', 'user', 'bulk', { count: deletedCount, ids: targetUsers.map(u => u.id) }, reqObj);
+        return { success: true, count: deletedCount, message: `Successfully deleted ${deletedCount} employee(s).` };
     }
 
     static async updatePhoto(id: string, storageResult: any) {

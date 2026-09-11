@@ -28,7 +28,11 @@ export class DealsService {
                     direction: params.direction,
                     sortField: params.sortField || 'createdAt',
                     sortOrder: params.sortOrder || 'desc',
-                    include: { owner: { select: { name: true, email: true } }, client: true },
+                    include: { 
+                        owner: { select: { name: true, email: true } }, 
+                        client: true,
+                        lead: { select: { name: true, companyName: true, company: true, email: true, phone: true } }
+                    },
                     includeTotalCount: true
                 });
 
@@ -50,7 +54,11 @@ export class DealsService {
             const [deals, total] = await Promise.all([
                 prisma.deal.findMany({
                     where: whereClause,
-                    include: { owner: { select: { name: true, email: true } }, client: true },
+                    include: { 
+                        owner: { select: { name: true, email: true } }, 
+                        client: true,
+                        lead: { select: { name: true, companyName: true, company: true, email: true, phone: true } }
+                    },
                     orderBy: { createdAt: 'desc' },
                     skip,
                     take: safeLimit
@@ -73,7 +81,11 @@ export class DealsService {
         const [deals, total] = await Promise.all([
             prisma.deal.findMany({ 
                 where: whereClause,
-                include: { owner: { select: { name: true, email: true } }, client: true }, 
+                include: { 
+                    owner: { select: { name: true, email: true } }, 
+                    client: true,
+                    lead: { select: { name: true, companyName: true, company: true, email: true, phone: true } }
+                }, 
                 orderBy: { priorityScore: 'desc' },
                 skip: skip,
                 take: safeLimit
@@ -133,7 +145,6 @@ export class DealsService {
                         email: data.contactEmail || null,
                         phone: data.contactPhone || null,
                         industry: data.industry || null,
-                        clientType: data.clientType || 'Lead',
                         status: 'active',
                         website: data.website || null,
                         taxId: data.taxId || null,
@@ -141,7 +152,6 @@ export class DealsService {
                         location: data.location || null,
                         employeeCount: data.employeeCount || null,
                         annualRevenue: data.annualRevenue ? parseFloat(data.annualRevenue) : 0,
-                        customIndustry: data.customIndustry || null,
                         country: data.country || null
                     }
                 });
@@ -153,27 +163,43 @@ export class DealsService {
         delete data.contactPhone;
         delete data.companyName;
         delete data.industry;
-        delete data.clientType;
         delete data.website;
         delete data.taxId;
         delete data.billingAddress;
         delete data.location;
         delete data.employeeCount;
         delete data.annualRevenue;
-        delete data.customIndustry;
         delete data.country;
         delete data.currency;
         delete data.name; // ensure 'name' isn't accidentally passed into Deal model which only has 'title'
+        delete data.category;
+        delete data.clientCategory;
+        delete data.createClient;
+        delete data.leadCategory;
+        delete data.accountId;
+
+        if (data.clientId) {
+            data.client = { connect: { id: data.clientId } };
+            delete data.clientId;
+        }
+        if (data.leadId) {
+            data.lead = { connect: { id: data.leadId } };
+            delete data.leadId;
+        }
+        if (data.ownerId) {
+            data.owner = { connect: { id: data.ownerId } };
+            delete data.ownerId;
+        }
         
         const deal = await prisma.deal.create({ data: { ...data } });
 
         if (notes) {
             await prisma.salesActivity.create({ data: {
                 type: 'note',
-                dealId: deal.id,
-                relatedClientId: deal.clientId,
+                deal: { connect: { id: deal.id } },
+                relatedClient: deal.clientId ? { connect: { id: deal.clientId } } : undefined,
                 notes: notes,
-                ownerId: userId
+                owner: userId ? { connect: { id: userId } } : undefined
             } });
         }
 
@@ -185,17 +211,17 @@ export class DealsService {
                     description: `Follow up on deal: ${deal.title}`,
                     dueDate: new Date(combinedDate),
                     assignedTo: deal.ownerId || userId,
-                    dealId: deal.id,
+                    deal: { connect: { id: deal.id } },
                 }
             });
         }
 
         await prisma.salesActivity.create({ data: {
             type: 'task',
-            dealId: deal.id,
-            relatedClientId: deal.clientId,
+            deal: { connect: { id: deal.id } },
+            relatedClient: deal.clientId ? { connect: { id: deal.clientId } } : undefined,
             notes: `New deal created: ${deal.title}`,
-            ownerId: userId
+            owner: userId ? { connect: { id: userId } } : undefined
         } });
 
         const settings = await prisma.settings.findFirst();
@@ -238,7 +264,7 @@ export class DealsService {
             data.expectedCloseDate = new Date(data.expectedCloseDate).toISOString();
         }
 
-        if (data.contactName !== undefined || data.contactEmail !== undefined || data.contactPhone !== undefined || data.companyName !== undefined || data.industry !== undefined || data.location !== undefined || data.clientType !== undefined || data.website !== undefined || data.taxId !== undefined || data.billingAddress !== undefined || data.employeeCount !== undefined || data.annualRevenue !== undefined || data.customIndustry !== undefined || data.country !== undefined) {
+        if (data.contactName !== undefined || data.contactEmail !== undefined || data.contactPhone !== undefined || data.companyName !== undefined || data.industry !== undefined || data.location !== undefined || data.website !== undefined || data.taxId !== undefined || data.billingAddress !== undefined || data.employeeCount !== undefined || data.annualRevenue !== undefined || data.country !== undefined) {
             if (oldDeal.clientId) {
                 await prisma.client.update({
                     where: { id: oldDeal.clientId },
@@ -249,13 +275,11 @@ export class DealsService {
                         companyName: data.companyName !== undefined ? data.companyName : undefined,
                         industry: data.industry !== undefined ? data.industry : undefined,
                         location: data.location !== undefined ? data.location : undefined,
-                        clientType: data.clientType !== undefined ? data.clientType : undefined,
                         website: data.website !== undefined ? data.website : undefined,
                         taxId: data.taxId !== undefined ? data.taxId : undefined,
                         billingAddress: data.billingAddress !== undefined ? data.billingAddress : undefined,
                         employeeCount: data.employeeCount !== undefined ? data.employeeCount : undefined,
                         annualRevenue: data.annualRevenue !== undefined ? parseFloat(data.annualRevenue) : undefined,
-                        customIndustry: data.customIndustry !== undefined ? data.customIndustry : undefined,
                         country: data.country !== undefined ? data.country : undefined,
                     }
                 });
@@ -277,7 +301,6 @@ export class DealsService {
                             email: data.contactEmail || null,
                             phone: data.contactPhone || null,
                             industry: data.industry || null,
-                            clientType: data.clientType || 'Lead',
                             status: 'active',
                             website: data.website || null,
                             taxId: data.taxId || null,
@@ -285,7 +308,6 @@ export class DealsService {
                             location: data.location || null,
                             employeeCount: data.employeeCount || null,
                             annualRevenue: data.annualRevenue ? parseFloat(data.annualRevenue) : 0,
-                            customIndustry: data.customIndustry || null,
                             country: data.country || null
                         }
                     });
@@ -297,13 +319,11 @@ export class DealsService {
                             phone: data.contactPhone !== undefined ? data.contactPhone : undefined,
                             industry: data.industry !== undefined ? data.industry : undefined,
                             location: data.location !== undefined ? data.location : undefined,
-                            clientType: data.clientType !== undefined ? data.clientType : undefined,
                             website: data.website !== undefined ? data.website : undefined,
                             taxId: data.taxId !== undefined ? data.taxId : undefined,
                             billingAddress: data.billingAddress !== undefined ? data.billingAddress : undefined,
                             employeeCount: data.employeeCount !== undefined ? data.employeeCount : undefined,
                             annualRevenue: data.annualRevenue !== undefined ? parseFloat(data.annualRevenue) : undefined,
-                            customIndustry: data.customIndustry !== undefined ? data.customIndustry : undefined,
                             country: data.country !== undefined ? data.country : undefined,
                         }
                     });
@@ -317,16 +337,20 @@ export class DealsService {
         delete data.companyName;
         delete data.industry;
         delete data.location;
-        delete data.clientType;
         delete data.website;
         delete data.taxId;
-        delete data.billingAddress;
-        delete data.employeeCount;
-        delete data.annualRevenue;
-        delete data.customIndustry;
-        delete data.country;
-        delete data.currency;
-        delete data.name; // Ensure name is deleted
+        if (data.clientId) {
+            data.client = { connect: { id: data.clientId } };
+            delete data.clientId;
+        }
+        if (data.leadId) {
+            data.lead = { connect: { id: data.leadId } };
+            delete data.leadId;
+        }
+        if (data.ownerId) {
+            data.owner = { connect: { id: data.ownerId } };
+            delete data.ownerId;
+        }
 
         const deal = await prisma.deal.update({ where: { id }, data });
 
@@ -350,7 +374,16 @@ export class DealsService {
         
         if (activitiesToCreate.length > 0) {
             try {
-                await prisma.salesActivity.createMany({ data: activitiesToCreate });
+                for (const act of activitiesToCreate) {
+                    await prisma.salesActivity.create({
+                        data: {
+                            type: act.type,
+                            notes: act.notes,
+                            deal: { connect: { id: act.dealId } },
+                            owner: act.ownerId ? { connect: { id: act.ownerId } } : undefined
+                        }
+                    });
+                }
             } catch (actErr) {
                 console.error('Failed to create sales activity for deal update', actErr);
             }
@@ -359,10 +392,10 @@ export class DealsService {
         if (notes) {
             await prisma.salesActivity.create({ data: {
                 type: 'note',
-                dealId: deal.id,
-                relatedClientId: deal.clientId,
+                deal: { connect: { id: deal.id } },
+                relatedClient: deal.clientId ? { connect: { id: deal.clientId } } : undefined,
                 notes: notes,
-                ownerId: deal.ownerId
+                owner: deal.ownerId ? { connect: { id: deal.ownerId } } : undefined
             } });
         }
 
@@ -374,7 +407,7 @@ export class DealsService {
                     description: `Follow up on deal: ${deal.title}`,
                     dueDate: new Date(combinedDate),
                     assignedTo: deal.ownerId,
-                    dealId: deal.id,
+                    deal: { connect: { id: deal.id } },
                 }
             });
         }
@@ -400,6 +433,24 @@ export class DealsService {
         if (!deal) throw new Error('Deal not found');
         return deal;
     }
+
+    static async deleteMultipleDeals(ids: string[]) {
+        if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
+        await prisma.salesActivity.deleteMany({ where: { dealId: { in: ids } } });
+        await prisma.salesTask.deleteMany({ where: { dealId: { in: ids } } });
+        const result = await prisma.deal.deleteMany({ where: { id: { in: ids } } });
+        return { count: result.count };
+    }
+
+    static async updateMultipleDealsStage(ids: string[], stage: string) {
+        if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
+        const result = await prisma.deal.updateMany({
+            where: { id: { in: ids } },
+            data: { stage }
+        });
+        return { count: result.count };
+    }
+
 
     static async importDeals(dealsData, userId) {
         let count = 0;

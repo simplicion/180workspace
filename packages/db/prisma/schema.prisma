@@ -120,6 +120,32 @@ model Company {
   ragVaults                RagMemoryVault[]
   documentCategories       DocumentCategory[]
   agentRequests            AgentRequest[]
+  clientCategories_CompanyClientCategories ClientCategory[] @relation("CompanyClientCategories")
+  chats_CompanyChats                       Chat[]           @relation("CompanyChats")
+  messages_CompanyMessages                 Message[]        @relation("CompanyMessages")
+  milestones_CompanyMilestones             Milestone[]      @relation("CompanyMilestones")
+  notes_CompanyNotes                       Note[]           @relation("CompanyNotes")
+  documentPages_CompanyDocumentPages       DocumentPage[]   @relation("CompanyDocumentPages")
+  modules_CompanyModules                   Module[]         @relation("CompanyModules")
+  onboardings_CompanyOnboardings           Onboarding[]     @relation("CompanyOnboardings")
+  timeLogs_CompanyTimeLogs                 TimeLog[]        @relation("CompanyTimeLogs")
+  applications_CompanyApplications         Application[]    @relation("CompanyApplications")
+  leads_CompanyLeads                       Lead[]           @relation("CompanyLeads")
+  deals_CompanyDeals                       Deal[]           @relation("CompanyDeals")
+  salesActivities_CompanySalesActivities   SalesActivity[]  @relation("CompanySalesActivities")
+  salesTasks_CompanySalesTasks             SalesTask[]      @relation("CompanySalesTasks")
+  salesForecasts_CompanySalesForecasts     SalesForecast[]  @relation("CompanySalesForecasts")
+  aiChatSessions_CompanyAiChatSessions     AiChatSession[]  @relation("CompanyAiChatSessions")
+  aiChatMessages_CompanyAiChatMessages     AiChatMessage[]  @relation("CompanyAiChatMessages")
+  calendarContentPieces_CompanyCalendarContentPieces CalendarContentPiece[] @relation("CompanyCalendarContentPieces")
+  calendarTemplates_CompanyCalendarTemplates         CalendarTemplate[]     @relation("CompanyCalendarTemplates")
+  callTranscriptSegments_CompanyCallTranscriptSegments CallTranscriptSegment[] @relation("CompanyCallTranscriptSegments")
+  callToolExecutions_CompanyCallToolExecutions         CallToolExecution[]     @relation("CompanyCallToolExecutions")
+  trafficRules_CompanyTrafficRules         TrafficRule[]    @relation("CompanyTrafficRules")
+  trafficLogs_CompanyTrafficLogs           TrafficLog[]     @relation("CompanyTrafficLogs")
+  pixels_CompanyPixels                     Pixel[]          @relation("CompanyPixels")
+  websiteFormSubmissions_CompanyWebsiteFormSubmissions WebsiteFormSubmission[] @relation("CompanyWebsiteFormSubmissions")
+
 }
 
 model SavedBank {
@@ -209,7 +235,6 @@ model Client {
   phone           String?
   website         String?
   industry        String?
-  clientType      String?
   taxId           String?
   billingAddress  String?
   location        String?
@@ -224,7 +249,6 @@ model Client {
   clv             Float?    @default(0)
   healthStatus    String?   @default("Healthy")
   assignedManager String?
-  customIndustry  String?
   country         String?
   leadSource      String?
   clientTier      String?
@@ -257,10 +281,15 @@ model Client {
 
 model ClientCategory {
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String
   color     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  companyId   String?
+  company     Company? @relation("CompanyClientCategories", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model Designation {
@@ -749,6 +778,10 @@ model Chat {
   admins         User[]    @relation("ChatAdmins")
   members        User[]    @relation("ChatMembers")
   pinnedMessages Message[] @relation("PinnedMessages")
+  companyId   String?
+  company     Company? @relation("CompanyChats", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model Message {
@@ -775,8 +808,12 @@ model Message {
   readBy                     User[]    @relation("MessageReadBy")
   starredBy                  User[]    @relation("MessageStarredBy")
   chatsWithThisPinnedMessage Chat[]    @relation("PinnedMessages")
+  companyId   String?
+  company     Company? @relation("CompanyMessages", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([chatId, createdAt(sort: Desc)])
+  @@index([companyId])
 }
 
 model ClientCommunication {
@@ -871,8 +908,12 @@ model Milestone {
   createdBy          User?     @relation("MilestoneCreator", fields: [createdById], references: [id])
   invoice            Invoice?  @relation(fields: [invoiceId], references: [id])
   project            Project   @relation("ProjectMilestones", fields: [projectId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyMilestones", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([projectId, order])
+  @@index([companyId])
 }
 
 model Note {
@@ -884,6 +925,10 @@ model Note {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdBy   User     @relation("NoteCreator", fields: [createdById], references: [id])
+  companyId   String?
+  company     Company? @relation("CompanyNotes", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model Notification {
@@ -1084,8 +1129,12 @@ model CalendarContentPiece {
   createdAt                                  DateTime        @default(now())
   updatedAt                                  DateTime        @updatedAt
   calendar                                   ContentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyCalendarContentPieces", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([status])
+  @@index([companyId])
 }
 
 model CalendarTemplate {
@@ -1104,6 +1153,10 @@ model CalendarTemplate {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
   user                     User?    @relation("CalendarTemplates", fields: [userId], references: [id])
+  companyId   String?
+  company     Company? @relation("CompanyCalendarTemplates", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model Category {
@@ -1260,6 +1313,10 @@ model DocumentPage {
   updatedAt   DateTime @updatedAt
   createdBy   User     @relation("UserDocumentPagesCreated", fields: [createdById], references: [id])
   updatedBy   User?    @relation("UserDocumentPagesUpdated", fields: [updatedById], references: [id])
+  companyId   String?
+  company     Company? @relation("CompanyDocumentPages", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model EmailLog {
@@ -1411,9 +1468,13 @@ model Application {
   reviewedBy     User?        @relation("UserApplicationsReviewed", fields: [reviewedById], references: [id])
   user           User?        @relation("UserApplicationsApplied", fields: [userId], references: [id])
   onboardings    Onboarding[]
+  companyId   String?
+  company     Company? @relation("CompanyApplications", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([jobId, status])
   @@index([applicantEmail])
+  @@index([companyId])
 }
 
 model MeetingLog {
@@ -1471,9 +1532,13 @@ model Module {
   project     Project   @relation("ProjectModules", fields: [projectId], references: [id], onDelete: Cascade)
   tasks       Task[]
   workLogs    WorkLog[]
+  companyId   String?
+  company     Company? @relation("CompanyModules", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([projectId, order])
   @@index([status])
+  @@index([companyId])
 }
 
 model Onboarding {
@@ -1491,8 +1556,12 @@ model Onboarding {
   updatedAt             DateTime     @updatedAt
   employee              User         @relation("UserOnboardings", fields: [employeeId], references: [id])
   recruitment           Application? @relation(fields: [recruitmentId], references: [id])
+  companyId   String?
+  company     Company? @relation("CompanyOnboardings", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([status])
+  @@index([companyId])
 }
 
 model TimeLog {
@@ -1511,9 +1580,13 @@ model TimeLog {
   project         Project?  @relation("ProjectTimeLogs", fields: [projectId], references: [id])
   task            Task?     @relation("TaskTimeLogs", fields: [taskId], references: [id])
   user            User      @relation("UserTimeLogs", fields: [userId], references: [id])
+  companyId   String?
+  company     Company? @relation("CompanyTimeLogs", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([userId, date])
   @@index([status])
+  @@index([companyId])
 }
 
 model UserPreference {
@@ -1983,8 +2056,12 @@ model AiChatSession {
   updatedAt DateTime        @updatedAt
   messages  AiChatMessage[]
   user      User            @relation("UserAiChatSessions", fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyAiChatSessions", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([userId])
+  @@index([companyId])
 }
 
 model AiChatMessage {
@@ -1994,8 +2071,12 @@ model AiChatMessage {
   content   String
   createdAt DateTime      @default(now())
   session   AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyAiChatMessages", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([sessionId])
+  @@index([companyId])
 }
 
 model UserExperience {
@@ -2137,15 +2218,21 @@ model Lead {
   deletedAt          DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  category           String?
+
 
   deals           Deal[]          @relation("LeadDeal")
   salesActivities SalesActivity[] @relation("ActivityDeal")
   salesTasks      SalesTask[]     @relation("TaskDeal")
   // @@map("Lead")
+  companyId   String?
+  tenantCompany Company? @relation("CompanyLeads", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([status])
   @@index([assignedSalesRepId])
   @@index([createdAt(sort: Desc), id])
+  @@index([companyId])
 }
 
 model Deal {
@@ -2175,6 +2262,9 @@ model Deal {
   salesActivities SalesActivity[] @relation("ActivityLead")
   salesTasks      SalesTask[]     @relation("TaskLead")
   documents       Document[]      @relation("DealDocuments")
+  companyId   String?
+  company     Company? @relation("CompanyDeals", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([stage])
   @@index([ownerId])
@@ -2182,6 +2272,7 @@ model Deal {
   @@index([pipelineType, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc), id])
   @@map("Opportunity")
+  @@index([companyId])
 }
 
 model SalesActivity {
@@ -2203,10 +2294,14 @@ model SalesActivity {
   reviewComment   String?
   reviewedById    String?
   reviewedAt      DateTime?
+  companyId   String?
+  company     Company? @relation("CompanySalesActivities", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([ownerId])
   @@index([dealId])
   @@index([leadId])
+  @@index([companyId])
 }
 
 model SalesForecast {
@@ -2217,8 +2312,12 @@ model SalesForecast {
   weightedRevenue Float?   @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  companyId   String?
+  company     Company? @relation("CompanySalesForecasts", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@unique([period, type], name: "period_type")
+  @@index([companyId])
 }
 
 model SalesTask {
@@ -2233,8 +2332,12 @@ model SalesTask {
   deal        Deal?     @relation("TaskLead", fields: [dealId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  companyId   String?
+  company     Company? @relation("CompanySalesTasks", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([assignedTo, status])
+  @@index([companyId])
 }
 
 model Quote {
@@ -2381,6 +2484,10 @@ model Pixel {
   updatedAt DateTime @updatedAt
 
   website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyPixels", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model WebsiteFormSubmission {
@@ -2398,6 +2505,10 @@ model WebsiteFormSubmission {
   updatedAt DateTime @updatedAt
 
   website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyWebsiteFormSubmissions", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model KnowledgeArticle {
@@ -2628,9 +2739,13 @@ model TrafficRule {
   updatedAt      DateTime       @updatedAt
 
   link           TrafficLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyTrafficRules", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([linkId])
   @@index([priority])
+  @@index([companyId])
 }
 
 model TrafficLog {
@@ -2658,9 +2773,13 @@ model TrafficLog {
   timestamp      DateTime       @default(now())
 
   link           TrafficLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("CompanyTrafficLogs", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([linkId, timestamp])
   @@index([timestamp])
+  @@index([companyId])
 }
 
 // ==========================================
@@ -2870,8 +2989,12 @@ model CallTranscriptSegment {
   
   interrupted    Boolean      @default(false)
   createdAt      DateTime     @default(now())
+  companyId   String?
+  company     Company? @relation("CompanyCallTranscriptSegments", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([callSessionId])
+  @@index([companyId])
 }
 
 model CallToolExecution {
@@ -2887,8 +3010,12 @@ model CallToolExecution {
   errorMessage   String?
   
   createdAt      DateTime     @default(now())
+  companyId   String?
+  company     Company? @relation("CompanyCallToolExecutions", fields: [companyId], references: [id], onDelete: Cascade)
+
 
   @@index([callSessionId])
+  @@index([companyId])
 }
 
 model VoiceWalletTransaction {

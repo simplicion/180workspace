@@ -63,14 +63,18 @@ export class EmailManagementService {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const validSentById = (sentById && uuidRegex.test(sentById)) ? sentById : null;
         
-        const log = await prisma.emailLog.create({ data: {
+        const emailData: any = {
             to: options.to,
             subject: options.subject,
             templateName: options.templateName || 'custom',
             templateData: options.templateData || {},
-            sentById: validSentById,
             status: 'failed'
-        } });
+        };
+        if (validSentById) {
+            emailData.sentBy = { connect: { id: validSentById } };
+        }
+        
+        const log = await prisma.emailLog.create({ data: emailData });
         const logId = log.id;
 
         if (!settings || !settings.smtpHost || !settings.smtpUser || !settings.smtpPass) {

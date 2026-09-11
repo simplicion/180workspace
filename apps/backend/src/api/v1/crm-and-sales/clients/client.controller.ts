@@ -113,6 +113,24 @@ export const deleteClient = async (req: Request, res: Response, next: NextFuncti
     } catch (err) { next(err); }
 };
 
+export const bulkDeleteClients = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const ids = req.body.ids || req.body.clientIds || [];
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'Please provide an array of client IDs to delete' });
+        }
+        const result = await ClientService.deleteMultipleClients(ids);
+        
+        const companyId = (req as any).company?.id || (req as any).user?.companyId;
+        if (companyId) {
+            await clearCRMCache(companyId);
+        }
+        
+        res.json({ message: `Successfully deleted ${result.count} clients`, count: result.count });
+    } catch (err) { next(err); }
+};
+
+
 export const getCommunications = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const communications = await ClientService.getCommunications(req.params.id);

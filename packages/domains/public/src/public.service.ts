@@ -1,4 +1,4 @@
-import { prisma, getCompanyPrisma } from '@workspace/db';
+import { prisma } from '@workspace/db';
 import * as crypto from 'crypto';
 
 export class PublicService {

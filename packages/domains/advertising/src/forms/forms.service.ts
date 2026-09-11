@@ -514,7 +514,7 @@ export class FormsService {
         const remainingSubs = await prisma.formSubmission.count({ where: { clientId, id: { notIn: subIds } } });
         if (remainingSubs === 0) {
           await prisma.client.deleteMany({
-            where: { id: clientId, clientType: 'PROSPECT' }
+            where: { id: clientId }
           }).catch(() => {});
         }
       }
@@ -1134,7 +1134,6 @@ export class FormsService {
                   email: leadData.email || null,
                   phone: leadData.phone || null,
                   companyName: leadData.company || null,
-                  clientType: 'PROSPECT',
                   status: 'NEW',
                   leadSource: leadData.source
                 }
@@ -1567,7 +1566,6 @@ export class FormsService {
               email: leadData.email || null,
               phone: leadData.phone || null,
               companyName: leadData.company || null,
-              clientType: 'PROSPECT',
               status: 'NEW',
               leadSource: leadData.source
             }

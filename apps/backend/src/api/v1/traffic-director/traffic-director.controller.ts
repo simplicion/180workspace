@@ -275,6 +275,29 @@ export class TrafficDirectorController {
     }
   }
 
+  static async bulkDeleteLinks(req: Request, res: Response) {
+    try {
+      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const linkIds = req.body.linkIds || req.body.ids || [];
+      if (!Array.isArray(linkIds) || linkIds.length === 0) {
+        return res.status(400).json({ success: false, error: 'Please provide linkIds to delete' });
+      }
+
+      let deletedCount = 0;
+      for (const linkId of linkIds) {
+        try {
+          await TrafficLinksService.deleteLink(companyId, linkId);
+          deletedCount++;
+        } catch (e) {}
+      }
+      return res.json({ success: true, message: `Successfully deleted ${deletedCount} links`, count: deletedCount });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.bulkDeleteLinks]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Failed to delete links' });
+    }
+  }
+
+
   static async checkSlug(req: Request, res: Response) {
     try {
       const { slug, excludeLinkId } = req.query;

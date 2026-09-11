@@ -95,7 +95,7 @@ export default function UnifiedProfilePage() {
                             status: client.status || 'active',
                             photoUrl: client.logoUrl,
                             industry: client.industry,
-                            clientType: client.clientType,
+                            category: client.category,
                             taxId: client.taxId,
                             billingAddress: client.billingAddress,
                             joinDate: client.createdAt,
@@ -351,7 +351,7 @@ export default function UnifiedProfilePage() {
                                     <h3 className="text-xl font-bold text-gray-900">{profileUser.name}</h3>
                                     <p className="text-sm text-gray-500 font-medium mt-1">
                                         {profileUser.role === 'client'
-                                            ? (profileUser.clientType || 'Organization') + ' • ' + (profileUser.industry || profileUser.company || 'General')
+                                            ? (profileUser.category || 'Client') + ' • ' + (profileUser.industry || profileUser.company || 'General')
                                             : (profileUser.position || 'Member') + ' • ' + (profileUser.department || 'General')
                                         }
                                     </p>

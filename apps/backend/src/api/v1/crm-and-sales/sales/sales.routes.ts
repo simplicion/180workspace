@@ -12,12 +12,17 @@ router.get('/recommendations', ctrl.getRecommendations);
 router.get('/activity', ctrl.getSalesActivity);
 
 
+router.get('/leads/categories', ctrl.getLeadCategories);
 router.get('/leads', ctrl.getLeads);
 router.post('/leads', ctrl.createLead);
+router.post('/leads/bulk-delete', ctrl.bulkDeleteLeads);
+router.delete('/leads/bulk', ctrl.bulkDeleteLeads);
+router.post('/leads/bulk-status', ctrl.bulkUpdateLeadStatus);
 router.put('/leads/:id', ctrl.updateLead);
 router.delete('/leads/:id', ctrl.deleteLead);
 router.post('/leads/:id/convert', ctrl.convertLead);
 router.post('/leads/import', ctrl.importLeads);
+
 
 router.post('/contracts/analyze', ctrl.analyzeContract);
 router.post('/contracts/propose', ctrl.proposeContractUpdates);
@@ -54,9 +59,13 @@ router.get('/revenue', ctrl.getRevenueStats);
 
 router.get('/deals', ctrl.getDeals);
 router.post('/deals', ctrl.createDeal);
+router.post('/deals/bulk-delete', ctrl.bulkDeleteDeals);
+router.delete('/deals/bulk', ctrl.bulkDeleteDeals);
+router.post('/deals/bulk-status', ctrl.bulkUpdateDealStage);
 router.put('/deals/:id', ctrl.updateDeal);
 router.delete('/deals/:id', ctrl.deleteDeal);
 router.post('/deals/import', ctrl.importDeals);
 router.post('/deals/:id/create-project', ctrl.createProjectFromDeal);
+
 
 export default router;

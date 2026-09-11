@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import { Drawer } from "@/components/ui/Drawer";
 import CustomSelect from '@/components/ui/CustomSelect';
 import { ConfirmModal } from "@workspace/ui";
+import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { industriesList } from '@workspace/common';
 import { Country } from 'country-state-city';
@@ -24,6 +25,7 @@ interface LeadPipelineDrawerProps {
 const STAGES = ['Lead', 'Contacted', 'Qualified', 'Demo', 'Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'];
 
 export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLeadPipeline, pipelineType }: LeadPipelineDrawerProps) {
+    const { user } = useAuth();
     const [accounts, setAccounts] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
     const [loadingAccounts, setLoadingAccounts] = useState(false);
@@ -60,11 +62,11 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         contactName: '',
         contactEmail: '',
         contactPhone: '',
-        companyName: '',
+        category: 'Outbound Lead',
         industry: '',
-        source: '',
+        source: 'Outbound',
         currency: company?.currency || 'USD',
-        owner: '',
+        owner: user?.id || '',
         followUpDate: '',
         createClient: false,
         clientCategory: '',
@@ -79,8 +81,9 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                 contactName: value,
                 contactEmail: existingClient.email || prev.contactEmail,
                 contactPhone: existingClient.phone || prev.contactPhone,
-                companyName: existingClient.companyName || prev.companyName,
                 industry: existingClient.industry || prev.industry,
+                category: prev.category || existingClient.category || '',
+                clientCategory: prev.clientCategory || existingClient.category || '',
                 accountId: existingClient.id
             }));
         } else {
@@ -115,14 +118,14 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     contactName: editingLeadPipeline.client?.name || editingLeadPipeline.contactName || editingLeadPipeline.name || '',
                     contactEmail: editingLeadPipeline.client?.email || editingLeadPipeline.contactEmail || editingLeadPipeline.email || '',
                     contactPhone: editingLeadPipeline.client?.phone || editingLeadPipeline.contactPhone || editingLeadPipeline.phone || '',
-                    companyName: editingLeadPipeline.client?.companyName || editingLeadPipeline.companyName || editingLeadPipeline.company || '',
+                    category: editingLeadPipeline.category || editingLeadPipeline.client?.category || 'Outbound Lead',
                     industry: editingLeadPipeline.client?.industry || editingLeadPipeline.industry || '',
                     source: editingLeadPipeline.source || 'Outbound',
                     currency: editingLeadPipeline.currency || company?.currency || 'USD',
-                    owner: editingLeadPipeline.ownerId || editingLeadPipeline.assignedSalesRepId || '',
+                    owner: editingLeadPipeline.ownerId || editingLeadPipeline.assignedSalesRepId || user?.id || '',
                     followUpDate: editingLeadPipeline.followUpDate ? format(parseISO(editingLeadPipeline.followUpDate), "yyyy-MM-dd'T'HH:mm") : currentDatetime,
                     createClient: !!editingLeadPipeline.clientId || !!editingLeadPipeline.client,
-                    clientCategory: editingLeadPipeline.client?.category || '',
+                    clientCategory: editingLeadPipeline.client?.category || editingLeadPipeline.category || '',
                 });
             } else {
                 setFormData({
@@ -139,18 +142,18 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     contactName: '',
                     contactEmail: '',
                     contactPhone: '',
-                    companyName: '',
+                    category: 'Outbound Lead',
                     industry: '',
                     source: 'Outbound',
                     currency: company?.currency || 'USD',
-                    owner: '',
+                    owner: user?.id || '',
                     followUpDate: currentDatetime,
                     createClient: false,
                     clientCategory: '',
                 });
             }
         }
-    }, [open, editingLeadPipeline, company?.currency]);
+    }, [open, editingLeadPipeline, company?.currency, user?.id]);
 
     const fetchAccounts = async () => {
         setLoadingAccounts(true);
@@ -174,7 +177,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     };
 
     const [categoriesList, setCategoriesList] = useState<string[]>([
-        'Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare'
+        'Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare', 'Inbound Prospect', 'Outbound Lead'
     ]);
 
     const fetchCurrencies = async () => {
@@ -190,10 +193,18 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
 
     const fetchCategories = async () => {
         try {
-            const { data } = await api.get('/api/clients/categories');
-            if (data.categories && Array.isArray(data.categories)) {
-                setCategoriesList(data.categories);
+            const [leadCatRes, clientCatRes] = await Promise.allSettled([
+                api.get('/api/sales/leads/categories'),
+                api.get('/api/clients/categories')
+            ]);
+            const combined = new Set<string>(['Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare', 'Inbound Prospect', 'Outbound Lead']);
+            if (leadCatRes.status === 'fulfilled' && leadCatRes.value.data?.categories) {
+                leadCatRes.value.data.categories.forEach((c: string) => combined.add(c));
             }
+            if (clientCatRes.status === 'fulfilled' && clientCatRes.value.data?.categories) {
+                clientCatRes.value.data.categories.forEach((c: string) => combined.add(c));
+            }
+            setCategoriesList(Array.from(combined).sort());
         } catch (error) {
             console.error('Failed to fetch categories');
         }
@@ -208,32 +219,48 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
     }, [open]);
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSave = async (e?: any) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
         
-        // Mandatory fields validation
-        if (isDealContext) {
-            if (!formData.title || !formData.contactName || !formData.source || !formData.owner || !formData.followUpDate) {
-                return toast.error('Please fill in all required fields');
-            }
-        } else {
-            if (!formData.contactName) {
-                return toast.error('Client Name is required');
-            }
-            if (!formData.source) {
-                return toast.error('Source is required');
-            }
-            if (!formData.owner) {
-                return toast.error('Assign To is required');
-            }
-            if (!formData.followUpDate) {
-                return toast.error('Follow-up Date & Time is required');
-            }
+        const resolvedContactName = (formData.contactName || formData.title || '').trim();
+        const effectiveTitle = (formData.title || resolvedContactName || 'New Lead').trim();
+        const resolvedCategory = (formData.category || 'Outbound Lead').trim();
+        const resolvedOwner = formData.owner || user?.id || '';
+        const resolvedFollowUp = formData.followUpDate || new Date().toISOString();
+
+        // 1. Mandatory Lead / Deal Title
+        if (!effectiveTitle) {
+            return toast.error('Lead Title / Name is required');
         }
 
-        // Contact info validation (either email or phone)
-        if (!formData.contactEmail && !formData.contactPhone) {
+        // 2. Client Name validation
+        if (!resolvedContactName) {
+            return toast.error('Client Name is required');
+        }
+
+        // 3. Lead Category validation (Mandatory for all leads)
+        if (!resolvedCategory) {
+            return toast.error('Lead Category is required');
+        }
+
+        // 4. Contact info validation (at least one contact method: email or phone)
+        if (!formData.contactEmail?.trim() && !formData.contactPhone?.trim()) {
             return toast.error('Either Phone Number or Email Address is required');
+        }
+
+        // 5. Source validation
+        if (!formData.source) {
+            return toast.error('Source is required');
+        }
+
+        // 6. When "Save & Add as Client in Client Directory" is checked:
+        if (formData.createClient) {
+            if (!resolvedContactName) {
+                return toast.error('Client Name is mandatory to save client');
+            }
+            if (!formData.contactEmail?.trim() && !formData.contactPhone?.trim()) {
+                return toast.error('Client contact info (Email or Phone Number) is mandatory');
+            }
         }
 
         if (formData.type === 'lead pipeline' && !formData.accountId) {
@@ -241,8 +268,21 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         }
 
         const tags = formData.type === 'Lead' ? ['Lead'] : ['lead pipeline'];
-        const resolvedTitle = formData.title || formData.contactName || 'New Lead';
-        const submissionData: any = { ...formData, title: resolvedTitle, tags, pipelineType: pipelineType || 'DEAL' };
+        const resolvedClientCategory = formData.createClient ? (formData.clientCategory?.trim() || resolvedCategory) : undefined;
+
+        const submissionData: any = { 
+            ...formData, 
+            title: effectiveTitle, 
+            name: effectiveTitle,
+            contactName: resolvedContactName,
+            category: resolvedCategory,
+            owner: resolvedOwner,
+            followUpDate: resolvedFollowUp,
+            clientCategory: resolvedClientCategory,
+            tags, 
+            pipelineType: pipelineType || 'DEAL' 
+        };
+
         if (submissionData.accountId) {
             submissionData.clientId = submissionData.accountId;
         }
@@ -251,10 +291,6 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
         submissionData.value = submissionData.value ? Number(submissionData.value.toString().replace(/[^0-9.-]+/g,"")) || 0 : 0;
         
         const isDeal = submissionData.pipelineType === 'DEAL';
-        if (!isDeal) {
-            // Map title/contactName to 'name' for Prisma Lead model
-            submissionData.name = resolvedTitle;
-        }
         
         setSaving(true);
         try {
@@ -320,12 +356,13 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     }
     
     const handlePhoneCodeChange = (e: any) => {
-        setFormData({ ...formData, contactPhone: `${e.target.value} ${currentNum}`.trim() });
+        const val = e?.target?.value ?? (typeof e === 'string' ? e : String(e || ''));
+        setFormData(prev => ({ ...prev, contactPhone: `${val} ${currentNum}`.trim() }));
     };
     
     const handlePhoneNumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const cleaned = e.target.value.replace(/[^\d\-\s()]/g, '');
-        setFormData({ ...formData, contactPhone: `${currentCode} ${cleaned}`.trim() });
+        setFormData(prev => ({ ...prev, contactPhone: `${currentCode} ${cleaned}`.trim() }));
     };
 
     const phoneExistsInAccounts = accounts.some(a => 
@@ -363,19 +400,18 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             }
         >
             <div>
-                <label htmlFor="dealTitle" className="label">{isDealContext ? 'Deal Title *' : 'Lead Name (Auto-filled from Client Name)'}</label>
+                <label htmlFor="dealTitle" className="label">{isDealContext ? 'Deal Title *' : 'Lead Title *'}</label>
                 <div className="relative">
                     <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
                     <input
                         id="dealTitle"
                         type="text"
-                        placeholder={isDealContext ? "e.g., Enterprise Software License" : (formData.contactName || "e.g., John Doe")}
+                        placeholder={isDealContext ? "e.g., Enterprise Software License" : (formData.contactName ? `${formData.contactName} - Project` : "e.g., Website Redesign / Enterprise Lead")}
                         className="input pl-9"
                         value={formData.title}
                         onChange={e => setFormData({ ...formData, title: e.target.value })}
                     />
                 </div>
-
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -385,19 +421,35 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         id="contactName" 
                         required 
                         creatable={true}
-                        placeholder="John Doe"
+                        placeholder="e.g., John Doe"
                         className="select"
                         value={formData.contactName} 
-                        onChange={(e: any) => handleClientSelect(e.target.value)} 
+                        onChange={(e: any) => handleClientSelect(e?.target?.value ?? e)} 
                         options={accounts.map(a => ({ label: a.name || a.companyName, value: a.name || a.companyName }))}
                     />
                 </div>
                 <div>
-                    <label htmlFor="companyName" className="label">Company Name</label>
-                    <input id="companyName" type="text" placeholder="Acme Corp" className="input" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
+                    <label htmlFor="leadCategory" className="label">Lead Category *</label>
+                    <CustomSelect 
+                        id="leadCategory" 
+                        required
+                        className="select" 
+                        placeholder="Select or type category"
+                        value={formData.category} 
+                        onChange={(e: any) => {
+                            const val = e?.target?.value ?? e;
+                            setFormData(prev => ({ 
+                                ...prev, 
+                                category: val,
+                                clientCategory: prev.clientCategory ? prev.clientCategory : val
+                            }));
+                        }}
+                        options={categoriesList}
+                        creatable={true}
+                    />
                 </div>
                 <div>
-                    <label htmlFor="contactPhone" className="label">Phone Number {formData.contactEmail ? '' : '*'}</label>
+                    <label htmlFor="contactPhone" className="label">Phone Number {formData.contactEmail ? '(Optional)' : '*'}</label>
                     <div className="flex gap-2">
                         <div className="w-32 shrink-0">
                             <CustomSelect 
@@ -423,7 +475,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     )}
                 </div>
                 <div>
-                    <label htmlFor="contactEmail" className="label">Email Address {formData.contactPhone ? '' : '*'}</label>
+                    <label htmlFor="contactEmail" className="label">Email Address {formData.contactPhone ? '(Optional)' : '*'}</label>
                     <input id="contactEmail" type="email" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address" placeholder="john@example.com" className="input" value={formData.contactEmail} onChange={e => setFormData({ ...formData, contactEmail: e.target.value })} />
                 </div>
                 <div>
@@ -433,8 +485,8 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         className="select" 
                         required 
                         value={formData.source} 
-                        onChange={(e: any) => setFormData({ ...formData, source: e.target.value })}
-                        options={['Outbound', 'Inbound', 'Referral', 'Event']}
+                        onChange={(e: any) => setFormData({ ...formData, source: e?.target?.value ?? e })}
+                        options={['Outbound', 'Inbound', 'Referral', 'Event', 'Website Form', 'Social Media']}
                         creatable={true}
                     />
                 </div>
@@ -445,7 +497,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         className="select" 
                         placeholder="Select Industry (Optional)"
                         value={formData.industry} 
-                        onChange={(e: any) => setFormData({ ...formData, industry: e.target.value })}
+                        onChange={(e: any) => setFormData({ ...formData, industry: e?.target?.value ?? e })}
                         options={industriesList || []}
                         creatable={true}
                     />
@@ -459,7 +511,14 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                                 type="checkbox"
                                 className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                                 checked={formData.createClient}
-                                onChange={(e) => setFormData({ ...formData, createClient: e.target.checked })}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setFormData(prev => ({ 
+                                        ...prev, 
+                                        createClient: checked,
+                                        clientCategory: checked && !prev.clientCategory ? prev.category : prev.clientCategory
+                                    }));
+                                }}
                             />
                             <span>📁 Save & Add as Client in Client Directory</span>
                         </label>
@@ -467,17 +526,21 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         {formData.createClient && (
                             <div className="pt-2.5 border-t border-indigo-100 dark:border-indigo-900/40 flex flex-col gap-1.5">
                                 <label htmlFor="clientCategory" className="text-[11px] font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
-                                    Client Category (Select or type custom category)
+                                    Client Category * (Select or type custom category)
                                 </label>
                                 <CustomSelect
                                     id="clientCategory"
+                                    required
                                     className="select text-xs bg-white dark:bg-gray-900"
                                     placeholder="e.g. Enterprise, VIP, Retail, Tech"
-                                    value={formData.clientCategory}
-                                    onChange={(e: any) => setFormData({ ...formData, clientCategory: e.target.value })}
+                                    value={formData.clientCategory || formData.category}
+                                    onChange={(e: any) => setFormData({ ...formData, clientCategory: e?.target?.value ?? e })}
                                     options={categoriesList}
                                     creatable={true}
                                 />
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    Client Name, Contact Info (Phone/Email), and Client Category will be saved directly into Client Directory.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -488,7 +551,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         <div className="w-28 shrink-0">
                             <CustomSelect 
                                 value={formData.currency}
-                                onChange={(e: any) => setFormData({ ...formData, currency: e.target.value })}
+                                onChange={(e: any) => setFormData({ ...formData, currency: e?.target?.value ?? e })}
                             >
                                 {(Object.keys(currencies?.rates || { USD: 1, INR: 83, EUR: 0.9, GBP: 0.7 }) || []).map(cur => (
                                     <option key={cur} value={cur}>{cur}</option>
@@ -523,7 +586,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                         required
                         className="select" 
                         value={formData.owner} 
-                        onChange={(e: any) => setFormData({ ...formData, owner: e.target.value })}
+                        onChange={(e: any) => setFormData({ ...formData, owner: e?.target?.value ?? e })}
                         options={[{ label: 'Unassigned', value: '' }, ...(users || []).map((u: any) => ({ label: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown User', value: u.id }))]}
                     />
                 </div>

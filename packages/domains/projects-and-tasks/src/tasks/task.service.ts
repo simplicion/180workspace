@@ -113,7 +113,7 @@ export class TaskService {
             body.estimatedHours = diffMs > 0 ? Math.round(diffMs / (1000 * 60 * 60)) : 0;
         }
 
-        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'creatorId', 'voiceMessageUrl', 'attachments'];
+        const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'creatorId', 'voiceMessageUrl', 'attachments', 'clientId'];
         const cleanData: any = {};
         allowedFields.forEach(f => {
             if (body[f] !== undefined) {
@@ -130,6 +130,41 @@ export class TaskService {
                 }
             }
         });
+
+        if (cleanData.projectId) {
+            cleanData.project = { connect: { id: cleanData.projectId } };
+            delete cleanData.projectId;
+        } else {
+            delete cleanData.projectId;
+        }
+
+        if (cleanData.assigneeId) {
+            cleanData.assignee = { connect: { id: cleanData.assigneeId } };
+            delete cleanData.assigneeId;
+        } else {
+            delete cleanData.assigneeId;
+        }
+
+        if (cleanData.creatorId) {
+            cleanData.creator = { connect: { id: cleanData.creatorId } };
+            delete cleanData.creatorId;
+        } else {
+            delete cleanData.creatorId;
+        }
+
+        if (cleanData.moduleId) {
+            cleanData.module = { connect: { id: cleanData.moduleId } };
+            delete cleanData.moduleId;
+        } else {
+            delete cleanData.moduleId;
+        }
+
+        if (cleanData.clientId) {
+            cleanData.client = { connect: { id: cleanData.clientId } };
+            delete cleanData.clientId;
+        } else {
+            delete cleanData.clientId;
+        }
 
         const task = await prisma.task.create({
             data: cleanData,
@@ -259,6 +294,42 @@ export class TaskService {
                 }
             }
         });
+
+        if (updateData.projectId !== undefined) {
+            if (updateData.projectId) {
+                updateData.project = { connect: { id: updateData.projectId } };
+            } else {
+                updateData.project = { disconnect: true };
+            }
+            delete updateData.projectId;
+        }
+
+        if (updateData.assigneeId !== undefined) {
+            if (updateData.assigneeId) {
+                updateData.assignee = { connect: { id: updateData.assigneeId } };
+            } else {
+                updateData.assignee = { disconnect: true };
+            }
+            delete updateData.assigneeId;
+        }
+
+        if (updateData.moduleId !== undefined) {
+            if (updateData.moduleId) {
+                updateData.module = { connect: { id: updateData.moduleId } };
+            } else {
+                updateData.module = { disconnect: true };
+            }
+            delete updateData.moduleId;
+        }
+
+        if (updateData.clientId !== undefined) {
+            if (updateData.clientId) {
+                updateData.client = { connect: { id: updateData.clientId } };
+            } else {
+                updateData.client = { disconnect: true };
+            }
+            delete updateData.clientId;
+        }
 
         const task = await prisma.task.update({
             where: { id: taskId },
@@ -409,6 +480,78 @@ export class TaskService {
         }
 
         return { message: 'Task deleted' };
+    }
+
+    static async bulkDeleteTasks(taskIds: string[], user: UserContext) {
+        if (!Array.isArray(taskIds) || taskIds.length === 0) {
+            return { count: 0, message: 'No task IDs provided' };
+        }
+
+        const tasksToUpdate = await prisma.task.findMany({
+            where: { id: { in: taskIds } },
+            select: { id: true, projectId: true, moduleId: true, title: true }
+        });
+
+        await prisma.task.updateMany({
+            where: { id: { in: taskIds } },
+            data: { deletedAt: new Date() }
+        });
+
+        // Recalculate progress for affected projects/modules
+        const affectedProjectIds = Array.from(new Set(tasksToUpdate.map(t => t.projectId).filter(Boolean)));
+        const affectedModuleIds = Array.from(new Set(tasksToUpdate.map(t => t.moduleId).filter(Boolean)));
+
+        for (const projId of affectedProjectIds) {
+            await this.updateProjectAndModuleProgress(projId as string, null);
+        }
+        for (const modId of affectedModuleIds) {
+            await this.updateProjectAndModuleProgress(null, modId as string);
+        }
+
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (companyId) {
+            emitSocket(companyId, 'tasks:bulk-deleted', { taskIds });
+        }
+
+        if (logAction) {
+            await logAction(user.id, 'BULK_DELETE_TASKS', 'task', taskIds.join(','), { count: taskIds.length });
+        }
+
+        return { count: taskIds.length, message: `Successfully deleted ${taskIds.length} tasks` };
+    }
+
+    static async bulkUpdateStatus(taskIds: string[], status: string, user: UserContext) {
+        if (!Array.isArray(taskIds) || taskIds.length === 0) {
+            return { count: 0, message: 'No task IDs provided' };
+        }
+
+        const tasksToUpdate = await prisma.task.findMany({
+            where: { id: { in: taskIds } },
+            select: { id: true, projectId: true, moduleId: true, title: true, status: true }
+        });
+
+        await prisma.task.updateMany({
+            where: { id: { in: taskIds } },
+            data: { status }
+        });
+
+        // Recalculate progress for affected projects/modules
+        const affectedProjectIds = Array.from(new Set(tasksToUpdate.map(t => t.projectId).filter(Boolean)));
+        const affectedModuleIds = Array.from(new Set(tasksToUpdate.map(t => t.moduleId).filter(Boolean)));
+
+        for (const projId of affectedProjectIds) {
+            await this.updateProjectAndModuleProgress(projId as string, null);
+        }
+        for (const modId of affectedModuleIds) {
+            await this.updateProjectAndModuleProgress(null, modId as string);
+        }
+
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (companyId) {
+            emitSocket(companyId, 'tasks:bulk-status-updated', { taskIds, status });
+        }
+
+        return { count: taskIds.length, message: `Successfully updated ${taskIds.length} tasks to ${status}` };
     }
 
     static async updateProjectAndModuleProgress(projectId: string | null, moduleId: string | null) {
