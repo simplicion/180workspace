@@ -168,10 +168,34 @@ export class ClientService {
         delete updateData.givePortalAccess;
         delete updateData.password;
         delete updateData.linkedin;
+        delete updateData.projectIds;
+        delete updateData.projects;
+        delete updateData.deals;
+        delete updateData.salesActivities;
+        delete updateData.tasks;
+        delete updateData.documents;
+        delete updateData.createdAt;
+        delete updateData.updatedAt;
+
+        const allowedFields = [
+            'name', 'email', 'phone', 'website', 'industry',
+            'taxId', 'billingAddress', 'location', 'status', 'notes',
+            'clientId', 'companyName', 'title', 'lastContacted', 'employeeCount',
+            'annualRevenue', 'clv', 'healthStatus', 'assignedManager',
+            'country', 'leadSource', 'clientTier', 'category', 'shippingAddress',
+            'contactPersonName', 'socialMediaLinks', 'paymentTerms', 'currency'
+        ];
+
+        const sanitizedData: any = {};
+        for (const key of allowedFields) {
+            if (updateData[key] !== undefined) {
+                sanitizedData[key] = updateData[key];
+            }
+        }
 
         const client = await prisma.client.update({
             where: { id },
-            data: updateData
+            data: sanitizedData
         });
 
         return client;
@@ -185,6 +209,15 @@ export class ClientService {
             where: { id }
         });
     }
+
+  static async deleteMultipleClients(ids: string[]) {
+    if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
+    const result = await prisma.client.deleteMany({
+      where: { id: { in: ids } }
+    });
+    return { count: result.count };
+  }
+
 
   static async getCommunications(clientId: string) {
     const client = await prisma.client.findFirst({ where: { id: clientId } });

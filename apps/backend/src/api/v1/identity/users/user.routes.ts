@@ -9,13 +9,15 @@ import { UserValidation } from './user.validation';
 const router = express.Router();
 
 router.get('/', protect, requireAccess('hr', 'read'), UserController.getUsers);
+router.post('/bulk-delete', protect, requireAccess('hr', 'write'), UserController.bulkDeleteUsers);
+router.delete('/bulk', protect, requireAccess('hr', 'write'), UserController.bulkDeleteUsers);
 router.get('/search/mentions', protect, UserController.searchMentions);
 router.get('/:id', protect, UserController.getUserById); 
 router.post('/:id/follow', protect, UserController.toggleFollow);
 router.get('/:id/followers', protect, UserController.getFollowers);
 router.get('/:id/following', protect, UserController.getFollowing);
 router.put('/:id', protect, validateRequest(UserValidation.updateUser), UserController.updateUser); 
-router.delete('/:id', protect, requireAdmin, UserController.deleteUser);
+router.delete('/:id', protect, requireAccess('hr', 'write'), UserController.deleteUser);
 router.put('/:id/photo', protect, upload.single('photo'), handleUpload('employees', { isLogo: true }), UserController.updatePhoto);
 router.get('/:id/stats', protect, UserController.getProfileStats);
 

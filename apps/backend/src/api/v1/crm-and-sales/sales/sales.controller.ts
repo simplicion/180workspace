@@ -75,15 +75,24 @@ export const getLeads = async (req: Request, res: Response, next: NextFunction) 
         const page = parseInt(req.query.page as string, 10) || 1;
         const limit = parseInt(req.query.limit as string, 10) || 100;
         
-        const result = await LeadsService.getLeads(page, limit);
+        const result = await LeadsService.getLeads(req.query.page || req.query.cursor || req.query.category || req.query.search ? req.query : page, limit);
         res.json(result);
+    } catch (err) { next(err); }
+};
+
+export const getLeadCategories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const categories = await LeadsService.getCategories();
+        res.json({ categories });
     } catch (err) { next(err); }
 };
 
 export const createLead = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const lead = await LeadsService.createLead(req.body, (req as any).user.id);
-        if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
+        const compId = (req as any).company?.id || (req as any).user?.companyId;
+        const payload = { ...req.body, companyId: compId };
+        const lead = await LeadsService.createLead(payload, (req as any).user.id);
+        if (compId) await clearCRMCache(compId);
         res.status(201).json({ lead });
     } catch (err) { next(err); }
 };
@@ -91,7 +100,8 @@ export const createLead = async (req: Request, res: Response, next: NextFunction
 export const updateLead = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const lead = await LeadsService.updateLead(req.params.id, req.body);
-        if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
+        const compId = (req as any).company?.id || (req as any).user?.companyId;
+        if (compId) await clearCRMCache(compId);
         res.json({ lead });
     } catch (err) { next(err); }
 };
@@ -99,14 +109,43 @@ export const updateLead = async (req: Request, res: Response, next: NextFunction
 export const deleteLead = async (req: Request, res: Response, next: NextFunction) => {
     try {
         await LeadsService.deleteLead(req.params.id);
-        if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
+        const compId = (req as any).company?.id || (req as any).user?.companyId;
+        if (compId) await clearCRMCache(compId);
         res.json({ message: 'Lead deleted' });
     } catch (err) { next(err); }
 };
 
+export const bulkDeleteLeads = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const ids = req.body.ids || req.body.leadIds || [];
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'Please provide an array of lead IDs to delete' });
+        }
+        const result = await LeadsService.deleteMultipleLeads(ids);
+        const compId = (req as any).company?.id || (req as any).user?.companyId;
+        if (compId) await clearCRMCache(compId);
+        res.json({ message: `Successfully deleted ${result.count} leads`, count: result.count });
+    } catch (err) { next(err); }
+};
+
+export const bulkUpdateLeadStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const ids = req.body.ids || req.body.leadIds || [];
+        const status = req.body.status || req.body.stage;
+        if (!Array.isArray(ids) || ids.length === 0 || !status) {
+            return res.status(400).json({ error: 'Please provide lead IDs and target status' });
+        }
+        const result = await LeadsService.updateMultipleLeadsStatus(ids, status);
+        const compId = (req as any).company?.id || (req as any).user?.companyId;
+        if (compId) await clearCRMCache(compId);
+        res.json({ message: `Successfully updated ${result.count} leads to ${status}`, count: result.count });
+    } catch (err) { next(err); }
+};
+
+
 export const convertLead = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await LeadsService.convertLead(req.params.id, (req as any).user.id);
+        const result = await LeadsService.convertLead(req.params.id, (req as any).user?.id);
         if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
         res.json({ message: 'Lead converted successfully', ...result });
     } catch (err) { next(err); }
@@ -523,6 +562,32 @@ export const deleteDeal = async (req: Request, res: Response, next: NextFunction
         res.json({ message: 'Deal deleted successfully' });
     } catch (err) { next(err); }
 };
+
+export const bulkDeleteDeals = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const ids = req.body.ids || req.body.dealIds || [];
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'Please provide an array of deal IDs to delete' });
+        }
+        const result = await DealsService.deleteMultipleDeals(ids);
+        if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
+        res.json({ message: `Successfully deleted ${result.count} deals`, count: result.count });
+    } catch (err) { next(err); }
+};
+
+export const bulkUpdateDealStage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const ids = req.body.ids || req.body.dealIds || [];
+        const stage = req.body.stage || req.body.status;
+        if (!Array.isArray(ids) || ids.length === 0 || !stage) {
+            return res.status(400).json({ error: 'Please provide deal IDs and target stage' });
+        }
+        const result = await DealsService.updateMultipleDealsStage(ids, stage);
+        if ((req as any).company && (req as any).company.id) await clearCRMCache((req as any).company.id);
+        res.json({ message: `Successfully moved ${result.count} deals to ${stage}`, count: result.count });
+    } catch (err) { next(err); }
+};
+
 
 export const importDeals = async (req: Request, res: Response, next: NextFunction) => {
     try {

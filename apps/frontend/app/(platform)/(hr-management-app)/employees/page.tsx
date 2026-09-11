@@ -1,16 +1,14 @@
 'use client';
 
-
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Users, Search, Plus, Trash2, Eye, Edit } from 'lucide-react';
-import { Skeleton, SkeletonTable } from "@workspace/ui";
+import { Skeleton, SkeletonTable, BulkActionBar, ConfirmModal } from "@workspace/ui";
 import clsx from 'clsx';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import AddEmployeeDrawer from '@/app/(platform)/(hr-management-app)/_components/AddEmployeeDrawer';
-import { ConfirmModal } from "@workspace/ui";
 import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
 import { useAccess } from '@/hooks/useAccess';
@@ -34,18 +32,21 @@ export default function EmployeesPage() {
     const [editEmployee, setEditEmployee] = useState<any>(null);
     const [confirmDelete, setConfirmDelete] = useState<any>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
     const { user } = useAuth();
     const { canRead, canWrite } = useAccess('hr');
     const router = useRouter();
 
-    // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
+    // Fast In-Memory SWR Cache for 0ms Instant Navigation
     const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
 
-    function loadEmployees() {
+    function loadEmployees(forceFresh = false) {
         const cacheKey = `employees:${search}:${role}`;
         const cached = swrCacheRef.current.get(cacheKey);
 
-        if (cached) {
+        if (!forceFresh && cached) {
             // Instant 0ms Paint
             setEmployees(cached.data.users || []);
             if (cached.data.total !== undefined) setTotalUsers(cached.data.total);
@@ -65,12 +66,42 @@ export default function EmployeesPage() {
                 });
             })
             .catch(() => {
-                if (!cached) setEmployees([]);
+                if (!cached || forceFresh) setEmployees([]);
             })
             .finally(() => setLoading(false));
     }
 
     useEffect(() => { loadEmployees(); }, [search, role]);
+
+    const handleSelectAll = () => {
+        if (selectedEmployeeIds.length === employees.length) {
+            setSelectedEmployeeIds([]);
+        } else {
+            setSelectedEmployeeIds(employees.map(emp => emp.id).filter(Boolean));
+        }
+    };
+
+    const handleToggleSelect = (id: string) => {
+        setSelectedEmployeeIds(prev => 
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedEmployeeIds.length === 0) return;
+        setIsBulkDeleting(true);
+        try {
+            const { data } = await api.post('/api/users/bulk-delete', { ids: selectedEmployeeIds });
+            toast.success(data.message || `Deleted ${selectedEmployeeIds.length} employee(s)`);
+            swrCacheRef.current.clear();
+            setSelectedEmployeeIds([]);
+            loadEmployees(true);
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to delete selected employees');
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
 
     if (!canRead && !loading) {
         return (
@@ -94,14 +125,21 @@ export default function EmployeesPage() {
     }, 0);
     const nextEmployeeId = `EMP-${String(Math.max(totalUsers, maxEmpNum) + 1).padStart(4, '0')}`;
 
+    const isAllSelected = employees.length > 0 && selectedEmployeeIds.length === employees.length;
+    const isSomeSelected = selectedEmployeeIds.length > 0 && !isAllSelected;
+
     return (
-        <div>
+        <div className="relative pb-20">
             {showAdd && (
                 <AddEmployeeDrawer
                     open={showAdd}
                     nextId={nextEmployeeId}
                     onClose={() => setShowAdd(false)}
-                    onSuccess={() => { setShowAdd(false); loadEmployees(); }}
+                    onSuccess={() => { 
+                        setShowAdd(false); 
+                        swrCacheRef.current.clear();
+                        loadEmployees(true); 
+                    }}
                 />
             )}
 
@@ -110,7 +148,11 @@ export default function EmployeesPage() {
                     open={!!editEmployee}
                     editUser={editEmployee}
                     onClose={() => setEditEmployee(null)}
-                    onSuccess={() => { setEditEmployee(null); loadEmployees(); }}
+                    onSuccess={() => { 
+                        setEditEmployee(null); 
+                        swrCacheRef.current.clear();
+                        loadEmployees(true); 
+                    }}
                 />
             )}
 
@@ -119,15 +161,19 @@ export default function EmployeesPage() {
                 title="Delete Employee Account"
                 message={`Are you sure you want to delete ${confirmDelete?.name}? Their personal data (email, password, login access) will be permanently erased. Company records such as tasks and attendance will be retained.`}
                 confirmText="Delete Permanently"
+                variant="danger"
                 onConfirm={() => {
                     setIsDeleting(true);
-                    api.delete(`/api/users/${confirmDelete.id || confirmDelete.id}`)
+                    const targetId = confirmDelete.id;
+                    api.delete(`/api/users/${targetId}`)
                         .then(() => {
-                            toast.success('Employee deleted');
-                            loadEmployees();
+                            toast.success('Employee deleted successfully');
+                            swrCacheRef.current.clear();
+                            setSelectedEmployeeIds(prev => prev.filter(id => id !== targetId));
+                            loadEmployees(true);
                             setConfirmDelete(null);
                         })
-                        .catch(() => toast.error('Failed to delete employee'))
+                        .catch((err: any) => toast.error(err.response?.data?.error || 'Failed to delete employee'))
                         .finally(() => setIsDeleting(false));
                 }}
                 onCancel={() => setConfirmDelete(null)}
@@ -159,13 +205,27 @@ export default function EmployeesPage() {
             </div>
 
             {loading ? (
-                <SkeletonTable rows={8} columns={6} />
+                <SkeletonTable rows={8} columns={7} />
             ) : (
                 <div className="card">
                     <div className="table-wrapper">
                         <table className="table">
                             <thead>
                                 <tr>
+                                    {canWrite && (
+                                        <th className="w-10 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                checked={isAllSelected}
+                                                ref={(el) => {
+                                                    if (el) el.indeterminate = isSomeSelected;
+                                                }}
+                                                onChange={handleSelectAll}
+                                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                title="Select all employees"
+                                            />
+                                        </th>
+                                    )}
                                     <th>Employee</th>
                                     <th>ID</th>
                                     <th>Department</th>
@@ -177,80 +237,95 @@ export default function EmployeesPage() {
                             </thead>
 
                             <tbody>
-                                {employees.map((emp) => (
-                                    <tr
-                                        key={emp.id || emp.id}
-                                         className="hover:bg-gray-50/80 cursor-pointer transition-colors group"
-                                        onClick={() => {
-                                            const id = emp.id || emp.id;
-                                            if (!id) {
-                                                console.error('Missing employee ID:', emp);
-                                                toast.error('Cannot open profile: missing ID');
-                                                return;
-                                            }
-                                            router.push(`/profile/${id}`);
-                                        }}
-                                    >
-                                        <td>
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
-                                                    {emp.photoUrl
-                                                        ? <img src={emp.photoUrl} alt={emp.name} className="w-full h-full rounded-full object-cover" />
-                                                        : <span className="text-white text-xs font-bold">{emp.name?.[0]?.toUpperCase()}</span>
-                                                    }
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900">{emp.name}</p>
-                                                    <p className="text-xs text-gray-400">{emp.email}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="font-mono text-xs text-gray-500">{emp.employeeId || '-'}</td>
-                                        <td className="text-gray-600">{emp.department || '-'}</td>
-                                        <td className="text-gray-600">{emp.designation?.name || emp.position || '-'}</td>
-                                        <td>
-                                            <div className="flex flex-wrap gap-1">
-                                                {(emp.roles || [emp.role]).map((r: string) => (
-                                                    <span key={r} className={clsx('badge', ROLE_COLORS[r] || 'badge-gray text-[10px]')}>{r}</span>
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td><span className={clsx('badge', emp.isActive ? 'badge-green' : 'badge-red')}>{emp.isActive ? 'Active' : 'Inactive'}</span></td>
-                                         {canWrite && (
-                                            <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                                                <ContextActions
-                                                    actions={[
-                                                        {
-                                                            label: 'View',
-                                                            icon: Eye,
-                                                            onClick: () => {
-                                                                const id = emp.id || emp.id;
-                                                                if (!id) {
-                                                                    toast.error('Missing ID');
-                                                                    return;
-                                                                }
-                                                                router.push(`/profile/${id}`);
-                                                            },
-                                                            variant: 'primary'
-                                                        },
-                                                        {
-                                                            label: 'Edit',
-                                                            icon: Edit,
-                                                            onClick: () => setEditEmployee(emp),
-                                                            variant: 'secondary'
-                                                        },
-                                                        {
-                                                            label: 'Delete',
-                                                            icon: Trash2,
-                                                            onClick: () => setConfirmDelete(emp),
-                                                            variant: 'danger'
+                                {employees.map((emp) => {
+                                    const isSelected = selectedEmployeeIds.includes(emp.id);
+                                    return (
+                                        <tr
+                                            key={emp.id}
+                                            className={clsx(
+                                                "hover:bg-gray-50/80 cursor-pointer transition-colors group",
+                                                isSelected && "bg-indigo-50/40 hover:bg-indigo-50/60"
+                                            )}
+                                            onClick={() => {
+                                                const id = emp.id;
+                                                if (!id) {
+                                                    toast.error('Cannot open profile: missing ID');
+                                                    return;
+                                                }
+                                                router.push(`/profile/${id}`);
+                                            }}
+                                        >
+                                            {canWrite && (
+                                                <td className="w-10 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => handleToggleSelect(emp.id)}
+                                                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                    />
+                                                </td>
+                                            )}
+                                            <td>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                                                        {emp.photoUrl
+                                                            ? <img src={emp.photoUrl} alt={emp.name} className="w-full h-full rounded-full object-cover" />
+                                                            : <span className="text-white text-xs font-bold">{emp.name?.[0]?.toUpperCase()}</span>
                                                         }
-                                                    ]}
-                                                />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-900">{emp.name}</p>
+                                                        <p className="text-xs text-gray-400">{emp.email}</p>
+                                                    </div>
+                                                </div>
                                             </td>
-                                        )}
-                                    </tr>
-                                ))}
+                                            <td className="font-mono text-xs text-gray-500">{emp.employeeId || '-'}</td>
+                                            <td className="text-gray-600">{emp.department || '-'}</td>
+                                            <td className="text-gray-600">{emp.designation?.name || emp.position || '-'}</td>
+                                            <td>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(emp.roles || [emp.role]).map((r: string) => (
+                                                        <span key={r} className={clsx('badge', ROLE_COLORS[r] || 'badge-gray text-[10px]')}>{r}</span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td><span className={clsx('badge', emp.isActive ? 'badge-green' : 'badge-red')}>{emp.isActive ? 'Active' : 'Inactive'}</span></td>
+                                            {canWrite && (
+                                                <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                                                    <ContextActions
+                                                        actions={[
+                                                            {
+                                                                label: 'View',
+                                                                icon: Eye,
+                                                                onClick: () => {
+                                                                    const id = emp.id;
+                                                                    if (!id) {
+                                                                        toast.error('Missing ID');
+                                                                        return;
+                                                                    }
+                                                                    router.push(`/profile/${id}`);
+                                                                },
+                                                                variant: 'primary'
+                                                            },
+                                                            {
+                                                                label: 'Edit',
+                                                                icon: Edit,
+                                                                onClick: () => setEditEmployee(emp),
+                                                                variant: 'secondary'
+                                                            },
+                                                            {
+                                                                label: 'Delete',
+                                                                icon: Trash2,
+                                                                onClick: () => setConfirmDelete(emp),
+                                                                variant: 'danger'
+                                                            }
+                                                        ]}
+                                                    />
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -262,6 +337,21 @@ export default function EmployeesPage() {
                     <Users className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                     <p className="text-gray-400 font-medium">No employees found</p>
                 </div>
+            )}
+
+            {canWrite && (
+                <BulkActionBar
+                    selectedCount={selectedEmployeeIds.length}
+                    totalCount={employees.length}
+                    itemLabel="employees"
+                    onSelectAll={handleSelectAll}
+                    onDeselectAll={() => setSelectedEmployeeIds([])}
+                    onSelectAmount={(amt) => setSelectedEmployeeIds(employees.slice(0, amt).map(e => e.id))}
+                    onDeleteSelected={handleBulkDelete}
+                    isDeleting={isBulkDeleting}
+                    deleteModalTitle={`Delete ${selectedEmployeeIds.length} Selected Employees`}
+                    deleteModalMessage={`Are you sure you want to delete ${selectedEmployeeIds.length} employee account(s)? Their personal data (email, password, login access) will be permanently erased. Company records such as tasks and attendance will be retained.`}
+                />
             )}
         </div>
     );

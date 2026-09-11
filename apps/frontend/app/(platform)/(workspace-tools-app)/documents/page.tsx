@@ -1,6 +1,8 @@
 'use client';
 
-import { LogoLoader, ConfirmModal } from "@workspace/ui";
+import { LogoLoader, ConfirmModal, BulkActionBar } from "@workspace/ui";
+
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
 import { useGet180DocumentsQuery, useDeleteArticleMutation, useApproveDocumentMutation, useConvertToInvoiceMutation, useSendPaymentReminderMutation } from '@/redux/api/knowledgeApi';
@@ -442,6 +444,14 @@ export default function DocumentsPage() {
         setSelectedDocIds([]);
     };
 
+    const handleSelectAmount = (amount: number) => {
+        const targetAmount = Math.min(amount, filtered.length);
+        const selectedSlice = filtered.slice(0, targetAmount).map(d => d.id || d._id).filter(Boolean);
+        setSelectedDocIds(selectedSlice);
+        toast.success(`Selected first ${selectedSlice.length} documents`);
+    };
+
+
     const handleBatchDeleteSelected = async () => {
         if (selectedDocIds.length === 0) return;
         setIsBatchDeleting(true);
@@ -781,7 +791,21 @@ export default function DocumentsPage() {
                 </div>
             )}
 
-
+            {/* Floating Bulk Action Bar */}
+            <BulkActionBar
+                selectedCount={selectedDocIds.length}
+                totalCount={filtered.length}
+                itemLabel="documents"
+                presetAmounts={[5, 10, 25, 50]}
+                onSelectAll={handleSelectAllToggle}
+                onDeselectAll={handleClearSelection}
+                onSelectAmount={handleSelectAmount}
+                onDeleteSelected={isAdminHrFinance ? handleBatchDeleteSelected : undefined}
+                isDeleting={isBatchDeleting}
+                deleteModalTitle={`Delete ${selectedDocIds.length} Selected Documents`}
+                deleteModalMessage={`Are you sure you want to delete ${selectedDocIds.length} selected documents? This action cannot be undone.`}
+            />
         </div>
     );
 }
+

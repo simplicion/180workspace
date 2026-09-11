@@ -57,3 +57,28 @@ export const deleteTask = async (req: Request, res: Response, next: NextFunction
         res.json(result);
     } catch (err) { next(err); }
 };
+
+export const bulkDeleteTasks = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'ids array is required' });
+        }
+        const result = await TaskService.bulkDeleteTasks(ids, (req as any).user);
+        res.json(result);
+    } catch (err) { next(err); }
+};
+
+export const bulkUpdateStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { ids, status } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'ids array is required' });
+        }
+        if (!status) {
+            return res.status(400).json({ error: 'status is required' });
+        }
+        const result = await TaskService.bulkUpdateStatus(ids, status, (req as any).user);
+        res.json(result);
+    } catch (err) { next(err); }
+};

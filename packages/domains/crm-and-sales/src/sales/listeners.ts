@@ -26,8 +26,7 @@ export function initializeCRMListeners() {
                     name: lead.name || 'Unknown',
                     email: lead.email || '',
                     phone: lead.phone || '',
-                    companyId: companyId,
-                    clientType: 'lead'
+                    companyId: companyId
                 }
             });
 

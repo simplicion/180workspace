@@ -5,11 +5,11 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Building2, Search, Plus, Trash2, Eye, Filter, Mail, Phone, ExternalLink, Download, Pencil, MessageCircle, Globe } from 'lucide-react';
-import { Skeleton, SkeletonTable , LogoLoader } from "@workspace/ui";
+import { Skeleton, SkeletonTable, LogoLoader, ConfirmModal, BulkActionBar } from "@workspace/ui";
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
 import AddClientDrawer from '@/app/(platform)/(crm-and-sales-app)/_components/AddClientDrawer';
-import { ConfirmModal } from "@workspace/ui";
+
 import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
@@ -90,12 +90,23 @@ export default function ClientsPage() {
         leads: clients.filter(c => c.status === 'lead').length,
     };
 
-    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedClients(clients.map(c => c.id));
+    const handleSelectAll = (e?: React.ChangeEvent<HTMLInputElement>) => {
+        if (e) {
+            if (e.target.checked) {
+                setSelectedClients(displayClients.map(c => c.id));
+            } else {
+                setSelectedClients([]);
+            }
         } else {
-            setSelectedClients([]);
+            setSelectedClients(displayClients.map(c => c.id));
         }
+    };
+
+    const handleSelectAmount = (amount: number) => {
+        const targetAmount = Math.min(amount, displayClients.length);
+        const selectedSlice = displayClients.slice(0, targetAmount).map(c => c.id);
+        setSelectedClients(selectedSlice);
+        toast.success(`Selected first ${selectedSlice.length} clients`);
     };
 
     const handleSelectClient = (id: string) => {
@@ -105,19 +116,29 @@ export default function ClientsPage() {
     };
 
     const handleDeleteSelected = async () => {
-        if (!confirm(`Are you sure you want to delete ${selectedClients.length} clients?`)) return;
+        if (selectedClients.length === 0) return;
         setIsBulkDeleting(true);
         try {
-            await Promise.all(selectedClients.map(id => api.delete(`/api/clients/${id}`)));
-            toast.success('Selected clients deleted');
+            await api.post('/api/clients/bulk-delete', { ids: selectedClients });
+            toast.success(`Successfully deleted ${selectedClients.length} clients`);
+            setClients(prev => prev.filter(c => !selectedClients.includes(c.id)));
             setSelectedClients([]);
-            loadClients();
+            swrCacheRef.current.clear();
         } catch {
-            toast.error('Failed to delete some clients');
+            try {
+                await Promise.all(selectedClients.map(id => api.delete(`/api/clients/${id}`)));
+                toast.success(`Deleted ${selectedClients.length} clients`);
+                setClients(prev => prev.filter(c => !selectedClients.includes(c.id)));
+                setSelectedClients([]);
+                swrCacheRef.current.clear();
+            } catch {
+                toast.error('Failed to delete selected clients');
+            }
         } finally {
             setIsBulkDeleting(false);
         }
     };
+
 
     const exportToCSV = () => {
         const headers = ['Name', 'Title', 'Company', 'Email', 'Phone', 'Industry', 'Size', 'Annual Revenue', 'CLV', 'Status', 'Health'];
@@ -238,22 +259,8 @@ export default function ClientsPage() {
                         </CustomSelect>
                     </div>
                 </div>
-
-                {selectedClients.length > 0 && (
-                    <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl animate-in fade-in slide-in-from-top-1">
-                        <span className="text-sm font-bold text-indigo-700">{selectedClients.length} clients selected</span>
-                        <div className="w-px h-4 bg-indigo-200 mx-1"></div>
-                        <button 
-                            onClick={handleDeleteSelected}
-                            disabled={isBulkDeleting}
-                            className="text-sm font-bold text-red-600 hover:text-red-700 flex items-center gap-1.5 transition-colors"
-                        >
-                            {isBulkDeleting ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            Delete Selected
-                        </button>
-                    </div>
-                )}
             </div>
+
 
             {loading ? (
                 <SkeletonTable rows={8} columns={6} />
@@ -340,11 +347,6 @@ export default function ClientsPage() {
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-medium text-gray-800">{client.industry || '—'}</span>
-                                                    {client.clientType && (
-                                                        <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">
-                                                            {client.clientType}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs text-gray-500">
                                                     {client.website && (
@@ -434,7 +436,32 @@ export default function ClientsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Floating Bulk Action Bar */}
+            <BulkActionBar
+                selectedCount={selectedClients.length}
+                totalCount={displayClients.length}
+                itemLabel="clients"
+                presetAmounts={[5, 10, 25, 50]}
+                onSelectAll={() => handleSelectAll()}
+                onDeselectAll={() => setSelectedClients([])}
+                onSelectAmount={handleSelectAmount}
+                onDeleteSelected={handleDeleteSelected}
+                isDeleting={isBulkDeleting}
+                deleteModalTitle={`Delete ${selectedClients.length} Selected Clients`}
+                deleteModalMessage={`Are you sure you want to permanently delete these ${selectedClients.length} clients? This action cannot be undone.`}
+                customActions={[
+                    {
+                        id: 'export-selected',
+                        label: 'Export CSV',
+                        icon: Download,
+                        variant: 'secondary',
+                        onClick: exportToCSV
+                    }
+                ]}
+            />
         </div>
     );
 }
+
 

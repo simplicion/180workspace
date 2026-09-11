@@ -13,10 +13,13 @@ router.post('/verify-tag', TrafficDirectorController.verifyTagInstallation);
 // Links CRUD
 router.get('/links', TrafficDirectorController.getLinks);
 router.post('/links', TrafficDirectorController.createLink);
+router.post('/links/bulk-delete', TrafficDirectorController.bulkDeleteLinks);
+router.delete('/links/bulk', TrafficDirectorController.bulkDeleteLinks);
 router.get('/links/:linkId', TrafficDirectorController.getLinkById);
 router.put('/links/:linkId', TrafficDirectorController.updateLink);
 router.patch('/links/:linkId', TrafficDirectorController.updateLink);
 router.delete('/links/:linkId', TrafficDirectorController.deleteLink);
+
 
 // Rules CRUD
 router.get('/links/:linkId/rules', TrafficDirectorController.getRules);

@@ -199,15 +199,19 @@ async function dispatchEmail(options, prisma) {
                 validSentById = null;
             }
 
+            const createData: any = {
+                to: options.to,
+                subject: options.subject,
+                templateName: options.templateName || 'generic',
+                templateData: options.templateData || {},
+                status: 'failed',
+            };
+            if (validSentById) {
+                createData.sentBy = { connect: { id: validSentById } };
+            }
+
             const log = await prisma.emailLog.create({
-                data: {
-                    to: options.to,
-                    subject: options.subject,
-                    templateName: options.templateName || 'generic',
-                    templateData: options.templateData || {},
-                    sentById: validSentById,
-                    status: 'failed',
-                }
+                data: createData
             });
             logId = log.id;
         }

@@ -1,10 +1,13 @@
 'use client';
 
-
 import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '@/lib/api';
-import { CheckSquare, Plus, LayoutGrid, List, User } from 'lucide-react';
-import { SkeletonListItem, SkeletonKanbanColumn } from "@workspace/ui";
+import { 
+    CheckSquare, Plus, LayoutGrid, List, User, Check, Trash2, 
+    ArrowRightLeft, MoreHorizontal, ChevronDown, CheckCheck, Square, 
+    Filter, Search, X 
+} from 'lucide-react';
+import { SkeletonListItem, SkeletonKanbanColumn, BulkActionBar, ConfirmModal } from "@workspace/ui";
 import clsx from 'clsx';
 import TaskDetailModal from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskDetailModal';
 import CreateTaskModal from '@/app/(platform)/(projects-and-tasks-app)/_components/CreateTaskModal';
@@ -55,6 +58,24 @@ export default function TasksPage() {
     const [showCreate, setShowCreate] = useState(false);
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const { user } = useAuth();
+
+    // Multi-selection & Mass Deletion State
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [isBulkMoving, setIsBulkMoving] = useState(false);
+    const [isMoveStatusMenuOpen, setIsMoveStatusMenuOpen] = useState(false);
+    const moveStatusMenuRef = useRef<HTMLDivElement>(null);
+
+    // Close stage mover dropdown on outside click
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (moveStatusMenuRef.current && !moveStatusMenuRef.current.contains(e.target as Node)) {
+                setIsMoveStatusMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         api.get('/api/projects', { params: { limit: 100 } }).then(({ data }) => setProjects(data.projects || []));
@@ -129,7 +150,90 @@ export default function TasksPage() {
 
     const handleDeleted = (id: string) => {
         setTasks(prev => prev.filter(t => t.id !== id));
+        setSelectedTaskIds(prev => prev.filter(taskId => taskId !== id));
         toast.success('Task deleted');
+    };
+
+    // Selection Handlers
+    const handleToggleSelectTask = (id: string) => {
+        setSelectedTaskIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAllTasks = () => {
+        setSelectedTaskIds(tasks.map(t => t.id));
+    };
+
+    const handleDeselectAllTasks = () => {
+        setSelectedTaskIds([]);
+    };
+
+    const handleSelectAmount = (amount: number) => {
+        const targetAmount = Math.min(amount, tasks.length);
+        const selectedSlice = tasks.slice(0, targetAmount).map(t => t.id);
+        setSelectedTaskIds(selectedSlice);
+        toast.success(`Selected first ${selectedSlice.length} tasks`);
+    };
+
+    const handleToggleColumnSelection = (columnId: string) => {
+        const colTaskIds = tasks.filter(t => t.status === columnId).map(t => t.id);
+        if (colTaskIds.length === 0) return;
+
+        const allInColSelected = colTaskIds.every(id => selectedTaskIds.includes(id));
+        if (allInColSelected) {
+            setSelectedTaskIds(prev => prev.filter(id => !colTaskIds.includes(id)));
+        } else {
+            setSelectedTaskIds(prev => Array.from(new Set([...prev, ...colTaskIds])));
+            const colObj = COLUMNS.find(c => c.id === columnId);
+            toast.success(`Selected all ${colTaskIds.length} tasks in ${colObj?.label || columnId}`);
+        }
+    };
+
+    // Bulk Delete Action
+    const handleBulkDeleteSelected = async () => {
+        if (selectedTaskIds.length === 0) return;
+        setIsBulkDeleting(true);
+        try {
+            await api.post('/api/tasks/bulk-delete', { ids: selectedTaskIds });
+            toast.success(`Successfully deleted ${selectedTaskIds.length} tasks`);
+            setTasks(prev => prev.filter(t => !selectedTaskIds.includes(t.id)));
+            swrCacheRef.current.clear();
+            setSelectedTaskIds([]);
+        } catch (error: any) {
+            // Fallback to individual deletes if batch endpoint is unavailable
+            try {
+                await Promise.all(selectedTaskIds.map(id => api.delete(`/api/tasks/${id}`)));
+                toast.success(`Deleted ${selectedTaskIds.length} tasks`);
+                setTasks(prev => prev.filter(t => !selectedTaskIds.includes(t.id)));
+                swrCacheRef.current.clear();
+                setSelectedTaskIds([]);
+            } catch (fallbackError: any) {
+                toast.error(error.response?.data?.error || 'Failed to delete selected tasks');
+            }
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
+    // Bulk Move Status Action
+    const handleBulkMoveStatus = async (newStatus: string) => {
+        if (selectedTaskIds.length === 0) return;
+        setIsBulkMoving(true);
+        setIsMoveStatusMenuOpen(false);
+        try {
+            await api.post('/api/tasks/bulk-status', { ids: selectedTaskIds, status: newStatus });
+            const colObj = COLUMNS.find(c => c.id === newStatus);
+            toast.success(`Moved ${selectedTaskIds.length} tasks to ${colObj?.label || newStatus}`);
+            setTasks(prev => prev.map(t => selectedTaskIds.includes(t.id) ? { ...t, status: newStatus } : t));
+            swrCacheRef.current.clear();
+            setSelectedTaskIds([]);
+        } catch (error: any) {
+            toast.error('Failed to move selected tasks');
+            loadTasks();
+        } finally {
+            setIsBulkMoving(false);
+        }
     };
 
     // Kanban drag-and-drop
@@ -149,6 +253,7 @@ export default function TasksPage() {
         setDraggedId(null);
         try {
             await api.put(`/api/tasks/${draggedId}`, { status: columnId });
+            swrCacheRef.current.clear();
         } catch {
             toast.error('Failed to update task status');
             loadTasks();
@@ -156,7 +261,7 @@ export default function TasksPage() {
     };
 
     return (
-        <div>
+        <div className="pb-24">
             {showCreate && (
                 <CreateTaskModal
                     onClose={() => setShowCreate(false)}
@@ -164,28 +269,48 @@ export default function TasksPage() {
                 />
             )}
 
-            <div className="page-header flex items-center justify-between">
+            <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div>
-                    <h1 className="page-title">Tasks</h1>
-                    <p className="page-subtitle">{tasks.length} tasks</p>
+                    <h1 className="page-title text-xl font-bold text-gray-900 dark:text-gray-100">Tasks</h1>
+                    <p className="page-subtitle text-xs text-gray-500 dark:text-gray-400">
+                        {tasks.length} tasks {selectedTaskIds.length > 0 && `• ${selectedTaskIds.length} selected`}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* View toggle */}
-                    <div className="flex bg-gray-100 rounded-xl p-1">
-                        <button onClick={() => setView('kanban')} className={clsx('px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5', view === 'kanban' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500')}>
+                    <div className="flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1 border border-gray-200/60 dark:border-slate-700">
+                        <button 
+                            onClick={() => setView('kanban')} 
+                            className={clsx(
+                                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer', 
+                                view === 'kanban' 
+                                    ? 'bg-white dark:bg-slate-900 shadow-xs text-gray-900 dark:text-gray-100 font-bold' 
+                                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                            )}
+                        >
                             <LayoutGrid className="w-4 h-4" /> Kanban
                         </button>
-                        <button onClick={() => setView('list')} className={clsx('px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5', view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500')}>
+                        <button 
+                            onClick={() => setView('list')} 
+                            className={clsx(
+                                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer', 
+                                view === 'list' 
+                                    ? 'bg-white dark:bg-slate-900 shadow-xs text-gray-900 dark:text-gray-100 font-bold' 
+                                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                            )}
+                        >
                             <List className="w-4 h-4" /> List
                         </button>
                     </div>
                     {(user?.role === 'admin' || user?.role === 'ceo' || (user?.permissions && user.permissions.includes('can_manage_team'))) && (
-                        <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus className="w-4 h-4" />New Task</button>
+                        <button onClick={() => setShowCreate(true)} className="btn-primary cursor-pointer">
+                            <Plus className="w-4 h-4" />New Task
+                        </button>
                     )}
                 </div>
             </div>
 
-            {/* Filters */}
+            {/* Filters Bar */}
             <div className="flex gap-3 mb-5 flex-nowrap overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <CustomSelect value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="select min-w-[140px] w-auto">
                     <option value="">All Statuses</option>
@@ -193,6 +318,7 @@ export default function TasksPage() {
                     <option value="in_progress">In Progress</option>
                     <option value="in_review">In Review</option>
                     <option value="done">Done</option>
+                    <option value="backlog">Backlog</option>
                 </CustomSelect>
                 <CustomSelect value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="select min-w-[140px] w-auto">
                     <option value="">All Priorities</option>
@@ -217,7 +343,7 @@ export default function TasksPage() {
                     type="date" 
                     value={filterDate}
                     onChange={e => setFilterDate(e.target.value)}
-                    className="input min-w-[150px] w-auto"
+                    className="input min-w-[150px] w-auto bg-white dark:bg-slate-900"
                 />
             </div>
 
@@ -236,99 +362,169 @@ export default function TasksPage() {
                     </div>
                 )
             ) : view === 'kanban' ? (
-                /* ✨ KANBAN VIEW ✨ */
-                <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                /* ✨ KANBAN VIEW WITH MASS SELECTION ✨ */
+                <div className="flex gap-4 overflow-x-auto pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-stretch">
                     {COLUMNS.map(col => {
                         const colTasks = tasks.filter(t => t.status === col.id);
                         let displayLabel = col.label;
                         if (col.id === 'custom' && colTasks.length > 0 && colTasks[0]?.projectId?.customTaskStatusName) {
                             displayLabel = colTasks[0].projectId.customTaskStatusName;
                         }
+
+                        const allInColSelected = colTasks.length > 0 && colTasks.every(t => selectedTaskIds.includes(t.id));
+                        const someInColSelected = colTasks.some(t => selectedTaskIds.includes(t.id));
+
                         return (
                             <div
                                 key={col.id}
-                                className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] min-h-[420px] flex-shrink-0', col.bg, col.color)}
+                                className={clsx('rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] min-h-[440px] flex-shrink-0 flex flex-col', col.bg, col.color)}
                                 onDragOver={e => e.preventDefault()}
                                 onDrop={() => handleDrop(col.id)}
                             >
-                                <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center justify-between mb-3 shrink-0">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-sm text-gray-700">{displayLabel}</span>
+                                        {/* Column-level Select All Checkbox */}
+                                        {colTasks.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleToggleColumnSelection(col.id);
+                                                }}
+                                                title={allInColSelected ? "Deselect column" : `Select all ${colTasks.length} in ${displayLabel}`}
+                                                className="p-1 -ml-1 text-gray-400 hover:text-indigo-600 rounded transition-colors cursor-pointer"
+                                            >
+                                                <span className={clsx(
+                                                    "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                                    allInColSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInColSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 bg-white dark:bg-slate-800"
+                                                )}>
+                                                    {allInColSelected ? (
+                                                        <Check className="w-3 h-3 stroke-[3]" />
+                                                    ) : someInColSelected ? (
+                                                        <span className="w-2 h-0.5 bg-indigo-600 rounded-full" />
+                                                    ) : null}
+                                                </span>
+                                            </button>
+                                        )}
+                                        <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">{displayLabel}</span>
                                         <span className={clsx('badge text-xs', col.badge)}>{colTasks.length}</span>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    {colTasks.map(task => (
-                                        <div
-                                            key={task.id}
-                                            draggable
-                                            onDragStart={() => setDraggedId(task.id)}
-                                            onDragEnd={() => setDraggedId(null)}
-                                            onClick={() => setSelectedTask(task.id)}
-                                            className={clsx(
-                                                'bg-white rounded-xl p-3 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all select-none',
-                                                draggedId === task.id && 'opacity-40 scale-95',
-                                            )}
-                                        >
-                                            <div className="flex items-start gap-2 mb-2">
-                                                <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', PRIORITY_DOT[task.priority] || 'bg-gray-300')} />
-                                                <p className="text-sm font-medium text-gray-900 leading-snug">{task.title}</p>
-                                            </div>
-                                            {task.projectId?.name && (
-                                                <p className="text-xs text-gray-400 mb-2 ml-4">{task.projectId.name}</p>
-                                            )}
-                                            <div className="flex items-center justify-between ml-4 mt-2 pt-2 border-t border-gray-50 text-[10px]">
-                                                {task.dueDate ? (
-                                                    <span className="text-gray-400 font-medium">{format(new Date(task.dueDate), 'MMM d')}</span>
-                                                ) : <span />}
-                                                
-                                                <div className="flex items-center gap-1.5">
-                                                    {/* Creator / Assigner */}
-                                                    {task.creator && (
-                                                        <div 
-                                                            className="flex items-center gap-1 bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-full border border-purple-100"
-                                                            title={`Assigned by: ${task.creator.name}`}
-                                                        >
-                                                            <div className="w-3.5 h-3.5 rounded-full overflow-hidden bg-purple-200 flex items-center justify-center text-[7px] font-bold text-purple-800 shrink-0">
-                                                                {task.creator.photoUrl ? (
-                                                                    <img src={task.creator.photoUrl} alt="" className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    task.creator.name?.[0]?.toUpperCase() || 'A'
-                                                                )}
-                                                            </div>
-                                                            <span className="font-semibold text-[9px] max-w-[60px] truncate">{task.creator.name?.split(' ')[0]}</span>
-                                                        </div>
-                                                    )}
 
-                                                    {/* Arrow connector */}
-                                                    {task.creator && task.assignee && (
-                                                        <span className="text-gray-300 text-[9px]">→</span>
-                                                    )}
+                                <div className="space-y-2.5 flex-1">
+                                    {colTasks.map(task => {
+                                        const isSelected = selectedTaskIds.includes(task.id);
+                                        return (
+                                            <div
+                                                key={task.id}
+                                                draggable
+                                                onDragStart={() => setDraggedId(task.id)}
+                                                onDragEnd={() => setDraggedId(null)}
+                                                onClick={() => setSelectedTask(task.id)}
+                                                className={clsx(
+                                                    'bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-2xs border transition-all select-none relative group cursor-pointer',
+                                                    isSelected
+                                                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs'
+                                                        : 'border-gray-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 hover:shadow-md',
+                                                    draggedId === task.id && 'opacity-40 scale-95',
+                                                )}
+                                            >
+                                                {/* Header Row: Checkbox + Priority Dot + Title */}
+                                                <div className="flex items-start gap-2.5 mb-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleToggleSelectTask(task.id);
+                                                        }}
+                                                        className={clsx(
+                                                            "mt-0.5 p-0.5 -ml-0.5 -mt-0.5 rounded cursor-pointer transition-opacity",
+                                                            isSelected ? "opacity-100" : "opacity-40 group-hover:opacity-100"
+                                                        )}
+                                                        title={isSelected ? "Deselect task" : "Select task"}
+                                                    >
+                                                        <span className={clsx(
+                                                            "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                                            isSelected 
+                                                                ? "bg-indigo-600 border-indigo-600 text-white shadow-xs" 
+                                                                : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-500"
+                                                        )}>
+                                                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                                        </span>
+                                                    </button>
 
-                                                    {/* Assignee / Working by */}
-                                                    {task.assignee ? (
-                                                        <div 
-                                                            className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-full border border-indigo-100"
-                                                            title={`Working by: ${task.assignee.name}`}
-                                                        >
-                                                            <div className="w-3.5 h-3.5 rounded-full overflow-hidden bg-indigo-200 flex items-center justify-center text-[7px] font-bold text-indigo-800 shrink-0">
-                                                                {task.assignee.profilePicture || task.assignee.photoUrl ? (
-                                                                    <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt="" className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    task.assignee.name?.[0]?.toUpperCase() || 'U'
-                                                                )}
+                                                    <div className="flex-1 min-w-0 flex items-start gap-1.5">
+                                                        <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', PRIORITY_DOT[task.priority] || 'bg-gray-300')} />
+                                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                            {task.title}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {task.projectId?.name && (
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 truncate">
+                                                        {task.projectId.name}
+                                                    </p>
+                                                )}
+
+                                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-slate-800 text-[10px]">
+                                                    {task.dueDate ? (
+                                                        <span className="text-gray-400 dark:text-gray-500 font-medium">
+                                                            {format(new Date(task.dueDate), 'MMM d')}
+                                                        </span>
+                                                    ) : <span />}
+                                                    
+                                                    <div className="flex items-center gap-1.5">
+                                                        {/* Creator / Assigner */}
+                                                        {task.creator && (
+                                                            <div 
+                                                                className="flex items-center gap-1 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full border border-purple-100 dark:border-purple-900/50"
+                                                                title={`Assigned by: ${task.creator.name}`}
+                                                            >
+                                                                <div className="w-3.5 h-3.5 rounded-full overflow-hidden bg-purple-200 dark:bg-purple-900 flex items-center justify-center text-[7px] font-bold text-purple-800 dark:text-purple-200 shrink-0">
+                                                                    {task.creator.photoUrl ? (
+                                                                        <img src={task.creator.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        task.creator.name?.[0]?.toUpperCase() || 'A'
+                                                                    )}
+                                                                </div>
+                                                                <span className="font-semibold text-[9px] max-w-[60px] truncate">{task.creator.name?.split(' ')[0]}</span>
                                                             </div>
-                                                            <span className="font-semibold text-[9px] max-w-[60px] truncate">{task.assignee.name?.split(' ')[0]}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-400 italic text-[9px]">Unassigned</span>
-                                                    )}
+                                                        )}
+
+                                                        {/* Arrow connector */}
+                                                        {task.creator && task.assignee && (
+                                                            <span className="text-gray-300 dark:text-gray-600 text-[9px]">→</span>
+                                                        )}
+
+                                                        {/* Assignee / Working by */}
+                                                        {task.assignee ? (
+                                                            <div 
+                                                                className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50"
+                                                                title={`Working by: ${task.assignee.name}`}
+                                                            >
+                                                                <div className="w-3.5 h-3.5 rounded-full overflow-hidden bg-indigo-200 dark:bg-indigo-900 flex items-center justify-center text-[7px] font-bold text-indigo-800 dark:text-indigo-200 shrink-0">
+                                                                    {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                                                        <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        task.assignee.name?.[0]?.toUpperCase() || 'U'
+                                                                    )}
+                                                                </div>
+                                                                <span className="font-semibold text-[9px] max-w-[60px] truncate">{task.assignee.name?.split(' ')[0]}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-gray-400 dark:text-gray-500 italic text-[9px]">Unassigned</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
+
                                     {colTasks.length === 0 && (
-                                        <div className="text-center py-8 text-gray-300 text-sm">Drop tasks here</div>
+                                        <div className="text-center py-12 text-gray-300 dark:text-gray-600 text-xs select-none border-2 border-dashed border-gray-200/70 dark:border-slate-800 rounded-2xl">
+                                            Drop tasks here
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -336,56 +532,172 @@ export default function TasksPage() {
                     })}
                 </div>
             ) : (
-                /* ── LIST VIEW ── */
+                /* ── LIST VIEW WITH MULTI-SELECTION ── */
                 <div className="space-y-2">
-                    {tasks.map((task) => (
-                        <div
-                            key={task.id}
-                            onClick={() => setSelectedTask(task.id)}
-                            className="card p-4 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer group"
-                        >
-                            <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', PRIORITY_DOT[task.priority] || 'bg-gray-300')} />
-                            <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate group-hover:text-indigo-700 transition-colors">{task.title}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">{task.projectId?.name}</p>
+                    {tasks.length > 0 && (
+                        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-gray-300 font-semibold shadow-2xs">
+                            <div className="flex items-center gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={selectedTaskIds.length === tasks.length ? handleDeselectAllTasks : handleSelectAllTasks}
+                                    className="p-0.5 cursor-pointer"
+                                    title={selectedTaskIds.length === tasks.length ? "Deselect all" : "Select all"}
+                                >
+                                    <span className={clsx(
+                                        "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                        selectedTaskIds.length === tasks.length 
+                                            ? "bg-indigo-600 border-indigo-600 text-white" 
+                                            : selectedTaskIds.length > 0 
+                                                ? "bg-indigo-100 border-indigo-400 text-indigo-700" 
+                                                : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                                    )}>
+                                        {selectedTaskIds.length === tasks.length ? (
+                                            <Check className="w-3 h-3 stroke-[3]" />
+                                        ) : selectedTaskIds.length > 0 ? (
+                                            <span className="w-2 h-0.5 bg-indigo-600 rounded-full" />
+                                        ) : null}
+                                    </span>
+                                </button>
+                                <span>Select All ({tasks.length} tasks)</span>
                             </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                                <span className={clsx('badge', PRIORITY_COLORS[task.priority] || 'badge-gray')}>{task.priority}</span>
-                                <span className="badge badge-gray">{task.status?.replace(/_/g, ' ')}</span>
-                                {task.dueDate && <span className="text-xs text-gray-400">{format(new Date(task.dueDate), 'MMM d')}</span>}
-                                
-                                <div className="flex items-center gap-2">
-                                    {task.creator && (
-                                        <div className="flex items-center gap-1 text-xs text-purple-700 bg-purple-50 px-2 py-1 rounded-lg border border-purple-100" title={`Assigned by: ${task.creator.name}`}>
-                                            <span className="text-[10px] text-purple-400 font-bold">BY:</span>
-                                            <span className="font-semibold max-w-[70px] truncate">{task.creator.name}</span>
-                                        </div>
+                            {selectedTaskIds.length > 0 && (
+                                <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                                    {selectedTaskIds.length} of {tasks.length} selected
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    {tasks.map((task) => {
+                        const isSelected = selectedTaskIds.includes(task.id);
+                        return (
+                            <div
+                                key={task.id}
+                                onClick={() => setSelectedTask(task.id)}
+                                className={clsx(
+                                    "card p-3.5 flex items-center gap-3.5 hover:shadow-md transition-all cursor-pointer group rounded-2xl border bg-white dark:bg-slate-900",
+                                    isSelected
+                                        ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20"
+                                        : "border-gray-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80"
+                                )}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleSelectTask(task.id);
+                                    }}
+                                    className={clsx(
+                                        "p-0.5 rounded cursor-pointer transition-opacity shrink-0",
+                                        isSelected ? "opacity-100" : "opacity-40 group-hover:opacity-100"
                                     )}
-                                    {task.assignee && (
-                                        <div className="flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100" title={`Working by: ${task.assignee.name}`}>
-                                            <span className="text-[10px] text-indigo-400 font-bold">FOR:</span>
-                                            <div className="w-4 h-4 rounded-full bg-indigo-200 overflow-hidden shrink-0">
-                                                {task.assignee.profilePicture || task.assignee.photoUrl ? (
-                                                    <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-[8px] font-bold flex items-center justify-center w-full h-full">{task.assignee.name?.[0]?.toUpperCase()}</span>
-                                                )}
-                                            </div>
-                                            <span className="font-semibold max-w-[70px] truncate">{task.assignee.name}</span>
-                                        </div>
+                                    title={isSelected ? "Deselect" : "Select"}
+                                >
+                                    <span className={clsx(
+                                        "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                        isSelected 
+                                            ? "bg-indigo-600 border-indigo-600 text-white" 
+                                            : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-500"
+                                    )}>
+                                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                    </span>
+                                </button>
+
+                                <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', PRIORITY_DOT[task.priority] || 'bg-gray-300')} />
+                                
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                        {task.title}
+                                    </p>
+                                    {task.projectId?.name && (
+                                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{task.projectId.name}</p>
                                     )}
                                 </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                    <span className={clsx('badge text-xs', PRIORITY_COLORS[task.priority] || 'badge-gray')}>{task.priority}</span>
+                                    <span className="badge badge-gray text-xs">{task.status?.replace(/_/g, ' ')}</span>
+                                    {task.dueDate && <span className="text-xs text-gray-400 dark:text-gray-500">{format(new Date(task.dueDate), 'MMM d')}</span>}
+                                    
+                                    <div className="flex items-center gap-2">
+                                        {task.creator && (
+                                            <div className="flex items-center gap-1 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-100 dark:border-purple-900/50" title={`Assigned by: ${task.creator.name}`}>
+                                                <span className="text-[10px] text-purple-400 font-bold">BY:</span>
+                                                <span className="font-semibold max-w-[70px] truncate">{task.creator.name}</span>
+                                            </div>
+                                        )}
+                                        {task.assignee && (
+                                            <div className="flex items-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-1 rounded-lg border border-indigo-100 dark:border-indigo-900/50" title={`Working by: ${task.assignee.name}`}>
+                                                <span className="text-[10px] text-indigo-400 font-bold">FOR:</span>
+                                                <div className="w-4 h-4 rounded-full bg-indigo-200 dark:bg-indigo-900 overflow-hidden shrink-0">
+                                                    {task.assignee.profilePicture || task.assignee.photoUrl ? (
+                                                        <img src={task.assignee.profilePicture || task.assignee.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-[8px] font-bold flex items-center justify-center w-full h-full">{task.assignee.name?.[0]?.toUpperCase()}</span>
+                                                    )}
+                                                </div>
+                                                <span className="font-semibold max-w-[70px] truncate">{task.assignee.name}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                     {tasks.length === 0 && (
-                        <div className="text-center py-20">
-                            <CheckSquare className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800">
+                            <CheckSquare className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
                             <p className="text-gray-400 font-medium">No tasks found</p>
                         </div>
                     )}
                 </div>
             )}
+
+            {/* Floating Bulk Action Bar */}
+            <BulkActionBar
+                selectedCount={selectedTaskIds.length}
+                totalCount={tasks.length}
+                itemLabel="tasks"
+                onSelectAll={handleSelectAllTasks}
+                onDeselectAll={handleDeselectAllTasks}
+                onSelectAmount={handleSelectAmount}
+                onDeleteSelected={handleBulkDeleteSelected}
+                isDeleting={isBulkDeleting}
+                deleteModalTitle={`Delete ${selectedTaskIds.length} tasks`}
+                deleteModalMessage={`Are you sure you want to delete ${selectedTaskIds.length} selected tasks? This action cannot be undone.`}
+            >
+                {/* Move Status Dropdown */}
+                <div className="relative" ref={moveStatusMenuRef}>
+                    <button
+                        type="button"
+                        onClick={() => setIsMoveStatusMenuOpen(prev => !prev)}
+                        disabled={isBulkMoving}
+                        className="px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border border-gray-200 dark:border-slate-700 shadow-sm cursor-pointer disabled:opacity-50"
+                    >
+                        <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        <span>Move Status</span>
+                        <ChevronDown className={clsx("w-3 h-3 transition-transform", isMoveStatusMenuOpen && "rotate-180")} />
+                    </button>
+
+                    {isMoveStatusMenuOpen && (
+                        <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                            <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                Move to Status
+                            </div>
+                            {COLUMNS.map(col => (
+                                <button
+                                    key={col.id}
+                                    type="button"
+                                    onClick={() => handleBulkMoveStatus(col.id)}
+                                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 rounded-lg flex items-center justify-between transition-colors cursor-pointer"
+                                >
+                                    <span>{col.label}</span>
+                                    <span className={clsx('w-2 h-2 rounded-full', col.badge?.replace('badge-', 'bg-') || 'bg-gray-400')} />
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </BulkActionBar>
 
             {selectedTask && (
                 <TaskDetailModal
@@ -411,5 +723,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-

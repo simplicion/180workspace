@@ -307,7 +307,7 @@ function ClientOverview({ client, onCreateInvoice }: any) {
                 <div className="card p-6">
                     <h3 className="text-lg font-bold text-gray-900 mb-6">Company & Account Details</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-12">
-                        <InfoItem icon={Briefcase} label="Client Type" value={client.clientType || 'Standard'} />
+                        <InfoItem icon={Briefcase} label="Category" value={client.category || 'General'} />
                         <InfoItem icon={Users} label="Employee Count" value={client.employeeCount || 'Not specified'} />
                         <InfoItem icon={DollarSign} label="Annual Revenue" value={client.annualRevenue ? `$${client.annualRevenue.toLocaleString()}` : 'Not specified'} />
                         <InfoItem icon={Activity} label="Health Status" value={client.healthStatus || 'Healthy'} />

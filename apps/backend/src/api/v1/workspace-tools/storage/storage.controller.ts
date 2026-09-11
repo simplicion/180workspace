@@ -28,8 +28,7 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
         const { replaceUrl } = req.body;
         if (replaceUrl && typeof replaceUrl === 'string') {
             try {
-                const { PrismaClient } = require('@workspace/db');
-                const prisma = new PrismaClient();
+                const { prisma } = require('@workspace/db');
                 await prisma.document.updateMany({
                     where: { fileUrl: replaceUrl },
                     data: { deletedAt: new Date() }

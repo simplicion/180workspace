@@ -54,3 +54,5 @@ export * from './components/UniversalAIDrawer';
 export * from './components/PlatformModal';
 export * from './components/QuickSupportDrawer';
 export * from './components/AILogo';
+export * from './components/BulkActionBar';
+

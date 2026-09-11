@@ -9,10 +9,13 @@ router.use(protect);
 
 router.get('/', ctrl.getClients);
 router.get('/categories', ctrl.getClientCategories);
+router.post('/bulk-delete', requirePermission('can_manage_clients', 'admin'), ctrl.bulkDeleteClients);
+router.delete('/bulk', requirePermission('can_manage_clients', 'admin'), ctrl.bulkDeleteClients);
 router.post('/', requirePermission('can_manage_clients', 'admin'), ctrl.createClient);
 router.get('/:id', ctrl.getClientById);
 router.put('/:id', requirePermission('can_manage_clients', 'admin'), ctrl.updateClient);
 router.delete('/:id', requirePermission('can_manage_clients', 'admin'), ctrl.deleteClient);
+
 
 router.get('/:id/communications', ctrl.getCommunications);
 router.post('/:id/communications', ctrl.createCommunication);

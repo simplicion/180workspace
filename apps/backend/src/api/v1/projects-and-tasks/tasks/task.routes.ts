@@ -7,6 +7,8 @@ const router = Router();
 
 router.get('/', protect, ctrl.getTasks);
 router.post('/', protect, requireManager, ctrl.createTask);
+router.post('/bulk-delete', protect, requireManager, ctrl.bulkDeleteTasks);
+router.post('/bulk-status', protect, ctrl.bulkUpdateStatus);
 router.get('/:id', protect, ctrl.getTaskById);
 router.post('/:id/attachments', protect, ctrl.addAttachments);
 router.put('/:id', protect, ctrl.updateTask);

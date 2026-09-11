@@ -160,20 +160,33 @@ export class AuthService {
 
         const isSelfAdmin = company?.adminEmail === email.toLowerCase();
 
-        let finalDesignationId = designationId;
-        if (designationId) {
+        const photoUrl = body.photoUrl || body.photo;
+
+        let finalDesignationId: string | null = null;
+        if (designationId && typeof designationId === 'string' && designationId.trim()) {
+            const trimmedDes = designationId.trim();
             const Designation = companyPrisma.designation;
             if (Designation) {
                 let existing = await Designation.findFirst({
                     where: {
-                        name: { equals: designationId, mode: 'insensitive' },
+                        name: { equals: trimmedDes, mode: 'insensitive' },
                         OR: [{ companyId: company?.id }, { companyId: null }]
                     }
                 });
                 if (!existing) {
-                    existing = await Designation.create({
-                        data: { name: designationId, isCustom: true, companyId: company?.id }
+                    const byId = await Designation.findFirst({
+                        where: {
+                            id: trimmedDes,
+                            OR: [{ companyId: company?.id }, { companyId: null }]
+                        }
                     });
+                    if (byId) {
+                        existing = byId;
+                    } else {
+                        existing = await Designation.create({
+                            data: { name: trimmedDes, isCustom: true, companyId: company?.id }
+                        });
+                    }
                 }
                 finalDesignationId = existing.id;
             }
@@ -185,28 +198,38 @@ export class AuthService {
             finalPassword = await bcrypt.hash(password, salt);
         }
 
+        const createData: any = {
+            name,
+            email: email.toLowerCase(),
+            password: isSelfAdmin ? undefined : finalPassword,
+            role: safeRoles[0] || 'employee',
+            employeeId,
+            department: department || '',
+            position: position || '',
+            permissions: permissions || [],
+            employmentType: employmentType || 'Full-time',
+            workLocation: workLocation || 'Remote',
+            phone: phone || '',
+            emergencyContact: emergencyContact || '',
+            salary: (salary !== undefined && salary !== null && salary !== '') ? (parseFloat(salary) || 0) : 0,
+            leaveBalance: (leaveBalance !== undefined && leaveBalance !== null && leaveBalance !== '') ? (parseFloat(leaveBalance) || 0) : 20,
+            joinDate: joinDate ? new Date(joinDate) : new Date(),
+            address: address || '',
+            ...(photoUrl ? { photoUrl } : {})
+        };
+
+        if (finalDesignationId) {
+            createData.designation = { connect: { id: finalDesignationId } };
+        }
+        if (managerId && typeof managerId === 'string' && managerId.trim()) {
+            createData.manager = { connect: { id: managerId.trim() } };
+        }
+        if (targetCompanyId) {
+            createData.company = { connect: { id: targetCompanyId } };
+        }
+
         const user = await CompanyUser.create({
-            data: {
-                name,
-                email: email.toLowerCase(),
-                password: isSelfAdmin ? undefined : finalPassword,
-                companyId: targetCompanyId || undefined,
-                role: safeRoles[0] || 'employee',
-                employeeId,
-                department,
-                designationId: finalDesignationId || undefined,
-                position,
-                permissions: permissions || [],
-                employmentType,
-                workLocation,
-                managerId: managerId || undefined,
-                phone,
-                emergencyContact,
-                salary: salary ? parseFloat(salary) : undefined,
-                leaveBalance: leaveBalance ? parseFloat(leaveBalance) : undefined,
-                joinDate: joinDate ? new Date(joinDate) : undefined,
-                address
-            }
+            data: createData
         });
 
         const token = signAccessToken(user.id, company.id);
@@ -236,36 +259,30 @@ export class AuthService {
             console.error('[Auth] Failed to setup welcome email:', emailErr.message);
         }
 
-        if (currentUser) {
-            const Notification = companyPrisma.notification;
-            const getIo = () => null as any;
-            const Settings = companyPrisma.settings;
-            const settings = await Settings.findFirst();
-            const companyName = settings?.companyName || company?.companyName || 'Your Company';
-            const subject = encodeURIComponent(`Welcome to ${companyName}`);
-            const bodyStr = encodeURIComponent(`Hi ${user.name},\n\nYour account has been created.\nEmail: ${user.email}\nPassword: ${password}\n\nLogin at: ${process.env.CLIENT_URL}`);
-            const actionUrl = `mailto:${user.email}?subject=${subject}&body=${bodyStr}`;
+        if (currentUser?.id) {
+            try {
+                const currentDbUser = await companyPrisma.user.findUnique({ where: { id: currentUser.id } });
+                if (currentDbUser) {
+                    const Notification = companyPrisma.notification;
+                    const Settings = companyPrisma.settings;
+                    const settings = await Settings.findFirst();
+                    const companyName = settings?.companyName || company?.companyName || 'Your Company';
+                    const subject = encodeURIComponent(`Welcome to ${companyName}`);
+                    const bodyStr = encodeURIComponent(`Hi ${user.name},\n\nYour account has been created.\nEmail: ${user.email}\nPassword: ${password}\n\nLogin at: ${process.env.CLIENT_URL}`);
+                    const actionUrl = `mailto:${user.email}?subject=${subject}&body=${bodyStr}`;
 
-            const notification = await Notification.create({
-                data: {
-                    userId: currentUser.id,
-                    type: 'email_pending',
-                    title: 'Send Welcome Email',
-                    message: `New user ${user.name} created. Click to send their credentials.`,
-                    link: actionUrl,
+                    await Notification.create({
+                        data: {
+                            user: { connect: { id: currentDbUser.id } },
+                            type: 'email_pending',
+                            title: 'Send Welcome Email',
+                            message: `New user ${user.name} created. Click to send their credentials.`,
+                            link: actionUrl,
+                        }
+                    });
                 }
-            });
-            const io = getIo();
-            if (io) {
-                io.to(currentUser.id.toString()).emit('notification:new', {
-                    _id: notification.id.toString(),
-                    type: 'email_pending',
-                    title: 'Send Welcome Email',
-                    message: `New user ${user.name} created. Click to send their credentials.`,
-                    link: actionUrl,
-                    isRead: false,
-                    createdAt: notification.createdAt
-                });
+            } catch (notifErr: any) {
+                console.warn('[Auth] Welcome notification creation skipped/warning:', notifErr.message);
             }
         }
 

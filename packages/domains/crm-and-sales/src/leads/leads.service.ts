@@ -16,11 +16,13 @@ export class LeadsService {
             const params = extractPaginationParams(pageOrQuery);
             const where: any = {};
             if (pageOrQuery.status) where.status = pageOrQuery.status;
+            if (pageOrQuery.category) where.category = pageOrQuery.category;
             if (pageOrQuery.search) {
                 where.OR = [
                     { name: { contains: pageOrQuery.search, mode: 'insensitive' } },
                     { company: { contains: pageOrQuery.search, mode: 'insensitive' } },
-                    { email: { contains: pageOrQuery.search, mode: 'insensitive' } }
+                    { email: { contains: pageOrQuery.search, mode: 'insensitive' } },
+                    { category: { contains: pageOrQuery.search, mode: 'insensitive' } }
                 ];
             }
 
@@ -82,25 +84,64 @@ export class LeadsService {
         return { leads, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
     }
 
+    static async getCategories() {
+        const defaultCategories = ['Enterprise', 'SMB', 'VIP Client', 'Retail', 'Wholesale', 'Partner', 'Government', 'Tech & Media', 'Healthcare', 'Inbound Prospect', 'Outbound Lead'];
+        
+        let dbCategories: { name: string }[] = [];
+        try {
+            dbCategories = await prisma.clientCategory.findMany({ select: { name: true } }).catch(() => []);
+        } catch (e) {}
+
+        let leadCategories: { category: string }[] = [];
+        try {
+            leadCategories = await prisma.lead.findMany({
+                where: { category: { not: null } },
+                select: { category: true },
+                distinct: ['category']
+            });
+        } catch (e) {}
+
+        const allCatNames = [
+            ...defaultCategories,
+            ...dbCategories.map((c: any) => c.name),
+            ...leadCategories.map((c: any) => c.category).filter(Boolean)
+        ];
+
+        return Array.from(new Set(allCatNames)).sort((a: string, b: string) => a.localeCompare(b));
+    }
+
     static async createLead(data, userId) {
-        const leadData = {
+        const leadCategory = data.category || data.leadCategory || data.clientCategory || null;
+        
+        let validFollowUpDate = null;
+        if (data.followUpDate) {
+            const d = new Date(data.followUpDate);
+            if (!isNaN(d.getTime())) {
+                validFollowUpDate = d;
+            }
+        }
+
+        const compId = data.companyId || (prisma as any)?._companyId;
+        const leadData: any = {
             name: data.name || data.contactName || data.title || 'Unknown Lead',
             email: data.email || data.contactEmail || null,
             phone: data.phone || data.contactPhone || null,
             company: data.company || data.companyName || null,
             companyName: data.companyName || data.company || null,
             industry: data.industry || null,
+            category: leadCategory,
             companySize: data.companySize || data.employeeCount ? parseInt(data.companySize || data.employeeCount) : null,
             source: data.source || null,
             status: data.status || data.stage || 'new',
             value: data.value ? parseFloat(data.value) : 0,
             engagementScore: data.engagementScore || 50,
             notes: data.notes || null,
-            followUpDate: data.followUpDate ? new Date(data.followUpDate) : null
+            followUpDate: validFollowUpDate,
+            ...(compId ? { tenantCompany: { connect: { id: compId } } } : {})
         };
         const ownerId = data.owner || data.ownerId || data.assignedSalesRepId || userId;
         if (ownerId && typeof ownerId === 'string' && ownerId.length > 5) {
-            const userExists = await prisma.user.findUnique({ where: { id: ownerId } });
+            const userExists = await prisma.user.findUnique({ where: { id: ownerId } }).catch(() => null);
             if (userExists) {
                 leadData.assignedSalesRep = { connect: { id: ownerId } };
             }
@@ -109,7 +150,7 @@ export class LeadsService {
 
         let existingClient = null;
         if (data.clientId) {
-            existingClient = await prisma.client.findUnique({ where: { id: data.clientId } });
+            existingClient = await prisma.client.findUnique({ where: { id: data.clientId } }).catch(() => null);
         } else if (leadData.phone || leadData.email) {
             existingClient = await prisma.client.findFirst({
                 where: {
@@ -118,76 +159,88 @@ export class LeadsService {
                         ...(leadData.email ? [{ email: leadData.email }] : [])
                     ]
                 }
-            });
+            }).catch(() => null);
         }
 
         const shouldCreateClient = data.createClient === true || data.createClient === 'true' || data.createClient === 1;
-        const clientCategory = data.clientCategory || data.category || null;
+        const clientCategory = data.clientCategory || data.category || data.leadCategory || leadCategory || null;
 
         if (clientCategory && typeof clientCategory === 'string' && clientCategory.trim().length > 0) {
             const catName = clientCategory.trim();
-            const catId = `cat_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-            await prisma.$executeRawUnsafe(
-                `INSERT INTO "ClientCategory" ("id", "name", "createdAt", "updatedAt") VALUES ($1, $2, NOW(), NOW()) ON CONFLICT ("name") DO NOTHING`,
-                catId,
-                catName
-            ).catch(() => {});
-        }
-
-        if (shouldCreateClient) {
-            if (!existingClient) {
-                await prisma.client.create({
-                    data: {
-                        name: leadData.name,
-                        email: leadData.email,
-                        phone: leadData.phone,
-                        companyName: leadData.company,
-                        industry: leadData.industry,
-                        category: clientCategory,
-                        employeeCount: leadData.companySize ? leadData.companySize.toString() : null,
-                        assignedManager: leadData.assignedSalesRepId,
-                        status: 'Active',
-                        leadSource: leadData.source
-                    }
-                });
-            } else if (clientCategory) {
-                await prisma.client.update({
-                    where: { id: existingClient.id },
-                    data: { category: clientCategory }
-                });
+            if (compId) {
+                await prisma.clientCategory.upsert({
+                    where: { companyId_name: { companyId: compId, name: catName } },
+                    update: {},
+                    create: { name: catName, company: { connect: { id: compId } } }
+                }).catch(() => {});
+            } else {
+                const existing = await prisma.clientCategory.findFirst({ where: { name: catName } }).catch(() => null);
+                if (!existing) {
+                    await prisma.clientCategory.create({ data: { name: catName } }).catch(() => {});
+                }
             }
         }
 
-        let validActivityOwner: string | null = null;
-        if (userId && typeof userId === 'string' && userId.length > 5) {
-            const u = await prisma.user.findUnique({ where: { id: userId } });
-            if (u) validActivityOwner = u.id;
+        if (shouldCreateClient) {
+            try {
+                if (!existingClient) {
+                    await prisma.client.create({
+                        data: {
+                            name: data.contactName || leadData.name,
+                            email: leadData.email,
+                            phone: leadData.phone,
+                            companyName: leadData.company,
+                            industry: leadData.industry,
+                            category: clientCategory,
+                            employeeCount: leadData.companySize ? leadData.companySize.toString() : null,
+                            assignedManager: ownerId,
+                            status: 'Active',
+                            leadSource: leadData.source,
+                            ...(compId ? { company: { connect: { id: compId } } } : {})
+                        }
+                    });
+                } else if (clientCategory) {
+                    await prisma.client.update({
+                        where: { id: existingClient.id },
+                        data: { category: clientCategory }
+                    });
+                }
+            } catch (clientErr) {
+                console.error('Failed to create client from lead', clientErr);
+            }
         }
 
-        await prisma.salesActivity.create({ data: {
-            type: 'note',
-            leadId: lead.id,
-            notes: `New lead created: ${lead.name} from ${lead.company}`,
-            ownerId: validActivityOwner
-        } });
+        try {
+            let validActivityOwner: string | null = null;
+            if (userId && typeof userId === 'string' && userId.length > 5) {
+                const u = await prisma.user.findUnique({ where: { id: userId } }).catch(() => null);
+                if (u) validActivityOwner = u.id;
+            }
 
-        const settings = await prisma.settings.findFirst();
-        
-        const newScore = CrmCalculationService.scoreLead(lead, settings?.salesConfig?.leadScoring);
-        await prisma.lead.update({ where: { id: lead.id }, data: { leadScore: newScore } });
-
-        
-        await SalesRuleEngine.onLeadCreated(lead.id);
+            await prisma.salesActivity.create({ data: {
+                type: 'note',
+                lead: { connect: { id: lead.id } },
+                notes: `New lead created: ${lead.name} from ${lead.company || 'Unknown'}`,
+                owner: validActivityOwner ? { connect: { id: validActivityOwner } } : undefined,
+                ...(compId ? { company: { connect: { id: compId } } } : {})
+            } });
+        } catch (actErr) {
+            console.error('Failed to create sales activity', actErr);
+        }
 
         try {
-            
-            await triggerN8nWebhook('new-lead', {
-                leadId: lead.id,
-                name: lead.name,
-                company: lead.company,
-                assignedSalesRep: lead.assignedSalesRep
-            });
-        } catch (err) {}
+            const settings = (prisma as any).platformSettings ? await (prisma as any).platformSettings.findFirst().catch(() => null) : null;
+            if (settings) {
+                const newScore = CrmCalculationService.scoreLead(lead, settings?.salesConfig?.leadScoring);
+                await prisma.lead.update({ where: { id: lead.id }, data: { leadScore: newScore } }).catch(() => {});
+            }
+        } catch (scoringErr) {}
+
+        try {
+            await SalesRuleEngine.onLeadCreated(lead.id);
+        } catch (ruleErr) {
+            console.error('Failed onLeadCreated rule', ruleErr);
+        }
 
         return lead;
     }
@@ -206,6 +259,7 @@ export class LeadsService {
         if (updateData.company !== undefined || updateData.companyName !== undefined) sanitizedData.company = updateData.company || updateData.companyName;
         if (updateData.companyName !== undefined || updateData.company !== undefined) sanitizedData.companyName = updateData.companyName || updateData.company;
         if (updateData.industry !== undefined) sanitizedData.industry = updateData.industry;
+        if (updateData.category !== undefined || updateData.leadCategory !== undefined) sanitizedData.category = updateData.category || updateData.leadCategory;
         if (updateData.companySize !== undefined || updateData.employeeCount !== undefined) sanitizedData.companySize = parseInt(updateData.companySize || updateData.employeeCount);
         if (updateData.source !== undefined) sanitizedData.source = updateData.source;
         if (updateData.status !== undefined || updateData.stage !== undefined) sanitizedData.status = updateData.status || updateData.stage;
@@ -221,6 +275,16 @@ export class LeadsService {
         }
         if (updateData.notes !== undefined) sanitizedData.notes = updateData.notes;
         if (updateData.followUpDate !== undefined) sanitizedData.followUpDate = updateData.followUpDate ? new Date(updateData.followUpDate) : null;
+
+        if (sanitizedData.category && typeof sanitizedData.category === 'string' && sanitizedData.category.trim().length > 0) {
+            const catName = sanitizedData.category.trim();
+            const catId = `cat_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            await prisma.$executeRawUnsafe(
+                `INSERT INTO "ClientCategory" ("id", "name", "createdAt", "updatedAt") VALUES ($1, $2, NOW(), NOW()) ON CONFLICT ("name") DO NOTHING`,
+                catId,
+                catName
+            ).catch(() => {});
+        }
 
         const updatedLead = await prisma.lead.update({
             where: { id },
@@ -255,8 +319,10 @@ export class LeadsService {
         }
 
         try {
-            const settings = await prisma.settings.findFirst();
-            await this.calculateLeadScore(updatedLead, settings);
+            const settings = (prisma as any).platformSettings ? await (prisma as any).platformSettings.findFirst().catch(() => null) : null;
+            if (settings) {
+                await this.calculateLeadScore(updatedLead, settings);
+            }
         } catch (scoringErr) {}
 
         try {
@@ -279,6 +345,24 @@ export class LeadsService {
         await prisma.lead.delete({ where: { id } });
     }
 
+    static async deleteMultipleLeads(ids: string[]) {
+        if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
+        await prisma.salesActivity.deleteMany({ where: { leadId: { in: ids } } });
+        await prisma.salesTask.deleteMany({ where: { leadId: { in: ids } } });
+        const result = await prisma.lead.deleteMany({ where: { id: { in: ids } } });
+        return { count: result.count };
+    }
+
+    static async updateMultipleLeadsStatus(ids: string[], status: string) {
+        if (!Array.isArray(ids) || ids.length === 0) return { count: 0 };
+        const result = await prisma.lead.updateMany({
+            where: { id: { in: ids } },
+            data: { status }
+        });
+        return { count: result.count };
+    }
+
+
 static async importLeads(leads, userId) {
         if (!Array.isArray(leads) || leads.length === 0) {
             throw new Error('No leads provided');
@@ -289,8 +373,7 @@ static async importLeads(leads, userId) {
             assignedSalesRep: l.assignedSalesRep || userId,
         }));
 
-        const inserted = await prisma.lead.createMany({ data: newLeads });
-        const settings = await prisma.settings.findFirst();
+        const settings = (prisma as any).platformSettings ? await (prisma as any).platformSettings.findFirst().catch(() => null) : null;
         
         
 
@@ -305,23 +388,25 @@ static async convertLead(id: string, userId: string) {
         if (!lead) throw new Error('Lead not found');
         if (lead.status === 'converted') throw new Error('This lead has already been converted.');
 
-        // Use interactive transaction
-        return await prisma.$transaction(async (prisma) => {
+        // Use interactive transaction with 30s timeout for remote cloud DB latency
+        return await prisma.$transaction(async (tx: any) => {
             const companyName = lead.company || lead.companyName || 'Unknown Company';
             
-            let account = await prisma.client.findFirst({ where: { companyName: { equals: companyName.trim(), mode: 'insensitive' } } });
+            let account = await tx.client.findFirst({ where: { companyName: { equals: companyName.trim(), mode: 'insensitive' } } });
             
+            const compId = lead.companyId || (prisma as any)?._companyId;
             if (!account) {
-                account = await prisma.client.create({ data: {
+                account = await tx.client.create({ data: {
                     companyName: companyName.trim(),
                     name: companyName.trim(),
                     industry: lead.industry,
                     employeeCount: lead.companySize ? String(lead.companySize) : undefined,
-                    assignedManager: userId
+                    assignedManager: userId,
+                    ...(compId ? { company: { connect: { id: compId } } } : {})
                 } });
             }
 
-            let contact = await prisma.client.findFirst({ where: { 
+            let contact = await tx.client.findFirst({ where: { 
                 companyName: { equals: companyName.trim(), mode: 'insensitive' },
                 OR: [
                     { email: lead.email || undefined },
@@ -330,47 +415,50 @@ static async convertLead(id: string, userId: string) {
             } });
 
             if (!contact) {
-                contact = await prisma.client.create({ data: {
+                contact = await tx.client.create({ data: {
                     companyName: account.companyName,
                     name: lead.name,
                     email: lead.email,
-                    phone: lead.phone
+                    phone: lead.phone,
+                    ...(compId ? { company: { connect: { id: compId } } } : {})
                 } });
             }
 
             let validOwnerId: string | null = null;
             if (userId) {
-                const ownerUser = await prisma.user.findUnique({ where: { id: userId } });
+                const ownerUser = await tx.user.findUnique({ where: { id: userId } });
                 if (ownerUser) validOwnerId = ownerUser.id;
             }
             if (!validOwnerId && lead.assignedSalesRepId) {
-                const repUser = await prisma.user.findUnique({ where: { id: lead.assignedSalesRepId } });
+                const repUser = await tx.user.findUnique({ where: { id: lead.assignedSalesRepId } });
                 if (repUser) validOwnerId = repUser.id;
             }
 
-            const opp = await prisma.deal.create({ data: {
+            const opp = await tx.deal.create({ data: {
                 title: lead.name ? `Deal - ${lead.name}` : `Deal with ${companyName}`,
-                clientId: account.id,
-                leadId: lead.id,
+                client: account ? { connect: { id: account.id } } : undefined,
+                lead: { connect: { id: lead.id } },
                 value: lead.value || 0,
                 stage: 'ContractPending',
-                ownerId: validOwnerId,
-                priorityScore: (lead.leadScore || 0)
+                owner: validOwnerId ? { connect: { id: validOwnerId } } : undefined,
+                priorityScore: (lead.leadScore || 0),
+                ...(compId ? { company: { connect: { id: compId } } } : {})
             } });
 
-            await prisma.lead.update({ where: { id: lead.id }, data: { status: 'ClosedWon' } });
+            await tx.lead.update({ where: { id: lead.id }, data: { status: 'converted' } });
 
-            await prisma.salesActivity.create({ data: {
+            await tx.salesActivity.create({ data: {
                 type: 'task',
-                leadId: lead.id,
-                relatedClientId: account.id,
-                dealId: opp.id,
+                lead: { connect: { id: lead.id } },
+                relatedClient: account ? { connect: { id: account.id } } : undefined,
+                deal: opp ? { connect: { id: opp.id } } : undefined,
                 notes: `Converted lead into account and opportunity: ${opp.title}`,
-                ownerId: validOwnerId
+                owner: validOwnerId ? { connect: { id: validOwnerId } } : undefined,
+                ...(compId ? { company: { connect: { id: compId } } } : {})
             } });
 
             return { account, contact, opportunity: opp };
-        });
+        }, { maxWait: 10000, timeout: 30000 });
     };
 
 static async findDuplicateLeads(leadName, email) {

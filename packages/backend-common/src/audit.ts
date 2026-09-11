@@ -24,18 +24,22 @@ export async function logAction(
   context: AuditContext = {}
 ): Promise<void> {
   try {
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action,
-        resourceType,
-        resourceId: resourceId ? String(resourceId) : '',
-        details: (details || {}) as any,
-        ipAddress: context.ipAddress || '',
-        userAgent: context.userAgent || '',
-        companyId: context.companyId ?? null,
-      },
-    });
+    if (!userId || typeof userId !== 'string') return;
+    const userExists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!userExists) return;
+
+    const data: any = {
+      user: { connect: { id: userExists.id } },
+      action,
+      resourceType,
+      resourceId: resourceId ? String(resourceId) : '',
+      details: (details || {}) as any,
+      ipAddress: context.ipAddress || '',
+      userAgent: context.userAgent || '',
+      companyId: context.companyId ?? null,
+    };
+
+    await prisma.auditLog.create({ data });
   } catch (err: any) {
     // Never throw — audit logging should never break the main flow
     console.error('[Audit] Failed to log action:', err.message);

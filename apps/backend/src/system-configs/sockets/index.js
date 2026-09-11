@@ -102,10 +102,12 @@ function initSocket(httpServer) {
 
         if (companyId) {
             socket.join(`company:${companyId}`);
+            // Broadcast user online status strictly to members of the same company
+            io.to(`company:${companyId}`).emit('user:online', { userId, isOnline: true });
+        } else {
+            // If super-admin or system account without company, broadcast only to their personal room
+            socket.emit('user:online', { userId, isOnline: true });
         }
-        
-        // Broadcast user online status
-        io.emit('user:online', { userId, isOnline: true });
 
         // Register modular events
         registerChatEvents(io, socket, onlineUsers);
@@ -117,7 +119,9 @@ function initSocket(httpServer) {
                 sockets.delete(socket.id);
                 if (sockets.size === 0) {
                     onlineUsers.delete(userId);
-                    io.emit('user:offline', { userId, isOnline: false });
+                    if (companyId) {
+                        io.to(`company:${companyId}`).emit('user:offline', { userId, isOnline: false });
+                    }
                 }
             }
             console.log(`[Socket] ${userName} disconnected`);
@@ -148,17 +152,20 @@ function initSocket(httpServer) {
             if (channel !== REDIS_CHANNEL) return;
             try {
                 const parsed = JSON.parse(message);
-                const { room, event, data, userId } = parsed;
+                const { room, companyId, event, data, userId } = parsed;
 
                 if (room) {
                     io.to(room).emit(event, data);
+                } else if (companyId) {
+                    io.to(`company:${companyId}`).emit(event, data);
                 } else if (userId) {
                     const userSockets = onlineUsers.get(userId);
                     if (userSockets && userSockets.size > 0) {
                         userSockets.forEach(socketId => io.to(socketId).emit(event, data));
                     }
                 } else {
-                    io.emit(event, data);
+                    // Safe fallback: avoid un-scoped global emit
+                    console.warn('[Socket Redis] Warning: message lacked room or companyId, dropping un-scoped broadcast for event:', event);
                 }
             } catch (e) {
                 console.error('[Socket Redis Subscriber] Error parsing Redis message:', e.message);
@@ -177,6 +184,18 @@ function getIo() {
     return ioInstance || mockIo;
 }
 
+function emitToCompany(companyId, event, data) {
+    if (!companyId) return;
+    const io = getIo();
+    io.to(`company:${companyId}`).emit(event, data);
+}
+
+function emitToUser(userId, event, data) {
+    if (!userId) return;
+    const io = getIo();
+    io.to(`user:${userId}`).emit(event, data);
+}
+
 function isUserOnline(userId) {
     const sockets = onlineUsers.get(userId);
     return Boolean(sockets && sockets.size > 0);
@@ -186,5 +205,7 @@ module.exports = {
     initSocket, 
     isUserOnline, 
     onlineUsers, 
-    getIo 
+    getIo,
+    emitToCompany,
+    emitToUser
 };

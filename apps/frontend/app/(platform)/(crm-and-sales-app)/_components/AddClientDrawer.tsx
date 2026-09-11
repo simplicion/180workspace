@@ -4,10 +4,9 @@ import { LogoLoader } from "@workspace/ui";
 import { Drawer } from "@/components/ui/Drawer";
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { X, Building2, Mail, Phone, Globe, AlignLeft, MapPin, Users, DollarSign, Tag } from 'lucide-react';
+import { X, Building2, Mail, Phone, Globe, AlignLeft, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
-
 import { Country } from 'country-state-city';
 
 const INDUSTRIES = [
@@ -25,7 +24,6 @@ interface Props {
 export default function AddClientDrawer({ open, onClose, onSuccess, editClient }: Props) {
     const isEdit = !!editClient;
     const [loading, setLoading] = useState(false);
-    const [isCompany, setIsCompany] = useState(!!editClient?.company);
     const countryOptions = React.useMemo(() => {
         return Country.getAllCountries().map(c => ({
             label: `${c.name} (${c.isoCode}) +${c.phonecode}`,
@@ -36,12 +34,11 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
 
     const [form, setForm] = useState({
         name: editClient?.name || '',
-        company: editClient?.company || '',
+        company: editClient?.company || editClient?.companyName || '',
         email: editClient?.email || '',
         phone: editClient?.phone || '',
         website: editClient?.website || '',
         industry: editClient?.industry || '',
-        clientType: editClient?.clientType || '',
         taxId: editClient?.taxId || '',
         billingAddress: editClient?.billingAddress || '',
         status: editClient?.status || 'active',
@@ -53,11 +50,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         linkedin: editClient?.socialMediaLinks?.linkedin || '',
         paymentTerms: editClient?.paymentTerms || '',
         currency: editClient?.currency || 'USD',
-        location: editClient?.location || '',
-        country: editClient?.country || '',
         employeeCount: editClient?.employeeCount || '',
-        annualRevenue: editClient?.annualRevenue || '',
-        customIndustry: editClient?.customIndustry || '',
         category: editClient?.category || '',
     });
 
@@ -84,12 +77,11 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
         if (open) {
             setForm({
                 name: editClient?.name || '',
-                company: editClient?.company || '',
+                company: editClient?.company || editClient?.companyName || '',
                 email: editClient?.email || '',
                 phone: editClient?.phone || '',
                 website: editClient?.website || '',
                 industry: editClient?.industry || '',
-                clientType: editClient?.clientType || '',
                 taxId: editClient?.taxId || '',
                 billingAddress: editClient?.billingAddress || '',
                 status: editClient?.status || 'active',
@@ -101,41 +93,54 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 linkedin: editClient?.socialMediaLinks?.linkedin || '',
                 paymentTerms: editClient?.paymentTerms || '',
                 currency: editClient?.currency || 'USD',
-                location: editClient?.location || '',
-                country: editClient?.country || '',
                 employeeCount: editClient?.employeeCount || '',
-                annualRevenue: editClient?.annualRevenue || '',
-                customIndustry: editClient?.customIndustry || '',
                 category: editClient?.category || '',
             });
-            setIsCompany(!!editClient?.company);
         }
     }, [open, editClient]);
 
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        if (!form.name.trim()) return toast.error('Client name is required');
+    async function handleSubmit(e?: React.FormEvent) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (!form.name || !form.name.trim()) return toast.error('Client name is required');
+        
+        if (form.givePortalAccess && !isEdit) {
+            if (!form.email || !form.email.trim()) {
+                return toast.error('Email Address is required to grant portal access');
+            }
+            if (!form.password || !form.password.trim()) {
+                return toast.error('Password is required to grant portal access');
+            }
+        }
+
         setLoading(true);
         try {
             const payload: any = {
                 ...form,
-                company: isCompany ? form.company : '',
-                industry: isCompany ? form.industry : '',
-                website: isCompany ? form.website : '',
-                taxId: isCompany ? form.taxId : '',
-                socialMediaLinks: { linkedin: isCompany ? form.linkedin : '' }
+                company: form.company || '',
+                industry: form.industry || '',
+                website: form.website || '',
+                taxId: form.taxId || '',
+                category: form.category || '',
+                status: form.status || 'active',
+                billingAddress: form.billingAddress || '',
+                socialMediaLinks: { linkedin: form.linkedin || '' }
             };
             
             // Clean up payload to prevent backend Prisma errors
             delete payload.linkedin;
-            if (payload.annualRevenue === '') {
-                delete payload.annualRevenue;
-            }
+            delete payload.id;
+            delete payload._id;
+            delete payload.annualRevenue;
+            delete payload.location;
+            delete payload.country;
+            delete payload.customIndustry;
+            delete payload.clientType;
             
-            if (isEdit) {
+            const clientId = editClient?.id || editClient?._id;
+            if (isEdit && clientId) {
                 delete payload.givePortalAccess;
                 delete payload.password;
-                const { data } = await api.put(`/api/clients/${editClient.id}`, payload);
+                const { data } = await api.put(`/api/clients/${clientId}`, payload);
                 toast.success('Client updated!');
                 onSuccess(data.client);
             } else {
@@ -145,8 +150,8 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
             }
             onClose();
         } catch (err: any) {
+            console.error('[AddClientDrawer Error]', err);
             toast.error(err?.response?.data?.error || 'Failed to save client');
-
         } finally {
             setLoading(false);
         }
@@ -162,61 +167,42 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
     }
     
     const handlePhoneCodeChange = (e: any) => {
-        setForm({ ...form, phone: `${e.target.value} ${currentNum}`.trim() });
+        const val = e?.target?.value ?? e;
+        setForm(prev => ({ ...prev, phone: `${val} ${currentNum}`.trim() }));
     };
     
     const handlePhoneNumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const cleaned = e.target.value.replace(/[^\d\-\s()]/g, '');
-        setForm({ ...form, phone: `${currentCode} ${cleaned}`.trim() });
+        setForm(prev => ({ ...prev, phone: `${currentCode} ${cleaned}`.trim() }));
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <Drawer
-                open={open}
-                onClose={onClose}
-                title={isEdit ? 'Edit Client' : 'Add Client'}
-                icon={<Building2 className="w-5 h-5" />}
-                footer={
-                    <>
-                        <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                        <button type="submit" disabled={loading} className="btn-primary">
-                            {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Client'}
-                        </button>
-                    </>
-                }
-            >
-            <div className="mb-4 bg-gray-50/50 p-3 rounded-lg border border-gray-100 flex items-center justify-between">
-                <div>
-                    <h4 className="text-sm font-medium text-gray-900">Client Type</h4>
-                    <p className="text-xs text-gray-500">Are you adding a company or an individual?</p>
+        <Drawer
+            open={open}
+            onClose={onClose}
+            title={isEdit ? 'Edit Client' : 'Add Client'}
+            icon={<Building2 className="w-5 h-5" />}
+            footer={
+                <div className="flex items-center justify-end gap-3">
+                    <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                    <button type="button" onClick={handleSubmit} disabled={loading} className="btn-primary">
+                        {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Add Client'}
+                    </button>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={isCompany}
-                        onChange={(e) => setIsCompany(e.target.checked)}
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
-                    <span className="ml-3 text-sm font-medium text-gray-700">{isCompany ? 'Company' : 'Individual'}</span>
-                </label>
-            </div>
-
+            }
+        >
             <div className="grid grid-cols-2 gap-5">
                 <div>
                     <label htmlFor="clientName" className="label">Client Name *</label>
                     <input id="clientName" value={form.name} onChange={set('name')} placeholder="Jane Smith" className="input" required />
                 </div>
-                {isCompany && (
-                    <div>
-                        <label htmlFor="clientCompany" className="label">Company / Org Name *</label>
-                        <div className="relative">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                            <input id="clientCompany" value={form.company} onChange={set('company')} placeholder="Acme Corp" className="input pl-9" required={isCompany} />
-                        </div>
+                <div>
+                    <label htmlFor="clientCompany" className="label">Company / Org Name</label>
+                    <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                        <input id="clientCompany" value={form.company} onChange={set('company')} placeholder="Acme Corp (Optional)" className="input pl-9" />
                     </div>
-                )}
+                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-5 mt-5">
@@ -251,123 +237,70 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-5 border-t border-gray-100 pt-5 mt-5">
+            <div className="grid grid-cols-2 gap-5 border-t border-gray-100 dark:border-gray-800 pt-5 mt-5">
                 <div>
-                    <label htmlFor="clientType" className="label">Client Type</label>
-                    <CustomSelect id="clientType" value={form.clientType} onChange={(e: any) => set('clientType')(e)} className="input">
-                        <option value="">Select Type</option>
-                        <option value="Enterprise">Enterprise</option>
-                        <option value="Startup">Startup</option>
-                        <option value="Individual">Individual</option>
-                        <option value="Other">Other</option>
-                    </CustomSelect>
+                    <label htmlFor="clientIndustry" className="label">Industry</label>
+                    <CustomSelect
+                        label=""
+                        value={form.industry}
+                        onChange={(val: any) => setForm(prev => ({ ...prev, industry: val?.target?.value ?? val }))}
+                        options={INDUSTRIES}
+                        placeholder="Select or type..."
+                        searchable={true}
+                        creatable={true}
+                    />
                 </div>
-                {isCompany && (
-                    <div>
-                        <label htmlFor="clientIndustry" className="label">Industry</label>
-                        <CustomSelect
-                            label=""
-                            value={form.industry}
-                            onChange={(val: string) => setForm(prev => ({ ...prev, industry: val }))}
-                            options={INDUSTRIES}
-                            placeholder="Select or type..."
-                            searchable={true}
-                            creatable={true}
-                        />
-                    </div>
-                )}
                 <div>
                     <label htmlFor="clientCategory" className="label">Category</label>
                     <CustomSelect
                         label=""
                         value={form.category}
-                        onChange={(val: string) => setForm(prev => ({ ...prev, category: val }))}
+                        onChange={(val: any) => setForm(prev => ({ ...prev, category: val?.target?.value ?? val }))}
                         options={categoriesList}
                         placeholder="Select or type category..."
                         searchable={true}
                         creatable={true}
                     />
                 </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-5 mt-5">
                 <div>
-                    <label htmlFor="clientStatus" className="label">Status</label>
-                    <CustomSelect id="clientStatus" value={form.status} onChange={(e: any) => set('status')(e)} className="input">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="lead">Lead / Prospect</option>
-                    </CustomSelect>
+                    <label htmlFor="clientWebsite" className="label">Website</label>
+                    <div className="relative">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                        <input id="clientWebsite" value={form.website} onChange={set('website')} placeholder="https://acme.com" className="input pl-9" />
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="clientLinkedin" className="label">LinkedIn URL</label>
+                    <div className="relative">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                        <input id="clientLinkedin" value={form.linkedin} onChange={set('linkedin')} placeholder="https://linkedin.com/company/acme" className="input pl-9" />
+                    </div>
                 </div>
             </div>
 
-            {isCompany && (
-                <>
-                    <div className="grid grid-cols-2 gap-5 mt-5">
-                        <div>
-                            <label htmlFor="clientWebsite" className="label">Website</label>
-                            <div className="relative">
-                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                                <input id="clientWebsite" value={form.website} onChange={set('website')} placeholder="https://acme.com" className="input pl-9" />
-                            </div>
-                        </div>
-                        <div>
-                            <label htmlFor="clientLinkedin" className="label">LinkedIn URL</label>
-                            <div className="relative">
-                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                                <input id="clientLinkedin" value={form.linkedin} onChange={set('linkedin')} placeholder="https://linkedin.com/company/acme" className="input pl-9" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-5">
-                        <label htmlFor="clientTaxId" className="label">Tax ID / VAT No.</label>
-                        <input id="clientTaxId" value={form.taxId} onChange={set('taxId')} placeholder="Optional" className="input" />
-                    </div>
-                </>
-            )}
+            <div className="mt-5">
+                <label htmlFor="clientTaxId" className="label">Tax ID / VAT No.</label>
+                <input id="clientTaxId" value={form.taxId} onChange={set('taxId')} placeholder="Optional" className="input" />
+            </div>
 
             <div className="mt-5">
                 <label htmlFor="clientAddress" className="label">Client Address</label>
                 <input id="clientAddress" value={form.billingAddress} onChange={set('billingAddress')} placeholder="Full address..." className="input" />
             </div>
 
-            {isCompany && (
-                <div className="grid grid-cols-2 gap-5 mt-5">
-                    <div>
-                        <label htmlFor="clientLocation" className="label">Location</label>
-                        <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                            <input id="clientLocation" value={form.location} onChange={set('location')} placeholder="City, State" className="input pl-9" />
-                        </div>
-                    </div>
-                    <div>
-                        <label htmlFor="clientCountry" className="label">Country</label>
-                        <input id="clientCountry" value={form.country} onChange={set('country')} placeholder="Country" className="input" />
-                    </div>
-                    <div>
-                        <label htmlFor="clientEmployeeCount" className="label">Employee Count</label>
-                        <div className="relative">
-                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                            <input id="clientEmployeeCount" value={form.employeeCount} onChange={set('employeeCount')} placeholder="e.g. 50-200" className="input pl-9" />
-                        </div>
-                    </div>
-                    <div>
-                        <label htmlFor="clientAnnualRevenue" className="label">Annual Revenue</label>
-                        <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                            <input id="clientAnnualRevenue" type="number" min="0" value={form.annualRevenue} onChange={set('annualRevenue')} placeholder="0" className="input pl-9" />
-                        </div>
-                    </div>
-                    <div className="col-span-2">
-                        <label htmlFor="clientCustomIndustry" className="label">Custom Industry / Niche</label>
-                        <div className="relative">
-                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                            <input id="clientCustomIndustry" value={form.customIndustry} onChange={set('customIndustry')} placeholder="Specific niche or sub-industry" className="input pl-9" />
-                        </div>
-                    </div>
+            <div className="mt-5">
+                <label htmlFor="clientEmployeeCount" className="label">Employee Count</label>
+                <div className="relative">
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                    <input id="clientEmployeeCount" value={form.employeeCount} onChange={set('employeeCount')} placeholder="e.g. 50-200" className="input pl-9" />
                 </div>
-            )}
+            </div>
 
             {!isEdit && (
-                <div className="border border-gray-100 rounded-lg p-5 mt-5 bg-gray-50/50">
+                <div className="border border-gray-100 dark:border-gray-800 rounded-lg p-5 mt-5 bg-gray-50/50 dark:bg-gray-800/30">
                     <label className="flex items-center gap-2 cursor-pointer mb-4">
                         <input 
                             type="checkbox" 
@@ -375,7 +308,7 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                             checked={form.givePortalAccess}
                             onChange={(e) => setForm(prev => ({ ...prev, givePortalAccess: e.target.checked }))}
                         />
-                        <span className="text-sm font-medium text-gray-700">Give Portal Access</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Give Portal Access</span>
                     </label>
                     {form.givePortalAccess && (
                         <div>
@@ -389,20 +322,19 @@ export default function AddClientDrawer({ open, onClose, onSuccess, editClient }
                                 className="input" 
                                 required={form.givePortalAccess} 
                             />
-                            <p className="text-xs text-gray-500 mt-1">An email will be sent to the client with these credentials.</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">An email will be sent to the client with these credentials.</p>
                         </div>
                     )}
                 </div>
             )}
 
-            <div className="border-t border-gray-100 pt-5 mt-5">
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-5 mt-5">
                 <label htmlFor="clientNotes" className="label">Internal Notes</label>
                 <div className="relative">
                     <AlignLeft className="absolute left-3 top-3 w-4 h-4 text-gray-400" aria-hidden="true" />
                     <textarea id="clientNotes" value={form.notes} onChange={set('notes')} placeholder="Any relevant notes..." rows={3} className="input pl-9 resize-none" />
                 </div>
             </div>
-            </Drawer>
-        </form>
+        </Drawer>
     );
 }

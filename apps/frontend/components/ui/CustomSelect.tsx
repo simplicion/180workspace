@@ -66,20 +66,35 @@ export default function CustomSelect({
         });
     }
 
+    const primitiveValue = value != null ? String(value) : '';
+    const selectedOption = normalizedOptions.find(opt => opt.value === primitiveValue);
+    const displayValue = selectedOption ? (selectedOption.displayLabel || selectedOption.label) : (primitiveValue || '');
+
+    const handleSelect = (val: string) => {
+        const hybridVal = new String(val) as any;
+        hybridVal.target = { value: val };
+        
+        onChange(hybridVal);
+        setIsOpen(false);
+        setSearch('');
+    };
+
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-                setSearch('');
+                if (isOpen) {
+                    if (creatable && search.trim() && search.trim() !== primitiveValue) {
+                        handleSelect(search.trim());
+                    } else {
+                        setIsOpen(false);
+                        setSearch('');
+                    }
+                }
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const primitiveValue = value != null ? String(value) : value;
-    const selectedOption = normalizedOptions.find(opt => opt.value === primitiveValue);
-    const displayValue = selectedOption ? (selectedOption.displayLabel || selectedOption.label) : (primitiveValue || '');
+    }, [isOpen, search, creatable, primitiveValue]);
 
     const filteredOptions = normalizedOptions.filter(opt => 
         String(opt.label ?? '').toLowerCase().includes(search.toLowerCase())
@@ -99,13 +114,15 @@ export default function CustomSelect({
         opt => String(opt.label ?? '').toLowerCase() === search.toLowerCase()
     );
 
-    const handleSelect = (val: string) => {
-        const hybridVal = new String(val) as any;
-        hybridVal.target = { value: val };
-        
-        onChange(hybridVal);
-        setIsOpen(false);
-        setSearch('');
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newVal = e.target.value;
+        setSearch(newVal);
+        if (!isOpen) setIsOpen(true);
+        if (creatable) {
+            const hybridVal = new String(newVal) as any;
+            hybridVal.target = { value: newVal };
+            onChange(hybridVal);
+        }
     };
 
     return (
@@ -116,7 +133,10 @@ export default function CustomSelect({
             <div
                 onClick={() => {
                     if (disabled) return;
-                    setIsOpen(true);
+                    if (!isOpen) {
+                        setIsOpen(true);
+                        setSearch(displayValue);
+                    }
                     inputRef.current?.focus();
                 }}
                 className={clsx(
@@ -135,12 +155,26 @@ export default function CustomSelect({
                     type="text"
                     placeholder={placeholder}
                     value={isOpen ? search : displayValue}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        if (!isOpen) setIsOpen(true);
-                    }}
+                    onChange={handleInputChange}
                     onFocus={() => {
-                        if (!disabled) setIsOpen(true);
+                        if (!disabled) {
+                            setIsOpen(true);
+                            if (!search && displayValue) {
+                                setSearch(displayValue);
+                            }
+                        }
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (search.trim()) {
+                                handleSelect(search.trim());
+                            } else if (filteredOptions.length > 0) {
+                                handleSelect(filteredOptions[0].value);
+                            }
+                        } else if (e.key === 'Escape') {
+                            setIsOpen(false);
+                        }
                     }}
                     className={clsx(
                         "w-full outline-none bg-transparent truncate cursor-text",
@@ -152,9 +186,14 @@ export default function CustomSelect({
                     onClick={(e) => {
                         e.stopPropagation();
                         if (disabled) return;
-                        setIsOpen(!isOpen);
-                        if (!isOpen) inputRef.current?.focus();
-                        else setSearch('');
+                        if (!isOpen) {
+                            setIsOpen(true);
+                            setSearch(displayValue);
+                            inputRef.current?.focus();
+                        } else {
+                            setIsOpen(false);
+                            setSearch('');
+                        }
                     }} 
                 />
             </div>
@@ -166,9 +205,9 @@ export default function CustomSelect({
                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-hidden flex flex-col">
                     <div className="overflow-y-auto p-1 flex-1">
                         {filteredOptions.length > 0 && (
-                            filteredOptions.map((opt) => (
+                            filteredOptions.map((opt, idx) => (
                                 <button
-                                    key={opt.value}
+                                    key={`${opt.value}-${opt.label}-${idx}`}
                                     type="button"
                                     onClick={() => handleSelect(opt.value)}
                                     className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50 flex items-center justify-between"

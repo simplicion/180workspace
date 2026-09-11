@@ -17,11 +17,12 @@ export class SalesRuleEngineService {
         // Rule 0: Auto-create a call task for new assigned leads
         await prisma.salesTask.create({
             data: {
-                description: `Initial Call with Lead: ${lead.name} - Automated rule: Reach out to new lead ${lead.name} from ${lead.company}.`,
+                description: `Initial Call with Lead: ${lead.name} - Automated rule: Reach out to new lead ${lead.name} from ${lead.company || 'Unknown'}.`,
                 dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Due in 1 day
-                leadId: lead.id,
+                lead: { connect: { id: lead.id } },
                 assignedTo: lead.assignedSalesRepId,
-                status: 'pending'
+                status: 'pending',
+                ...(lead.companyId ? { company: { connect: { id: lead.companyId } } } : {})
             }
         });
     }
@@ -41,7 +42,7 @@ export class SalesRuleEngineService {
                 data: {
                     description: `Follow up on Proposal for ${opp.title} - Automatically created task. Please check if the client has reviewed the proposal.`,
                     dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-                    dealId: opp.id,
+                    deal: { connect: { id: opp.id } },
                     assignedTo: ownerId,
                     status: 'pending'
                 }
