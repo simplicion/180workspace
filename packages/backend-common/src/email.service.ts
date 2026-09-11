@@ -140,6 +140,10 @@ async function getTransporter(category = CATEGORIES.WORK, dbPrisma = null, targe
                 if (metadata[field] !== undefined) settings[field] = metadata[field];
             });
 
+            if (settings.smtpHost) {
+                settings.smtpHost = String(settings.smtpHost).replace(/\.+/g, '.').trim();
+            }
+
             if (settings.smtpHost && settings.smtpUser && settings.smtpPass) {
                 console.log(`[EmailService] [ISOLATION:WORK] Using Company SMTP: ${settings.smtpHost}`);
                 const port = Number(settings.smtpPort) || 587;
@@ -147,20 +151,21 @@ async function getTransporter(category = CATEGORIES.WORK, dbPrisma = null, targe
                     host: settings.smtpHost,
                     port: port,
                     secure: settings.smtpSecure !== undefined ? settings.smtpSecure : (port === 465),
-                    auth: { user: settings.smtpUser, pass: settings.smtpPass },
+                    auth: { user: String(settings.smtpUser).trim(), pass: String(settings.smtpPass).trim() },
                 });
             }
             
             // Fallback to Platform SMTP if company SMTP is not configured
             const ps = await client.platformSettings.findFirst();
             if (ps && ps.smtpHost && ps.smtpUser && ps.smtpPass) {
-                console.log(`[EmailService] [ISOLATION:WORK] Falling back to Platform SMTP: ${ps.smtpHost}`);
+                const psHost = String(ps.smtpHost).replace(/\.+/g, '.').trim();
+                console.log(`[EmailService] [ISOLATION:WORK] Falling back to Platform SMTP: ${psHost}`);
                 const port = Number(ps.smtpPort) || 587;
                 return nodemailer.createTransport({
-                    host: ps.smtpHost,
+                    host: psHost,
                     port: port,
                     secure: ps.smtpSecure !== undefined ? ps.smtpSecure : (port === 465),
-                    auth: { user: ps.smtpUser, pass: ps.smtpPass },
+                    auth: { user: String(ps.smtpUser).trim(), pass: String(ps.smtpPass).trim() },
                 });
             }
 
@@ -234,29 +239,32 @@ async function dispatchEmail(options, prismaClient = null, targetCompanyId = nul
 
         // Logging only if client provided
         if (client) {
-            // Ensure sentById is a valid UUID to prevent foreign key constraint violations
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            let validSentById = options.sentById || null;
-            if (validSentById && !uuidRegex.test(validSentById)) {
-                validSentById = null;
-            }
+            try {
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                let validCompanyId = (effectiveCompanyId && uuidRegex.test(effectiveCompanyId)) ? effectiveCompanyId : null;
+                let validSentById = (options.sentById && uuidRegex.test(options.sentById)) ? options.sentById : null;
 
-            const createData: any = {
-                to: options.to,
-                subject: options.subject,
-                templateName: options.templateName || 'generic',
-                templateData: options.templateData || {},
-                status: 'failed',
-                companyId: effectiveCompanyId || undefined
-            };
-            if (validSentById) {
-                createData.sentBy = { connect: { id: validSentById } };
-            }
+                const createData: any = {
+                    to: options.to,
+                    subject: options.subject,
+                    templateName: options.templateName || 'generic',
+                    templateData: options.templateData || {},
+                    status: 'failed',
+                };
+                if (validCompanyId) {
+                    createData.company = { connect: { id: validCompanyId } };
+                }
+                if (validSentById) {
+                    createData.sentBy = { connect: { id: validSentById } };
+                }
 
-            const log = await client.emailLog.create({
-                data: createData
-            });
-            logId = log.id;
+                const log = await client.emailLog.create({
+                    data: createData
+                });
+                logId = log.id;
+            } catch (logErr: any) {
+                console.warn('[EmailService] EmailLog create warning:', logErr.message);
+            }
         }
 
         if (!transporter) {
@@ -312,171 +320,208 @@ async function send(options) {
     return queueEmail({ ...options, companyId });
 }
 
-// ─── Email templates HTML constructor ─────────────────────────────────────────────────────────â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Priority & Status Badge Helpers ─────────────────────────────────────────
+
+function getPriorityBadge(priority = 'medium') {
+    const p = String(priority || 'medium').toLowerCase();
+    if (p === 'urgent') {
+        return '<span style="display: inline-block; background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Urgent</span>';
+    }
+    if (p === 'high') {
+        return '<span style="display: inline-block; background-color: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">High</span>';
+    }
+    if (p === 'low') {
+        return '<span style="display: inline-block; background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Low</span>';
+    }
+    return '<span style="display: inline-block; background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Medium</span>';
+}
+
+function getStatusBadge(status = 'active') {
+    const s = String(status || 'active').toLowerCase();
+    if (s === 'completed' || s === 'approved' || s === 'paid' || s === 'active') {
+        return '<span style="display: inline-block; background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">' + status.toUpperCase() + '</span>';
+    }
+    if (s === 'overdue' || s === 'rejected' || s === 'cancelled' || s === 'expired') {
+        return '<span style="display: inline-block; background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">' + status.toUpperCase() + '</span>';
+    }
+    return '<span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">' + status.toUpperCase() + '</span>';
+}
+
+// ─── Base Email Layout (SaaS Pro Max) ────────────────────────────────────────
 
 function baseLayout(title, content, company) {
     const brandColor = company.brandColor || '#4f46e5';
     const logoHtml = company.emailLogo || company.companyLogo
-        ? `<img src="${company.emailLogo || company.companyLogo}" alt="${company.companyName}" style="max-height: 48px; width: auto; display: block; margin: 0 auto;">`
-        : `<span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">${company.companyName}</span>`;
+        ? `<img src="${company.emailLogo || company.companyLogo}" alt="${company.companyName}" style="max-height: 42px; width: auto; display: block; margin: 0 auto;">`
+        : `<span style="font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">${company.companyName}</span>`;
 
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>${title}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
         
         body { 
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
             background-color: #f8fafc; 
+            color: #0f172a;
             margin: 0; 
             padding: 0; 
+            width: 100% !important;
             -webkit-font-smoothing: antialiased;
         }
         
         .wrapper {
             width: 100%;
-            table-layout: fixed;
             background-color: #f8fafc;
-            padding-bottom: 40px;
+            padding: 40px 16px;
         }
 
         .container { 
-            max-width: 600px; 
+            max-width: 580px; 
             margin: 0 auto; 
             background-color: #ffffff; 
             border-radius: 16px; 
             overflow: hidden; 
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
             border: 1px solid #e2e8f0;
-            margin-top: 40px;
+        }
+
+        .accent-bar {
+            height: 4px;
+            width: 100%;
+            background: linear-gradient(90deg, ${brandColor} 0%, #6366f1 50%, #818cf8 100%);
         }
 
         .header { 
-            background: #0f172a; 
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
-            padding: 48px 32px; 
-            text-align: center; 
+            background-color: #ffffff;
+            padding: 32px 36px 24px; 
+            text-align: center;
+            border-bottom: 1px solid #f1f5f9;
         }
 
-        .header p { 
-            color: #94a3b8; 
-            margin: 12px 0 0; 
-            font-size: 13px; 
-            font-weight: 500;
+        .header-tagline {
+            color: #94a3b8;
+            margin: 6px 0 0 0;
+            font-size: 11px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
         }
 
         .content { 
-            padding: 48px 40px; 
-        }
-
-        .content h2 { 
-            color: #0f172a; 
-            font-size: 26px; 
-            font-weight: 800; 
-            margin: 0 0 24px; 
-            letter-spacing: -0.025em;
-            line-height: 1.2;
-        }
-
-        .content p { 
-            color: #334155; 
-            line-height: 1.7; 
-            margin: 0 0 24px; 
-            font-size: 16px;
+            padding: 36px 36px 28px; 
         }
 
         .button { 
             display: inline-block; 
-            background-color: ${brandColor}; 
+            background: linear-gradient(135deg, ${brandColor} 0%, #4338ca 100%); 
             color: #ffffff !important; 
-            padding: 18px 36px; 
-            border-radius: 12px; 
+            padding: 13px 28px; 
+            border-radius: 10px; 
             text-decoration: none; 
-            font-weight: 700; 
-            font-size: 15px; 
-            margin: 24px 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
-        }
-
-        .credential-box { 
-            background-color: #f8fafc; 
-            padding: 32px; 
-            border-radius: 16px; 
-            margin: 24px 0; 
-            border: 1px solid #e2e8f0; 
-        }
-
-        .credential-item { 
-            margin-bottom: 20px; 
-        }
-
-        .credential-item:last-child { 
-            margin-bottom: 0; 
-        }
-
-        .credential-label { 
-            display: block;
-            font-size: 12px; 
-            text-transform: uppercase; 
-            letter-spacing: 0.05em; 
-            color: #64748b; 
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-
-        .credential-value { 
-            display: block;
-            font-size: 16px; 
             font-weight: 600; 
-            color: #0f172a; 
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 14px; 
+            letter-spacing: 0.01em;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
+        }
+
+        .card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px 22px;
+            margin: 20px 0;
+        }
+
+        .card-row {
+            margin-bottom: 14px;
+        }
+
+        .card-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .card-value {
+            display: block;
+            font-size: 15px;
+            font-weight: 600;
+            color: #0f172a;
         }
 
         .footer { 
-            padding: 32px 40px; 
+            padding: 24px 36px 32px; 
             text-align: center; 
             color: #94a3b8; 
-            font-size: 13px; 
+            font-size: 12px; 
+            line-height: 1.6;
             border-top: 1px solid #f1f5f9;
+            background-color: #fafbfc;
         }
 
         .footer a {
-            color: ${brandColor};
+            color: #6366f1;
             text-decoration: none;
             font-weight: 500;
         }
 
         @media (max-width: 600px) {
-            .container { margin-top: 0; border-radius: 0; }
-            .content { padding: 32px 24px; }
-            .header { padding: 40px 24px; }
+            .wrapper { padding: 12px 8px !important; }
+            .container { border-radius: 12px !important; }
+            .content { padding: 24px 20px 20px !important; }
+            .header { padding: 24px 20px 18px !important; }
+            .footer { padding: 20px !important; }
         }
     </style>
 </head>
 <body>
     <div class="wrapper">
-        <div class="container">
-            <div class="header">
-                ${logoHtml}
-                <p>${company.tagline || ''}</p>
-            </div>
-            <div class="content">${content}</div>
-            <div class="footer">
-                <p>&copy; ${new Date().getFullYear()} ${company.companyName}. All rights reserved.</p>
-                <p>This is an automated system message from <a href="${company.websiteUrl}">${company.companyName}</a>.</p>
-            </div>
-        </div>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+            <tr>
+                <td align="center">
+                    <div class="container">
+                        <div class="accent-bar"></div>
+                        <div class="header">
+                            ${logoHtml}
+                            ${company.tagline ? `<p class="header-tagline">${company.tagline}</p>` : ''}
+                        </div>
+                        <div class="content">
+                            ${content}
+                        </div>
+                        <div class="footer">
+                            <p style="margin: 0 0 6px 0;">&copy; ${new Date().getFullYear()} <strong>${company.companyName}</strong>. All rights reserved.</p>
+                            <p style="margin: 0; color: #94a3b8; font-size: 11px;">This automated notification was generated by <a href="${company.websiteUrl}">${company.companyName}</a>.</p>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 </body>
 </html>`;
 }
+
+// ─── Email Templates Builder (Clean UTF-8 & Modern UI) ───────────────────────
 
 async function buildTemplate(templateId, data, dbPrisma = null, targetCompanyId = null) {
     const company = await getCompanyInfo(dbPrisma || prisma, targetCompanyId);
@@ -485,559 +530,807 @@ async function buildTemplate(templateId, data, dbPrisma = null, targetCompanyId 
 
     switch (templateId) {
         case 'welcome':
-            subject = `Welcome to ${company.companyName} â€” Account Activation`;
+            subject = `Welcome to ${company.companyName} — Account Activation`;
             content = `
                 <div style="text-align: center; margin-bottom: 24px;">
-                    <p style="margin: 0; color: #475569; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Enterprise Management Excellence</p>
-                    <h2 style="margin-top: 16px; margin-bottom: 8px; color: #1e293b; font-size: 24px;">Welcome aboard, ${data.name}! ðŸš€</h2>
-                    <p style="color: #475569; font-size: 16px; margin-top: 0;">We're excited to have you join us at ${company.companyName}. Your professional workspace is ready for use.</p>
-                </div>
-                
-                <p style="color: #334155; font-size: 15px; line-height: 1.6;">An administrator has created your account. You can access the platform using the secure credentials provided below:</p>
-                
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin: 32px 0;">
-                    <div style="margin-bottom: 20px;">
-                        <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600;">Access Email</p>
-                        <p style="margin: 4px 0 0; font-size: 16px; color: #0f172a; font-weight: 500;">${data.email || 'Email missing'}</p>
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🚀</span>
                     </div>
-                    <div style="border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                        <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600;">Temporary Password</p>
-                        <p style="margin: 4px 0 0; font-size: 18px; color: ${company.brandColor || '#4f46e5'}; font-weight: 700; letter-spacing: 0.5px;">${data.password}</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Welcome aboard, ${data.name}!</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Your workspace account has been prepared and is ready for use.</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">An administrator has configured your access to <strong>${company.companyName}</strong>. You can sign in using the secure credentials below:</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Sign-in Email</span>
+                        <span class="card-value" style="color: #0f172a; font-family: monospace; font-size: 14px;">${data.email || 'Email missing'}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Temporary Password</span>
+                        <span class="card-value" style="color: #4f46e5; font-family: monospace; font-size: 18px; letter-spacing: 0.05em;">${data.password}</span>
                     </div>
                 </div>
                 
-                <div style="text-align: center; margin: 40px 0;">
-                    <a href="${getAppUrl('/login')}" style="display: inline-block; background-color: ${company.brandColor || '#4f46e5'}; color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Access My Dashboard</a>
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${getAppUrl('/login')}" class="button">Access My Dashboard &rarr;</a>
                 </div>
                 
-                <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin-top: 32px;">
-                    <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">
-                        <strong>âš ï¸ Security Note:</strong> For your protection, please change your password immediately after your first login to ensure your account remains secure.
-                    </p>
+                <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-left: 3px solid #f59e0b; border-radius: 8px; padding: 14px 16px; margin-top: 24px; color: #92400e; font-size: 13px; line-height: 1.5;">
+                    <strong>Security Reminder:</strong> For your protection, please update your password immediately after signing in for the first time.
                 </div>
             `;
             break;
+
         case 'project_assigned':
-            subject = `${company.companyName} â€” Project Access Granted: ${data.projectName}`;
+            subject = `${company.companyName} | Project Access Granted: ${data.projectName}`;
             content = `
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <div style="display: inline-block; padding: 12px; background: #f0fdf4; border-radius: 16px; margin-bottom: 16px;">
-                        <span style="font-size: 32px;">ðŸ—ï¸</span>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📁</span>
                     </div>
-                    <h2 style="margin: 0; color: #1e293b;">Project Access Granted</h2>
-                    <p style="color: #64748b; margin-top: 4px;">You have been assigned to a new corporate project.</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Project Access Granted</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">You have been assigned to a corporate project.</p>
                 </div>
                 
-                <p>Hi ${data.name},</p>
-                <p>This is to inform you that an administrator has granted you access to the following project in the system. You can now participate in discussions, track milestones, and manage associated documents.</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">You have been granted access to participate in <strong>${data.projectName}</strong>. You can now track deliverables, review milestones, and collaborate with your team.</p>
                 
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
-                    <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 0.05em;">Project Name</p>
-                    <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700; color: #1e293b;">${data.projectName}</p>
-                    
-                    <div style="margin-top: 16px; display: inline-block; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.025em;">Active Status</div>
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Project Name</span>
+                        <span class="card-value" style="font-size: 17px; color: #0f172a;">${data.projectName}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Status</span>
+                        <div>${getStatusBadge('active')}</div>
+                    </div>
                 </div>
                 
-                <div style="text-align: center; margin-top: 32px;">
-                    <a href="${data.projectUrl || getAppUrl(data.ctaUrl || '')}" class="button" style="padding: 14px 28px;">Open Project Dashboard â†’</a>
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.projectUrl || getAppUrl(data.ctaUrl || '/dashboard/projects')}" class="button">Open Project Dashboard &rarr;</a>
                 </div>
             `;
             break;
+
         case 'task_assigned':
-            subject = `${company.companyName} â€” New Task Assignment: ${data.taskTitle}`;
+            subject = `${company.companyName} | New Task: ${data.taskTitle}`;
+            const priorityBadge = getPriorityBadge(data.priority);
             content = `
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <div style="display: inline-block; padding: 12px; background: #fff7ed; border-radius: 16px; margin-bottom: 16px;">
-                        <span style="font-size: 32px;">ðŸ“‹</span>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📋</span>
                     </div>
-                    <h2 style="margin: 0; color: #1e293b;">New Task Assignment</h2>
-                    <p style="color: #64748b; margin-top: 4px;">A new task has been assigned for your completion.</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">New Task Assigned</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">A new task has been assigned for your completion.</p>
                 </div>
                 
-                <p>Hi ${data.name},</p>
-                <p>You have been assigned a new task within the <strong>${data.projectName || 'Active Project'}</strong>. Please review the requirements and update the status as you progress.</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">You have been assigned a new task within <strong>${data.projectName || 'Active Workspace'}</strong>. Please review the requirements below:</p>
                 
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
-                    <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 0.05em;">Task Description</p>
-                    <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #1e293b;">${data.taskTitle}</p>
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Task Title</span>
+                        <span class="card-value" style="font-size: 16px; color: #0f172a;">${data.taskTitle}</span>
+                    </div>
                     
-                    ${data.dueDate ? `
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
-                        <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Completion Deadline</p>
-                        <p style="margin: 4px 0 0 0; font-weight: 600; color: #cf1d29;">${data.dueDate}</p>
+                    ${data.description && data.description !== 'No description provided.' ? `
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Description</span>
+                        <span style="font-size: 13px; color: #475569; line-height: 1.5; display: block;">${data.description}</span>
+                    </div>
+                    ` : ''}
+
+                    <div style="display: table; width: 100%; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <div style="display: table-cell; width: 50%; vertical-align: top;">
+                            <span class="card-label">Project</span>
+                            <span class="card-value" style="font-size: 14px; color: #3b82f6;">${data.projectName || 'General Workspace'}</span>
+                        </div>
+                        <div style="display: table-cell; width: 50%; vertical-align: top;">
+                            <span class="card-label">Priority</span>
+                            <div>${priorityBadge}</div>
+                        </div>
+                    </div>
+
+                    ${data.dueDate && data.dueDate !== 'No due date' ? `
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Completion Deadline</span>
+                        <span class="card-value" style="font-size: 14px; color: #dc2626;">📅 ${data.dueDate}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${data.assignedBy ? `
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Assigned By</span>
+                        <span class="card-value" style="font-size: 13px; color: #475569;">${data.assignedBy}</span>
                     </div>
                     ` : ''}
                 </div>
                 
-                <div style="text-align: center; margin-top: 32px;">
-                    <a href="${data.taskUrl || getAppUrl(data.ctaUrl || '')}" class="button" style="padding: 14px 28px;">View Task Details</a>
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.taskUrl || getAppUrl(data.ctaUrl || '/dashboard/tasks')}" class="button">View Task Details &rarr;</a>
                 </div>
             `;
             break;
 
         case 'salary_generated':
-            subject = `${company.companyName} â€” Salary for ${data.month}`;
+            subject = `${company.companyName} | Salary Slip for ${data.month}`;
             const salaryCurrency = company.currency || 'USD';
             content = `
-                <h2>Your salary has been generated</h2>
-                <p>Hi ${data.name},</p>
-                <p>Your salary for <strong>${data.month}</strong> has been processed:</p>
-                <p style="font-size:32px;font-weight:700;color:${company.brandColor || '#4f46e5'};margin:16px 0;">${salaryCurrency} ${Number(data.netSalary).toLocaleString()}</p>
-                <a href="${getAppUrl('/dashboard/hr')}" class="button">View Salary Details</a>
-            `;
-            break;
-        case 'system_alert':
-            subject = `${company.companyName} â€” ${data.subject}`;
-            content = `
-                <h2>System Alert</h2>
-                <p>${data.message}</p>
-            `;
-            break;
-        case 'verification':
-            subject = `Welcome to ${company.companyName} â€” Verify Your Email`;
-            content = `
-                <h2>Welcome to ${company.companyName}, ${data.name}! ðŸ‘‹</h2>
-                <p>Your account has been created. Please verify your email address to get started.</p>
-                <a href="${data.verificationUrl}" class="button">Verify Email Address</a>
-                <p style="margin-top:24px;font-size:13px;color:#9ca3af;">If you didn't create this account, you can safely ignore this email.</p>
-            `;
-            break;
-        case 'password_reset':
-            subject = `${company.companyName} â€” Password Reset Link`;
-            content = `
-                <h2>Password Reset Request</h2>
-                <p>Hi ${data.name},</p>
-                <p>We received a request to reset your password. Click the button below to create a new password.</p>
-                <a href="${data.resetUrl}" class="button">Reset Password</a>
-                <p style="margin-top:24px;font-size:13px;color:#9ca3af;">This link expires in 1 hour. If you didn't request a password reset, please ignore this email.</p>
-            `;
-            break;
-        case 'forgot_password':
-            subject = `${company.companyName} â€” Temporary Password`;
-            content = `
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <div style="display: inline-block; padding: 12px; background: #fee2e2; border-radius: 16px; margin-bottom: 16px;">
-                        <span style="font-size: 32px;">ðŸ”‘</span>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">💰</span>
                     </div>
-                    <h2 style="margin: 0; color: #1e293b;">Temporary Password</h2>
-                    <p style="color: #64748b; margin-top: 4px;">A temporary password has been generated for your account.</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Salary Slip Ready</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Your salary statement for <strong>${data.month}</strong> has been generated.</p>
                 </div>
                 
-                <p>Hi ${data.name},</p>
-                <p>We've received a request for your account credentials at <strong>${company.companyName}</strong>. You can log in using the temporary password below:</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your payroll compensation for the period has been processed successfully:</p>
                 
-                <div class="credential-box" style="background: #fdf2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
-                    <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #991b1b; font-weight: 600; letter-spacing: 0.05em;">Temporary Password</p>
-                    <p style="margin: 8px 0 0 0; font-size: 24px; font-weight: 700; color: #dc2626; font-family: monospace;">${data.tempPassword}</p>
-                </div>
-                
-                <div style="text-align: center; margin-top: 32px;">
-                    <a href="${getAppUrl('/login')}" class="button" style="background-color: #dc2626; padding: 14px 28px;">Go to Login â†’</a>
+                <div class="card" style="text-align: center; padding: 24px;">
+                    <span class="card-label">Net Disbursed Amount</span>
+                    <span style="font-size: 28px; font-weight: 800; color: ${company.brandColor || '#4f46e5'}; margin: 8px 0; display: block;">${salaryCurrency} ${Number(data.netSalary).toLocaleString()}</span>
+                    <span style="font-size: 12px; color: #64748b;">Period: ${data.month}</span>
                 </div>
                 
-                <div style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: 12px; padding: 20px; margin-top: 32px;">
-                    <p style="color: #9a3412; font-size: 14px; margin: 0;">
-                        <strong>Security Reminder:</strong> For your protection, please change this temporary password immediately after logging in.
-                    </p>
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${getAppUrl('/dashboard/hr')}" class="button">View Salary Breakdown &rarr;</a>
                 </div>
-            `;
-            break;
-        case 'document_tagged':
-            subject = `${company.companyName} â€” Document Shared: ${data.documentName}`;
-            content = `
-                <h2>You've been tagged in a document</h2>
-                <p>Hi ${data.name},</p>
-                <p><strong>${data.senderName}</strong> has tagged you in a new document:</p>
-                <div class="box">
-                    <p>Document Title<strong>${data.documentName}</strong></p>
-                </div>
-                <a href="${data.documentUrl}" class="button">View Document</a>
             `;
             break;
 
-        // --- NEW TEMPLATES ---
+        case 'system_alert':
+            subject = `${company.companyName} | ${data.subject || 'System Notification'}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eff6ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🔔</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">System Announcement</h1>
+                </div>
+                
+                <div class="card">
+                    <p style="margin: 0; color: #334155; font-size: 15px; line-height: 1.6;">${data.message}</p>
+                </div>
+                
+                ${data.ctaUrl ? `
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl}" class="button">View Announcement &rarr;</a>
+                </div>
+                ` : ''}
+            `;
+            break;
+
+        case 'verification':
+            subject = `Verify Your Email — ${company.companyName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">✉️</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Verify Your Email Address</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Welcome to ${company.companyName}, ${data.name}!</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Please confirm your email address by clicking the verification button below to activate your account and access your workspace.</p>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.verificationUrl}" class="button">Verify Email Address &rarr;</a>
+                </div>
+                
+                <p style="margin-top: 24px; font-size: 12px; color: #94a3b8; text-align: center;">If you did not register for an account, you can safely disregard this message.</p>
+            `;
+            break;
+
+        case 'password_reset':
+            subject = `Password Reset Request — ${company.companyName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fee2e2; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🔐</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Password Reset Request</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">We received a request to reset your credentials.</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Click the button below to establish a new password for your account. This link will remain active for 1 hour.</p>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.resetUrl}" class="button">Reset My Password &rarr;</a>
+                </div>
+                
+                <p style="margin-top: 24px; font-size: 12px; color: #94a3b8; text-align: center;">If you did not make this request, your account remains secure and no action is required.</p>
+            `;
+            break;
+
+        case 'forgot_password':
+            subject = `Your Temporary Password — ${company.companyName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fee2e2; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🔑</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Temporary Access Key</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">A temporary password has been created for your account.</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Use the temporary password below to sign in to <strong>${company.companyName}</strong>:</p>
+                
+                <div class="card" style="text-align: center; background: #fff5f5; border: 1px solid #fed7d7;">
+                    <span class="card-label" style="color: #991b1b;">Temporary Password</span>
+                    <span style="font-size: 22px; font-weight: 800; color: #dc2626; font-family: monospace; letter-spacing: 0.1em; display: block; margin-top: 6px;">${data.tempPassword}</span>
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${getAppUrl('/login')}" class="button">Go to Login &rarr;</a>
+                </div>
+                
+                <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-left: 3px solid #f59e0b; border-radius: 8px; padding: 14px 16px; margin-top: 24px; color: #92400e; font-size: 13px; line-height: 1.5;">
+                    <strong>Security Reminder:</strong> Please update your password immediately in Settings after signing in.
+                </div>
+            `;
+            break;
+
+        case 'document_tagged':
+        case 'document_shared':
+            subject = `${company.companyName} | Document Shared: ${data.documentName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eff6ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📄</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Document Shared</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;"><strong>${data.senderName || 'A team member'}</strong> shared a document with you.</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Document Name</span>
+                        <span class="card-value" style="font-size: 16px; color: #0f172a;">${data.documentName}</span>
+                    </div>
+                    ${data.senderName ? `
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Shared By</span>
+                        <span class="card-value" style="font-size: 14px; color: #475569;">${data.senderName}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.documentUrl || data.ctaUrl || getAppUrl('/dashboard/documents')}" class="button">Access Document &rarr;</a>
+                </div>
+            `;
+            break;
 
         case 'user_onboarded':
         case 'company_welcome':
-            subject = `Welcome to ${company.companyName} â€” Your Workspace is Ready`;
+            subject = `Welcome to ${company.companyName} — Workspace Ready`;
             content = `
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <h2 style="margin-bottom: 8px;">Welcome, ${data.name}! ðŸš€</h2>
-                    <p style="color: #64748b;">Your company workspace <strong>${company.companyName}</strong> has been successfully configured and is ready for use.</p>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">✨</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Welcome, ${data.name}!</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Your corporate workspace <strong>${company.companyName}</strong> is ready.</p>
                 </div>
                 
-                <p>We're thrilled to have you on board. You can now start managing your business operations efficiently, customize your settings, and invite your team members.</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your organization is fully provisioned. You can begin collaborating with your team, managing projects, and configuring operational preferences.</p>
                 
-                <div style="text-align: center; margin: 40px 0;">
-                    <a href="${getAppUrl('/login')}" class="button">Access My Dashboard</a>
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${getAppUrl('/login')}" class="button">Access Workspace &rarr;</a>
                 </div>
             `;
             break;
+
         case 'meeting_scheduled':
-            subject = `Meeting Invitation: ${data.meetingTitle}`;
-            
+            subject = `Meeting Invitation: ${data.meetingTitle} — ${company.companyName}`;
             const timeDisplay = data.startTime 
                 ? `${data.startDate} at ${data.startTime}${data.endTime ? ` - ${data.endTime}` : ''}`
                 : data.startDate;
-
             const platformDisplay = data.platform ? data.platform.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '';
 
             content = `
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <div style="display: inline-block; padding: 12px; background: #e0f2fe; border-radius: 16px; margin-bottom: 16px;">
-                        <span style="font-size: 32px;">ðŸ—“ï¸ </span>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eff6ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📅</span>
                     </div>
-                    <h2 style="margin: 0; color: #0f172a;">Meeting Invitation</h2>
-                    <p style="color: #64748b; margin-top: 4px;">You have been invited to a meeting by ${data.creatorName}.</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Meeting Invitation</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">You have been invited to a session by <strong>${data.creatorName || 'a team member'}</strong>.</p>
                 </div>
                 
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
-                    <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 0.05em;">Meeting Subject</p>
-                    <p style="margin: 4px 0 20px 0; font-size: 18px; font-weight: 700; color: #0f172a;">${data.meetingTitle}</p>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
-                        <div>
-                             <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Date & Time</p>
-                             <p style="margin: 4px 0 0 0; font-weight: 600; color: #3b82f6;">${timeDisplay}</p>
-                        </div>
-                        
-                        ${platformDisplay ? `
-                        <div>
-                             <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Platform</p>
-                             <p style="margin: 4px 0 0 0; font-weight: 600; color: #334155;">${platformDisplay}</p>
-                        </div>
-                        ` : ''}
-                        
-                        ${data.location ? `
-                        <div>
-                             <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Location</p>
-                             <p style="margin: 4px 0 0 0; font-weight: 600; color: #334155;">${data.location}</p>
-                        </div>
-                        ` : ''}
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Subject</span>
+                        <span class="card-value" style="font-size: 16px; color: #0f172a;">${data.meetingTitle}</span>
                     </div>
+                    
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Date & Time</span>
+                        <span class="card-value" style="font-size: 14px; color: #2563eb;">⏰ ${timeDisplay}</span>
+                    </div>
+                    
+                    ${platformDisplay ? `
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Platform</span>
+                        <span class="card-value" style="font-size: 14px; color: #334155;">${platformDisplay}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${data.location ? `
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Location / Link</span>
+                        <span class="card-value" style="font-size: 14px; color: #334155;">${data.location}</span>
+                    </div>
+                    ` : ''}
                     
                     ${data.agenda ? `
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
-                         <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Agenda</p>
-                         <p style="margin: 4px 0 0 0; font-size: 14px; color: #475569; line-height: 1.5; white-space: pre-wrap;">${data.agenda}</p>
-                    </div>
-                    ` : ''}
-                    
-                    ${data.notes ? `
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
-                         <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Additional Notes</p>
-                         <p style="margin: 4px 0 0 0; font-size: 14px; color: #475569; line-height: 1.5; white-space: pre-wrap;">${data.notes}</p>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Agenda</span>
+                        <span style="font-size: 13px; color: #475569; line-height: 1.5; display: block;">${data.agenda}</span>
                     </div>
                     ` : ''}
                 </div>
                 
-                <div style="text-align: center; margin-top: 32px;">
-                    <a href="${data.ctaUrl}" class="button" style="padding: 14px 28px;">${data.ctaUrl.includes('/dashboard') ? 'View in Dashboard' : 'Join Meeting Now'}</a>
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/calendar')}" class="button">${data.ctaUrl && !data.ctaUrl.includes('/dashboard') ? 'Join Meeting Now &rarr;' : 'View in Calendar &rarr;'}</a>
                 </div>
             `;
             break;
+
         case 'leave_approved':
-            subject = `${company.companyName} â€” Leave Request Approved`;
-            content = `
-                <h2>Leave Request Approved</h2>
-                <p>Hi ${data.name},</p>
-                <p>Your request for <strong>${data.leaveType}</strong> has been approved.</p>
-                <div class="box">
-                    <p>Duration<strong>${data.startDate} to ${data.endDate}</strong></p>
-                </div>
-                <p>Enjoy your time off!</p>
-            `;
-            break;
-        case 'leave_rejected':
-            subject = `${company.companyName} â€” Leave Request Update`;
-            content = `
-                <h2>Leave Request Update</h2>
-                <p>Hi ${data.name},</p>
-                <p>Unfortunately, your request for <strong>${data.leaveType}</strong> has not been approved at this time.</p>
-                <div class="box">
-                    <p>Reason provided<strong>${data.reason}</strong></p>
-                </div>
-                <p>Please contact HR or your manager for further details.</p>
-            `;
-            break;
-        case 'task_completed':
-            subject = `${company.companyName} â€” Task Completed: ${data.taskTitle}`;
-            content = `
-                <h2>Task Completed</h2>
-                <p>Hi ${data.name},</p>
-                <p>A task related to <strong>${data.projectName}</strong> has just been marked as completed.</p>
-                <div class="box">
-                    <p>Task Title<strong>${data.taskTitle}</strong></p>
-                </div>
-                <a href="${data.ctaUrl}" class="button">View Details</a>
-            `;
-            break;
-        case 'module_assigned':
-            subject = `${company.companyName} â€” Module Assignment: ${data.moduleName}`;
-            content = `
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <div style="display: inline-block; padding: 12px; background: #e0e7ff; border-radius: 16px; margin-bottom: 16px;">
-                        <span style="font-size: 32px;">ðŸ“¦</span>
-                    </div>
-                    <h2 style="margin: 0; color: #1e293b;">Module Assignment</h2>
-                    <p style="color: #64748b; margin-top: 4px;">You have been assigned as a module owner.</p>
-                </div>
-                
-                <p>Hi ${data.name},</p>
-                <p>You have been assigned as the owner of a new module. Please review the module resources below.</p>
-                
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
-                    <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 0.05em;">Module Details</p>
-                    <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #1e293b;">${data.moduleName}</p>
-                    
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
-                         <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Project</p>
-                         <p style="margin: 4px 0 0 0; font-weight: 600; color: #3b82f6;">${data.projectName}</p>
-                    </div>
-                </div>
-                
-                <div style="text-align: center; margin-top: 32px;">
-                    <a href="${data.url || data.ctaUrl ? getAppUrl(data.url || data.ctaUrl) : getAppUrl()}" class="button" style="padding: 14px 28px;">View Module Details</a>
-                </div>
-            `;
-            break;
-        case 'task_overdue':
-            subject = `${company.companyName} â€” Task Overdue Alert: ${data.taskTitle}`;
-            content = `
-                <h2>âš ï¸ Task Overdue Alert</h2>
-                <p>Hi ${data.name},</p>
-                <p>This is an automated alert indicating that your assigned task is now <strong>overdue</strong>.</p>
-                <div class="box">
-                    <p>Task Title<strong>${data.taskTitle}</strong></p>
-                    <p style="margin-top: 12px;">Due Date<strong>${data.dueDate}</strong></p>
-                </div>
-                <p style="color:#cf1d29;font-weight:600;">Due to this delay, a point has been deducted from your performance score.</p>
-                <a href="${data.ctaUrl}" class="button">View Task Now</a>
-            `;
-            break;
-        case 'invoice_generated':
-            subject = `${company.companyName} â€” Invoice #${data.invoiceNumber}`;
-            content = `
-                <h2>Invoice Available</h2>
-                <p>Hi ${data.clientName},</p>
-                <p>A new invoice has been generated for your account.</p>
-                <div class="box">
-                    <p>Invoice Number<strong>${data.invoiceNumber}</strong></p>
-                    <p style="margin-top: 12px;">Amount Due<strong>${data.currency || ''}${data.amount}</strong></p>
-                    <p style="margin-top: 12px;">Due Date<strong>${data.dueDate}</strong></p>
-                </div>
-                <a href="${data.ctaUrl}" class="button">View & Pay Invoice</a>
-            `;
-            break;
-        case 'payment_received':
-            subject = `${company.companyName} â€” Payment Received for #${data.invoiceNumber}`;
-            const paymentCurrency = data.currency || company.currency || 'USD';
-            content = `
-                <h2>Payment Received</h2>
-                <p>Hi ${data.clientName},</p>
-                <p>We have successfully received your payment of <strong>${paymentCurrency} ${data.amount}</strong> on ${data.date}.</p>
-                <p>Thank you for your prompt payment.</p>
-            `;
-            break;
-        case 'performance_review':
-            subject = `${company.companyName} â€” Performance Review Scheduled`;
-            content = `
-                <h2>Performance Review Scheduled</h2>
-                <p>Hi ${data.name},</p>
-                <p>Your upcoming performance review has been scheduled with <strong>${data.reviewerName}</strong>.</p>
-                <div class="box">
-                    <p>Date & Time<strong>${data.reviewDate}</strong></p>
-                </div>
-                <a href="${data.ctaUrl}" class="button">View Review Details</a>
-            `;
-            break;
-        case 'goal_assigned':
-            const difficultyColor = data.difficulty === 'heroic' ? '#7c3aed' : (data.difficulty === 'hard' ? '#dc2626' : '#2563eb');
-            subject = `${company.companyName} â€” New Goal: ${data.goalTitle}`;
+            subject = `${company.companyName} | Leave Request Approved`;
             content = `
                 <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="display: inline-block; padding: 12px; background: #f5f3ff; border-radius: 16px; margin-bottom: 16px;">
-                        <span style="font-size: 32px;">ðŸŽ¯</span>
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">✅</span>
                     </div>
-                    <h2 style="margin: 0; color: #1e1b4b;">A New Challenge Awaits!</h2>
-                    <p style="color: #4f46e5; font-weight: 600; margin-top: 4px;">Goal: ${data.goalTitle}</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Leave Request Approved</h1>
                 </div>
                 
-                <p>Hi ${data.name},</p>
-                <p>A new goal has been set for you. This is more than just a taskâ€”it's an opportunity to grow, contribute, and achieve something remarkable.</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your leave request has been approved by your manager:</p>
                 
-                <div class="box" style="border-left: 4px solid ${difficultyColor};">
-                    <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.05em;">The Vision</p>
-                    <p style="margin: 8px 0 16px 0; font-style: italic; color: #374151;">"${data.motivation || 'To push boundaries and reach new heights.'}"</p>
-                    
-                    <div style="display: grid; grid-template-cols: 1fr 1fr; gap: 12px;">
-                        <div>
-                             <p style="margin: 0; font-size: 11px; color: #9ca3af;">Difficulty</p>
-                             <p style="margin: 2px 0 0 0; font-weight: 700; color: ${difficultyColor};">${data.difficulty?.toUpperCase() || 'MEDIUM'}</p>
-                        </div>
-                        <div>
-                             <p style="margin: 0; font-size: 11px; color: #9ca3af;">Target Date</p>
-                             <p style="margin: 2px 0 0 0; font-weight: 700; color: #111827;">${data.dueDate || 'Ongoing'}</p>
-                        </div>
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Leave Category</span>
+                        <span class="card-value" style="font-size: 15px; color: #0f172a;">${data.leaveType || 'Annual Leave'}</span>
                     </div>
-                </div>
-
-                ${data.celebration ? `
-                <div style="margin-top: 20px; padding: 16px; background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 12px;">
-                    <p style="margin: 0; font-size: 13px; color: #92400e;"><strong>The Reward:</strong> ${data.celebration}</p>
-                </div>
-                ` : ''}
-
-                <p style="margin-top: 24px;">Are you ready to make this happen? Let's turn this vision into reality.</p>
-                
-                <div style="text-align: center; margin-top: 32px;">
-                    <a href="${data.ctaUrl}" class="button" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 14px 28px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">Accept the Challenge</a>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Approved Duration</span>
+                        <span class="card-value" style="font-size: 14px; color: #166534;">📅 ${data.startDate} to ${data.endDate}</span>
+                    </div>
                 </div>
             `;
             break;
-        case 'document_shared':
-            subject = `${company.companyName} â€” Document Shared: ${data.documentName}`;
+
+        case 'leave_rejected':
+            subject = `${company.companyName} | Leave Request Update`;
             content = `
-                <h2>A document was shared with you</h2>
-                <p>Hi ${data.name},</p>
-                <p><strong>${data.senderName}</strong> has securely shared a document with you.</p>
-                <div class="box">
-                    <p>Document Name<strong>${data.documentName}</strong></p>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fff1f2; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">ℹ️</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Leave Request Update</h1>
                 </div>
-                <a href="${data.ctaUrl}" class="button">Access Document</a>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your requested leave for <strong>${data.leaveType}</strong> could not be approved at this time.</p>
+                
+                <div class="card">
+                    <span class="card-label">Reason Provided</span>
+                    <p style="margin: 4px 0 0 0; color: #475569; font-size: 14px; line-height: 1.5;">${data.reason || 'Operational staffing requirements.'}</p>
+                </div>
+                <p style="font-size: 13px; color: #64748b;">Please coordinate with your manager or HR team if you have any questions.</p>
             `;
             break;
+
+        case 'task_completed':
+            subject = `${company.companyName} | Task Completed: ${data.taskTitle}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🎉</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Task Marked as Completed</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">A task in <strong>${data.projectName || 'Workspace'}</strong> has been successfully finalized.</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Task</span>
+                        <span class="card-value" style="font-size: 16px; color: #0f172a;">${data.taskTitle}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Status</span>
+                        <div>${getStatusBadge('completed')}</div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/tasks')}" class="button">View Task Details &rarr;</a>
+                </div>
+            `;
+            break;
+
+        case 'module_assigned':
+            subject = `${company.companyName} | Module Assigned: ${data.moduleName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📦</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Module Ownership Assigned</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">You have been assigned as the owner for the following module:</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Module Name</span>
+                        <span class="card-value" style="font-size: 16px; color: #0f172a;">${data.moduleName}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Project</span>
+                        <span class="card-value" style="font-size: 14px; color: #3b82f6;">${data.projectName}</span>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.url || data.ctaUrl ? getAppUrl(data.url || data.ctaUrl) : getAppUrl('/dashboard/projects')}" class="button">View Module &rarr;</a>
+                </div>
+            `;
+            break;
+
+        case 'task_overdue':
+            subject = `${company.companyName} | Overdue Alert: ${data.taskTitle}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fef2f2; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">⚠️</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #991b1b; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Task Overdue Alert</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Your assigned task has passed its scheduled deadline.</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                
+                <div class="card" style="border-left: 3px solid #dc2626;">
+                    <div class="card-row">
+                        <span class="card-label">Task</span>
+                        <span class="card-value" style="font-size: 16px; color: #0f172a;">${data.taskTitle}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Due Date</span>
+                        <span class="card-value" style="font-size: 14px; color: #dc2626;">📅 ${data.dueDate}</span>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/tasks')}" class="button" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">Update Task Status &rarr;</a>
+                </div>
+            `;
+            break;
+
+        case 'invoice_generated':
+            subject = `${company.companyName} | Invoice #${data.invoiceNumber}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🧾</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">New Invoice Available</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Invoice reference: #${data.invoiceNumber}</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Dear <strong>${data.clientName}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">A new invoice has been generated for services provided by <strong>${company.companyName}</strong>:</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Amount Due</span>
+                        <span style="font-size: 24px; font-weight: 800; color: ${company.brandColor || '#4f46e5'};">${data.currency || '$'}${Number(data.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Payment Due Date</span>
+                        <span class="card-value" style="font-size: 14px; color: #0f172a;">📅 ${data.dueDate}</span>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/invoices')}" class="button">View & Pay Invoice &rarr;</a>
+                </div>
+            `;
+            break;
+
+        case 'payment_received':
+            subject = `${company.companyName} | Payment Confirmation #${data.invoiceNumber}`;
+            const paymentCurrency = data.currency || company.currency || 'USD';
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">💳</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Payment Confirmed</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Dear <strong>${data.clientName}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">We have successfully received your payment of <strong>${paymentCurrency} ${Number(data.amount).toLocaleString()}</strong> on ${data.date}.</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Invoice Number</span>
+                        <span class="card-value" style="font-size: 15px; color: #0f172a;">#${data.invoiceNumber}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Payment Status</span>
+                        <div>${getStatusBadge('paid')}</div>
+                    </div>
+                </div>
+            `;
+            break;
+
+        case 'performance_review':
+            subject = `${company.companyName} | Performance Review Scheduled`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📊</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Performance Review Scheduled</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your upcoming evaluation session has been scheduled with <strong>${data.reviewerName}</strong>:</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Session Date & Time</span>
+                        <span class="card-value" style="font-size: 15px; color: #2563eb;">📅 ${data.reviewDate}</span>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/hr')}" class="button">View Review Details &rarr;</a>
+                </div>
+            `;
+            break;
+
+        case 'goal_assigned':
+            subject = `${company.companyName} | New Goal: ${data.goalTitle}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f5f3ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🎯</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">New Goal Assigned</h1>
+                    <p style="margin: 0; color: #6366f1; font-weight: 600; font-size: 14px;">${data.goalTitle}</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">A new strategic objective has been set for your progression:</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">The Vision</span>
+                        <span style="font-style: italic; color: #334155; font-size: 14px; line-height: 1.5; display: block;">"${data.motivation || 'Achieve operational excellence.'}"</span>
+                    </div>
+                    <div style="display: table; width: 100%; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <div style="display: table-cell; width: 50%; vertical-align: top;">
+                            <span class="card-label">Target Date</span>
+                            <span class="card-value" style="font-size: 14px; color: #0f172a;">${data.dueDate || 'Ongoing'}</span>
+                        </div>
+                        <div style="display: table-cell; width: 50%; vertical-align: top;">
+                            <span class="card-label">Difficulty</span>
+                            <div>${getPriorityBadge(data.difficulty || 'medium')}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/goals')}" class="button">Accept the Challenge &rarr;</a>
+                </div>
+            `;
+            break;
+
         case 'client_welcome':
             subject = `Welcome to the ${company.companyName} Portal`;
             content = `
-                <h2>Welcome, ${data.clientName}!</h2>
-                <p>We are thrilled to partner with you. Your client portal has been set up securely.</p>
-                <p>You can track projects, invoices, and documents directly from your dashboard.</p>
-                <a href="${data.loginUrl}" class="button">Access Client Portal</a>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🌟</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Welcome, ${data.clientName}!</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">We are thrilled to partner with you. Your private client portal has been initialized.</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">You can monitor deliverables, review quotations, and download invoices directly from your dashboard.</p>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.loginUrl || getAppUrl('/login')}" class="button">Access Client Portal &rarr;</a>
+                </div>
             `;
             break;
+
         case 'project_completed':
-            subject = `${company.companyName} â€” Project Completed: ${data.projectName}`;
+            subject = `${company.companyName} | Project Completed: ${data.projectName}`;
             content = `
-                <h2>Project Completed ðŸŽ‰</h2>
-                <p>Hi ${data.name},</p>
-                <p>Congratulations! The project <strong>${data.projectName}</strong> was successfully completed on ${data.completionDate}.</p>
-                <p>Thank you for your hard work and collaboration.</p>
-                <a href="${data.ctaUrl}" class="button">View Final Project Report</a>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🏆</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Project Completed!</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Congratulations! The project <strong>${data.projectName}</strong> was successfully completed on ${data.completionDate}.</p>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/projects')}" class="button">View Final Report &rarr;</a>
+                </div>
             `;
             break;
+
         case 'expense_approved':
-            subject = `${company.companyName} â€” Expense Approved`;
+            subject = `${company.companyName} | Expense Approved`;
             content = `
-                <h2>Expense Approved</h2>
-                <p>Hi ${data.name},</p>
-                <p>Your business expense has been formally approved and will be reimbursed in the next cycle.</p>
-                <div class="box">
-                    <p>Expense Item<strong>${data.expenseTitle}</strong></p>
-                    <p style="margin-top: 12px;">Amount<strong>${data.amount}</strong></p>
-                    <p style="margin-top: 12px;">Submitted On<strong>${data.date}</strong></p>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">💼</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Expense Claim Approved</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Expense Item</span>
+                        <span class="card-value" style="font-size: 15px; color: #0f172a;">${data.expenseTitle}</span>
+                    </div>
+                    <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <span class="card-label">Reimbursement Amount</span>
+                        <span style="font-size: 18px; font-weight: 700; color: #166534;">${data.amount}</span>
+                    </div>
                 </div>
             `;
             break;
+
         case 'expense_rejected':
-            subject = `${company.companyName} â€” Expense Rejected`;
+            subject = `${company.companyName} | Expense Request Update`;
             content = `
-                <h2>Expense Update</h2>
-                <p>Hi ${data.name},</p>
-                <p>Your recent expense submission could not be approved at this time.</p>
-                <div class="box">
-                    <p>Expense Item<strong>${data.expenseTitle}</strong></p>
-                    <p style="margin-top: 12px;">Amount<strong>${data.amount}</strong></p>
-                    <p style="margin-top: 12px;">Reason provided<strong>${data.reason}</strong></p>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fff1f2; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">ℹ️</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Expense Claim Update</h1>
                 </div>
-                <p>Please reach out to the finance team if you need further clarification.</p>
-            `;
-            break;
-        case 'contract_renewal':
-            subject = `${company.companyName} â€” Contract Renewal Reminder`;
-            content = `
-                <h2>Contract Renewal Notice</h2>
-                <p>Hi ${data.clientName},</p>
-                <p>This is a reminder that the contract <strong>${data.contractName}</strong> is up for renewal on <strong>${data.renewalDate}</strong>.</p>
-                <a href="${data.ctaUrl}" class="button">Review Contract</a>
-            `;
-            break;
-        case 'holiday_announcement':
-            subject = `${company.companyName} â€” Upcoming Holiday: ${data.holidayName}`;
-            content = `
-                <h2>Holiday Announcement</h2>
-                <p>Please note that ${company.companyName} will be observing <strong>${data.holidayName}</strong> on <strong>${data.date}</strong>.</p>
-                <p>${data.message}</p>
-                <p>Please plan your deliverables accordingly and update your out-of-office response if necessary.</p>
-            `;
-            break;
-        case 'probation_completed':
-            subject = `${company.companyName} â€” Probation Period Completed`;
-            content = `
-                <h2>Congratulations! ðŸŽ‰</h2>
-                <p>Hi ${data.name},</p>
-                <p>We are delighted to confirm that you have successfully completed your probation period as <strong>${data.role}</strong>.</p>
-                <p>Your employment is confirmed effective <strong>${data.effectiveDate}</strong>.</p>
-                <p>We look forward to your continued success with us!</p>
-            `;
-            break;
-        case 'document_attachment':
-            subject = `${company.companyName} â€” Document Attachment: ${data.documentName}`;
-            content = `
-                <h2>Document Attachment</h2>
-                <p>Hi ${data.name || 'there'},</p>
-                <p>Please find the attached document: <strong>${data.documentName}</strong>.</p>
-                <p>${data.message || `This document was sent to you from ${company.companyName}.`}</p>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your expense submission for <strong>${data.expenseTitle}</strong> (${data.amount}) could not be approved.</p>
+                
+                <div class="card">
+                    <span class="card-label">Reason</span>
+                    <p style="margin: 4px 0 0 0; color: #475569; font-size: 14px;">${data.reason || 'Insufficient documentation provided.'}</p>
+                </div>
             `;
             break;
 
         case 'quotation':
-            subject = `${company.companyName} â€” Quotation #${data.quoteNumber}`;
+            subject = `${company.companyName} | Quotation #${data.quoteNumber}`;
             content = `
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <div style="display: inline-block; padding: 12px; background: #eef2ff; border-radius: 16px; margin-bottom: 16px;">
-                        <span style="font-size: 32px;">ðŸ“„</span>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📋</span>
                     </div>
-                    <h2 style="margin: 0; color: #1e293b;">Official Quotation Issued</h2>
-                    <p style="color: #64748b; margin-top: 4px;">Quote Reference: ${data.quoteNumber}</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Official Quotation Issued</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Quote Reference: #${data.quoteNumber}</p>
                 </div>
                 
-                <p>Hello ${data.clientName || 'valued client'},</p>
-                <p>We are pleased to provide you with the formal quotation for the services/products requested. Our team has carefully prepared this proposal to meet your specific requirements.</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>${data.clientName || 'valued client'}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">We are pleased to provide you with the formal quotation prepared by our team:</p>
                 
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
-                    <div style="margin-bottom: 16px;">
-                        <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 0.05em;">Total Amount</p>
-                        <p style="margin: 4px 0 0 0; font-size: 28px; font-weight: 800; color: ${company.brandColor || '#4f46e5'};">${data.currency || '$'}${Number(data.grandTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <div class="card">
+                    <div class="card-row">
+                        <span class="card-label">Total Amount</span>
+                        <span style="font-size: 26px; font-weight: 800; color: ${company.brandColor || '#4f46e5'};">${data.currency || '$'}${Number(data.grandTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
-                        <div>
-                            <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Expiry Date</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600; color: #334155;">${data.validUntil}</p>
+                    <div style="display: table; width: 100%; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                        <div style="display: table-cell; width: 50%; vertical-align: top;">
+                            <span class="card-label">Valid Until</span>
+                            <span class="card-value" style="font-size: 14px; color: #0f172a;">📅 ${data.validUntil}</span>
                         </div>
-                        <div>
-                            <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Prepared By</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600; color: #334155;">${data.userName}</p>
+                        <div style="display: table-cell; width: 50%; vertical-align: top;">
+                            <span class="card-label">Prepared By</span>
+                            <span class="card-value" style="font-size: 14px; color: #475569;">${data.userName}</span>
                         </div>
                     </div>
                 </div>
-
-                <p>The detailed breakdown is available in the attached PDF document for your records. If you have any questions or would like to proceed, please don't hesitate to reach out.</p>
                 
-                <div style="text-align: center; margin-top: 40px;">
-                    <a href="${data.viewUrl || '#'}" class="button" style="padding: 14px 32px; font-size: 15px;">Review & Approve Quotation</a>
-                </div>
-
-                <div style="margin-top: 32px; padding: 16px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 12px;">
-                    <p style="margin: 0; font-size: 13px; color: #92400e; display: flex;">
-                        <span style="margin-right: 8px;">â„¹ï¸</span>
-                        <span>This quotation is subject to our terms and conditions and remains valid until the expiry date shown above.</span>
-                    </p>
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.viewUrl || '#'}" class="button">Review & Approve Quotation &rarr;</a>
                 </div>
             `;
             break;
 
+        case 'contract_renewal':
+            subject = `${company.companyName} | Contract Renewal Reminder: ${data.contractName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fffbeb; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📝</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Contract Renewal Reminder</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Dear <strong>${data.clientName}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">This is a reminder that the agreement <strong>${data.contractName}</strong> is scheduled for renewal on <strong>${data.renewalDate}</strong>.</p>
+                
+                <div style="text-align: center; margin: 28px 0 16px;">
+                    <a href="${data.ctaUrl || getAppUrl('/dashboard/contracts')}" class="button">Review Contract Terms &rarr;</a>
+                </div>
+            `;
+            break;
+
+        case 'holiday_announcement':
+            subject = `${company.companyName} | Upcoming Holiday: ${data.holidayName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eff6ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🌴</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Holiday Observance</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">${data.holidayName} — ${data.date}</p>
+                </div>
+                
+                <div class="card">
+                    <p style="margin: 0; color: #334155; font-size: 15px; line-height: 1.6;">${data.message || `Please note that our offices will be closed on ${data.date} in observance of ${data.holidayName}.`}</p>
+                </div>
+            `;
+            break;
+
+        case 'probation_completed':
+            subject = `${company.companyName} | Probation Period Completed`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">🎉</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Congratulations, ${data.name}!</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">We are delighted to confirm that you have successfully completed your probation period as <strong>${data.role}</strong> effective <strong>${data.effectiveDate}</strong>.</p>
+            `;
+            break;
+
+        case 'document_attachment':
+            subject = `${company.companyName} | Document Attachment: ${data.documentName}`;
+            content = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eff6ff; border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 24px;">📎</span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Document Attached</h1>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name || 'there'}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Please find the attached document: <strong>${data.documentName}</strong>.</p>
+                
+                ${data.message ? `
+                <div class="card">
+                    <p style="margin: 0; color: #334155; font-size: 14px; line-height: 1.5;">${data.message}</p>
+                </div>
+                ` : ''}
+            `;
+            break;
 
         default:
             throw new Error(`Template ${templateId} is not defined.`);
@@ -1046,7 +1339,7 @@ async function buildTemplate(templateId, data, dbPrisma = null, targetCompanyId 
     return { subject, html: baseLayout(subject, content, company) };
 }
 
-// â”€â”€ Centralized Notification Engine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Centralized Notification Engine ─────────────────────────────────────────
 
 /**
  * Maps system event names to their corresponding email templates.
@@ -1073,7 +1366,6 @@ function mapEventToTemplate(event) {
         'renewal_reminder': 'renewal_reminder',
         'deletion_warning': 'deletion_warning',
         'invoice_reminder': 'invoice_generated',
-        'document_shared': 'document_shared',
         'document_tagged': 'document_shared',
         'document_attachment': 'document_attachment',
         'forgot_password': 'forgot_password',
@@ -1101,18 +1393,23 @@ async function notify(recipient, event, data, options = {}) {
         
         let subject, html;
         if (templateId === 'transitional') {
-             const company = await getCompanyInfo(prisma);
-             const sub = data.subject || `${company.companyName} Update`;
-             html = baseLayout(sub, `
-                <p>Hi ${name},</p>
-                <p>${data.message || data.description || 'You have a new update from the system.'}</p>
-                ${data.ctaLink ? `<a href="${data.ctaLink}" class="button">${data.ctaText || 'View Details'}</a>` : ''}
-             `, company);
-             subject = data.subject || `${company.companyName} â€” ${sub}`;
+            const company = await getCompanyInfo(prisma);
+            const sub = data.subject || `${company.companyName} Update`;
+            html = baseLayout(sub, `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">${sub}</h1>
+                </div>
+                <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi <strong>${name}</strong>,</p>
+                <div class="card">
+                    <p style="margin: 0; color: #334155; font-size: 15px; line-height: 1.6;">${data.message || data.description || 'You have a new update from the system.'}</p>
+                </div>
+                ${data.ctaLink ? `<div style="text-align: center; margin: 28px 0 16px;"><a href="${data.ctaLink}" class="button">${data.ctaText || 'View Details &rarr;'}</a></div>` : ''}
+            `, company);
+            subject = data.subject || `${company.companyName} | ${sub}`;
         } else {
-             const result = await buildTemplate(templateId, { ...data, name, email: to }, prisma);
-             subject = data.subject || result.subject;
-             html = result.html;
+            const result = await buildTemplate(templateId, { ...data, name, email: to }, prisma);
+            subject = data.subject || result.subject;
+            html = result.html;
         }
 
         // Priority: options.category > data.category > template-based default
@@ -1134,7 +1431,7 @@ async function notify(recipient, event, data, options = {}) {
 }
 
 async function sendEmailTemplate(to, templateName, templateData, category = CATEGORIES.WORK) {
-    const { queueEmail } = require('../../../platform-core/platform-engine/services/queue.service');
+    const { queueEmail } = require('./queue.service');
     const { subject, html } = await buildTemplate(templateName, templateData, prisma);
     const companyId = prisma?.companyId || 'global';
     return queueEmail({ to, subject, html, template: templateName, data: templateData, companyId, category });
@@ -1157,7 +1454,6 @@ export const EmailService = {
 
     sendEmail: async function(options) {
         if (typeof options === 'string') {
-            // Support legacy: sendEmail(to, subject, template, data, prisma)
             const to = arguments[0];
             const subject = arguments[1];
             const template = arguments[2];
@@ -1192,15 +1488,18 @@ export const EmailService = {
     },
 
     sendTransitionalEmail: async (to, subject, data, prisma) => {
-
         const company = await getCompanyInfo(prisma);
         const html = baseLayout(subject, `
-      <h2>${subject}</h2>
-      <p>Hi ${data.name},</p>
-      <p>${data.message}</p>
-      ${data.ctaLink ? `<a href="${data.ctaLink}" class="button">${data.ctaText || 'View Details'}</a>` : ''}
-    `, company);
-        return send({ to, subject: `${company.companyName} â€” ${subject}`, html, templateName: 'transitional', templateData: data }, prisma);
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">${subject}</h1>
+            </div>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi <strong>${data.name}</strong>,</p>
+            <div class="card">
+                <p style="margin: 0; color: #334155; font-size: 15px; line-height: 1.6;">${data.message}</p>
+            </div>
+            ${data.ctaLink ? `<div style="text-align: center; margin: 28px 0 16px;"><a href="${data.ctaLink}" class="button">${data.ctaText || 'View Details &rarr;'}</a></div>` : ''}
+        `, company);
+        return send({ to, subject: `${company.companyName} | ${subject}`, html, templateName: 'transitional', templateData: data }, prisma);
     },
 
     sendMeetingEmail: (to, name, meetingTitle, startTime, ctaUrl, prisma) => sendEmailTemplate(to, 'meeting_scheduled', { name, meetingTitle, startTime, ctaUrl }, prisma, CATEGORIES.WORK),
@@ -1210,21 +1509,37 @@ export const EmailService = {
         return send({ to, subject, html, templateName: 'document_attachment', templateData: { name, documentName, message }, attachments: [attachment], category: CATEGORIES.WORK }, prisma);
     },
 
-    // â”€â”€ Billing / Subscription Emails â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Billing / Subscription Emails ───────────────────────────────────────
     sendTrialStartedEmail: async (to, adminName, trialDays, prisma) => {
         const company = await getCompanyInfo(prisma);
         const ps = await prisma.platformSettings.findFirst() || {};
-        const platformName = ps.platformName || company.companyName || 'Your Platform';
+        const platformName = ps.platformName || company.companyName || '180workspace';
         const loginUrl = ps.platformApiUrl || process.env.CLIENT_URL || '';
         const upgradeUrl = `${loginUrl}/dashboard/billing`;
-        const subject = `ðŸŽ‰ Your ${trialDays}-day ${platformName} Trial Has Started!`;
+        const subject = `Your ${trialDays}-Day ${platformName} Trial Has Started!`;
         const content = `
-            <h2>Welcome, ${adminName}! ðŸŽŠ</h2>
-            <p>Your <strong>${trialDays}-day free trial</strong> of ${platformName} has started. You now have full access to all features.</p>
-            <div class="box"><p>Trial period<strong>${trialDays} days â€” No credit card required</strong></p></div>
-            <p>During your trial you can explore all modules: Projects, HR, Attendance, Invoices, AI Assistant, and more.</p>
-            ${loginUrl ? `<a href="${loginUrl}" class="button">Login to Dashboard â†’</a>` : ''}
-            ${upgradeUrl ? `<p style="margin-top:24px;font-size:13px;color:#9ca3af;">When your trial ends, upgrade from your <a href="${upgradeUrl}">Billing page</a> to keep access.</p>` : ''}
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #eef2ff; border-radius: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">🚀</span>
+                </div>
+                <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Welcome, ${adminName}!</h1>
+                <p style="margin: 0; color: #64748b; font-size: 14px;">Your <strong>${trialDays}-day free trial</strong> of ${platformName} is now active.</p>
+            </div>
+            
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">You now have unrestricted access to explore all enterprise features including Projects, Tasks, CRM, HR, Invoicing, and Automations.</p>
+            
+            <div class="card">
+                <span class="card-label">Trial Period</span>
+                <span class="card-value" style="font-size: 15px; color: #166534;">${trialDays} Days Full Access — No credit card required</span>
+            </div>
+            
+            ${loginUrl ? `
+            <div style="text-align: center; margin: 28px 0 16px;">
+                <a href="${loginUrl}" class="button">Log In to Workspace &rarr;</a>
+            </div>
+            ` : ''}
+            
+            ${upgradeUrl ? `<p style="margin-top: 24px; font-size: 12px; color: #94a3b8; text-align: center;">When your trial concludes, you can upgrade seamlessly from your <a href="${upgradeUrl}">Billing Settings</a>.</p>` : ''}
         `;
         const html = baseLayout(subject, content, company);
         return send({ to, subject, html, templateName: 'trial_started' }, prisma);
@@ -1234,17 +1549,21 @@ export const EmailService = {
         const company = await getCompanyInfo(prisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
-        const subject = `âš ï¸ Your trial expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} â€” Action required`;
-        const alertColor = daysLeft <= 2 ? '#fee2e2' : '#fef3c7';
-        const alertBorder = daysLeft <= 2 ? '#fca5a5' : '#fde68a';
-        const alertText = daysLeft <= 2 ? '#991b1b' : '#92400e';
+        const subject = `Your trial expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — Action required`;
         const content = `
-            <h2>Your trial is ending soon</h2>
-            <div style="background:${alertColor};border:1px solid ${alertBorder};color:${alertText};padding:14px 18px;border-radius:10px;margin:16px 0;font-size:13px;">
-                â° Your trial expires in <strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</strong>
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fffbeb; border-radius: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">⏳</span>
+                </div>
+                <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Trial Ending Soon</h1>
             </div>
-            <p>Hi ${adminName}, your free trial will expire soon. After expiry, access to all features will be restricted.</p>
-            <a href="${upgradeUrl}" class="button">Upgrade My Plan â†’</a>
+            
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${adminName}</strong>,</p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your free trial will expire in <strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</strong>. To ensure uninterrupted access to your team workflows, please upgrade your subscription plan:</p>
+            
+            <div style="text-align: center; margin: 28px 0 16px;">
+                <a href="${upgradeUrl}" class="button">Upgrade Plan &rarr;</a>
+            </div>
         `;
         const html = baseLayout(subject, content, company);
         return send({ to, subject, html, templateName: 'trial_reminder' }, prisma);
@@ -1253,15 +1572,23 @@ export const EmailService = {
     sendTrialExpiredEmail: async (to, adminName, prisma) => {
         const company = await getCompanyInfo(prisma);
         const ps = await prisma.platformSettings.findFirst() || {};
-        const platformName = ps.platformName || company.companyName || 'Your Platform';
+        const platformName = ps.platformName || company.companyName || '180workspace';
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
-        const subject = `ðŸ”´ Your ${platformName} trial has expired`;
+        const subject = `Your ${platformName} trial has expired`;
         const content = `
-            <h2>Your trial has expired</h2>
-            <div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:14px 18px;border-radius:10px;margin:16px 0;font-size:13px;">âŒ Your access to features is now restricted.</div>
-            <p>Hi ${adminName}, your trial period has ended. Upgrade to a subscription plan to restore full access.</p>
-            <a href="${upgradeUrl}" class="button">Upgrade Now â†’</a>
-            <p style="font-size:13px;color:#9ca3af;margin-top:20px;">Your data is safe and retained for 30 days from trial expiry.</p>
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fef2f2; border-radius: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">🛑</span>
+                </div>
+                <h1 style="margin: 0 0 6px 0; color: #991b1b; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Trial Period Concluded</h1>
+            </div>
+            
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${adminName}</strong>,</p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your trial has concluded and workspace features are currently locked. Your data remains completely safe and accessible as soon as an active plan is chosen.</p>
+            
+            <div style="text-align: center; margin: 28px 0 16px;">
+                <a href="${upgradeUrl}" class="button">Select a Plan &rarr;</a>
+            </div>
         `;
         const html = baseLayout(subject, content, company);
         return send({ to, subject, html, templateName: 'trial_expired' }, prisma);
@@ -1272,15 +1599,35 @@ export const EmailService = {
         const ps = await prisma.platformSettings.findFirst() || {};
         const loginUrl = ps.platformApiUrl || process.env.CLIENT_URL || '';
         const platformCurrency = ps.currency || 'USD';
-        const subject = `âœ… Payment confirmed â€” ${planName} Plan activated`;
+        const subject = `Payment Confirmed — ${planName} Plan Activated`;
         const expiry = new Date(expiryDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
         const content = `
-            <h2>Payment Successful!</h2>
-            <div class="box"><p>Plan<strong>${planName}</strong></p></div>
-            <div class="box"><p>Amount Paid<strong>${platformCurrency} ${Number(amount).toLocaleString()}</strong></p></div>
-            <div class="box"><p>Valid Until<strong>${expiry}</strong></p></div>
-            <p style="font-size:12px;color:#9ca3af;background:#fef9ec;padding:12px 16px;border-radius:8px;border:1px solid #fde68a;margin-top:16px;">âš ï¸ All subscription payments are <strong>non-refundable</strong>.</p>
-            <a href="${loginUrl}" class="button">Go to Dashboard â†’</a>
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">💎</span>
+                </div>
+                <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Payment Confirmed</h1>
+                <p style="margin: 0; color: #166534; font-weight: 600; font-size: 14px;">${planName} Plan Active</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-row">
+                    <span class="card-label">Plan</span>
+                    <span class="card-value" style="font-size: 16px; color: #0f172a;">${planName}</span>
+                </div>
+                <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                    <span class="card-label">Amount Paid</span>
+                    <span style="font-size: 18px; font-weight: 700; color: #166534;">${platformCurrency} ${Number(amount).toLocaleString()}</span>
+                </div>
+                <div class="card-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e2e8f0;">
+                    <span class="card-label">Valid Until</span>
+                    <span class="card-value" style="font-size: 14px; color: #0f172a;">📅 ${expiry}</span>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin: 28px 0 16px;">
+                <a href="${loginUrl}" class="button">Go to Dashboard &rarr;</a>
+            </div>
         `;
         const html = baseLayout(subject, content, company);
         return send({ to, subject, html, templateName: 'subscription_confirmation' }, prisma);
@@ -1290,18 +1637,22 @@ export const EmailService = {
         const company = await getCompanyInfo(prisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
-        const subject = `â° Your ${planName} subscription expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
+        const subject = `Your ${planName} subscription expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
         const expiry = new Date(renewalDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
-        const alertColor = daysLeft <= 2 ? '#fee2e2' : '#fef3c7';
-        const alertBorder = daysLeft <= 2 ? '#fca5a5' : '#fde68a';
-        const alertText = daysLeft <= 2 ? '#991b1b' : '#92400e';
         const content = `
-            <h2>Subscription expiring soon</h2>
-            <div style="background:${alertColor};border:1px solid ${alertBorder};color:${alertText};padding:14px 18px;border-radius:10px;margin:16px 0;font-size:13px;">
-                Your <strong>${planName}</strong> plan expires in <strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</strong> (${expiry})
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fffbeb; border-radius: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">⏰</span>
+                </div>
+                <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Subscription Expiring Soon</h1>
             </div>
-            <p>Hi ${adminName}, renew now to avoid interruption.</p>
-            <a href="${upgradeUrl}" class="button">Renew Subscription â†’</a>
+            
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${adminName}</strong>,</p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your <strong>${planName}</strong> plan will expire on <strong>${expiry}</strong> (${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining). Renew now to preserve access:</p>
+            
+            <div style="text-align: center; margin: 28px 0 16px;">
+                <a href="${upgradeUrl}" class="button">Renew Subscription &rarr;</a>
+            </div>
         `;
         const html = baseLayout(subject, content, company);
         return send({ to, subject, html, templateName: 'renewal_reminder' }, prisma);
@@ -1311,45 +1662,58 @@ export const EmailService = {
         const company = await getCompanyInfo(prisma);
         const ps = await prisma.platformSettings.findFirst() || {};
         const upgradeUrl = `${ps.platformApiUrl || process.env.CLIENT_URL || ''}/dashboard/billing`;
-        const subject = `âš ï¸ FINAL NOTICE: Data deletion scheduled in ${retentionDays} days`;
+        const subject = `FINAL NOTICE: Data deletion scheduled in ${retentionDays} days`;
         const dateStr = new Date(deletionDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
         const content = `
-            <h2 style="color: #991b1b;">Final Data Deletion Warning</h2>
-            <div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:14px 18px;border-radius:10px;margin:16px 0;font-size:13px;">
-                ðŸš¨ Your company data is scheduled for permanent deletion on <strong>${dateStr}</strong>.
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fef2f2; border-radius: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">🚨</span>
+                </div>
+                <h1 style="margin: 0 0 6px 0; color: #991b1b; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Final Notice: Data Deletion</h1>
             </div>
-            <p>Hi ${adminName},</p>
-            <p>Your trial expired ${retentionDays} days ago. According to our data retention policy, all operational data (projects, tasks, documents) associated with your account will be permanently deleted in ${retentionDays} days unless you upgrade to a paid plan.</p>
-            <p><strong>This action is irreversible.</strong></p>
-            <a href="${upgradeUrl}" class="button" style="background: #cf1d29;">Upgrade Now to Save Your Data â†’</a>
+            
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${adminName}</strong>,</p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your company data is scheduled for permanent deletion on <strong>${dateStr}</strong> under our retention policy unless an active plan is activated.</p>
+            
+            <div style="text-align: center; margin: 28px 0 16px;">
+                <a href="${upgradeUrl}" class="button" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">Upgrade Now to Save Your Data &rarr;</a>
+            </div>
         `;
         const html = baseLayout(subject, content, company);
         return send({ to, subject, html, templateName: 'deletion_warning' }, prisma);
     },
 
-    // â”€â”€ Forgot Password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Always sends via system SMTP (PlatformSettings â†’ .env fallback)
+    // ─── Forgot Password ─────────────────────────────────────────────────────
     async sendForgotPasswordEmail(user, tempPassword, companyName, prisma) {
         const to = user.email;
         const name = user.name || 'User';
         const company = await getCompanyInfo(prisma);
         const loginUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-        const subject = `ðŸ”‘ Your New Password â€“ ${company.companyName || companyName}`;
+        const subject = `Your Temporary Password — ${company.companyName || companyName}`;
         const content = `
-            <h2 style="color: #1e293b; margin-bottom: 8px;">Password Reset</h2>
-            <p>Hi <strong>${name}</strong>,</p>
-            <p>We received a request to reset your password. A new temporary password has been generated for your account.</p>
-            <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-left: 4px solid ${company.brandColor || '#4f46e5'}; border-radius: 10px; padding: 20px 24px; margin: 24px 0; text-align: center;">
-                <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Your New Temporary Password</p>
-                <p style="font-size: 28px; font-weight: 800; color: #1e293b; letter-spacing: 0.15em; margin: 0; font-family: 'Courier New', monospace;">${tempPassword}</p>
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #fee2e2; border-radius: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">🔑</span>
+                </div>
+                <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Password Reset Key</h1>
             </div>
-            <p style="font-size: 13px; color: #64748b;">Please log in and change your password immediately after signing in.</p>
-            <a href="${loginUrl}/login" class="button">Login Now â†’</a>
-            <p style="font-size: 12px; color: #94a3b8; margin-top: 24px;">If you did not request a password reset, please contact your administrator immediately.</p>
+            
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${name}</strong>,</p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">A new temporary password has been generated for your account:</p>
+            
+            <div class="card" style="text-align: center; background: #fff5f5; border: 1px solid #fed7d7;">
+                <span class="card-label" style="color: #991b1b;">Temporary Password</span>
+                <span style="font-size: 24px; font-weight: 800; color: #dc2626; font-family: monospace; letter-spacing: 0.1em; display: block; margin-top: 6px;">${tempPassword}</span>
+            </div>
+            
+            <p style="font-size: 13px; color: #64748b; text-align: center;">Please log in and update your password immediately after signing in.</p>
+            
+            <div style="text-align: center; margin: 28px 0 16px;">
+                <a href="${loginUrl}/login" class="button">Log In Now &rarr;</a>
+            </div>
         `;
         const html = baseLayout(subject, content, company);
 
-        // Use centralized SMTP transporter
         return send({ 
             to, 
             subject, 
