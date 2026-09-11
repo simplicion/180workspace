@@ -1625,7 +1625,7 @@ model Vendor {
 model WorkLog {
   id              String    @id @default(uuid())
   userId          String
-  projectId       String
+  projectId       String?
   moduleId        String?
   taskId          String?
   description     String
@@ -1644,7 +1644,7 @@ model WorkLog {
   voiceMessageUrl String?
   company         Company?  @relation("CompanyWorkLogs", fields: [companyId], references: [id])
   module          Module?   @relation(fields: [moduleId], references: [id])
-  project         Project   @relation("ProjectWorkLogs", fields: [projectId], references: [id])
+  project         Project?  @relation("ProjectWorkLogs", fields: [projectId], references: [id])
   reviewedBy      User?     @relation("UserWorkLogsReviewed", fields: [reviewedById], references: [id])
   task            Task?     @relation("TaskWorkLogs", fields: [taskId], references: [id])
   user            User      @relation("UserWorkLogs", fields: [userId], references: [id])

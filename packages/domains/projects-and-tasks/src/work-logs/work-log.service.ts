@@ -63,12 +63,24 @@ export class WorkLogService {
             companyId = dbUser?.companyId || undefined;
         }
 
+        let resolvedProjectId = projectId || null;
+        let resolvedModuleId = moduleId || null;
+
+        // If taskId is provided but projectId wasn't provided, try to inherit project/module from the task
+        if (taskId && (!resolvedProjectId || !resolvedModuleId)) {
+            const task = await prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true, moduleId: true } });
+            if (task) {
+                if (!resolvedProjectId && task.projectId) resolvedProjectId = task.projectId;
+                if (!resolvedModuleId && task.moduleId) resolvedModuleId = task.moduleId;
+            }
+        }
+
         const workLog = await prisma.workLog.create({
             data: {
                 userId: user.id,
                 companyId,
-                projectId,
-                moduleId: moduleId || null,
+                projectId: resolvedProjectId,
+                moduleId: resolvedModuleId,
                 taskId: taskId || null,
                 description,
                 hoursSpent: hoursSpent ? parseFloat(hoursSpent) : 0,
@@ -424,7 +436,7 @@ export class WorkLogService {
         if (status === 'rejected' && workLog.taskId) {
             await prisma.task.update({
                 where: { id: workLog.taskId },
-                data: { status: 'in_progress' }
+                data: { status: 'todo' }
             });
 
             if (triggerAutomation) {

@@ -17,13 +17,30 @@ interface Props {
     moduleId?: string;
     taskId?: string;
     initialTaskId?: string;
+    prefilledTaskId?: string;
+    prefilledProjectId?: string;
+    prefilledModuleId?: string;
 }
 
-export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, taskId, initialTaskId }: Props) {
+export default function LogWorkModal({ 
+    onClose, 
+    onSuccess, 
+    projectId, 
+    moduleId, 
+    taskId, 
+    initialTaskId,
+    prefilledTaskId,
+    prefilledProjectId,
+    prefilledModuleId
+}: Props) {
     const { user } = useAuth();
     const [submitting, setSubmitting] = useState(false);
     const [mounted, setMounted] = useState(false);
     
+    const initialPId = projectId || prefilledProjectId || '';
+    const initialMId = moduleId || prefilledModuleId || '';
+    const initialTId = taskId || initialTaskId || prefilledTaskId || '';
+
     // Lists for dropdowns
     const [projects, setProjects] = useState<any[]>([]);
     const [modules, setModules] = useState<any[]>([]);
@@ -43,9 +60,9 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
 
     // Form state
     const [form, setForm] = useState({
-        projectId: projectId || '',
-        moduleId: moduleId || '',
-        taskId: taskId || initialTaskId || '',
+        projectId: initialPId,
+        moduleId: initialMId,
+        taskId: initialTId,
         description: '',
         hoursSpent: '',
         workDate: new Date().toISOString().split('T')[0],
@@ -116,10 +133,6 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
             .then(({ data }) => {
                 const fetchedProjects = data.projects || [];
                 setProjects(fetchedProjects);
-                // Auto-select if there's at least 1 project and no project is currently selected
-                if (fetchedProjects.length > 0 && !form.projectId) {
-                    setForm(prev => ({ ...prev, projectId: fetchedProjects[0].id }));
-                }
             })
             .catch(err => console.error('Error fetching projects:', err));
     }, []);
@@ -129,18 +142,17 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         const fetchModules = async () => {
             if (!form.projectId) {
                 setModules([]);
-                setForm(prev => ({ ...prev, moduleId: '', taskId: '' }));
+                setForm(prev => ({ ...prev, moduleId: '' }));
                 return;
             }
             setLoadingModules(true);
             try {
                 const { data } = await api.get(`/api/modules/project/${form.projectId}`);
                 setModules(data.modules || []);
-                // If the provided moduleId is not in the new project list, reset it
-                if (moduleId && data.modules.some((m: any) => m.id === moduleId)) {
+                if (initialMId && data.modules.some((m: any) => m.id === initialMId)) {
                     // keep it
                 } else if (form.moduleId && !data.modules.some((m: any) => m.id === form.moduleId)) {
-                    setForm(prev => ({ ...prev, moduleId: '', taskId: '' }));
+                    setForm(prev => ({ ...prev, moduleId: '' }));
                 }
             } catch (err) {
                 console.error('Error fetching modules:', err);
@@ -151,30 +163,30 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
         fetchModules();
     }, [form.projectId]);
 
-    // Fetch Tasks when module or project changes
+    // Fetch Tasks when module or project changes, or on mount for general tasks
     useEffect(() => {
         const fetchTasks = async () => {
-            if (!form.projectId) {
-                setTasks([]);
-                return;
-            }
             setLoadingTasks(true);
             try {
-                // Fetch tasks assigned to the user in this project/module
-                // The backend /api/tasks doesn't have a perfect "filter by project AND module AND assignee" 
-                // but we can pass params
-                const params: any = { projectId: form.projectId, limit: 200 };
+                const params: any = { limit: 200 };
+                if (form.projectId) {
+                    params.projectId = form.projectId;
+                }
                 if (form.moduleId) {
                     params.moduleId = form.moduleId;
                 }
                 
                 const { data } = await api.get('/api/tasks', { params });
-                setTasks(data.tasks || []);
+                const fetchedTasks = data.tasks || [];
+                setTasks(fetchedTasks);
                 
-                const effectiveTaskId = taskId || initialTaskId;
-                if (effectiveTaskId && data.tasks.some((t: any) => t.id === effectiveTaskId)) {
-                    // keep it
-                } else if (form.taskId && !data.tasks.some((t: any) => t.id === form.taskId)) {
+                const effectiveTaskId = form.taskId || initialTId;
+                if (effectiveTaskId && fetchedTasks.some((t: any) => t.id === effectiveTaskId)) {
+                    const matchedTask = fetchedTasks.find((t: any) => t.id === effectiveTaskId);
+                    if (matchedTask && matchedTask.projectId && !form.projectId) {
+                        setForm(prev => ({ ...prev, projectId: matchedTask.projectId, moduleId: matchedTask.moduleId || prev.moduleId }));
+                    }
+                } else if (form.taskId && form.projectId && !fetchedTasks.some((t: any) => t.id === form.taskId)) {
                     setForm(prev => ({ ...prev, taskId: '' }));
                 }
             } catch (err) {
@@ -189,6 +201,17 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const val = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
         setForm(prev => ({ ...prev, [k]: val }));
+    };
+
+    const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedTId = e.target.value;
+        const matchedTask = tasks.find(t => t.id === selectedTId);
+        setForm(prev => ({
+            ...prev,
+            taskId: selectedTId,
+            projectId: prev.projectId || (matchedTask?.projectId || ''),
+            moduleId: prev.moduleId || (matchedTask?.moduleId || '')
+        }));
     };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,8 +248,6 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
     async function handleSubmit(e?: React.FormEvent) {
         if (e && e.preventDefault) e.preventDefault();
         if (!isSalesActivity) {
-            if (!form.projectId) return toast.error('Please select a project');
-            if (!form.taskId) return toast.error('Please select a specific task');
             if (!form.hoursSpent || isNaN(parseFloat(form.hoursSpent)) || parseFloat(form.hoursSpent) <= 0) {
                 return toast.error('Valid hours spent is required (e.g. 1.5)');
             }
@@ -275,6 +296,9 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
 
             const payload: any = {
                 ...form,
+                projectId: form.projectId || undefined,
+                moduleId: form.moduleId || undefined,
+                taskId: form.taskId || undefined,
                 voiceMessageUrl: finalVoiceUrl,
                 hoursSpent: parseFloat(form.hoursSpent || '0'),
                 links: links.filter(l => l.trim().length > 0),
@@ -445,17 +469,17 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
                     {/* Project & Module Selection */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="label">Project *</label>
+                            <label className="label">Project (Optional)</label>
                             <div className="relative">
                                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <CustomSelect value={form.projectId} onChange={set('projectId')} className="select pl-9" required>
-                                    <option value="">Select Project</option>
+                                <CustomSelect value={form.projectId} onChange={set('projectId')} className="select pl-9">
+                                    <option value="">No Project (General Work)</option>
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </CustomSelect>
                             </div>
                         </div>
                         <div>
-                            <label className="label">Module</label>
+                            <label className="label">Module (Optional)</label>
                             <div className="relative">
                                 <Layout className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <CustomSelect 
@@ -474,20 +498,19 @@ export default function LogWorkModal({ onClose, onSuccess, projectId, moduleId, 
 
                     {/* Task Selection */}
                     <div>
-                        <label className="label">Specific Task *</label>
+                        <label className="label">Specific Task (Optional)</label>
                         <div className="relative">
                             <CheckSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <CustomSelect 
                                 value={form.taskId} 
-                                onChange={set('taskId')} 
+                                onChange={handleTaskChange} 
                                 className="select pl-9"
-                                disabled={!form.projectId || loadingTasks}
-                                required
+                                disabled={loadingTasks}
                             >
-                                <option value="">Select Task</option>
+                                <option value="">General Work (No Specific Task)</option>
                                 {tasks.map(t => (
                                     <option key={t.id} value={t.id}>
-                                        {t.title} ({t.status.replace('_', ' ')})
+                                        {t.title} ({t.status?.replace('_', ' ') || 'todo'}){t.project?.name ? ` • ${t.project.name}` : ''}
                                     </option>
                                 ))}
                             </CustomSelect>

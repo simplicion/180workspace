@@ -86,7 +86,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
 
             // Upload multiple blobs if any
             if (voiceBlobs.length > 0) {
-                const uploadedUrls = [];
+                const uploadedUrls: string[] = [];
                 for (let i = 0; i < voiceBlobs.length; i++) {
                     const blob = voiceBlobs[i];
                     const formData = new FormData();
@@ -150,8 +150,8 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
     const STATUS_OPTIONS = [
         { value: 'todo', label: 'To Do', cls: 'bg-gray-100 text-gray-700' },
         { value: 'in_progress', label: 'In Progress', cls: 'bg-blue-100 text-blue-700' },
-        { value: 'in_review', label: 'In Review', cls: 'bg-amber-100 text-amber-700', internalOnly: true },
-        { value: 'done', label: 'Done', cls: 'bg-emerald-100 text-emerald-700', internalOnly: true },
+        { value: 'in_review', label: 'In Review', cls: 'bg-amber-100 text-amber-700' },
+        { value: 'done', label: 'Done', cls: 'bg-emerald-100 text-emerald-700' },
         { value: 'backlog', label: 'Backlog', cls: 'bg-purple-100 text-purple-700' },
         { value: 'custom', label: task?.project?.customTaskStatusName || 'Custom', cls: 'bg-indigo-100 text-indigo-700' },
     ];
@@ -395,25 +395,19 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
                                 <div>
                                     <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">Status</label>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {STATUS_OPTIONS.map(o => {
-                                            const isSelectable = !o.internalOnly || status === o.value;
-                                            if (!isSelectable && !canEdit) return null; // non-admins don't see forbidden buttons
-                                            
-                                            return (
-                                                <button
-                                                    key={o.value}
-                                                    onClick={() => canEdit && setStatus(o.value)}
-                                                    disabled={!canEdit || (o.internalOnly && status !== o.value)}
-                                                    className={clsx(
-                                                        'px-2.5 py-1 rounded-lg text-xs font-semibold transition-all',
-                                                        o.cls,
-                                                        status === o.value ? 'ring-2 ring-offset-1 ring-indigo-400' : 'opacity-60 hover:opacity-100',
-                                                        o.internalOnly && status !== o.value && 'hidden' 
-                                                    )}
-                                                    title={o.internalOnly && status !== o.value ? 'Status automatically managed via Work Logs' : `Set status to ${o.label}`}
-                                                >{o.label}</button>
-                                            );
-                                        })}
+                                        {STATUS_OPTIONS.map(o => (
+                                            <button
+                                                key={o.value}
+                                                onClick={() => canEdit && setStatus(o.value)}
+                                                disabled={!canEdit}
+                                                className={clsx(
+                                                    'px-2.5 py-1 rounded-lg text-xs font-semibold transition-all',
+                                                    o.cls,
+                                                    status === o.value ? 'ring-2 ring-offset-1 ring-indigo-400' : 'opacity-60 hover:opacity-100'
+                                                )}
+                                                title={`Set status to ${o.label}`}
+                                            >{o.label}</button>
+                                        ))}
                                     </div>
                                 </div>
 
