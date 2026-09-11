@@ -12,7 +12,7 @@
   },
   "scripts": {
     "postinstall": "prisma generate",
-    "build": "tsc"
+    "build": "esbuild src/index.ts --platform=node --target=node18 --outfile=dist/index.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0"
