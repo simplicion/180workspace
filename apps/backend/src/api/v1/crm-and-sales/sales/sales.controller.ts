@@ -75,6 +75,7 @@ export const getLeads = async (req: Request, res: Response, next: NextFunction) 
         const page = parseInt(req.query.page as string, 10) || 1;
         const limit = parseInt(req.query.limit as string, 10) || 100;
         
+        // Fetch enriched leads
         const result = await LeadsService.getLeads(req.query.page || req.query.cursor || req.query.category || req.query.search ? req.query : page, limit);
         res.json(result);
     } catch (err) { next(err); }

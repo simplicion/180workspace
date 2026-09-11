@@ -665,9 +665,9 @@ function DealCard({ deal, isSelected, onToggleSelect, dragHandleProps, isDraggin
     if (!deal) return null;
 
     const dotColor = deal.priorityScore >= 80 ? 'bg-orange-500' : deal.priorityScore >= 50 ? 'bg-indigo-500' : 'bg-gray-400';
-    const clientName = deal.client?.name || deal.client?.contactPersonName || deal.lead?.name || null;
+    const clientName = deal.client?.name || deal.client?.contactPersonName || deal.contactName || (deal.lead?.contactName && deal.lead.contactName !== deal.lead.name ? deal.lead.contactName : null);
     const rawCompanyName = deal.client?.companyName || deal.client?.company || deal.lead?.companyName || deal.lead?.company || null;
-    const companyName = rawCompanyName && rawCompanyName !== clientName ? rawCompanyName : null;
+    const companyName = rawCompanyName && rawCompanyName !== clientName && rawCompanyName !== deal.title ? rawCompanyName : null;
     const phone = deal.client?.phone || deal.lead?.phone || null;
     const email = deal.client?.email || deal.lead?.email || null;
 

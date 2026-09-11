@@ -10,6 +10,127 @@ import { SalesRuleEngineService as SalesRuleEngine } from '../sales/sales-rule-e
 const bcrypt = require('bcryptjs');
 
 export class LeadsService {
+    static async enrichLeadsWithClients(leads: any[]) {
+        if (!Array.isArray(leads) || leads.length === 0) return leads;
+
+        try {
+            const rawPhones = leads.map(l => l.phone).filter(Boolean);
+            const emails = leads.map(l => l.email).filter((e: any) => e && typeof e === 'string' && e.trim().length > 0);
+            const companies = leads.map(l => l.company || l.companyName).filter((c: any) => c && typeof c === 'string' && c.trim().length > 0);
+            const leadIds = leads.map(l => l.id);
+
+            // Fetch deals connected to these leads that have a client
+            const deals = await prisma.deal.findMany({
+                where: {
+                    leadId: { in: leadIds },
+                    clientId: { not: null }
+                },
+                include: { client: true }
+            }).catch(() => []);
+
+            // Fetch clients matching by exact phone, email, or companyName
+            // Plus all clients if within 300 to do robust last-10-digits phone matching
+            const [matchedDirectly, recentClients] = await Promise.all([
+                prisma.client.findMany({
+                    where: {
+                        OR: [
+                            ...(rawPhones.length > 0 ? [{ phone: { in: rawPhones } }] : []),
+                            ...(emails.length > 0 ? [{ email: { in: emails } }] : []),
+                            ...(companies.length > 0 ? [{ companyName: { in: companies } }] : [])
+                        ]
+                    }
+                }).catch(() => []),
+                prisma.client.findMany({
+                    where: {
+                        phone: { not: null }
+                    },
+                    take: 300
+                }).catch(() => [])
+            ]);
+
+            const allClientsMap = new Map<string, any>();
+            matchedDirectly.forEach((c: any) => allClientsMap.set(c.id, c));
+            recentClients.forEach((c: any) => allClientsMap.set(c.id, c));
+            deals.forEach((d: any) => {
+                if (d.client) allClientsMap.set(d.client.id, d.client);
+            });
+
+            const allClients = Array.from(allClientsMap.values());
+
+            const clientByDealLeadId = new Map<string, any>();
+            deals.forEach((d: any) => {
+                if (d.leadId && d.client) {
+                    clientByDealLeadId.set(d.leadId, d.client);
+                }
+            });
+
+            const clientByCleanPhone = new Map<string, any>();
+            const clientByRawPhone = new Map<string, any>();
+            const clientByEmail = new Map<string, any>();
+            const clientByCompany = new Map<string, any>();
+
+            allClients.forEach((c: any) => {
+                if (c.phone) {
+                    clientByRawPhone.set(c.phone.trim(), c);
+                    const digits = c.phone.replace(/\D/g, '');
+                    if (digits.length >= 7) {
+                        clientByCleanPhone.set(digits.slice(-10), c);
+                    }
+                }
+                if (c.email) {
+                    clientByEmail.set(c.email.trim().toLowerCase(), c);
+                }
+                if (c.companyName) {
+                    clientByCompany.set(c.companyName.trim().toLowerCase(), c);
+                }
+            });
+
+            return leads.map((lead: any) => {
+                let matchedClient = clientByDealLeadId.get(lead.id) || null;
+
+                if (!matchedClient && lead.phone) {
+                    const raw = lead.phone.trim();
+                    const digits = raw.replace(/\D/g, '');
+                    const last10 = digits.length >= 7 ? digits.slice(-10) : null;
+                    matchedClient = clientByRawPhone.get(raw) || (last10 ? clientByCleanPhone.get(last10) : null);
+                }
+
+                if (!matchedClient && lead.email) {
+                    matchedClient = clientByEmail.get(lead.email.trim().toLowerCase());
+                }
+
+                if (!matchedClient && (lead.company || lead.companyName)) {
+                    const comp = (lead.company || lead.companyName).trim().toLowerCase();
+                    matchedClient = clientByCompany.get(comp);
+                }
+
+                const clientObj = matchedClient ? {
+                    id: matchedClient.id,
+                    name: matchedClient.name,
+                    contactPersonName: matchedClient.contactPersonName,
+                    companyName: matchedClient.companyName,
+                    email: matchedClient.email,
+                    phone: matchedClient.phone,
+                    category: matchedClient.category
+                } : null;
+
+                const resolvedContactName = matchedClient 
+                    ? (matchedClient.name || matchedClient.contactPersonName || null)
+                    : null;
+
+                return {
+                    ...lead,
+                    client: clientObj,
+                    contactName: resolvedContactName || (lead.contactName && lead.contactName !== lead.name ? lead.contactName : null),
+                    companyName: matchedClient?.companyName || lead.companyName || lead.company || null
+                };
+            });
+        } catch (err) {
+            console.error('Error in enrichLeadsWithClients:', err);
+            return leads;
+        }
+    }
+
     static async getLeads(pageOrQuery: any = 1, limit = 100) {
         // If passed request query object or cursor is present
         if (typeof pageOrQuery === 'object' && pageOrQuery !== null) {
@@ -38,8 +159,10 @@ export class LeadsService {
                     includeTotalCount: true
                 });
 
+                const enrichedItems = await this.enrichLeadsWithClients(result.items);
+
                 return {
-                    leads: result.items,
+                    leads: enrichedItems,
                     pageInfo: result.pageInfo,
                     pagination: {
                         total: result.pageInfo.totalCount || result.items.length,
@@ -64,7 +187,9 @@ export class LeadsService {
                 prisma.lead.count({ where })
             ]);
 
-            return { leads, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
+            const enrichedLeads = await this.enrichLeadsWithClients(leads);
+
+            return { leads: enrichedLeads, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
         }
 
         const page = typeof pageOrQuery === 'number' ? pageOrQuery : 1;
@@ -81,7 +206,9 @@ export class LeadsService {
             prisma.lead.count()
         ]);
 
-        return { leads, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
+        const enrichedLeads = await this.enrichLeadsWithClients(leads);
+
+        return { leads: enrichedLeads, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
     }
 
     static async getCategories() {
@@ -242,7 +369,8 @@ export class LeadsService {
             console.error('Failed onLeadCreated rule', ruleErr);
         }
 
-        return lead;
+        const [enriched] = await this.enrichLeadsWithClients([lead]);
+        return enriched || lead;
     }
 
     static async updateLead(id, updateData) {
@@ -336,7 +464,8 @@ export class LeadsService {
             });
         } catch (err) {}
 
-        return updatedLead;
+        const [enriched] = await this.enrichLeadsWithClients([updatedLead]);
+        return enriched || updatedLead;
     }
 
     static async deleteLead(id: string) {

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import api from '@/lib/api';
 import { 
     CheckSquare, Plus, LayoutGrid, List, User, Check, Trash2, 
     ArrowRightLeft, MoreHorizontal, ChevronDown, CheckCheck, Square, 
-    Filter, Search, X 
+    Filter, Search, X, SlidersHorizontal, RotateCcw, Calendar, Layers, 
+    FolderKanban, Users, ShieldAlert, Sparkles, Clock
 } from 'lucide-react';
 import { SkeletonListItem, SkeletonKanbanColumn, BulkActionBar, ConfirmModal } from "@workspace/ui";
 import clsx from 'clsx';
@@ -14,8 +15,9 @@ import CreateTaskModal from '@/app/(platform)/(projects-and-tasks-app)/_componen
 import LogWorkModal from '@/app/(platform)/(projects-and-tasks-app)/_components/LogWorkModal';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import CustomSelect from '@/components/ui/CustomSelect';
+import TaskMonthAnalytics from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskMonthAnalytics';
 
 function getInitials(name?: string) {
     if (!name) return '';
@@ -42,12 +44,18 @@ export default function TasksPage() {
     const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'kanban' | 'list'>('kanban');
+    
+    // Filter & Search states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [quickPreset, setQuickPreset] = useState<'all' | 'my_tasks' | 'in_review' | 'high_priority'>('all');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterPriority, setFilterPriority] = useState('');
     const [filterProject, setFilterProject] = useState('');
     const [filterModule, setFilterModule] = useState('');
     const [filterClient, setFilterClient] = useState('');
-    const [filterDate, setFilterDate] = useState('');
+    const [filterDateRange, setFilterDateRange] = useState('7d');
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
 
     const [projects, setProjects] = useState<any[]>([]);
     const [clients, setClients] = useState<any[]>([]);
@@ -98,7 +106,45 @@ export default function TasksPage() {
     const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
 
     const loadTasks = useCallback(() => {
-        const cacheKey = `tasks:${filterStatus}:${filterPriority}:${filterProject}:${filterModule}:${filterClient}:${filterDate}`;
+        let startDate = '';
+        let endDate = '';
+        const now = new Date();
+
+        if (filterDateRange === '7d') {
+            startDate = subDays(now, 7).toISOString();
+            endDate = now.toISOString();
+        } else if (filterDateRange === '14d') {
+            startDate = subDays(now, 14).toISOString();
+            endDate = now.toISOString();
+        } else if (filterDateRange === '21d') {
+            startDate = subDays(now, 21).toISOString();
+            endDate = now.toISOString();
+        } else if (filterDateRange === '30d') {
+            startDate = subDays(now, 30).toISOString();
+            endDate = now.toISOString();
+        } else if (filterDateRange === '90d') {
+            startDate = subDays(now, 90).toISOString();
+            endDate = now.toISOString();
+        } else if (filterDateRange === '180d') {
+            startDate = subDays(now, 180).toISOString();
+            endDate = now.toISOString();
+        } else if (filterDateRange === '365d') {
+            startDate = subDays(now, 365).toISOString();
+            endDate = now.toISOString();
+        } else if (filterDateRange === 'custom') {
+            if (customStartDate) {
+                const s = new Date(customStartDate);
+                s.setHours(0, 0, 0, 0);
+                startDate = s.toISOString();
+            }
+            if (customEndDate) {
+                const e = new Date(customEndDate);
+                e.setHours(23, 59, 59, 999);
+                endDate = e.toISOString();
+            }
+        }
+
+        const cacheKey = `tasks:${filterStatus}:${filterPriority}:${filterProject}:${filterModule}:${filterClient}:${filterDateRange}:${customStartDate}:${customEndDate}`;
         const cached = swrCacheRef.current.get(cacheKey);
 
         if (cached) {
@@ -116,7 +162,9 @@ export default function TasksPage() {
                 projectId: filterProject,
                 moduleId: filterModule,
                 clientId: filterClient,
-                date: filterDate
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                limit: 500
             } 
         })
             .then(({ data }) => {
@@ -131,7 +179,7 @@ export default function TasksPage() {
                 if (!cached) toast.error('Failed to load tasks');
             })
             .finally(() => setLoading(false));
-    }, [filterStatus, filterPriority, filterProject, filterModule, filterClient, filterDate]);
+    }, [filterStatus, filterPriority, filterProject, filterModule, filterClient, filterDateRange, customStartDate, customEndDate]);
 
     useEffect(() => { loadTasks(); }, [loadTasks]);
 
@@ -154,6 +202,72 @@ export default function TasksPage() {
         toast.success('Task deleted');
     };
 
+    // Filter computation
+    const handleResetFilters = () => {
+        setSearchQuery('');
+        setQuickPreset('all');
+        setFilterStatus('');
+        setFilterPriority('');
+        setFilterProject('');
+        setFilterModule('');
+        setFilterClient('');
+        setFilterDateRange('7d');
+        setCustomStartDate('');
+        setCustomEndDate('');
+    };
+
+    const hasActiveFilters = Boolean(
+        searchQuery.trim() ||
+        quickPreset !== 'all' ||
+        filterStatus ||
+        filterPriority ||
+        filterProject ||
+        filterModule ||
+        filterClient ||
+        filterDateRange !== '7d' ||
+        customStartDate ||
+        customEndDate
+    );
+
+    const activeFilterCount = [
+        Boolean(searchQuery.trim()),
+        quickPreset !== 'all',
+        Boolean(filterStatus),
+        Boolean(filterPriority),
+        Boolean(filterProject),
+        Boolean(filterModule),
+        Boolean(filterClient),
+        Boolean(filterDateRange !== '7d' || customStartDate || customEndDate),
+    ].filter(Boolean).length;
+
+    const displayedTasks = useMemo(() => {
+        return tasks.filter(task => {
+            // Live Search query (Title, Description, Project, Assignee, Creator)
+            if (searchQuery.trim()) {
+                const query = searchQuery.trim().toLowerCase();
+                const titleMatch = String(task.title || '').toLowerCase().includes(query);
+                const descMatch = String(task.description || '').toLowerCase().includes(query);
+                const projectMatch = String(task.projectId?.name || '').toLowerCase().includes(query);
+                const assigneeMatch = String(task.assignee?.name || '').toLowerCase().includes(query);
+                const creatorMatch = String(task.creator?.name || '').toLowerCase().includes(query);
+                if (!titleMatch && !descMatch && !projectMatch && !assigneeMatch && !creatorMatch) {
+                    return false;
+                }
+            }
+
+            // Quick Preset filter
+            if (quickPreset === 'my_tasks' && user?.id) {
+                if (task.assigneeId !== user.id && task.assignee?.id !== user.id) return false;
+            } else if (quickPreset === 'in_review') {
+                if (task.status !== 'in_review') return false;
+            } else if (quickPreset === 'high_priority') {
+                if (task.priority !== 'high' && task.priority !== 'critical') return false;
+            }
+
+            return true;
+        });
+    }, [tasks, searchQuery, quickPreset, user?.id]);
+
     // Selection Handlers
     const handleToggleSelectTask = (id: string) => {
         setSelectedTaskIds(prev => 
@@ -162,7 +276,7 @@ export default function TasksPage() {
     };
 
     const handleSelectAllTasks = () => {
-        setSelectedTaskIds(tasks.map(t => t.id));
+        setSelectedTaskIds(displayedTasks.map(t => t.id));
     };
 
     const handleDeselectAllTasks = () => {
@@ -170,14 +284,14 @@ export default function TasksPage() {
     };
 
     const handleSelectAmount = (amount: number) => {
-        const targetAmount = Math.min(amount, tasks.length);
-        const selectedSlice = tasks.slice(0, targetAmount).map(t => t.id);
+        const targetAmount = Math.min(amount, displayedTasks.length);
+        const selectedSlice = displayedTasks.slice(0, targetAmount).map(t => t.id);
         setSelectedTaskIds(selectedSlice);
         toast.success(`Selected first ${selectedSlice.length} tasks`);
     };
 
     const handleToggleColumnSelection = (columnId: string) => {
-        const colTaskIds = tasks.filter(t => t.status === columnId).map(t => t.id);
+        const colTaskIds = displayedTasks.filter(t => t.status === columnId).map(t => t.id);
         if (colTaskIds.length === 0) return;
 
         const allInColSelected = colTaskIds.every(id => selectedTaskIds.includes(id));
@@ -229,7 +343,7 @@ export default function TasksPage() {
             swrCacheRef.current.clear();
             setSelectedTaskIds([]);
         } catch (error: any) {
-            toast.error('Failed to move selected tasks');
+            toast.error(error?.response?.data?.error || 'Failed to move selected tasks');
             loadTasks();
         } finally {
             setIsBulkMoving(false);
@@ -242,6 +356,12 @@ export default function TasksPage() {
 
         const task = tasks.find(t => t.id === draggedId);
         if (!task || task.status === columnId) { setDraggedId(null); return; }
+
+        if (task.status === 'in_review') {
+            toast.error('Tasks in review are locked until approved or rejected via work logs.');
+            setDraggedId(null);
+            return;
+        }
 
         if (columnId === 'in_review' || columnId === 'done') {
             setLogWorkTask(task);
@@ -273,7 +393,7 @@ export default function TasksPage() {
                 <div>
                     <h1 className="page-title text-xl font-bold text-gray-900 dark:text-gray-100">Tasks</h1>
                     <p className="page-subtitle text-xs text-gray-500 dark:text-gray-400">
-                        {tasks.length} tasks {selectedTaskIds.length > 0 && `• ${selectedTaskIds.length} selected`}
+                        {displayedTasks.length} tasks {selectedTaskIds.length > 0 && `• ${selectedTaskIds.length} selected`}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -310,41 +430,235 @@ export default function TasksPage() {
                 </div>
             </div>
 
-            {/* Filters Bar */}
-            <div className="flex gap-3 mb-5 flex-nowrap overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <CustomSelect value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="select min-w-[140px] w-auto">
-                    <option value="">All Statuses</option>
-                    <option value="todo">To Do</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="in_review">In Review</option>
-                    <option value="done">Done</option>
-                    <option value="backlog">Backlog</option>
-                </CustomSelect>
-                <CustomSelect value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="select min-w-[140px] w-auto">
-                    <option value="">All Priorities</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                </CustomSelect>
-                <CustomSelect value={filterProject} onChange={e => setFilterProject(e.target.value)} className="select min-w-[160px] w-auto">
-                    <option value="">All Projects</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </CustomSelect>
-                <CustomSelect value={filterModule} onChange={e => setFilterModule(e.target.value)} className="select min-w-[160px] w-auto" disabled={!filterProject || modules.length === 0}>
-                    <option value="">All Modules</option>
-                    {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </CustomSelect>
-                <CustomSelect value={filterClient} onChange={e => setFilterClient(e.target.value)} className="select min-w-[160px] w-auto">
-                    <option value="">All Clients</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </CustomSelect>
-                <input 
-                    type="date" 
-                    value={filterDate}
-                    onChange={e => setFilterDate(e.target.value)}
-                    className="input min-w-[150px] w-auto bg-white dark:bg-slate-900"
-                />
+            {/* ✨ MONTH TASK ACTIVITY BAR GRAPH (UPPER SECTION) ✨ */}
+            <TaskMonthAnalytics />
+
+            {/* ── ✨ INDUSTRY-STANDARD FILTER & SEARCH COMMAND HUB ✨ ── */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-slate-800 p-3 shadow-2xs space-y-2.5 mb-5 relative z-30">
+                {/* Upper Command Row: Live Search + Quick Presets + Active Filter Status / Reset */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+                    {/* Search Input */}
+                    <div className="relative flex-1 min-w-[220px] max-w-md">
+                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search tasks by title, project, assignee..."
+                            className="w-full bg-gray-50/80 dark:bg-slate-800/80 border border-gray-200/90 dark:border-slate-700/90 rounded-xl pl-8 pr-8 py-1.5 text-xs text-gray-900 dark:text-gray-100 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all h-9"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-slate-700 cursor-pointer"
+                                title="Clear search"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Quick Presets & Active Badges */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="flex items-center bg-gray-100/90 dark:bg-slate-800/90 p-0.5 rounded-xl border border-gray-200/60 dark:border-slate-700/60 text-xs">
+                            <button
+                                type="button"
+                                onClick={() => setQuickPreset('all')}
+                                className={clsx(
+                                    "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer",
+                                    quickPreset === 'all'
+                                        ? "bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 shadow-2xs font-semibold"
+                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                                )}
+                            >
+                                All
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setQuickPreset('my_tasks')}
+                                className={clsx(
+                                    "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1",
+                                    quickPreset === 'my_tasks'
+                                        ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                                )}
+                            >
+                                <User className="w-3 h-3" /> My Tasks
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setQuickPreset('in_review')}
+                                className={clsx(
+                                    "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1",
+                                    quickPreset === 'in_review'
+                                        ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs font-semibold"
+                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                                )}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> In Review
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setQuickPreset('high_priority')}
+                                className={clsx(
+                                    "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1",
+                                    quickPreset === 'high_priority'
+                                        ? "bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 shadow-2xs font-semibold"
+                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                                )}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> High Priority
+                            </button>
+                        </div>
+
+                        {/* Active count badge & Reset All */}
+                        {hasActiveFilters && (
+                            <div className="flex items-center gap-1.5 pl-1">
+                                <span className="text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg border border-indigo-200/80 dark:border-indigo-800/80 flex items-center gap-1">
+                                    <SlidersHorizontal className="w-3 h-3" /> {activeFilterCount} active
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={handleResetFilters}
+                                    className="text-xs font-semibold text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                    title="Reset all filters to default"
+                                >
+                                    <RotateCcw className="w-3 h-3" /> Reset
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Lower Row: Compact Horizontal Dropdown Pills */}
+                <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100 dark:border-slate-800/80">
+                    {/* Status Dropdown */}
+                    <div className="w-[130px] shrink-0">
+                        <CustomSelect 
+                            value={filterStatus} 
+                            onChange={e => setFilterStatus(e.target.value)} 
+                            size="sm"
+                            activeHighlight
+                            clearable
+                            placeholder="All Statuses"
+                        >
+                            <option value="">All Statuses</option>
+                            <option value="todo">To Do</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="in_review">In Review</option>
+                            <option value="done">Done</option>
+                            <option value="backlog">Backlog</option>
+                        </CustomSelect>
+                    </div>
+
+                    {/* Priority Dropdown */}
+                    <div className="w-[130px] shrink-0">
+                        <CustomSelect 
+                            value={filterPriority} 
+                            onChange={e => setFilterPriority(e.target.value)} 
+                            size="sm"
+                            activeHighlight
+                            clearable
+                            placeholder="All Priorities"
+                        >
+                            <option value="">All Priorities</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </CustomSelect>
+                    </div>
+
+                    {/* Project Dropdown */}
+                    <div className="w-[145px] shrink-0">
+                        <CustomSelect 
+                            value={filterProject} 
+                            onChange={e => setFilterProject(e.target.value)} 
+                            size="sm"
+                            activeHighlight
+                            clearable
+                            placeholder="All Projects"
+                        >
+                            <option value="">All Projects</option>
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </CustomSelect>
+                    </div>
+
+                    {/* Module Dropdown */}
+                    <div className="w-[145px] shrink-0">
+                        <CustomSelect 
+                            value={filterModule} 
+                            onChange={e => setFilterModule(e.target.value)} 
+                            size="sm"
+                            activeHighlight
+                            clearable
+                            disabled={!filterProject || modules.length === 0}
+                            placeholder={filterProject ? (modules.length > 0 ? "All Modules" : "No Modules") : "All Modules"}
+                        >
+                            <option value="">All Modules</option>
+                            {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </CustomSelect>
+                    </div>
+
+                    {/* Client Dropdown */}
+                    <div className="w-[145px] shrink-0">
+                        <CustomSelect 
+                            value={filterClient} 
+                            onChange={e => setFilterClient(e.target.value)} 
+                            size="sm"
+                            activeHighlight
+                            clearable
+                            placeholder="All Clients"
+                        >
+                            <option value="">All Clients</option>
+                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </CustomSelect>
+                    </div>
+
+                    {/* Date Range Dropdown */}
+                    <div className="w-[175px] shrink-0">
+                        <CustomSelect 
+                            value={filterDateRange} 
+                            onChange={e => setFilterDateRange(e.target.value)} 
+                            size="sm"
+                            activeHighlight
+                            placeholder="Date Range"
+                        >
+                            <option value="7d">Last 7 Days (Default)</option>
+                            <option value="14d">Last 2 Weeks</option>
+                            <option value="21d">Last 3 Weeks</option>
+                            <option value="30d">Last 4 Weeks (1 Month)</option>
+                            <option value="90d">Last 3 Months</option>
+                            <option value="180d">Last 6 Months</option>
+                            <option value="365d">Last 1 Year</option>
+                            <option value="all">All Time</option>
+                            <option value="custom">Custom Range...</option>
+                        </CustomSelect>
+                    </div>
+
+                    {/* Custom Date Range Inline Inputs */}
+                    {filterDateRange === 'custom' && (
+                        <div className="flex items-center gap-1.5 bg-indigo-50/60 dark:bg-slate-800/80 px-2 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800 shrink-0 animate-in fade-in duration-150">
+                            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">From:</span>
+                            <input 
+                                type="date" 
+                                value={customStartDate}
+                                onChange={e => setCustomStartDate(e.target.value)}
+                                className="input text-xs py-1 px-1.5 h-7 w-[115px] bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700"
+                                title="Start Date"
+                            />
+                            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">To:</span>
+                            <input 
+                                type="date" 
+                                value={customEndDate}
+                                onChange={e => setCustomEndDate(e.target.value)}
+                                className="input text-xs py-1 px-1.5 h-7 w-[115px] bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700"
+                                title="End Date"
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
 
             {loading ? (
@@ -365,7 +679,7 @@ export default function TasksPage() {
                 /* ✨ KANBAN VIEW WITH MASS SELECTION ✨ */
                 <div className="flex gap-4 overflow-x-auto pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-stretch">
                     {COLUMNS.map(col => {
-                        const colTasks = tasks.filter(t => t.status === col.id);
+                        const colTasks = displayedTasks.filter(t => t.status === col.id);
                         let displayLabel = col.label;
                         if (col.id === 'custom' && colTasks.length > 0 && colTasks[0]?.projectId?.customTaskStatusName) {
                             displayLabel = colTasks[0].projectId.customTaskStatusName;
@@ -417,16 +731,18 @@ export default function TasksPage() {
                                         return (
                                             <div
                                                 key={task.id}
-                                                draggable
-                                                onDragStart={() => setDraggedId(task.id)}
+                                                draggable={task.status !== 'in_review'}
+                                                onDragStart={() => task.status !== 'in_review' && setDraggedId(task.id)}
                                                 onDragEnd={() => setDraggedId(null)}
                                                 onClick={() => setSelectedTask(task.id)}
+                                                title={task.status === 'in_review' ? 'Task is in review (status locked until reviewed)' : undefined}
                                                 className={clsx(
                                                     'bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-2xs border transition-all select-none relative group cursor-pointer',
                                                     isSelected
                                                         ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs'
                                                         : 'border-gray-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 hover:shadow-md',
                                                     draggedId === task.id && 'opacity-40 scale-95',
+                                                    task.status === 'in_review' && 'border-amber-200/80 dark:border-amber-900/40'
                                                 )}
                                             >
                                                 {/* Header Row: Checkbox + Priority Dot + Title */}
@@ -534,41 +850,41 @@ export default function TasksPage() {
             ) : (
                 /* ── LIST VIEW WITH MULTI-SELECTION ── */
                 <div className="space-y-2">
-                    {tasks.length > 0 && (
+                    {displayedTasks.length > 0 && (
                         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-gray-300 font-semibold shadow-2xs">
                             <div className="flex items-center gap-2.5">
                                 <button
                                     type="button"
-                                    onClick={selectedTaskIds.length === tasks.length ? handleDeselectAllTasks : handleSelectAllTasks}
+                                    onClick={selectedTaskIds.length === displayedTasks.length ? handleDeselectAllTasks : handleSelectAllTasks}
                                     className="p-0.5 cursor-pointer"
-                                    title={selectedTaskIds.length === tasks.length ? "Deselect all" : "Select all"}
+                                    title={selectedTaskIds.length === displayedTasks.length ? "Deselect all" : "Select all"}
                                 >
                                     <span className={clsx(
                                         "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                        selectedTaskIds.length === tasks.length 
+                                        selectedTaskIds.length === displayedTasks.length 
                                             ? "bg-indigo-600 border-indigo-600 text-white" 
                                             : selectedTaskIds.length > 0 
                                                 ? "bg-indigo-100 border-indigo-400 text-indigo-700" 
                                                 : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                                     )}>
-                                        {selectedTaskIds.length === tasks.length ? (
+                                        {selectedTaskIds.length === displayedTasks.length ? (
                                             <Check className="w-3 h-3 stroke-[3]" />
                                         ) : selectedTaskIds.length > 0 ? (
                                             <span className="w-2 h-0.5 bg-indigo-600 rounded-full" />
                                         ) : null}
                                     </span>
                                 </button>
-                                <span>Select All ({tasks.length} tasks)</span>
+                                <span>Select All ({displayedTasks.length} tasks)</span>
                             </div>
                             {selectedTaskIds.length > 0 && (
                                 <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-                                    {selectedTaskIds.length} of {tasks.length} selected
+                                    {selectedTaskIds.length} of {displayedTasks.length} selected
                                 </span>
                             )}
                         </div>
                     )}
 
-                    {tasks.map((task) => {
+                    {displayedTasks.map((task) => {
                         const isSelected = selectedTaskIds.includes(task.id);
                         return (
                             <div
@@ -643,7 +959,7 @@ export default function TasksPage() {
                             </div>
                         );
                     })}
-                    {tasks.length === 0 && (
+                    {displayedTasks.length === 0 && (
                         <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800">
                             <CheckSquare className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
                             <p className="text-gray-400 font-medium">No tasks found</p>
@@ -655,7 +971,7 @@ export default function TasksPage() {
             {/* Floating Bulk Action Bar */}
             <BulkActionBar
                 selectedCount={selectedTaskIds.length}
-                totalCount={tasks.length}
+                totalCount={displayedTasks.length}
                 itemLabel="tasks"
                 onSelectAll={handleSelectAllTasks}
                 onDeselectAll={handleDeselectAllTasks}

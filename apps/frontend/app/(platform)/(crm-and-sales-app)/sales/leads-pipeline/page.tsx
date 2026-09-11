@@ -837,9 +837,9 @@ function DealCard({ opp, isSelected, onToggleSelect, dragHandleProps, isDragging
     const formTag = Array.isArray(opp.tags) ? opp.tags.find((t: any) => t?.type === 'form_submission' || t?.formId) : null;
     const formCode = formTag?.formCode || (opp.source?.includes('FORM-') ? opp.source.match(/FORM-[A-Z0-9_-]+/i)?.[0] : null);
 
-    const clientName = opp.contactName || opp.client?.name || opp.name || null;
-    const rawCompanyName = opp.companyName || opp.company || null;
-    const companyName = rawCompanyName && rawCompanyName !== clientName ? rawCompanyName : null;
+    const clientName = opp.contactName || opp.client?.name || opp.client?.contactPersonName || null;
+    const rawCompanyName = opp.companyName || opp.company || opp.client?.companyName || null;
+    const companyName = rawCompanyName && rawCompanyName !== clientName && rawCompanyName !== opp.name ? rawCompanyName : null;
 
     return (
         <div 

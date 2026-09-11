@@ -408,7 +408,7 @@ export default function WorkLogsPage() {
 
                     {loading ? (
                         <div className="w-full">
-                            <UniversalSkeleton layout={activeTab === 'dashboard' ? 'workspace' : 'activity'} />
+                            <UniversalSkeleton layout={(activeTab === 'dashboard' ? 'workspace' : 'activity') as any} />
                         </div>
                     ) : activeTab === 'dashboard' ? (
                         <div className="space-y-6">
@@ -600,16 +600,31 @@ export default function WorkLogsPage() {
                                     <div key={log.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow group">
                                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                                              <div className="space-y-3 flex-1">
-                                                 <div className="flex flex-wrap items-center gap-2.5">
+                                                 <div className="flex flex-wrap items-center gap-2">
                                                      <span className={clsx("badge", statusCfg.color, "flex items-center gap-1.5")}>
                                                          <StatusIcon className="w-3 h-3" />
                                                          {statusCfg.label}
                                                      </span>
-                                                     <span className="text-sm text-gray-400">•</span>
-                                                     <span className="text-sm font-medium text-gray-500 flex items-center gap-1.5">
+                                                     <span className="text-sm text-gray-300">•</span>
+                                                     <span className="text-xs font-medium text-gray-500 flex items-center gap-1">
                                                          <Calendar className="w-3.5 h-3.5" />
                                                          {safeFormat(log.workDate, 'MMM dd, yyyy')}
                                                      </span>
+                                                     {log.projectId?.name && (
+                                                         <>
+                                                             <span className="text-sm text-gray-300">•</span>
+                                                             <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100 font-medium">
+                                                                 <Briefcase className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                                                 <span>{log.projectId.name}</span>
+                                                                 {log.moduleId?.name && (
+                                                                     <>
+                                                                         <span className="text-gray-300">/</span>
+                                                                         <span className="text-gray-400">{log.moduleId.name}</span>
+                                                                     </>
+                                                                 )}
+                                                             </span>
+                                                         </>
+                                                     )}
                                                      {log.isWorkCompleted && (
                                                          <span className="badge badge-indigo flex items-center gap-1.5">
                                                              <CheckCircle2 className="w-3 h-3" />
@@ -618,25 +633,44 @@ export default function WorkLogsPage() {
                                                      )}
                                                  </div>
 
-                                                 <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                                                     {log.projectId?.name || 'Unknown Project'}
-                                                     {log.moduleId && <span className="text-gray-400 font-normal mx-2">/</span>}
-                                                     {log.moduleId?.name}
-                                                 </h3>
+                                                 {/* Highlighted Task Title */}
+                                                 <div className="flex items-center gap-2.5 flex-wrap">
+                                                     <h3 
+                                                         onClick={() => log.taskId?.id && setViewTaskId(log.taskId.id)}
+                                                         className={clsx(
+                                                             "text-base md:text-lg font-bold text-gray-900 leading-snug",
+                                                             log.taskId?.id ? "cursor-pointer hover:text-indigo-600 transition-colors" : ""
+                                                         )}
+                                                     >
+                                                         {log.taskId?.title || (log.description ? (log.description.length > 80 ? log.description.slice(0, 80) + '...' : log.description) : 'General Work Submission')}
+                                                     </h3>
+                                                     {log.taskId?.priority && (
+                                                         <span className={clsx(
+                                                             "badge text-[10px] font-bold uppercase",
+                                                             log.taskId.priority === 'urgent' ? 'badge-red' :
+                                                             log.taskId.priority === 'high' ? 'badge-orange' :
+                                                             log.taskId.priority === 'medium' ? 'badge-blue' : 'badge-gray'
+                                                         )}>
+                                                             {log.taskId.priority}
+                                                         </span>
+                                                     )}
+                                                 </div>
 
+                                                 {/* Task Assigner & Additional Meta */}
                                                  {log.taskId && (
                                                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                                                         <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                                                             <CheckSquare className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-                                                             <span className="font-semibold text-gray-700">Task:</span>
-                                                             <span className="truncate max-w-[200px] md:max-w-xs">{log.taskId.title}</span>
-                                                         </div>
                                                          {log.taskId.creator && (
                                                              <div className="flex items-center gap-1.5 bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg border border-purple-100/60 font-medium text-[11px]">
-                                                                 <span>Assigned by:</span>
+                                                                 <span className="text-purple-500 font-normal">Assigned by:</span>
                                                                  <span className="font-bold">{log.taskId.creator.name || 'Manager'}</span>
                                                              </div>
                                                          )}
+                                                         {log.taskId.estimatedHours ? (
+                                                             <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">
+                                                                 <Timer className="w-3 h-3 text-gray-400" />
+                                                                 {log.taskId.estimatedHours}h est.
+                                                             </span>
+                                                         ) : null}
                                                      </div>
                                                  )}
 
@@ -970,8 +1004,8 @@ export default function WorkLogsPage() {
                                                 {safeFormat(reviewingLog.workDate, 'MMM dd, yyyy')}
                                             </span>
                                             {reviewingLog.projectId?.name && (
-                                                <span className="text-[11px] text-indigo-800 font-bold bg-indigo-200/60 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                    <ProjectIcon className="w-3 h-3" />
+                                                <span className="text-[11px] text-gray-600 font-medium bg-white/90 border border-indigo-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                    <ProjectIcon className="w-3 h-3 text-gray-400" />
                                                     {reviewingLog.projectId.name}
                                                 </span>
                                             )}

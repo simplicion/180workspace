@@ -393,22 +393,43 @@ export default function TaskDetailModal({ taskId, onClose, onUpdated, onDeleted 
 
                                 {/* Status */}
                                 <div>
-                                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">Status</label>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {STATUS_OPTIONS.map(o => (
-                                            <button
-                                                key={o.value}
-                                                onClick={() => canEdit && setStatus(o.value)}
-                                                disabled={!canEdit}
-                                                className={clsx(
-                                                    'px-2.5 py-1 rounded-lg text-xs font-semibold transition-all',
-                                                    o.cls,
-                                                    status === o.value ? 'ring-2 ring-offset-1 ring-indigo-400' : 'opacity-60 hover:opacity-100'
-                                                )}
-                                                title={`Set status to ${o.label}`}
-                                            >{o.label}</button>
-                                        ))}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</label>
+                                        {task?.status === 'in_review' && (
+                                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-200 uppercase tracking-tight">
+                                                Locked in Review
+                                            </span>
+                                        )}
                                     </div>
+                                    {task?.status === 'in_review' ? (
+                                        <div className="p-3 bg-amber-50/80 border border-amber-200/90 rounded-xl">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-800 ring-2 ring-offset-1 ring-amber-400">
+                                                    In Review
+                                                </span>
+                                                <span className="text-xs font-bold text-amber-900">Review Pending</span>
+                                            </div>
+                                            <p className="text-[11px] text-amber-800/90 leading-relaxed mt-1">
+                                                Status is locked while under review. It will automatically update to <strong>Done</strong> once approved, or return to <strong>To Do</strong> if rejected.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {STATUS_OPTIONS.map(o => (
+                                                <button
+                                                    key={o.value}
+                                                    onClick={() => canEdit && setStatus(o.value)}
+                                                    disabled={!canEdit}
+                                                    className={clsx(
+                                                        'px-2.5 py-1 rounded-lg text-xs font-semibold transition-all',
+                                                        o.cls,
+                                                        status === o.value ? 'ring-2 ring-offset-1 ring-indigo-400' : 'opacity-60 hover:opacity-100'
+                                                    )}
+                                                    title={`Set status to ${o.label}`}
+                                                >{o.label}</button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Priority */}
