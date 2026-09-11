@@ -276,10 +276,6 @@ export class TaskService {
             throw new Error('Access denied. You do not have permission to edit this task.');
         }
 
-        if (data.status && data.status !== oldTask.status && oldTask.status === 'in_review') {
-            throw new Error('Cannot change status of a task that is currently in review. It must be approved or rejected via work logs.');
-        }
-
         const updateData: any = {};
         const allowedFields = ['title', 'description', 'status', 'priority', 'dueDate', 'estimatedHours', 'projectId', 'moduleId', 'assigneeId', 'voiceMessageUrl', 'attachments', 'clientId'];
         allowedFields.forEach(f => {
