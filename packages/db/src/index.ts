@@ -105,13 +105,13 @@ export const sanitizeModelData = (modelName: string, dataObj: any, isUpdate = fa
   }
 };
 
-export const rawPrisma =
+export const rawPrisma: any =
   globalForPrisma.prisma ??
   new PrismaClient({ log: getPrismaLogLevels() });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = rawPrisma;
 
-export const basePrisma: any = rawPrisma.$extends({
+export const basePrisma: any = (rawPrisma as any).$extends({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }: any) {
@@ -133,7 +133,7 @@ export const basePrisma: any = rawPrisma.$extends({
   }
 });
 
-export const prisma = new Proxy(basePrisma, {
+export const prisma: any = new Proxy(basePrisma, {
   get(target, prop) {
     const context = requestContext.getStore();
     const companyId = context?.companyId;
@@ -222,14 +222,14 @@ const companyClients = new Map<string, any>();
 export const getCompanyPrisma = (
   companyId: string,
   onSearchSync?: (model: string, operation: string, result: any, args: any) => void
-) => {
+): any => {
   if (!companyId) return basePrisma;
   
   if (companyClients.has(companyId)) {
     return companyClients.get(companyId);
   }
 
-  const extendedPrisma = basePrisma.$extends({
+  const extendedPrisma = (basePrisma as any).$extends({
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }: any) {
