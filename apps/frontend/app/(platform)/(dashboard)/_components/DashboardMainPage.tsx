@@ -17,10 +17,10 @@ import FinancialTrajectory from '@/app/(platform)/(dashboard)/_components/Financ
 import CeoOverview from '@/app/(platform)/(dashboard)/_components/CeoOverview';
 import FinancialSnapshot from '@/app/(platform)/(dashboard)/_components/FinancialSnapshot';
 import OperationsOverview from '@/app/(platform)/(dashboard)/_components/OperationsOverview';
-import ActivityAnalytics from '@/app/(platform)/(dashboard)/_components/ActivityAnalytics';
+import TaskMonthAnalytics from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskMonthAnalytics';
 import SalesActivityFeed from '@/app/(platform)/(dashboard)/_components/SalesActivityFeed';
 import SalesOverview from '@/app/(platform)/(dashboard)/_components/SalesOverview';
-import { useGetWeeklyTrendsQuery, useGetHrmsDashboardStatsQuery, useGetRecentProjectsQuery } from '@/redux/api/dashboardApi';
+import { useGetHrmsDashboardStatsQuery, useGetRecentProjectsQuery } from '@/redux/api/dashboardApi';
 
 interface DashboardStats {
     employees: { total: number; active: number };
@@ -79,8 +79,6 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
     const { user, company } = useAuth();
     const { settings, company: companyConfig } = useSettings();
     const [error, setError] = useState('');
-    const [range, setRange] = useState('30');
-    const [grouping, setGrouping] = useState('daily');
 
     const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
     
@@ -104,11 +102,6 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
         { skip: !isAdmin || !hasProjects, pollingInterval: 30000 }
     );
     const recentProjects = recentProjectsData?.projects || [];
-
-    const { data: chartData, isFetching: fetchingTrends } = useGetWeeklyTrendsQuery(
-        { range, grouping },
-        { skip: !isAdmin || !hasHR, pollingInterval: 30000 }
-    );
 
     const { data: stats, isLoading: loadingStats, error: statsError } = useGetHrmsDashboardStatsQuery(
         undefined,
@@ -227,19 +220,17 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 )}
             </div>
 
-            {/* 6. Deep Analytics (Activity Velocity / Trends) */}
-            {(hasHR || hasFinance || hasProjects || hasCRM) && (
+            {/* 6. Execution & Deep Task Analytics (Full Month Progress & Velocity) */}
+            {hasProjects ? (
                 <div className="mt-6">
-                    <ActivityAnalytics
-                        chartData={chartData}
-                        loading={loadingStats}
-                        fetchingTrends={fetchingTrends}
-                        range={range}
-                        setRange={setRange}
-                        grouping={grouping}
-                        setGrouping={setGrouping}
-                    />
+                    <TaskMonthAnalytics />
                 </div>
+            ) : (
+                <FeatureLock title="Task Analytics Locked" description="Install the Projects app to unlock task activity and month progress analytics." className="min-h-[300px]">
+                    <div className="opacity-50 pointer-events-none">
+                        <TaskMonthAnalytics />
+                    </div>
+                </FeatureLock>
             )}
         </div>
     );

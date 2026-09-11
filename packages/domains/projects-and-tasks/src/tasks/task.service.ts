@@ -16,7 +16,8 @@ export class TaskService {
     ) {
         const { 
             projectId, assigneeId, moduleId, status, priority, clientId, date, 
-            page = 1, limit = 100, cursor, direction, sortField, sortOrder 
+            startDate, endDate, dateField,
+            page = 1, limit = 200, cursor, direction, sortField, sortOrder 
         } = filters;
 
         const query: any = { deletedAt: null };
@@ -26,11 +27,27 @@ export class TaskService {
         if (status) query.status = status;
         if (priority) query.priority = priority;
         if (clientId) query.clientId = clientId;
+
+        if (startDate || endDate) {
+            const targetField = dateField === 'dueDate' ? 'dueDate' : 'createdAt';
+            query[targetField] = query[targetField] || {};
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                query[targetField].gte = start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                query[targetField].lte = end;
+            }
+        }
+
         if (date) {
             const startOfDay = new Date(date);
-            startOfDay.setUTCHours(0, 0, 0, 0);
+            startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(date);
-            endOfDay.setUTCHours(23, 59, 59, 999);
+            endOfDay.setHours(23, 59, 59, 999);
             query.dueDate = {
                 gte: startOfDay,
                 lte: endOfDay
@@ -274,6 +291,10 @@ export class TaskService {
 
         if (!isAdmin && !isCreator && !isAssignee && !isModuleOwner) {
             throw new Error('Access denied. You do not have permission to edit this task.');
+        }
+
+        if (data.status && data.status !== oldTask.status && oldTask.status === 'in_review') {
+            throw new Error('Cannot change status of a task that is currently in review. It must be approved or rejected via work logs.');
         }
 
         const updateData: any = {};
@@ -535,8 +556,21 @@ export class TaskService {
             select: { id: true, projectId: true, moduleId: true, title: true, status: true }
         });
 
+        // Tasks currently in review cannot be changed via manual status updates
+        const inReviewTasks = tasksToUpdate.filter(t => t.status === 'in_review' && status !== 'in_review');
+        if (inReviewTasks.length > 0 && tasksToUpdate.length === inReviewTasks.length) {
+            throw new Error('Tasks currently in review cannot have their status changed manually. They must be approved or rejected via work logs.');
+        }
+
+        const eligibleTasks = tasksToUpdate.filter(t => t.status !== 'in_review' || status === 'in_review');
+        const eligibleIds = eligibleTasks.map(t => t.id);
+
+        if (eligibleIds.length === 0) {
+            return { count: 0, message: 'No eligible tasks updated (tasks in review are locked)' };
+        }
+
         await prisma.task.updateMany({
-            where: { id: { in: taskIds } },
+            where: { id: { in: eligibleIds } },
             data: { status }
         });
 

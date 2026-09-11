@@ -115,7 +115,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
                     priorityScore: editingLeadPipeline.priorityScore || 50,
                     engagementScore: editingLeadPipeline.engagementScore || 50,
                     type: editingLeadPipeline.tags?.includes('Lead') || !isDealContext ? 'Lead' : 'lead pipeline',
-                    contactName: editingLeadPipeline.client?.name || editingLeadPipeline.contactName || editingLeadPipeline.name || '',
+                    contactName: editingLeadPipeline.client?.name || editingLeadPipeline.client?.contactPersonName || (editingLeadPipeline.contactName && editingLeadPipeline.contactName !== editingLeadPipeline.name && editingLeadPipeline.contactName !== editingLeadPipeline.title ? editingLeadPipeline.contactName : ''),
                     contactEmail: editingLeadPipeline.client?.email || editingLeadPipeline.contactEmail || editingLeadPipeline.email || '',
                     contactPhone: editingLeadPipeline.client?.phone || editingLeadPipeline.contactPhone || editingLeadPipeline.phone || '',
                     category: editingLeadPipeline.category || editingLeadPipeline.client?.category || 'Outbound Lead',
@@ -222,7 +222,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
     const handleSave = async (e?: any) => {
         if (e && typeof e.preventDefault === 'function') e.preventDefault();
         
-        const resolvedContactName = (formData.contactName || formData.title || '').trim();
+        const resolvedContactName = (formData.contactName || '').trim();
         const effectiveTitle = (formData.title || resolvedContactName || 'New Lead').trim();
         const resolvedCategory = (formData.category || 'Outbound Lead').trim();
         const resolvedOwner = formData.owner || user?.id || '';
@@ -233,9 +233,9 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             return toast.error('Lead Title / Name is required');
         }
 
-        // 2. Client Name validation
-        if (!resolvedContactName) {
-            return toast.error('Client Name is required');
+        // 2. Client Name validation (if saving to Client directory)
+        if (formData.createClient && !resolvedContactName) {
+            return toast.error('Client Name is required to save client in directory');
         }
 
         // 3. Lead Category validation (Mandatory for all leads)
@@ -255,9 +255,6 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
 
         // 6. When "Save & Add as Client in Client Directory" is checked:
         if (formData.createClient) {
-            if (!resolvedContactName) {
-                return toast.error('Client Name is mandatory to save client');
-            }
             if (!formData.contactEmail?.trim() && !formData.contactPhone?.trim()) {
                 return toast.error('Client contact info (Email or Phone Number) is mandatory');
             }
@@ -274,7 +271,7 @@ export default function LeadPipelineDrawer({ open, onClose, onSuccess, editingLe
             ...formData, 
             title: effectiveTitle, 
             name: effectiveTitle,
-            contactName: resolvedContactName,
+            contactName: resolvedContactName || undefined,
             category: resolvedCategory,
             owner: resolvedOwner,
             followUpDate: resolvedFollowUp,

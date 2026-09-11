@@ -281,6 +281,12 @@ export default function ProjectDetailPage() {
         const taskToMove = tasks.find(t => t.id === taskId);
         if (!taskToMove || taskToMove.status === newStatus) return;
 
+        if (taskToMove.status === 'in_review') {
+            toast.error('Tasks in review are locked until approved or rejected via work logs.');
+            setDraggingTaskId(null);
+            return;
+        }
+
         // Optimistic Update
         const oldTasks = [...tasks];
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
@@ -288,9 +294,9 @@ export default function ProjectDetailPage() {
         try {
             await api.put(`/api/tasks/${taskId}`, { status: newStatus });
             toast.success(`Task moved to ${newStatus.replace('_', ' ')}`);
-        } catch (error) {
+        } catch (error: any) {
             setTasks(oldTasks);
-            toast.error('Failed to update task status');
+            toast.error(error?.response?.data?.error || 'Failed to update task status');
         } finally {
             setDraggingTaskId(null);
         }
@@ -898,13 +904,15 @@ export default function ProjectDetailPage() {
                                         {tasksByStatus[status]?.map((task) => (
                                             <div 
                                                 key={task.id} 
-                                                draggable
+                                                draggable={task.status !== 'in_review'}
                                                 onDragStart={(e) => handleDragStart(e, task.id)}
                                                 onClick={() => setSelectedTaskId(task.id)}
                                                 className={clsx(
                                                     "bg-gray-50 hover:bg-indigo-50 rounded-lg px-3 py-2.5 cursor-pointer transition-all group border border-transparent hover:border-indigo-200 shadow-sm hover:shadow",
-                                                    draggingTaskId === task.id && "opacity-40 scale-95"
+                                                    draggingTaskId === task.id && "opacity-40 scale-95",
+                                                    task.status === 'in_review' && "border-amber-200/60 bg-amber-50/20"
                                                 )}
+                                                title={task.status === 'in_review' ? 'In Review (Status locked until approved or rejected)' : undefined}
                                             >
                                                 <p className="text-sm text-gray-800 font-medium group-hover:text-indigo-700 transition-colors">{task.title}</p>
                                                 <div className="flex items-center justify-between mt-1.5">
