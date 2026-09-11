@@ -96,22 +96,23 @@ export default function CustomSelect({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen, search, creatable, primitiveValue]);
 
-    const filteredOptions = normalizedOptions.filter(opt => 
-        String(opt.label ?? '').toLowerCase().includes(search.toLowerCase())
-    ).sort((a, b) => {
-        if (!search) return 0;
-        const searchLower = search.toLowerCase();
-        const labelA = String(a.label ?? '').toLowerCase();
-        const labelB = String(b.label ?? '').toLowerCase();
-        const aStarts = labelA.startsWith(searchLower);
-        const bStarts = labelB.startsWith(searchLower);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        return 0;
-    });
+    const query = search.trim().toLowerCase();
+    const filteredOptions = query 
+        ? normalizedOptions.filter(opt => 
+            String(opt.label ?? '').toLowerCase().includes(query)
+        ).sort((a, b) => {
+            const labelA = String(a.label ?? '').toLowerCase();
+            const labelB = String(b.label ?? '').toLowerCase();
+            const aStarts = labelA.startsWith(query);
+            const bStarts = labelB.startsWith(query);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return 0;
+        })
+        : normalizedOptions;
 
     const exactMatchExists = normalizedOptions.some(
-        opt => String(opt.label ?? '').toLowerCase() === search.toLowerCase()
+        opt => String(opt.label ?? '').toLowerCase() === query
     );
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,12 +136,12 @@ export default function CustomSelect({
                     if (disabled) return;
                     if (!isOpen) {
                         setIsOpen(true);
-                        setSearch(displayValue);
+                        setSearch('');
                     }
                     inputRef.current?.focus();
                 }}
                 className={clsx(
-                    "flex items-center justify-between w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-left transition-all outline-none",
+                    "flex items-center justify-between w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-left transition-all outline-none cursor-pointer",
                     isOpen ? "border-indigo-500 ring-2 ring-indigo-500/20" : "",
                     error ? "border-red-500" : "hover:border-gray-300",
                     disabled && "opacity-50 cursor-not-allowed bg-gray-50"
@@ -153,27 +154,33 @@ export default function CustomSelect({
                     required={required}
                     disabled={disabled}
                     type="text"
-                    placeholder={placeholder}
+                    placeholder={isOpen ? (displayValue || placeholder) : placeholder}
                     value={isOpen ? search : displayValue}
                     onChange={handleInputChange}
                     onFocus={() => {
                         if (!disabled) {
                             setIsOpen(true);
-                            if (!search && displayValue) {
-                                setSearch(displayValue);
-                            }
+                            setSearch('');
                         }
                     }}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
                             if (search.trim()) {
-                                handleSelect(search.trim());
+                                const matched = filteredOptions.find(o => String(o.label).toLowerCase() === search.trim().toLowerCase());
+                                if (matched) {
+                                    handleSelect(matched.value);
+                                } else if (creatable) {
+                                    handleSelect(search.trim());
+                                } else if (filteredOptions.length > 0) {
+                                    handleSelect(filteredOptions[0].value);
+                                }
                             } else if (filteredOptions.length > 0) {
                                 handleSelect(filteredOptions[0].value);
                             }
                         } else if (e.key === 'Escape') {
                             setIsOpen(false);
+                            setSearch('');
                         }
                     }}
                     className={clsx(
@@ -182,13 +189,13 @@ export default function CustomSelect({
                     )}
                 />
                 <ChevronDown 
-                    className="w-4 h-4 text-gray-400 ml-2 shrink-0 cursor-pointer" 
+                    className={clsx("w-4 h-4 text-gray-400 ml-2 shrink-0 transition-transform duration-200", isOpen && "rotate-180")} 
                     onClick={(e) => {
                         e.stopPropagation();
                         if (disabled) return;
                         if (!isOpen) {
                             setIsOpen(true);
-                            setSearch(displayValue);
+                            setSearch('');
                             inputRef.current?.focus();
                         } else {
                             setIsOpen(false);
@@ -202,20 +209,26 @@ export default function CustomSelect({
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-hidden flex flex-col">
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-hidden flex flex-col animate-in fade-in-50 zoom-in-95 duration-100">
                     <div className="overflow-y-auto p-1 flex-1">
                         {filteredOptions.length > 0 && (
-                            filteredOptions.map((opt, idx) => (
-                                <button
-                                    key={`${opt.value}-${opt.label}-${idx}`}
-                                    type="button"
-                                    onClick={() => handleSelect(opt.value)}
-                                    className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50 flex items-center justify-between"
-                                >
-                                    <span className={clsx("text-gray-700 truncate", primitiveValue === opt.value && "font-medium text-indigo-700")}>{opt.label}</span>
-                                    {primitiveValue === opt.value && <Check className="w-4 h-4 text-indigo-600 shrink-0 ml-2" />}
-                                </button>
-                            ))
+                            filteredOptions.map((opt, idx) => {
+                                const isSelected = primitiveValue === opt.value;
+                                return (
+                                    <button
+                                        key={`${opt.value}-${opt.label}-${idx}`}
+                                        type="button"
+                                        onClick={() => handleSelect(opt.value)}
+                                        className={clsx(
+                                            "w-full text-left px-3 py-2 text-sm rounded-lg flex items-center justify-between transition-colors",
+                                            isSelected ? "bg-indigo-50/70 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"
+                                        )}
+                                    >
+                                        <span className="truncate">{opt.label}</span>
+                                        {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0 ml-2" />}
+                                    </button>
+                                );
+                            })
                         )}
                         
                         {creatable && search.trim() !== '' && !exactMatchExists && (
