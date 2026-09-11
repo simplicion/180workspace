@@ -182,15 +182,18 @@ export class TaskService {
         let notificationResult = null;
         if (task.assigneeId && triggerAutomation) {
             const project = task.projectId ? await prisma.project.findUnique({ where: { id: task.projectId }, select: { name: true } }) : null;
+            const companyId = requestContext.getStore()?.companyId as string || (user as any).companyId;
             const triggerResult = await triggerAutomation({
                 eventType: 'task_assigned',
                 triggeredBy: user.id,
                 targetUser: task.assigneeId,
+                companyId: companyId,
                 relatedItem: { itemId: task.id, itemModel: 'Task' },
                 description: `You were assigned to task: ${task.title}`,
                 sendEmailNotification: data.sendEmailNotification !== false,
                 metadata: {
                     taskName: task.title,
+                    taskTitle: task.title,
                     projectName: project ? project.name : 'Personal',
                     priority: task.priority || 'medium',
                     dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date',
@@ -348,15 +351,18 @@ export class TaskService {
         let notificationResult = null;
         if (data.assigneeId && data.assigneeId !== oldTask.assigneeId?.toString() && triggerAutomation) {
             const project = task.projectId ? await prisma.project.findUnique({ where: { id: task.projectId }, select: { name: true } }) : null;
+            const companyId = requestContext.getStore()?.companyId as string || (user as any).companyId;
             const triggerResult = await triggerAutomation({
                 eventType: 'task_assigned',
                 triggeredBy: user.id,
                 targetUser: data.assigneeId,
+                companyId: companyId,
                 relatedItem: { itemId: task.id, itemModel: 'Task' },
                 description: `You were reassigned to task: ${task.title}`,
                 sendEmailNotification: data.sendEmailNotification !== false,
                 metadata: {
                     taskName: task.title,
+                    taskTitle: task.title,
                     projectName: project ? project.name : (task.projectId ? 'Loading...' : 'Personal'),
                     priority: task.priority || 'medium',
                     dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date',
@@ -374,14 +380,17 @@ export class TaskService {
             await prisma.task.update({
                 where: { id: taskId },
                 data: {
-                    completedOnTime: isOnTime
+                    completedAt: now,
+                    updatedAt: now
                 }
             });
 
             if (triggerAutomation) {
+                const companyId = requestContext.getStore()?.companyId as string || (user as any).companyId;
                 await triggerAutomation({
                     eventType: 'task_completed',
                     triggeredBy: user.id,
+                    companyId: companyId,
                     relatedItem: { itemId: task.id, itemModel: 'Task' },
                     description: `Task "${task.title}" has been completed! +1 achievement point awarded.`,
                     metadata: { taskName: task.title, completedOnTime: isOnTime }

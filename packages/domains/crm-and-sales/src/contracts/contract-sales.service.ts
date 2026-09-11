@@ -170,9 +170,20 @@ static async emailContract(company, userId, userName, contractTitle, contractTex
             throw new Error('Contract text and a recipient email or client selection is required.');
         }
 
-        const Settings = prisma.settings;
-        const settings = await Settings.findFirst();
-        if (!settings || !settings.smtpHost) throw new Error('SMTP Settings are not configured.');
+        const companyId = company?.id;
+        const companyRecord = companyId ? await prisma.company.findUnique({ where: { id: companyId } }) : await prisma.company.findFirst();
+        let metadata: any = companyRecord?.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
+        const ps = await prisma.platformSettings.findFirst();
+        const settings = companyId ? await Settings.findFirst({ where: { companyId } }) : await Settings.findFirst();
+
+        const hasSmtp = (settings && settings.smtpHost) ||
+                        (metadata && metadata.smtpHost) ||
+                        (ps && ps.smtpHost) ||
+                        (process.env.SMTP_HOST);
+        if (!hasSmtp) throw new Error('SMTP Settings are not configured.');
 
         let clientObj = null;
         let recipientEmail = email;

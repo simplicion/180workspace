@@ -5,6 +5,7 @@ export interface AutomationEvent {
   triggeredBy: string;
   targetUser?: string;
   targetClient?: string;
+  companyId?: string;
   relatedItem?: { itemId: string; itemModel: string };
   description?: string;
   metadata?: Record<string, unknown>;
