@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { prisma, requestContext } from '@workspace/db';
 import * as nodemailer from 'nodemailer';
 import { EmailService } from '@workspace/backend-infra';
 
@@ -53,12 +53,76 @@ export class EmailManagementService {
     }
 
     static async sendRawWithLogging(options: any, sentById: string | null) {
-        const settingsRecord = await prisma.settings.findFirst();
+        // Resolve company context
+        const contextCompanyId = requestContext.getStore()?.companyId;
+        const targetCompanyId = options.companyId || contextCompanyId;
         
-        // Settings stores smtp credentials for the company
-        const settings: any = { ...settingsRecord };
-        // We can ignore metadata fallback if settings exist directly
+        let company: any = null;
+        if (targetCompanyId) {
+            company = await prisma.company.findUnique({ where: { id: targetCompanyId } });
+        }
+        if (!company && sentById) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(sentById)) {
+                const user = await prisma.user.findUnique({ where: { id: sentById }, select: { companyId: true } });
+                if (user?.companyId) {
+                    company = await prisma.company.findUnique({ where: { id: user.companyId } });
+                }
+            }
+        }
+        if (!company) {
+            company = await prisma.company.findFirst();
+        }
+
+        const effectiveCompanyId = company?.id || targetCompanyId || undefined;
+
+        // Parse metadata
+        let metadata: any = company?.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
+        }
+
+        const settingsRecord = effectiveCompanyId 
+            ? await prisma.settings.findFirst({ where: { companyId: effectiveCompanyId } })
+            : await prisma.settings.findFirst();
+            
+        const settings: any = { ...(settingsRecord || {}), ...metadata };
         
+        let smtpHost = settings.smtpHost;
+        let smtpPort = Number(settings.smtpPort) || 587;
+        let smtpUser = settings.smtpUser;
+        let smtpPass = settings.smtpPass;
+        let smtpSecure = settings.smtpSecure !== undefined ? settings.smtpSecure : (smtpPort === 465);
+        let emailFrom = settings.emailFrom;
+        let companyName = settings.companyName || company?.name || 'Simplicion';
+
+        // Check PlatformSettings fallback
+        if (!smtpHost || !smtpUser || !smtpPass) {
+            try {
+                const ps = await prisma.platformSettings.findFirst();
+                if (ps && ps.smtpHost && ps.smtpUser && ps.smtpPass) {
+                    smtpHost = ps.smtpHost;
+                    smtpPort = Number(ps.smtpPort) || 587;
+                    smtpUser = ps.smtpUser;
+                    smtpPass = ps.smtpPass;
+                    smtpSecure = ps.smtpSecure !== undefined ? ps.smtpSecure : (smtpPort === 465);
+                    emailFrom = ps.smtpFrom || emailFrom;
+                    if (ps.platformName) companyName = ps.platformName;
+                }
+            } catch (psErr) {}
+        }
+
+        // Check .env fallback
+        if (!smtpHost || !smtpUser || !smtpPass) {
+            if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+                smtpHost = process.env.SMTP_HOST;
+                smtpPort = Number(process.env.SMTP_PORT) || 587;
+                smtpUser = process.env.SMTP_USER;
+                smtpPass = process.env.SMTP_PASS;
+                smtpSecure = process.env.SMTP_SECURE === 'true' || (smtpPort === 465);
+            }
+        }
+
         // Ensure sentById is a valid UUID to prevent foreign key constraint violations
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const validSentById = (sentById && uuidRegex.test(sentById)) ? sentById : null;
@@ -68,7 +132,8 @@ export class EmailManagementService {
             subject: options.subject,
             templateName: options.templateName || 'custom',
             templateData: options.templateData || {},
-            status: 'failed'
+            status: 'failed',
+            companyId: effectiveCompanyId
         };
         if (validSentById) {
             emailData.sentBy = { connect: { id: validSentById } };
@@ -77,45 +142,59 @@ export class EmailManagementService {
         const log = await prisma.emailLog.create({ data: emailData });
         const logId = log.id;
 
-        if (!settings || !settings.smtpHost || !settings.smtpUser || !settings.smtpPass) {
+        if (!smtpHost || !smtpUser || !smtpPass) {
             await prisma.emailLog.update({ where: { id: logId }, data: { errorMessage: 'SMTP not configured' } });
             return { success: false, error: 'SMTP not configured' };
         }
 
+        // Construct RFC-5322 compliant "From" header
+        const effectiveFrom = options.from || emailFrom;
+        let fromHeader: string;
+        if (!effectiveFrom || effectiveFrom.trim() === '') {
+            fromHeader = `"${companyName.replace(/"/g, '')}" <${smtpUser}>`;
+        } else if (effectiveFrom.includes('<') && effectiveFrom.includes('>')) {
+            fromHeader = effectiveFrom;
+        } else if (effectiveFrom.includes('@')) {
+            fromHeader = `"${companyName.replace(/"/g, '')}" <${effectiveFrom.trim()}>`;
+        } else {
+            fromHeader = `"${effectiveFrom.trim().replace(/"/g, '')}" <${smtpUser}>`;
+        }
+
         try {
             const transporter = nodemailer.createTransport({
-                host: settings.smtpHost,
-                port: settings.smtpPort,
-                secure: settings.smtpSecure,
+                host: smtpHost,
+                port: smtpPort,
+                secure: smtpSecure,
                 auth: {
-                    user: settings.smtpUser,
-                    pass: settings.smtpPass,
+                    user: smtpUser,
+                    pass: smtpPass,
                 },
             });
 
             const info = await transporter.sendMail({
-                from: settings.emailFrom || 'noreply@internal.system',
+                from: fromHeader,
                 to: options.to,
                 subject: options.subject,
                 html: options.html,
             });
 
-            await prisma.emailLog.update({ where: { id: logId }, data: { status: 'sent' } });
+            await prisma.emailLog.update({ where: { id: logId }, data: { status: 'sent', errorMessage: null } });
             return { success: true, messageId: info.messageId };
         } catch (error: any) {
+            console.error(`[EmailManagementService] Email dispatch failed to ${options.to}:`, error.message);
             await prisma.emailLog.update({ where: { id: logId }, data: { status: 'failed', errorMessage: error.message } });
             return { success: false, error: error.message };
         }
     }
 
-    static async sendManualEmail(sentById: string, to: string, templateId: string, templateData: any, editedSubject?: string, editedHtml?: string) {
+    static async sendManualEmail(sentById: string, to: string, templateId: string, templateData: any, editedSubject?: string, editedHtml?: string, companyId?: string) {
         let subject, html;
 
         if (editedSubject && editedHtml) {
             subject = editedSubject;
             html = editedHtml;
         } else {
-            const preview = await EmailService.getTemplatePreview(templateId, templateData || {});
+            const preview = await EmailService.getTemplatePreview(templateId, templateData || {}, companyId);
             subject = preview.subject;
             html = preview.html;
         }
@@ -126,20 +205,26 @@ export class EmailManagementService {
             html,
             templateName: templateId,
             templateData: templateData || {},
+            companyId
         }, sentById);
     }
 
-    static async sendCustomEmail(sentById: string, to: string, subject: string, body: string) {
+    static async sendCustomEmail(sentById: string, to: string, subject: string, body: string, companyId?: string) {
         return this.sendRawWithLogging({
             to,
             subject,
             html: body,
-            templateName: 'custom'
+            templateName: 'custom',
+            companyId
         }, sentById);
     }
 
-    static async sendBulkEmail(role: string, subject: string, message: string, sentById: string) {
+    static async sendBulkEmail(role: string, subject: string, message: string, sentById: string, companyId?: string) {
+        const targetCompanyId = companyId || requestContext.getStore()?.companyId;
         const query: any = { isActive: true };
+        if (targetCompanyId) {
+            query.companyId = targetCompanyId;
+        }
         if (role && role !== 'all') {
             query.role = role;
         }
@@ -159,6 +244,7 @@ export class EmailManagementService {
                     to: user.email,
                     subject,
                     html: message,
+                    companyId: targetCompanyId
                 }, sentById);
                 if (result.success) sent++; else failed++;
             } catch (e) {
@@ -183,9 +269,12 @@ export class EmailManagementService {
         }
 
         const result = await this.sendRawWithLogging({
+            to: emailLog.to,
+            subject: emailLog.subject,
             html: emailLog.html || `Retry trigger: ${emailLog.subject}`,
             templateName: emailLog.templateName,
             templateData: emailLog.templateData,
+            companyId: emailLog.companyId
         }, sentById);
 
         if (result.success) {

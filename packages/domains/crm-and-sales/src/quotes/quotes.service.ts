@@ -108,8 +108,19 @@ static async sendQuoteEmail(id, user, emailOverride, reqCompany) {
         const PDFDocument = require('pdfkit');
         
 
-        const settings = await Settings.findFirst();
-        const hasSmtp = settings && settings.smtpHost && settings.smtpUser && settings.smtpPass;
+        const companyId = reqCompany?.id || (user as any)?.companyId;
+        const company = companyId ? await prisma.company.findUnique({ where: { id: companyId } }) : await prisma.company.findFirst();
+        let metadata: any = company?.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
+        }
+        const ps = await prisma.platformSettings.findFirst();
+
+        const settings = companyId ? await Settings.findFirst({ where: { companyId } }) : await Settings.findFirst();
+        const hasSmtp = (settings && settings.smtpHost && settings.smtpUser && settings.smtpPass) ||
+                        (metadata && metadata.smtpHost && metadata.smtpUser && metadata.smtpPass) ||
+                        (ps && ps.smtpHost && ps.smtpUser && ps.smtpPass) ||
+                        (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
         if (!hasSmtp) {
             const isAdmin = ['admin', 'superadmin', 'manager'].includes(user.role);

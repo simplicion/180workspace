@@ -55,18 +55,21 @@ export class AutomationService {
             if (targetUser) {
                 user = await User.findUnique({
                     where: { id: targetUser },
-                    select: { name: true, email: true }
+                    select: { name: true, email: true, companyId: true }
                 });
             }
 
+            const companyId = params.companyId || (companyPrisma && companyPrisma.companyId) || user?.companyId;
+
             let emailResult: any = { success: true, skipped: true };
             if (user && user.email && sendEmailNotification !== false) {
-                emailResult = await this.handleEmailDispatch(eventType, user, params, companyPrisma);
+                emailResult = await this.handleEmailDispatch(eventType, user, { ...params, companyId }, companyPrisma);
             }
 
             if (params.targetUser) {
                 const companyName = process.env.COMPANY_NAME || 'Your Company';
-                const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+                const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+                const clientUrl = rawClientUrl.split(',')[0].trim().replace(/\/$/, '');
                 let subject = '';
                 let message = params.description;
                 let actionUrl = clientUrl;
@@ -113,7 +116,6 @@ export class AutomationService {
                 });
             }
 
-            const companyId = params.companyId || (companyPrisma && companyPrisma.companyId);
             if (companyId) {
                 try {
                     // const io = getIo();
@@ -144,7 +146,9 @@ export class AutomationService {
 
     private static async handleEmailDispatch(eventType: string, user: any, params: any, companyPrisma: any) {
         try {
-            const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+            const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+            const clientUrl = rawClientUrl.split(',')[0].trim().replace(/\/$/, '');
+            const companyId = params.companyId || (companyPrisma && companyPrisma.companyId) || user?.companyId;
             
             const templateData: any = {
                 name: user.name || 'User',
@@ -164,24 +168,34 @@ export class AutomationService {
 
             try {
                 // Attempt to send via HTML template using the company's configured SMTP
-                await EmailManagementService.sendManualEmail(
+                const result = await EmailManagementService.sendManualEmail(
                     validSentById as string,
                     user.email,
                     eventType, // Matches template IDs like 'task_assigned', 'project_assigned'
-                    templateData
+                    templateData,
+                    undefined,
+                    undefined,
+                    companyId
                 );
-                return { success: true, skipped: false };
-            } catch (templateError) {
+                if (result && result.success) {
+                    return { success: true, skipped: false };
+                } else {
+                    console.warn(`[AutomationService] sendManualEmail failed (${result?.error}), falling back to custom email.`);
+                    throw new Error(result?.error || 'Template dispatch failed');
+                }
+            } catch (templateError: any) {
                 // Fallback to raw custom email if template doesn't exist
-                await EmailManagementService.sendCustomEmail(
+                const customResult = await EmailManagementService.sendCustomEmail(
                     validSentById as string,
                     user.email,
                     `Notification: ${eventType.replace('_', ' ').toUpperCase()}`,
-                    `${params.description || 'You have a new notification.'}\n\nView details at ${clientUrl}`
+                    `${params.description || 'You have a new notification.'}\n\nView details at ${clientUrl}`,
+                    companyId
                 );
-                return { success: true, skipped: false, fallback: true };
+                return { success: customResult?.success ?? true, skipped: false, fallback: true, error: customResult?.error };
             }
         } catch (err: any) {
+            console.error('[AutomationService] handleEmailDispatch exception:', err.message);
             return { success: false, error: err.message };
         }
     }

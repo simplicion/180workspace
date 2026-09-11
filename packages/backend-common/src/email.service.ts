@@ -8,7 +8,7 @@ const { prisma } = require('@workspace/db');
  * Get application base URL
  */
 function getAppUrl(path = '') {
-    let baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    let baseUrl = (process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].trim();
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
     if (path && !path.startsWith('/')) path = '/' + path;
     return `${baseUrl}${path}`;
@@ -21,7 +21,7 @@ async function getPlatformBranding() {
     try {
         const ps = await prisma.platformSettings.findFirst() || {};
         return {
-            companyName: ps.platformName || 'Platform',
+            companyName: ps.platformName || 'Simplicion',
             tagline: ps.brandingTagline || 'Enterprise Management Excellence',
             brandColor: ps.themeColor || '#4f46e5',
             companyLogo: ps.logoUrl || '',
@@ -29,11 +29,11 @@ async function getPlatformBranding() {
             websiteUrl: ps.companyWebsite || getAppUrl(),
             address: ps.companyAddress || '',
             phone: ps.companyPhone || '',
-            legalName: ps.companyLegalName || ps.platformName || 'Platform Inc.'
+            legalName: ps.companyLegalName || ps.platformName || 'Simplicion Inc.'
         };
     } catch (e) {
         return {
-            companyName: 'Platform',
+            companyName: 'Simplicion',
             tagline: 'Enterprise Management Excellence',
             brandColor: '#4f46e5',
             companyLogo: '',
@@ -41,7 +41,7 @@ async function getPlatformBranding() {
             websiteUrl: getAppUrl(),
             address: '',
             phone: '',
-            legalName: 'Platform Inc.'
+            legalName: 'Simplicion Inc.'
         };
     }
 }
@@ -49,26 +49,43 @@ async function getPlatformBranding() {
 /**
  * Get company configuration with defaults, falling back to platform settings
  */
-async function getCompanyInfo() {
+async function getCompanyInfo(dbPrisma = null, targetCompanyId = null) {
     const platform = await getPlatformBranding();
-    if (!prisma) return platform;
+    const client = dbPrisma || prisma;
+    if (!client) return platform;
 
     try {
-        const config = await prisma.settings.findFirst();
+        const cId = targetCompanyId || client.companyId || (typeof requestContext !== 'undefined' ? requestContext.getStore()?.companyId : undefined);
+        let config = null;
+        let companyRecord = null;
+        if (cId) {
+            config = await client.settings.findFirst({ where: { companyId: cId } });
+            companyRecord = await client.company.findUnique({ where: { id: cId } });
+        } else {
+            config = await client.settings.findFirst();
+            companyRecord = await client.company.findFirst();
+        }
 
-        if (!config) {
+        if (!config && !companyRecord) {
             return platform;
         }
 
+        let metadata = companyRecord?.metadata || {};
+        if (typeof metadata === 'string') {
+            try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
+        }
+
         return {
-            companyName: config.companyName || platform.companyName,
-            tagline: config.tagline || platform.tagline,
-            brandColor: config.themeColor || platform.brandColor,
-            companyLogo: config.logoUrl || platform.companyLogo,
-            emailLogo: config.logoUrl || platform.emailLogo,
-            websiteUrl: config.websiteUrl || platform.websiteUrl,
-            address: config.address || platform.address,
-            phone: config.phoneNumber || platform.phone
+            companyName: config?.companyName || companyRecord?.name || platform.companyName,
+            tagline: platform.tagline,
+            brandColor: config?.themeColor || metadata?.themeColor || platform.brandColor,
+            companyLogo: config?.logoUrl || metadata?.logoUrl || platform.companyLogo,
+            emailLogo: config?.logoUrl || metadata?.logoUrl || platform.emailLogo,
+            websiteUrl: platform.websiteUrl,
+            address: platform.address,
+            phone: platform.phone,
+            legalName: config?.companyName || companyRecord?.name || platform.legalName,
+            currency: metadata?.currency || 'USD'
         };
     } catch (err) {
         console.warn(`[EmailService] Error fetching company info: ${err.message}. Falling back to platform branding.`);
@@ -87,26 +104,36 @@ const CATEGORIES = {
 /**
  * Get dynamic transporter based on category and company isolation rules
  * @param {string} category - 'system' or 'work'
- * @param {Object} prisma - Company database connection
+ * @param {Object} dbPrisma - Company database connection
+ * @param {string} targetCompanyId - Target company ID
  */
-async function getTransporter(category = CATEGORIES.WORK) {
-    // 1. If it's a WORK email, we ONLY use Company SMTP
+async function getTransporter(category = CATEGORIES.WORK, dbPrisma = null, targetCompanyId = null) {
+    const client = dbPrisma || prisma;
+    // 1. If it's a WORK email, we use Company SMTP, falling back to Platform / .env if needed
     if (category === CATEGORIES.WORK) {
-        if (!prisma) {
+        if (!client) {
             console.error('[EmailService] WORK category requires prisma context. Aborting.');
             return null;
         }
 
         try {
-            const company = await prisma.company.findFirst({ select: { id: true, metadata: true } });
-            if (!company) throw new Error("Could not find company in company context.");
+            const cId = targetCompanyId || client.companyId || (typeof requestContext !== 'undefined' ? requestContext.getStore()?.companyId : undefined);
+            let company = null;
+            if (cId) {
+                company = await client.company.findUnique({ where: { id: cId }, select: { id: true, name: true, metadata: true } });
+            }
+            if (!company) {
+                company = await client.company.findFirst({ select: { id: true, name: true, metadata: true } });
+            }
             
-            let metadata = company.metadata || {};
+            let metadata = company?.metadata || {};
             if (typeof metadata === 'string') {
                 try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
             }
             
-            const settingsRecord = await prisma.settings.findFirst();
+            const settingsRecord = (company?.id)
+                ? await client.settings.findFirst({ where: { companyId: company.id } })
+                : await client.settings.findFirst();
             const settings = { ...(settingsRecord || {}) };
 
             ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSecure', 'emailFrom'].forEach(field => {
@@ -125,7 +152,7 @@ async function getTransporter(category = CATEGORIES.WORK) {
             }
             
             // Fallback to Platform SMTP if company SMTP is not configured
-            const ps = await prisma.platformSettings.findFirst();
+            const ps = await client.platformSettings.findFirst();
             if (ps && ps.smtpHost && ps.smtpUser && ps.smtpPass) {
                 console.log(`[EmailService] [ISOLATION:WORK] Falling back to Platform SMTP: ${ps.smtpHost}`);
                 const port = Number(ps.smtpPort) || 587;
@@ -137,8 +164,20 @@ async function getTransporter(category = CATEGORIES.WORK) {
                 });
             }
 
-            console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for company or platform. Throwing error.`);
-            throw new Error("SMTP is not configured. Please configure your email settings in the dashboard to send work emails.");
+            // Fallback to .env SMTP
+            if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+                console.log(`[EmailService] [ISOLATION:WORK] Using .env SMTP fallback: ${process.env.SMTP_HOST}`);
+                const port = parseInt(process.env.SMTP_PORT) || 587;
+                return nodemailer.createTransport({
+                    host: process.env.SMTP_HOST,
+                    port: port,
+                    secure: process.env.SMTP_SECURE === 'true' || (port === 465),
+                    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+                });
+            }
+
+            console.warn(`[EmailService] [ISOLATION:WORK] No SMTP configured for company, platform, or .env.`);
+            return null;
         } catch (e) {
             console.error('[EmailService] [ISOLATION:WORK] Error loading company SMTP:', e.message);
             return null;
@@ -149,7 +188,7 @@ async function getTransporter(category = CATEGORIES.WORK) {
     if (category === CATEGORIES.SYSTEM) {
         // Try PlatformSettings (SuperAdmin level)
         try {
-            const ps = await prisma.platformSettings.findFirst();
+            const ps = await client.platformSettings.findFirst();
             if (ps && ps.smtpHost && ps.smtpUser && ps.smtpPass) {
                 console.log(`[EmailService] [ISOLATION:SYSTEM] Using Platform SMTP: ${ps.smtpHost}`);
                 return nodemailer.createTransport({
@@ -184,14 +223,17 @@ async function getTransporter(category = CATEGORIES.WORK) {
 /**
  * Helper to send email using dynamic settings and log the transaction
  */
-async function dispatchEmail(options, prisma) {
+async function dispatchEmail(options, prismaClient = null, targetCompanyId = null) {
     let logId = null;
+    const client = prismaClient || prisma;
     const category = options.category || CATEGORIES.WORK;
+    const effectiveCompanyId = targetCompanyId || client?.companyId || options.companyId;
+    
     try {
-        const transporter = await getTransporter(category, prisma);
+        const transporter = await getTransporter(category, client, effectiveCompanyId);
 
-        // Logging only if prisma provided
-        if (prisma) {
+        // Logging only if client provided
+        if (client) {
             // Ensure sentById is a valid UUID to prevent foreign key constraint violations
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             let validSentById = options.sentById || null;
@@ -205,23 +247,22 @@ async function dispatchEmail(options, prisma) {
                 templateName: options.templateName || 'generic',
                 templateData: options.templateData || {},
                 status: 'failed',
+                companyId: effectiveCompanyId || undefined
             };
             if (validSentById) {
                 createData.sentBy = { connect: { id: validSentById } };
             }
 
-            const log = await prisma.emailLog.create({
+            const log = await client.emailLog.create({
                 data: createData
             });
             logId = log.id;
         }
 
         if (!transporter) {
-            const errorMsg = category === CATEGORIES.WORK 
-                ? 'Company SMTP is not configured. Please configure your email settings in the dashboard to send work emails.' 
-                : 'SMTP not configured. Please check your .env or Platform Settings.';
-            if (logId && prisma) {
-                await prisma.emailLog.update({
+            const errorMsg = 'SMTP is not configured. Please configure your email settings in the dashboard to send emails.';
+            if (logId && client) {
+                await client.emailLog.update({
                     where: { id: logId },
                     data: { errorMessage: errorMsg }
                 });
@@ -230,29 +271,11 @@ async function dispatchEmail(options, prisma) {
             return { success: false, error: errorMsg };
         }
 
-        // Verify connection before sending (optional but good for debugging)
-        if (process.env.NODE_ENV === 'development') {
-            try {
-                await transporter.verify();
-                console.log('[EmailService] SMTP connection verified successfully.');
-            } catch (verifyErr) {
-                console.error('[EmailService] SMTP verification failed:', verifyErr.message);
-                // We'll still try to send, but log the verification failure
-            }
-        }
-
         // Get "from" address
-        let fromAddress = options.from || process.env.EMAIL_FROM || 'noreply@internal.system';
-        
-        // Check PlatformSettings for global from address
-        try {
-            const ps = await prisma.platformSettings.findFirst();
-            if (ps && ps.smtpFrom) fromAddress = ps.smtpFrom;
-        } catch (e) {}
-
-        if (prisma) {
-            const settings = await prisma.settings.findFirst();
-            if (settings && settings.emailFrom) fromAddress = settings.emailFrom;
+        let fromAddress = options.from;
+        if (!fromAddress) {
+            const companyInfo = await getCompanyInfo(client, effectiveCompanyId);
+            fromAddress = companyInfo.companyName;
         }
 
         const info = await transporter.sendMail({
@@ -263,18 +286,18 @@ async function dispatchEmail(options, prisma) {
             attachments: options.attachments || [],
         });
 
-        console.log('Email sent:', info.messageId);
-        if (logId && prisma) {
-            await prisma.emailLog.update({
+        console.log('[EmailService] Email sent:', info.messageId);
+        if (logId && client) {
+            await client.emailLog.update({
                 where: { id: logId },
-                data: { status: 'sent' }
+                data: { status: 'sent', errorMessage: null }
             });
         }
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        console.error('Email send error:', error);
-        if (logId && prisma) {
-            await prisma.emailLog.update({
+    } catch (error: any) {
+        console.error('[EmailService] Email send error:', error);
+        if (logId && client) {
+            await client.emailLog.update({
                 where: { id: logId },
                 data: { status: 'failed', errorMessage: error.message }
             });
@@ -455,8 +478,8 @@ function baseLayout(title, content, company) {
 </html>`;
 }
 
-async function buildTemplate(templateId, data) {
-    const company = await getCompanyInfo(prisma);
+async function buildTemplate(templateId, data, dbPrisma = null, targetCompanyId = null) {
+    const company = await getCompanyInfo(dbPrisma || prisma, targetCompanyId);
     let subject = '';
     let content = '';
 
@@ -1128,8 +1151,8 @@ export const EmailService = {
         return !!transporter;
     },
 
-    getTemplatePreview: async (templateId, templateData) => {
-        return buildTemplate(templateId, templateData, prisma);
+    getTemplatePreview: async (templateId, templateData, targetCompanyId = null) => {
+        return buildTemplate(templateId, templateData, prisma, targetCompanyId);
     },
 
     sendEmail: async function(options) {
