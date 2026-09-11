@@ -1,5 +1,5 @@
 {
-    "watch": ["src", "server.js", "package.json", "../../packages/*/src", "../../packages/**/src"],
+    "watch": ["src", "server.js", "package.json", "../../packages/*/src", "../../packages/**/src", "../../packages/*/dist", "../../packages/**/dist"],
     "ext": "js,json,ts",
     "exec": "tsx server.js",
     "ignore": [
@@ -7,11 +7,9 @@
         "*.test.js",
         "*.spec.js",
         "logs",
-        "dist",
         "coverage",
         "../../apps/user-web/.next",
-        "../../apps/user-web/node_modules",
-        "../../packages/*/dist"
+        "../../apps/user-web/node_modules"
     ],
     "delay": "500"
 }
