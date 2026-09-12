@@ -1,4 +1,4 @@
-export { default as ConfirmModal } from './components/ConfirmModal';
+export { default as ConfirmModal, ConfirmModal } from './components/ConfirmModal';
 export { default as TimeProgressBar } from './components/TimeProgressBar';
 export { default as HelpIcon } from './components/HelpIcon';
 export { default as FavoriteButton } from './components/FavoriteButton';

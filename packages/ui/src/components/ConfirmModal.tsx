@@ -28,7 +28,7 @@ interface Props {
     }[];
 }
 
-export default function ConfirmModal({
+export function ConfirmModal({
     isOpen,
     title,
     message,
@@ -176,3 +176,5 @@ export default function ConfirmModal({
         document.body
     );
 }
+
+export default ConfirmModal;
