@@ -35,15 +35,12 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/hrms': { appId: 'hr', moduleId: 'hrms' },
   '/leaves': { appId: 'hr', moduleId: 'leaves' },
   '/holidays': { appId: 'hr', moduleId: 'holidays' },
-  '/recruitment': { appId: 'hr', moduleId: 'recruitment' },
   '/onboarding': { appId: 'hr', moduleId: 'onboarding' },
-  '/reviews': { appId: 'hr', moduleId: 'reviews' },
   '/salary': { appId: 'hr', moduleId: 'salary', isShared: true }, // Needed by Finance
   
   // Finance & Analytics
   '/finance': { appId: 'finance', moduleId: 'finance-overview' },
   '/transactions': { appId: 'finance', moduleId: 'transactions' },
-  '/invoices': { appId: 'crm', moduleId: 'invoices', isShared: true }, // Needed by Finance
   '/bills-and-expenses': { appId: 'finance', moduleId: 'bills-and-expenses' },
   '/expenses': { appId: 'finance', moduleId: 'expenses' },
   '/vendors': { appId: 'finance', moduleId: 'vendors' },

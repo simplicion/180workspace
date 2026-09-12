@@ -36,7 +36,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/dashboard/hrms': { appId: 'hr', moduleId: 'hrms' },
   '/dashboard/leaves': { appId: 'hr', moduleId: 'leaves' },
   '/dashboard/holidays': { appId: 'hr', moduleId: 'holidays' },
-  '/dashboard/recruitment': { appId: 'hr', moduleId: 'recruitment' },
   '/dashboard/onboarding': { appId: 'hr', moduleId: 'onboarding' },
   '/dashboard/salary': { appId: 'hr', moduleId: 'salary', isShared: true }, // Needed by Finance
   

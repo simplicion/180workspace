@@ -71,6 +71,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/tag/') ||
     pathname.startsWith('/evaluate/') ||
     pathname.startsWith('/f/') ||
+    pathname.startsWith('/payslip') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/.well-known') ||
@@ -150,7 +151,7 @@ export async function middleware(req: NextRequest) {
 
   const isSetupPage = pathname.startsWith("/workspace-setup");
 
-  const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f', '/api'];
+  const WORKSPACE_ROUTES = ['/jobs', '/privacy-policy', '/terms-of-service', '/shared', '/sites', '/f', '/payslip', '/api'];
   const is180workspaceRoute = WORKSPACE_ROUTES.some(r => pathname.startsWith(r));
 
   const isWorkspaceSetupComplete = token ? !!token.isOnboardingComplete : (!!platformCookie && !isSetupPage);

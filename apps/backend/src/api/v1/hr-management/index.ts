@@ -5,8 +5,6 @@ import { leaveRoutes } from './leaves';
 import { employeeRoutes } from './employees';
 import { designationRoutes } from './designations';
 import { hrmsRoutes } from './hrms';
-import { jobRoutes } from './jobs';
-import { reviewRoutes } from './reviews';
 
 const router = Router();
 
@@ -17,7 +15,5 @@ router.use('/leaves', leaveRoutes);
 router.use('/employees', employeeRoutes);
 router.use('/designations', designationRoutes);
 router.use('/hrms', hrmsRoutes);
-router.use('/jobs', jobRoutes);
-router.use('/reviews', reviewRoutes);
 
 export default router;

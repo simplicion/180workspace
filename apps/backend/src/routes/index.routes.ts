@@ -68,6 +68,7 @@ router.use((req, res, next) => {
         '/calendar': '/v1/workspace-tools/calendar',
         '/leaves': '/v1/hr-management/leaves',
         '/goals': '/v1/hr-management/hrms/goals',
+        '/sticky-notes': '/v1/hr-management/hrms/sticky-notes',
         '/expenses': '/v1/finance/expenses',
         '/ceo-insights': '/v1/hr-management/hrms/ceo-insights',
         '/files': '/v1/workspace-tools/storage',
@@ -113,6 +114,10 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/clients', '/v1/crm-and-sales/clients');
     } else if (path.startsWith('/hrms/')) {
         req.url = req.url.replace('/hrms', '/v1/hr-management/hrms');
+    } else if (path.startsWith('/goals/') || path === '/goals') {
+        req.url = req.url.replace('/goals', '/v1/hr-management/hrms/goals');
+    } else if (path.startsWith('/sticky-notes/') || path === '/sticky-notes') {
+        req.url = req.url.replace('/sticky-notes', '/v1/hr-management/hrms/sticky-notes');
     } else if (path.startsWith('/ai/')) {
         req.url = req.url.replace('/ai', '/v1/ai');
     } else if (path.startsWith('/contracts/') || path === '/contracts') {
@@ -151,10 +156,6 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/forms', '/v1/advertising/forms');
     } else if (path.startsWith('/holidays/') || path === '/holidays') {
         req.url = req.url.replace('/holidays', '/v1/hr-management/holidays');
-    } else if (path.startsWith('/jobs/') || path === '/jobs') {
-        req.url = req.url.replace('/jobs', '/v1/hr-management/jobs');
-    } else if (path.startsWith('/reviews/') || path === '/reviews') {
-        req.url = req.url.replace('/reviews', '/v1/hr-management/reviews');
     } else if (path.startsWith('/roles-access/') || path === '/roles-access') {
         req.url = req.url.replace('/roles-access', '/v1/settings/roles');
     } else if (path.startsWith('/salary/') || path === '/salary') {

@@ -2,58 +2,8 @@
 
 import { PublicService } from '@workspace/public';
 import { BlogService } from '@workspace/platform-admin';
+import { SalaryService } from '@workspace/finance';
 import { Request, Response, NextFunction } from 'express';
-
-/**
- * Get all open job postings (API Key protected)
- */
-export const getPublicJobs = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const protocol = req.protocol;
-        const host = req.get('host');
-
-        const result = await PublicService.getPublicJobs(protocol, host);
-        res.json(result);
-    } catch (err) {
-        next(err);
-    }
-};
-
-/**
- * Get a single job's details for the public application form
- */
-export const getPublicJobDetails = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { id } = req.params;
-
-        const result = await PublicService.getPublicJobDetails(id);
-        res.json(result);
-    } catch (err) {
-        if (err.message === 'Job not found or already closed') {
-            return res.status(404).json({ error: err.message });
-        }
-        next(err);
-    }
-};
-
-/**
- * Submit a job application (Public)
- */
-export const submitApplication = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { jobId, applicantName, applicantEmail, phone, resumeUrl, coverLetter, customFields } = req.body;
-        const result = await PublicService.submitApplication(jobId, applicantName, applicantEmail, phone, resumeUrl, coverLetter, customFields);
-        res.status(201).json(result);
-    } catch (err) {
-        if (err.message === 'Missing required applicant fields') {
-            return res.status(400).json({ error: err.message });
-        }
-        if (err.message === 'Job is no longer open for applications') {
-            return res.status(404).json({ error: err.message });
-        }
-        next(err);
-    }
-};
 
 /**
  * Manage API Key (Platform Internal)
@@ -87,32 +37,6 @@ export const getBranding = async (req: Request, res: Response, next: NextFunctio
         const result = await PublicService.getBranding(workspace);
         res.json(result);
     } catch (err) {
-        next(err);
-    }
-};
-
-/**
- * Fetch all open jobs across all companies for 180workspace Explore tab
- */
-export const getExploreJobs = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const result = await PublicService.getExploreJobs();
-        res.status(200).json(result);
-    } catch (err) {
-        next(err);
-    }
-};
-
-/**
- * Fetch job applications submitted by the logged-in user
- */
-export const getMyApplications = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = (req as any).user?.id;
-        const result = await PublicService.getMyApplications(userId);
-        res.status(200).json(result);
-    } catch (err) {
-        if (err.message === 'User not authenticated') return res.status(401).json({ error: err.message });
         next(err);
     }
 };
@@ -237,5 +161,26 @@ export const recordBlogView = async (req: Request, res: Response, next: NextFunc
         next(err);
     }
 };
+
+/**
+ * Public Payslip endpoint for employee / sharable link access
+ */
+export const getPublicPayslip = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const salary = await SalaryService.getSalaryById(id);
+        if (!salary) {
+            return res.status(404).json({ success: false, error: 'Payslip record not found or link has expired' });
+        }
+        res.json({ success: true, salary });
+    } catch (err: any) {
+        if (err?.message?.includes('not found')) {
+            return res.status(404).json({ success: false, error: 'Payslip record not found or link has expired' });
+        }
+        next(err);
+    }
+};
+
+
 
 

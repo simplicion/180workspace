@@ -655,29 +655,75 @@ async function buildTemplate(templateId, data, dbPrisma = null, targetCompanyId 
             break;
 
         case 'salary_generated':
-            subject = `${company.companyName} | Salary Slip for ${data.month}`;
-            const salaryCurrency = company.currency || 'USD';
+            subject = `${company.companyName} | Official Payslip for ${data.month}`;
+            const salaryCurrency = data.currency || company.currency || 'USD';
+            const payslipDirectUrl = data.payslipUrl || (data.salaryId ? getAppUrl(`/payslip/${data.salaryId}`) : getAppUrl('/dashboard/hr'));
+            const baseSalaryVal = data.baseSalary !== undefined ? Number(data.baseSalary).toLocaleString() : null;
+            const bonusesVal = data.bonuses !== undefined && Number(data.bonuses) > 0 ? Number(data.bonuses).toLocaleString() : null;
+            const deductionsVal = data.deductions !== undefined && Number(data.deductions) > 0 ? Number(data.deductions).toLocaleString() : null;
+            const statusLabel = data.status === 'paid' ? 'PAID & DISBURSED' : 'GENERATED / PENDING';
+            const statusBadgeColor = data.status === 'paid' ? '#059669' : '#d97706';
+            const statusBadgeBg = data.status === 'paid' ? '#ecfdf5' : '#fffbeb';
+
             content = `
                 <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; text-align: center; background: #f0fdf4; border-radius: 12px; margin-bottom: 12px;">
-                        <span style="font-size: 24px;">💰</span>
+                    <div style="display: inline-block; width: 52px; height: 52px; line-height: 52px; text-align: center; background: #eef2ff; border-radius: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);">
+                        <span style="font-size: 26px;">💳</span>
                     </div>
-                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 700; letter-spacing: -0.025em;">Salary Slip Ready</h1>
-                    <p style="margin: 0; color: #64748b; font-size: 14px;">Your salary statement for <strong>${data.month}</strong> has been generated.</p>
+                    <h1 style="margin: 0 0 6px 0; color: #0f172a; font-size: 22px; font-weight: 800; letter-spacing: -0.025em;">Salary Statement Ready</h1>
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">Your official payroll document for <strong>${data.month}</strong> has been processed.</p>
                 </div>
                 
                 <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hi <strong>${data.name}</strong>,</p>
-                <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">Your payroll compensation for the period has been processed successfully:</p>
+                <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+                    Please find below the summary of your salary disbursement for the period <strong>${data.month}</strong>. You can view or download your official digital payslip using the button below.
+                </p>
                 
-                <div class="card" style="text-align: center; padding: 24px;">
-                    <span class="card-label">Net Disbursed Amount</span>
-                    <span style="font-size: 28px; font-weight: 800; color: ${company.brandColor || '#4f46e5'}; margin: 8px 0; display: block;">${salaryCurrency} ${Number(data.netSalary).toLocaleString()}</span>
-                    <span style="font-size: 12px; color: #64748b;">Period: ${data.month}</span>
+                <div style="background: #0f172a; border-radius: 16px; padding: 24px; color: #ffffff; margin-bottom: 24px; text-align: center;">
+                    <div style="display: inline-block; padding: 4px 12px; border-radius: 9999px; background: ${statusBadgeBg}; color: ${statusBadgeColor}; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px;">
+                        ${statusLabel}
+                    </div>
+                    <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 4px;">Net Payable Compensation</span>
+                    <span style="font-size: 32px; font-weight: 900; color: #38bdf8; letter-spacing: -0.02em; display: block;">${salaryCurrency} ${Number(data.netSalary || 0).toLocaleString()}</span>
+                    <span style="font-size: 12px; color: #94a3b8; display: block; margin-top: 6px;">Pay Period: ${data.month}</span>
+                </div>
+
+                <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px; background: #ffffff;">
+                    <div style="background: #f8fafc; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Compensation Breakdown
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        ${baseSalaryVal ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 16px; color: #475569;">Base Salary</td>
+                            <td style="padding: 10px 16px; text-align: right; font-weight: 600; color: #0f172a;">${salaryCurrency} ${baseSalaryVal}</td>
+                        </tr>` : ''}
+                        ${bonusesVal ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 16px; color: #475569;">Bonuses & Additions</td>
+                            <td style="padding: 10px 16px; text-align: right; font-weight: 600; color: #059669;">+ ${salaryCurrency} ${bonusesVal}</td>
+                        </tr>` : ''}
+                        ${deductionsVal ? `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 16px; color: #475569;">Deductions & Withholdings</td>
+                            <td style="padding: 10px 16px; text-align: right; font-weight: 600; color: #dc2626;">- ${salaryCurrency} ${deductionsVal}</td>
+                        </tr>` : ''}
+                        <tr style="background: #f8fafc;">
+                            <td style="padding: 12px 16px; font-weight: 700; color: #0f172a;">Net Payout</td>
+                            <td style="padding: 12px 16px; text-align: right; font-weight: 800; color: #0f172a; font-size: 14px;">${salaryCurrency} ${Number(data.netSalary || 0).toLocaleString()}</td>
+                        </tr>
+                    </table>
                 </div>
                 
-                <div style="text-align: center; margin: 28px 0 16px;">
-                    <a href="${getAppUrl('/dashboard/hr')}" class="button">View Salary Breakdown &rarr;</a>
+                <div style="text-align: center; margin: 28px 0 20px;">
+                    <a href="${payslipDirectUrl}" class="button" style="background: #0f172a; color: #ffffff; padding: 12px 28px; border-radius: 10px; font-weight: 700; text-decoration: none; display: inline-block; font-size: 14px;">
+                        📄 View & Download Official Payslip &rarr;
+                    </a>
                 </div>
+
+                <p style="text-align: center; color: #94a3b8; font-size: 12px; margin: 0;">
+                    Or copy your secure link: <a href="${payslipDirectUrl}" style="color: #6366f1; word-break: break-all;">${payslipDirectUrl}</a>
+                </p>
             `;
             break;
 
@@ -1474,11 +1520,30 @@ export const EmailService = {
     sendPasswordResetEmail: (to, name, resetUrl, prisma) => sendEmailTemplate(to, 'password_reset', { name, resetUrl }, prisma, CATEGORIES.WORK),
     sendProjectAssignedEmail: (to, name, projectName, projectUrl, prisma) => sendEmailTemplate(to, 'project_assigned', { name, projectName, projectUrl }, prisma, CATEGORIES.WORK),
     sendTaskAssignedEmail: (to, name, taskTitle, projectName, taskUrl, prisma) => sendEmailTemplate(to, 'task_assigned', { name, taskTitle, projectName, taskUrl }, prisma, CATEGORIES.WORK),
-    sendSalaryGeneratedEmail: (to, name, month, netSalary, prisma) => sendEmailTemplate(to, 'salary_generated', { name, month, netSalary }, prisma, CATEGORIES.WORK),
+    sendSalaryGeneratedEmail: (to, name, month, netSalary, prisma, extraData = {}) => sendEmailTemplate(to, 'salary_generated', { name, month, netSalary, ...extraData }, prisma, CATEGORIES.WORK),
     sendSystemAlert: (to, subject, message, prisma) => sendEmailTemplate(to, 'system_alert', { subject, message }, prisma, CATEGORIES.SYSTEM),
     sendWelcomeEmail: (user, password, prisma) => sendEmailTemplate(user.email, 'welcome', { name: user.name, email: user.email, password }, prisma, CATEGORIES.WORK),
     sendDocumentTagEmail: (to, name, documentName, documentUrl, senderName, prisma) => sendEmailTemplate(to, 'document_tagged', { name, documentName, documentUrl, senderName }, prisma, CATEGORIES.WORK),
-    sendSalarySlip: (employee, salary, prisma) => sendEmailTemplate(employee.email, 'salary_generated', { name: employee.name, month: salary.month, netSalary: salary.netSalary }, prisma, CATEGORIES.WORK),
+    sendSalarySlip: (employee, salary, prisma) => sendEmailTemplate(
+        employee.email, 
+        'salary_generated', 
+        { 
+            name: employee.name, 
+            month: salary.month, 
+            netSalary: salary.netSalary,
+            baseSalary: salary.baseSalary,
+            bonuses: salary.bonuses,
+            deductions: salary.deductions,
+            status: salary.status,
+            currency: salary.currency,
+            salaryId: salary.id,
+            totalDays: salary.totalDays,
+            presentDays: salary.presentDays,
+            paidLeaves: salary.paidLeaves
+        }, 
+        prisma, 
+        CATEGORIES.WORK
+    ),
     sendTaskOverdueEmail: (to, name, taskTitle, dueDate, ctaUrl, prisma) => sendEmailTemplate(to, 'task_overdue', { name, taskTitle, dueDate, ctaUrl }, prisma, CATEGORIES.WORK),
     sendCompanyWelcomeEmail: (to, name, loginUrl, prisma) => sendEmailTemplate(to, 'company_welcome', { name, loginUrl }, prisma, CATEGORIES.SYSTEM),
     
