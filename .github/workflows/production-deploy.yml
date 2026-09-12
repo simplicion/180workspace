@@ -157,6 +157,7 @@ jobs:
             echo "$PRODUCTION_ENV_FILE" > .env
 
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
+            sudo chown -R $(whoami):$(whoami) /home/ubuntu/app
             if [ ! -d ".git" ]; then
               git init
             fi
