@@ -110,4 +110,15 @@ export class TransactionService {
     });
     return { success: true, message: 'Transaction deleted successfully.' };
   }
+
+  static async deleteTransactions(ids: string[]) {
+    const companyId = requestContext.getStore()?.companyId as string;
+    const result = await prisma.companyTransaction.deleteMany({
+      where: {
+        id: { in: ids },
+        ...(companyId ? { companyId } : {})
+      }
+    });
+    return { success: true, count: result.count, message: `${result.count} transaction(s) deleted successfully.` };
+  }
 }
