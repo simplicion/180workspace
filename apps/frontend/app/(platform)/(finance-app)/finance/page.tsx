@@ -161,7 +161,7 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     const handleSelectAll = () => {
-        const allIds = transactions.map(t => (t.id || t._id || t.rawId) as string).filter(Boolean);
+        const allIds = transactions.map(t => (t.rawId || t.id || t._id) as string).filter(Boolean);
         setSelectedTxIds(allIds);
     };
 
@@ -177,7 +177,7 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
     };
 
     const handleSelectAmount = (amount: number) => {
-        const ids = transactions.slice(0, amount).map(t => (t.id || t._id || t.rawId) as string).filter(Boolean);
+        const ids = transactions.slice(0, amount).map(t => (t.rawId || t.id || t._id) as string).filter(Boolean);
         setSelectedTxIds(ids);
     };
 
@@ -1182,10 +1182,10 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
                                     <th className="pl-6 pr-2 py-4 w-10">
                                         <input
                                             type="checkbox"
-                                            checked={transactions.length > 0 && transactions.every(t => selectedTxIds.includes((t.id || t._id || t.rawId)!))}
+                                            checked={transactions.length > 0 && transactions.every(t => selectedTxIds.includes((t.rawId || t.id || t._id)!))}
                                             ref={(el) => {
                                                 if (el) {
-                                                    const count = transactions.filter(t => selectedTxIds.includes((t.id || t._id || t.rawId)!)).length;
+                                                    const count = transactions.filter(t => selectedTxIds.includes((t.rawId || t.id || t._id)!)).length;
                                                     el.indeterminate = count > 0 && count < transactions.length;
                                                 }
                                             }}
@@ -1233,7 +1233,7 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
                                     </tr>
                                 ) : (
                                     transactions.map((tx, idx) => {
-                                        const txId = (tx.id || tx._id || tx.rawId || `tx-${idx}`) as string;
+                                        const txId = (tx.rawId || tx.id || tx._id || `tx-${idx}`) as string;
                                         const isSelected = selectedTxIds.includes(txId);
                                         const creditMovement = isCredit(tx);
                                         const partyName = tx.entityCompany || tx.entityName || tx.counterparty || tx.clientId?.company || tx.clientId?.name || 'Commercial Partner';
