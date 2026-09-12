@@ -13,12 +13,17 @@ import {
   Sparkles,
   Calendar,
   Zap,
-  ChevronDown
+  ChevronDown,
+  Briefcase,
+  DollarSign,
+  Layers,
+  Award
 } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from "@workspace/ui";
 import { useGetDashboardStatsQuery } from '@/redux/api/dashboardApi';
-import { useGetLeadsQuery } from '@/redux/api/crmApi';
+import { useGetLeadsQuery, useGetDealsQuery } from '@/redux/api/crmApi';
+import { useSettings } from '@/lib/settings-context';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -34,36 +39,65 @@ import {
 } from 'recharts';
 import clsx from 'clsx';
 
-const PIE_COLORS = [
+const LEAD_PIE_COLORS = [
   '#4f46e5', // Indigo (New Lead)
   '#f59e0b', // Amber (Contacted)
   '#10b981', // Emerald (Qualified)
   '#3b82f6', // Blue (Demo / Meeting)
-  '#8b5cf6', // Violet (Won)
-  '#ef4444', // Red (Lost)
-  '#ec4899', // Pink (Proposal)
-  '#06b6d4', // Cyan (Negotiation)
+  '#8b5cf6', // Violet (Other)
 ];
+
+const DEAL_PIE_COLORS = [
+  '#6366f1', // Indigo (Discovery / Lead)
+  '#ec4899', // Pink (Proposal)
+  '#f97316', // Orange (Negotiation)
+  '#06b6d4', // Cyan (Contract Signed)
+  '#10b981', // Emerald (In Delivery / Won)
+  '#94a3b8', // Slate (Lost / Other)
+];
+
+type LeadTimeFilter = 'today' | 'week' | 'month';
 
 export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
   const [chartView, setChartView] = useState<'both' | 'daily' | 'status'>('both');
   const [isChartsCollapsed, setIsChartsCollapsed] = useState(false);
+  const [leadTimeRange, setLeadTimeRange] = useState<LeadTimeFilter>('today');
 
-  // 1. Dashboard summary & activities
+  const { company } = useSettings();
+  const currencySymbol = company?.currencySymbol || '₹';
+
+  const formatCurrency = (val: number | undefined): string => {
+    if (!val || isNaN(val)) return `${currencySymbol}0`;
+    if (val >= 10000000) return `${currencySymbol}${(val / 10000000).toFixed(1)}Cr`;
+    if (val >= 100000) return `${currencySymbol}${(val / 100000).toFixed(1)}L`;
+    if (val >= 1000) return `${currencySymbol}${(val / 1000).toFixed(1)}k`;
+    return `${currencySymbol}${Math.round(val).toLocaleString()}`;
+  };
+
+  // 1. Dashboard summary stats
   const { data: dashboardData, isLoading: loadingDashboard } = useGetDashboardStatsQuery(undefined, {
     skip: isLocked,
     pollingInterval: 30000,
   });
 
-  // 2. Full leads dataset for accurate daily trajectory & stage distribution
+  // 2. Full leads dataset
   const { data: leadsResponse, isLoading: loadingLeads } = useGetLeadsQuery(undefined, {
     skip: isLocked,
   });
 
-  const loading = loadingDashboard || loadingLeads;
-  const leads = useMemo(() => leadsResponse?.leads || [], [leadsResponse]);
+  // 3. Full deals dataset
+  const { data: dealsResponse, isLoading: loadingDeals } = useGetDealsQuery(undefined, {
+    skip: isLocked,
+  });
 
-  // ── Executive KPI Metrics ──────────────────────────────────────────────────
+  const loading = loadingDashboard || loadingLeads || loadingDeals;
+  const leads = useMemo(() => leadsResponse?.leads || [], [leadsResponse]);
+  const deals = useMemo(() => {
+    if (Array.isArray(dealsResponse)) return dealsResponse;
+    return dealsResponse?.deals || dealsResponse?.leads || [];
+  }, [dealsResponse]);
+
+  // ── Executive KPI Metrics (Combined Leads + Deals) ───────────────────────────
   const metrics = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -90,11 +124,37 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
       else if (st.includes('qualif') || st === 'demo' || st === 'proposal' || st === 'closedwon') qualifiedCount++;
     });
 
+    // Deals calculations
+    let activeDealsCount = 0;
+    let totalPipelineValue = 0;
+    let proposalDeals = 0;
+    let negotiationDeals = 0;
+    let contractDeals = 0;
+    let wonDealsCount = 0;
+    let wonRevenue = 0;
+
+    deals.forEach((d: any) => {
+      const stage = (d.stage || d.status || 'discovery').toLowerCase();
+      const val = Number(d.value || d.amount || 0);
+
+      if (stage === 'closedwon' || stage === 'won' || stage === 'indelivery' || stage === 'closedpaid') {
+        wonDealsCount++;
+        wonRevenue += val;
+      } else if (stage !== 'closedlost' && stage !== 'lost') {
+        activeDealsCount++;
+        totalPipelineValue += val;
+
+        if (stage.includes('proposal')) proposalDeals++;
+        else if (stage.includes('negot')) negotiationDeals++;
+        else if (stage.includes('contract')) contractDeals++;
+      }
+    });
+
     const fallbackNew = dashboardData?.metrics?.pendingLeads || 0;
     const fallbackContacted = dashboardData?.metrics?.activeLeads || 0;
-    const fallbackQualified = dashboardData?.metrics?.activeOpportunities || 0;
     const fallbackTotal = dashboardData?.metrics?.totalLeads || 0;
-    const conversionRate = dashboardData?.funnel?.dealWinRate || 0;
+    const conversionRate = dashboardData?.funnel?.dealWinRate || (deals.length > 0 && leads.length > 0 ? (deals.length / leads.length) * 100 : 0);
+    const winRate = deals.length > 0 ? (wonDealsCount / deals.length) * 100 : 0;
 
     return {
       today: todayCount,
@@ -102,36 +162,57 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
       month: monthCount,
       newLeads: leads.length > 0 ? newCount : fallbackNew,
       contacted: leads.length > 0 ? contactedCount : fallbackContacted,
-      qualified: leads.length > 0 ? qualifiedCount : fallbackQualified,
-      total: leads.length > 0 ? leads.length : fallbackTotal,
-      cvr: Math.round(conversionRate * 10) / 10
+      qualified: leads.length > 0 ? qualifiedCount : 0,
+      totalLeads: leads.length > 0 ? leads.length : fallbackTotal,
+      cvr: Math.round(conversionRate * 10) / 10,
+      // Deals metrics
+      totalDeals: deals.length,
+      activeDealsCount: deals.length > 0 ? activeDealsCount : (dashboardData?.metrics?.activeOpportunities || 0),
+      totalPipelineValue,
+      proposalDeals,
+      negotiationDeals,
+      contractDeals,
+      wonDealsCount,
+      wonRevenue,
+      winRate: Math.round(winRate * 10) / 10
     };
-  }, [leads, dashboardData]);
+  }, [leads, deals, dashboardData]);
 
-  // ── Daily Trend Area Chart Data (Current Month) ────────────────────────────
+  // ── Daily Combined Trend Chart Data (Leads & Deals in Current Month) ────────
   const dailyChartData = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const dayMap: Record<number, { day: string; dateStr: string; total: number; newLeads: number; contacted: number }> = {};
+    const dayMap: Record<number, {
+      day: string;
+      dateStr: string;
+      newLeads: number;
+      contacted: number;
+      dealsCreated: number;
+      dealsWon: number;
+      dealValue: number;
+    }> = {};
+
     for (let d = 1; d <= daysInMonth; d++) {
       dayMap[d] = {
         day: `${month + 1}/${d}`,
         dateStr: new Date(year, month, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        total: 0,
         newLeads: 0,
-        contacted: 0
+        contacted: 0,
+        dealsCreated: 0,
+        dealsWon: 0,
+        dealValue: 0
       };
     }
 
+    // Populate leads
     leads.forEach((l: any) => {
       const d = new Date(l.createdAt);
       if (d.getFullYear() === year && d.getMonth() === month) {
         const day = d.getDate();
         if (dayMap[day]) {
-          dayMap[day].total += 1;
           const st = (l.status || 'new').toLowerCase();
           if (st.includes('contact')) {
             dayMap[day].contacted += 1;
@@ -142,11 +223,30 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
       }
     });
 
-    return Object.values(dayMap);
-  }, [leads]);
+    // Populate deals
+    deals.forEach((dl: any) => {
+      const d = new Date(dl.createdAt || dl.updatedAt);
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        const day = d.getDate();
+        if (dayMap[day]) {
+          const st = (dl.stage || dl.status || '').toLowerCase();
+          const val = Number(dl.value || dl.amount || 0);
 
-  // ── Status Distribution Donut Chart Data ───────────────────────────────────
-  const statusPieData = useMemo(() => {
+          if (st === 'closedwon' || st === 'won' || st === 'indelivery') {
+            dayMap[day].dealsWon += 1;
+          } else {
+            dayMap[day].dealsCreated += 1;
+          }
+          dayMap[day].dealValue += val;
+        }
+      }
+    });
+
+    return Object.values(dayMap);
+  }, [leads, deals]);
+
+  // ── Leads Stage Breakdown Donut Data ───────────────────────────────────────
+  const leadsPieData = useMemo(() => {
     const counts: Record<string, number> = {};
 
     const STAGE_LABELS: Record<string, string> = {
@@ -173,6 +273,46 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
     }
     return data;
   }, [leads]);
+
+  // ── Deals Stage Breakdown Donut Data ───────────────────────────────────────
+  const dealsPieData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    const DEAL_STAGE_LABELS: Record<string, string> = {
+      'discovery': 'Discovery',
+      'lead': 'Discovery',
+      'inbound': 'Discovery',
+      'proposalsent': 'Proposal Sent',
+      'proposal': 'Proposal Sent',
+      'negotiation': 'Negotiation',
+      'contractsigned': 'Contract Signed',
+      'contract': 'Contract Signed',
+      'indelivery': 'In Delivery / Won',
+      'closedwon': 'In Delivery / Won',
+      'won': 'In Delivery / Won',
+      'closedlost': 'Lost / Closed',
+      'lost': 'Lost / Closed'
+    };
+
+    deals.forEach((d: any) => {
+      const raw = (d.stage || d.status || 'discovery').toLowerCase().replace(/\s+/g, '');
+      const label = DEAL_STAGE_LABELS[raw] || (raw.charAt(0).toUpperCase() + raw.slice(1));
+      counts[label] = (counts[label] || 0) + 1;
+    });
+
+    const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
+    if (data.length === 0) {
+      return [{ name: 'No Deals', value: 1 }];
+    }
+    return data;
+  }, [deals]);
+
+  // Get active leads inflow count based on selected filter
+  const currentLeadInflow = useMemo(() => {
+    if (leadTimeRange === 'today') return metrics.today;
+    if (leadTimeRange === 'week') return metrics.week;
+    return metrics.month;
+  }, [leadTimeRange, metrics]);
 
   return (
     <div className="card overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-sm">
@@ -206,136 +346,172 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
       </div>
 
       <div className="p-4 sm:p-5 space-y-4">
-        {/* ── 1. COMPACT EXECUTIVE KPI METRICS BAR ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2">
-          {/* Today's Leads */}
-          <div className="p-2.5 bg-zinc-50/90 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-zinc-500">
-              <span>Today</span>
-              <span className="p-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600">
-                <Sparkles className="w-2.5 h-2.5" />
-              </span>
+        {/* ── 1. COMPRESSED DUAL PIPELINE KPI METRICS (LEADS & DEALS) ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2.5">
+          {/* CARD 1: Leads Inflow with Interactive Time Toggle */}
+          <div className="p-3 bg-zinc-50/90 dark:bg-zinc-800/50 rounded-xl border border-zinc-200/70 dark:border-zinc-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Leads Inflow</span>
+              {/* Inline Time Filter Toggle */}
+              <div className="flex items-center bg-zinc-200/60 dark:bg-zinc-700/60 p-0.5 rounded-md text-[9px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setLeadTimeRange('today')}
+                  className={clsx(
+                    "px-1.5 py-0.2 rounded transition-all cursor-pointer",
+                    leadTimeRange === 'today'
+                      ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-white"
+                  )}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadTimeRange('week')}
+                  className={clsx(
+                    "px-1.5 py-0.2 rounded transition-all cursor-pointer",
+                    leadTimeRange === 'week'
+                      ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-white"
+                  )}
+                >
+                  7D
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadTimeRange('month')}
+                  className={clsx(
+                    "px-1.5 py-0.2 rounded transition-all cursor-pointer",
+                    leadTimeRange === 'month'
+                      ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-white"
+                  )}
+                >
+                  Month
+                </button>
+              </div>
             </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              {loading ? <Skeleton className="h-5 w-8" /> : (
+            <div className="mt-1 flex items-baseline gap-1.5">
+              {loading ? <Skeleton className="h-6 w-10" /> : (
                 <>
-                  <span className="text-base font-bold text-zinc-900 dark:text-white tracking-tight">{metrics.today}</span>
-                  <span className="text-[9px] text-zinc-400 font-medium">today</span>
+                  <span className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">{currentLeadInflow}</span>
+                  <span className="text-[10px] text-zinc-400 font-medium">inbound ({leadTimeRange})</span>
                 </>
               )}
             </div>
           </div>
 
-          {/* This Week */}
-          <div className="p-2.5 bg-zinc-50/90 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-zinc-500">
-              <span>7 Days</span>
-              <span className="p-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600">
-                <Calendar className="w-2.5 h-2.5" />
-              </span>
+          {/* CARD 2: Leads Pipeline by Status */}
+          <div className="p-3 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-xl border border-indigo-100/70 dark:border-indigo-900/40 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
+              <span>Leads Status</span>
+              <Users className="w-3.5 h-3.5 text-indigo-500" />
             </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              {loading ? <Skeleton className="h-5 w-8" /> : (
+            <div className="mt-1.5 flex items-center justify-between text-xs">
+              <div>
+                <span className="font-extrabold text-indigo-700 dark:text-indigo-300">{metrics.newLeads}</span>
+                <span className="text-[9px] text-indigo-500/80 ml-0.5">New</span>
+              </div>
+              <span className="text-indigo-200 dark:text-indigo-800">•</span>
+              <div>
+                <span className="font-extrabold text-amber-600 dark:text-amber-400">{metrics.contacted}</span>
+                <span className="text-[9px] text-amber-500/80 ml-0.5">Contact</span>
+              </div>
+              <span className="text-indigo-200 dark:text-indigo-800">•</span>
+              <div>
+                <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{metrics.qualified}</span>
+                <span className="text-[9px] text-emerald-500/80 ml-0.5">Qual</span>
+              </div>
+            </div>
+          </div>
+
+          {/* CARD 3: Total Leads & Conversion Rate */}
+          <div className="p-3 bg-purple-50/40 dark:bg-purple-950/20 rounded-xl border border-purple-100/70 dark:border-purple-900/40 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-tight">
+              <span>Total Leads</span>
+              <TrendingUp className="w-3.5 h-3.5 text-purple-500" />
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              {loading ? <Skeleton className="h-6 w-12" /> : (
                 <>
-                  <span className="text-base font-bold text-zinc-900 dark:text-white tracking-tight">{metrics.week}</span>
-                  <span className="text-[9px] text-zinc-400 font-medium">week</span>
+                  <span className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">{metrics.totalLeads}</span>
+                  <span className="text-[10px] font-extrabold text-purple-700 dark:text-purple-300 bg-purple-100/80 dark:bg-purple-900/60 px-1.5 py-0.2 rounded">
+                    {metrics.cvr}% CVR
+                  </span>
                 </>
               )}
             </div>
           </div>
 
-          {/* This Month */}
-          <div className="p-2.5 bg-zinc-50/90 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-zinc-500">
-              <span>Month</span>
-              <span className="p-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
-                <Activity className="w-2.5 h-2.5" />
-              </span>
+          {/* CARD 4: Deals in Pipeline (Count + Total Value) */}
+          <div className="p-3 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-100/70 dark:border-blue-900/40 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-tight">
+              <span>Deals in Pipeline</span>
+              <Briefcase className="w-3.5 h-3.5 text-blue-500" />
             </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              {loading ? <Skeleton className="h-5 w-8" /> : (
+            <div className="mt-1 flex items-baseline justify-between gap-1">
+              {loading ? <Skeleton className="h-6 w-14" /> : (
                 <>
-                  <span className="text-base font-bold text-zinc-900 dark:text-white tracking-tight">{metrics.month}</span>
-                  <span className="text-[9px] text-zinc-400 font-medium">month</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">{metrics.activeDealsCount}</span>
+                    <span className="text-[10px] text-zinc-400 font-medium">deals</span>
+                  </div>
+                  <span className="text-[11px] font-black font-mono text-blue-700 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-900/60 px-1.5 py-0.2 rounded">
+                    {formatCurrency(metrics.totalPipelineValue)}
+                  </span>
                 </>
               )}
             </div>
           </div>
 
-          {/* New Leads */}
-          <div className="p-2.5 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-xl border border-indigo-100/60 dark:border-indigo-900/40 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
-              <span>New</span>
-              <span className="p-1 rounded-md bg-indigo-100/70 dark:bg-indigo-900/60 text-indigo-600">
-                <Users className="w-2.5 h-2.5" />
-              </span>
+          {/* CARD 5: Deals by Stage Breakdown */}
+          <div className="p-3 bg-teal-50/40 dark:bg-teal-950/20 rounded-xl border border-teal-100/70 dark:border-teal-900/40 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-tight">
+              <span>Deals in Stage</span>
+              <Layers className="w-3.5 h-3.5 text-teal-500" />
             </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              {loading ? <Skeleton className="h-5 w-8" /> : (
-                <>
-                  <span className="text-base font-bold text-indigo-600 dark:text-indigo-400 tracking-tight">{metrics.newLeads}</span>
-                  <span className="text-[9px] text-indigo-400/80 font-medium">inbound</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Contacted */}
-          <div className="p-2.5 bg-amber-50/40 dark:bg-amber-950/20 rounded-xl border border-amber-100/60 dark:border-amber-900/40 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-              <span>Contacted</span>
-              <span className="p-1 rounded-md bg-amber-100/70 dark:bg-amber-900/60 text-amber-600">
-                <PhoneCall className="w-2.5 h-2.5" />
-              </span>
-            </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              {loading ? <Skeleton className="h-5 w-8" /> : (
-                <>
-                  <span className="text-base font-bold text-amber-600 dark:text-amber-400 tracking-tight">{metrics.contacted}</span>
-                  <span className="text-[9px] text-amber-400/80 font-medium">in progress</span>
-                </>
-              )}
+            <div className="mt-1.5 flex items-center justify-between text-xs">
+              <div>
+                <span className="font-extrabold text-pink-600 dark:text-pink-400">{metrics.proposalDeals}</span>
+                <span className="text-[9px] text-pink-500/80 ml-0.5">Prop</span>
+              </div>
+              <span className="text-teal-200 dark:text-teal-800">•</span>
+              <div>
+                <span className="font-extrabold text-orange-600 dark:text-orange-400">{metrics.negotiationDeals}</span>
+                <span className="text-[9px] text-orange-500/80 ml-0.5">Negot</span>
+              </div>
+              <span className="text-teal-200 dark:text-teal-800">•</span>
+              <div>
+                <span className="font-extrabold text-cyan-600 dark:text-cyan-400">{metrics.contractDeals}</span>
+                <span className="text-[9px] text-cyan-500/80 ml-0.5">Signed</span>
+              </div>
             </div>
           </div>
 
-          {/* Qualified / Ongoing */}
-          <div className="p-2.5 bg-teal-50/40 dark:bg-teal-950/20 rounded-xl border border-teal-100/60 dark:border-teal-900/40 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-teal-600 dark:text-teal-400">
-              <span>Deals / Won</span>
-              <span className="p-1 rounded-md bg-teal-100/70 dark:bg-teal-900/60 text-teal-600">
-                <Zap className="w-2.5 h-2.5" />
-              </span>
+          {/* CARD 6: Deals Won & Closed Revenue */}
+          <div className="p-3 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl border border-emerald-100/70 dark:border-emerald-900/40 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight">
+              <span>Won Deals</span>
+              <Award className="w-3.5 h-3.5 text-emerald-500" />
             </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              {loading ? <Skeleton className="h-5 w-8" /> : (
+            <div className="mt-1 flex items-baseline justify-between gap-1">
+              {loading ? <Skeleton className="h-6 w-14" /> : (
                 <>
-                  <span className="text-base font-bold text-teal-600 dark:text-teal-400 tracking-tight">{metrics.qualified}</span>
-                  <span className="text-[9px] text-teal-400/80 font-medium">pipeline</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Total & CVR */}
-          <div className="p-2.5 bg-purple-50/40 dark:bg-purple-950/20 rounded-xl border border-purple-100/60 dark:border-purple-900/40 flex flex-col justify-between col-span-2 sm:col-span-2 xl:col-span-1">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-purple-600 dark:text-purple-400">
-              <span>Total / CVR</span>
-              <span className="p-1 rounded-md bg-purple-100/70 dark:bg-purple-900/60 text-purple-600">
-                <TrendingUp className="w-2.5 h-2.5" />
-              </span>
-            </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              {loading ? <Skeleton className="h-5 w-8" /> : (
-                <>
-                  <span className="text-base font-bold text-zinc-900 dark:text-white tracking-tight">{metrics.total}</span>
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">({metrics.cvr}%)</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">{metrics.wonDealsCount}</span>
+                    <span className="text-[10px] text-zinc-400 font-medium">won</span>
+                  </div>
+                  <span className="text-[11px] font-black font-mono text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/60 px-1.5 py-0.2 rounded">
+                    {formatCurrency(metrics.wonRevenue)}
+                  </span>
                 </>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── 2. INTERACTIVE LEAD VOLUME & STAGE INTELLIGENCE CARD ── */}
+        {/* ── 2. INTERACTIVE LEAD & DEAL VOLUME WITH DUAL STAGE INTELLIGENCE ── */}
         <div className="bg-zinc-50/60 dark:bg-zinc-800/40 rounded-xl border border-zinc-200/80 dark:border-zinc-800 p-3.5 space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-zinc-200/60 dark:border-zinc-800">
             <div className="flex items-center gap-2">
@@ -343,8 +519,8 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                 <BarChart3 className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Lead Volume & Stage Intelligence</h4>
-                <p className="text-[10px] text-zinc-400">Daily trajectory and Contacted vs. New lead distribution</p>
+                <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Sales & Deals Velocity</h4>
+                <p className="text-[10px] text-zinc-400">Combined trajectory and dual stage distribution for Leads & Deals</p>
               </div>
             </div>
 
@@ -378,7 +554,7 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                     chartView === 'status' ? "bg-indigo-50 dark:bg-zinc-700 text-indigo-600 dark:text-white font-bold" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                   )}
                 >
-                  Status Pie
+                  Stage Pies
                 </button>
               </div>
 
@@ -395,12 +571,12 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
 
           {!isChartsCollapsed && (
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 pt-1 animate-in fade-in duration-200">
-              {/* Daily Trend Area Graph */}
+              {/* Daily Trend Area & Line Chart (Combined Leads + Deals) */}
               {(chartView === 'both' || chartView === 'daily') && (
                 <div className={clsx("flex flex-col justify-between", chartView === 'both' ? "xl:col-span-7" : "xl:col-span-12")}>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-300 flex items-center gap-1">
-                      <Activity className="w-3 h-3 text-indigo-500" /> Daily Lead Volume (Current Month)
+                      <Activity className="w-3 h-3 text-indigo-500" /> Daily Inflow & Deal Conversion
                     </span>
                     <div className="flex items-center gap-2.5 text-[9px]">
                       <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -409,20 +585,26 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                       <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Contacted
                       </span>
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Deals
+                      </span>
+                      <span className="flex items-center gap-1 text-teal-600 dark:text-teal-400 font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span> Won
+                      </span>
                     </div>
                   </div>
 
-                  <div className="h-40 w-full">
+                  <div className="h-44 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={dailyChartData} margin={{ top: 5, right: 5, left: -28, bottom: 0 }}>
                         <defs>
                           <linearGradient id="dashboardNewLeadGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />
+                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.35} />
                             <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.0} />
                           </linearGradient>
-                          <linearGradient id="dashboardContactedGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
-                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                          <linearGradient id="dashboardDealsGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(150, 150, 150, 0.12)" />
@@ -440,13 +622,33 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                           axisLine={false}
                         />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                            borderRadius: '10px',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            fontSize: '11px',
-                            color: '#fff',
-                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              const d = payload[0].payload;
+                              return (
+                                <div className="bg-zinc-900/95 text-white p-2.5 rounded-xl border border-zinc-700 shadow-xl text-xs space-y-1 min-w-[140px]">
+                                  <p className="font-bold border-b border-zinc-800 pb-1 text-[11px] text-zinc-300">{d.dateStr}</p>
+                                  <div className="flex justify-between gap-3 text-indigo-400">
+                                    <span>New Leads:</span> <span className="font-bold">{d.newLeads}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-3 text-amber-400">
+                                    <span>Contacted:</span> <span className="font-bold">{d.contacted}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-3 text-emerald-400">
+                                    <span>Deals Created:</span> <span className="font-bold">{d.dealsCreated}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-3 text-teal-400">
+                                    <span>Deals Won:</span> <span className="font-bold">{d.dealsWon}</span>
+                                  </div>
+                                  {d.dealValue > 0 && (
+                                    <div className="flex justify-between gap-3 text-emerald-300 border-t border-zinc-800 pt-1 font-mono font-bold">
+                                      <span>Value:</span> <span>{formatCurrency(d.dealValue)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return null;
                           }}
                         />
                         <Area
@@ -463,9 +665,25 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                           dataKey="contacted"
                           name="Contacted"
                           stroke="#f59e0b"
+                          strokeWidth={1.5}
+                          fillOpacity={0}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="dealsCreated"
+                          name="Deals"
+                          stroke="#10b981"
                           strokeWidth={2}
                           fillOpacity={1}
-                          fill="url(#dashboardContactedGradient)"
+                          fill="url(#dashboardDealsGradient)"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="dealsWon"
+                          name="Won"
+                          stroke="#06b6d4"
+                          strokeWidth={2}
+                          fillOpacity={0}
                         />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -473,7 +691,7 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                 </div>
               )}
 
-              {/* Status Breakdown Donut/Pie Chart */}
+              {/* DUAL STAGE BREAKDOWN: LEADS PIE + DEALS PIE SIDE-BY-SIDE */}
               {(chartView === 'both' || chartView === 'status') && (
                 <div className={clsx(
                   "flex flex-col justify-between pt-3 xl:pt-0",
@@ -484,45 +702,115 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                       <PieChartIcon className="w-3 h-3 text-indigo-500" /> Stage Breakdown
                     </span>
                     <span className="text-[9px] text-zinc-400 font-mono">
-                      {metrics.total} leads
+                      {metrics.totalLeads} Leads • {metrics.totalDeals} Deals
                     </span>
                   </div>
 
-                  <div className="h-40 w-full flex items-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={statusPieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={30}
-                          outerRadius={54}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {statusPieData.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                            borderRadius: '10px',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            fontSize: '11px',
-                            color: '#fff'
-                          }}
-                        />
-                        <Legend
-                          layout="vertical"
-                          align="right"
-                          verticalAlign="middle"
-                          iconType="circle"
-                          iconSize={6}
-                          wrapperStyle={{ fontSize: '10px', lineHeight: '15px' }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
+                  {/* Dual Donut Charts Side-by-Side */}
+                  <div className="grid grid-cols-2 gap-2 h-44 items-center">
+                    {/* 1. LEADS DONUT */}
+                    <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-white/60 dark:bg-zinc-850/60 border border-zinc-200/60 dark:border-zinc-800/60 h-full">
+                      <div className="flex items-center justify-between w-full px-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                          Lead
+                        </span>
+                        <span className="text-[9px] font-bold text-zinc-400">
+                          {metrics.totalLeads}
+                        </span>
+                      </div>
+                      <div className="w-full h-24 relative">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={leadsPieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={22}
+                              outerRadius={40}
+                              paddingAngle={3}
+                              dataKey="value"
+                            >
+                              {leadsPieData.map((_, index) => (
+                                <Cell key={`lead-cell-${index}`} fill={LEAD_PIE_COLORS[index % LEAD_PIE_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                fontSize: '10px',
+                                color: '#fff'
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      {/* Mini Legend */}
+                      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 mt-1 text-[8px] text-zinc-500 font-semibold max-w-full truncate">
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#4f46e5]" /> New
+                        </span>
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" /> Contacted
+                        </span>
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" /> Qual
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. DEALS DONUT */}
+                    <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-white/60 dark:bg-zinc-850/60 border border-zinc-200/60 dark:border-zinc-800/60 h-full">
+                      <div className="flex items-center justify-between w-full px-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          Deal
+                        </span>
+                        <span className="text-[9px] font-bold text-zinc-400">
+                          {metrics.totalDeals}
+                        </span>
+                      </div>
+                      <div className="w-full h-24 relative">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={dealsPieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={22}
+                              outerRadius={40}
+                              paddingAngle={3}
+                              dataKey="value"
+                            >
+                              {dealsPieData.map((_, index) => (
+                                <Cell key={`deal-cell-${index}`} fill={DEAL_PIE_COLORS[index % DEAL_PIE_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                fontSize: '10px',
+                                color: '#fff'
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      {/* Mini Legend */}
+                      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 mt-1 text-[8px] text-zinc-500 font-semibold max-w-full truncate">
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#6366f1]" /> Disc
+                        </span>
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ec4899]" /> Prop
+                        </span>
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" /> Won
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

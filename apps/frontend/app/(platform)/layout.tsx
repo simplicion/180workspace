@@ -476,6 +476,9 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                             (item.appId === 'voiceforce') ||
                             (subItem.id === 'orbit-copilot') ||
                             (subItem.id === 'agent-requests') ||
+                            (subItem.id === 'bills-and-expenses' && (company.enabledModules.includes('expenses') || company.enabledModules.includes('bills-and-expenses'))) ||
+                            (subItem.id === 'expenses' && (company.enabledModules.includes('bills-and-expenses') || company.enabledModules.includes('expenses'))) ||
+                            (subItem.id === 'finance-overview' && (company.enabledModules.includes('finance') || company.enabledModules.includes('finance-overview'))) ||
                             company.enabledModules.includes(subItem.id) ||
                             company.enabledModules.includes(`${item.appId}-${subItem.id}`) ||
                             company.enabledModules.includes(subItem.id.replace(`${item.appId}-`, '')) ||

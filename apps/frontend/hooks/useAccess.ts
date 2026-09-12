@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 
-type ModuleName = 'hr' | 'finance' | 'sales' | 'recruitment' | 'projects' | 'admin' | 'inventory' | 'marketing' | 'customer_support';
+type ModuleName = 'hr' | 'finance' | 'sales' | 'projects' | 'admin' | 'inventory' | 'marketing' | 'customer_support';
 
 export function useAccess(moduleName: ModuleName) {
     const { user } = useAuth();
@@ -38,7 +38,7 @@ export function useAccess(moduleName: ModuleName) {
     const isLegacyManager = canManageTeam || canManageHr;
 
     return {
-        canRead: hasRead || defaultRead || (isLegacyManager && ['hr', 'recruitment', 'projects'].includes(moduleName)),
-        canWrite: hasWrite || defaultWrite || (isLegacyManager && ['hr', 'recruitment', 'projects'].includes(moduleName))
+        canRead: hasRead || defaultRead || (isLegacyManager && ['hr', 'projects'].includes(moduleName)),
+        canWrite: hasWrite || defaultWrite || (isLegacyManager && ['hr', 'projects'].includes(moduleName))
     };
 }

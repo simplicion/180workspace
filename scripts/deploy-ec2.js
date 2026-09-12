@@ -1,8 +1,7 @@
-/**
- * Automated Zero-Downtime AWS EC2 Direct Deployment
- * Triggered via AWS Systems Manager (SSM)
- */
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 const INSTANCE_ID = 'i-0faa8af91b9af8366';
 const REGION = 'us-east-1';
@@ -17,8 +16,8 @@ async function deploy() {
     'echo "==> Pulling latest Git changes..."',
     'git fetch origin main',
     'git reset --hard origin/main',
-    'echo "==> Pulling latest container images..."',
-    'docker compose pull',
+    'echo "==> Building and starting production containers..."',
+    'docker compose pull || true',
     'docker compose -f docker-compose.livekit.yml pull 2>/dev/null || true',
     'echo "==> Rolling restart containers..."',
     'docker compose up -d --force-recreate --remove-orphans',
@@ -30,15 +29,17 @@ async function deploy() {
     'echo "==> DEPLOYMENT COMPLETE! All services operational."'
   ];
 
-  const parameters = JSON.stringify({
-    commands: commands
-  });
+  const tmpParamsFile = path.join(os.tmpdir(), `ssm_params_${Date.now()}.json`);
+  fs.writeFileSync(tmpParamsFile, JSON.stringify({ commands }), 'utf-8');
 
   console.log('\n📡 Sending deployment commands to EC2 via AWS SSM...');
   
   try {
-    const sendCmd = `aws ssm send-command --instance-ids "${INSTANCE_ID}" --document-name "AWS-RunShellScript" --parameters "${parameters.replace(/"/g, '\\"')}" --region ${REGION} --profile ${PROFILE} --output json`;
-    const sendRes = JSON.parse(execSync(sendCmd, { encoding: 'utf-8' }));
+    const sendResRaw = execSync(
+      `aws ssm send-command --instance-ids "${INSTANCE_ID}" --document-name "AWS-RunShellScript" --parameters "file://${tmpParamsFile}" --region ${REGION} --profile ${PROFILE} --output json`,
+      { encoding: 'utf-8' }
+    );
+    const sendRes = JSON.parse(sendResRaw);
     
     const commandId = sendRes.Command.CommandId;
     console.log(`✅ Command dispatched successfully! Command ID: ${commandId}`);
@@ -61,11 +62,13 @@ async function deploy() {
           console.log(output);
           console.log('=================================================');
           console.log('\n🎉 Deployment Successful! Live server is running updated version.');
+          try { fs.unlinkSync(tmpParamsFile); } catch (_) {}
           return;
         } else if (status === 'Failed' || status === 'Cancelled' || status === 'TimedOut') {
           console.error(`❌ Deployment failed with status: ${status}`);
           console.error('STDOUT:', output);
           console.error('STDERR:', errorOutput);
+          try { fs.unlinkSync(tmpParamsFile); } catch (_) {}
           process.exit(1);
         } else {
           console.log(`Status: ${status}...`);
@@ -76,6 +79,7 @@ async function deploy() {
     }
   } catch (err) {
     console.error('Failed to dispatch SSM command:', err.message);
+    try { fs.unlinkSync(tmpParamsFile); } catch (_) {}
     process.exit(1);
   }
 }

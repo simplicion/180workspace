@@ -5,5 +5,3 @@ export * from './employee/employee.service';
 export * from './management/hr-management.service';
 export * from './payroll/payroll.service';
 export * from './performance/performance.service';
-export * from './recruitment/job.service';
-export * from './reviews/review.service';

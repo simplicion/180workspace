@@ -17,6 +17,7 @@ import FinancialTrajectory from '@/app/(platform)/(dashboard)/_components/Financ
 import CeoOverview from '@/app/(platform)/(dashboard)/_components/CeoOverview';
 import FinancialSnapshot from '@/app/(platform)/(dashboard)/_components/FinancialSnapshot';
 import OperationsOverview from '@/app/(platform)/(dashboard)/_components/OperationsOverview';
+import UpcomingTasksAndGoals from '@/app/(platform)/(dashboard)/_components/UpcomingTasksAndGoals';
 import TaskMonthAnalytics from '@/app/(platform)/(projects-and-tasks-app)/_components/TaskMonthAnalytics';
 import SalesActivityFeed from '@/app/(platform)/(dashboard)/_components/SalesActivityFeed';
 import SalesOverview from '@/app/(platform)/(dashboard)/_components/SalesOverview';
@@ -169,7 +170,7 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
             {/* 1. Executive Briefing */}
             <CeoOverview />
 
-            {/* 2. Operations & Financial Velocity (Urgent & Actionable) */}
+            {/* 2. Operations & Founder Focus: Upcoming Tasks, Goals & Tactical Notes */}
             <div className={clsx("grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
                 {hasHR ? (
                     <OperationsOverview stats={stats} getStatValue={getStatValue} getSubText={getSubText} />
@@ -178,16 +179,10 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                         <OperationsOverview stats={stats} getStatValue={getStatValue} getSubText={getSubText} isLocked={true} />
                     </FeatureLock>
                 )}
-                {hasFinance ? (
-                    <FinancialTrajectory />
-                ) : (
-                    <FeatureLock title="Financials Locked" description="Install the Finance app to view financial trajectory." className="min-h-[300px]">
-                        <FinancialTrajectory isLocked={true} />
-                    </FeatureLock>
-                )}
+                <UpcomingTasksAndGoals />
             </div>
 
-            {/* 3. Sales Pipeline (Lead Volume, Daily Trajectory & Stage Intelligence - Below Merged Operations) */}
+            {/* 3. Sales Pipeline (Lead Volume, Daily Trajectory & Stage Intelligence) */}
             <div className="mt-6">
                 {hasCRM ? (
                     <SalesOverview />
@@ -198,13 +193,20 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                 )}
             </div>
 
-            {/* 4. Sales Activity (Just below the Sales Pipeline) */}
-            <div className="mt-6">
+            {/* 4. Sales Activity & Financial Trajectory (Placed Side by Side) */}
+            <div className={clsx("mt-6 grid gap-6", isMobileView ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
                 {hasCRM ? (
                     <SalesActivityFeed />
                 ) : (
                     <FeatureLock title="Sales Activity Locked" description="Install the CRM app to view live sales activity." className="min-h-[300px]">
                         <SalesActivityFeed isLocked={true} />
+                    </FeatureLock>
+                )}
+                {hasFinance ? (
+                    <FinancialTrajectory />
+                ) : (
+                    <FeatureLock title="Financials Locked" description="Install the Finance app to view financial trajectory." className="min-h-[300px]">
+                        <FinancialTrajectory isLocked={true} />
                     </FeatureLock>
                 )}
             </div>
