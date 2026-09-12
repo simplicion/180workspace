@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { FinanceOverviewService } from '@workspace/finance';
+import { FinanceOverviewService, TransactionService } from '@workspace/finance';
 import { createNotification } from '@workspace/communications';
 
 export const getPLReport = async (req: Request, res: Response, next: NextFunction) => {
@@ -122,7 +122,6 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
 export const deleteTransaction = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
-        const { TransactionService } = await import('@workspace/finance');
         const result = await TransactionService.deleteTransaction(id);
         res.json(result);
     } catch (err) { next(err); }
@@ -131,7 +130,6 @@ export const deleteTransaction = async (req: Request, res: Response, next: NextF
 export const bulkDeleteTransactions = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body;
-        const { TransactionService } = await import('@workspace/finance');
         const result = await (TransactionService as any).deleteTransactions(ids);
         res.json(result);
     } catch (err) { next(err); }
