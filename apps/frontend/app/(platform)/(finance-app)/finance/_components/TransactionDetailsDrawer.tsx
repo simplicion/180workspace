@@ -64,13 +64,15 @@ export function TransactionDetailsDrawer({ transaction, open, onClose, onDeleted
 
     async function handleDelete() {
         setDeleting(true);
+        const targetId = transaction.rawId || transaction.id || transaction._id;
         try {
-            await api.delete(`/api/transactions/${transaction.id || transaction._id || transaction.rawId}`);
+            await api.delete(`/api/transactions/${encodeURIComponent(targetId)}`);
             toast.success('Transaction voided and deleted.');
             setShowDeleteModal(false);
             if (onDeleted) onDeleted();
             onClose();
         } catch (err) {
+            console.error('Failed to delete transaction:', err);
             toast.error('Failed to delete transaction');
         } finally {
             setDeleting(false);

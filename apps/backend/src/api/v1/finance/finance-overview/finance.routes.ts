@@ -17,6 +17,9 @@ router.post('/verify-bank', protect, requirePermission('can_manage_finance', 'ad
 router.post('/trigger-reminders', protect, requirePermission('can_manage_finance', 'admin'), ctrl.triggerReminders);
 
 router.get('/transactions', protect, requirePermission('can_manage_finance', 'admin'), ctrl.getTransactions);
+router.delete('/transactions/:id', protect, requirePermission('can_manage_finance', 'admin'), ctrl.deleteTransaction);
+router.post('/transactions/bulk-delete', protect, requirePermission('can_manage_finance', 'admin'), ctrl.bulkDeleteTransactions);
+router.delete('/transactions/bulk', protect, requirePermission('can_manage_finance', 'admin'), ctrl.bulkDeleteTransactions);
 router.get('/dashboard-stats', protect, requirePermission('can_manage_finance', 'admin'), ctrl.getDashboardStats);
 
 export default router;

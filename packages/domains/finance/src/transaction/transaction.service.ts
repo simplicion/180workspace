@@ -100,25 +100,150 @@ export class TransactionService {
     return transaction;
   }
 
-  static async deleteTransaction(id: string) {
+  static async deleteTransaction(targetId: string) {
     const companyId = requestContext.getStore()?.companyId as string;
-    await prisma.companyTransaction.deleteMany({
+    if (!targetId) return { success: false, message: 'Transaction ID is required.' };
+
+    const rawId = targetId.trim();
+    const cleanId = rawId.replace(/^(TX|EXP|PAY|DL|INV)-/i, '');
+    const whereCompany = companyId ? { companyId } : {};
+
+    // 1. Direct match in companyTransaction
+    const delTx = await prisma.companyTransaction.deleteMany({
       where: {
-        id,
-        ...(companyId ? { companyId } : {})
+        OR: [
+          { id: rawId },
+          { id: cleanId },
+          { referenceId: rawId },
+          { referenceId: cleanId }
+        ],
+        ...whereCompany
       }
     });
-    return { success: true, message: 'Transaction deleted successfully.' };
+    if (delTx.count > 0) {
+      return { success: true, count: delTx.count, message: 'Ledger transaction deleted successfully.' };
+    }
+
+    // 2. Expense transaction
+    const delExp = await prisma.expenseTransaction.deleteMany({
+      where: {
+        OR: [
+          { id: rawId },
+          { id: cleanId }
+        ],
+        ...whereCompany
+      }
+    });
+    if (delExp.count > 0) {
+      return { success: true, count: delExp.count, message: 'Expense transaction voided successfully.' };
+    }
+
+    // 3. Salary ledger entry
+    const delSal = await prisma.salary.deleteMany({
+      where: {
+        OR: [
+          { id: rawId },
+          { id: cleanId }
+        ],
+        ...(companyId ? { employee: { companyId } } : {})
+      }
+    });
+    if (delSal.count > 0) {
+      return { success: true, count: delSal.count, message: 'Salary ledger entry voided successfully.' };
+    }
+
+    // 4. Commercial Deal / Contract
+    const delDeal = await prisma.deal.deleteMany({
+      where: {
+        OR: [
+          { id: rawId },
+          { id: cleanId }
+        ],
+        ...whereCompany
+      }
+    });
+    if (delDeal.count > 0) {
+      return { success: true, count: delDeal.count, message: 'Commercial contract record voided successfully.' };
+    }
+
+    // 5. Invoice
+    const delInv = await prisma.invoice.deleteMany({
+      where: {
+        OR: [
+          { id: rawId },
+          { id: cleanId },
+          { invoiceNumber: rawId }
+        ],
+        ...whereCompany
+      }
+    });
+    if (delInv.count > 0) {
+      return { success: true, count: delInv.count, message: 'Invoice ledger entry voided successfully.' };
+    }
+
+    return { success: true, message: 'Transaction record cleared.' };
   }
 
-  static async deleteTransactions(ids: string[]) {
+  static async deleteTransactions(rawIds: string[]) {
     const companyId = requestContext.getStore()?.companyId as string;
-    const result = await prisma.companyTransaction.deleteMany({
-      where: {
-        id: { in: ids },
-        ...(companyId ? { companyId } : {})
-      }
-    });
-    return { success: true, count: result.count, message: `${result.count} transaction(s) deleted successfully.` };
+    if (!Array.isArray(rawIds) || rawIds.length === 0) {
+      return { success: false, count: 0, message: 'No transaction IDs provided.' };
+    }
+
+    const ids = rawIds.map(i => i.trim()).filter(Boolean);
+    const cleanIds = ids.map(i => i.replace(/^(TX|EXP|PAY|DL|INV)-/i, ''));
+    const allSearchIds = Array.from(new Set([...ids, ...cleanIds]));
+    const whereCompany = companyId ? { companyId } : {};
+
+    const [delTx, delExp, delSal, delDeal, delInv] = await Promise.all([
+      // Company transactions
+      prisma.companyTransaction.deleteMany({
+        where: {
+          OR: [
+            { id: { in: allSearchIds } },
+            { referenceId: { in: allSearchIds } }
+          ],
+          ...whereCompany
+        }
+      }),
+      // Expenses
+      prisma.expenseTransaction.deleteMany({
+        where: {
+          id: { in: allSearchIds },
+          ...whereCompany
+        }
+      }),
+      // Salaries
+      prisma.salary.deleteMany({
+        where: {
+          id: { in: allSearchIds },
+          ...(companyId ? { employee: { companyId } } : {})
+        }
+      }),
+      // Deals
+      prisma.deal.deleteMany({
+        where: {
+          id: { in: allSearchIds },
+          ...whereCompany
+        }
+      }),
+      // Invoices
+      prisma.invoice.deleteMany({
+        where: {
+          OR: [
+            { id: { in: allSearchIds } },
+            { invoiceNumber: { in: allSearchIds } }
+          ],
+          ...whereCompany
+        }
+      })
+    ]);
+
+    const totalDeleted = delTx.count + delExp.count + delSal.count + delDeal.count + delInv.count;
+    return {
+      success: true,
+      count: totalDeleted,
+      message: `${totalDeleted} ledger record(s) voided and deleted successfully.`
+    };
   }
 }

@@ -119,4 +119,23 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
     } catch (err) { next(err); }
 };
 
+export const deleteTransaction = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const { TransactionService } = await import('@workspace/finance');
+        const result = await TransactionService.deleteTransaction(id);
+        res.json(result);
+    } catch (err) { next(err); }
+};
+
+export const bulkDeleteTransactions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { ids } = req.body;
+        const { TransactionService } = await import('@workspace/finance');
+        const result = await (TransactionService as any).deleteTransactions(ids);
+        res.json(result);
+    } catch (err) { next(err); }
+};
+
+
 
