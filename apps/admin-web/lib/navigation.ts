@@ -78,7 +78,6 @@ export const navigation = [
             { id: 'employees', name: 'Employee Directory', href: '/dashboard/employees', icon: Users, roles: ['admin', 'hr', 'manager'] },
             { id: 'attendance', name: 'Attendance', href: '/dashboard/attendance', icon: Calendar, roles: ['admin', 'hr', 'manager'] },
             { id: 'hrms', name: 'HR Operations', href: '/dashboard/hr', icon: DollarSign, roles: ['admin', 'hr', 'manager'] },
-            { id: 'recruitment', name: 'Recruitment', href: '/dashboard/recruitment', icon: Briefcase, roles: ['admin', 'hr', 'manager'] },
         ]
     },
 
