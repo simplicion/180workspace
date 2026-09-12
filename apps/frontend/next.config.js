@@ -49,7 +49,7 @@ const nextConfig = {
                 destination: `${backendUrl}/p/:path*`,
             },
             {
-                source: '/api/:path*',
+                source: '/api/:path((?!auth(?:/|$)|check-company(?:/|$)|data(?:/|$)|empty-manifest(?:/|$)).*)',
                 destination: `${backendUrl}/api/:path*`,
             },
 
