@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { getCategoryById } from './categories';
 import { useSettings } from '@/lib/settings-context';
+import { ConfirmModal } from '@workspace/ui';
 
 interface TransactionDetailsDrawerProps {
     transaction: any | null;
@@ -44,6 +45,7 @@ function safeString(val: any, fallback = ''): string {
 export function TransactionDetailsDrawer({ transaction, open, onClose, onDeleted }: TransactionDetailsDrawerProps) {
     const { company } = useSettings();
     const [deleting, setDeleting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     if (!transaction) return null;
 
@@ -61,11 +63,11 @@ export function TransactionDetailsDrawer({ transaction, open, onClose, onDeleted
     };
 
     async function handleDelete() {
-        if (!confirm('Are you sure you want to void and delete this transaction record from the company ledger?')) return;
         setDeleting(true);
         try {
             await api.delete(`/api/transactions/${transaction.id || transaction._id || transaction.rawId}`);
             toast.success('Transaction voided and deleted.');
+            setShowDeleteModal(false);
             if (onDeleted) onDeleted();
             onClose();
         } catch (err) {
@@ -87,34 +89,35 @@ export function TransactionDetailsDrawer({ transaction, open, onClose, onDeleted
     );
 
     return (
-        <Drawer
-            open={open}
-            onClose={onClose}
-            title="Transaction Receipt & Ledger Entry"
-            description={`Audit record for #${(transaction.id || transaction._id || 'TXN').slice(-8).toUpperCase()}`}
-            icon={<Receipt className="w-5 h-5 text-indigo-600" />}
-            maxWidth="max-w-lg"
-            footer={
-                <div className="flex items-center justify-between w-full">
-                    <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={deleting}
-                        className="flex items-center gap-1.5 text-xs font-semibold py-2 px-3.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all shadow-xs"
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        {deleting ? 'Voiding...' : 'Void Transaction'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="btn-secondary text-sm py-2 px-4"
-                    >
-                        Done
-                    </button>
-                </div>
-            }
-        >
+        <>
+            <Drawer
+                open={open}
+                onClose={onClose}
+                title="Transaction Receipt & Ledger Entry"
+                description={`Audit record for #${(transaction.id || transaction._id || 'TXN').slice(-8).toUpperCase()}`}
+                icon={<Receipt className="w-5 h-5 text-indigo-600" />}
+                maxWidth="max-w-lg"
+                footer={
+                    <div className="flex items-center justify-between w-full">
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteModal(true)}
+                            disabled={deleting}
+                            className="flex items-center gap-1.5 text-xs font-semibold py-2 px-3.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all shadow-xs"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {deleting ? 'Voiding...' : 'Void Transaction'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="btn-secondary text-sm py-2 px-4"
+                        >
+                            Done
+                        </button>
+                    </div>
+                }
+            >
             <div className="px-6 py-5 space-y-6">
                 
                 {/* Hero Amount Banner */}
@@ -256,5 +259,19 @@ export function TransactionDetailsDrawer({ transaction, open, onClose, onDeleted
 
             </div>
         </Drawer>
+
+        <ConfirmModal
+            isOpen={showDeleteModal}
+            title="Void & Delete Transaction Entry"
+            message="Are you sure you want to void and delete this transaction record from the company master ledger? This action cannot be undone."
+            confirmText="Void & Delete"
+            cancelText="Cancel"
+            isDestructive={true}
+            variant="danger"
+            loading={deleting}
+            onConfirm={handleDelete}
+            onCancel={() => setShowDeleteModal(false)}
+        />
+    </>
     );
 }

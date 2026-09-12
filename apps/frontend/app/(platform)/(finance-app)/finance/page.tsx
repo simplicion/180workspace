@@ -39,7 +39,7 @@ import { useSettings } from '@/lib/settings-context';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, BulkActionBar } from "@workspace/ui";
 import CustomSelect from '@/components/ui/CustomSelect';
 
 // Interactive Drawers
@@ -155,6 +155,54 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
     const [openRecordTxDrawer, setOpenRecordTxDrawer] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
     const [selectedSalary, setSelectedSalary] = useState<any | null>(null);
+
+    // Bulk Action Selection State
+    const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+    const handleSelectAll = () => {
+        const allIds = transactions.map(t => (t.id || t._id || t.rawId) as string).filter(Boolean);
+        setSelectedTxIds(allIds);
+    };
+
+    const handleDeselectAll = () => {
+        setSelectedTxIds([]);
+    };
+
+    const toggleSelectTx = (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        setSelectedTxIds(prev => 
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAmount = (amount: number) => {
+        const ids = transactions.slice(0, amount).map(t => (t.id || t._id || t.rawId) as string).filter(Boolean);
+        setSelectedTxIds(ids);
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedTxIds.length === 0) return;
+        setIsBulkDeleting(true);
+        try {
+            try {
+                await api.post('/api/transactions/bulk-delete', { ids: selectedTxIds });
+            } catch {
+                await Promise.allSettled(
+                    selectedTxIds.map(id => api.delete(`/api/transactions/${id}`))
+                );
+            }
+            toast.success(`Successfully voided and deleted ${selectedTxIds.length} transaction(s).`);
+            setSelectedTxIds([]);
+            swrCacheRef.current.clear();
+            await fetchLedger(true);
+            await fetchStats();
+        } catch (err) {
+            toast.error('Failed to bulk delete selected transactions.');
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
 
     // SWR Cache for Instant UI Navigation
     const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
@@ -1131,7 +1179,28 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gray-50/60 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">DATE</th>
+                                    <th className="pl-6 pr-2 py-4 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={transactions.length > 0 && transactions.every(t => selectedTxIds.includes((t.id || t._id || t.rawId)!))}
+                                            ref={(el) => {
+                                                if (el) {
+                                                    const count = transactions.filter(t => selectedTxIds.includes((t.id || t._id || t.rawId)!)).length;
+                                                    el.indeterminate = count > 0 && count < transactions.length;
+                                                }
+                                            }}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    handleSelectAll();
+                                                } else {
+                                                    handleDeselectAll();
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                            aria-label="Select all transactions"
+                                        />
+                                    </th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">DATE</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">DESCRIPTION & CATEGORY</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">TYPE</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">COUNTERPARTY / REF</th>
@@ -1144,7 +1213,7 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-medium">
                                 {transactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-16 text-center">
+                                        <td colSpan={9} className="px-6 py-16 text-center">
                                             <div className="max-w-sm mx-auto space-y-3">
                                                 <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 mx-auto">
                                                     <History className="w-6 h-6" />
@@ -1164,17 +1233,34 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
                                     </tr>
                                 ) : (
                                     transactions.map((tx, idx) => {
+                                        const txId = (tx.id || tx._id || tx.rawId || `tx-${idx}`) as string;
+                                        const isSelected = selectedTxIds.includes(txId);
                                         const creditMovement = isCredit(tx);
                                         const partyName = tx.entityCompany || tx.entityName || tx.counterparty || tx.clientId?.company || tx.clientId?.name || 'Commercial Partner';
                                         const categoryLabel = tx.category || tx.referenceModel || 'General Ledger Entry';
 
                                         return (
                                             <tr 
-                                                key={tx.id || idx}
+                                                key={txId}
                                                 onClick={() => setSelectedTransaction(tx)}
-                                                className="hover:bg-gray-50/70 dark:hover:bg-gray-700/40 transition-colors group cursor-pointer"
+                                                className={clsx(
+                                                    "transition-colors group cursor-pointer",
+                                                    isSelected 
+                                                        ? "bg-indigo-50/70 dark:bg-indigo-950/40" 
+                                                        : "hover:bg-gray-50/70 dark:hover:bg-gray-700/40"
+                                                )}
                                             >
-                                                <td className="px-6 py-4">
+                                                <td className="pl-6 pr-2 py-4" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={(e) => toggleSelectTx(txId, e as any)}
+                                                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                        aria-label={`Select transaction ${txId}`}
+                                                    />
+                                                </td>
+
+                                                <td className="px-4 py-4">
                                                     <span className="text-xs font-bold text-gray-900 dark:text-white block">
                                                         {format(new Date(tx.createdAt), 'MMM dd, yyyy')}
                                                     </span>
@@ -1288,6 +1374,21 @@ export default function FinancialDashboard({ initialView }: FinancialDashboardPr
                     )}
                 </div>
             )}
+
+            {/* Floating Bulk Action Bar */}
+            <BulkActionBar
+                selectedCount={selectedTxIds.length}
+                totalCount={transactions.length}
+                itemLabel="transactions"
+                sublabel={selectedTxIds.length > 0 ? `${selectedTxIds.length} entry${selectedTxIds.length > 1 ? 's' : ''} selected` : undefined}
+                onSelectAll={handleSelectAll}
+                onDeselectAll={handleDeselectAll}
+                onSelectAmount={handleSelectAmount}
+                onDeleteSelected={handleBulkDelete}
+                isDeleting={isBulkDeleting}
+                deleteModalTitle={`Void & Delete ${selectedTxIds.length} Transaction${selectedTxIds.length > 1 ? 's' : ''}`}
+                deleteModalMessage={`Are you sure you want to permanently void and delete ${selectedTxIds.length} selected transaction record(s) from the company ledger? This double-entry ledger action cannot be undone.`}
+            />
 
             {/* Interactive Drawers */}
             <SalaryDetailDrawer
