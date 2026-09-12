@@ -3,7 +3,7 @@ import * as companyProfileController from '../controllers/company-profile.contro
 import * as companyOfferingsController from '../controllers/company-offerings.controller';
 import * as companyMediaController from '../controllers/company-media.controller';
 import * as companyCoreValuesController from '../controllers/company-core-values.controller';
-import { protect } from '../../../../system-configs/middleware/auth/auth';
+import { protect, optionalProtect } from '../../../../system-configs/middleware/auth/auth';
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ router.delete('/public/:id/follow', protect, companyProfileController.unfollowCo
 router.get('/public/:id/services/:offeringId', companyOfferingsController.getPublicOfferingDetails);
 router.post('/public/:id/services/:offeringId/request', companyOfferingsController.createOfferingRequest);
 router.get('/public/:id/reviews', companyProfileController.getReviews);
-router.post('/public/:id/reviews', protect, companyProfileController.addReview);
+router.post('/public/:id/reviews', optionalProtect, companyProfileController.addReview);
 
 // Protected routes for managing profile
 router.use(protect);

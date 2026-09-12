@@ -177,16 +177,19 @@ model CompanyCoreValue {
 }
 
 model CompanyPublicReview {
-  id          String   @id @default(uuid())
-  companyId   String
-  userId      String
-  rating      Float
-  title       String
-  description String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  company     Company  @relation("CompanyPublicReviews", fields: [companyId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id @default(uuid())
+  companyId     String
+  userId        String?
+  reviewerName  String?
+  reviewerEmail String?
+  isVerified    Boolean  @default(false)
+  rating        Float
+  title         String
+  description   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  company       Company  @relation("CompanyPublicReviews", fields: [companyId], references: [id], onDelete: Cascade)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([userId])

@@ -1,9 +1,13 @@
 "use client";
 
 import { LogoLoader } from "@workspace/ui";
-// Force recompile to bust Next.js cache - updated
-import React, { useState, useEffect } from 'react';
-import { Building, MapPin, Globe, Calendar, Users, DollarSign, TrendingUp, Trophy, ArrowRight, CheckCircle2, ChevronDown, Clock, Eye, Mail, Phone, Target, Briefcase, FileText, Map, Activity, MonitorSmartphone, Code, Cpu, BarChart, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+    Building, MapPin, Globe, Calendar, Users, DollarSign, 
+    Trophy, ArrowRight, CheckCircle2, ChevronDown, Clock, Eye, 
+    Mail, Phone, Target, Briefcase, FileText, Map, Activity, 
+    MonitorSmartphone, Code, Cpu, BarChart, ExternalLink, Camera, Upload, Sparkles
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
@@ -14,7 +18,7 @@ import { OverviewTab } from './OverviewTab';
 import { CompanyHeaderEditModal } from './CompanyHeaderEditModal';
 import { AboutTab } from './AboutTab';
 import { OfferingsTab } from './OfferingsTab';
-import { JobsTab } from './JobsTab';
+import ImageCropModal, { AspectRatioOption } from '@/components/shared/ImageCropModal';
 
 interface CompanyProfileUIProps {
     companyData: any;
@@ -23,10 +27,22 @@ interface CompanyProfileUIProps {
     onProfileUpdate?: () => void;
 }
 
+const BANNER_ASPECT_RATIOS: AspectRatioOption[] = [
+    { label: "3:1 Wide Banner", value: 3 / 1, description: "Best for Profile Header" },
+    { label: "16:9 Landscape", value: 16 / 9, description: "Standard Banner" },
+    { label: "4:1 Ultra-wide", value: 4 / 1, description: "Panoramic Header" },
+    { label: "2:1 Classic", value: 2 / 1, description: "Compact Banner" },
+];
+
+const LOGO_ASPECT_RATIOS: AspectRatioOption[] = [
+    { label: "1:1 Square / Circle", value: 1 / 1, description: "Standard Avatar / Logo" },
+    { label: "4:3 Standard", value: 4 / 3, description: "Classic Logo" },
+];
+
 export function CompanyProfileUI({ companyData, isLoading, isPublicView = false, onProfileUpdate }: CompanyProfileUIProps) {
     const currentUser = useSelector((state: any) => state.auth?.user);
 
-    const company = companyData || {
+    const [company, setCompany] = useState<any>(companyData || {
         name: 'Company Name',
         description: '',
         website: '',
@@ -34,23 +50,18 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
         foundedYear: '',
         teamSize: '',
         headquarters: '',
-    };
+    });
+
+    useEffect(() => {
+        if (companyData) {
+            setCompany(companyData);
+        }
+    }, [companyData]);
 
     let meta: any = {};
     try {
         meta = typeof company.metadata === 'string' ? JSON.parse(company.metadata) : (company.metadata || {});
     } catch (e) {}
-
-    let parsedSocials: any = {};
-    try {
-        parsedSocials = typeof company.socialLinks === 'string' ? JSON.parse(company.socialLinks) : (company.socialLinks || {});
-    } catch (e) {}
-
-    const teamSize = company.teamSize || '1-10';
-    const currentTeamSize = parseInt(teamSize.split('-')[1] || teamSize.split('-')[0] || '10');
-    const teamGrowthRate = currentTeamSize > 50 ? '+15%' : (currentTeamSize > 10 ? '+24%' : '+12%');
-    
-
 
     const router = useRouter();
     const pathname = usePathname();
@@ -62,6 +73,20 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
     const [isHeaderEditModalOpen, setIsHeaderEditModalOpen] = useState(false);
     const [imageError, setImageError] = useState(false);
     
+    // Direct Image Upload & Crop State
+    const bannerFileInputRef = useRef<HTMLInputElement>(null);
+    const logoFileInputRef = useRef<HTMLInputElement>(null);
+    const [cropModal, setCropModal] = useState<{
+        isOpen: boolean;
+        type: 'banner' | 'logo';
+        imageSrc: string;
+    }>({
+        isOpen: false,
+        type: 'banner',
+        imageSrc: '',
+    });
+    const [uploadingImage, setUploadingImage] = useState<'banner' | 'logo' | null>(null);
+
     // Follow functionality
     const { data: followStatus, isLoading: isFollowStatusLoading } = useGetFollowStatusQuery(company?.id, {
         skip: !isPublicView || !company?.id || !currentUser,
@@ -96,7 +121,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
 
     const setActiveMainTab = (tab: string) => {
         setActiveMainTabState(tab);
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams(searchParams?.toString() || '');
         params?.set('tab', tab);
         router.push(`${pathname}?${params?.toString()}`, { scroll: false });
     };
@@ -112,16 +137,103 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
         try {
             const res = await api.put(`/api/company-profile`, data);
             if (res.data) {
+                setCompany((prev: any) => ({ ...prev, ...data }));
+                toast.success('Company profile updated successfully!');
                 if (onProfileUpdate) {
                     onProfileUpdate();
-                } else {
-                    window.location.reload();
                 }
             }
         } catch (e: any) {
             console.error(e);
             toast.error(e?.response?.data?.message || 'Failed to update profile');
             throw e;
+        }
+    };
+
+    // Trigger file selection for banner
+    const handleBannerClick = () => {
+        if (isPublicView) return;
+        bannerFileInputRef.current?.click();
+    };
+
+    // Trigger file selection for logo
+    const handleLogoClick = () => {
+        if (isPublicView) return;
+        logoFileInputRef.current?.click();
+    };
+
+    const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>, type: 'banner' | 'logo') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Verify valid image type
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please select a valid image file');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            setCropModal({
+                isOpen: true,
+                type,
+                imageSrc: reader.result as string,
+            });
+        };
+        reader.readAsDataURL(file);
+        // Reset input value so same file can be re-selected if desired
+        e.target.value = '';
+    };
+
+    // Handle Cropped Image Upload
+    const handleCropComplete = async (croppedBlob: Blob) => {
+        const type = cropModal.type;
+        setCropModal(prev => ({ ...prev, isOpen: false }));
+        setUploadingImage(type);
+
+        const formData = new FormData();
+        const filename = `${type}_${Date.now()}.jpg`;
+        formData.append('file', croppedBlob, filename);
+
+        try {
+            const res = await api.post('/api/branding/logo', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            const uploadedUrl = res.data?.url;
+            if (!uploadedUrl) throw new Error('Upload did not return a valid URL');
+
+            if (type === 'banner') {
+                await handleHeaderSave({ bannerUrl: uploadedUrl });
+            } else {
+                await handleHeaderSave({ logoUrl: uploadedUrl });
+                setImageError(false);
+            }
+            toast.success(`${type === 'banner' ? 'Banner' : 'Logo'} updated successfully!`);
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err?.response?.data?.message || `Failed to upload ${type}`);
+        } finally {
+            setUploadingImage(null);
+        }
+    };
+
+    // Handle View Public Profile Navigation
+    const handleViewPublicProfile = () => {
+        const slug = company.slug || company.id;
+        if (!slug) {
+            toast.error('Workspace domain is not configured.');
+            return;
+        }
+
+        const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+        if (isLocal) {
+            // In local development, opening /sites/:slug guarantees direct public rendering
+            window.open(`/sites/${slug}`, '_blank', 'noopener,noreferrer');
+        } else {
+            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '180workspace.com';
+            const protocol = window.location.protocol || 'https:';
+            window.open(`${protocol}//${slug}.${rootDomain}`, '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -132,41 +244,141 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
             </div>
         );
     }
+
     const mainTabs = [
         'Overview',
         'About',
         'Offerings',
-        'Jobs'
     ];
+
+    const currentBannerUrl = company.bannerUrl || meta.bannerUrl;
 
     return (
         <div className="max-w-6xl mx-auto pb-12 bg-gray-50/50 min-h-screen w-full">
+            {/* Hidden File Inputs for Direct Banner & Logo Upload */}
+            <input 
+                type="file" 
+                ref={bannerFileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={(e) => handleFileChosen(e, 'banner')} 
+            />
+            <input 
+                type="file" 
+                ref={logoFileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={(e) => handleFileChosen(e, 'logo')} 
+            />
+
+            {/* Image Crop Modal with Aspect Ratio Selector */}
+            {cropModal.isOpen && (
+                <ImageCropModal
+                    imageSrc={cropModal.imageSrc}
+                    title={cropModal.type === 'banner' ? "Crop & Adjust Banner" : "Crop & Adjust Company Logo"}
+                    aspectRatio={cropModal.type === 'banner' ? 3 / 1 : 1 / 1}
+                    allowedRatios={cropModal.type === 'banner' ? BANNER_ASPECT_RATIOS : LOGO_ASPECT_RATIOS}
+                    cropShape={cropModal.type === 'banner' ? "rect" : "round"}
+                    onCropComplete={handleCropComplete}
+                    onClose={() => setCropModal(prev => ({ ...prev, isOpen: false }))}
+                />
+            )}
+
             <div className={`space-y-8 ${isPublicView ? 'p-0' : 'p-4 md:p-8'}`}>
                 {/* Header Banner & Profile */}
                 <div className={`bg-white shadow-sm overflow-hidden relative ${isPublicView ? 'border-y border-gray-200' : 'rounded-2xl border border-gray-200'}`}>
-                    <div className="h-32 md:h-48 bg-[#0a192f] w-full relative overflow-hidden">
-                        {/* Placeholder for banner image */}
-                        {(meta.bannerUrl || company.bannerUrl) ? (
-                            <img src={meta.bannerUrl || company.bannerUrl} alt="Banner" className="w-full h-full object-cover opacity-80 mix-blend-overlay" />
+                    
+                    {/* Banner Section with Direct Click to Upload & Hover Overlay */}
+                    <div 
+                        onClick={handleBannerClick}
+                        className={`h-36 sm:h-48 md:h-56 bg-[#0a192f] w-full relative overflow-hidden group ${!isPublicView ? 'cursor-pointer' : ''}`}
+                        title={!isPublicView ? "Click to change banner image" : undefined}
+                    >
+                        {/* Banner Image */}
+                        {currentBannerUrl ? (
+                            <img 
+                                src={currentBannerUrl} 
+                                alt="Company Banner" 
+                                className="w-full h-full object-cover opacity-90 transition-transform duration-300 group-hover:scale-105" 
+                            />
                         ) : (
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-900 to-indigo-900 opacity-90" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-950 via-indigo-900 to-slate-900 opacity-95" />
                         )}
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-15"></div>
+
+                        {/* Banner Hover Overlay for Admins */}
+                        {!isPublicView && (
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                <div className="px-4 py-2 bg-white/90 text-gray-900 font-semibold text-xs sm:text-sm rounded-full shadow-lg flex items-center space-x-2 transform translate-y-1 group-hover:translate-y-0 transition-transform">
+                                    {uploadingImage === 'banner' ? (
+                                        <LogoLoader className="w-4 h-4 animate-spin text-blue-600" />
+                                    ) : (
+                                        <Camera className="w-4 h-4 text-blue-600" />
+                                    )}
+                                    <span>{uploadingImage === 'banner' ? 'Uploading Banner...' : 'Click to Change Banner (Crop & Adjust)'}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Top-Right Quick Banner Button */}
+                        {!isPublicView && (
+                            <div className="absolute top-3 right-3 z-10">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleBannerClick();
+                                    }}
+                                    className="px-3 py-1.5 bg-black/50 hover:bg-black/75 text-white text-xs font-medium rounded-lg backdrop-blur-md transition-all flex items-center space-x-1.5 border border-white/20 shadow-sm"
+                                >
+                                    <Camera className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Edit Banner</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                     
                     <div className="px-4 md:px-8 pb-4 md:pb-8">
                         <div className="flex flex-col md:flex-row justify-between items-start">
-                            {/* Logo */}
-                            <div className="-mt-12 md:-mt-16 relative z-10 self-start">
-                                {company.logoUrl && !imageError ? (
-                                    <img src={company.logoUrl} alt="Logo" onError={() => setImageError(true)} className="h-24 w-24 md:h-32 md:w-32 rounded-full bg-white p-1 border-4 border-white shadow-md object-contain object-center" />
-                                ) : (
-                                    <div className="h-24 w-24 md:h-32 md:w-32 rounded-full bg-white border-4 border-white flex items-center justify-center shadow-md text-blue-600 text-4xl md:text-5xl font-bold">
-                                        {company.name ? company.name.charAt(0) : 'S'}
+                            
+                            {/* Logo with Click to Upload & Hover Overlay */}
+                            <div className="-mt-14 sm:-mt-16 md:-mt-20 relative z-10 self-start group">
+                                <div 
+                                    onClick={handleLogoClick}
+                                    className={`relative ${!isPublicView ? 'cursor-pointer' : ''}`}
+                                    title={!isPublicView ? "Click to change logo" : undefined}
+                                >
+                                    {company.logoUrl && !imageError ? (
+                                        <img 
+                                            src={company.logoUrl} 
+                                            alt="Logo" 
+                                            onError={() => setImageError(true)} 
+                                            className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 rounded-full bg-white p-1.5 border-4 border-white shadow-lg object-contain object-center transition-transform group-hover:scale-105" 
+                                        />
+                                    ) : (
+                                        <div className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-white flex items-center justify-center shadow-lg text-white text-3xl sm:text-4xl md:text-5xl font-extrabold transition-transform group-hover:scale-105">
+                                            {company.name ? company.name.charAt(0).toUpperCase() : 'S'}
+                                        </div>
+                                    )}
+
+                                    {/* Logo Hover Overlay */}
+                                    {!isPublicView && (
+                                        <div className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center border-4 border-white">
+                                            <div className="text-white text-center p-1">
+                                                {uploadingImage === 'logo' ? (
+                                                    <LogoLoader className="w-5 h-5 animate-spin mx-auto text-white" />
+                                                ) : (
+                                                    <Camera className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-white" />
+                                                )}
+                                                <span className="text-[10px] sm:text-xs font-semibold block mt-0.5">Edit Logo</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Verified Badge */}
+                                    <div className="absolute bottom-1 right-1 bg-green-500 rounded-full border-2 border-white p-1 shadow-sm">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                                     </div>
-                                )}
-                                <div className="absolute bottom-0 right-0 bg-green-500 rounded-full border-2 border-white p-1">
-                                    <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-white" />
                                 </div>
                             </div>
 
@@ -180,26 +392,28 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                     <Eye className="h-4 w-4 mr-2 text-indigo-600" />
                                     {meta.profileViews || '0'} Profile Views
                                 </div>
-                                {!isPublicView && company.slug && (
-                                    <a 
-                                        href={(() => {
-                                            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'localhost' : '180workspace.com');
-                                            const protocol = (typeof window !== 'undefined' && window.location.protocol === 'https:') || (rootDomain !== 'localhost' && !rootDomain.includes('127.0.0.1')) ? 'https://' : 'http://';
-                                            const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
-                                            return `${protocol}${company.slug}.${rootDomain}${port}`;
-                                        })()}
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs md:text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors shadow-sm"
-                                    >
-                                        <ExternalLink className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" /> View Public Profile
-                                    </a>
-                                )}
+
+                                {/* View Public Profile Button */}
                                 {!isPublicView && (
-                                    <button onClick={() => setIsHeaderEditModalOpen(true)} className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-white border border-gray-300 text-gray-700 text-xs md:text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                                    <button 
+                                        type="button"
+                                        onClick={handleViewPublicProfile}
+                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs md:text-sm font-semibold rounded-lg hover:bg-indigo-100 transition-colors shadow-sm cursor-pointer"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5" /> 
+                                        <span>View Public Profile</span>
+                                    </button>
+                                )}
+
+                                {!isPublicView && (
+                                    <button 
+                                        onClick={() => setIsHeaderEditModalOpen(true)} 
+                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-white border border-gray-300 text-gray-700 text-xs md:text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                                    >
                                         Edit Profile
                                     </button>
                                 )}
+
                                 {isPublicView && (!currentUser || currentUser.companyId !== company.id) && (
                                     <button 
                                         onClick={handleFollowToggle}
@@ -246,9 +460,6 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                         <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-gray-400" /> Founded {company.foundedDate ? new Date(company.foundedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Not provided'}
                                     </div>
                                     <div className="flex items-center">
-                                        <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-green-500" /> <span className="text-green-600 font-medium">{teamGrowthRate.startsWith('-') ? '↓' : '↑'} {teamGrowthRate.replace('-', '')} this year</span>
-                                    </div>
-                                    <div className="flex items-center">
                                         <Target className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-blue-500" /> <span className="text-gray-600 font-medium mr-1">Startup Stage:</span> {company.startupStage || 'Startup'}
                                     </div>
                                     <div className="flex items-center">
@@ -256,10 +467,8 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                         <span className="font-bold text-gray-900 mr-1.5">92/100</span>
                                         <span className="text-[10px] md:text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full font-medium">Top 5% Companies</span>
                                     </div>
-
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -281,7 +490,6 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                 {activeMainTab === 'Overview' && <OverviewTab company={company} isPublicView={isPublicView} onProfileUpdate={onProfileUpdate} />}
                 {activeMainTab === 'About' && <AboutTab company={company} isPublicView={isPublicView} onProfileUpdate={onProfileUpdate} />}
                 {activeMainTab === 'Offerings' && <OfferingsTab company={company} />}
-                {activeMainTab === 'Jobs' && <JobsTab company={company} />}
 
                 <CompanyHeaderEditModal 
                     company={company} 
@@ -293,25 +501,4 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
             </div>
         </div>
     );
-}
-
-// Custom icon for Sequoia
-function LeafIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
-      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
-    </svg>
-  );
 }

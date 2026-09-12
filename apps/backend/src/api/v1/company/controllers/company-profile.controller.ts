@@ -111,19 +111,47 @@ export const getReviews = async (req: Request, res: Response, next: NextFunction
         const data = await CompanyProfileService.getReviews(req.params.id);
         res.json({ success: true, data });
     } catch (error: any) {
-  next(error);
-}
+        next(error);
+    }
 };
 
 export const addReview = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = (req as any).user?._id || (req as any).user?.id;
-        const { rating, title, description } = req.body;
-        const data = await CompanyProfileService.addReview(req.params.id, userId, rating, title, description);
-        res.json({ success: true, data });
+        const authUser = (req as any).user;
+        const { rating, title, description, reviewerName, reviewerEmail } = req.body;
+
+        if (!rating || Number(rating) < 1 || Number(rating) > 5) {
+            return res.status(400).json({ success: false, message: 'Please provide a valid rating between 1 and 5 stars.' });
+        }
+        if (!title || !title.trim()) {
+            return res.status(400).json({ success: false, message: 'Review title is required.' });
+        }
+        if (!description || !description.trim()) {
+            return res.status(400).json({ success: false, message: 'Review description is required.' });
+        }
+
+        const data = await CompanyProfileService.addReview({
+            idOrSlug: req.params.id,
+            user: authUser ? {
+                id: authUser._id || authUser.id,
+                companyId: authUser.companyId,
+                name: authUser.name,
+                email: authUser.email
+            } : null,
+            reviewerName,
+            reviewerEmail,
+            rating: Number(rating),
+            title: title.trim(),
+            description: description.trim()
+        });
+
+        res.status(201).json({ success: true, data, message: 'Review submitted successfully.' });
     } catch (error: any) {
-  next(error);
-}
+        if (error.message?.includes('cannot submit reviews for their own company') || error.message?.includes('cannot review their own company')) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+        next(error);
+    }
 };
 
 export const getCompanyMilestones = async (req: Request, res: Response, next: NextFunction) => {
