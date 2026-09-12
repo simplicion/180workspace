@@ -14,7 +14,12 @@ export const hrApproveSalary = reviewSalary;
 
 export const getSalaries = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const salaries: any[] = []; // TODO: implement in SalaryService
+        const companyId = (req as any).user?.companyId;
+        const { month } = req.query;
+        const salaries = await SalaryService.getSalaries({
+            month: month as string,
+            companyId
+        });
         res.json({ success: true, salaries });
     } catch (err) { next(err); }
 };

@@ -60,10 +60,22 @@ export const getGoals = async (req: Request, res: Response, next: NextFunction) 
     try {
         const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
         const ownerId = (req as any).user?.id;
+        const companyId = (req as any).companyId || (req as any).user?.companyId;
+        const role = (req as any).user?.role;
         if (!ownerId) return res.status(401).json({ error: 'Unauthorized' });
 
+        const where: any = {};
+        if (['admin', 'manager', 'hr', 'super_admin'].includes(role)) {
+            if (companyId) where.companyId = companyId;
+        } else {
+            where.ownerId = ownerId;
+        }
+
         const goals = await prisma.goal.findMany({
-            where: { ownerId },
+            where,
+            include: {
+                owner: { select: { id: true, name: true, email: true } }
+            },
             take: limit,
             orderBy: { createdAt: 'desc' }
         });

@@ -2,7 +2,9 @@ import { prisma, requestContext } from '@workspace/db';
 
 export class TransactionService {
   static async getTransactions() {
+    const companyId = requestContext.getStore()?.companyId as string;
     const transactions = await prisma.companyTransaction.findMany({
+      where: companyId ? { companyId } : {},
       include: {
         client: { select: { name: true, company: true } },
         user: { select: { name: true, email: true } }
@@ -13,12 +15,13 @@ export class TransactionService {
   }
 
   static async getLedgerKPIs() {
+    const companyId = requestContext.getStore()?.companyId as string;
     const now = new Date();
     const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const firstDayPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
     const allTransactions = await prisma.companyTransaction.findMany({
-      where: { }
+      where: companyId ? { companyId } : {}
     });
 
     let currentMonthIn = 0, currentMonthOut = 0;
@@ -75,7 +78,9 @@ export class TransactionService {
 
   static async addTransaction(data: any) {
     const { type, amount, currency, metadata, provider, referenceModel, referenceId } = data;
-    const companyId = requestContext.getStore()?.companyId as string;
+    const companyId = data.companyId || (requestContext.getStore()?.companyId as string);
+
+    if (!companyId) throw new Error('Company ID is required to record a transaction.');
 
     const transaction = await prisma.companyTransaction.create({
       data: {
@@ -85,12 +90,24 @@ export class TransactionService {
         status: 'completed',
         provider: provider || 'manual',
         referenceModel: referenceModel || 'manual',
-        referenceId: referenceId || 'manual',
+        referenceId: referenceId || (metadata?.referenceId || `TX-${Date.now()}`),
         metadata: metadata || {},
-        companyId
+        companyId,
+        userId: data.userId || undefined
       }
     });
 
     return transaction;
+  }
+
+  static async deleteTransaction(id: string) {
+    const companyId = requestContext.getStore()?.companyId as string;
+    await prisma.companyTransaction.deleteMany({
+      where: {
+        id,
+        ...(companyId ? { companyId } : {})
+      }
+    });
+    return { success: true, message: 'Transaction deleted successfully.' };
   }
 }

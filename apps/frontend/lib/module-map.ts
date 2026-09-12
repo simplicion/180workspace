@@ -40,10 +40,17 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/reviews': { appId: 'hr', moduleId: 'reviews' },
   '/salary': { appId: 'hr', moduleId: 'salary', isShared: true }, // Needed by Finance
   
-  // Finance & Accounting
+  // Finance & Analytics
   '/finance': { appId: 'finance', moduleId: 'finance-overview' },
   '/transactions': { appId: 'finance', moduleId: 'transactions' },
+  '/invoices': { appId: 'crm', moduleId: 'invoices', isShared: true }, // Needed by Finance
+  '/bills-and-expenses': { appId: 'finance', moduleId: 'bills-and-expenses' },
   '/expenses': { appId: 'finance', moduleId: 'expenses' },
+  '/vendors': { appId: 'finance', moduleId: 'vendors' },
+  '/wallet': { appId: 'finance', moduleId: 'wallet' },
+  '/analytics': { appId: 'finance', moduleId: 'analytics' },
+  '/reports': { appId: 'finance', moduleId: 'reports' },
+  '/analytics/website': { appId: 'finance', moduleId: 'website-analytics' },
   
   // Communications App
   '/chat': { appId: 'communications', moduleId: 'chat' },
@@ -185,27 +192,22 @@ export const APPS_CONFIG: AppConfig[] = [
     },
     { 
         id: 'finance', 
-        name: 'Finance', 
-        icon: CreditCard, 
+        name: 'Finance & Analytics', 
+        icon: Landmark, 
         tag: 'Business',
-        description: 'Invoicing, Expenses, and Salary Ledgers',
+        description: 'Invoicing, expenses, financial ledger, and platform-wide analytics & reports',
         modules: [
-            { id: 'finance-overview', name: 'Finance Dashboard' },
+            { id: 'finance-overview', name: 'Finance Dashboard & Ledger' },
             { id: 'transactions', name: 'Transactions Ledger' },
             { id: 'invoices', name: 'Invoicing System' },
+            { id: 'bills-and-expenses', name: 'Bills & Expenses' },
             { id: 'expenses', name: 'Expense Tracking' },
+            { id: 'analytics', name: 'Platform Analytics' },
+            { id: 'reports', name: 'Reports Generator' },
+            { id: 'website-analytics', name: 'Website Traffic' },
+            { id: 'vendors', name: 'Vendor Directory' },
+            { id: 'wallet', name: 'Financial Wallet' },
             { id: 'salary', name: 'Salary Management' }
-        ]
-    },
-    { 
-        id: 'insights', 
-        name: 'Insights & Analytics', 
-        icon: ShieldCheck, 
-        tag: 'Analytics',
-        description: 'Deep data analytics and generated reports',
-        modules: [
-            { id: 'analytics', name: 'Unified Analytics' },
-            { id: 'reports', name: 'Report Generator' }
         ]
     },
     { 
@@ -263,13 +265,13 @@ export const APPS_CONFIG: AppConfig[] = [
 ];
 
 export const STARTER_SET = {
-    apps: ['crm', 'projects', 'hr', 'finance', 'insights', 'communications', 'workspace-tools', 'advertising', 'social-media'],
+    apps: ['crm', 'projects', 'hr', 'finance', 'communications', 'workspace-tools', 'advertising', 'social-media'],
     modules: [
         'sales', 'leads', 'pipeline', 'accounts', 'contacts', 'clients',
         'projects', 'tasks', 'work-logs',
         'employees', 'attendance', 'leaves', 'holidays',
-        'finance-overview', 'transactions', 'invoices', 'expenses',
-        'analytics', 'reports',
+        'finance-overview', 'transactions', 'invoices', 'bills-and-expenses', 'expenses', 'vendors', 'wallet',
+        'analytics', 'reports', 'website-analytics',
         'chat', 'meeting', 'emails', 
         'calendar', 'documents', 'assets', 'ai-assistant',
         'content-calendar', 'social-media-assets'
@@ -290,11 +292,9 @@ export const ALL_APPS = [
     { id: 'crm', name: 'CRM & Sales', description: 'Leads, deals, and customer relationship management.', icon: TrendingUp },
     { id: 'projects', name: 'Projects & Tasks', description: 'Project management, tasks, and time tracking.', icon: FolderKanban },
     { id: 'hr', name: 'Human Resources', description: 'Employee management, payroll, and attendance.', icon: Users },
-    { id: 'finance', name: 'Finance', description: 'Invoices, expenses, and financial reporting.', icon: Landmark },
+    { id: 'finance', name: 'Finance & Analytics', description: 'Financial ledgers, invoices, bills, expenses, and platform analytics.', icon: Landmark },
     { id: 'communications', name: 'Communications', description: 'Active, real-time internal and external communication.', icon: MessageSquare },
     { id: 'workspace-tools', name: 'Workspace Tools', description: 'Passive knowledge, resource management, and utilities.', icon: FolderOpen },
-
-    { id: 'insights', name: 'Insights & Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
     { id: 'social-media', name: 'Social Media Management', description: 'Content calendar, asset hub, and social post visualizer.', icon: Share2 },
     { id: 'traffic-director', name: 'Traffic Director', description: 'Smart routing, dynamic landing pages, and differential analytics.', icon: GitFork },

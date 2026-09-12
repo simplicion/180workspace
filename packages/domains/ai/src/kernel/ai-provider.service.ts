@@ -12,10 +12,20 @@ export interface AISettings {
     customAiModel?: string;
 }
 
+export interface ToolCallResponse {
+    text: string;
+    toolCalls?: Array<{
+        id?: string;
+        name: string;
+        args: Record<string, any>;
+    }>;
+}
+
 export interface AIClient {
     provider: string;
     generate: (prompt: string, options?: any) => Promise<string>;
     generateStream: (prompt: string, options?: any, onChunk?: (chunk: string) => void) => Promise<string>;
+    generateWithTools?: (prompt: string, tools: any[], options?: any) => Promise<ToolCallResponse>;
 }
 
 export class AIProviderService {
@@ -30,7 +40,7 @@ export class AIProviderService {
 
     /**
      * Instantiates an active LLM client from configured company settings.
-     * All providers now support both `generate` and `generateStream`.
+     * All providers now support `generate`, `generateStream`, and `generateWithTools`.
      */
     async getClient(settings: AISettings): Promise<AIClient | null> {
         if (!settings || !settings.aiProvider || settings.aiProvider === 'none') return null;
@@ -85,6 +95,51 @@ export class AIProviderService {
                             }
                         }
                         throw lastErr || new Error('All Gemini candidate models failed.');
+                    },
+                    generateWithTools: async (prompt: string, tools: any[] = [], options: any = {}) => {
+                        const generationConfig = options.max_tokens ? { maxOutputTokens: options.max_tokens } : {};
+                        const functionDeclarations = (tools || []).map((t: any) => ({
+                            name: t.function?.name || t.name,
+                            description: t.function?.description || t.description,
+                            parameters: t.function?.parameters || t.parameters || { type: 'object', properties: {} }
+                        }));
+
+                        let lastErr: any = null;
+                        for (const modelName of candidateModels) {
+                            try {
+                                const model = genAI.getGenerativeModel({
+                                    model: modelName,
+                                    tools: functionDeclarations.length > 0 ? [{ functionDeclarations }] : undefined,
+                                    generationConfig
+                                });
+                                const result = await model.generateContent(prompt);
+                                const response = result.response;
+                                
+                                let text = '';
+                                try {
+                                    text = response.text() || '';
+                                } catch (e) {
+                                    // Response may only contain function call parts
+                                    text = '';
+                                }
+
+                                const functionCalls = typeof response.functionCalls === 'function' ? response.functionCalls() : [];
+                                const toolCalls = (functionCalls || []).map((fc: any, idx: number) => ({
+                                    id: `gemini_${Date.now()}_${idx}`,
+                                    name: fc.name,
+                                    args: fc.args || {}
+                                }));
+
+                                return {
+                                    text,
+                                    toolCalls: toolCalls.length > 0 ? toolCalls : undefined
+                                };
+                            } catch (err) {
+                                lastErr = err;
+                            }
+                        }
+                        // Fallback to text generation if tool execution fails
+                        return { text: '' };
                     }
                 };
             }
@@ -122,6 +177,28 @@ export class AIProviderService {
                             if (onChunk && content) onChunk(content);
                         }
                         return text;
+                    },
+                    generateWithTools: async (prompt: string, tools: any[] = [], options: any = {}) => {
+                        const reqOptions: any = {
+                            messages: [{ role: 'user' as const, content: prompt }],
+                            model: options.model || 'gpt-4o',
+                            temperature: options.temperature || 0.2
+                        };
+                        if (tools && tools.length > 0) reqOptions.tools = tools;
+                        if (options.max_tokens) reqOptions.max_tokens = options.max_tokens;
+
+                        const completion = await openai.chat.completions.create(reqOptions);
+                        const msg = completion.choices[0]?.message;
+                        const toolCalls = (msg?.tool_calls || []).map((tc: any) => ({
+                            id: tc.id,
+                            name: tc.function?.name,
+                            args: typeof tc.function?.arguments === 'string' ? JSON.parse(tc.function.arguments || '{}') : (tc.function?.arguments || {})
+                        }));
+
+                        return {
+                            text: msg?.content || '',
+                            toolCalls: toolCalls.length > 0 ? toolCalls : undefined
+                        };
                     }
                 };
             }
@@ -159,6 +236,35 @@ export class AIProviderService {
                             }
                         }
                         return text;
+                    },
+                    generateWithTools: async (prompt: string, tools: any[] = [], options: any = {}) => {
+                        const claudeTools = tools.map((t: any) => ({
+                            name: t.function?.name || t.name,
+                            description: t.function?.description || t.description,
+                            input_schema: t.function?.parameters || t.parameters || { type: 'object', properties: {} }
+                        }));
+
+                        const reqOptions: any = {
+                            model: options.model || 'claude-3-5-sonnet-20240620',
+                            max_tokens: options.max_tokens || 1024,
+                            messages: [{ role: 'user' as const, content: prompt }]
+                        };
+                        if (claudeTools.length > 0) reqOptions.tools = claudeTools;
+
+                        const msg = await anthropic.messages.create(reqOptions);
+                        const textBlock = msg.content.find((c: any) => c.type === 'text') as any;
+                        const toolUseBlocks = msg.content.filter((c: any) => c.type === 'tool_use') as any[];
+
+                        const toolCalls = toolUseBlocks.map(tb => ({
+                            id: tb.id,
+                            name: tb.name,
+                            args: tb.input || {}
+                        }));
+
+                        return {
+                            text: textBlock?.text || '',
+                            toolCalls: toolCalls.length > 0 ? toolCalls : undefined
+                        };
                     }
                 };
             }
@@ -201,6 +307,28 @@ export class AIProviderService {
                             if (onChunk && content) onChunk(content);
                         }
                         return text;
+                    },
+                    generateWithTools: async (prompt: string, tools: any[] = [], options: any = {}) => {
+                        const reqOptions: any = {
+                            messages: [{ role: 'user' as const, content: prompt }],
+                            model: settings.customAiModel || options.model || 'default-model',
+                            temperature: options.temperature || 0.2
+                        };
+                        if (tools && tools.length > 0) reqOptions.tools = tools;
+                        if (options.max_tokens) reqOptions.max_tokens = options.max_tokens;
+
+                        const completion = await customOpenAI.chat.completions.create(reqOptions);
+                        const msg = completion.choices[0]?.message;
+                        const toolCalls = (msg?.tool_calls || []).map((tc: any) => ({
+                            id: tc.id,
+                            name: tc.function?.name,
+                            args: typeof tc.function?.arguments === 'string' ? JSON.parse(tc.function.arguments || '{}') : (tc.function?.arguments || {})
+                        }));
+
+                        return {
+                            text: msg?.content || '',
+                            toolCalls: toolCalls.length > 0 ? toolCalls : undefined
+                        };
                     }
                 };
             }

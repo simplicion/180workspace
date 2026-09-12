@@ -1,11 +1,12 @@
+import { AIRole } from '../control-plane/types/resource.types';
+export { AIRole };
+
 export interface ToolParameter {
     type: 'string' | 'number' | 'boolean' | 'array' | 'object';
     description: string;
     required?: boolean;
     enum?: string[];
 }
-
-export type AIRole = 'admin' | 'employee' | 'all';
 
 export interface AIToolExecutionContext {
     companyId?: string;

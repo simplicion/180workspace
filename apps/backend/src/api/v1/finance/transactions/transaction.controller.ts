@@ -35,10 +35,30 @@ export const addTransaction = async (req: Request, res: Response, next: NextFunc
             return res.status(403).json({ success: false, message: 'Unauthorized access.' });
         }
 
-        const transaction = await TransactionService.addTransaction(req.body);
+        const transaction = await TransactionService.addTransaction({
+            ...req.body,
+            companyId: (req as any).user.companyId,
+            userId: (req as any).user.id
+        });
 
         res.status(201).json({ success: true, data: transaction });
     } catch (error) {
         next(error);
     }
 };
+
+export const deleteTransaction = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        if (!(req as any).user || !(req as any).user.companyId) {
+            return res.status(403).json({ success: false, message: 'Unauthorized access.' });
+        }
+
+        const { id } = req.params;
+        const result = await TransactionService.deleteTransaction(id);
+
+        res.status(200).json({ success: true, message: result.message });
+    } catch (error) {
+        next(error);
+    }
+};
+

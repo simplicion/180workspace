@@ -41,15 +41,13 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/dashboard/reviews': { appId: 'hr', moduleId: 'reviews' },
   '/dashboard/salary': { appId: 'hr', moduleId: 'salary', isShared: true }, // Needed by Finance
   
-  // Finance & Accounting
+  // Finance & Analytics
   '/dashboard/finance': { appId: 'finance', moduleId: 'finance-overview' },
   '/dashboard/expenses': { appId: 'finance', moduleId: 'expenses' },
+  '/dashboard/analytics': { appId: 'finance', moduleId: 'analytics' },
+  '/dashboard/reports': { appId: 'finance', moduleId: 'reports' },
   
   '/dashboard/assets': { appId: 'assets', moduleId: 'assets' },
-  
-  // Insights & Analytics
-  '/dashboard/analytics': { appId: 'insights', moduleId: 'analytics' },
-  '/dashboard/reports': { appId: 'insights', moduleId: 'reports' },
   
   // Communication & Productivity Tools
   '/dashboard/chat': { appId: 'tools', moduleId: 'chat' },
@@ -143,13 +141,15 @@ export const APPS_CONFIG: AppConfig[] = [
     },
     { 
         id: 'finance', 
-        name: 'Finance', 
-        icon: CreditCard, 
-        description: 'Invoicing, Expenses, and Salary Ledgers',
+        name: 'Finance & Analytics', 
+        icon: Landmark, 
+        description: 'Invoicing, Expenses, Salary Ledgers, and Platform Analytics',
         modules: [
             { id: 'finance-overview', name: 'Finance Dashboard' },
             { id: 'invoices', name: 'Invoicing System' },
             { id: 'expenses', name: 'Expense Tracking' },
+            { id: 'analytics', name: 'Platform Analytics' },
+            { id: 'reports', name: 'Report Generator' },
             { id: 'salary', name: 'Salary Management' }
         ]
     },
@@ -160,16 +160,6 @@ export const APPS_CONFIG: AppConfig[] = [
         description: 'Track company assets and property',
         modules: [
             { id: 'assets', name: 'Asset Registry' }
-        ]
-    },
-    { 
-        id: 'insights', 
-        name: 'Insights & Analytics', 
-        icon: ShieldCheck, 
-        description: 'Deep data analytics and generated reports',
-        modules: [
-            { id: 'analytics', name: 'Unified Analytics' },
-            { id: 'reports', name: 'Report Generator' }
         ]
     },
     { 
@@ -190,7 +180,7 @@ export const APPS_CONFIG: AppConfig[] = [
 ];
 
 export const STARTER_SET = {
-    apps: ['crm', 'projects', 'hr', 'finance', 'insights', 'tools', 'advertising'],
+    apps: ['crm', 'projects', 'hr', 'finance', 'tools', 'advertising'],
     modules: [
         'sales', 'leads', 'pipeline', 'accounts', 'contacts', 'clients',
         'projects', 'tasks', 'work-logs',
@@ -215,11 +205,10 @@ export const ALL_APPS = [
     { id: 'crm', name: 'CRM & Sales', description: 'Leads, deals, and customer relationship management.', icon: TrendingUp },
     { id: 'projects', name: 'Projects & Tasks', description: 'Project management, tasks, and time tracking.', icon: FolderKanban },
     { id: 'hr', name: 'Human Resources', description: 'Employee management, payroll, and attendance.', icon: Users },
-    { id: 'finance', name: 'Finance', description: 'Invoices, expenses, and financial reporting.', icon: Landmark },
+    { id: 'finance', name: 'Finance & Analytics', description: 'Invoices, expenses, and platform analytics.', icon: Landmark },
     { id: 'assets', name: 'Assets', description: 'Track company assets.', icon: Package },
     { id: 'collaboration', name: 'Collaboration', description: 'Real-time chat and team communication.', icon: MessageSquare },
     { id: 'documents', name: 'Documents', description: 'Cloud storage and document management.', icon: FilePlus2 },
-    { id: 'insights', name: 'Insights & Analytics', description: 'Platform-wide insights and data visualization.', icon: BarChart3 },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
 ];
 

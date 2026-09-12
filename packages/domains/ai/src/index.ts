@@ -1,3 +1,9 @@
+// Orbit Control Plane Foundation (Resource Registry, Capabilities, Policy, DAG Reconciler)
+export * from './control-plane';
+
+// Domain Resource Providers (Projects, CRM, HRMS, Finance, Forms, Documents, Websites, Voiceforce)
+export * from './providers';
+
 // Kernel & Multi-Provider Engine
 export * from './kernel/ai-provider.service';
 export * from './kernel/ai-company-config.service';

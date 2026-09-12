@@ -13,8 +13,8 @@ import { format } from 'date-fns';
 import { ConfirmModal , LogoLoader } from "@workspace/ui";
 import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 
-import { CreateInvoiceDrawer } from './_components/CreateInvoiceDrawer';
 import { InvoiceViewDrawer } from './_components/InvoiceViewDrawer';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 const STATUS_STYLES: Record<string, { badge: string; label: string; icon: any }> = {
     draft: { badge: 'badge-gray', label: 'Draft', icon: FileText },
@@ -24,21 +24,16 @@ const STATUS_STYLES: Record<string, { badge: string; label: string; icon: any }>
     cancelled: { badge: 'badge-orange', label: 'Cancelled', icon: X },
 };
 
-
-
 export default function InvoicesPage() {
     const { user } = useAuth();
     const { company } = useSettings();
     const currencySymbol = company?.currencySymbol || '$';
     const [invoices, setInvoices] = useState<any[]>([]);
     const [viewInvoice, setViewInvoice] = useState<any>(null);
-    const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showCreate, setShowCreate] = useState(false);
     const [filterStatus, setFilterStatus] = useState('');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
-
 
     // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
     const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
@@ -48,7 +43,6 @@ export default function InvoicesPage() {
         const cached = swrCacheRef.current.get(cacheKey);
 
         if (cached) {
-            // Instant 0ms Paint
             setInvoices(cached.data || []);
             setLoading(false);
         } else {
@@ -72,7 +66,6 @@ export default function InvoicesPage() {
 
     useEffect(() => {
         loadInvoices();
-        api.get('/api/clients', { params: { limit: 200 } }).then(({ data }) => setClients(data.clients || []));
 
         // Track Visit (Phase 6)
         api.post('/api/user-preferences/recent', {
@@ -132,43 +125,67 @@ export default function InvoicesPage() {
     const totalPending = invoices.filter(i => i.status === 'sent').reduce((s, i) => s + i.totalAmount, 0);
 
     return (
-        <div>
-            <CreateInvoiceDrawer isOpen={showCreate} onClose={() => setShowCreate(false)} onSuccess={loadInvoices} clients={clients} />
+        <div className="space-y-6">
             {viewInvoice && (
                 <InvoiceViewDrawer invoice={viewInvoice} onClose={() => setViewInvoice(null)} />
             )}
 
-            <div className="page-header flex items-center justify-between">
+            {/* Header */}
+            <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="page-title">Invoice Management</h1>
-                    <p className="page-subtitle">{user?.role === 'client' ? 'View and pay your invoices' : 'Create and track client invoices'}</p>
+                    <h1 className="page-title">Invoice & Receivables Ledger</h1>
+                    <p className="page-subtitle">{user?.role === 'client' ? 'View and pay your client invoices' : 'Master invoice records synced from 180 Documents'}</p>
                 </div>
                 {user?.role !== 'client' && (
-                    <div className="flex items-center gap-2">
-                        <Link href="/document-editor?templateId=t-tax-invoice" className="btn-secondary flex items-center gap-1.5">
-                            <FileText className="w-4 h-4 text-indigo-600" /> Visual Invoice Editor
+                    <div className="flex items-center gap-3">
+                        <Link 
+                            href="/document-editor?templateId=t-tax-invoice" 
+                            className="btn-primary flex items-center gap-2 text-xs py-2.5 px-4 shadow-sm"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Create Invoice in 180 Documents
                         </Link>
-                        <button onClick={() => setShowCreate(true)} className="btn-primary">
-                            <Plus className="w-4 h-4" /> Quick Invoice
-                        </button>
                     </div>
                 )}
             </div>
 
+            {/* 180 Documents System Banner */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-white dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-gray-900 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
+                        <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                            Generated & Authored in 180 Documents
+                        </p>
+                        <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80">
+                            All company invoices are designed in 180 Documents and automatically recorded as Inflows (Money In) in the Master Ledger.
+                        </p>
+                    </div>
+                </div>
+                <Link
+                    href="/documents"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 flex items-center gap-1 flex-shrink-0"
+                >
+                    Browse Document Templates <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+            </div>
+
             {/* KPI */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                     { label: user?.role === 'client' ? 'Total Paid' : 'Paid Revenue', value: `${currencySymbol}${totalRevenue.toLocaleString('en-IN')}`, color: 'text-green-600', icon: Banknote, bg: 'bg-green-50' },
                     { label: user?.role === 'client' ? 'To Be Paid' : 'Outstanding', value: `${currencySymbol}${totalPending.toLocaleString('en-IN')}`, color: 'text-blue-600', icon: Send, bg: 'bg-blue-50' },
                     { label: 'Total Invoices', value: invoices.length, color: 'text-indigo-600', icon: FileText, bg: 'bg-indigo-50' },
                     { label: 'Overdue', value: invoices.filter(i => i.status === 'overdue').length, color: 'text-red-600', icon: AlertCircle, bg: 'bg-red-50' },
                 ].map(k => (
-                    <div key={k.label} className="card p-4 flex items-center gap-3">
+                    <div key={k.label} className="bg-white dark:bg-gray-800/80 p-4 rounded-xl border border-gray-100 dark:border-gray-700/60 shadow-sm flex items-center gap-3">
                         <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center', k.bg)}>
                             <k.icon className={clsx('w-5 h-5', k.color)} />
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-semibold uppercase">{k.label}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{k.label}</p>
                             <p className={clsx('text-xl font-black', k.color)}>{k.value}</p>
                         </div>
                     </div>
@@ -176,12 +193,12 @@ export default function InvoicesPage() {
             </div>
 
             {/* Filter */}
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
                 <Filter className="w-4 h-4 text-gray-400" />
                 {['', ...Object.keys(STATUS_STYLES)].map(s => (
                     <button key={s} onClick={() => setFilterStatus(s)}
                         className={clsx('px-3 py-1.5 rounded-full text-xs font-semibold transition-all',
-                            filterStatus === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                            filterStatus === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200')}>
                         {s === '' ? 'All' : STATUS_STYLES[s].label}
                     </button>
                 ))}
@@ -192,10 +209,16 @@ export default function InvoicesPage() {
                     <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
             ) : invoices.length === 0 ? (
-                <div className="text-center py-16">
-                    <FileText className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-gray-400 font-medium">No invoices yet</p>
-                    <p className="text-gray-300 text-sm mt-1">Create your first invoice</p>
+                <div className="text-center py-16 bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/60">
+                    <FileText className="w-12 h-12 text-gray-200 dark:text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">No invoices recorded yet</p>
+                    <p className="text-gray-400 text-xs mt-1">Generate your first tax invoice using 180 Documents.</p>
+                    <Link 
+                        href="/document-editor?templateId=t-tax-invoice"
+                        className="btn-primary mt-4 inline-flex items-center gap-2 text-xs py-2 px-4"
+                    >
+                        <Sparkles className="w-3.5 h-3.5" /> Launch 180 Documents Invoice Creator
+                    </Link>
                 </div>
             ) : (
                 <div className="card">

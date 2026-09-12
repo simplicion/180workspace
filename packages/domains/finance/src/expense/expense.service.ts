@@ -4,6 +4,10 @@ export class ExpenseService {
   static async getExpenses(user: any) {
     const query: any = { };
 
+    if (user?.companyId) {
+      query.companyId = user.companyId;
+    }
+
     // If not admin/finance, only show their own claims
     if (!['admin', 'manager', 'finance', 'super_admin'].includes(user.role)) {
       query.employeeId = user.id;

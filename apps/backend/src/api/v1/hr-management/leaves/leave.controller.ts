@@ -15,7 +15,8 @@ export const applyForLeave = async (req: Request, res: Response, next: NextFunct
 export const getLeaves = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { employeeId, status, month } = req.query;
-        const leaves = await LeaveService.getLeaves(employeeId as string, status as string, month as string, (req as any).user.role, (req as any).user.id);
+        const companyId = (req as any).companyId || (req as any).user?.companyId || (req.query?.companyId as string);
+        const leaves = await LeaveService.getLeaves(employeeId as string, status as string, month as string, (req as any).user.role, (req as any).user.id, companyId);
         res.json({ leaves });
     } catch (err) { next(err); }
 };

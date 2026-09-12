@@ -12,6 +12,7 @@ router.post('/invoices/:id/payment-link', protect, requirePermission('can_manage
 router.get('/invoices/:id/pdf', protect, ctrl.downloadInvoicePDF);
 
 router.post('/payouts/salary/:id', protect, requirePermission('can_manage_finance', 'admin'), ctrl.initiateSalaryPayout);
+router.post('/payouts', protect, requirePermission('can_manage_finance', 'admin'), ctrl.createPayout);
 router.post('/verify-bank', protect, requirePermission('can_manage_finance', 'admin'), ctrl.verifyBankAccount);
 router.post('/trigger-reminders', protect, requirePermission('can_manage_finance', 'admin'), ctrl.triggerReminders);
 

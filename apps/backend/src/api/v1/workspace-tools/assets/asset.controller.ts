@@ -3,7 +3,8 @@ import { AssetService } from '@workspace/workspace-tools';
 
 export const getAssets = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const assets = await AssetService.getAssets(req.query);
+        const companyId = (req as any).companyId || (req as any).user?.companyId || (req.query?.companyId as string);
+        const assets = await AssetService.getAssets({ ...req.query, companyId });
         res.json({ assets });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -12,7 +13,8 @@ export const getAssets = async (req: Request, res: Response, next: NextFunction)
 
 export const getAssetStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const stats = await AssetService.getAssetStats();
+        const companyId = (req as any).companyId || (req as any).user?.companyId || (req.query?.companyId as string);
+        const stats = await AssetService.getAssetStats(companyId);
         res.json(stats);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

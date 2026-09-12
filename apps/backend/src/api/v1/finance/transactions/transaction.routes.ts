@@ -8,5 +8,6 @@ const router = Router();
 router.get('/', protect, ctrl.getTransactions);
 router.get('/kpis', protect, ctrl.getLedgerKPIs);
 router.post('/', protect, ctrl.addTransaction);
+router.delete('/:id', protect, ctrl.deleteTransaction);
 
 export default router;
