@@ -99,14 +99,26 @@ export class CompanyRepository {
         });
     }
 
-    static async addReview(companyId: string, userId: string, rating: number, title: string, description: string) {
+    static async addReview(params: {
+        companyId: string;
+        userId?: string | null;
+        reviewerName?: string | null;
+        reviewerEmail?: string | null;
+        isVerified: boolean;
+        rating: number;
+        title: string;
+        description: string;
+    }) {
         return prisma.companyPublicReview.create({
             data: {
-                companyId,
-                userId,
-                rating: Number(rating),
-                title,
-                description
+                companyId: params.companyId,
+                userId: params.userId || null,
+                reviewerName: params.reviewerName || null,
+                reviewerEmail: params.reviewerEmail || null,
+                isVerified: params.isVerified,
+                rating: Number(params.rating),
+                title: params.title,
+                description: params.description
             },
             include: {
                 user: {

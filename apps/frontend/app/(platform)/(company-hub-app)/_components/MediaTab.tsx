@@ -7,9 +7,10 @@ import { useDeleteCompanyMediaMutation } from '@/redux/api/companyApi';
 interface TabProps {
     company: any;
     isOwner?: boolean;
+    onProfileUpdate?: () => void;
 }
 
-export function MediaTab({ company, isOwner = true }: TabProps) {
+export function MediaTab({ company, isOwner = true, onProfileUpdate }: TabProps) {
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [deleteMedia, { isLoading: isDeleting }] = useDeleteCompanyMediaMutation();
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -22,6 +23,9 @@ export function MediaTab({ company, isOwner = true }: TabProps) {
             setDeletingId(id);
             await deleteMedia(id).unwrap();
             setActiveDropdown(null);
+            if (onProfileUpdate) {
+                onProfileUpdate();
+            }
         } catch (error) {
             console.error('Failed to delete media', error);
         } finally {
@@ -36,6 +40,9 @@ export function MediaTab({ company, isOwner = true }: TabProps) {
                     isOpen={isUploadModalOpen} 
                     onClose={() => setIsUploadModalOpen(false)} 
                     companyId={company.id} 
+                    onMediaUploaded={() => {
+                        if (onProfileUpdate) onProfileUpdate();
+                    }}
                 />
             )}
             

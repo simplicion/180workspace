@@ -37,14 +37,67 @@ export class CompanyProfileService {
      */
     static async updatePrivateProfile(updateData: any) {
         const companyId = requestContext.getStore()?.companyId as string;
-        // Prevent changing core IDs and protected fields
-        delete updateData.id;
-        delete updateData.createdAt;
-        delete updateData.updatedAt;
-        delete updateData.stripeCustomerId;
-        delete updateData.subscriptionId;
+        if (!companyId) {
+            throw new Error('Company context required');
+        }
 
-        const updatedCompany = await CompanyRepository.update(companyId, updateData);
+        // Define allowed scalar and json fields on the Prisma Company model to prevent Prisma errors
+        const allowedFields = [
+            'name', 'slug', 'logoUrl', 'bannerUrl', 'oneLineDescription', 'industry',
+            'startupStage', 'teamSize', 'country', 'website', 'customDomain',
+            'foundedDate', 'companyType', 'tagline', 'headquarters', 'otherOffices',
+            'aboutUs', 'vision', 'mission', 'story', 'coreValues', 'socialLinks',
+            'productsBuilt', 'happyClients', 'countriesActive', 'awardsCount',
+            'topRecognition', 'companyHighlights', 'privacySettings', 'adminName',
+            'adminEmail', 'adminPhone', 'currency', 'currencySymbol', 'metadata'
+        ];
+
+        const sanitizedData: any = {};
+        for (const key of allowedFields) {
+            if (updateData[key] !== undefined) {
+                sanitizedData[key] = updateData[key];
+            }
+        }
+
+        // Handle tags -> tagline & metadata
+        if (updateData.tags !== undefined) {
+            let tagsArr = updateData.tags;
+            if (typeof tagsArr === 'string') {
+                try { tagsArr = JSON.parse(tagsArr); } catch(e) { tagsArr = [tagsArr]; }
+            }
+            if (Array.isArray(tagsArr)) {
+                sanitizedData.tagline = tagsArr.join(', ');
+            }
+        }
+
+        // Handle foundedDate
+        if (sanitizedData.foundedDate !== undefined) {
+            sanitizedData.foundedDate = sanitizedData.foundedDate ? new Date(sanitizedData.foundedDate) : null;
+        }
+
+        // Handle Json fields: socialLinks, companyHighlights, metadata, coreValues, privacySettings
+        const jsonFields = ['socialLinks', 'companyHighlights', 'metadata', 'coreValues', 'privacySettings'];
+        for (const field of jsonFields) {
+            if (sanitizedData[field] !== undefined) {
+                if (typeof sanitizedData[field] === 'string') {
+                    try {
+                        sanitizedData[field] = JSON.parse(sanitizedData[field]);
+                    } catch (e) {
+                        // Keep as is or ignore malformed JSON string
+                    }
+                }
+            }
+        }
+
+        // Handle string conversion for productsBuilt / happyClients if numbers are passed
+        if (sanitizedData.productsBuilt !== undefined && sanitizedData.productsBuilt !== null) {
+            sanitizedData.productsBuilt = String(sanitizedData.productsBuilt);
+        }
+        if (sanitizedData.happyClients !== undefined && sanitizedData.happyClients !== null) {
+            sanitizedData.happyClients = String(sanitizedData.happyClients);
+        }
+
+        const updatedCompany = await CompanyRepository.update(companyId, sanitizedData);
 
         return updatedCompany;
     }
@@ -204,7 +257,7 @@ export class CompanyProfileService {
     }
 
     /**
-     * Get public reviews
+     * Get public reviews with aggregated verified and total rating metrics
      */
     static async getReviews(idOrSlug: string) {
         const company = await CompanyRepository.findByIdOrSlug(idOrSlug);
@@ -215,20 +268,77 @@ export class CompanyProfileService {
 
         const reviews = await CompanyRepository.getReviews(company.id);
 
-        return reviews;
+        const verifiedReviews = reviews.filter((r: any) => r.isVerified);
+        const unverifiedReviews = reviews.filter((r: any) => !r.isVerified);
+
+        const verifiedCount = verifiedReviews.length;
+        const totalCount = reviews.length;
+        const unverifiedCount = unverifiedReviews.length;
+
+        const verifiedSum = verifiedReviews.reduce((sum: number, r: any) => sum + (r.rating || 0), 0);
+        const totalSum = reviews.reduce((sum: number, r: any) => sum + (r.rating || 0), 0);
+
+        const verifiedRating = verifiedCount > 0 ? Number((verifiedSum / verifiedCount).toFixed(1)) : 0;
+        const totalRating = totalCount > 0 ? Number((totalSum / totalCount).toFixed(1)) : 0;
+
+        return {
+            reviews,
+            stats: {
+                totalCount,
+                verifiedCount,
+                unverifiedCount,
+                verifiedRating,
+                totalRating,
+                primaryRating: verifiedCount > 0 ? verifiedRating : totalRating
+            }
+        };
     }
 
     /**
-     * Add review
+     * Add review with verification & self-review prevention
      */
-    static async addReview(idOrSlug: string, userId: string, rating: number, title: string, description: string) {
-        const company = await CompanyRepository.findByIdOrSlug(idOrSlug);
+    static async addReview(params: {
+        idOrSlug: string;
+        user?: { id: string; companyId?: string; name?: string; email?: string } | null;
+        reviewerName?: string;
+        reviewerEmail?: string;
+        rating: number;
+        title: string;
+        description: string;
+    }) {
+        const company = await CompanyRepository.findByIdOrSlug(params.idOrSlug);
 
         if (!company) {
             throw new Error('Company not found.');
         }
 
-        const newReview = await CompanyRepository.addReview(company.id, userId, rating, title, description);
+        const authUser = params.user;
+
+        // Restriction: Members/employees of the target company CANNOT review their own company
+        if (authUser && authUser.companyId && authUser.companyId === company.id) {
+            throw new Error('Company members and employees cannot submit reviews for their own company.');
+        }
+
+        // Determine if review is verified (authenticated user from outside this company)
+        const isVerified = Boolean(authUser && authUser.id);
+        const userId = isVerified ? authUser!.id : null;
+        const reviewerName = isVerified 
+            ? (authUser!.name || 'Verified User') 
+            : (params.reviewerName?.trim() || 'Anonymous Guest');
+        const reviewerEmail = isVerified 
+            ? authUser!.email 
+            : (params.reviewerEmail?.trim() || null);
+
+        const newReview = await CompanyRepository.addReview({
+            companyId: company.id,
+            userId,
+            reviewerName,
+            reviewerEmail,
+            isVerified,
+            rating: Number(params.rating),
+            title: params.title,
+            description: params.description
+        });
 
         return newReview;
     }

@@ -200,3 +200,40 @@ export function requirePermission(...permissions: string[]) {
 export function requireAdminOrHR(req: Request, res: Response, next: NextFunction) {
     return authorize('admin', 'can_manage_hr')(req, res, next);
 }
+
+/**
+ * Optional Protect — attaches req.user if valid token provided, otherwise proceeds as unauthenticated
+ */
+export async function optionalProtect(req: any, res: Response, next: NextFunction) {
+    try {
+        let token;
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        } else if (req.query.token) {
+            token = req.query.token as string;
+        }
+
+        if (!token) {
+            return next();
+        }
+
+        const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
+        if (!secret) return next();
+
+        const decoded: any = jwt.verify(token, secret);
+        const { prisma } = require('@workspace/db');
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.id }
+        });
+
+        if (user && user.isActive) {
+            req.user = user;
+            req.user.companyId = decoded.companyId || user.companyId;
+        }
+        next();
+    } catch (err) {
+        next();
+    }
+}
+

@@ -448,6 +448,38 @@ export class PublicService {
         }
 
         if (!registry) {
+            // Check if domain matches a company slug or ID directly (e.g. 'simplicion', 'workspace-slug')
+            const slugOrPrefix = lookupDomain.split('.')[0];
+            const directCompany = await prisma.company.findFirst({
+                where: {
+                    OR: [
+                        { slug: slugOrPrefix },
+                        { slug: lookupDomain },
+                        { id: slugOrPrefix },
+                        { id: lookupDomain }
+                    ]
+                },
+                include: {
+                    CompanyConfig: true,
+                    coreValueItems: true,
+                    offerings: true,
+                    media: true,
+                    investors: true
+                }
+            });
+
+            if (directCompany) {
+                if (directCompany.CompanyConfig) {
+                    delete (directCompany.CompanyConfig as any).companyPaymentConfig;
+                    delete (directCompany.CompanyConfig as any).stripeAccountId;
+                    delete (directCompany.CompanyConfig as any).paypalEmail;
+                }
+                return {
+                    type: 'COMPANY_PROFILE',
+                    payload: directCompany
+                };
+            }
+
             throw new Error(`Domain not found: ${lookupDomain}`);
         }
 

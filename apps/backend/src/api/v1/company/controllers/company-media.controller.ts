@@ -8,12 +8,13 @@ export const addMedia = async (req: Request, res: Response, next: NextFunction) 
             return res.status(400).json({ success: false, message: 'User does not belong to a company.' });
         }
 
-        const { imageUrl } = req.body;
-        const media = await CompanyMediaService.addMedia(imageUrl);
+        const { imageUrl, imageUrls } = req.body;
+        const target = imageUrls || imageUrl;
+        const media = await CompanyMediaService.addMedia(target, companyId);
         res.status(201).json({ success: true, data: media });
     } catch (error: any) {
-  next(error);
-}
+        next(error);
+    }
 };
 
 export const deleteMedia = async (req: Request, res: Response, next: NextFunction) => {

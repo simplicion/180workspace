@@ -133,13 +133,13 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
                             <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
                                 <Target className="h-3.5 w-3.5 mr-2" /> Specialties
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm leading-snug">{company.industry || 'Not provided'}</div>
+                            <div className="text-gray-900 font-medium pl-5 text-sm leading-snug">{company.tagline || company.industry || 'Not provided'}</div>
                         </div>
                         <div>
                             <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
                                 <Globe className="h-3.5 w-3.5 mr-2" /> Website
                             </div>
-                            <a href={company.website || '#'} className="text-blue-600 font-medium pl-5 text-sm hover:underline">{company.website || 'Not provided'}</a>
+                            <a href={company.website || '#'} target="_blank" rel="noreferrer" className="text-blue-600 font-medium pl-5 text-sm hover:underline">{company.website || 'Not provided'}</a>
                         </div>
                         <div>
                             <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
@@ -175,13 +175,13 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
                             <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
                                 <Briefcase className="h-3.5 w-3.5 mr-2" /> Products Built
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company._count?.products || '0'}</div>
+                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.productsBuilt || company._count?.products || '0'}</div>
                         </div>
                         <div>
                             <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
                                 <Users className="h-3.5 w-3.5 mr-2" /> Happy Clients
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company._count?.clients_CompanyClients || '0'}</div>
+                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.happyClients || company._count?.clients_CompanyClients || '0'}</div>
                         </div>
                         <div className="lg:col-span-2 xl:col-span-2">
                             <div className="flex items-center text-gray-500 text-xs mb-2 font-medium">
@@ -204,7 +204,7 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
                     
                     {/* Media Tab Component */}
                     <div className="mt-8">
-                        <MediaTab company={company} isOwner={!isPublicView} />
+                        <MediaTab company={company} isOwner={!isPublicView} onProfileUpdate={onProfileUpdate} />
                     </div>
                     
                     {/* Reviews Tab Component */}
