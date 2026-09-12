@@ -38,7 +38,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/dashboard/holidays': { appId: 'hr', moduleId: 'holidays' },
   '/dashboard/recruitment': { appId: 'hr', moduleId: 'recruitment' },
   '/dashboard/onboarding': { appId: 'hr', moduleId: 'onboarding' },
-  '/dashboard/reviews': { appId: 'hr', moduleId: 'reviews' },
   '/dashboard/salary': { appId: 'hr', moduleId: 'salary', isShared: true }, // Needed by Finance
   
   // Finance & Analytics
