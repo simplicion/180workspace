@@ -30,8 +30,8 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
         useCases: ['Maintain a digital employee directory with org charts', 'Track daily attendance and generate timesheets', 'Automate monthly payroll calculations', 'Run performance review cycles with 360-degree feedback']
     },
     finance: {
-        overview: 'Finance consolidates your financial operations — issue invoices, track expenses, manage vendor bills, and process salaries all in one place. Connects directly with the CRM and HR apps for data accuracy.',
-        useCases: ['Issue and track invoices to clients', 'Record and categorize company expenses', 'Process monthly salaries linked from HR data', 'Manage vendor payments and purchase orders']
+        overview: 'Finance & Analytics consolidates your financial operations and business intelligence — issue invoices, track expenses, manage vendor bills, process salaries, monitor real-time cash flow, and visualize platform-wide analytics & reports in one place.',
+        useCases: ['Issue and track invoices to clients', 'Record and categorize company expenses', 'Process monthly salaries linked from HR data', 'Generate comprehensive financial & operational reports', 'Analyze real-time business performance & website traffic']
     },
     assets: {
         overview: 'Assets tracks your company\'s digital and infrastructure assets. Keep a real-time ledger of domains, servers, and other digital property.',

@@ -6,7 +6,8 @@ import { useSettings } from '@/lib/settings-context';
 import api from '@/lib/api';
 import {
     Search, Plus, CheckCircle2, GripVertical, FileUp, Edit, Zap, ArrowRight,
-    Check, Trash2, ArrowRightLeft, MoreHorizontal, CheckSquare, Building, User, Phone, Mail
+    Check, Trash2, ArrowRightLeft, MoreHorizontal, CheckSquare, Building, User, Phone, Mail,
+    DollarSign, TrendingUp, Target, Briefcase, BarChart3, PieChart, Sparkles, Filter
 } from 'lucide-react';
 import { Skeleton, LogoLoader, ConfirmModal, BulkActionBar } from "@workspace/ui";
 import clsx from 'clsx';
@@ -49,14 +50,43 @@ const STAGE_LABELS: Record<string, string> = {
     'ClosedPaid': 'Closed Paid'
 };
 
-const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }> = {
-    'ContractPending': { color: 'border-amber-400', bg: 'bg-amber-50', badge: 'badge-amber' },
-    'ContractSigned': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
-    'InDelivery': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
-    'Invoiced': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
-    'ClosedPaid': { color: 'border-emerald-400', bg: 'bg-emerald-50', badge: 'badge-emerald' }
+const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string, valueBadge: string, dot: string }> = {
+    'ContractPending': { 
+        color: 'border-amber-400', 
+        bg: 'bg-amber-50/60 dark:bg-amber-950/20', 
+        badge: 'badge-amber',
+        valueBadge: 'text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/50 border-amber-300/70 dark:border-amber-800/60',
+        dot: 'bg-amber-500'
+    },
+    'ContractSigned': { 
+        color: 'border-blue-400', 
+        bg: 'bg-blue-50/60 dark:bg-blue-950/20', 
+        badge: 'badge-blue',
+        valueBadge: 'text-blue-800 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-900/50 border-blue-300/70 dark:border-blue-800/60',
+        dot: 'bg-blue-500'
+    },
+    'InDelivery': { 
+        color: 'border-indigo-400', 
+        bg: 'bg-indigo-50/60 dark:bg-indigo-950/20', 
+        badge: 'badge-indigo',
+        valueBadge: 'text-indigo-800 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/50 border-indigo-300/70 dark:border-indigo-800/60',
+        dot: 'bg-indigo-500'
+    },
+    'Invoiced': { 
+        color: 'border-purple-400', 
+        bg: 'bg-purple-50/60 dark:bg-purple-950/20', 
+        badge: 'badge-purple',
+        valueBadge: 'text-purple-800 dark:text-purple-300 bg-purple-100/80 dark:bg-purple-900/50 border-purple-300/70 dark:border-purple-800/60',
+        dot: 'bg-purple-500'
+    },
+    'ClosedPaid': { 
+        color: 'border-emerald-400', 
+        bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', 
+        badge: 'badge-emerald',
+        valueBadge: 'text-emerald-800 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/50 border-emerald-300/70 dark:border-emerald-800/60',
+        dot: 'bg-emerald-500'
+    }
 };
-
 
 export default function DealsPage() {
     const { user } = useAuth();
@@ -360,6 +390,39 @@ export default function DealsPage() {
         return 'ContractPending';
     };
 
+    // Executive Pipeline Metrics & Valuation
+    const totalPipelineValue = leads.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+    const totalDealsCount = leads.length;
+
+    const STAGE_PROBABILITIES: Record<string, number> = {
+        'ContractPending': 0.30,
+        'ContractSigned': 0.70,
+        'InDelivery': 0.90,
+        'Invoiced': 0.95,
+        'ClosedPaid': 1.00
+    };
+
+    const weightedPipelineValue = leads.reduce((sum, d) => {
+        const stage = normalizeStage(d.stage || d.status || 'ContractPending');
+        const prob = STAGE_PROBABILITIES[stage] ?? 0.5;
+        return sum + ((Number(d.value) || 0) * prob);
+    }, 0);
+
+    const activeExecutionDeals = leads.filter(d => {
+        const s = normalizeStage(d.stage || d.status || 'ContractPending');
+        return s === 'ContractSigned' || s === 'InDelivery';
+    });
+    const activeExecutionValue = activeExecutionDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+
+    const realizedDeals = leads.filter(d => {
+        const s = normalizeStage(d.stage || d.status || 'ContractPending');
+        return s === 'Invoiced' || s === 'ClosedPaid';
+    });
+    const realizedRevenue = realizedDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+
+    const averageDealValue = totalDealsCount > 0 ? Math.round(totalPipelineValue / totalDealsCount) : 0;
+    const highValueDeals = leads.filter(d => (Number(d.value) || 0) >= 20000 || (d.priorityScore || 0) >= 70);
+
     const grouped = STAGES.reduce((acc, stage) => {
         acc[stage] = filteredLeads.filter(deal => normalizeStage(deal.stage || deal.status || 'ContractPending') === stage);
         return acc;
@@ -404,6 +467,169 @@ export default function DealsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Executive Pipeline Metrics & Financial Valuation Bar */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
+                {/* 1. Total Active Pipeline */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Pipeline</span>
+                        <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50">
+                            <DollarSign className="w-3.5 h-3.5" />
+                        </span>
+                    </div>
+                    <div>
+                        <div className="text-xl lg:text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                            {currencySymbol}{totalPipelineValue.toLocaleString()}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                            <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-900/50">
+                                {totalDealsCount} {totalDealsCount === 1 ? 'Deal' : 'Deals'} Total
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. Weighted Pipeline Forecast */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Weighted Forecast</span>
+                        <span className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/50">
+                            <TrendingUp className="w-3.5 h-3.5" />
+                        </span>
+                    </div>
+                    <div>
+                        <div className="text-xl lg:text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                            {currencySymbol}{Math.round(weightedPipelineValue).toLocaleString()}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                            <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-md border border-amber-100 dark:border-amber-900/50">
+                                {totalPipelineValue > 0 ? Math.round((weightedPipelineValue / totalPipelineValue) * 100) : 0}% Realization Confidence
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. In Fulfillment / Delivery */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">In Execution</span>
+                        <span className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
+                            <Briefcase className="w-3.5 h-3.5" />
+                        </span>
+                    </div>
+                    <div>
+                        <div className="text-xl lg:text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                            {currencySymbol}{activeExecutionValue.toLocaleString()}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                            <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded-md border border-blue-100 dark:border-blue-900/50">
+                                {activeExecutionDeals.length} {activeExecutionDeals.length === 1 ? 'Deal' : 'Deals'} In Delivery
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 4. Realized / Invoiced */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Realized / Invoiced</span>
+                        <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                        </span>
+                    </div>
+                    <div>
+                        <div className="text-xl lg:text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                            {currencySymbol}{realizedRevenue.toLocaleString()}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-900/50">
+                                {realizedDeals.length} Settled / Paid
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 5. Average Deal Size (ACV) */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group col-span-2 md:col-span-1 lg:col-span-1">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-purple-500/10 to-transparent rounded-bl-full pointer-events-none" />
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Avg Deal Size</span>
+                        <span className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800/50">
+                            <BarChart3 className="w-3.5 h-3.5" />
+                        </span>
+                    </div>
+                    <div>
+                        <div className="text-xl lg:text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                            {currencySymbol}{averageDealValue.toLocaleString()}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                            <span className="inline-flex items-center gap-1 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 rounded-md border border-purple-100 dark:border-purple-900/50">
+                                {highValueDeals.length} High-Value (≥{currencySymbol}20k)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Visual Stage Distribution Bar */}
+            {totalPipelineValue > 0 && (
+                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs flex flex-col gap-2 shrink-0">
+                    <div className="flex items-center justify-between text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        <span className="flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>Pipeline Value Distribution</span>
+                        </span>
+                        <span className="text-gray-500 dark:text-gray-400 font-mono text-[11px]">
+                            100% = {currencySymbol}{totalPipelineValue.toLocaleString()}
+                        </span>
+                    </div>
+
+                    <div className="w-full h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden flex shadow-inner">
+                        {STAGES.map(stage => {
+                            const stageDeals = grouped[stage] || [];
+                            const stageValue = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+                            const percent = totalPipelineValue > 0 ? (stageValue / totalPipelineValue) * 100 : 0;
+                            if (percent <= 0) return null;
+
+                            const stageColor = STAGE_STYLES[stage]?.dot || 'bg-indigo-500';
+
+                            return (
+                                <div 
+                                    key={stage}
+                                    style={{ width: `${percent}%` }}
+                                    className={clsx(stageColor, "h-full transition-all duration-300 hover:brightness-110 cursor-pointer")}
+                                    title={`${STAGE_LABELS[stage] || stage}: ${currencySymbol}${stageValue.toLocaleString()} (${percent.toFixed(1)}%)`}
+                                />
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] pt-1">
+                        {STAGES.map(stage => {
+                            const stageDeals = grouped[stage] || [];
+                            const stageValue = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+                            const percent = totalPipelineValue > 0 ? (stageValue / totalPipelineValue) * 100 : 0;
+                            const stageColor = STAGE_STYLES[stage]?.dot || 'bg-indigo-500';
+
+                            return (
+                                <div key={stage} className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                                    <span className={clsx("w-2 h-2 rounded-full", stageColor)} />
+                                    <span>{STAGE_LABELS[stage] || stage}:</span>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200 font-mono">
+                                        {currencySymbol}{stageValue.toLocaleString()}
+                                    </span>
+                                    <span className="text-gray-400 text-[10px]">({percent.toFixed(0)}%)</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Info Banner */}
             <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-3 flex items-center justify-between gap-3 text-xs text-emerald-800 dark:text-emerald-300 shrink-0">
@@ -451,6 +677,7 @@ export default function DealsPage() {
                                 title={STAGE_LABELS[stage]}
                                 deals={grouped[stage]}
                                 selectedDealIds={selectedDealIds}
+                                currencySymbol={currencySymbol}
                                 onToggleSelect={handleToggleSelectDeal}
                                 onToggleStageSelect={() => handleToggleStageSelection(stage)}
                                 onDelete={(id) => setDeletingId(id)}
@@ -538,6 +765,7 @@ interface ColumnProps {
     title: string;
     deals: any[];
     selectedDealIds: string[];
+    currencySymbol?: string;
     onToggleSelect: (id: string) => void;
     onToggleStageSelect: () => void;
     onDelete: (id: string) => void;
@@ -548,6 +776,7 @@ function Column({
     title, 
     deals, 
     selectedDealIds, 
+    currencySymbol = '$',
     onToggleSelect, 
     onToggleStageSelect, 
     onDelete 
@@ -559,7 +788,8 @@ function Column({
             stage: id,
         },
     });
-    const styles = STAGE_STYLES[id] || STAGE_STYLES['new'];
+    const styles = STAGE_STYLES[id] || STAGE_STYLES['ContractPending'];
+    const stageTotalValue = deals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
     const allInStageSelected = deals.length > 0 && deals.every(o => selectedDealIds.includes(o.id));
     const someInStageSelected = deals.some(o => selectedDealIds.includes(o.id));
@@ -574,8 +804,8 @@ function Column({
                 isOver && 'ring-2 ring-indigo-500 bg-indigo-50/80 shadow-md'
             )}
         >
-            <div className="flex items-center justify-between mb-3 shrink-0">
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mb-3 shrink-0 gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
                     {deals.length > 0 && (
                         <button
                             type="button"
@@ -588,7 +818,7 @@ function Column({
                         >
                             <span className={clsx(
                                 "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 bg-white"
+                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                             )}>
                                 {allInStageSelected ? (
                                     <Check className="w-3 h-3 stroke-[3]" />
@@ -598,8 +828,12 @@ function Column({
                             </span>
                         </button>
                     )}
-                    <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">{title}</span>
-                    <span className={clsx('badge text-xs', styles.badge)}>{deals.length}</span>
+                    <span className="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">{title}</span>
+                    <span className={clsx('badge text-[11px] px-1.5 py-0.5 font-bold', styles.badge)}>{deals.length}</span>
+                </div>
+
+                <div className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-lg border shadow-2xs shrink-0', styles.valueBadge)}>
+                    {currencySymbol}{stageTotalValue.toLocaleString()}
                 </div>
             </div>
 

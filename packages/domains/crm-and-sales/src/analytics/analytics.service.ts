@@ -284,32 +284,26 @@ static async getDashboardMetrics(userId, timeframe = 'month') {
             this.detectChurnStagnation().catch(() => null),
             this.detectStagnantOpportunities(14).catch(() => null),
             prisma.lead.count({ where: { deletedAt: null, status: { not: 'converted' }, ...dateFilter } }).catch(() => 0),
-            prisma.deal.count({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) } }).catch(() => 0),
-            Account.count({ where: dateFilter }).catch(() => 0),
-            prisma.deal.aggregate({ where: { stage: 'ClosedWon', ...(startDate ? { expectedCloseDate: { gte: startDate } } : {}) }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
+            prisma.deal.count({ where: { stage: { notIn: ['ClosedLost', 'lost'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) } }).catch(() => 0),
+            prisma.client.count().catch(() => 0),
+            prisma.deal.aggregate({ where: { stage: { in: ['ClosedWon', 'ClosedPaid', 'InDelivery', 'ContractSigned', 'Invoiced'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
             SalesActivity.findMany({ 
-                where: {
-                    ...activityDateFilter,
-                    OR: [
-                        { dealId: null },
-                        { deal: { deletedAt: null } }
-                    ]
-                },
+                where: activityDateFilter,
                 orderBy: { timestamp: 'desc' }, 
                 take: 10,
                 include: {
                     owner: { select: { id: true, name: true, email: true } },
-                    lead: { select: { id: true, title: true, source: true } },
-                    deal: { select: { id: true, name: true, companyName: true, source: true } },
-                    relatedClient: { select: { id: true, name: true, company: true } }
+                    lead: { select: { id: true, name: true, source: true } },
+                    deal: { select: { id: true, title: true, source: true, value: true } },
+                    relatedClient: { select: { id: true, name: true, companyName: true } }
                 }
             }).catch(() => []),
             prisma.lead.count({ where: { deletedAt: null, status: { in: ['new', 'pending', 'Lead'] }, ...dateFilter } }).catch(() => 0),
             prisma.lead.count({ where: { deletedAt: null, status: { in: ['Contacted', 'Qualified', 'Demo', 'Proposal', 'Negotiation'] }, ...dateFilter } }).catch(() => 0),
-            prisma.deal.count({ where: dateFilter }).catch(() => 0),
-            prisma.deal.count({ where: { stage: 'ClosedWon', ...oppDateFilter } }).catch(() => 0),
-            prisma.lead.aggregate({ where: { deletedAt: null, status: { notIn: ['ClosedLost', 'lost', 'rejected', 'archived', 'converted', 'ClosedWon'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
-            prisma.deal.aggregate({ where: { stage: { notIn: ['ClosedWon', 'ClosedLost'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => [])
+            prisma.deal.count({ where: (startDate ? { createdAt: { gte: startDate } } : {}) }).catch(() => 0),
+            prisma.deal.count({ where: { stage: { in: ['ClosedWon', 'ClosedPaid', 'InDelivery', 'ContractSigned'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) } }).catch(() => 0),
+            prisma.lead.aggregate({ where: { deletedAt: null, status: { notIn: ['ClosedLost', 'lost', 'rejected', 'archived'] }, ...dateFilter }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => []),
+            prisma.deal.aggregate({ where: { stage: { notIn: ['ClosedLost', 'lost'] }, ...(startDate ? { createdAt: { gte: startDate } } : {}) }, _sum: { value: true } }).then(res => [{ total: res._sum?.value || 0 }]).catch(() => [])
         ]);
 
         const wonRevenue = wonRevenueAggr.length ? wonRevenueAggr[0].total : 0;
@@ -321,15 +315,11 @@ static async getDashboardMetrics(userId, timeframe = 'month') {
             recommendations = await SalesTask.findMany({
                 where: { 
                     assignedTo: userId, 
-                    status: 'pending',
-                    OR: [
-                        { dealId: null },
-                        { deal: { deletedAt: null } }
-                    ]
+                    status: 'pending'
                 },
                 include: {
-                    lead: { select: { title: true, value: true } },
-                    deal: { select: { name: true, companyName: true } }
+                    lead: { select: { name: true, value: true } },
+                    deal: { select: { title: true, value: true } }
                 },
                 orderBy: { dueDate: 'asc' },
                 take: 5
@@ -534,23 +524,25 @@ static async getRevenueStats(timeframe = 'all') {
         };
     }
 
-static async calculateFunnelConversion() {
-        const totalLeads = await prisma.lead.count() || 1;
+    static async calculateFunnelConversion() {
+        const totalLeads = await prisma.lead.count({ where: { deletedAt: null } }) || 1;
         const qualifiedLeads = await prisma.lead.count({
-            where: { status: { in: ['qualified', 'converted'] } }
+            where: { deletedAt: null, status: { in: ['Qualified', 'qualified', 'converted', 'Demo', 'ClosedWon'] } }
         });
 
-        const totalProposals = await prisma.deal.count({
-            where: { stage: { in: ['Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'] } }
-        }) || 1;
+        const totalDeals = await prisma.deal.count() || 1;
         const wonDeals = await prisma.deal.count({
-            where: { stage: 'ClosedWon' }
+            where: { stage: { in: ['ClosedWon', 'ContractSigned', 'InDelivery', 'Invoiced', 'ClosedPaid'] } }
+        });
+
+        const activeDeals = await prisma.deal.count({
+            where: { stage: { notIn: ['ClosedLost', 'lost'] } }
         });
 
         return {
-            leadConversionRate: (qualifiedLeads / totalLeads) * 100,
-            proposalConversionRate: (wonDeals / totalProposals) * 100,
-            dealWinRate: (wonDeals / totalProposals) * 100
+            leadConversionRate: Math.round((qualifiedLeads / totalLeads) * 100),
+            proposalConversionRate: Math.round((wonDeals / totalDeals) * 100),
+            dealWinRate: totalDeals > 0 ? Math.round((wonDeals / totalDeals) * 100) : 0
         };
     }
 

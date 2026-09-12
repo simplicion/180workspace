@@ -126,18 +126,19 @@ export const navigation = [
     },
 
     {
-        group: 'Finance',
+        group: 'Finance & Analytics',
         appId: 'finance',
         icon: Landmark,
         roles: ['admin', 'employee'],
         items: [
-            { id: 'finance-overview', name: 'Finance Overview', href: '/finance', icon: BarChart3, roles: ['admin'] },
-            { id: 'transactions', name: 'Transactions', href: '/transactions', icon: Activity, roles: ['admin'] },
+            { id: 'finance-overview', name: 'Finance & Ledger', href: '/finance', icon: Landmark, roles: ['admin'] },
             { id: 'invoices', name: 'Invoices', href: '/invoices', icon: Receipt, roles: ['admin'] },
             { id: 'bills-and-expenses', name: 'Bills and Expenses', href: '/bills-and-expenses', icon: Wallet, roles: ['admin', 'employee'] },
-            { id: 'salary', name: 'Salary Ledger', href: '/salary', icon: Banknote, roles: ['admin', 'employee'] },
+            { id: 'analytics', name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin'] },
+            { id: 'reports', name: 'Reports', href: '/reports', icon: FileText, roles: ['admin'] },
+            { id: 'website-analytics', name: 'Website Traffic', href: '/analytics/website', icon: Globe, roles: ['admin'] },
             { id: 'vendors', name: 'Vendors', href: '/vendors', icon: Building2, roles: ['admin'] },
-            { id: 'wallet', name: 'Financial Wallet', href: '/wallet', icon: Wallet, roles: ['admin', 'employee'] },
+            { id: 'wallet', name: 'Financial Wallet', href: '/wallet', icon: CreditCard, roles: ['admin', 'employee'] },
         ]
     },
 
@@ -153,18 +154,6 @@ export const navigation = [
             { id: 'hrms', name: 'HR Operations', href: '/hr', icon: DollarSign, roles: ['admin'] },
             { id: 'recruitment', name: 'Recruitment', href: '/recruitment', icon: Briefcase, roles: ['admin'] },
             { id: 'reviews', name: 'Performance', href: '/reviews', icon: Star, roles: ['admin'] },
-        ]
-    },
-
-    {
-        group: 'Insights',
-        appId: 'insights',
-        icon: BarChart3,
-        roles: ['admin'],
-        items: [
-            { id: 'analytics', name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin'] },
-            { id: 'reports', name: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin'] },
-            { id: 'website-analytics', name: 'Website Traffic', href: '/analytics/website', icon: Globe, roles: ['admin'] },
         ]
     },
 

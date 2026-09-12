@@ -41,6 +41,32 @@ export class SalaryService {
     return salaries;
   }
 
+  static async getSalaries(params: { month?: string; companyId?: string } = {}) {
+    const { month, companyId } = params;
+    const where: any = {};
+    if (month) where.month = month;
+    if (companyId) where.employee = { companyId };
+
+    const salaries = await prisma.salary.findMany({
+      where,
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            employeeId: true,
+            bankAccount: true,
+            position: true,
+            department: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return salaries;
+  }
+
   static async generateSalary(userId: string, data: any) {
     const { 
       employeeId, month, baseSalary, deductions = 0, bonuses = 0, notes, 

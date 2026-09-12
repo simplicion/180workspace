@@ -39,8 +39,34 @@ export class InvoiceService {
       },
       include: { lineItems: true, taxItems: true }
     });
+
+    // Automatically record Money In (Credit) in CompanyTransaction Master Ledger
+    try {
+      if (invoice.totalAmount && invoice.totalAmount > 0) {
+        await prisma.companyTransaction.create({
+          data: {
+            amount: invoice.totalAmount,
+            type: 'credit',
+            status: invoice.status === 'paid' ? 'completed' : 'pending',
+            category: 'Client Invoice Settlement',
+            description: `Invoice #${invoice.invoiceNumber} synced from 180 Documents`,
+            referenceModel: 'Invoice',
+            referenceId: invoice.invoiceNumber,
+            paymentMethod: '180 Documents Invoicing',
+            doubleEntryDebit: '1010 - Operating Bank Account',
+            doubleEntryCredit: '4020 - Invoiced Client Revenue',
+            ...(invoice.companyId ? { companyId: invoice.companyId } : {}),
+            clientId: invoice.clientId
+          }
+        });
+      }
+    } catch (syncErr) {
+      console.warn('[InvoiceService] Failed to sync CompanyTransaction entry:', syncErr);
+    }
+
     return invoice;
   }
+
 
   /**
    * Generate an invoice from a milestone

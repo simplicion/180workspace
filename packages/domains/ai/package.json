@@ -6,7 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc -w"
+    "dev": "tsc -w",
+    "test": "node tests/run-100-tests.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.1",

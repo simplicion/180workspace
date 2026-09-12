@@ -7,6 +7,96 @@ import { prisma } from '@workspace/db';
 import moment from 'moment';
 
 export class DealsService {
+    static async enrichDealsWithClients(deals: any[]) {
+        if (!Array.isArray(deals) || deals.length === 0) return deals;
+
+        try {
+            const rawPhones = deals.map(d => d.lead?.phone || d.client?.phone).filter(Boolean);
+            const emails = deals.map(d => d.lead?.email || d.client?.email).filter((e: any) => e && typeof e === 'string' && e.trim().length > 0);
+            
+            // Query clients with matching phone or email
+            const [matchedClients, allRecentClients] = await Promise.all([
+                prisma.client.findMany({
+                    where: {
+                        OR: [
+                            ...(rawPhones.length > 0 ? [{ phone: { in: rawPhones } }] : []),
+                            ...(emails.length > 0 ? [{ email: { in: emails } }] : [])
+                        ]
+                    }
+                }).catch(() => []),
+                prisma.client.findMany({
+                    where: { phone: { not: null } },
+                    take: 300
+                }).catch(() => [])
+            ]);
+
+            const allClientsMap = new Map<string, any>();
+            matchedClients.forEach((c: any) => allClientsMap.set(c.id, c));
+            allRecentClients.forEach((c: any) => allClientsMap.set(c.id, c));
+
+            const clientByCleanPhone = new Map<string, any>();
+            const clientByRawPhone = new Map<string, any>();
+            const clientByEmail = new Map<string, any>();
+
+            allClientsMap.forEach((c: any) => {
+                if (c.phone) {
+                    clientByRawPhone.set(c.phone.trim(), c);
+                    const digits = c.phone.replace(/\D/g, '');
+                    if (digits.length >= 7) {
+                        clientByCleanPhone.set(digits.slice(-10), c);
+                    }
+                }
+                if (c.email) {
+                    clientByEmail.set(c.email.trim().toLowerCase(), c);
+                }
+            });
+
+            return deals.map((deal: any) => {
+                let resolvedClient = deal.client;
+                
+                // If client is missing, or is a generic placeholder like "Unknown Company"
+                const isGenericClient = !resolvedClient || 
+                    resolvedClient.name === 'Unknown Company' || 
+                    resolvedClient.companyName === 'Unknown Company';
+
+                const phoneToMatch = deal.lead?.phone || deal.client?.phone;
+                const emailToMatch = deal.lead?.email || deal.client?.email;
+
+                if (isGenericClient && (phoneToMatch || emailToMatch)) {
+                    let matched: any = null;
+                    if (phoneToMatch) {
+                        const raw = phoneToMatch.trim();
+                        const digits = raw.replace(/\D/g, '');
+                        const last10 = digits.length >= 7 ? digits.slice(-10) : null;
+                        matched = clientByRawPhone.get(raw) || (last10 ? clientByCleanPhone.get(last10) : null);
+                    }
+                    if (!matched && emailToMatch) {
+                        matched = clientByEmail.get(emailToMatch.trim().toLowerCase());
+                    }
+
+                    if (matched && matched.name && matched.name !== 'Unknown Company') {
+                        resolvedClient = matched;
+                    }
+                }
+
+                const clientName = resolvedClient && resolvedClient.name !== 'Unknown Company' 
+                    ? (resolvedClient.name || resolvedClient.contactPersonName) 
+                    : (deal.lead?.contactName && deal.lead.contactName !== deal.lead.name ? deal.lead.contactName : null);
+
+                return {
+                    ...deal,
+                    client: resolvedClient,
+                    contactName: clientName || deal.contactName || null,
+                    phone: resolvedClient?.phone || deal.lead?.phone || null,
+                    email: resolvedClient?.email || deal.lead?.email || null
+                };
+            });
+        } catch (err) {
+            console.error('Error in enrichDealsWithClients:', err);
+            return deals;
+        }
+    }
+
     static async getDeals(pageOrQuery: any = 1, limit = 100, pipelineType) {
         if (typeof pageOrQuery === 'object' && pageOrQuery !== null) {
             const params = extractPaginationParams(pageOrQuery);
@@ -36,8 +126,10 @@ export class DealsService {
                     includeTotalCount: true
                 });
 
+                const enrichedItems = await this.enrichDealsWithClients(result.items);
+
                 return {
-                    deals: result.items,
+                    deals: enrichedItems,
                     pageInfo: result.pageInfo,
                     pagination: {
                         total: result.pageInfo.totalCount || result.items.length,
@@ -66,7 +158,9 @@ export class DealsService {
                 prisma.deal.count({ where: whereClause })
             ]);
 
-            return { deals, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
+            const enrichedDeals = await this.enrichDealsWithClients(deals);
+
+            return { deals: enrichedDeals, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
         }
 
         const page = typeof pageOrQuery === 'number' ? pageOrQuery : 1;
@@ -93,7 +187,9 @@ export class DealsService {
             prisma.deal.count({ where: whereClause })
         ]);
 
-        return { deals, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
+        const enrichedDeals = await this.enrichDealsWithClients(deals);
+
+        return { deals: enrichedDeals, pagination: { total, page, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
     }
 
     static async createDeal(data, userId) {

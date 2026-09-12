@@ -62,42 +62,42 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null
-        
+
         try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-            process.env.NEXT_PUBLIC_BACKEND_URL || 
-            process.env.BACKEND_INTERNAL_URL || 
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL ||
+            process.env.NEXT_PUBLIC_BACKEND_URL ||
+            process.env.BACKEND_INTERNAL_URL ||
             (typeof window !== 'undefined' ? '' : 'http://backend:4000');
-            
+
           const res = await fetch(`${apiUrl}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              email: credentials.email.toLowerCase(), 
-              password: credentials.password 
+            body: JSON.stringify({
+              email: credentials.email.toLowerCase(),
+              password: credentials.password
             }),
             cache: 'no-store'
           });
-          
+
           if (!res.ok) {
             const errorText = await res.text();
             console.error(`[NextAuth Credentials] /api/auth/login failed: ${res.status} ${res.statusText}`, errorText);
             return null;
           }
-          
+
           const data = await res.json();
           const backendUser = data?.user;
           const backendCompany = data?.company || backendUser?.company;
-          
+
           if (!backendUser || !backendUser.id) return null;
-          
+
           if (backendUser.isActive) {
             const isOnboardingComplete = backendCompany?.isOnboardingComplete === true;
-            return { 
-              id: backendUser.id, 
+            return {
+              id: backendUser.id,
               name: backendUser.name,
               username: backendUser.username,
-              email: backendUser.email, 
+              email: backendUser.email,
               companyId: backendUser.companyId || backendCompany?.id || backendCompany?._id,
               role: backendUser.role,
               isOnboardingComplete: isOnboardingComplete,
@@ -107,7 +107,7 @@ export const authOptions: NextAuthOptions = {
               platformToken: data?.token
             } as any
           }
-        } catch(e) {
+        } catch (e) {
           console.error("Credentials auth error:", e);
         }
         return null;
@@ -121,48 +121,48 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials, req) {
         if (!credentials?.token) return null;
-        
+
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-              process.env.NEXT_PUBLIC_BACKEND_URL || 
-              process.env.BACKEND_INTERNAL_URL || 
-              (typeof window !== 'undefined' ? '' : 'http://backend:4000');
-           const res = await fetch(`${apiUrl}/api/auth/me`, {
-             headers: {
-               Authorization: `Bearer ${credentials.token}`
-             },
-             cache: 'no-store'
-           });
-           if (!res.ok) {
-             const errorText = await res.text();
-             console.error(`[NextAuth platform-token] /api/auth/me failed: ${res.status} ${res.statusText}`, errorText);
-             return null;
-           }
-           
-           const data = await res.json();
-           const backendUser = data?.user;
-           const backendCompany = data?.company || backendUser?.company;
-           if (!backendUser || !backendUser.id) return null;
-           
-           if (backendUser.isActive) {
-             const isOnboardingComplete = backendCompany?.isOnboardingComplete === true;
-             return { 
-               id: backendUser.id, 
-               name: backendUser.name,
-               username: backendUser.username,
-               email: backendUser.email, 
-               companyId: backendUser.companyId || backendCompany?.id || backendCompany?._id,
-               role: backendUser.role,
-               permissions: backendUser.permissions || [],
-               isOnboardingComplete: isOnboardingComplete,
-               isFirstLogin: !isOnboardingComplete && (backendUser.isFirstLogin === true || !backendUser.username),
-               companySlug: backendCompany?.slug,
-               companyCustomDomain: backendCompany?.customDomain,
-               platformToken: credentials.token
-             } as any
-           }
-        } catch(e) {
-           console.error("Platform token auth error:", e);
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL ||
+            process.env.NEXT_PUBLIC_BACKEND_URL ||
+            process.env.BACKEND_INTERNAL_URL ||
+            (typeof window !== 'undefined' ? '' : 'http://backend:4000');
+          const res = await fetch(`${apiUrl}/api/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${credentials.token}`
+            },
+            cache: 'no-store'
+          });
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error(`[NextAuth platform-token] /api/auth/me failed: ${res.status} ${res.statusText}`, errorText);
+            return null;
+          }
+
+          const data = await res.json();
+          const backendUser = data?.user;
+          const backendCompany = data?.company || backendUser?.company;
+          if (!backendUser || !backendUser.id) return null;
+
+          if (backendUser.isActive) {
+            const isOnboardingComplete = backendCompany?.isOnboardingComplete === true;
+            return {
+              id: backendUser.id,
+              name: backendUser.name,
+              username: backendUser.username,
+              email: backendUser.email,
+              companyId: backendUser.companyId || backendCompany?.id || backendCompany?._id,
+              role: backendUser.role,
+              permissions: backendUser.permissions || [],
+              isOnboardingComplete: isOnboardingComplete,
+              isFirstLogin: !isOnboardingComplete && (backendUser.isFirstLogin === true || !backendUser.username),
+              companySlug: backendCompany?.slug,
+              companyCustomDomain: backendCompany?.customDomain,
+              platformToken: credentials.token
+            } as any
+          }
+        } catch (e) {
+          console.error("Platform token auth error:", e);
         }
         return null;
       }
@@ -186,7 +186,7 @@ export const authOptions: NextAuthOptions = {
           token.platformToken = (user as any).platformToken;
         }
       }
-      
+
       // Handle manual session updates (e.g., after workspace setup is completed)
       if (trigger === "update" && session) {
         if (session.companyId !== undefined) token.companyId = session.companyId;

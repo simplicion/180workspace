@@ -84,14 +84,16 @@ export const navigation = [
     },
 
     {
-        group: 'Finance',
+        group: 'Finance & Analytics',
         appId: 'finance',
         icon: Landmark,
         roles: ['admin', 'finance', 'manager'],
         items: [
-            { id: 'finance-overview', name: 'Finance Overview', href: '/dashboard/finance', icon: BarChart3, roles: ['admin', 'finance', 'manager'] },
+            { id: 'finance-overview', name: 'Finance Overview', href: '/dashboard/finance', icon: Landmark, roles: ['admin', 'finance', 'manager'] },
             { id: 'invoices', name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, roles: ['admin', 'finance', 'manager'] },
             { id: 'expenses', name: 'Expenses', href: '/dashboard/expenses', icon: Wallet, roles: ['admin', 'finance', 'manager'] },
+            { id: 'analytics', name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'manager', 'hr'] },
+            { id: 'reports', name: 'Reports', href: '/dashboard/reports', icon: FileText, roles: ['admin', 'manager', 'hr'] },
             { id: 'salary', name: 'Salary Ledger', href: '/dashboard/salary', icon: Banknote, roles: ['admin', 'finance', 'manager'] },
             { id: 'bills', name: 'Bills', href: '/dashboard/finance/bills', icon: Receipt, roles: ['admin', 'finance', 'manager'] },
             { id: 'vendors', name: 'Vendors', href: '/dashboard/finance/vendors', icon: Building2, roles: ['admin', 'finance', 'manager'] },
@@ -105,17 +107,6 @@ export const navigation = [
         roles: ['admin', 'manager'],
         items: [
             { id: 'assets', name: 'Assets', href: '/dashboard/assets', icon: Monitor, roles: ['admin', 'manager'] },
-        ]
-    },
-
-    {
-        group: 'Insights',
-        appId: 'insights',
-        icon: BarChart3,
-        roles: ['admin', 'manager', 'hr'],
-        items: [
-            { id: 'analytics', name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'manager', 'hr'] },
-            { id: 'reports', name: 'Reports', href: '/dashboard/reports', icon: BarChart3, roles: ['admin', 'manager', 'hr'] },
         ]
     },
 

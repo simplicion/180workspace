@@ -32,9 +32,10 @@ export const getMonthlyReport = async (req: Request, res: Response, next: NextFu
     try {
         const { month } = req.query; 
         if (!month) return res.status(400).json({ error: 'month param required (YYYY-MM)' });
+        const companyId = (req as any).companyId || (req as any).user?.companyId || (req.query?.companyId as string);
 
         const attendanceService = new AttendanceService();
-        const report = await attendanceService.getMonthlyReport(month as string);
+        const report = await attendanceService.getMonthlyReport(month as string, companyId);
         
         res.json(report);
     } catch (err) { next(err); }

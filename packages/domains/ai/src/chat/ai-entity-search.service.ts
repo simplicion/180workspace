@@ -42,6 +42,27 @@ export class AIEntitySearchService {
                 select: { id: true, name: true, status: true }
             });
             results = projects.map((p: any) => ({ id: p.id, name: p.name, subtitle: p.status }));
+        } else if (type === 'D' && prisma.document) {
+            const docs = await prisma.document.findMany({
+                where: { title: { contains: query, mode: 'insensitive' }, companyId },
+                take: 5,
+                select: { id: true, title: true, type: true }
+            });
+            results = docs.map((d: any) => ({ id: d.id, name: d.title, subtitle: d.type || 'Document' }));
+        } else if (type === 'F' && prisma.form) {
+            const forms = await prisma.form.findMany({
+                where: { title: { contains: query, mode: 'insensitive' }, companyId },
+                take: 5,
+                select: { id: true, title: true }
+            });
+            results = forms.map((f: any) => ({ id: f.id, name: f.title, subtitle: 'Form' }));
+        } else if (type === 'I' && (prisma as any).invoice) {
+            const invoices = await (prisma as any).invoice.findMany({
+                where: { invoiceNumber: { contains: query, mode: 'insensitive' }, companyId },
+                take: 5,
+                select: { id: true, invoiceNumber: true, status: true, total: true }
+            });
+            results = invoices.map((inv: any) => ({ id: inv.id, name: `Invoice #${inv.invoiceNumber}`, subtitle: `${inv.status} - $${inv.total}` }));
         }
 
         return results;

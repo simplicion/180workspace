@@ -18,13 +18,17 @@ export class LeaveService {
         });
     }
 
-    static async getLeaves(employeeId?: string, status?: string, month?: string, userRole?: string, requestingUserId?: string) {
+    static async getLeaves(employeeId?: string, status?: string, month?: string, userRole?: string, requestingUserId?: string, companyId?: string) {
         const filter: any = {};
         
         if (userRole === 'employee') {
             filter.employeeId = requestingUserId;
         } else if (employeeId) {
             filter.employeeId = employeeId;
+        }
+
+        if (companyId) {
+            filter.employee = { companyId };
         }
         
         if (status) filter.status = status;

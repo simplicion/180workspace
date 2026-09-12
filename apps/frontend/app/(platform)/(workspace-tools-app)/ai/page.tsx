@@ -540,7 +540,7 @@ export default function AIAssistantPage() {
                     mode,
                     sessionId: currentSessionId
                 }).catch(async () => {
-                    return await api.post('/api/180documents/generate-ai', { prompt: fullPrompt });
+                    return await api.post('/api/v1/ai/agent/execute', { prompt: fullPrompt, sessionId: currentSessionId });
                 });
             }
 

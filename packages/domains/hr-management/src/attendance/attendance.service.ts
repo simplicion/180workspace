@@ -75,12 +75,19 @@ export class AttendanceService {
     });
   }
 
-  async getMonthlyReport(month: string) {
+  async getMonthlyReport(month: string, companyId?: string) {
+    const userWhere: any = { isActive: true, role: { not: 'client' } };
+    if (companyId) userWhere.companyId = companyId;
+
     const employees = await prisma.user.findMany({
-      where: { isActive: true, role: { not: 'client' } },
+      where: userWhere,
     });
+
+    const attendanceWhere: any = { date: { startsWith: month } };
+    if (companyId) attendanceWhere.employee = { companyId };
+
     const records = await prisma.attendance.findMany({
-      where: { date: { startsWith: month } },
+      where: attendanceWhere,
     });
 
     const [y, m] = month.split('-').map(Number);

@@ -490,37 +490,9 @@ export const getRevenueStats = async (req: Request, res: Response, next: NextFun
 };
 export const getSalesActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { prisma } = require('@workspace/db');
-        // Properly matching 'prisma.lead' -> Leads, 'prisma.deal' -> Deals
-        const leads = await prisma.lead.findMany({
-            orderBy: { updatedAt: 'desc' },
-            take: 5
-        });
-        const deals = await prisma.deal.findMany({
-            orderBy: { updatedAt: 'desc' },
-            take: 5
-        });
-        
-        const activity = [
-            ...leads.map((l: any) => ({
-                id: 'lead_' + l.id,
-                client: l.clientName || l.name || 'Unknown Client',
-                action: 'updated lead',
-                target: l.name,
-                time: l.updatedAt,
-                type: 'lead'
-            })),
-            ...deals.map((d: any) => ({
-                id: 'deal_' + d.id,
-                client: d.companyName || d.title || 'Unknown Client',
-                action: 'updated deal',
-                target: d.title,
-                time: d.updatedAt,
-                type: 'deal'
-            }))
-        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
-        
-        res.json(activity);
+        const companyId = (req as any).company?.id || (req as any).user?.companyId;
+        const activities = await ActivitiesService.getSalesActivityFeed(companyId);
+        res.json(activities);
     } catch (error) {
         next(error);
     }
@@ -534,6 +506,7 @@ export const getDeals = async (req: Request, res: Response, next: NextFunction) 
         const page = parseInt(req.query.page as string, 10) || 1;
         const limit = parseInt(req.query.limit as string, 10) || 100;
         const pipelineType = req.query.pipelineType as string;
+        // Fetch enriched deals with clients
         const result = await DealsService.getDeals(page, limit, pipelineType);
         res.json(result);
     } catch (err) { next(err); }

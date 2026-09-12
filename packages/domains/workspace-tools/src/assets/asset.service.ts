@@ -1,25 +1,50 @@
 import { prisma } from '@workspace/db';
 export class AssetService {
     static async getAssets(filter: any = {}) {
-        let query: any = { ...filter };
+        const { limit, page, search, ...rest } = filter;
+
+        const where: any = {};
+        if (rest.companyId) where.companyId = rest.companyId;
+        if (rest.status) where.status = rest.status;
+        if (rest.type) where.type = rest.type;
+        if (rest.provider) where.provider = rest.provider;
+        if (rest.ownerId) where.ownerId = rest.ownerId;
+        if (rest.id) where.id = rest.id;
+
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { provider: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+                { url: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+
+        const take = limit ? Math.min(Number(limit) || 100, 500) : 100;
+        const skip = page && Number(page) > 1 ? (Number(page) - 1) * take : undefined;
 
         const assets = await prisma.asset.findMany({
-            where: query,
+            where,
             include: {
                 owner: {
-                    select: { name: true }
+                    select: { id: true, name: true, email: true }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take,
+            skip,
         });
 
         return assets;
     }
 
-    static async getAssetStats() {
+    static async getAssetStats(companyId?: string) {
+        const where: any = {};
+        if (companyId) where.companyId = companyId;
+
         const groupStats = await prisma.asset.groupBy({
             by: ['type'],
-            where: {},
+            where,
             _count: { _all: true },
             _sum: { cost: true }
         });
@@ -32,6 +57,7 @@ export class AssetService {
 
         const activeIntegrationsCount = await prisma.asset.count({
             where: {
+                ...where,
                 type: { in: ['api', 'service'] },
                 status: 'active'
             }

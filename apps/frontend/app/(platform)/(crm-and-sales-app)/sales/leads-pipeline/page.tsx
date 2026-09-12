@@ -55,15 +55,63 @@ const STAGE_LABELS: Record<string, string> = {
     'ClosedLost': 'Lost'
 };
 
-const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string }> = {
-    'Lead': { color: 'border-gray-300', bg: 'bg-gray-50', badge: 'badge-gray' },
-    'Contacted': { color: 'border-cyan-400', bg: 'bg-cyan-50', badge: 'badge-cyan' },
-    'Qualified': { color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
-    'Demo': { color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
-    'Proposal': { color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
-    'Negotiation': { color: 'border-orange-400', bg: 'bg-orange-50', badge: 'badge-orange' },
-    'ClosedWon': { color: 'border-green-400', bg: 'bg-green-50', badge: 'badge-green' },
-    'ClosedLost': { color: 'border-red-400', bg: 'bg-red-50', badge: 'badge-red' }
+const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string, valueBadge: string, dot: string }> = {
+    'Lead': { 
+        color: 'border-gray-300', 
+        bg: 'bg-gray-50/60 dark:bg-slate-900/40', 
+        badge: 'badge-gray',
+        valueBadge: 'text-gray-700 dark:text-gray-300 bg-gray-100/80 dark:bg-slate-800/80 border-gray-200 dark:border-slate-700',
+        dot: 'bg-gray-400'
+    },
+    'Contacted': { 
+        color: 'border-cyan-400', 
+        bg: 'bg-cyan-50/60 dark:bg-cyan-950/20', 
+        badge: 'badge-cyan',
+        valueBadge: 'text-cyan-800 dark:text-cyan-300 bg-cyan-100/80 dark:bg-cyan-900/50 border-cyan-300/70 dark:border-cyan-800/60',
+        dot: 'bg-cyan-500'
+    },
+    'Qualified': { 
+        color: 'border-blue-400', 
+        bg: 'bg-blue-50/60 dark:bg-blue-950/20', 
+        badge: 'badge-blue',
+        valueBadge: 'text-blue-800 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-900/50 border-blue-300/70 dark:border-blue-800/60',
+        dot: 'bg-blue-500'
+    },
+    'Demo': { 
+        color: 'border-indigo-400', 
+        bg: 'bg-indigo-50/60 dark:bg-indigo-950/20', 
+        badge: 'badge-indigo',
+        valueBadge: 'text-indigo-800 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/50 border-indigo-300/70 dark:border-indigo-800/60',
+        dot: 'bg-indigo-500'
+    },
+    'Proposal': { 
+        color: 'border-purple-400', 
+        bg: 'bg-purple-50/60 dark:bg-purple-950/20', 
+        badge: 'badge-purple',
+        valueBadge: 'text-purple-800 dark:text-purple-300 bg-purple-100/80 dark:bg-purple-900/50 border-purple-300/70 dark:border-purple-800/60',
+        dot: 'bg-purple-500'
+    },
+    'Negotiation': { 
+        color: 'border-orange-400', 
+        bg: 'bg-orange-50/60 dark:bg-orange-950/20', 
+        badge: 'badge-orange',
+        valueBadge: 'text-orange-800 dark:text-orange-300 bg-orange-100/80 dark:bg-orange-900/50 border-orange-300/70 dark:border-orange-800/60',
+        dot: 'bg-orange-500'
+    },
+    'ClosedWon': { 
+        color: 'border-green-400', 
+        bg: 'bg-green-50/60 dark:bg-green-950/20', 
+        badge: 'badge-green',
+        valueBadge: 'text-emerald-800 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/50 border-emerald-300/70 dark:border-emerald-800/60',
+        dot: 'bg-emerald-500'
+    },
+    'ClosedLost': { 
+        color: 'border-red-400', 
+        bg: 'bg-red-50/60 dark:bg-red-950/20', 
+        badge: 'badge-red',
+        valueBadge: 'text-red-800 dark:text-red-300 bg-red-100/80 dark:bg-red-900/50 border-red-300/70 dark:border-red-800/60',
+        dot: 'bg-red-500'
+    }
 };
 
 export default function LeadPipelinesKanbanPage() {
@@ -684,6 +732,7 @@ interface ColumnProps {
     title: string;
     leadPipelines: any[];
     selectedLeadIds: string[];
+    currencySymbol?: string;
     onToggleSelect: (id: string) => void;
     onToggleStageSelect: () => void;
     onEdit: (opp: any) => void;
@@ -696,6 +745,7 @@ function Column({
     title, 
     leadPipelines, 
     selectedLeadIds, 
+    currencySymbol = '$',
     onToggleSelect, 
     onToggleStageSelect,
     onEdit, 
@@ -710,6 +760,7 @@ function Column({
         },
     });
     const styles = STAGE_STYLES[id] || STAGE_STYLES['Lead'];
+    const stageTotalValue = leadPipelines.reduce((sum, o) => sum + (Number(o.value) || 0), 0);
 
     const allInStageSelected = leadPipelines.length > 0 && leadPipelines.every(o => selectedLeadIds.includes(o.id));
     const someInStageSelected = leadPipelines.some(o => selectedLeadIds.includes(o.id));
@@ -725,8 +776,8 @@ function Column({
             )}
         >
             {/* Column Header with Title, Count, and Column Select Checkbox */}
-            <div className="flex items-center justify-between mb-3 shrink-0">
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mb-3 shrink-0 gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
                     {/* Stage Checkbox */}
                     {leadPipelines.length > 0 && (
                         <button
@@ -740,7 +791,7 @@ function Column({
                         >
                             <span className={clsx(
                                 "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 bg-white"
+                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                             )}>
                                 {allInStageSelected ? (
                                     <Check className="w-3 h-3 stroke-[3]" />
@@ -750,8 +801,12 @@ function Column({
                             </span>
                         </button>
                     )}
-                    <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">{STAGE_LABELS[id] || title}</span>
-                    <span className={clsx('badge text-xs', styles.badge)}>{leadPipelines.length}</span>
+                    <span className="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">{STAGE_LABELS[id] || title}</span>
+                    <span className={clsx('badge text-[11px] px-1.5 py-0.5 font-bold', styles.badge)}>{leadPipelines.length}</span>
+                </div>
+
+                <div className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-lg border shadow-2xs shrink-0', styles.valueBadge)}>
+                    {currencySymbol}{stageTotalValue.toLocaleString()}
                 </div>
             </div>
 
