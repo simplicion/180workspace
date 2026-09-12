@@ -133,7 +133,7 @@ export const navigation = [
         items: [
             { id: 'finance-overview', name: 'Finance & Ledger', href: '/finance', icon: Landmark, roles: ['admin'] },
             { id: 'invoices', name: 'Invoices', href: '/invoices', icon: Receipt, roles: ['admin'] },
-            { id: 'bills-and-expenses', name: 'Bills and Expenses', href: '/bills-and-expenses', icon: Wallet, roles: ['admin', 'employee'] },
+            { id: 'bills-and-expenses', name: 'Bills & Expense Claims', href: '/bills-and-expenses', icon: Wallet, roles: ['admin', 'employee'] },
             { id: 'analytics', name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin'] },
             { id: 'reports', name: 'Reports', href: '/reports', icon: FileText, roles: ['admin'] },
             { id: 'website-analytics', name: 'Website Traffic', href: '/analytics/website', icon: Globe, roles: ['admin'] },
@@ -152,8 +152,6 @@ export const navigation = [
             { id: 'employees', name: 'Employee Directory', href: '/employees', icon: Users, roles: ['admin'] },
             { id: 'attendance', name: 'Attendance', href: '/attendance', icon: Calendar, roles: ['admin'] },
             { id: 'hrms', name: 'HR Operations', href: '/hr', icon: DollarSign, roles: ['admin'] },
-            { id: 'recruitment', name: 'Recruitment', href: '/recruitment', icon: Briefcase, roles: ['admin'] },
-            { id: 'reviews', name: 'Performance', href: '/reviews', icon: Star, roles: ['admin'] },
         ]
     },
 
