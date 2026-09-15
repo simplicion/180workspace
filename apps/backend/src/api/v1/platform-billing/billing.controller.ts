@@ -79,14 +79,14 @@ export class BillingController {
             const ALL_PLATFORM_APPS = [
                 'system', 'settings', 'projects', 'communications', 'workspace-tools',
                 'crm', 'hr', 'finance', 'insights', 'analytics', 'advertising',
-                'social-media', 'traffic-director', 'ai', 'storage', 'database', 'google-integrations'
+                'social-media', 'traffic-director', 'voiceforce', 'media-editor', 'ai', 'storage', 'database', 'google-integrations'
             ];
 
             const effectiveEnabledApps = isPaidPlan
                 ? Array.from(new Set([...rawEnabledApps, ...ALL_PLATFORM_APPS]))
                 : rawEnabledApps;
 
-            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director'];
+            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'voiceforce', 'media-editor'];
             const activeAppsCount = effectiveEnabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
 
             const storageUsedBytes = storageAgg._sum.fileSize || 0;

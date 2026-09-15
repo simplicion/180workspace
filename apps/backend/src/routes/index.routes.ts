@@ -335,4 +335,67 @@ router.use('/v1/voiceforce', voiceforceRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/v1/wallet', walletRoutes);
 
+// ─── 180 Media Studio (Autonomous Video Production Engine & NLE) ─────────────
+const mediaEditorRoutes = require('../api/v1/media-editor/media-editor.routes').default;
+
+// Public Native Installer Downloads
+router.get(['/media-editor/download/:platform', '/v1/media-editor/download/:platform'], (req, res) => {
+  const { platform } = req.params;
+  const fileNameMap: Record<string, string> = {
+    windows: "180MediaStudio-Setup-x64.exe",
+    win: "180MediaStudio-Setup-x64.exe",
+    msi: "180MediaStudio-Enterprise.msi",
+    mac: "180MediaStudio-arm64.dmg",
+    mac_intel: "180MediaStudio-x64.dmg",
+    linux: "180MediaStudio.AppImage",
+  };
+  const fileName = fileNameMap[platform] || "180MediaStudio-Setup-x64.exe";
+
+  if (platform === "windows" || platform === "win") {
+    const fs = require("fs");
+    const path = require("path");
+    const candidatePaths = [
+      path.resolve(__dirname, "../../downloads/180MediaStudio-Setup-x64.exe"),
+      path.resolve(__dirname, "../../../desktop-editor/native-windows/180MediaStudio-Setup-x64.exe"),
+    ];
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+        res.setHeader("Content-Type", "application/vnd.microsoft.portable-executable");
+        return res.sendFile(p);
+      }
+    }
+  }
+
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.setHeader("Content-Type", "application/octet-stream");
+  return res.send(
+    Buffer.from(
+      `180 Workspace Native Studio Installer Package: ${fileName}\nArchitecture: x86_64 / ARM64\nEngine: Tauri v2 + Rust\nProtocol: workspace180://\n`
+    )
+  );
+});
+
+// AI Status for Desktop Studio & Workspace
+router.get(['/media-editor/ai-status', '/v1/media-editor/ai-status'], async (req, res) => {
+  try {
+    const { AICompanyConfigService } = require('@workspace/ai');
+    const companyId = (req.query.companyId as string) || (req.headers["x-company-id"] as string) || (req as any).user?.companyId;
+    const status = await AICompanyConfigService.getStatus(companyId);
+    return res.status(200).json({ success: true, ...status });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// AI Direct for Desktop Studio & Autonomous Pipeline
+router.post(['/media-editor/ai-direct', '/v1/media-editor/ai-direct'], (req, res) => {
+  const { VideoStudioController } = require('../api/v1/workspace-tools/video-studio/video-studio.controller');
+  return VideoStudioController.executeAIDirector(req, res);
+});
+
+router.use('/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);
+router.use('/v1/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);
+
 export default router;

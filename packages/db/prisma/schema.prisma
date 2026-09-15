@@ -3406,3 +3406,63 @@ model AgentRequest {
   @@index([resolvedById])
   @@index([createdAt])
 }
+
+// ─── 180 MEDIA STUDIO (AUTONOMOUS VIDEO PRODUCTION ENGINE) ───────────────────
+
+model VideoStudioProject {
+  id              String   @id @default(uuid())
+  companyId       String
+  name            String
+  templatePreset  String?  @default("MRBEAST_FAST")
+  aspectRatio     String   @default("16:9")
+  durationSeconds Float    @default(0)
+  editIR          Json
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, createdAt])
+  @@map("video_studio_projects")
+}
+
+model VideoStudioAsset {
+  id              String   @id @default(uuid())
+  companyId       String
+  projectId       String?
+  name            String
+  filePath        String
+  durationSeconds Float?
+  fileSizeBytes   BigInt?
+  mimeType        String?
+  sha256Hash      String?
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now())
+
+  @@index([companyId])
+  @@index([projectId])
+  @@index([sha256Hash])
+  @@map("video_studio_media_assets")
+}
+
+model VideoStudioExport {
+  id              String   @id @default(uuid())
+  companyId       String
+  projectId       String
+  resolution      String   @default("1920x1080")
+  fps             Int      @default(30)
+  codec           String   @default("h264")
+  status          String   @default("queued")
+  outputPath      String?
+  fileSizeBytes   BigInt?
+  speedMultiplier String?
+  renderTimeSec   Float?
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([projectId])
+  @@index([companyId, status])
+  @@map("video_studio_render_jobs")
+}

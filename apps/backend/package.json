@@ -40,6 +40,8 @@
     "@workspace/settings": "workspace:*",
     "@workspace/social-media": "workspace:*",
     "@workspace/traffic-director": "workspace:*",
+    "@workspace/video-contracts": "workspace:*",
+    "@workspace/video-engine-runtime": "workspace:*",
     "@workspace/voiceforce": "workspace:*",
     "@workspace/wallet": "workspace:*",
     "@workspace/workspace-tools": "workspace:*",

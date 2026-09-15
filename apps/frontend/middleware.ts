@@ -86,9 +86,11 @@ export async function middleware(req: NextRequest) {
     "180workspace.com",
     "www.180workspace.com",
     "app.180workspace.com",
+    "media.180workspace.com",
     rootDomain,
     `www.${rootDomain}`,
-    `app.${rootDomain}`
+    `app.${rootDomain}`,
+    `media.${rootDomain}`
   ].filter(Boolean);
 
   const isLocalhostBase = /^localhost(:\d+)?$/.test(hostname) || /^127\.0\.0\.1(:\d+)?$/.test(hostname);
@@ -100,7 +102,7 @@ export async function middleware(req: NextRequest) {
       '/login', '/signup', '/onboarding', '/workspace-setup', 
       '/traffic-director', '/advertising', '/crm', '/finance', 
       '/hr', '/settings', '/projects', '/insights', '/communications', 
-      '/social-media', '/workspace-tools', '/billing', '/superadmin', 
+      '/social-media', '/workspace-tools', '/voiceforce', '/media-editor', '/video-studio', '/billing', '/superadmin', 
       '/company-hub'
     ];
     const isPlatformAdminRoute = PLATFORM_ADMIN_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
@@ -164,6 +166,9 @@ export async function middleware(req: NextRequest) {
     }
     if (!isWorkspaceSetupComplete) {
       return NextResponse.redirect(new URL("/workspace-setup", req.url));
+    }
+    if (hostname.startsWith("media.") || hostname.startsWith("studio.")) {
+      return NextResponse.rewrite(new URL("/media-editor", req.url));
     }
     return NextResponse.next();
   }
