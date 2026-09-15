@@ -190,15 +190,15 @@ export const Timeline: React.FC<TimelineProps> = ({
   return (
     <div
       style={{ height: height ? `${height}px` : undefined }}
-      className="h-72 border-t border-[#222838] bg-[#0E1118] flex flex-col select-none relative z-20 shrink-0"
+      className="h-72 border-t border-[#1F1F24] bg-[#0B0B0C] flex flex-col select-none relative z-20 shrink-0"
     >
       {/* Timeline Toolbar */}
-      <div className="h-10 border-b border-[#222838] bg-[#141822] flex items-center justify-between px-3">
+      <div className="h-10 border-b border-[#1F1F24] bg-[#0E0E10] flex items-center justify-between px-3">
         {/* Left: Editing Tools */}
         <div className="flex items-center space-x-1.5">
           <button
             onClick={onSplitClip}
-            className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-[#0E1118] hover:bg-[#1C2230] active:scale-95 text-xs font-semibold text-gray-200 border border-[#222838] transition shadow-sm"
+            className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] active:scale-95 text-xs font-semibold text-gray-200 border border-[#26262D] transition shadow-sm"
             title="Split Clip at Playhead (S)"
           >
             <Scissors className="w-3.5 h-3.5 text-indigo-400" />
@@ -209,7 +209,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           <button
             onClick={onDeleteSelectedClip}
             disabled={!selectedClipId}
-            className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-[#0E1118] hover:bg-red-500/15 active:scale-95 text-xs font-semibold text-gray-200 hover:text-red-300 border border-[#222838] disabled:opacity-25 disabled:pointer-events-none transition shadow-sm"
+            className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-[#141417] hover:bg-red-500/15 active:scale-95 text-xs font-semibold text-gray-200 hover:text-red-300 border border-[#26262D] disabled:opacity-25 disabled:pointer-events-none transition shadow-sm"
             title="Ripple Delete Clip (Del)"
           >
             <Trash2 className="w-3.5 h-3.5 text-red-400" />
@@ -221,7 +221,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             <button
               onClick={onDuplicateClip}
               disabled={!selectedClipId}
-              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#0E1118] hover:bg-[#1C2230] text-xs font-medium text-gray-300 border border-[#222838] disabled:opacity-25 disabled:pointer-events-none transition"
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] text-xs font-medium text-gray-300 border border-[#26262D] disabled:opacity-25 disabled:pointer-events-none transition"
               title="Duplicate Clip (Ctrl+D)"
             >
               <Copy className="w-3 h-3 text-indigo-400" />
@@ -229,7 +229,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             </button>
           )}
 
-          <div className="h-4 w-px bg-[#222838] mx-1" />
+          <div className="h-4 w-px bg-[#1F1F24] mx-1" />
 
           {/* Snapping Magnet Toggle */}
           <button
@@ -237,7 +237,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             className={`flex items-center space-x-1 px-2 py-1 rounded-md text-xs font-medium border transition ${
               isSnappingEnabled
                 ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/30"
-                : "bg-[#0E1118] text-gray-500 border-[#222838] hover:text-gray-300"
+                : "bg-[#141417] text-gray-500 border-[#26262D] hover:text-gray-300"
             }`}
             title={isSnappingEnabled ? "Snapping Enabled (N)" : "Snapping Disabled"}
           >
@@ -245,10 +245,10 @@ export const Timeline: React.FC<TimelineProps> = ({
             <span>Snap</span>
           </button>
 
-          <div className="h-4 w-px bg-[#222838] mx-1" />
+          <div className="h-4 w-px bg-[#1F1F24] mx-1" />
 
           {/* Current Playhead Time Readout */}
-          <div className="flex items-center space-x-1.5 text-xs text-gray-300 bg-[#0E1118] px-2.5 py-0.5 rounded-md border border-[#222838] font-mono">
+          <div className="flex items-center space-x-1.5 text-xs text-gray-300 bg-[#050505] px-2.5 py-0.5 rounded-md border border-[#1F1F24] font-mono">
             <span className="text-indigo-400 font-bold">{formatTimecode(currentTimeSeconds)}</span>
             <span className="text-gray-600">/</span>
             <span className="text-gray-400">{formatTimecode(totalDurationSec)}</span>
@@ -257,7 +257,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           {onOpenShortcuts && (
             <button
               onClick={onOpenShortcuts}
-              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#0E1118] hover:bg-[#1C2230] text-xs font-medium text-gray-300 border border-[#222838] transition shadow-sm ml-1"
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] text-xs font-medium text-gray-300 border border-[#26262D] transition shadow-sm ml-1"
               title="Keyboard Shortcuts (?)"
             >
               <Keyboard className="w-3.5 h-3.5 text-indigo-400" />
@@ -270,7 +270,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         <div className="flex items-center space-x-1.5">
           <button
             onClick={() => onZoomChange(Math.max(0.5, zoomLevel - 0.25))}
-            className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-[#1C2230] transition"
+            className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-[#1F1F24] transition"
             title="Zoom Out (-)"
           >
             <ZoomOut className="w-3.5 h-3.5" />
@@ -282,19 +282,19 @@ export const Timeline: React.FC<TimelineProps> = ({
             step="0.1"
             value={zoomLevel}
             onChange={(e) => onZoomChange(parseFloat(e.target.value))}
-            className="w-20 h-1.5 bg-[#0E1118] rounded appearance-none cursor-pointer accent-indigo-500"
+            className="w-20 h-1.5 bg-[#16161A] rounded appearance-none cursor-pointer accent-indigo-500"
             title={`Zoom: ${Math.round(zoomLevel * 100)}%`}
           />
           <button
             onClick={() => onZoomChange(Math.min(3, zoomLevel + 0.25))}
-            className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-[#1C2230] transition"
+            className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-[#1F1F24] transition"
             title="Zoom In (+)"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => onZoomChange(1.0)}
-            className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-gray-400 hover:text-white hover:bg-[#1C2230] border border-[#222838] transition"
+            className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-gray-400 hover:text-white hover:bg-[#1F1F24] border border-[#26262D] transition"
             title="Reset Zoom to 100%"
           >
             100%
@@ -305,7 +305,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       {/* Main Multi-Track Scrollable Timeline Canvas */}
       <div
         ref={timelineRef}
-        className="flex-1 overflow-x-auto overflow-y-auto relative bg-[#07090E] flex"
+        className="flex-1 overflow-x-auto overflow-y-auto relative bg-[#050505] flex"
       >
         {/* Left Track Headers (Fixed on Scroll) */}
         <div
@@ -424,7 +424,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
 
           {/* 1. Camera Track Lane */}
-          <div className="h-12 border-b border-surface-border/40 relative bg-[#090B12]/80">
+          <div className="h-12 border-b border-surface-border/40 relative bg-[#09090B]/80">
             {cameraTrack.map((cam) => {
               const startSec = RationalTimeMath.toSeconds(cam.timeRange.start);
               const durationSec = RationalTimeMath.toSeconds(cam.timeRange.duration);
@@ -445,7 +445,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
 
           {/* 2. Captions Track Lane */}
-          <div className="h-12 border-b border-surface-border/40 relative bg-[#090B12]/80">
+          <div className="h-12 border-b border-surface-border/40 relative bg-[#09090B]/80">
             {captionTrack.map((cap) => {
               const startSec = RationalTimeMath.toSeconds(cap.timeRange.start);
               const durationSec = RationalTimeMath.toSeconds(cap.timeRange.duration);
@@ -466,7 +466,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
 
           {/* 3. Main Video Track Lane */}
-          <div className="h-16 border-b border-surface-border/40 relative bg-[#0B0E17]">
+          <div className="h-16 border-b border-surface-border/40 relative bg-[#0D0D0F]">
             {videoTrack?.clips.map((clip) => {
               const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start);
               const durationSec = RationalTimeMath.toSeconds(clip.timelineRange.duration);
@@ -492,7 +492,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                       });
                     }
                   }}
-                  className={`timeline-clip absolute top-1 bottom-1 rounded-xl bg-gradient-to-r from-indigo-900/70 via-indigo-800/70 to-indigo-950/70 border ${
+                  className={`timeline-clip absolute top-1 bottom-1 rounded-xl bg-gradient-to-r from-indigo-950/80 via-zinc-900/80 to-indigo-950/80 border ${
                     isSelected
                       ? "border-indigo-400 ring-2 ring-indigo-500/50 shadow-xl shadow-indigo-500/30"
                       : "border-indigo-500/40 hover:border-indigo-400"
@@ -558,7 +558,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
 
           {/* 4. Audio Waveform Track Lane */}
-          <div className="h-12 border-b border-surface-border/40 relative bg-[#070A10] flex items-center">
+          <div className="h-12 border-b border-surface-border/40 relative bg-[#08080A] flex items-center">
             <div className="w-full h-8 flex items-center space-x-1 px-3 opacity-75">
               {Array.from({ length: Math.floor(timelineWidthPx / 6) }).map((_, i) => {
                 const heightPercent = 25 + Math.abs(Math.sin(i * 0.45) * 65) + (i % 6 === 0 ? 15 : 0);

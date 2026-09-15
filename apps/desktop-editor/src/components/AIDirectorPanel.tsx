@@ -103,9 +103,9 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col select-none relative bg-[#0E1118]">
+    <div className="w-full flex-1 flex flex-col select-none relative bg-[#0B0B0C]">
       {/* Panel Header */}
-      <div className="p-3 border-b border-[#222838] bg-[#0E1118]">
+      <div className="p-3 border-b border-[#1F1F24] bg-[#0B0B0C]">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center space-x-2 text-indigo-400">
             <div className="p-1 rounded-md bg-indigo-500/10 border border-indigo-500/20">
@@ -117,7 +117,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
           {onRefreshAIStatus && (
             <button
               onClick={onRefreshAIStatus}
-              className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#1C2230] transition"
+              className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#1F1F24] transition"
               title="Refresh AI Status"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -130,7 +130,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
       </div>
 
       {/* AI Configuration Status Card */}
-      <div className="px-3 py-2.5 border-b border-[#222838] bg-[#141822]/50">
+      <div className="px-3 py-2.5 border-b border-[#1F1F24] bg-[#0E0E10]">
         {isAIConfigured ? (
           <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between">
             <div className="flex items-center space-x-2 min-w-0">
@@ -187,13 +187,13 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
               onClick={() => onSelectPreset(card.id)}
               className={`p-2.5 rounded-lg border cursor-pointer transition-all ${
                 isSelected
-                  ? "bg-[#1C2230] border-indigo-500 ring-1 ring-indigo-500/40"
-                  : "bg-[#141822] border-[#222838] hover:border-[#38435C] hover:bg-[#1C2230]"
+                  ? "bg-[#1F1F24] border-indigo-500 ring-1 ring-indigo-500/40"
+                  : "bg-[#111114] border-[#1F1F24] hover:border-zinc-700 hover:bg-[#16161A]"
               }`}
             >
               <div className="flex items-start justify-between mb-1">
                 <div className="flex items-center space-x-2">
-                  <div className={`p-1 rounded-md bg-[#0E1118] border border-[#222838] ${isSelected ? "text-indigo-400" : "text-gray-400"}`}>
+                  <div className={`p-1 rounded-md bg-[#0B0B0C] border border-[#1F1F24] ${isSelected ? "text-indigo-400" : "text-gray-400"}`}>
                     <Icon className="w-3.5 h-3.5" />
                   </div>
                   <span className="text-xs font-semibold text-gray-100">{card.title}</span>
@@ -203,7 +203,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                 )}
               </div>
               <p className="text-[10px] text-gray-400 leading-relaxed mb-1.5">{card.desc}</p>
-              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#0E1118] border border-[#222838] text-gray-300">
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#050505] border border-[#1F1F24] text-gray-300">
                 {card.badge}
               </span>
             </div>
@@ -223,7 +223,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                   key={idx}
                   onClick={() => onApplyPrompt(action.label)}
                   disabled={isProcessing || !isAIConfigured}
-                  className="w-full flex items-center space-x-2 p-1.5 rounded-md bg-[#141822] hover:bg-[#1C2230] border border-[#222838] text-left text-[11px] text-gray-300 hover:text-white transition disabled:opacity-40 disabled:pointer-events-none"
+                  className="w-full flex items-center space-x-2 p-1.5 rounded-md bg-[#111114] hover:bg-[#16161A] border border-[#1F1F24] text-left text-[11px] text-gray-300 hover:text-white transition disabled:opacity-40 disabled:pointer-events-none"
                 >
                   <ActionIcon className="w-3 h-3 text-indigo-400 shrink-0" />
                   <span className="truncate">{action.label}</span>
@@ -235,7 +235,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
       </div>
 
       {/* Interactive AI Command Prompt Bar */}
-      <div className="p-2.5 border-t border-[#222838] bg-[#141822]/70">
+      <div className="p-2.5 border-t border-[#1F1F24] bg-[#0E0E10]">
         <form onSubmit={handleSubmit} className="relative">
           <input
             type="text"
@@ -247,7 +247,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                 : "Configure AI key above to start directing..."
             }
             disabled={isProcessing || !isAIConfigured}
-            className="w-full bg-[#0E1118] text-xs text-gray-200 placeholder-gray-500 pl-2.5 pr-8 py-2 rounded-lg border border-[#222838] focus:border-indigo-500 focus:outline-none transition disabled:opacity-40"
+            className="w-full bg-[#141417] text-xs text-gray-200 placeholder-gray-500 pl-2.5 pr-8 py-2 rounded-lg border border-[#1F1F24] focus:border-indigo-500 focus:outline-none transition disabled:opacity-40"
           />
           <button
             type="submit"

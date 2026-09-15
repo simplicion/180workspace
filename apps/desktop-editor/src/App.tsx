@@ -860,7 +860,7 @@ export const App: React.FC = () => {
 
   if (!project) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#080A0F] text-gray-400 font-mono text-xs">
+      <div className="h-screen w-screen flex items-center justify-center bg-[#050505] text-zinc-400 font-mono text-xs">
         <div className="flex flex-col items-center space-y-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 animate-spin" />
           <span>Loading 180 Autonomous Engine...</span>
@@ -873,7 +873,7 @@ export const App: React.FC = () => {
     project.editIR.tracks.videoTracks[0]?.clips.find((c) => c.id === selectedClipId) || null;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#080A0F] text-gray-100 overflow-hidden font-sans select-none">
+    <div className="h-screen w-screen flex flex-col bg-[#050505] text-zinc-100 overflow-hidden font-sans select-none">
       {/* 1. Top Header Bar */}
       <HeaderBar
         projectName={project.project.name}
@@ -908,33 +908,33 @@ export const App: React.FC = () => {
       />
 
       {/* 2. Middle Body: Resizable Left Sidebar + Center Viewport + Resizable Right Inspector */}
-      <div className="flex-1 flex min-h-0 relative bg-[#080A0F] overflow-hidden">
+      <div className="flex-1 flex min-h-0 relative bg-[#050505] overflow-hidden">
         {isLeftPanelOpen && (
           <>
             <div
               style={{ width: `${leftPanelWidth}px` }}
-              className="h-full shrink-0 flex flex-col border-r border-[#222838] bg-[#0E1118] overflow-hidden select-none"
+              className="h-full shrink-0 flex flex-col border-r border-[#1F1F24] bg-[#0B0B0C] overflow-hidden select-none"
             >
               {/* Tab Switcher: Media Assets vs AI Director */}
-              <div className="h-9 border-b border-[#222838] bg-[#141822] flex items-center px-2 space-x-1 shrink-0">
+              <div className="h-9 border-b border-[#1F1F24] bg-[#111114] flex items-center px-2 space-x-1 shrink-0">
                 <button
                   onClick={() => setLeftSidebarTab("assets")}
                   className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs font-semibold transition ${
                     leftSidebarTab === "assets"
-                      ? "bg-[#0E1118] text-white border border-[#222838] shadow-sm"
-                      : "text-gray-400 hover:text-gray-200"
+                      ? "bg-[#18181C] text-white border border-[#26262D] shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
                   <Folder className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Media Bin</span>
-                  <span className="text-[10px] text-gray-500 font-mono ml-0.5">({project.assets.length})</span>
+                  <span className="text-[10px] text-zinc-500 font-mono ml-0.5">({project.assets.length})</span>
                 </button>
                 <button
                   onClick={() => setLeftSidebarTab("ai")}
                   className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs font-semibold transition ${
                     leftSidebarTab === "ai"
-                      ? "bg-[#0E1118] text-white border border-[#222838] shadow-sm"
-                      : "text-gray-400 hover:text-gray-200"
+                      ? "bg-[#18181C] text-white border border-[#26262D] shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5 text-pink-400" />
@@ -1021,7 +1021,7 @@ export const App: React.FC = () => {
             />
             <div
               style={{ width: `${rightPanelWidth}px` }}
-              className="h-full shrink-0 flex flex-col border-l border-[#222838] bg-[#0E1118] overflow-hidden"
+              className="h-full shrink-0 flex flex-col border-l border-[#1F1F24] bg-[#0B0B0C] overflow-hidden"
             >
               <ClipInspector
                 selectedClip={selectedClip}

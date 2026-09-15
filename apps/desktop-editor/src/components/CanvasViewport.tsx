@@ -200,7 +200,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-[#07090E] flex flex-col items-center justify-between p-4 relative overflow-hidden select-none"
+      className="flex-1 bg-[#050505] flex flex-col items-center justify-between p-4 relative overflow-hidden select-none"
     >
       {/* Top Viewport Toolbar */}
       <div className="flex items-center justify-between w-full max-w-4xl px-2 z-10">
@@ -266,7 +266,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       {/* Main Video Viewport Canvas */}
       <div className="flex-1 w-full flex items-center justify-center relative my-2 min-h-0">
         <div
-          className={`${getAspectClass()} relative bg-[#0B0F19] border border-surface-border/80 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden flex items-center justify-center transition-all duration-200`}
+          className={`${getAspectClass()} relative bg-[#000000] border border-[#1F1F24] rounded-2xl shadow-2xl shadow-black/90 overflow-hidden flex items-center justify-center transition-all duration-200`}
         >
           {/* Zoomable Video Layer Container (Camera Spring Zoom) */}
           <div
@@ -310,13 +310,13 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
               </div>
             ) : (
               /* High-End Empty / Preview Visual */
-              <div className="w-full h-full bg-gradient-to-br from-[#0D111D] via-[#13192B] to-[#0A0D15] flex flex-col items-center justify-center relative select-none">
+              <div className="w-full h-full bg-gradient-to-br from-[#0B0B0E] via-[#050507] to-[#000000] flex flex-col items-center justify-center relative select-none">
                 {/* Visual Grid Lines */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293d_1px,transparent_1px),linear-gradient(to_bottom,#1f293d_1px,transparent_1px)] bg-[size:36px_36px] opacity-25" />
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#1F1F24_1px,transparent_1px),linear-gradient(to_bottom,#1F1F24_1px,transparent_1px)] bg-[size:36px_36px] opacity-25" />
 
                 {/* Center Engine Emblem */}
                 <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 p-1 shadow-2xl shadow-indigo-500/25 z-10 flex items-center justify-center">
-                  <div className="w-full h-full rounded-full bg-[#0A0D16] flex flex-col items-center justify-center text-center p-3">
+                  <div className="w-full h-full rounded-full bg-[#08080A] flex flex-col items-center justify-center text-center p-3">
                     <Sparkles className="w-7 h-7 text-indigo-400 mb-1 animate-pulse" />
                     <span className="text-[11px] font-extrabold text-white tracking-wider">180 STUDIO</span>
                     <span className="text-[9px] text-indigo-300 font-mono">Native Video</span>
@@ -396,14 +396,14 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
               <span className="text-[8px] font-mono font-bold text-gray-400 leading-none">R</span>
             </div>
             <div className="flex flex-col space-y-1 w-14">
-              <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-[#16161A] rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-75 ${
                     isPlaying && !isMuted ? "bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 w-[78%]" : "w-0"
                   }`}
                 />
               </div>
-              <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-[#16161A] rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-75 ${
                     isPlaying && !isMuted ? "bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 w-[72%]" : "w-0"
@@ -417,10 +417,10 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       </div>
 
       {/* Bottom Transport Controls Bar */}
-      <div className="flex items-center space-x-4 bg-surface/90 backdrop-blur-md border border-surface-border px-6 py-2.5 rounded-2xl shadow-2xl z-10">
+      <div className="flex items-center space-x-4 bg-[#0B0B0C]/95 backdrop-blur-md border border-[#1F1F24] px-6 py-2.5 rounded-2xl shadow-2xl z-10">
         <button
           onClick={() => onSeek(0)}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-surface-hover"
+          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A]"
           title="Jump to Start (Home)"
         >
           <SkipBack className="w-4 h-4" />
@@ -428,7 +428,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
         <button
           onClick={() => onSeek(Math.max(0, currentTimeSeconds - 1 / 30))}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-surface-hover flex items-center text-xs font-mono"
+          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A] flex items-center text-xs font-mono"
           title="Previous Frame (Left Arrow)"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -446,7 +446,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
         <button
           onClick={() => onSeek(Math.min(totalDurationSec, currentTimeSeconds + 1 / 30))}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-surface-hover flex items-center text-xs font-mono"
+          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A] flex items-center text-xs font-mono"
           title="Next Frame (Right Arrow)"
         >
           <span>+1F</span>
@@ -455,19 +455,19 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
         <button
           onClick={() => onSeek(totalDurationSec)}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-surface-hover"
+          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A]"
           title="Jump to End (End)"
         >
           <SkipForward className="w-4 h-4" />
         </button>
 
-        <div className="h-4 w-px bg-surface-border" />
+        <div className="h-4 w-px bg-[#1F1F24]" />
 
         {/* Loop Toggle */}
         <button
           onClick={() => setIsLooping(!isLooping)}
           className={`p-1.5 rounded-lg transition ${
-            isLooping ? "text-indigo-400 bg-indigo-500/20" : "text-gray-400 hover:text-white"
+            isLooping ? "text-indigo-400 bg-indigo-500/20" : "text-gray-400 hover:text-white hover:bg-[#16161A]"
           }`}
           title={isLooping ? "Loop Enabled" : "Loop Disabled"}
         >
@@ -478,7 +478,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsMuted(!isMuted)}
-            className="text-gray-400 hover:text-white transition p-1 rounded hover:bg-surface-hover"
+            className="text-gray-400 hover:text-white transition p-1 rounded hover:bg-[#16161A]"
             title={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted || volume === 0 ? (
@@ -497,17 +497,17 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
               setVolume(parseFloat(e.target.value));
               if (isMuted) setIsMuted(false);
             }}
-            className="w-20 accent-indigo-500 h-1.5 bg-gray-700 rounded-lg cursor-pointer"
+            className="w-20 accent-indigo-500 h-1.5 bg-[#16161A] rounded-lg cursor-pointer"
             title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
           />
         </div>
 
-        <div className="h-4 w-px bg-surface-border" />
+        <div className="h-4 w-px bg-[#1F1F24]" />
 
         {/* Fullscreen Viewport Toggle */}
         <button
           onClick={toggleFullscreen}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-surface-hover"
+          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A]"
           title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Viewport"}
         >
           <Maximize className="w-4 h-4" />
