@@ -4,19 +4,17 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  Rewind,
+  FastForward,
   Volume2,
   VolumeX,
   Maximize,
+  Minimize,
   Sparkles,
   Camera,
-  Layers,
-  ChevronLeft,
-  ChevronRight,
-  Upload,
+  ChevronDown,
   Repeat,
-  Monitor,
-  Smartphone,
-  Square,
+  Upload,
 } from "lucide-react";
 import { EditIR, RationalTimeMath, MediaAssetDescriptor } from "@workspace/video-contracts";
 
@@ -51,8 +49,11 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scrubberRef = useRef<HTMLDivElement>(null);
+  const isDraggingScrubberRef = useRef(false);
 
   const totalDurationSec = Math.max(1, RationalTimeMath.toSeconds(editIR.meta.totalDuration));
 
@@ -91,9 +92,16 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
   // Synchronize playback speed
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.playbackRate = activeVideoClip?.speedMultiplier || 1.0;
+      videoRef.current.playbackRate = playbackSpeed;
     }
-  }, [activeVideoClip?.speedMultiplier]);
+  }, [playbackSpeed]);
+
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  };
 
   // Synchronize play / pause
   useEffect(() => {
@@ -112,6 +120,59 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       videoRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
+
+  // Scrubber drag & click seek
+  const handleScrubberSeek = (clientX: number) => {
+    if (!scrubberRef.current) return;
+    const rect = scrubberRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onSeek(ratio * totalDurationSec);
+  };
+
+  const handleScrubberMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingScrubberRef.current = true;
+    handleScrubberSeek(e.clientX);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (isDraggingScrubberRef.current) {
+        handleScrubberSeek(moveEvent.clientX);
+      }
+    };
+
+    const onMouseUp = () => {
+      isDraggingScrubberRef.current = false;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  // Capture current video frame snapshot as PNG
+  const handleTakeSnapshot = () => {
+    if (!videoRef.current) return;
+    try {
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 1920;
+      canvas.height = video.videoHeight || 1080;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/png");
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = `snapshot_${currentFrame}_${currentTimecodeFormatted.replace(/:/g, "-")}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } catch (err) {
+      console.warn("Frame snapshot error:", err);
+    }
+  };
 
   // Analytical 2nd-order harmonic spring zoom evaluation
   const activeCameraKeyframe = editIR.tracks.cameraTrack.find((cam) => {
@@ -154,37 +215,33 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     return currentTimeSeconds >= start && currentTimeSeconds <= end;
   });
 
-  // Active layers count
-  const activeVideoClipsCount = editIR.tracks.videoTracks.reduce((acc, tr) => {
-    return (
-      acc +
-      tr.clips.filter((c) => {
-        const start = RationalTimeMath.toSeconds(c.timelineRange.start);
-        const end = start + RationalTimeMath.toSeconds(c.timelineRange.duration);
-        return currentTimeSeconds >= start && currentTimeSeconds <= end;
-      }).length
-    );
-  }, 0);
+  // SMPTE Timecode and Frames calculation matching DaVinci / professional NLE format: 00:00:00:22 [22]
+  const fps = 30;
+  const currentFrame = Math.max(0, Math.floor(currentTimeSeconds * fps));
+  const currentFramesInSec = currentFrame % fps;
+  const curTotalSec = Math.floor(currentTimeSeconds);
+  const curS = curTotalSec % 60;
+  const curM = Math.floor(curTotalSec / 60) % 60;
+  const curH = Math.floor(curTotalSec / 3600);
+  const currentTimecodeFormatted = `${String(curH).padStart(2, "0")}:${String(curM).padStart(2, "0")}:${String(curS).padStart(2, "0")}:${String(currentFramesInSec).padStart(2, "0")}`;
 
-  // Timecode HH:MM:SS:FF
-  const formatTimecode = (sec: number) => {
-    const totalFrames = Math.floor(sec * 30);
-    const frames = totalFrames % 30;
-    const s = Math.floor(sec) % 60;
-    const m = Math.floor(sec / 60) % 60;
-    const h = Math.floor(sec / 3600);
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}:${String(frames).padStart(2, "0")}`;
-  };
+  const totalFrames = Math.max(1, Math.floor(totalDurationSec * fps));
+  const totalFramesInSec = totalFrames % fps;
+  const totTotalSec = Math.floor(totalDurationSec);
+  const totS = totTotalSec % 60;
+  const totM = Math.floor(totTotalSec / 60) % 60;
+  const totH = Math.floor(totTotalSec / 3600);
+  const totalTimecodeFormatted = `${String(totH).padStart(2, "0")}:${String(totM).padStart(2, "0")}:${String(totS).padStart(2, "0")}:${String(totalFramesInSec).padStart(2, "0")}`;
 
   const getAspectClass = () => {
     switch (aspectRatio) {
       case "9:16":
-        return "aspect-[9/16] h-[90%]";
+        return "aspect-[9/16] h-full max-h-full";
       case "1:1":
-        return "aspect-square h-[90%]";
+        return "aspect-square h-full max-h-full";
       case "16:9":
       default:
-        return "aspect-video w-[90%] max-h-[90%]";
+        return "aspect-video w-full max-w-full max-h-full";
     }
   };
 
@@ -200,73 +257,12 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-[#050505] flex flex-col items-center justify-between p-4 relative overflow-hidden select-none"
+      className="flex-1 bg-[#050505] flex flex-col items-stretch justify-between relative overflow-hidden select-none"
     >
-      {/* Top Viewport Toolbar */}
-      <div className="flex items-center justify-between w-full max-w-4xl px-2 z-10">
-        {/* Left: Timecode Readout */}
-        <div className="flex items-center space-x-3 bg-surface/85 backdrop-blur-md border border-surface-border px-3.5 py-1.5 rounded-full text-xs text-gray-300 shadow-xl">
-          <span className="font-mono text-indigo-400 font-bold tracking-wider">{formatTimecode(currentTimeSeconds)}</span>
-          <span className="text-gray-600">/</span>
-          <span className="font-mono text-gray-400">{formatTimecode(totalDurationSec)}</span>
-          <div className="h-3 w-px bg-surface-border" />
-          <span className="text-[11px] text-gray-400 font-medium">
-            {editIR.meta.resolution.width}x{editIR.meta.resolution.height} @ 30fps
-          </span>
-          <div className="h-3 w-px bg-surface-border" />
-          <span className="flex items-center space-x-1 text-[11px] text-emerald-400">
-            <Layers className="w-3 h-3" />
-            <span>{activeVideoClipsCount} active layers</span>
-          </span>
-        </div>
-
-        {/* Right: Aspect Ratio Switcher Pills */}
-        {onAspectRatioChange && (
-          <div className="flex items-center space-x-1 bg-surface/85 backdrop-blur-md border border-surface-border p-1 rounded-xl shadow-lg">
-            <button
-              onClick={() => onAspectRatioChange("16:9")}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                aspectRatio === "16:9"
-                  ? "bg-indigo-600 text-white shadow"
-                  : "text-gray-400 hover:text-white hover:bg-surface-hover"
-              }`}
-              title="Landscape (16:9)"
-            >
-              <Monitor className="w-3 h-3" />
-              <span>16:9</span>
-            </button>
-            <button
-              onClick={() => onAspectRatioChange("9:16")}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                aspectRatio === "9:16"
-                  ? "bg-indigo-600 text-white shadow"
-                  : "text-gray-400 hover:text-white hover:bg-surface-hover"
-              }`}
-              title="Shorts / Reels / TikTok (9:16)"
-            >
-              <Smartphone className="w-3 h-3" />
-              <span>9:16</span>
-            </button>
-            <button
-              onClick={() => onAspectRatioChange("1:1")}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                aspectRatio === "1:1"
-                  ? "bg-indigo-600 text-white shadow"
-                  : "text-gray-400 hover:text-white hover:bg-surface-hover"
-              }`}
-              title="Square (1:1)"
-            >
-              <Square className="w-3 h-3" />
-              <span>1:1</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Main Video Viewport Canvas */}
-      <div className="flex-1 w-full flex items-center justify-center relative my-2 min-h-0">
+      {/* Main Video Viewport Canvas - Clean, Full Elevation, Centered */}
+      <div className="flex-1 w-full flex items-center justify-center relative p-3 min-h-0 overflow-hidden">
         <div
-          className={`${getAspectClass()} relative bg-[#000000] border border-[#1F1F24] rounded-2xl shadow-2xl shadow-black/90 overflow-hidden flex items-center justify-center transition-all duration-200`}
+          className={`${getAspectClass()} relative bg-[#000000] border border-[#1F1F24] rounded-xl shadow-2xl shadow-black/90 overflow-hidden flex items-center justify-center transition-all duration-200`}
         >
           {/* Zoomable Video Layer Container (Camera Spring Zoom) */}
           <div
@@ -360,7 +356,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
           {/* Kinetic Subtitles Dynamic Overlay */}
           {activeCaption && (
-            <div className="absolute bottom-10 inset-x-0 flex justify-center z-20 pointer-events-none px-6">
+            <div className="absolute bottom-6 inset-x-0 flex justify-center z-20 pointer-events-none px-6">
               <div className="px-5 py-2.5 rounded-2xl bg-black/85 backdrop-blur-lg border border-white/15 shadow-2xl text-center flex flex-wrap items-center justify-center gap-2 transition-transform duration-100 scale-105">
                 {activeCaption.words && activeCaption.words.length > 0 ? (
                   activeCaption.words.map((w, idx) => {
@@ -388,130 +384,213 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
               </div>
             </div>
           )}
-
-          {/* Right Corner Mini Stereo VU Meter */}
-          <div className="absolute bottom-3.5 right-3.5 flex items-center space-x-2 bg-black/75 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 shadow-lg">
-            <div className="flex flex-col space-y-0.5">
-              <span className="text-[8px] font-mono font-bold text-gray-400 leading-none">L</span>
-              <span className="text-[8px] font-mono font-bold text-gray-400 leading-none">R</span>
-            </div>
-            <div className="flex flex-col space-y-1 w-14">
-              <div className="w-full h-1.5 bg-[#16161A] rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-75 ${
-                    isPlaying && !isMuted ? "bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 w-[78%]" : "w-0"
-                  }`}
-                />
-              </div>
-              <div className="w-full h-1.5 bg-[#16161A] rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-75 ${
-                    isPlaying && !isMuted ? "bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 w-[72%]" : "w-0"
-                  }`}
-                />
-              </div>
-            </div>
-            <span className="text-[9px] font-mono text-gray-300 font-semibold">{isPlaying && !isMuted ? "-8dB" : "-inf"}</span>
-          </div>
         </div>
       </div>
 
-      {/* Bottom Transport Controls Bar */}
-      <div className="flex items-center space-x-4 bg-[#0B0B0C]/95 backdrop-blur-md border border-[#1F1F24] px-6 py-2.5 rounded-2xl shadow-2xl z-10">
-        <button
-          onClick={() => onSeek(0)}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A]"
-          title="Jump to Start (Home)"
+      {/* Docked Video Controls Strip (Exact Pixel Match with Reference UI) */}
+      <div className="w-full bg-[#0D0E12] border-t border-[#1F1F24] flex flex-col z-20 shrink-0 select-none">
+        {/* Top Interactive Thin Scrubber Line with Sky Blue Progress */}
+        <div
+          ref={scrubberRef}
+          onMouseDown={handleScrubberMouseDown}
+          className="w-full h-1 bg-[#1A1C22] relative cursor-pointer group"
+          title="Click or drag to scrub playhead"
         >
-          <SkipBack className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={() => onSeek(Math.max(0, currentTimeSeconds - 1 / 30))}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A] flex items-center text-xs font-mono"
-          title="Previous Frame (Left Arrow)"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span>-1F</span>
-        </button>
-
-        {/* Play / Pause Primary Button */}
-        <button
-          onClick={onTogglePlay}
-          className="w-11 h-11 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transition transform"
-          title="Play/Pause (Space)"
-        >
-          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-        </button>
-
-        <button
-          onClick={() => onSeek(Math.min(totalDurationSec, currentTimeSeconds + 1 / 30))}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A] flex items-center text-xs font-mono"
-          title="Next Frame (Right Arrow)"
-        >
-          <span>+1F</span>
-          <ChevronRight className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={() => onSeek(totalDurationSec)}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A]"
-          title="Jump to End (End)"
-        >
-          <SkipForward className="w-4 h-4" />
-        </button>
-
-        <div className="h-4 w-px bg-[#1F1F24]" />
-
-        {/* Loop Toggle */}
-        <button
-          onClick={() => setIsLooping(!isLooping)}
-          className={`p-1.5 rounded-lg transition ${
-            isLooping ? "text-indigo-400 bg-indigo-500/20" : "text-gray-400 hover:text-white hover:bg-[#16161A]"
-          }`}
-          title={isLooping ? "Loop Enabled" : "Loop Disabled"}
-        >
-          <Repeat className="w-4 h-4" />
-        </button>
-
-        {/* Audio Volume Controls */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setIsMuted(!isMuted)}
-            className="text-gray-400 hover:text-white transition p-1 rounded hover:bg-[#16161A]"
-            title={isMuted ? "Unmute" : "Mute"}
-          >
-            {isMuted || volume === 0 ? (
-              <VolumeX className="w-4 h-4 text-rose-400" />
-            ) : (
-              <Volume2 className="w-4 h-4 text-emerald-400" />
-            )}
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={isMuted ? 0 : volume}
-            onChange={(e) => {
-              setVolume(parseFloat(e.target.value));
-              if (isMuted) setIsMuted(false);
+          <div
+            className="h-full bg-sky-400 group-hover:bg-sky-300 transition-all relative"
+            style={{
+              width: `${Math.min(100, Math.max(0, (currentTimeSeconds / totalDurationSec) * 100))}%`,
             }}
-            className="w-20 accent-indigo-500 h-1.5 bg-[#16161A] rounded-lg cursor-pointer"
-            title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
-          />
+          >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white shadow opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
         </div>
 
-        <div className="h-4 w-px bg-[#1F1F24]" />
+        {/* Controls Row */}
+        <div className="h-10 px-3 flex items-center justify-between">
+          {/* Left: SMPTE Timecode & Speed Selector & Mute */}
+          <div className="flex items-center space-x-3">
+            {/* Current Timecode & Frame: 00:00:00:22 [22] */}
+            <div className="flex items-center space-x-1.5 font-mono text-xs select-none">
+              <span className="text-sky-400 font-bold tracking-wider">{currentTimecodeFormatted}</span>
+              <span className="text-sky-500/80 font-medium">[{currentFrame}]</span>
+            </div>
 
-        {/* Fullscreen Viewport Toggle */}
-        <button
-          onClick={toggleFullscreen}
-          className="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#16161A]"
-          title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Viewport"}
-        >
-          <Maximize className="w-4 h-4" />
-        </button>
+            {/* Speed Multiplier Dropdown: x1 ▾ */}
+            <div className="relative flex items-center">
+              <select
+                value={playbackSpeed}
+                onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                className="bg-[#202227] hover:bg-[#282B32] text-zinc-300 border border-[#2E323A] rounded px-2 py-0.5 text-xs font-mono font-medium outline-none cursor-pointer appearance-none pr-5 transition"
+                title="Playback Speed"
+              >
+                <option value={0.25}>x0.25</option>
+                <option value={0.5}>x0.5</option>
+                <option value={0.75}>x0.75</option>
+                <option value={1}>x1</option>
+                <option value={1.25}>x1.25</option>
+                <option value={1.5}>x1.5</option>
+                <option value={2}>x2</option>
+              </select>
+              <ChevronDown className="w-3 h-3 text-zinc-400 absolute right-1.5 pointer-events-none" />
+            </div>
+
+            {/* Audio Mute Toggle */}
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className={`p-1 rounded text-zinc-400 hover:text-white transition ${
+                isMuted ? "text-rose-400" : ""
+              }`}
+              title={isMuted ? "Unmute Audio (M)" : "Mute Audio (M)"}
+            >
+              {isMuted || volume === 0 ? (
+                <VolumeX className="w-4 h-4 text-rose-400" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Center: Playback Transport Buttons */}
+          <div className="flex items-center space-x-2.5">
+            {/* Jump to Start: |◀ */}
+            <button
+              onClick={() => onSeek(0)}
+              className="p-1 text-zinc-400 hover:text-white transition"
+              title="Jump to Start (Home)"
+            >
+              <SkipBack className="w-4 h-4 fill-current" />
+            </button>
+
+            {/* Step Backward / Rewind: ◀◀ */}
+            <button
+              onClick={() => {
+                if (onStepFrame) onStepFrame(-1);
+                else onSeek(Math.max(0, currentTimeSeconds - 1 / fps));
+              }}
+              className="p-1 text-zinc-400 hover:text-white transition"
+              title="Previous Frame (Left Arrow)"
+            >
+              <Rewind className="w-4 h-4 fill-current" />
+            </button>
+
+            {/* Play / Pause Primary Button: ▶ / ⏸ */}
+            <button
+              onClick={onTogglePlay}
+              className="p-1 text-zinc-100 hover:text-white hover:scale-110 active:scale-95 transition"
+              title="Play / Pause (Space)"
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 fill-current" />
+              ) : (
+                <Play className="w-4 h-4 fill-current ml-0.5" />
+              )}
+            </button>
+
+            {/* Step Forward / Fast Forward: ▶▶ */}
+            <button
+              onClick={() => {
+                if (onStepFrame) onStepFrame(1);
+                else onSeek(Math.min(totalDurationSec, currentTimeSeconds + 1 / fps));
+              }}
+              className="p-1 text-zinc-400 hover:text-white transition"
+              title="Next Frame (Right Arrow)"
+            >
+              <FastForward className="w-4 h-4 fill-current" />
+            </button>
+
+            {/* Jump to End: ▶| */}
+            <button
+              onClick={() => onSeek(totalDurationSec)}
+              className="p-1 text-zinc-400 hover:text-white transition"
+              title="Jump to End (End)"
+            >
+              <SkipForward className="w-4 h-4 fill-current" />
+            </button>
+
+            {/* Loop Toggle: ⇄ */}
+            <button
+              onClick={() => setIsLooping(!isLooping)}
+              className={`p-1 transition ${
+                isLooping ? "text-sky-400" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+              title={isLooping ? "Loop Enabled" : "Loop Disabled"}
+            >
+              <Repeat className="w-4 h-4" />
+            </button>
+
+            {/* Status Badge: PAUSED / PLAYING */}
+            <div className="bg-[#202227] border border-[#2E323A] px-2 py-0.5 rounded text-[10px] font-mono font-bold text-zinc-300 tracking-wider select-none">
+              {isPlaying ? "PLAYING" : "PAUSED"}
+            </div>
+
+            {/* Snapshot Camera Button: 📷 */}
+            <button
+              onClick={handleTakeSnapshot}
+              className="p-1 text-zinc-400 hover:text-white hover:scale-105 active:scale-95 transition"
+              title="Capture Frame Snapshot (PNG)"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Right: Aspect Ratio Switcher & Total Duration */}
+          <div className="flex items-center space-x-3">
+            {/* Aspect Ratio Switcher */}
+            {onAspectRatioChange && (
+              <div className="flex items-center space-x-0.5 bg-[#16181D] border border-[#262830] p-0.5 rounded-lg">
+                <button
+                  onClick={() => onAspectRatioChange("16:9")}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                    aspectRatio === "16:9"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                  title="Landscape (16:9)"
+                >
+                  16:9
+                </button>
+                <button
+                  onClick={() => onAspectRatioChange("9:16")}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                    aspectRatio === "9:16"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                  title="Vertical Shorts / Reels (9:16)"
+                >
+                  9:16
+                </button>
+                <button
+                  onClick={() => onAspectRatioChange("1:1")}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                    aspectRatio === "1:1"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                  title="Square (1:1)"
+                >
+                  1:1
+                </button>
+              </div>
+            )}
+
+            {/* Total Duration & Frames: [60] 00:00:02:00 */}
+            <div className="flex items-center space-x-1.5 font-mono text-xs text-zinc-400 select-none">
+              <span className="text-zinc-500 font-medium">[{totalFrames}]</span>
+              <span className="tracking-wider">{totalTimecodeFormatted}</span>
+            </div>
+
+            {/* Fullscreen Viewport Toggle */}
+            <button
+              onClick={toggleFullscreen}
+              className="text-zinc-400 hover:text-white p-1 rounded hover:bg-[#16181D] transition"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Viewport"}
+            >
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

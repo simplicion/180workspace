@@ -247,13 +247,6 @@ export const Timeline: React.FC<TimelineProps> = ({
 
           <div className="h-4 w-px bg-[#1F1F24] mx-1" />
 
-          {/* Current Playhead Time Readout */}
-          <div className="flex items-center space-x-1.5 text-xs text-gray-300 bg-[#050505] px-2.5 py-0.5 rounded-md border border-[#1F1F24] font-mono">
-            <span className="text-indigo-400 font-bold">{formatTimecode(currentTimeSeconds)}</span>
-            <span className="text-gray-600">/</span>
-            <span className="text-gray-400">{formatTimecode(totalDurationSec)}</span>
-          </div>
-
           {onOpenShortcuts && (
             <button
               onClick={onOpenShortcuts}
