@@ -78,7 +78,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`w-full flex-1 flex flex-col select-none relative bg-[#0E1118] transition-colors ${
+      className={`w-full flex-1 flex flex-col select-none relative bg-[#0B0B0C] transition-colors ${
         isDragging ? "ring-2 ring-indigo-500 bg-indigo-950/20" : ""
       }`}
     >
@@ -93,7 +93,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
       />
 
       {/* Header */}
-      <div className="p-3 border-b border-[#222838] flex items-center justify-between bg-[#0E1118]">
+      <div className="p-3 border-b border-[#1F1F24] flex items-center justify-between bg-[#0B0B0C]">
         <div className="flex items-center space-x-2 text-gray-200">
           <div className="p-1.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
             <Folder className="w-3.5 h-3.5" />
@@ -114,7 +114,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="p-2.5 border-b border-[#222838] space-y-2 bg-[#141822]/60">
+      <div className="p-2.5 border-b border-[#1F1F24] space-y-2 bg-[#0E0E10]">
         <div className="relative">
           <Search className="w-3 h-3 text-gray-400 absolute left-2.5 top-2.5" />
           <input
@@ -122,7 +122,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search footage..."
-            className="w-full bg-[#0E1118] text-[11px] text-gray-200 placeholder-gray-500 pl-8 pr-2.5 py-1.5 rounded-md border border-[#222838] focus:border-indigo-500 focus:outline-none transition"
+            className="w-full bg-[#141417] text-[11px] text-gray-200 placeholder-gray-500 pl-8 pr-2.5 py-1.5 rounded-md border border-[#1F1F24] focus:border-indigo-500 focus:outline-none transition"
           />
         </div>
 
@@ -132,7 +132,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
             className={`px-2 py-0.5 rounded-md font-medium transition ${
               filterType === "all"
                 ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                : "text-gray-400 hover:text-gray-200 hover:bg-[#1C2230]"
+                : "text-gray-400 hover:text-gray-200 hover:bg-[#1F1F24]"
             }`}
           >
             All ({assets.length})
@@ -142,7 +142,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
             className={`px-2 py-0.5 rounded-md font-medium transition ${
               filterType === "video"
                 ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                : "text-gray-400 hover:text-gray-200 hover:bg-[#1C2230]"
+                : "text-gray-400 hover:text-gray-200 hover:bg-[#1F1F24]"
             }`}
           >
             Video
@@ -152,7 +152,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
             className={`px-2 py-0.5 rounded-md font-medium transition ${
               filterType === "audio"
                 ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                : "text-gray-400 hover:text-gray-200 hover:bg-[#1C2230]"
+                : "text-gray-400 hover:text-gray-200 hover:bg-[#1F1F24]"
             }`}
           >
             Audio
@@ -171,7 +171,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
         )}
 
         {filteredAssets.length === 0 ? (
-          <div className="p-5 text-center border border-dashed border-[#222838] rounded-lg mt-3 bg-[#141822]/40 flex flex-col items-center justify-center">
+          <div className="p-5 text-center border border-dashed border-[#1F1F24] rounded-lg mt-3 bg-[#111114] flex flex-col items-center justify-center">
             <div className="w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-2">
               <UploadCloud className="w-4 h-4" />
             </div>
@@ -191,7 +191,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
               {onLoadSampleDemo && (
                 <button
                   onClick={onLoadSampleDemo}
-                  className="w-full py-1.5 px-3 rounded-md bg-[#141822] hover:bg-[#1C2230] border border-[#222838] text-xs text-indigo-300 flex items-center justify-center space-x-1.5 transition"
+                  className="w-full py-1.5 px-3 rounded-md bg-[#141417] hover:bg-[#1F1F24] border border-[#1F1F24] text-xs text-indigo-300 flex items-center justify-center space-x-1.5 transition"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Load Sample Demo</span>
@@ -205,13 +205,13 @@ export const AssetBin: React.FC<AssetBinProps> = ({
             return (
               <div
                 key={asset.id}
-                className="p-2 rounded-lg bg-[#141822] hover:bg-[#1C2230] border border-[#222838] hover:border-indigo-500/50 transition-all group relative"
+                className="p-2 rounded-lg bg-[#111114] hover:bg-[#16161A] border border-[#1F1F24] hover:border-indigo-500/50 transition-all group relative"
               >
                 <div className="flex items-start space-x-2">
                   {/* Media Thumbnail or Icon */}
                   <div
                     onClick={() => onAddClipToTimeline(asset)}
-                    className="w-10 h-10 rounded-md bg-[#0E1118] border border-[#222838] flex items-center justify-center text-indigo-400 shrink-0 relative overflow-hidden group-hover:ring-1 group-hover:ring-indigo-500/50 cursor-pointer"
+                    className="w-10 h-10 rounded-md bg-[#0B0B0C] border border-[#1F1F24] flex items-center justify-center text-indigo-400 shrink-0 relative overflow-hidden group-hover:ring-1 group-hover:ring-indigo-500/50 cursor-pointer"
                   >
                     {isAudio ? (
                       <Music className="w-4 h-4 text-emerald-400" />
@@ -234,7 +234,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
                     </p>
 
                     <div className="flex items-center space-x-1 text-[10px] text-gray-400 mt-0.5">
-                      <span className="flex items-center space-x-0.5 bg-[#0E1118] px-1 py-0.2 rounded border border-[#222838] font-mono text-[9px]">
+                      <span className="flex items-center space-x-0.5 bg-[#050505] px-1 py-0.2 rounded border border-[#1F1F24] font-mono text-[9px]">
                         <Clock className="w-2 h-2 text-gray-500" />
                         <span>{asset.durationSeconds.toFixed(1)}s</span>
                       </span>
@@ -242,7 +242,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
                       <span>{asset.width}x{asset.height}</span>
                     </div>
 
-                    <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-[#222838]/60 text-[10px]">
+                    <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-[#1F1F24] text-[10px]">
                       <span className="text-gray-500 font-mono text-[9px]">
                         {asset.fileSizeBytes ? `${(asset.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : "Stream Copy"}
                       </span>
@@ -275,7 +275,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
       </div>
 
       {/* Storage & Engine Status Footer */}
-      <div className="p-2.5 border-t border-[#222838] bg-[#141822] text-[10px] text-gray-400 flex items-center justify-between">
+      <div className="p-2.5 border-t border-[#1F1F24] bg-[#0E0E10] text-[10px] text-gray-400 flex items-center justify-between">
         <span className="flex items-center space-x-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <Cpu className="w-3 h-3 text-emerald-400" />

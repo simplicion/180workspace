@@ -74,13 +74,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onToggleLeftPanel,
 }) => {
   return (
-    <header className="h-12 border-b border-[#222838] bg-[#0E1118] flex items-center justify-between px-3.5 z-30 select-none">
+    <header className="h-12 border-b border-[#1F1F24] bg-[#0B0B0C] flex items-center justify-between px-3.5 z-30 select-none">
       {/* Left: Home Navigation & Project Identifier */}
       <div className="flex items-center space-x-2.5">
         {onNavigateHome && (
           <button
             onClick={onNavigateHome}
-            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-[#141822] hover:bg-[#1C2230] text-gray-300 hover:text-white border border-[#222838] text-xs font-medium transition active:scale-95 shadow-sm group"
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] text-zinc-300 hover:text-white border border-[#1F1F24] text-xs font-medium transition active:scale-95 shadow-sm group"
             title="Return to Projects & Files Home Screen"
           >
             <Home className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
@@ -94,7 +94,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             className={`p-1.5 rounded-md border text-xs transition ${
               isLeftPanelOpen
                 ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/30"
-                : "bg-[#141822] text-gray-400 hover:text-white border-[#222838]"
+                : "bg-[#141417] text-zinc-400 hover:text-white border-[#1F1F24]"
             }`}
             title="Toggle Left Sidebar (Media Bin / AI Director)"
           >
@@ -102,22 +102,22 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </button>
         )}
 
-        <div className="h-4 w-px bg-[#222838]" />
+        <div className="h-4 w-px bg-[#1F1F24]" />
 
         <div className="flex items-center space-x-2">
           <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow-sm">
             180
           </div>
-          <span className="font-semibold text-xs tracking-tight text-gray-200">Media Studio</span>
-          <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#141822] text-gray-400 font-mono border border-[#222838]">
+          <span className="font-semibold text-xs tracking-tight text-zinc-200">Media Studio</span>
+          <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#141417] text-zinc-400 font-mono border border-[#1F1F24]">
             v1.0
           </span>
         </div>
 
-        <div className="h-4 w-px bg-[#222838]" />
+        <div className="h-4 w-px bg-[#1F1F24]" />
 
         <div className="flex items-center space-x-2">
-          <span className="text-xs font-medium text-gray-200 max-w-[140px] sm:max-w-[200px] truncate">
+          <span className="text-xs font-medium text-zinc-200 max-w-[140px] sm:max-w-[200px] truncate">
             {projectName}
           </span>
           <span className="text-[10px] text-emerald-400 flex items-center space-x-1 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
@@ -126,10 +126,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </span>
 
           {authSession?.isAuthenticated && (
-            <div className="hidden lg:flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-[#141822] border border-[#222838] text-gray-300 text-[11px]">
+            <div className="hidden lg:flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-[#141417] border border-[#1F1F24] text-zinc-300 text-[11px]">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="font-medium text-gray-300 truncate max-w-[100px]">{authSession.userName}</span>
-              <span className="text-[9px] text-gray-500 truncate max-w-[80px]">({authSession.companyId})</span>
+              <span className="font-medium text-zinc-300 truncate max-w-[100px]">{authSession.userName}</span>
+              <span className="text-[9px] text-zinc-500 truncate max-w-[80px]">({authSession.companyId})</span>
             </div>
           )}
         </div>
@@ -138,10 +138,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       {/* Center: Tools, Aspect Ratio & History Controls */}
       <div className="flex items-center space-x-2">
         {/* Studio Modal Triggers */}
-        <div className="flex items-center space-x-1 bg-[#141822] p-1 rounded-lg border border-[#222838]">
+        <div className="flex items-center space-x-1 bg-[#111114] p-1 rounded-lg border border-[#1F1F24]">
           <button
             onClick={onOpenCritic}
-            className="flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-semibold text-pink-300 hover:bg-[#1C2230] transition"
+            className="flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-semibold text-pink-300 hover:bg-[#1C1C22] transition"
             title="AI Critic & Pacing Retention Score"
           >
             <Sparkles className="w-3.5 h-3.5 text-pink-400" />
@@ -150,7 +150,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
           <button
             onClick={onOpenCaptions}
-            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-cyan-300 hover:bg-[#1C2230] transition"
+            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-cyan-300 hover:bg-[#1C1C22] transition"
             title="Kinetic Subtitle Studio"
           >
             <Subtitles className="w-3.5 h-3.5 text-cyan-400" />
@@ -159,7 +159,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
           <button
             onClick={onOpenMixer}
-            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-emerald-300 hover:bg-[#1C2230] transition"
+            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-emerald-300 hover:bg-[#1C1C22] transition"
             title="Audio Mixer & Speech Ducking"
           >
             <Sliders className="w-3.5 h-3.5 text-emerald-400" />
@@ -168,7 +168,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
           <button
             onClick={onOpenPlugins}
-            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-purple-300 hover:bg-[#1C2230] transition"
+            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-purple-300 hover:bg-[#1C1C22] transition"
             title="Sandboxed Plugins & Shaders (ADR-011)"
           >
             <Puzzle className="w-3.5 h-3.5 text-purple-400" />
@@ -177,7 +177,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
           <button
             onClick={onOpenCache}
-            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-gray-300 hover:bg-[#1C2230] hover:text-white transition"
+            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-zinc-300 hover:bg-[#1C1C22] hover:text-white transition"
             title="Content-Addressed Cache Storage (ADR-010)"
           >
             <Database className="w-3.5 h-3.5 text-indigo-400" />
@@ -186,7 +186,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
           <button
             onClick={onExportOtio}
-            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-gray-300 hover:bg-[#1C2230] hover:text-white transition"
+            className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium text-zinc-300 hover:bg-[#1C1C22] hover:text-white transition"
             title="Export OpenTimelineIO (Premiere / DaVinci)"
           >
             <FileCode className="w-3.5 h-3.5 text-amber-400" />
@@ -195,13 +195,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </div>
 
         {/* Aspect Ratio Switcher */}
-        <div className="flex items-center bg-[#141822] p-1 rounded-lg border border-[#222838] text-xs">
+        <div className="flex items-center bg-[#111114] p-1 rounded-lg border border-[#1F1F24] text-xs">
           <button
             onClick={() => onAspectRatioChange("16:9")}
             className={`px-2 py-1 rounded font-medium transition ${
               aspectRatio === "16:9"
                 ? "bg-indigo-600 text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-200"
+                : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
             16:9
@@ -211,7 +211,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             className={`px-2 py-1 rounded font-medium transition ${
               aspectRatio === "9:16"
                 ? "bg-indigo-600 text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-200"
+                : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
             9:16
@@ -221,7 +221,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             className={`px-2 py-1 rounded font-medium transition ${
               aspectRatio === "1:1"
                 ? "bg-indigo-600 text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-200"
+                : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
             1:1
@@ -233,7 +233,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <button
             onClick={onUndo}
             disabled={!canUndo}
-            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#1C2230] disabled:opacity-25 disabled:pointer-events-none transition"
+            className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#1C1C22] disabled:opacity-25 disabled:pointer-events-none transition"
             title="Undo (Ctrl+Z)"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -241,7 +241,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <button
             onClick={onRedo}
             disabled={!canRedo}
-            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#1C2230] disabled:opacity-25 disabled:pointer-events-none transition"
+            className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#1C1C22] disabled:opacity-25 disabled:pointer-events-none transition"
             title="Redo (Ctrl+Y)"
           >
             <RotateCw className="w-3.5 h-3.5" />
@@ -260,7 +260,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <div className="flex items-center space-x-1.5 text-xs text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/25">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-semibold">{companyAIStatus.provider.toUpperCase()} AI</span>
-            <span className="text-[10px] text-gray-400 hidden sm:inline">({companyAIStatus.model.split('/')[0].trim()})</span>
+            <span className="text-[10px] text-zinc-400 hidden sm:inline">({companyAIStatus.model.split('/')[0].trim()})</span>
           </div>
         ) : (
           <button
@@ -276,9 +276,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         <button
           onClick={onSave}
-          className="flex items-center space-x-1.5 text-xs font-semibold text-gray-200 bg-[#141822] hover:bg-[#1C2230] hover:text-white px-3 py-1 rounded-md border border-[#222838] transition shadow-sm"
+          className="flex items-center space-x-1.5 text-xs font-semibold text-zinc-200 bg-[#141417] hover:bg-[#1F1F24] hover:text-white px-3 py-1 rounded-md border border-[#1F1F24] transition shadow-sm"
         >
-          <Save className="w-3.5 h-3.5 text-gray-400" />
+          <Save className="w-3.5 h-3.5 text-zinc-400" />
           <span>Save</span>
         </button>
 

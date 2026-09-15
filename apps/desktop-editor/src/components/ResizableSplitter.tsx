@@ -63,11 +63,11 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
         onMouseDown={handleMouseDown}
         onDoubleClick={onDoubleClick}
         title={title || "Drag to resize panel (Double-click to reset)"}
-        className={`w-1.5 hover:w-2 bg-[#1A1F2B] hover:bg-indigo-500/60 active:bg-indigo-500 cursor-col-resize transition-all shrink-0 relative group z-30 flex items-center justify-center select-none ${
+        className={`w-1.5 hover:w-2 bg-[#16161A] hover:bg-indigo-500/60 active:bg-indigo-500 cursor-col-resize transition-all shrink-0 relative group z-30 flex items-center justify-center select-none ${
           isDragging ? "!bg-indigo-500 !w-2 shadow-lg shadow-indigo-500/40" : ""
         } ${className}`}
       >
-        <div className="h-6 w-0.5 bg-gray-500/50 group-hover:bg-white rounded-full transition-colors" />
+        <div className="h-6 w-0.5 bg-zinc-600 group-hover:bg-white rounded-full transition-colors" />
       </div>
     );
   }
@@ -77,11 +77,11 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
       onMouseDown={handleMouseDown}
       onDoubleClick={onDoubleClick}
       title={title || "Drag to resize panel (Double-click to reset)"}
-      className={`h-1.5 hover:h-2 bg-[#1A1F2B] hover:bg-indigo-500/60 active:bg-indigo-500 cursor-row-resize transition-all shrink-0 relative group z-30 flex items-center justify-center select-none ${
+      className={`h-1.5 hover:h-2 bg-[#16161A] hover:bg-indigo-500/60 active:bg-indigo-500 cursor-row-resize transition-all shrink-0 relative group z-30 flex items-center justify-center select-none ${
         isDragging ? "!bg-indigo-500 !h-2 shadow-lg shadow-indigo-500/40" : ""
       } ${className}`}
     >
-      <div className="w-8 h-0.5 bg-gray-500/50 group-hover:bg-white rounded-full transition-colors" />
+      <div className="w-8 h-0.5 bg-zinc-600 group-hover:bg-white rounded-full transition-colors" />
     </div>
   );
 };

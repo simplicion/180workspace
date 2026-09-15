@@ -77,9 +77,9 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col h-full select-none bg-[#0E1118]">
+    <div className="w-full flex-1 flex flex-col h-full select-none bg-[#0B0B0C]">
       {/* Header */}
-      <div className="p-3 border-b border-[#222838] flex items-center justify-between bg-[#0E1118]">
+      <div className="p-3 border-b border-[#1F1F24] flex items-center justify-between bg-[#0B0B0C]">
         <div className="flex items-center space-x-2 text-indigo-400">
           <Sliders className="w-4 h-4" />
           <span className="font-semibold text-xs uppercase tracking-wider text-gray-200">Clip Inspector</span>
@@ -87,14 +87,14 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
         <div className="flex items-center space-x-1">
           <button
             onClick={handleResetTransform}
-            className="text-[10px] font-mono text-gray-400 hover:text-white px-2 py-0.5 rounded border border-[#222838] hover:bg-[#1C2230] transition"
+            className="text-[10px] font-mono text-gray-400 hover:text-white px-2 py-0.5 rounded border border-[#1F1F24] hover:bg-[#1F1F24] transition"
             title="Reset Transform to Defaults"
           >
             Reset
           </button>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white p-1 rounded hover:bg-[#1C2230] transition"
+            className="text-gray-400 hover:text-white p-1 rounded hover:bg-[#1F1F24] transition"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -104,7 +104,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
       {/* Inspector Body */}
       <div className="p-3.5 overflow-y-auto flex-1 space-y-4 text-xs">
         {/* Clip Name */}
-        <div className="bg-[#141822] p-2 rounded-lg border border-[#222838]">
+        <div className="bg-[#111114] p-2 rounded-lg border border-[#1F1F24]">
           <span className="text-[9px] text-gray-500 block uppercase font-mono mb-0.5">Active Clip</span>
           <p className="text-gray-200 font-medium truncate text-xs">
             {selectedClip.sourcePath.split(/[\/\\]/).pop()}
@@ -127,7 +127,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
             step="0.05"
             value={transform.scale.start}
             onChange={(e) => handleScaleChange(parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-[#141822] rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            className="w-full h-1.5 bg-[#16161A] rounded-lg appearance-none cursor-pointer accent-indigo-500"
           />
         </div>
 
@@ -148,7 +148,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
                 max="1"
                 value={transform.position.x}
                 onChange={(e) => handlePositionXChange(parseFloat(e.target.value) || 0)}
-                className="w-full bg-[#141822] border border-[#222838] rounded-md px-2 py-1 text-gray-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#141417] border border-[#1F1F24] rounded-md px-2 py-1 text-gray-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
@@ -160,7 +160,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
                 max="1"
                 value={transform.position.y}
                 onChange={(e) => handlePositionYChange(parseFloat(e.target.value) || 0)}
-                className="w-full bg-[#141822] border border-[#222838] rounded-md px-2 py-1 text-gray-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#141417] border border-[#1F1F24] rounded-md px-2 py-1 text-gray-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
@@ -182,7 +182,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
             step="1"
             value={transform.rotationDeg}
             onChange={(e) => handleRotationChange(parseInt(e.target.value, 10))}
-            className="w-full h-1.5 bg-[#141822] rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            className="w-full h-1.5 bg-[#16161A] rounded-lg appearance-none cursor-pointer accent-indigo-500"
           />
         </div>
 
@@ -202,12 +202,12 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
             step="0.05"
             value={transform.opacity}
             onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-[#141822] rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            className="w-full h-1.5 bg-[#16161A] rounded-lg appearance-none cursor-pointer accent-indigo-500"
           />
         </div>
 
         {/* 5. Speed Multiplier */}
-        <div className="space-y-1.5 pt-2 border-t border-[#222838]">
+        <div className="space-y-1.5 pt-2 border-t border-[#1F1F24]">
           <div className="flex items-center justify-between text-gray-300">
             <span className="flex items-center space-x-1.5 font-medium">
               <Gauge className="w-3.5 h-3.5 text-amber-400" />
@@ -223,7 +223,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
                 className={`py-1 rounded-md border text-[11px] font-mono transition ${
                   speedMultiplier === s
                     ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-                    : "bg-[#141822] border-[#222838] text-gray-400 hover:text-white"
+                    : "bg-[#141417] border-[#1F1F24] text-gray-400 hover:text-white"
                 }`}
               >
                 {s}x
