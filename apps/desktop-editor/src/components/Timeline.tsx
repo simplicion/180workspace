@@ -81,10 +81,31 @@ export const Timeline: React.FC<TimelineProps> = ({
     initialDuration: number;
   } | null>(null);
 
-  const totalDurationSec = Math.max(5, RationalTimeMath.toSeconds(editIR.meta.totalDuration));
-  const pixelsPerSecond = 85 * zoomLevel;
+  const [containerWidth, setContainerWidth] = useState(1200);
+
+  useEffect(() => {
+    if (!timelineRef.current) return;
+    const updateSize = () => {
+      if (timelineRef.current) {
+        setContainerWidth(timelineRef.current.clientWidth);
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(timelineRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const totalDurationSec = Math.max(1, RationalTimeMath.toSeconds(editIR.meta.totalDuration));
   const headerWidthPx = 180;
-  const timelineWidthPx = Math.max(1400, totalDurationSec * pixelsPerSecond + 350);
+  const availableTrackWidth = Math.max(400, containerWidth - headerWidthPx - 40);
+
+  // Base Pixels-Per-Second: fits the entire project duration across the available track area!
+  // E.g., for a 5-second video in 1000px width: fitPps = 1000 / 5 = 200 px/sec.
+  // Then at zoomLevel = 1.0 (Fit), the 5s video spans the FULL WIDTH of the timeline!
+  const fitPps = Math.max(30, availableTrackWidth / totalDurationSec);
+  const pixelsPerSecond = fitPps * zoomLevel;
+  const timelineWidthPx = Math.max(availableTrackWidth, totalDurationSec * pixelsPerSecond + 120);
 
   // Convert client X to timeline seconds
   const clientXToSeconds = (clientX: number) => {
@@ -156,10 +177,11 @@ export const Timeline: React.FC<TimelineProps> = ({
     };
   }, [isScrubbing, draggingClip, isSnappingEnabled, currentTimeSeconds, pixelsPerSecond, onSeek, onUpdateClipTiming, onCommitHistory]);
 
-  // Generate ruler tick marks
+  // Generate ruler tick marks spanning the entire scrollable timeline width
+  const maxSec = Math.max(totalDurationSec, timelineWidthPx / pixelsPerSecond);
   const ticks = [];
-  const step = zoomLevel >= 1.5 ? 1 : zoomLevel >= 0.8 ? 2 : 5;
-  for (let s = 0; s <= Math.ceil(totalDurationSec) + 2; s += step) {
+  const step = pixelsPerSecond >= 140 ? 1 : pixelsPerSecond >= 55 ? 2 : 5;
+  for (let s = 0; s <= Math.ceil(maxSec) + 1; s += step) {
     ticks.push(s);
   }
 
@@ -288,9 +310,9 @@ export const Timeline: React.FC<TimelineProps> = ({
           <button
             onClick={() => onZoomChange(1.0)}
             className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-gray-400 hover:text-white hover:bg-[#1F1F24] border border-[#26262D] transition"
-            title="Reset Zoom to 100%"
+            title="Reset Zoom to Fit Timeline (100%)"
           >
-            100%
+            Fit
           </button>
         </div>
       </div>
@@ -552,8 +574,11 @@ export const Timeline: React.FC<TimelineProps> = ({
 
           {/* 4. Audio Waveform Track Lane */}
           <div className="h-12 border-b border-surface-border/40 relative bg-[#08080A] flex items-center">
-            <div className="w-full h-8 flex items-center space-x-1 px-3 opacity-75">
-              {Array.from({ length: Math.floor(timelineWidthPx / 6) }).map((_, i) => {
+            <div
+              className="h-8 flex items-center space-x-1 px-3 opacity-75 relative"
+              style={{ width: `${totalDurationSec * pixelsPerSecond}px` }}
+            >
+              {Array.from({ length: Math.max(1, Math.floor((totalDurationSec * pixelsPerSecond) / 6)) }).map((_, i) => {
                 const heightPercent = 25 + Math.abs(Math.sin(i * 0.45) * 65) + (i % 6 === 0 ? 15 : 0);
                 return (
                   <div

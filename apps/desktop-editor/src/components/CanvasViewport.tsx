@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Repeat,
   Upload,
+  Plus,
 } from "lucide-react";
 import { EditIR, RationalTimeMath, MediaAssetDescriptor } from "@workspace/video-contracts";
 
@@ -64,18 +65,37 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     return currentTimeSeconds >= start && currentTimeSeconds <= end;
   });
 
-  const activeAsset = assets.find((a) => a.id === activeVideoClip?.assetId) || assets[0];
+  const activeAsset = activeVideoClip
+    ? assets.find((a) => a.id === activeVideoClip.assetId) || {
+        id: activeVideoClip.assetId,
+        name: activeVideoClip.sourcePath.split(/[\/\\]/).pop() || "media",
+        filePath: activeVideoClip.sourcePath,
+        mimeType: activeVideoClip.sourcePath.match(/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i) ? "image/jpeg" : "video/mp4",
+      }
+    : null;
+
   const activeVideoSrc = activeAsset?.filePath?.startsWith("blob:") || activeAsset?.filePath?.startsWith("http")
     ? activeAsset.filePath
     : null;
 
-  // Active clip spatial transforms
+  const isImage = Boolean(
+    activeAsset?.mimeType?.startsWith("image/") ||
+    activeAsset?.filePath?.match(/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i) ||
+    activeVideoClip?.sourcePath?.match(/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i)
+  );
+
+  // Active clip spatial transforms & crop
   const clipScale = activeVideoClip?.transform?.scale?.start ?? 1.0;
   const clipPosX = activeVideoClip?.transform?.position?.x ?? 0;
   const clipPosY = activeVideoClip?.transform?.position?.y ?? 0;
   const clipRotation = activeVideoClip?.transform?.rotationDeg ?? 0;
   const clipOpacity = activeVideoClip?.transform?.opacity ?? 1.0;
   const isSelectedClipActive = Boolean(selectedClipId && activeVideoClip?.id === selectedClipId);
+
+  const crop = activeVideoClip?.transform?.crop;
+  const cropStyle = crop && (crop.top || crop.bottom || crop.left || crop.right)
+    ? `inset(${crop.top}% ${crop.right}% ${crop.bottom}% ${crop.left}%)`
+    : undefined;
 
   // Synchronize HTML5 video element with current playhead time
   useEffect(() => {
@@ -280,20 +300,30 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                   opacity: clipOpacity,
                 }}
               >
-                <video
-                  ref={videoRef}
-                  src={activeVideoSrc}
-                  playsInline
-                  loop={isLooping}
-                  className="w-full h-full object-contain"
-                />
+                {isImage ? (
+                  <img
+                    src={activeVideoSrc}
+                    alt={activeAsset?.name || "Media"}
+                    className="w-full h-full object-contain pointer-events-none select-none"
+                    style={{ clipPath: cropStyle }}
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    src={activeVideoSrc}
+                    playsInline
+                    loop={isLooping}
+                    className="w-full h-full object-contain"
+                    style={{ clipPath: cropStyle }}
+                  />
+                )}
 
                 {/* Live Selected Clip Highlight Frame */}
                 {isSelectedClipActive && (
                   <div className="absolute inset-0 border-2 border-indigo-400/80 pointer-events-none rounded-lg flex flex-col justify-between p-2 shadow-inner">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono font-bold bg-indigo-950/90 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/40">
-                        Active Clip • {(clipScale * 100).toFixed(0)}% Scale {clipRotation ? `• ${clipRotation}°` : ""}
+                        Active Clip • {(clipScale * 100).toFixed(0)}% Scale {clipRotation ? `• ${clipRotation}°` : ""}{crop ? " • Cropped" : ""}
                       </span>
                       <div className="w-2.5 h-2.5 border-t-2 border-r-2 border-indigo-400" />
                     </div>
@@ -305,36 +335,39 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                 )}
               </div>
             ) : (
-              /* High-End Empty / Preview Visual */
-              <div className="w-full h-full bg-gradient-to-br from-[#0B0B0E] via-[#050507] to-[#000000] flex flex-col items-center justify-center relative select-none">
-                {/* Visual Grid Lines */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#1F1F24_1px,transparent_1px),linear-gradient(to_bottom,#1F1F24_1px,transparent_1px)] bg-[size:36px_36px] opacity-25" />
+              /* High-End Obsidian Empty State with Official White Logo */
+              <div className="w-full h-full bg-[#000000] flex flex-col items-center justify-center relative select-none p-6">
+                {/* Subtle Dot Grid */}
+                <div className="absolute inset-0 bg-[radial-gradient(#1F1F24_1px,transparent_1px)] [background-size:24px_24px] opacity-35 pointer-events-none" />
 
-                {/* Center Engine Emblem */}
-                <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 p-1 shadow-2xl shadow-indigo-500/25 z-10 flex items-center justify-center">
-                  <div className="w-full h-full rounded-full bg-[#08080A] flex flex-col items-center justify-center text-center p-3">
-                    <Sparkles className="w-7 h-7 text-indigo-400 mb-1 animate-pulse" />
-                    <span className="text-[11px] font-extrabold text-white tracking-wider">180 STUDIO</span>
-                    <span className="text-[9px] text-indigo-300 font-mono">Native Video</span>
+                <div className="z-10 flex flex-col items-center text-center max-w-sm">
+                  {/* Official White Logo */}
+                  <div className="w-24 h-24 mb-5 flex items-center justify-center relative group">
+                    <img
+                      src="/white-icon.svg"
+                      alt="180 Media Studio"
+                      className="w-20 h-20 object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.15)] opacity-90 group-hover:opacity-100 transition-opacity"
+                    />
                   </div>
+
+                  <h3 className="text-sm font-semibold text-zinc-200 tracking-tight">
+                    No Media in Timeline
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-1 mb-5 leading-relaxed">
+                    Import video clips or images to start cutting, arranging, and editing your project.
+                  </p>
+
+                  {onOpenImport && (
+                    <button
+                      onClick={onOpenImport}
+                      className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition active:scale-95 shadow-xl shadow-white/10 group cursor-pointer"
+                      title="Import Video or Image Files"
+                    >
+                      <Plus className="w-4 h-4 text-black group-hover:rotate-90 transition-transform duration-200" />
+                      <span>Add Media</span>
+                    </button>
+                  )}
                 </div>
-
-                <p className="text-xs font-medium text-gray-300 mt-4 z-10">
-                  Ready to preview footage
-                </p>
-                <p className="text-[10px] text-gray-500 mt-0.5 z-10">
-                  Import media files into the Project Bin to play
-                </p>
-
-                {onOpenImport && (
-                  <button
-                    onClick={onOpenImport}
-                    className="mt-3 z-10 flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition active:scale-95"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Import Footage</span>
-                  </button>
-                )}
               </div>
             )}
 
