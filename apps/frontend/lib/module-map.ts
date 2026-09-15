@@ -84,6 +84,11 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/voiceforce/campaigns': { appId: 'voiceforce', moduleId: 'campaigns' },
   '/voiceforce/calls': { appId: 'voiceforce', moduleId: 'calls' },
   '/voiceforce/templates': { appId: 'voiceforce', moduleId: 'templates' },
+
+  // 180 Media Studio (Autonomous Video Production Engine & NLE)
+  '/media-editor': { appId: 'media-editor', moduleId: 'dashboard' },
+  '/media-editor/assets': { appId: 'media-editor', moduleId: 'assets' },
+  '/video-studio': { appId: 'media-editor', moduleId: 'dashboard' },
 };
 
 export interface ModuleConfig {
@@ -105,7 +110,7 @@ export interface AppConfig {
 
 import { 
     LayoutGrid, Smartphone, Globe, ShieldCheck, Database, CreditCard, Bell,
-    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy, GitFork, PhoneCall
+    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy, GitFork, PhoneCall, Film
 } from 'lucide-react';
 
 export const APPS_CONFIG: AppConfig[] = [
@@ -258,6 +263,19 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'forwarding', name: 'Call Forwarding & Queues' },
             { id: 'campaigns', name: 'Call Campaigns' }
         ]
+    },
+
+    {
+        id: 'media-editor',
+        name: '180 Media Studio',
+        icon: Film,
+        tag: 'Productivity',
+        description: 'Autonomous video production engine, AI creative director, and zero-drift smart timeline.',
+        modules: [
+            { id: 'dashboard', name: 'Studio Radar' },
+            { id: 'assets', name: 'Cloud Media Assets' },
+            { id: 'renders', name: 'Render Farm & Exports' }
+        ]
     }
 ];
 
@@ -296,4 +314,5 @@ export const ALL_APPS = [
     { id: 'social-media', name: 'Social Media Management', description: 'Content calendar, asset hub, and social post visualizer.', icon: Share2 },
     { id: 'traffic-director', name: 'Traffic Director', description: 'Smart routing, dynamic landing pages, and differential analytics.', icon: GitFork },
     { id: 'voiceforce', name: '180 Voiceforce', description: 'Autonomous AI voice employees for outbound and inbound calling.', icon: PhoneCall },
+    { id: 'media-editor', name: '180 Media Studio', description: 'Autonomous video production engine, AI creative director, and GPU smart timeline.', icon: Film },
 ];

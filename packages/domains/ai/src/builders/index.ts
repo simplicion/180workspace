@@ -2,11 +2,14 @@ import { IUniversalBuilder, BuilderType, BuilderGenerationParams, BuilderResult 
 import { DocumentAIBuilderService } from './document-ai-builder.service';
 import { FormAIBuilderService } from './form-ai-builder.service';
 import { WebsiteAIBuilderService } from './website-ai-builder.service';
+import { VideoAIDirectorService, videoAIDirectorService } from './video-ai-director.service';
 
 export * from './universal-builder.interface';
 export * from './document-ai-builder.service';
 export * from './form-ai-builder.service';
 export * from './website-ai-builder.service';
+export * from './video-ai-director.service';
+export * from './video-critic.service';
 
 export class UniversalBuilderRegistry {
     private static builders: Map<BuilderType, IUniversalBuilder> = new Map();
@@ -56,3 +59,5 @@ export const websiteAIBuilderService = new WebsiteAIBuilderService();
 UniversalBuilderRegistry.register(documentAIBuilderService);
 UniversalBuilderRegistry.register(formAIBuilderService);
 UniversalBuilderRegistry.register(websiteAIBuilderService);
+UniversalBuilderRegistry.register(videoAIDirectorService);
+

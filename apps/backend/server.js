@@ -234,7 +234,7 @@ const RUN_MODE = process.env.RUN_MODE || 'both'; // 'api', 'worker', or 'both'
 async function bootstrap() {
     try {
         if (RUN_MODE === 'both' || RUN_MODE === 'api') {
-            server.listen(PORT, () => {
+            server.listen(PORT, '0.0.0.0', () => {
                 console.log(`\n🚀 Platform API running on port ${PORT}`);
                 console.log(`📡 Environment: ${process.env.NODE_ENV} | Mode: ${RUN_MODE}`);
                 console.log(`🌐 CORS origin: ${allowedOrigins.join(', ')}\n`);

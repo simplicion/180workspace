@@ -6,6 +6,7 @@ import documentsRoutes from './documents/documents.routes';
 import storageRoutes from './storage/storage.routes';
 import assetRoutes from './assets/asset.routes';
 import vaultsRoutes from './vaults/vaults.routes';
+import videoStudioRoutes from './video-studio/video-studio.routes';
 
 const router = Router();
 
@@ -15,5 +16,6 @@ router.use('/documents', documentsRoutes);
 router.use('/storage', storageRoutes);
 router.use('/assets', assetRoutes);
 router.use('/vaults', vaultsRoutes);
+router.use('/video-studio', videoStudioRoutes);
 
 export default router;

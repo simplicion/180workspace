@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AppHero from '../../components/apps/AppHero.astro';
+import CapabilityPillars from '../../components/apps/CapabilityPillars.astro';
+import VideoPlaybook from '../../components/apps/VideoPlaybook.astro';
+import WorkGraphSynergy from '../../components/apps/WorkGraphSynergy.astro';
+import FAQAccordion from '../../components/apps/FAQAccordion.astro';
+import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import JSONLDSchema from '../../components/apps/JSONLDSchema.astro';
+
+const pillars = [
+  {
+    badge: ">500 FPS Export",
+    title: "Lossless Smart Stream-Copy Engine",
+    description: "Export untouched video segments at raw disk I/O speeds without generational quality loss. Only modified transition GOP boundaries are re-encoded.",
+    bullets: [
+      "Stream-copy untouched keyframe GOP packets directly",
+      "500+ FPS export throughput on standard NVMe SSDs",
+      "Exact GOP boundary calculation with zero audio desync"
+    ]
+  },
+  {
+    badge: "AI Creative Director",
+    title: "Micro-Token Autonomous Editing",
+    description: "Deterministic telemetry extraction feeds compact JSON ASTs into LLM directors (<800 tokens), preventing hallucinations and keeping complete creative control.",
+    bullets: [
+      "Automated transcript silence detection and jump-cut pacing",
+      "Rule-based QA Critic scoring retention, zoom, and text visibility",
+      "100% offline fallback mode with built-in heuristic director"
+    ]
+  },
+  {
+    badge: "Native GPU Compositor",
+    title: "Zero-Latency wgpu & Shader Pipeline",
+    description: "Engineered in Rust with Tauri v2. 60 FPS real-time canvas scrubbing, spring-damped camera tracking, and hardware-accelerated subtitle typography.",
+    bullets: [
+      "wgpu cross-platform shader pipeline (Metal, DirectX 12, Vulkan)",
+      "Continuous analytical 2nd-order ODE spring physics",
+      "Sub-pixel smooth zooming and cursor attention tracking"
+    ]
+  },
+  {
+    badge: "Mathematical Precision",
+    title: "Zero-Drift Rational Time Arithmetic",
+    description: "Eliminate cumulative audio/video desync over long-form timelines. Every cut, transition, and keyframe is tracked with exact integer fraction timescales.",
+    bullets: [
+      "Exact LCM rational math supporting 23.976, 29.97, and 59.94 NTSC rates",
+      "Zero drift across 10+ hour continuous timelines (<0.00005s)",
+      "Strict OpenTimelineIO (OTIO 0.15+) bidirectional interchange"
+    ]
+  },
+  {
+    badge: "Local-First Privacy",
+    title: "100% Local-First Hardware Execution",
+    description: "Keep proprietary footage on your workstation. No multi-gigabyte cloud upload wait times or expensive cloud GPU rendering bills.",
+    bullets: [
+      "Direct local NVMe disk access and hardware NVENC / VideoToolbox encoding",
+      "Zero cloud egress costs for raw 4K / 8K footage",
+      "Offline editing capability with zero external API dependencies"
+    ]
+  },
+  {
+    badge: "Work Graph Synergy",
+    title: "Connected Enterprise Asset Ecosystem",
+    description: "Integrated natively into the 180 Workspace Work Graph. Fetch brand assets from Cloud Bins, push social cuts to the Content Calendar, and sync project billing.",
+    bullets: [
+      "Direct asset pulling from 180 Workspace Tools Cloud Storage",
+      "Instant export push to Social Media Content Calendar",
+      "Multi-tenant company isolation and team seat permissions"
+    ]
+  }
+];
+
+const playbookSteps = [
+  {
+    stepNumber: "01",
+    title: "Launch 180 Media Studio Desktop",
+    description: "Launch the native desktop editor directly from your 180 Workspace web dashboard. Authenticate once with your company credentials.",
+    actionSnippet: "Web Dashboard → Launch Studio Desktop (workspace180://editor)"
+  },
+  {
+    stepNumber: "02",
+    title: "Ingest Footage & Extract Deterministic Telemetry",
+    description: "Drop your raw 4K camera footage or screen recordings. The native engine automatically indexes GOP keyframes, silence gaps, and audio waveforms in seconds.",
+    actionSnippet: "Automatic GOP Indexing • Zero Video Transcoding Delay"
+  },
+  {
+    stepNumber: "03",
+    title: "Apply AI Creative Director Preset",
+    description: "Choose an editing preset: Viral Retention Reel (1.35x spring zooms), Clean Explainer, or Kinetic Subtitles. The AI Director synthesizes a complete EditIR timeline.",
+    actionSnippet: "Preset: MRBEAST_FAST • Pacing: 1.3x • Zoom Aggressiveness: High"
+  },
+  {
+    stepNumber: "04",
+    title: "Smart Stream-Copy Export at >500 FPS",
+    description: "Render your final polished video in seconds. Untouched segments stream-copy directly without quality loss, while effects are GPU rendered instantly.",
+    actionSnippet: "Export: H.264 Lossless Smart Stream • 520x Render Speed"
+  }
+];
+
+const synergies = [
+  {
+    sourceApp: "180 Media Studio",
+    targetApp: "Social Media Management",
+    badge: "One-Click Publish",
+    description: "Exported vertical reels and shorts automatically sync to your 180 Social Content Calendar for automated cross-platform scheduling."
+  },
+  {
+    sourceApp: "180 Media Studio",
+    targetApp: "Workspace Tools & Storage",
+    badge: "Centralized Assets",
+    description: "Access approved brand logos, fonts, lower-third graphics, and audio stems directly inside the native timeline bin."
+  },
+  {
+    sourceApp: "180 Media Studio",
+    targetApp: "Finance & Invoicing",
+    badge: "Client Billable Hours",
+    description: "Track project rendering compute and video editing hours directly against client invoice line items and budget caps."
+  }
+];
+
+const faqs = [
+  {
+    question: "What makes 180 Media Studio different from CapCut, Premiere, or Descript?",
+    answer: "180 Media Studio is built on a hybrid architecture: 'AI decides, deterministic engine executes.' Instead of hallucinating video pixels or locking your raw footage in a sluggish web browser, 180 Media Studio runs as a native desktop application with a Rust wgpu compositor. It performs smart stream-copy rendering at over 500 FPS, meaning untouched video slices export at raw SSD speed without quality loss."
+  },
+  {
+    question: "Does 180 Media Studio require an internet connection or cloud API keys to edit?",
+    answer: "No. 180 Media Studio is local-first. Timeline editing, GOP smart cutting, audio ducking filtergraphs, and spring motion effects run entirely on your local GPU/CPU hardware. Furthermore, our built-in offline Heuristic AI Director and rule-based QA Critic allow automated video cutting and retention scoring even when completely air-gapped without an internet connection."
+  },
+  {
+    question: "How does the AI Creative Director prevent hallucinations?",
+    answer: "Legacy AI editors pass massive raw video prompts or video generation models that hallucinate artifacts and blow token budgets. 180 Media Studio pre-extracts deterministic mathematical telemetry (exact silence timecodes, speech energy, face bounding boxes) into a concise AST. The LLM only receives this structured telemetry (<800 tokens), making editing decisions deterministic, instantly editable, and repeatable."
+  },
+  {
+    question: "What export formats and professional NLE interchanges are supported?",
+    answer: "180 Media Studio natively exports MP4 (H.264 / H.265 / AV1 with NVENC, VideoToolbox, and VAAPI hardware acceleration), ProRes 422 HQ, and WebM. It also features full OpenTimelineIO (OTIO 0.15+) bidirectional export, allowing you to hand off project timelines directly to DaVinci Resolve, Final Cut Pro, or Adobe Premiere Pro."
+  },
+  {
+    question: "How is 180 Media Studio licensed in 180 Workspace?",
+    answer: "180 Media Studio is a first-class modular app inside the 180 Workspace subscription model. Company administrators can activate or deactivate the app under company workspace settings, giving team members access to shared cloud asset bins, collaborative project metadata, and priority desktop licensing."
+  }
+];
+---
+
+<Layout 
+  title="180 Media Studio | Autonomous Video Production Engine & NLE"
+  description="Industrial-grade, local-first video editor with smart stream-copy rendering at >500 FPS, AI Creative Director, and native GPU compositor."
+>
+  <main class="w-full relative">
+    
+    <AppHero 
+      title="Autonomous video production with"
+      highlightText=">500 FPS smart stream rendering."
+      description="Edit faster with a deterministic local-first NLE powered by Rust, wgpu shaders, micro-token AI Creative Direction, and zero-drift rational time precision."
+    />
+
+    <CapabilityPillars 
+      sectionBadge="Engine Capabilities"
+      sectionTitle="Engineered for high-output creators, marketing teams, and production studios."
+      sectionSubtitle="Combines the raw performance of native Rust & FFmpeg with intelligent, autonomous AI direction."
+      pillars={pillars}
+    />
+
+    <VideoPlaybook 
+      sectionBadge="Production Playbook"
+      title="From Raw Footage to Viral Cut in Minutes"
+      subtitle="Follow these 4 steps to produce high-retention video content autonomously."
+      videoCaption="2-Minute 180 Media Studio Architectural Walkthrough"
+      steps={playbookSteps}
+    />
+
+    <WorkGraphSynergy 
+      currentAppName="180 Media Studio"
+      title="Video production connected to your entire business graph."
+      subtitle="See how video studio exports automatically integrate with social publishing, company assets, and client billing."
+      synergies={synergies}
+    />
+
+    <FAQAccordion 
+      sectionBadge="Media Studio FAQs"
+      title="Frequently Asked Questions about 180 Media Studio"
+      subtitle="Detailed technical answers on local-first architecture, smart stream-copy, and AI director micro-context."
+      faqs={faqs}
+    />
+
+    <AppBottomCTA 
+      appName="180 Media Studio" 
+      headline="Stop waiting for slow cloud video rendering."
+      subheadline="Experience the speed of local-first autonomous video editing. Launch 180 Media Studio today with 180workspace."
+    />
+
+    <JSONLDSchema 
+      appName="180 Media Studio"
+      description="Industrial-grade, local-first video editor with smart stream-copy rendering at >500 FPS, AI Creative Director, and native GPU compositor."
+      urlPath="/apps/media-editor"
+      faqs={faqs}
+    />
+
+  </main>
+</Layout>

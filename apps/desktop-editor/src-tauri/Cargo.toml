@@ -1,0 +1,29 @@
+[package]
+name = "desktop-editor"
+version = "1.0.0"
+description = "180 Workspace Autonomous Desktop Video Editor Native Host"
+edition = "2021"
+
+[lib]
+name = "desktop_editor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0.0", features = [] }
+tauri-plugin-shell = "2.0.0"
+tauri-plugin-fs = "2.0.0"
+tauri-plugin-dialog = "2.0.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+
+engine-core = { path = "../../../native/video-engine-core/crates/engine-core" }
+engine-timeline = { path = "../../../native/video-engine-core/crates/engine-timeline" }
+engine-media = { path = "../../../native/video-engine-core/crates/engine-media" }
+engine-render = { path = "../../../native/video-engine-core/crates/engine-render" }
+engine-gpu = { path = "../../../native/video-engine-core/crates/engine-gpu" }
+engine-tracking = { path = "../../../native/video-engine-core/crates/engine-tracking" }
+engine-telemetry = { path = "../../../native/video-engine-core/crates/engine-telemetry" }

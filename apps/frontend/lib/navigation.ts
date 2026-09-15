@@ -10,7 +10,7 @@ import {
     Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, 
     Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, 
     Share2, Bookmark, GitFork, PhoneCall, Smartphone, PhoneForwarded, 
-    Brain 
+    Brain, Film 
 } from 'lucide-react';
 
 export const navigation = [
@@ -98,6 +98,17 @@ export const navigation = [
             { id: 'numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin', 'employee'] },
             { id: 'forwarding', name: 'Call Forwarding & Queues', href: '/voiceforce/forwarding', icon: PhoneForwarded, roles: ['admin', 'employee'] },
             { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
+        ]
+    },
+
+    {
+        group: '180 Media Studio',
+        appId: 'media-editor',
+        icon: Film,
+        roles: ['admin', 'employee'],
+        items: [
+            { id: 'dashboard', name: 'Studio Radar & Exports', href: '/media-editor', exact: true, icon: Film, roles: ['admin', 'employee'] },
+            { id: 'assets', name: 'Cloud Media Assets', href: '/media-editor/assets', icon: FolderOpen, roles: ['admin', 'employee'] },
         ]
     },
 

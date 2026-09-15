@@ -10,7 +10,11 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@workspace/ai": ["../../packages/domains/ai/dist"]
+      "@workspace/ai": ["../../packages/domains/ai/dist"],
+      "@workspace/video-contracts": ["../../packages/video-contracts/src"],
+      "@workspace/video-contracts/*": ["../../packages/video-contracts/src/*"],
+      "@workspace/video-engine-runtime": ["../../packages/video-engine-runtime/src"],
+      "@workspace/video-engine-runtime/*": ["../../packages/video-engine-runtime/src/*"]
     }
   },
   "include": ["src/**/*", "server.js"],
