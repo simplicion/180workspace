@@ -1,0 +1,89 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import UtmBuilderIsland from '../../components/tools/UtmBuilderIsland';
+
+const faqs = [
+  {
+    question: "What is a UTM Campaign Builder?",
+    answer: "A UTM Campaign Builder automatically attaches tracking parameters (utm_source, utm_medium, utm_campaign, utm_term, utm_content) to your URLs so web analytics tools (Google Analytics, Mixpanel, 180workspace) can accurately track where your visitors and conversions come from."
+  },
+  {
+    question: "How does the QR Code Generator work?",
+    answer: "As you enter your campaign parameters, a dynamic high-resolution QR code is generated in real-time. You can customize the colors and download it in PNG or SVG for physical merchandise, print ads, and event flyers."
+  },
+  {
+    question: "Why should I use 180workspace Traffic Director instead of standard UTMs?",
+    answer: "While standard UTMs track clicks, 180workspace Traffic Director actively protects your marketing spend by shielding your budget from click-fraud bots, providing sub-millisecond edge geo-routing, and dynamic link cloaking."
+  },
+  {
+    question: "Are these QR codes permanent or will they expire?",
+    answer: "The QR codes encode the direct target URL statically, meaning they will never expire and will work indefinitely."
+  }
+];
+---
+
+<Layout
+  title="Free UTM Campaign Builder & QR Code Generator — 180workspace"
+  description="Build clean, standardized UTM campaign links for Google Ads, Meta, LinkedIn, and TikTok. Generate and download custom scannable QR codes in real-time."
+  canonicalUrl="https://180workspace.com/tools/utm-builder"
+  breadcrumbs={[
+    { name: "Home", url: "/" },
+    { name: "Free Tools", url: "/tools" },
+    { name: "UTM Builder", url: "/tools/utm-builder" }
+  ]}
+  faqs={faqs}
+  applicationCategory="MarketingApplication"
+>
+  {/* Tool Hero */}
+  <section class="relative pt-20 pb-12 md:pt-28 md:pb-16 overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(225,29,72,0.18),transparent_70%)] pointer-events-none"></div>
+
+    <div class="container mx-auto px-4 max-w-5xl relative z-10 text-center space-y-4">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-100 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-black uppercase tracking-widest">
+        <span>🎯 Smart Campaign Tracking & QR Engine</span>
+      </div>
+
+      <h1 class="text-3xl sm:text-5xl md:text-6xl font-black text-slate-950 dark:text-white tracking-tight leading-[1.1]">
+        Free UTM Campaign Builder & <br class="hidden sm:inline" />
+        <span class="bg-gradient-to-r from-rose-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
+          Dynamic QR Code Generator
+        </span>
+      </h1>
+
+      <p class="text-sm sm:text-lg text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
+        Generate error-free UTM tracking URLs with 1-click presets for Google, Meta, LinkedIn, and TikTok. Download high-resolution scannable QR codes instantly.
+      </p>
+    </div>
+  </section>
+
+  {/* Interactive React Island */}
+  <section class="pb-24">
+    <div class="container mx-auto px-4 max-w-6xl">
+      <UtmBuilderIsland client:load />
+    </div>
+  </section>
+
+  {/* FAQ Section */}
+  <section class="py-16 md:py-24 bg-slate-100/50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
+    <div class="container mx-auto px-4 max-w-4xl">
+      <div class="text-center space-y-4 mb-12">
+        <h2 class="text-3xl md:text-4xl font-black text-slate-950 dark:text-white">
+          Frequently Asked Questions
+        </h2>
+      </div>
+
+      <div class="space-y-4">
+        {faqs.map((faq) => (
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <h4 class="text-base font-bold text-slate-900 dark:text-white mb-2">
+              {faq.question}
+            </h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {faq.answer}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>

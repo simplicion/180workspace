@@ -18,6 +18,15 @@ export default defineConfig({
   output: 'static',
   integrations: [react(), tailwind()],
   vite: {
+    server: {
+      proxy: {
+        '/api': {
+          target: process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:4002',
+          changeOrigin: true,
+          secure: false,
+        }
+      }
+    },
     resolve: {
       alias: {
         cookie: path.resolve(__dirname, 'cookie-mock.js')

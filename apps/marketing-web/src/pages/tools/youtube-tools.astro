@@ -1,0 +1,89 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import YouTubeSuiteIsland from '../../components/tools/YouTubeSuiteIsland';
+
+const faqs = [
+  {
+    question: "How do I extract a transcript from a YouTube video?",
+    answer: "Simply copy the URL of any public YouTube video or Short, paste it into the input box above, and click 'Get Transcript'. The full transcript with timestamps will be extracted in seconds."
+  },
+  {
+    question: "Can I download transcripts as .SRT subtitle files?",
+    answer: "Yes! You can export the transcript as a plain .TXT file, a formatted .SRT subtitle file ready for video editing software (Premiere Pro, DaVinci Resolve, CapCut), or a clean .PDF document."
+  },
+  {
+    question: "How do I download 4K or 1080p YouTube thumbnails?",
+    answer: "Switch to the '4K Thumbnail Grabber' tab, paste your video link, and click 'Download MaxRes (1080p)' to download the highest resolution thumbnail provided by YouTube."
+  },
+  {
+    question: "Why does it say 'No transcript available' for some videos?",
+    answer: "Transcripts can only be extracted if the video creator has enabled auto-generated or manual captions on YouTube. Private and unlisted videos without public captions cannot be processed."
+  }
+];
+---
+
+<Layout
+  title="Free YouTube Transcript Extractor & 4K Thumbnail Downloader — 180workspace"
+  description="Extract full timestamped transcripts from any YouTube video. Live keyword search, copy text, and export to TXT, SRT, or PDF. Download 1080p Full HD thumbnails instantly."
+  canonicalUrl="https://180workspace.com/tools/youtube-tools"
+  breadcrumbs={[
+    { name: "Home", url: "/" },
+    { name: "Free Tools", url: "/tools" },
+    { name: "YouTube Tools", url: "/tools/youtube-tools" }
+  ]}
+  faqs={faqs}
+  applicationCategory="MultimediaApplication"
+>
+  {/* Tool Hero */}
+  <section class="relative pt-20 pb-12 md:pt-28 md:pb-16 overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(99,102,241,0.18),transparent_70%)] pointer-events-none"></div>
+
+    <div class="container mx-auto px-4 max-w-5xl relative z-10 text-center space-y-4">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-widest">
+        <span>🎬 YouTube Creator & Research Suite</span>
+      </div>
+
+      <h1 class="text-3xl sm:text-5xl md:text-6xl font-black text-slate-950 dark:text-white tracking-tight leading-[1.1]">
+        YouTube Transcript Extractor & <br class="hidden sm:inline" />
+        <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 bg-clip-text text-transparent">
+          4K Thumbnail Downloader
+        </span>
+      </h1>
+
+      <p class="text-sm sm:text-lg text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
+        Extract timestamped captions from any YouTube video in seconds. Search, copy, and export to TXT, SRT, or PDF. Grab Full HD thumbnails with 1-click.
+      </p>
+    </div>
+  </section>
+
+  {/* Interactive React Island */}
+  <section class="pb-24">
+    <div class="container mx-auto px-4 max-w-6xl">
+      <YouTubeSuiteIsland client:load />
+    </div>
+  </section>
+
+  {/* FAQ Section */}
+  <section class="py-16 md:py-24 bg-slate-100/50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
+    <div class="container mx-auto px-4 max-w-4xl">
+      <div class="text-center space-y-4 mb-12">
+        <h2 class="text-3xl md:text-4xl font-black text-slate-950 dark:text-white">
+          Frequently Asked Questions
+        </h2>
+      </div>
+
+      <div class="space-y-4">
+        {faqs.map((faq) => (
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <h4 class="text-base font-bold text-slate-900 dark:text-white mb-2">
+              {faq.question}
+            </h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {faq.answer}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>

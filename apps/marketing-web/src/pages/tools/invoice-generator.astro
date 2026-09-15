@@ -1,0 +1,89 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import InvoiceGeneratorIsland from '../../components/tools/InvoiceGeneratorIsland';
+
+const faqs = [
+  {
+    question: "Is this invoice generator free to use?",
+    answer: "Yes, 100% free! You can generate, customize, print, and download as many invoices as you need with zero watermarks and no hidden fees."
+  },
+  {
+    question: "Are my company details and client invoices saved on your servers?",
+    answer: "No. The invoice generator executes completely within your browser. None of your client names, pricing, bank details, or logos are uploaded to or stored on our servers."
+  },
+  {
+    question: "Can I customize the currency and tax rates?",
+    answer: "Yes. You can switch between all major global currencies (USD, EUR, GBP, INR, CAD, AUD, JPY, AED) and apply custom tax percentages and item discounts dynamically."
+  },
+  {
+    question: "How do I upgrade to automated recurring invoices?",
+    answer: "180workspace Finance offers full automated billing, recurring subscription schedules, automated client payment reminders, and integrated accounting reports."
+  }
+];
+---
+
+<Layout
+  title="Free Invoice Generator — Create & Download PDF Invoices | 180workspace"
+  description="Create and download professional, customized PDF invoices online in seconds. Upload your logo, customize brand colors, calculate taxes, and export watermark-free."
+  canonicalUrl="https://180workspace.com/tools/invoice-generator"
+  breadcrumbs={[
+    { name: "Home", url: "/" },
+    { name: "Free Tools", url: "/tools" },
+    { name: "Invoice Generator", url: "/tools/invoice-generator" }
+  ]}
+  faqs={faqs}
+  applicationCategory="FinanceApplication"
+>
+  {/* Tool Hero */}
+  <section class="relative pt-20 pb-12 md:pt-28 md:pb-16 overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(5,150,105,0.18),transparent_70%)] pointer-events-none"></div>
+
+    <div class="container mx-auto px-4 max-w-5xl relative z-10 text-center space-y-4">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-black uppercase tracking-widest">
+        <span>💼 100% Free Commercial Invoice Maker</span>
+      </div>
+
+      <h1 class="text-3xl sm:text-5xl md:text-6xl font-black text-slate-950 dark:text-white tracking-tight leading-[1.1]">
+        Free Online <br class="hidden sm:inline" />
+        <span class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
+          Invoice & PDF Generator
+        </span>
+      </h1>
+
+      <p class="text-sm sm:text-lg text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
+        Generate professional, watermark-free commercial invoices in seconds. Add your custom logo, customize brand colors, calculate taxes, and download high-res PDFs instantly.
+      </p>
+    </div>
+  </section>
+
+  {/* Interactive React Island */}
+  <section class="pb-24">
+    <div class="container mx-auto px-4 max-w-6xl">
+      <InvoiceGeneratorIsland client:load />
+    </div>
+  </section>
+
+  {/* FAQ Section */}
+  <section class="py-16 md:py-24 bg-slate-100/50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
+    <div class="container mx-auto px-4 max-w-4xl">
+      <div class="text-center space-y-4 mb-12">
+        <h2 class="text-3xl md:text-4xl font-black text-slate-950 dark:text-white">
+          Frequently Asked Questions
+        </h2>
+      </div>
+
+      <div class="space-y-4">
+        {faqs.map((faq) => (
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <h4 class="text-base font-bold text-slate-900 dark:text-white mb-2">
+              {faq.question}
+            </h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {faq.answer}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>

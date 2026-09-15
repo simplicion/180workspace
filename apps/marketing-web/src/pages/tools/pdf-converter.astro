@@ -1,0 +1,89 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PdfConverterIsland from '../../components/tools/PdfConverterIsland';
+
+const faqs = [
+  {
+    question: "What image formats can I convert to PDF?",
+    answer: "Our converter supports PNG, JPG, JPEG, and WebP images. You can upload multiple images simultaneously and combine them into a single PDF document."
+  },
+  {
+    question: "Are my uploaded files and documents secure?",
+    answer: "Yes, 100% private. All conversions happen entirely in your browser using client-side JavaScript. Your images, text, and documents are never uploaded to any server or cloud storage."
+  },
+  {
+    question: "Can I convert markdown or formatted text to PDF?",
+    answer: "Yes! Switch to the 'Text & Markdown to PDF' tab to type or paste formatted text and headings, then click compile to download a clean, structured PDF."
+  },
+  {
+    question: "Is there a limit on how many images I can convert?",
+    answer: "There are no artificial limits. You can convert and combine as many pages as your browser memory allows, completely free of charge."
+  }
+];
+---
+
+<Layout
+  title="Free PDF Converter — Images & Markdown to PDF Online | 180workspace"
+  description="Convert PNG, JPG, and WebP images or Markdown text to clean, high-resolution PDF documents. 100% free, private in-browser conversion with zero server uploads."
+  canonicalUrl="https://180workspace.com/tools/pdf-converter"
+  breadcrumbs={[
+    { name: "Home", url: "/" },
+    { name: "Free Tools", url: "/tools" },
+    { name: "PDF Converter", url: "/tools/pdf-converter" }
+  ]}
+  faqs={faqs}
+  applicationCategory="UtilitiesApplication"
+>
+  {/* Tool Hero */}
+  <section class="relative pt-20 pb-12 md:pt-28 md:pb-16 overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(37,99,235,0.18),transparent_70%)] pointer-events-none"></div>
+
+    <div class="container mx-auto px-4 max-w-5xl relative z-10 text-center space-y-4">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900 text-blue-700 dark:text-blue-300 text-xs font-black uppercase tracking-widest">
+        <span>📄 100% In-Browser & Private PDF Engine</span>
+      </div>
+
+      <h1 class="text-3xl sm:text-5xl md:text-6xl font-black text-slate-950 dark:text-white tracking-tight leading-[1.1]">
+        Free Online <br class="hidden sm:inline" />
+        <span class="bg-gradient-to-r from-blue-600 via-cyan-600 to-indigo-600 bg-clip-text text-transparent">
+          PDF Converter & Utility
+        </span>
+      </h1>
+
+      <p class="text-sm sm:text-lg text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
+        Convert Images (PNG, JPG, WebP) and Markdown text into professional PDFs. Reorder pages, adjust margins, and export in seconds without uploading files to any external server.
+      </p>
+    </div>
+  </section>
+
+  {/* Interactive React Island */}
+  <section class="pb-24">
+    <div class="container mx-auto px-4 max-w-6xl">
+      <PdfConverterIsland client:load />
+    </div>
+  </section>
+
+  {/* FAQ Section */}
+  <section class="py-16 md:py-24 bg-slate-100/50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
+    <div class="container mx-auto px-4 max-w-4xl">
+      <div class="text-center space-y-4 mb-12">
+        <h2 class="text-3xl md:text-4xl font-black text-slate-950 dark:text-white">
+          Frequently Asked Questions
+        </h2>
+      </div>
+
+      <div class="space-y-4">
+        {faqs.map((faq) => (
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <h4 class="text-base font-bold text-slate-900 dark:text-white mb-2">
+              {faq.question}
+            </h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {faq.answer}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>
