@@ -19,12 +19,17 @@
     "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",
     "astro": "^7.2.6",
+    "jspdf": "^4.2.0",
     "marked": "^18.0.11",
+    "qrcode": "^1.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^3.4.0"
   },
   "allowScripts": {
     "esbuild": true
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5"
   }
 }

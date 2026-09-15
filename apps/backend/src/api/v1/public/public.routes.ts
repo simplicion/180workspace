@@ -45,6 +45,10 @@ router.post('/blogs/:slug/view', publicController.recordBlogView);
 // --- Public Payslip Access Endpoint ---
 router.get('/payslips/:id', publicController.getPublicPayslip);
 
+// --- Public SEO Tools Endpoints ---
+import publicToolsRoutes from './public-tools.routes';
+router.use('/tools', publicToolsRoutes);
+
 export default router;
 
 

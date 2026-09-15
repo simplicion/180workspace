@@ -1,0 +1,175 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const tools = [
+  {
+    title: "YouTube Transcript & 4K Thumbnail Suite",
+    slug: "youtube-tools",
+    category: "Video & Marketing",
+    badge: "Most Popular",
+    badgeColor: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300",
+    description: "Extract full timestamped transcripts from any YouTube video. Search text, copy, and export to TXT, SRT, or PDF. Grab 4K (1080p) thumbnails with 1-click.",
+    iconSvg: `<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`,
+    iconBg: "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900",
+    features: ["Instant Timestamped Transcript", "Live Keyword Search", "Export to .TXT, .SRT, .PDF", "MaxRes 1080p Thumbnail Grabber"]
+  },
+  {
+    title: "Smart Invoice & Billing Generator",
+    slug: "invoice-generator",
+    category: "Finance & Accounting",
+    badge: "Essential",
+    badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    description: "Build clean, customized commercial invoices with live logo upload, 6 color themes, multi-currency auto-calculations, and watermark-free PDF download.",
+    iconSvg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"/></svg>`,
+    iconBg: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900",
+    features: ["Custom Logo & 6 Color Themes", "Multi-Currency (USD, EUR, GBP, INR...)", "Dynamic Taxes & Line Item Discounts", "1-Click PDF Download & Print"]
+  },
+  {
+    title: "Smart PDF Converter & Utility",
+    slug: "pdf-converter",
+    category: "Productivity & Docs",
+    badge: "100% Private",
+    badgeColor: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    description: "Convert Images (PNG, JPG, WebP) and Rich Markdown Text into high-resolution PDFs. Fast, private, and 100% client-side in your browser.",
+    iconSvg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>`,
+    iconBg: "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900",
+    features: ["Multiple Images to Single PDF", "Markdown/Text Editor to PDF", "Custom Margins & Page Sizes (A4/Letter)", "Zero Server Upload (100% Secure)"]
+  },
+  {
+    title: "UTM Campaign Builder & QR Engine",
+    slug: "utm-builder",
+    category: "Traffic & Analytics",
+    badge: "Traffic Magnet",
+    badgeColor: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+    description: "Build clean, error-free UTM tracking URLs with 1-click platform presets (Google, Meta, LinkedIn) and generate high-resolution scannable QR codes.",
+    iconSvg: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>`,
+    iconBg: "bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900",
+    features: ["1-Click Platform Presets", "Real-Time URL Sanitizer", "Customizable Color QR Generator", "Instant PNG & SVG QR Downloads"]
+  }
+];
+
+const faqs = [
+  {
+    question: "Are these tools 100% free to use?",
+    answer: "Yes! All tools in our directory are completely free of charge, require no account registration, and contain zero hidden paywalls or watermarks."
+  },
+  {
+    question: "Are my documents, files, and transcripts private?",
+    answer: "Absolutely. Tools like the Smart Invoice Generator, PDF Converter, and UTM Builder run 100% client-side in your browser. Your images, client details, and files are never stored on our servers."
+  },
+  {
+    question: "How do these tools connect to the 180workspace platform?",
+    answer: "These free tools solve immediate standalone operational needs. When your team scales and requires recurring billing, multi-user CRM, team calendars, or bot-shielded link routing, 180workspace provides the complete all-in-one unified workspace."
+  }
+];
+---
+
+<Layout
+  title="Free Business, Creator & Marketing Tools — 180workspace"
+  description="Explore our suite of 100% free, unauthenticated productivity tools. Extract YouTube transcripts, generate commercial invoices, convert PDFs, and build UTM campaign links."
+  canonicalUrl="https://180workspace.com/tools"
+  breadcrumbs={[{ name: "Home", url: "/" }, { name: "Free Tools", url: "/tools" }]}
+  faqs={faqs}
+>
+  {/* Hero Header */}
+  <section class="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden border-b border-slate-200/80 dark:border-slate-800">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(99,102,241,0.15),transparent_70%)] pointer-events-none"></div>
+
+    <div class="container mx-auto px-4 max-w-7xl relative z-10 text-center space-y-6">
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-widest">
+        <span>⚡ 100% Free • Zero Login Required • Privacy-First</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl md:text-7xl font-black text-slate-950 dark:text-white tracking-tight leading-[1.1] max-w-4xl mx-auto">
+        Free Utilities Built for <br class="hidden sm:inline" />
+        <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 bg-clip-text text-transparent">
+          Modern Creators & Teams
+        </span>
+      </h1>
+
+      <p class="text-base sm:text-xl text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
+        High-utility, client-side tools to streamline your daily workflow. No signups, no watermarks, and zero paywalls.
+      </p>
+    </div>
+  </section>
+
+  {/* Tools Directory Grid */}
+  <section class="py-16 md:py-24">
+    <div class="container mx-auto px-4 max-w-7xl">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {tools.map((tool) => (
+          <div class="group relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-3xl p-8 shadow-xl shadow-slate-900/5 hover:border-indigo-500/50 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-4 mb-6">
+                <div class={`w-14 h-14 rounded-2xl border flex items-center justify-center shrink-0 ${tool.iconBg}`} set:html={tool.iconSvg} />
+                <span class={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${tool.badgeColor}`}>
+                  {tool.badge}
+                </span>
+              </div>
+
+              <div class="space-y-2 mb-6">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {tool.category}
+                </span>
+                <h3 class="text-2xl font-black text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">
+                  <a href={`/tools/${tool.slug}`} class="focus:outline-none">
+                    <span class="absolute inset-0" aria-hidden="true"></span>
+                    {tool.title}
+                  </a>
+                </h3>
+                <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  {tool.description}
+                </p>
+              </div>
+
+              {/* Key Features List */}
+              <div className="space-y-2 mb-8 pt-4 border-t border-slate-100 dark:border-slate-800">
+                {tool.features.map((feat) => (
+                  <div class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span>{feat}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div class="relative z-10 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500">Instant Browser Execution</span>
+              <span class="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 group-hover:translate-x-1 transition-transform">
+                <span>Launch Tool</span>
+                <span>→</span>
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  {/* FAQ Section */}
+  <section class="py-16 md:py-24 bg-slate-100/50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
+    <div class="container mx-auto px-4 max-w-4xl">
+      <div class="text-center space-y-4 mb-12">
+        <h2 class="text-3xl md:text-4xl font-black text-slate-950 dark:text-white">
+          Frequently Asked Questions
+        </h2>
+        <p class="text-slate-600 dark:text-slate-400 text-sm md:text-base">
+          Everything you need to know about our free unauthenticated utility tools.
+        </p>
+      </div>
+
+      <div class="space-y-4">
+        {faqs.map((faq) => (
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <h4 class="text-base font-bold text-slate-900 dark:text-white mb-2">
+              {faq.question}
+            </h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {faq.answer}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>

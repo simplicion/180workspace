@@ -9,6 +9,11 @@ export const GET: APIRoute = async () => {
   // Core Platform URLs
   const corePages = [
     { url: `${baseUrl}`, priority: 1.0, changeFrequency: 'daily' },
+    { url: `${baseUrl}/tools`, priority: 0.95, changeFrequency: 'daily' },
+    { url: `${baseUrl}/tools/youtube-tools`, priority: 0.90, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/tools/invoice-generator`, priority: 0.90, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/tools/pdf-converter`, priority: 0.90, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/tools/utm-builder`, priority: 0.90, changeFrequency: 'weekly' },
     { url: `${baseUrl}/apps`, priority: 0.95, changeFrequency: 'weekly' },
     { url: `${baseUrl}/pricing`, priority: 0.95, changeFrequency: 'daily' },
     { url: `${baseUrl}/enterprise`, priority: 0.90, changeFrequency: 'weekly' },
