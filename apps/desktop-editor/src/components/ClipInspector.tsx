@@ -65,6 +65,41 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
     });
   };
 
+  const handleCropChange = (side: "top" | "bottom" | "left" | "right", val: number) => {
+    const currentCrop = transform.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+    onUpdateTransform({
+      ...transform,
+      crop: {
+        ...currentCrop,
+        [side]: Math.max(0, Math.min(50, val)),
+      },
+    });
+  };
+
+  const handleCropPreset = (preset: "reset" | "16:9" | "9:16" | "1:1") => {
+    if (preset === "reset") {
+      onUpdateTransform({
+        ...transform,
+        crop: { top: 0, bottom: 0, left: 0, right: 0 },
+      });
+    } else if (preset === "9:16") {
+      onUpdateTransform({
+        ...transform,
+        crop: { top: 0, bottom: 0, left: 22, right: 22 },
+      });
+    } else if (preset === "1:1") {
+      onUpdateTransform({
+        ...transform,
+        crop: { top: 0, bottom: 0, left: 15, right: 15 },
+      });
+    } else if (preset === "16:9") {
+      onUpdateTransform({
+        ...transform,
+        crop: { top: 12, bottom: 12, left: 0, right: 0 },
+      });
+    }
+  };
+
   const handleResetTransform = () => {
     onUpdateTransform({
       scale: { start: 1.0, end: 1.0, easing: "spring" },
@@ -72,6 +107,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
       anchor: { x: 0.5, y: 0.5 },
       rotationDeg: 0,
       opacity: 1.0,
+      crop: { top: 0, bottom: 0, left: 0, right: 0 },
     });
     onUpdateSpeed(1.0);
   };
@@ -206,7 +242,103 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
           />
         </div>
 
-        {/* 5. Speed Multiplier */}
+        {/* 5. Video & Image Cropping */}
+        <div className="space-y-2 pt-2 border-t border-[#1F1F24]">
+          <div className="flex items-center justify-between text-gray-300">
+            <span className="flex items-center space-x-1.5 font-medium">
+              <Crop className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Edge Cropping</span>
+            </span>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={() => handleCropPreset("reset")}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#141417] text-zinc-400 hover:text-white border border-[#1F1F24]"
+                title="Reset Crop"
+              >
+                Reset
+              </button>
+              <button
+                onClick={() => handleCropPreset("9:16")}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#141417] text-zinc-400 hover:text-white border border-[#1F1F24]"
+                title="Crop to 9:16 Vertical"
+              >
+                9:16
+              </button>
+              <button
+                onClick={() => handleCropPreset("1:1")}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#141417] text-zinc-400 hover:text-white border border-[#1F1F24]"
+                title="Crop to 1:1 Square"
+              >
+                1:1
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
+                <span>Top</span>
+                <span className="font-mono text-indigo-300">{transform.crop?.top || 0}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                value={transform.crop?.top || 0}
+                onChange={(e) => handleCropChange("top", parseFloat(e.target.value))}
+                className="w-full h-1 bg-[#16161A] rounded appearance-none cursor-pointer accent-indigo-500"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
+                <span>Bottom</span>
+                <span className="font-mono text-indigo-300">{transform.crop?.bottom || 0}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                value={transform.crop?.bottom || 0}
+                onChange={(e) => handleCropChange("bottom", parseFloat(e.target.value))}
+                className="w-full h-1 bg-[#16161A] rounded appearance-none cursor-pointer accent-indigo-500"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
+                <span>Left</span>
+                <span className="font-mono text-indigo-300">{transform.crop?.left || 0}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                value={transform.crop?.left || 0}
+                onChange={(e) => handleCropChange("left", parseFloat(e.target.value))}
+                className="w-full h-1 bg-[#16161A] rounded appearance-none cursor-pointer accent-indigo-500"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
+                <span>Right</span>
+                <span className="font-mono text-indigo-300">{transform.crop?.right || 0}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                value={transform.crop?.right || 0}
+                onChange={(e) => handleCropChange("right", parseFloat(e.target.value))}
+                className="w-full h-1 bg-[#16161A] rounded appearance-none cursor-pointer accent-indigo-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 6. Speed Multiplier */}
         <div className="space-y-1.5 pt-2 border-t border-[#1F1F24]">
           <div className="flex items-center justify-between text-gray-300">
             <span className="flex items-center space-x-1.5 font-medium">

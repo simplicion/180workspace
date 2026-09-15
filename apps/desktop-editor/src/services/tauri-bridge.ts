@@ -268,6 +268,7 @@ class DesktopEngineBridge implements EngineBridge {
     let width = 1920;
     let height = 1080;
     const isVideo = file.type.startsWith("video/");
+    const isImage = file.type.startsWith("image/") || Boolean(file.name.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i));
 
     if (isVideo) {
       try {
@@ -285,6 +286,21 @@ class DesktopEngineBridge implements EngineBridge {
           setTimeout(resolve, 2000);
         });
       } catch {}
+    } else if (isImage) {
+      durationSeconds = 5.0;
+      try {
+        const img = new Image();
+        img.src = blobUrl;
+        await new Promise<void>((resolve) => {
+          img.onload = () => {
+            if (img.naturalWidth) width = img.naturalWidth;
+            if (img.naturalHeight) height = img.naturalHeight;
+            resolve();
+          };
+          img.onerror = () => resolve();
+          setTimeout(resolve, 1500);
+        });
+      } catch {}
     }
 
     return {
@@ -292,7 +308,7 @@ class DesktopEngineBridge implements EngineBridge {
       name: file.name,
       filePath: blobUrl,
       fileSizeBytes: file.size,
-      mimeType: file.type || (isVideo ? "video/mp4" : "audio/mpeg"),
+      mimeType: file.type || (isVideo ? "video/mp4" : isImage ? "image/jpeg" : "audio/mpeg"),
       durationSeconds,
       width,
       height,

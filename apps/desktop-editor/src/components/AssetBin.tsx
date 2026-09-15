@@ -13,6 +13,7 @@ import {
   Sparkles,
   FileVideo,
   Layers,
+  Image as ImageIcon,
 } from "lucide-react";
 import { MediaAssetDescriptor } from "@workspace/video-contracts";
 
@@ -34,7 +35,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "video" | "audio">("all");
+  const [filterType, setFilterType] = useState<"all" | "video" | "image" | "audio">("all");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -66,9 +67,11 @@ export const AssetBin: React.FC<AssetBinProps> = ({
 
   const filteredAssets = assets.filter((asset) => {
     const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const isVideo = asset.mimeType?.startsWith("video/") || !asset.mimeType;
+    const isImage = asset.mimeType?.startsWith("image/") || Boolean(asset.name.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i));
     const isAudio = asset.mimeType?.startsWith("audio/");
+    const isVideo = !isImage && !isAudio;
     if (filterType === "video") return matchesSearch && isVideo;
+    if (filterType === "image") return matchesSearch && isImage;
     if (filterType === "audio") return matchesSearch && isAudio;
     return matchesSearch;
   });
@@ -148,6 +151,16 @@ export const AssetBin: React.FC<AssetBinProps> = ({
             Video
           </button>
           <button
+            onClick={() => setFilterType("image")}
+            className={`px-2 py-0.5 rounded-md font-medium transition ${
+              filterType === "image"
+                ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                : "text-gray-400 hover:text-gray-200 hover:bg-[#1F1F24]"
+            }`}
+          >
+            Images
+          </button>
+          <button
             onClick={() => setFilterType("audio")}
             className={`px-2 py-0.5 rounded-md font-medium transition ${
               filterType === "audio"
@@ -202,6 +215,7 @@ export const AssetBin: React.FC<AssetBinProps> = ({
         ) : (
           filteredAssets.map((asset) => {
             const isAudio = asset.mimeType?.startsWith("audio/");
+            const isImage = asset.mimeType?.startsWith("image/") || Boolean(asset.name.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i));
             return (
               <div
                 key={asset.id}
@@ -213,7 +227,13 @@ export const AssetBin: React.FC<AssetBinProps> = ({
                     onClick={() => onAddClipToTimeline(asset)}
                     className="w-10 h-10 rounded-md bg-[#0B0B0C] border border-[#1F1F24] flex items-center justify-center text-indigo-400 shrink-0 relative overflow-hidden group-hover:ring-1 group-hover:ring-indigo-500/50 cursor-pointer"
                   >
-                    {isAudio ? (
+                    {isImage ? (
+                      asset.filePath?.startsWith("blob:") || asset.filePath?.startsWith("http") ? (
+                        <img src={asset.filePath} alt={asset.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-cyan-400" />
+                      )
+                    ) : isAudio ? (
                       <Music className="w-4 h-4 text-emerald-400" />
                     ) : (
                       <Film className="w-4 h-4 text-indigo-400" />

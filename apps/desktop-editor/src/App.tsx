@@ -370,39 +370,51 @@ export const App: React.FC = () => {
 
     // Check if timeline has only dummy clip or is empty
     const currentClips = project.editIR.tracks.videoTracks[0]?.clips || [];
-    let updatedVideoTracks = [...project.editIR.tracks.videoTracks];
-    let newTotalDuration = project.editIR.meta.totalDuration;
+    const isTimelineEmptyOrDummy =
+      currentClips.length === 0 ||
+      currentClips[0]?.id === "clip_01" ||
+      currentClips[0]?.id === "clip_showcase_1";
 
-    if (currentClips.length === 0 || currentClips[0]?.id === "clip_01") {
-      const firstAsset = newAssets[0];
-      const clipDuration = RationalTimeMath.fromSeconds(firstAsset.durationSeconds);
+    let updatedClips: VideoClip[] = isTimelineEmptyOrDummy ? [] : [...currentClips];
+    let currentOffsetSec = isTimelineEmptyOrDummy
+      ? 0
+      : currentClips.reduce((acc, c) => {
+          const end = RationalTimeMath.toSeconds(c.timelineRange.start) + RationalTimeMath.toSeconds(c.timelineRange.duration);
+          return Math.max(acc, end);
+        }, 0);
+
+    const createdClips: VideoClip[] = [];
+
+    for (let i = 0; i < newAssets.length; i++) {
+      const asset = newAssets[i];
+      const clipDurationSec = Math.max(1, asset.durationSeconds || 5.0);
+      const clipDuration = RationalTimeMath.fromSeconds(clipDurationSec);
+      const clipStart = RationalTimeMath.fromSeconds(currentOffsetSec);
+
       const newClip: VideoClip = {
-        id: `clip_${Date.now()}`,
-        assetId: firstAsset.id,
-        sourcePath: firstAsset.filePath,
+        id: `clip_${Date.now()}_${i}`,
+        assetId: asset.id,
+        sourcePath: asset.filePath,
         sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDuration },
-        timelineRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDuration },
+        timelineRange: { start: clipStart, duration: clipDuration },
         transform: {
           scale: { start: 1.0, end: 1.0, easing: "spring" },
           position: { x: 0, y: 0 },
           anchor: { x: 0.5, y: 0.5 },
           rotationDeg: 0,
           opacity: 1.0,
+          crop: { top: 0, bottom: 0, left: 0, right: 0 },
         },
         speedMultiplier: 1.0,
         effects: [],
       };
 
-      updatedVideoTracks = [
-        {
-          id: "track_v1",
-          type: "MAIN_VIDEO",
-          zIndex: 0,
-          clips: [newClip],
-        },
-      ];
-      newTotalDuration = clipDuration;
+      updatedClips.push(newClip);
+      createdClips.push(newClip);
+      currentOffsetSec += clipDurationSec;
     }
+
+    const newTotalDuration = RationalTimeMath.fromSeconds(Math.max(currentOffsetSec, 1));
 
     const updatedIR: EditIR = {
       ...project.editIR,
@@ -412,7 +424,12 @@ export const App: React.FC = () => {
       },
       tracks: {
         ...project.editIR.tracks,
-        videoTracks: updatedVideoTracks,
+        videoTracks: [
+          {
+            ...project.editIR.tracks.videoTracks[0],
+            clips: updatedClips,
+          },
+        ],
       },
     };
 
@@ -422,6 +439,12 @@ export const App: React.FC = () => {
       editIR: updatedIR,
     });
     pushHistory(updatedIR);
+
+    if (createdClips.length > 0) {
+      setSelectedClipId(createdClips[0].id);
+      const startSec = RationalTimeMath.toSeconds(createdClips[0].timelineRange.start);
+      setCurrentTimeSeconds(startSec);
+    }
   };
 
   const handleRemoveAsset = (assetId: string) => {
