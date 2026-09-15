@@ -82,7 +82,7 @@ namespace Simplicion.MediaStudio
         public MainWindow(string url)
         {
             this.initialUrl = url;
-            this.Text = "180 Media Studio - Autonomous Video Editor";
+            this.Text = "180 Media Studio";
             this.Width = 1440;
             this.Height = 900;
             this.MinimumSize = new Size(1024, 700);

@@ -56,7 +56,7 @@ namespace Simplicion.MediaStudio.Installer
             lblTitle.AutoSize = true;
 
             lblSubtitle = new Label();
-            lblSubtitle.Text = "Autonomous Desktop Video Editor • NVENC Stream-Copy Engine";
+            lblSubtitle.Text = "Professional Desktop Video Studio • NVENC Stream-Copy Engine";
             lblSubtitle.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             lblSubtitle.ForeColor = Color.FromArgb(156, 163, 175);
             lblSubtitle.Location = new Point(76, 52);
@@ -239,7 +239,7 @@ namespace Simplicion.MediaStudio.Installer
                 CreateShortcut(
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "180 Media Studio.lnk"),
                     destExe,
-                    "180 Media Studio Autonomous Editor"
+                    "180 Media Studio"
                 );
 
                 string startMenuDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs");
@@ -248,7 +248,7 @@ namespace Simplicion.MediaStudio.Installer
                     CreateShortcut(
                         Path.Combine(startMenuDir, "180 Media Studio.lnk"),
                         destExe,
-                        "180 Media Studio Autonomous Editor"
+                        "180 Media Studio"
                     );
                 }
             }

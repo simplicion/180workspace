@@ -152,10 +152,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="h-4 w-px bg-[#1F1F24]" />
 
           {companyAIStatus?.isConfigured && (
-            <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-medium">{companyAIStatus.provider.toUpperCase()} AI</span>
-              <span className="text-zinc-400 text-[10px]">({companyAIStatus.companyName || "Simplicion"})</span>
+            <div className="flex items-center space-x-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="font-medium text-emerald-300">Ready</span>
             </div>
           )}
         </div>
@@ -356,7 +355,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <p className="text-xs text-zinc-500 max-w-sm mt-1 mb-4">
                   {selectedFolderId
                     ? "This folder is empty. Create a new project or move existing files into it."
-                    : "Create your first project to start editing with autonomous jump-cuts and kinetic captions."}
+                    : "Create your first project to start editing with precision cuts and kinetic captions."}
                 </p>
                 <button
                   onClick={() => setIsNewProjectModalOpen(true)}
