@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
-  "description": "180 Workspace Autonomous Desktop Video Editor",
+  "description": "180 Workspace Professional Desktop Video Studio",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

@@ -43,8 +43,8 @@ export const AICriticDrawer: React.FC<AICriticDrawerProps> = ({
         <div className="flex items-center space-x-2 text-pink-400">
           <Sparkles className="w-5 h-5" />
           <div>
-            <h3 className="text-sm font-bold text-gray-100">AI Critic & Retention QA</h3>
-            <p className="text-[10px] text-gray-400">Autonomous pacing & viewer retention analyzer</p>
+            <h3 className="text-sm font-bold text-gray-100">Critic & Retention QA</h3>
+            <p className="text-[10px] text-gray-400">Pacing & viewer retention analyzer</p>
           </div>
         </div>
         <button

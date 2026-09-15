@@ -154,9 +154,9 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
             <div className="flex items-start space-x-2">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <span className="text-xs font-semibold text-amber-300 block">AI Not Configured</span>
+                <span className="text-xs font-semibold text-amber-300 block">Engine Key Required</span>
                 <p className="text-[10px] text-gray-300 leading-relaxed mt-0.5">
-                  Your workspace requires an AI API key (OpenAI, Anthropic Claude, or Google Gemini) to direct videos.
+                  Configure your workspace intelligence API key in platform settings to enable director features.
                 </p>
               </div>
             </div>
@@ -259,7 +259,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
           </button>
         </form>
         <div className="flex items-center justify-between text-[9px] text-gray-500 mt-1 px-0.5">
-          <span>{companyAIStatus?.provider ? `${companyAIStatus.provider.toUpperCase()} ENGINE` : "180 WORKSPACE AI"}</span>
+          <span>180 Studio Engine</span>
           <span>&lt;800 tokens</span>
         </div>
       </div>

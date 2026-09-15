@@ -863,7 +863,7 @@ export const App: React.FC = () => {
       <div className="h-screen w-screen flex items-center justify-center bg-[#050505] text-zinc-400 font-mono text-xs">
         <div className="flex flex-col items-center space-y-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 animate-spin" />
-          <span>Loading 180 Autonomous Engine...</span>
+          <span>Loading 180 Media Studio...</span>
         </div>
       </div>
     );
