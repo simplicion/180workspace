@@ -8,24 +8,12 @@ import {
   Download,
   ExternalLink,
   Laptop,
-  Flame,
-  Coffee,
-  Zap,
-  HardDrive,
   Clock,
-  Cpu,
   Plus,
-  Apple,
-  Monitor,
-  Terminal,
   FolderOpen,
   X,
-  Activity,
   ArrowRight,
-  ShieldCheck,
-  CheckCircle2,
   AlertTriangle,
-  RefreshCw,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useSubscription } from "@/lib/useSubscription";
@@ -34,78 +22,6 @@ import { useNativeEngine } from "@/lib/useNativeEngine";
 import { MediaStudioWorkspace } from "./components/MediaStudioWorkspace";
 import { UniversalSkeleton, FeatureLock } from "@workspace/ui";
 import toast from "react-hot-toast";
-
-interface RenderJob {
-  id: string;
-  projectName: string;
-  resolution: string;
-  fps: number;
-  codec: string;
-  duration: string;
-  status: "completed" | "processing" | "queued";
-  progressPercent: number;
-  renderTimeSec: number;
-  speedMultiplier: string;
-  fileSize: string;
-  completedAt: string;
-}
-
-const SAMPLE_JOBS: RenderJob[] = [
-  {
-    id: "job_992",
-    projectName: "Viral Retention Reel - Cut #3",
-    resolution: "1080x1920",
-    fps: 30,
-    codec: "H.264 (NVENC Stream-Copy)",
-    duration: "00:45",
-    status: "completed",
-    progressPercent: 100,
-    renderTimeSec: 2.1,
-    speedMultiplier: "520x",
-    fileSize: "48 MB",
-    completedAt: "10 minutes ago",
-  },
-  {
-    id: "job_993",
-    projectName: "Product Keynote Explainer 4K",
-    resolution: "3840x2160",
-    fps: 60,
-    codec: "ProRes 422 HQ",
-    duration: "04:30",
-    status: "processing",
-    progressPercent: 68,
-    renderTimeSec: 14.5,
-    speedMultiplier: "340x",
-    fileSize: "1.4 GB",
-    completedAt: "In progress",
-  },
-  {
-    id: "job_994",
-    projectName: "SaaS Demo Feature Spotlight",
-    resolution: "1920x1080",
-    fps: 60,
-    codec: "AV1 (SVT-AV1)",
-    duration: "01:20",
-    status: "queued",
-    progressPercent: 0,
-    renderTimeSec: 0,
-    speedMultiplier: "--",
-    fileSize: "Estimating...",
-    completedAt: "Queued",
-  },
-];
-
-interface ProjectTemplate {
-  id: string;
-  title: string;
-  description: string;
-  preset: string;
-  aspect: string;
-  duration: string;
-  icon: any;
-  color: string;
-  badge: string;
-}
 
 interface VideoStudioProject {
   id: string;
@@ -118,53 +34,6 @@ interface VideoStudioProject {
   updatedAt: string;
 }
 
-const TEMPLATES: ProjectTemplate[] = [
-  {
-    id: "mrbeast_retention",
-    title: "Viral Retention Reel",
-    description: "Aggressive jump-cuts, 1.35x spring zooms, sound effects, and kinetic word bounce.",
-    preset: "MRBEAST_FAST",
-    aspect: "9:16 (Shorts/Reels)",
-    duration: "30s - 60s",
-    icon: Flame,
-    color: "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30",
-    badge: "1.3x Speed",
-  },
-  {
-    id: "clean_explainer",
-    title: "Thoughtful Explainer",
-    description: "Smooth camera panning, gentle face tracking, minimal aesthetic lower thirds.",
-    preset: "ALI_ABDAAL_CLEAN",
-    aspect: "16:9 (Desktop/YouTube)",
-    duration: "2m - 10m",
-    icon: Coffee,
-    color: "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-500/30",
-    badge: "1.0x Pacing",
-  },
-  {
-    id: "hormozi_punch",
-    title: "High-Energy Kinetic Subtitle",
-    description: "Bold word-by-word karaoke highlights with punchy vocal energy cuts.",
-    preset: "HORMOZI_PUNCH",
-    aspect: "9:16 (TikTok/Reels)",
-    duration: "15s - 45s",
-    icon: Zap,
-    color: "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/30",
-    badge: "Kinetic Captions",
-  },
-  {
-    id: "saas_walkthrough",
-    title: "SaaS Product Demo",
-    description: "Dynamic screen ROI zooming, cursor tracking, UI spotlighting at 60 FPS.",
-    preset: "SAAS_DEMO",
-    aspect: "16:9 (Product Tour)",
-    duration: "1m - 3m",
-    icon: Monitor,
-    color: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30",
-    badge: "Screen Zoom",
-  },
-];
-
 export default function MediaEditorDashboardPage() {
   const { companyConfig, loading: subLoading } = useSubscription();
   const { user, company, token } = useAuth();
@@ -172,7 +41,6 @@ export default function MediaEditorDashboardPage() {
 
   const [projects, setProjects] = useState<VideoStudioProject[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
-  const [downloadOS, setDownloadOS] = useState<"windows" | "mac" | "linux">("windows");
 
   // Embedded Studio Workspace State
   const [isEmbeddedStudioOpen, setIsEmbeddedStudioOpen] = useState(false);
@@ -228,17 +96,6 @@ export default function MediaEditorDashboardPage() {
     } finally {
       setLoadingProjects(false);
     }
-  };
-
-  const [renderJobs, setRenderJobs] = useState<RenderJob[]>(SAMPLE_JOBS);
-  const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
-
-  const handleRefreshQueue = () => {
-    setIsRefreshingQueue(true);
-    setTimeout(() => {
-      setIsRefreshingQueue(false);
-      toast.success("Refreshed hardware export status");
-    }, 600);
   };
 
   useEffect(() => {
@@ -483,6 +340,14 @@ export default function MediaEditorDashboardPage() {
             </button>
 
             <button
+              onClick={handleOpenWebStudio}
+              className="flex items-center justify-center space-x-2 px-4 py-3 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-500/30 shadow-sm transition active:scale-95"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Web Studio</span>
+            </button>
+
+            <button
               onClick={() => handleOpenLaunchModal()}
               className="flex items-center justify-center space-x-2.5 px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/30 transition transform active:scale-95"
             >
@@ -490,49 +355,6 @@ export default function MediaEditorDashboardPage() {
               <span>Launch Studio Desktop</span>
               <ArrowRight className="w-4 h-4 ml-1" />
             </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Key Architecture Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition flex items-center space-x-4">
-          <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20">
-            <Zap className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">&gt;500 FPS</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Smart Stream-Copy Export</p>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition flex items-center space-x-4">
-          <div className="p-3 rounded-xl bg-pink-50 dark:bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-500/20">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">&lt;800 Tokens</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">AI Director Micro-Context</p>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition flex items-center space-x-4">
-          <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-            <HardDrive className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">100% Local-First</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Zero Cloud Upload Bottlenecks</p>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition flex items-center space-x-4">
-          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
-            <Cpu className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">wgpu Shaders</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Hardware Compositor</p>
           </div>
         </div>
       </div>
@@ -624,353 +446,7 @@ export default function MediaEditorDashboardPage() {
         )}
       </div>
 
-      {/* 4. GPU Render Farm & Hardware Export Queue */}
-      <div id="renders" className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center space-x-2.5">
-              <Activity className="w-5 h-5 text-indigo-500" />
-              <span>GPU Render Farm & Hardware Export Queue</span>
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Real-time telemetry of lossless smart-stream copy cuts and hardware-accelerated local exports.
-            </p>
-          </div>
-
-          <button
-            onClick={handleRefreshQueue}
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 shadow-sm transition active:scale-95 shrink-0"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingQueue ? "animate-spin text-indigo-500" : ""}`} />
-            <span>Refresh Queue</span>
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {renderJobs.map((job) => (
-            <div
-              key={job.id}
-              className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm hover:border-indigo-500/40 dark:hover:border-indigo-500/40 transition flex flex-col md:flex-row md:items-center justify-between gap-4"
-            >
-              <div className="space-y-1.5 max-w-md flex-1">
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full font-bold ${
-                      job.status === "completed"
-                        ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30"
-                        : job.status === "processing"
-                        ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
-                    }`}
-                  >
-                    {job.status}
-                  </span>
-                  <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
-                    {job.resolution} @ {job.fps}fps
-                  </span>
-                </div>
-
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">{job.projectName}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Codec: {job.codec}</p>
-
-                {job.status === "processing" && (
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-2.5">
-                    <div
-                      className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-300"
-                      style={{ width: `${job.progressPercent}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center gap-6 text-xs text-gray-700 dark:text-gray-300 shrink-0">
-                <div>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Render Speed</p>
-                  <p className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{job.speedMultiplier}</p>
-                </div>
-
-                <div>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Duration</p>
-                  <p className="font-semibold text-gray-900 dark:text-white">{job.duration}</p>
-                </div>
-
-                <div>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">File Size</p>
-                  <p className="font-semibold text-gray-900 dark:text-white">{job.fileSize}</p>
-                </div>
-
-                <div className="min-w-[120px] flex justify-end">
-                  {job.status === "completed" ? (
-                    <button
-                      onClick={() => toast.success(`Downloaded ${job.projectName}.mp4`)}
-                      className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-500/20 transition active:scale-95"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download</span>
-                    </button>
-                  ) : (
-                    <span className="text-xs text-gray-400 font-mono italic">
-                      {job.status === "processing" ? "In progress..." : "Queued"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. Quick Start Templates */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Creative Director Presets</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Launch a new autonomous production pipeline with tailored pacing & styling.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {TEMPLATES.map((tpl) => {
-            const Icon = tpl.icon;
-            return (
-              <div
-                key={tpl.id}
-                onClick={() => handleOpenLaunchModal(undefined, tpl.preset)}
-                className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm hover:border-indigo-500/40 dark:hover:border-indigo-500/40 cursor-pointer transition-all duration-200 group flex flex-col justify-between"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className={`p-2.5 rounded-xl border ${tpl.color}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium">
-                      {tpl.badge}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
-                      {tpl.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                      {tpl.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                  <span>{tpl.aspect}</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center space-x-1">
-                    <span>Launch</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 6. Native Desktop App Downloads */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center space-x-2">
-              <Download className="w-4 h-4 text-indigo-500" />
-              <span>Download 180 Media Studio Desktop</span>
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Available natively for Windows, macOS (Apple Silicon & Intel), and Linux.
-            </p>
-          </div>
-
-          <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700 text-xs">
-            <button
-              onClick={() => setDownloadOS("windows")}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition font-medium ${
-                downloadOS === "windows"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              }`}
-            >
-              <Monitor className="w-3.5 h-3.5" />
-              <span>Windows</span>
-            </button>
-            <button
-              onClick={() => setDownloadOS("mac")}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition font-medium ${
-                downloadOS === "mac"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              }`}
-            >
-              <Apple className="w-3.5 h-3.5" />
-              <span>macOS</span>
-            </button>
-            <button
-              onClick={() => setDownloadOS("linux")}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition font-medium ${
-                downloadOS === "linux"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              }`}
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              <span>Linux</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {downloadOS === "windows" && (
-            <>
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Windows 64-bit (.exe)</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Standard desktop standalone executable installer</p>
-                </div>
-                <button
-                  onClick={() => triggerDownload("windows")}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .exe (84 MB)</span>
-                </button>
-              </div>
-
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Windows MSI (.msi)</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Enterprise active directory / group policy package</p>
-                </div>
-                <button
-                  onClick={() => triggerDownload("msi")}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .msi (88 MB)</span>
-                </button>
-              </div>
-
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Portable Zip (.zip)</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">No administrative elevation required</p>
-                </div>
-                <button
-                  onClick={() => triggerDownload("windows")}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .zip (92 MB)</span>
-                </button>
-              </div>
-            </>
-          )}
-
-          {downloadOS === "mac" && (
-            <>
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Apple Silicon (M1/M2/M3/M4)</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Optimized ARM64 Metal GPU acceleration</p>
-                </div>
-                <button
-                  onClick={() => triggerDownload("mac")}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .dmg (ARM64)</span>
-                </button>
-              </div>
-
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Intel Mac (x86_64)</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Legacy Intel hardware acceleration</p>
-                </div>
-                <button
-                  onClick={() => triggerDownload("mac_intel")}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .dmg (Intel)</span>
-                </button>
-              </div>
-
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Homebrew Cask</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">CLI package installation</p>
-                </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard?.writeText("brew install --cask 180-media-studio");
-                    toast.success("Command copied to clipboard!");
-                  }}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition"
-                >
-                  <Terminal className="w-3.5 h-3.5" />
-                  <span>Copy brew command</span>
-                </button>
-              </div>
-            </>
-          )}
-
-          {downloadOS === "linux" && (
-            <>
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">AppImage (.AppImage)</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Universal distro package (Ubuntu, Fedora, Arch)</p>
-                </div>
-                <button
-                  onClick={() => triggerDownload("linux")}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .AppImage</span>
-                </button>
-              </div>
-
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Debian / Ubuntu (.deb)</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Apt package manager integration</p>
-                </div>
-                <button
-                  onClick={() => triggerDownload("linux")}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .deb</span>
-                </button>
-              </div>
-
-              <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Flatpak / Flathub</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Sandboxed Wayland & Vulkan acceleration</p>
-                </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard?.writeText("flatpak install flathub com.workspace180.MediaStudio");
-                    toast.success("Command copied to clipboard!");
-                  }}
-                  className="flex items-center justify-center space-x-2 w-full py-2 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition"
-                >
-                  <Terminal className="w-3.5 h-3.5" />
-                  <span>Copy flatpak command</span>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* 7. Launch & Download Desktop Studio Modal */}
+      {/* 2. Launch & Download Desktop Studio Modal */}
       {isLaunchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-2xl p-6 space-y-6 animate-in zoom-in-95 duration-200">
