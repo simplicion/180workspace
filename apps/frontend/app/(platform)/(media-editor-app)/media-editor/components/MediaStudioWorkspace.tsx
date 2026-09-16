@@ -13,7 +13,7 @@ import {
   VideoClip,
 } from "@workspace/video-contracts";
 import { HeaderBar } from "./HeaderBar";
-import { AIDirectorPanel } from "./AIDirectorPanel";
+import { AIDirectorPanel, DirectorChatMessage } from "./AIDirectorPanel";
 import { AssetBin } from "./AssetBin";
 import { CanvasViewport } from "./CanvasViewport";
 import { Timeline } from "./Timeline";
@@ -53,7 +53,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     return initialProjectId ? "editor" : "home";
   });
 
-  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(320);
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(360);
   const [rightPanelWidth, setRightPanelWidth] = useState<number>(288);
   const [timelineHeight, setTimelineHeight] = useState<number>(280);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
@@ -89,6 +89,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   // History stack for Undo/Redo
   const [history, setHistory] = useState<EditIR[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [aiMessages, setAiMessages] = useState<DirectorChatMessage[]>([]);
 
   const [authSession, setAuthSession] = useState<{
     userName?: string;
@@ -218,6 +219,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     newHistory.push(newEditIR);
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
+    if (newEditIR.meta?.targetAspect) {
+      setAspectRatio(newEditIR.meta.targetAspect as any);
+    }
     setProject({
       ...project,
       editIR: newEditIR,
@@ -227,10 +231,14 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const handleUndo = () => {
     if (historyIndex > 0 && project) {
       const targetIndex = historyIndex - 1;
+      const targetIR = history[targetIndex];
       setHistoryIndex(targetIndex);
+      if (targetIR.meta?.targetAspect) {
+        setAspectRatio(targetIR.meta.targetAspect as any);
+      }
       setProject({
         ...project,
-        editIR: history[targetIndex],
+        editIR: targetIR,
       });
     }
   };
@@ -238,10 +246,14 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const handleRedo = () => {
     if (historyIndex < history.length - 1 && project) {
       const targetIndex = historyIndex + 1;
+      const targetIR = history[targetIndex];
       setHistoryIndex(targetIndex);
+      if (targetIR.meta?.targetAspect) {
+        setAspectRatio(targetIR.meta.targetAspect as any);
+      }
       setProject({
         ...project,
-        editIR: history[targetIndex],
+        editIR: targetIR,
       });
     }
   };
@@ -264,24 +276,68 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     }, 500);
   };
 
-  const handleApplyAiPrompt = async (prompt: string) => {
+  const handleApplyAiPrompt = async (promptText: string) => {
     if (!project) return;
     setIsAiProcessing(true);
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    const userMsg: DirectorChatMessage = {
+      id: `msg_user_${Date.now()}`,
+      sender: "user",
+      text: promptText,
+      timestamp: timeStr,
+    };
+
+    setAiMessages((prev) => [...prev, userMsg]);
+    const previousEditIRSnapshot = JSON.parse(JSON.stringify(project.editIR));
 
     try {
       const result = await (engineBridge as any).executeAutonomousPipeline(
         project.assets[0]?.filePath || "",
         project.editIR.directorStyle.preset,
-        prompt,
+        promptText,
         authSession.companyId,
         project.editIR
       );
+
       if (result && result.editIR) {
         pushHistory(result.editIR);
+
+        const directorMsg: DirectorChatMessage = {
+          id: `msg_dir_${Date.now()}`,
+          sender: "director",
+          text: result.reply || "Timeline AST updated directly according to your instructions.",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          actions: result.actions || ["Applied directives to timeline AST"],
+          snapshotEditIR: previousEditIRSnapshot,
+        };
+
+        setAiMessages((prev) => [...prev, directorMsg]);
       }
+    } catch (err) {
+      console.error("AI Director pipeline failed:", err);
+      const errorMsg: DirectorChatMessage = {
+        id: `msg_dir_err_${Date.now()}`,
+        sender: "director",
+        text: "Encountered an issue compiling the timeline AST. Please try another directive.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setAiMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsAiProcessing(false);
     }
+  };
+
+  const handleRevertToAiMessage = (msg: DirectorChatMessage) => {
+    if (msg.snapshotEditIR) {
+      pushHistory(msg.snapshotEditIR);
+    }
+  };
+
+  const handleClearAiMessages = () => {
+    setAiMessages([]);
   };
 
   const handleImportFiles = async (files: FileList | File[]) => {
@@ -775,6 +831,12 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                     isProcessing={isAiProcessing}
                     companyAIStatus={companyAIStatus}
                     onRefreshAIStatus={() => fetchCompanyAIStatus(authSession.companyId)}
+                    messages={aiMessages}
+                    onRevertToMessage={handleRevertToAiMessage}
+                    onClearMessages={handleClearAiMessages}
+                    currentAspect={aspectRatio}
+                    timelineDurationSec={RationalTimeMath.toSeconds(project.editIR.meta.totalDuration)}
+                    clipsCount={project.editIR.tracks.videoTracks[0]?.clips?.length || 0}
                   />
                 )}
               </div>
