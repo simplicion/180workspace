@@ -6,23 +6,17 @@ import {
   Download,
   Trash2,
   Copy,
-  Edit2,
   Film,
   Play,
   Monitor,
   Smartphone,
   Square,
-  Clock,
   LayoutGrid,
   List as ListIcon,
   ChevronRight,
-  MoreVertical,
   Upload,
-  Sparkles,
-  CheckCircle2,
   X,
   HardDrive,
-  Calendar,
 } from "lucide-react";
 import { ProjectFolder, SavedProjectSummary, ProjectStorageService } from "../services/project-storage";
 import { CompanyAIStatus } from "../services/tauri-bridge";
@@ -34,7 +28,6 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenProject,
-  companyAIStatus,
 }) => {
   const [folders, setFolders] = useState<ProjectFolder[]>(() => ProjectStorageService.getFolders());
   const [projects, setProjects] = useState<SavedProjectSummary[]>(() => ProjectStorageService.getProjects());
@@ -48,7 +41,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectAspect, setNewProjectAspect] = useState<"16:9" | "9:16" | "1:1">("16:9");
   const [newFolderName, setNewFolderName] = useState("");
-  const [contextMenuFolder, setContextMenuFolder] = useState<{ id: string; x: number; y: number } | null>(null);
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,7 +118,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   return (
-    <div className="h-screen w-screen bg-[#050505] text-zinc-100 flex flex-col select-none overflow-hidden font-sans">
+    <div className="h-screen w-screen bg-[#000000] text-zinc-100 flex flex-col select-none overflow-hidden font-sans">
       {/* Hidden File Input for Import */}
       <input
         type="file"
@@ -137,66 +129,57 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       />
 
       {/* 1. Top Global Navigation Bar */}
-      <header className="h-14 border-b border-[#1F1F24] bg-[#0B0B0C] px-6 flex items-center justify-between z-20 shrink-0">
+      <header className="h-13 border-b border-[#1C1C22] bg-[#08080A] px-5 flex items-center justify-between z-20 shrink-0">
+        {/* Brand & Studio Identity */}
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20">
-            <div className="w-5 h-5 rounded bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center font-bold text-xs text-white shadow-md shadow-indigo-500/30">
-              180
-            </div>
-            <span className="font-semibold text-sm tracking-tight text-white">Media Studio</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#141417] text-indigo-300 font-mono border border-indigo-500/30">
-              Workspace Hub
+          <div className="flex items-center space-x-2.5">
+            <img src="/white-icon.svg" alt="180" className="w-5 h-5 object-contain" />
+            <span className="font-semibold text-sm tracking-tight text-white">180 Media Studio</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#121216] text-zinc-400 font-mono border border-[#1C1C22]">
+              Projects Hub
             </span>
           </div>
-
-          <div className="h-4 w-px bg-[#1F1F24]" />
-
-          {companyAIStatus?.isConfigured && (
-            <div className="flex items-center space-x-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="font-medium text-emerald-300">Ready</span>
-            </div>
-          )}
         </div>
 
         {/* Center Search Bar */}
         <div className="flex-1 max-w-md mx-6">
           <div className="relative">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search projects, files or folders..."
+              placeholder="Search projects or folders..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#121215] border border-[#1F1F24] focus:border-indigo-500 text-xs text-zinc-200 placeholder-zinc-500 rounded-xl pl-9 pr-3 py-2 outline-none transition shadow-inner"
+              className="w-full bg-[#111114] border border-[#1C1C22] focus:border-zinc-500 text-xs text-zinc-200 placeholder-zinc-500 rounded-lg pl-8 pr-3 py-1.5 outline-none transition"
             />
           </div>
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center space-x-2">
           <button
             onClick={() => importFileInputRef.current?.click()}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-[#141417] hover:bg-[#1F1F24] border border-[#1F1F24] transition active:scale-95"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-300 bg-[#111114] hover:bg-[#18181E] hover:text-white border border-[#1C1C22] transition active:scale-95"
             title="Import existing .vproj or .otio bundle"
           >
-            <Upload className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Import File</span>
+            <Upload className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Import</span>
           </button>
 
           <button
             onClick={() => setIsNewFolderModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-[#141417] hover:bg-[#1F1F24] border border-[#1F1F24] transition active:scale-95"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-300 bg-[#111114] hover:bg-[#18181E] hover:text-white border border-[#1C1C22] transition active:scale-95"
+            title="Create New Folder"
           >
-            <Folder className="w-3.5 h-3.5 text-amber-400" />
+            <Folder className="w-3.5 h-3.5 text-zinc-400" />
             <span>New Folder</span>
           </button>
 
           <button
             onClick={() => setIsNewProjectModalOpen(true)}
-            className="flex items-center space-x-1.5 px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition shadow-lg shadow-indigo-600/30 active:scale-95"
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-black bg-white hover:bg-zinc-200 transition active:scale-95 shadow-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>New Project</span>
           </button>
         </div>
@@ -205,40 +188,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* 2. Body: Left Folder Tree + Right Project Canvas */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Left Folders Sidebar */}
-        <aside className="w-64 border-r border-[#1F1F24] bg-[#0B0B0C] flex flex-col shrink-0">
-          <div className="p-4 border-b border-[#1F1F24] flex items-center justify-between">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+        <aside className="w-60 border-r border-[#1C1C22] bg-[#08080A] flex flex-col shrink-0">
+          <div className="p-3.5 border-b border-[#1C1C22] flex items-center justify-between">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
               Workspace Files
             </span>
             <button
               onClick={() => setIsNewFolderModalOpen(true)}
-              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-[#141417] transition"
+              className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-[#141418] transition"
               title="Create New Folder"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="p-3 overflow-y-auto flex-1 space-y-1 text-xs">
+          <div className="p-2.5 overflow-y-auto flex-1 space-y-1 text-xs">
             <button
               onClick={() => setSelectedFolderId(null)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
+              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition ${
                 selectedFolderId === null
-                  ? "bg-indigo-600/20 text-indigo-300 font-semibold border border-indigo-500/40"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-[#141417]"
+                  ? "bg-[#16161C] text-white font-medium border border-[#262630]"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-[#111114]"
               }`}
             >
               <div className="flex items-center space-x-2">
-                <Film className="w-4 h-4 text-indigo-400" />
+                <img src="/white-icon.svg" alt="180" className="w-3.5 h-3.5 object-contain opacity-70" />
                 <span>All Projects</span>
               </div>
-              <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-[#141417]">
+              <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.2 rounded bg-[#111114]">
                 {projects.length}
               </span>
             </button>
 
-            <div className="pt-3 pb-1 px-3">
-              <span className="text-[10px] font-mono font-bold text-zinc-500 uppercase">
+            <div className="pt-2.5 pb-1 px-2.5">
+              <span className="text-[10px] font-mono font-bold text-zinc-600 uppercase">
                 Folders ({folders.length})
               </span>
             </div>
@@ -251,22 +234,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <div
                   key={folder.id}
                   onClick={() => setSelectedFolderId(folder.id)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setContextMenuFolder({ id: folder.id, x: e.clientX, y: e.clientY });
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition group ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition group ${
                     isSelected
-                      ? "bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/40"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-[#141417]"
+                      ? "bg-[#16161C] text-white font-medium border border-[#262630]"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-[#111114]"
                   }`}
                 >
                   <div className="flex items-center space-x-2 truncate">
-                    <Folder className="w-4 h-4 text-amber-400 shrink-0" />
+                    <Folder className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                     <span className="truncate">{folder.name}</span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-[#141417]">
+                    <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.2 rounded bg-[#111114]">
                       {count}
                     </span>
                     <button
@@ -290,11 +269,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
 
           {/* Storage Telemetry Footer */}
-          <div className="p-3 border-t border-[#1F1F24] bg-[#08080A] flex items-center space-x-2 text-[11px] text-zinc-400">
-            <HardDrive className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="p-3 border-t border-[#1C1C22] bg-[#060608] flex items-center space-x-2 text-[11px] text-zinc-500">
+            <HardDrive className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
             <div className="truncate">
-              <span className="font-semibold text-zinc-300 block">Offline-First Storage</span>
-              <span className="text-[10px] text-zinc-500">Auto-saved to local NVRAM</span>
+              <span className="font-medium text-zinc-400 block text-[10px]">Local NVRAM Storage</span>
+              <span className="text-[9px] text-zinc-600">Offline-first auto-save</span>
             </div>
           </div>
         </aside>
@@ -302,31 +281,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* Right Projects Area */}
         <main className="flex-1 flex flex-col min-w-0 bg-[#050505] overflow-hidden">
           {/* Breadcrumb & View Toggle Header */}
-          <div className="h-11 border-b border-[#1F1F24] bg-[#0B0B0C]/90 px-6 flex items-center justify-between shrink-0">
+          <div className="h-10 border-b border-[#1C1C22] bg-[#08080A]/90 px-6 flex items-center justify-between shrink-0">
             <div className="flex items-center space-x-2 text-xs text-zinc-400">
               <button
                 onClick={() => setSelectedFolderId(null)}
-                className="hover:text-white transition"
+                className="hover:text-white transition font-medium"
               >
                 Projects
               </button>
               {activeFolder && (
                 <>
                   <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-                  <span className="text-zinc-200 font-semibold">{activeFolder.name}</span>
+                  <span className="text-zinc-200 font-medium">{activeFolder.name}</span>
                 </>
               )}
-              <span className="text-zinc-600">•</span>
-              <span className="text-zinc-500 font-mono text-[11px]">
+              <span className="text-zinc-700">•</span>
+              <span className="text-zinc-500 font-mono text-[10px]">
                 {filteredProjects.length} {filteredProjects.length === 1 ? "project" : "projects"}
               </span>
             </div>
 
-            <div className="flex items-center space-x-1 bg-[#121215] p-0.5 rounded-lg border border-[#1F1F24]">
+            <div className="flex items-center space-x-1 bg-[#111114] p-0.5 rounded-lg border border-[#1C1C22]">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-1.5 rounded-md transition ${
-                  viewMode === "grid" ? "bg-indigo-600 text-white shadow" : "text-zinc-400 hover:text-white"
+                  viewMode === "grid" ? "bg-[#1F1F26] text-white shadow" : "text-zinc-400 hover:text-white"
                 }`}
                 title="Grid View"
               >
@@ -335,7 +314,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-1.5 rounded-md transition ${
-                  viewMode === "list" ? "bg-indigo-600 text-white shadow" : "text-zinc-400 hover:text-white"
+                  viewMode === "list" ? "bg-[#1F1F26] text-white shadow" : "text-zinc-400 hover:text-white"
                 }`}
                 title="Table List View"
               >
@@ -348,10 +327,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="flex-1 p-6 overflow-y-auto">
             {filteredProjects.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                <div className="w-16 h-16 rounded-2xl bg-[#121215] border border-[#1F1F24] flex items-center justify-center text-zinc-400 mb-4">
-                  <Film className="w-8 h-8 text-indigo-400/80" />
+                <div className="w-16 h-16 rounded-2xl bg-[#0D0D11] border border-[#1C1C22] flex items-center justify-center mb-4">
+                  <img src="/white-icon.svg" alt="180" className="w-8 h-8 object-contain opacity-35" />
                 </div>
-                <h3 className="text-sm font-bold text-zinc-200">No projects found</h3>
+                <h3 className="text-sm font-semibold text-zinc-200">No projects found</h3>
                 <p className="text-xs text-zinc-500 max-w-sm mt-1 mb-4">
                   {selectedFolderId
                     ? "This folder is empty. Create a new project or move existing files into it."
@@ -359,7 +338,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </p>
                 <button
                   onClick={() => setIsNewProjectModalOpen(true)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition shadow-lg shadow-indigo-600/30"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-black bg-white hover:bg-zinc-200 transition active:scale-95 shadow-lg shadow-white/5"
                 >
                   Create New Project
                 </button>
@@ -371,84 +350,93 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <div
                     key={proj.id}
                     onDoubleClick={() => onOpenProject(proj.id)}
-                    className="group bg-[#0B0B0C] border border-[#1F1F24] hover:border-zinc-700 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-black transition-all flex flex-col cursor-pointer"
+                    className="group bg-[#0A0A0D] border border-[#1C1C22] hover:border-zinc-700 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-black transition-all flex flex-col cursor-pointer"
                   >
                     {/* Thumbnail Frame */}
                     <div
                       onClick={() => onOpenProject(proj.id)}
-                      className="aspect-video w-full bg-[#101012] relative overflow-hidden flex items-center justify-center"
+                      className="aspect-video w-full bg-[#050507] relative overflow-hidden flex items-center justify-center border-b border-[#141418]"
                     >
-                      {proj.thumbnailUrl ? (
+                      {/* Official White Logo Watermark (Always present as backdrop) */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#101014] to-[#060608] flex flex-col items-center justify-center p-4 select-none">
+                        <div className="absolute inset-0 bg-[radial-gradient(#1E1E26_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none" />
+                        <img
+                          src="/white-icon.svg"
+                          alt="180"
+                          className="w-10 h-10 object-contain opacity-25 group-hover:opacity-60 transition-opacity drop-shadow-md z-0"
+                        />
+                      </div>
+
+                      {proj.thumbnailUrl && (
                         <img
                           src={proj.thumbnailUrl}
                           alt={proj.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 z-10"
                         />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#141418] to-[#08080A] flex flex-col items-center justify-center">
-                          <Film className="w-8 h-8 text-zinc-600 group-hover:text-indigo-400 transition-colors" />
-                        </div>
                       )}
 
                       {/* Hover Play Button Overlay */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="w-11 h-11 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transform scale-90 group-hover:scale-100 transition-transform">
-                          <Play className="w-5 h-5 ml-0.5" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
+                          <Play className="w-4 h-4 ml-0.5 fill-black" />
                         </div>
                       </div>
 
-                      {/* Aspect & Duration Pills */}
-                      <div className="absolute bottom-2 left-2 flex items-center space-x-1.5">
-                        <span className="px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-md border border-white/10 text-[9px] font-mono text-zinc-300 font-bold">
+                      {/* Aspect & Resolution Badge */}
+                      <div className="absolute bottom-2 left-2 flex items-center space-x-1">
+                        <span className="px-1.5 py-0.5 rounded bg-black/85 backdrop-blur-md border border-white/10 text-[9px] font-mono text-zinc-300 font-medium">
                           {proj.aspectRatio}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-md border border-white/10 text-[9px] font-mono text-indigo-300 font-semibold">
+                        <span className="px-1.5 py-0.5 rounded bg-black/85 backdrop-blur-md border border-white/10 text-[9px] font-mono text-zinc-400">
                           {proj.resolution.width}x{proj.resolution.height}
                         </span>
                       </div>
 
-                      <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/90 backdrop-blur-md text-[10px] font-mono text-zinc-200 font-semibold">
+                      <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/90 backdrop-blur-md text-[10px] font-mono text-zinc-300">
                         {formatDuration(proj.durationSeconds)}
                       </div>
                     </div>
 
                     {/* Metadata & Actions */}
-                    <div className="p-3.5 flex flex-col justify-between flex-1 space-y-3">
+                    <div className="p-3 flex flex-col justify-between flex-1 space-y-2.5">
                       <div>
                         <h4
                           onClick={() => onOpenProject(proj.id)}
-                          className="text-xs font-bold text-zinc-100 group-hover:text-indigo-400 transition-colors truncate"
+                          className="text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors truncate"
                           title={proj.name}
                         >
                           {proj.name}
                         </h4>
-                        <span className="text-[10px] text-zinc-500 block mt-0.5">
+                        <span className="text-[10px] text-zinc-500 block mt-0.5 font-mono">
                           Edited {new Date(proj.updatedAt).toLocaleDateString()}
                         </span>
                       </div>
 
-                      <div className="pt-2 border-t border-[#1F1F24] flex items-center justify-between">
+                      <div className="pt-2 border-t border-[#16161C] flex items-center justify-between">
                         {/* Download Project File Button */}
                         <button
                           onClick={(e) => handleDownload(proj.id, e)}
-                          className="flex items-center space-x-1 text-[11px] font-semibold text-indigo-300 hover:text-white px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition active:scale-95"
+                          className="flex items-center space-x-1 text-[11px] font-medium text-zinc-300 hover:text-white px-2 py-1 rounded-md bg-[#121216] hover:bg-[#1A1A22] border border-[#1C1C22] transition active:scale-95"
                           title="Download project manifest (.vproj bundle)"
                         >
-                          <Download className="w-3.5 h-3.5" />
+                          <Download className="w-3 h-3 text-zinc-400" />
                           <span>Export .vproj</span>
                         </button>
 
                         <div className="flex items-center space-x-1">
                           <button
                             onClick={(e) => handleDuplicate(proj.id, e)}
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#16161A] transition"
+                            className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-[#16161C] transition"
                             title="Duplicate Project"
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={(e) => handleDelete(proj.id, e)}
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/15 transition"
+                            className="p-1.5 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
                             title="Delete Project"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -461,58 +449,58 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             ) : (
               /* List / Table View */
-              <div className="bg-[#0B0B0C] border border-[#1F1F24] rounded-2xl overflow-hidden shadow-lg">
+              <div className="bg-[#0A0A0D] border border-[#1C1C22] rounded-xl overflow-hidden shadow-lg">
                 <table className="w-full text-left text-xs text-zinc-300">
-                  <thead className="bg-[#121215] border-b border-[#1F1F24] text-[10px] font-mono text-zinc-400 uppercase">
+                  <thead className="bg-[#0E0E12] border-b border-[#1C1C22] text-[10px] font-mono text-zinc-400 uppercase">
                     <tr>
-                      <th className="py-3 px-4">Project Name</th>
-                      <th className="py-3 px-4">Aspect</th>
-                      <th className="py-3 px-4">Resolution</th>
-                      <th className="py-3 px-4">Duration</th>
-                      <th className="py-3 px-4">Last Modified</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-2.5 px-4">Project Name</th>
+                      <th className="py-2.5 px-4">Aspect</th>
+                      <th className="py-2.5 px-4">Resolution</th>
+                      <th className="py-2.5 px-4">Duration</th>
+                      <th className="py-2.5 px-4">Last Modified</th>
+                      <th className="py-2.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#18181D]">
+                  <tbody className="divide-y divide-[#141418]">
                     {filteredProjects.map((proj) => (
                       <tr
                         key={proj.id}
                         onDoubleClick={() => onOpenProject(proj.id)}
-                        className="hover:bg-[#141417] transition cursor-pointer group"
+                        className="hover:bg-[#111116] transition cursor-pointer group"
                       >
-                        <td className="py-3 px-4 flex items-center space-x-2 font-medium text-zinc-200">
-                          <Film className="w-4 h-4 text-indigo-400 shrink-0" />
+                        <td className="py-2.5 px-4 flex items-center space-x-2 font-medium text-zinc-200">
+                          <img src="/white-icon.svg" alt="180" className="w-3.5 h-3.5 object-contain opacity-70 shrink-0" />
                           <span className="truncate max-w-xs">{proj.name}</span>
                         </td>
-                        <td className="py-3 px-4 font-mono text-zinc-400">{proj.aspectRatio}</td>
-                        <td className="py-3 px-4 font-mono text-zinc-400">
+                        <td className="py-2.5 px-4 font-mono text-zinc-400">{proj.aspectRatio}</td>
+                        <td className="py-2.5 px-4 font-mono text-zinc-400">
                           {proj.resolution.width}x{proj.resolution.height}
                         </td>
-                        <td className="py-3 px-4 font-mono text-indigo-400">
+                        <td className="py-2.5 px-4 font-mono text-zinc-300">
                           {formatDuration(proj.durationSeconds)}
                         </td>
-                        <td className="py-3 px-4 text-zinc-500 font-mono text-[11px]">
+                        <td className="py-2.5 px-4 text-zinc-500 font-mono text-[11px]">
                           {new Date(proj.updatedAt).toLocaleDateString()}
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
+                        <td className="py-2.5 px-4 text-right">
+                          <div className="flex items-center justify-end space-x-1.5">
                             <button
                               onClick={(e) => handleDownload(proj.id, e)}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition"
+                              className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#16161C] transition"
                               title="Export .vproj"
                             >
                               <Download className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={(e) => handleDuplicate(proj.id, e)}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#16161A] transition"
+                              className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#16161C] transition"
                               title="Duplicate Project"
                             >
                               <Copy className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={(e) => handleDelete(proj.id, e)}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/15 transition"
+                              className="p-1.5 rounded-md text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
                               title="Delete Project"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -532,15 +520,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Modal: Create New Project */}
       {isNewProjectModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0B0B0D] border border-[#202025] rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center justify-between border-b border-[#202025] pb-3">
-              <h3 className="text-sm font-bold text-zinc-100 flex items-center space-x-2">
-                <Film className="w-4 h-4 text-indigo-400" />
+          <div className="w-full max-w-md bg-[#0A0A0D] border border-[#1C1C22] rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between border-b border-[#1C1C22] pb-3">
+              <h3 className="text-sm font-semibold text-zinc-100 flex items-center space-x-2">
+                <img src="/white-icon.svg" alt="180" className="w-4 h-4 object-contain" />
                 <span>Create New Video Project</span>
               </h3>
               <button
                 onClick={() => setIsNewProjectModalOpen(false)}
-                className="text-zinc-400 hover:text-white"
+                className="text-zinc-500 hover:text-white transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -548,7 +536,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <form onSubmit={handleCreateProject} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-medium text-zinc-300 block mb-1.5">
                   Project Title
                 </label>
                 <input
@@ -557,12 +545,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   autoFocus
-                  className="w-full bg-[#121215] border border-[#202025] focus:border-indigo-500 text-xs text-zinc-200 rounded-xl px-3 py-2 outline-none"
+                  className="w-full bg-[#111114] border border-[#1C1C22] focus:border-zinc-500 text-xs text-zinc-200 rounded-lg px-3 py-2 outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-medium text-zinc-300 block mb-1.5">
                   Aspect Ratio
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -577,8 +565,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       onClick={() => setNewProjectAspect(asp.id as any)}
                       className={`p-2.5 rounded-xl border text-center text-xs font-medium flex flex-col items-center space-y-1 transition ${
                         newProjectAspect === asp.id
-                          ? "bg-indigo-600/20 border-indigo-500 text-indigo-300 font-bold"
-                          : "bg-[#141417] border-[#202025] text-zinc-400 hover:text-zinc-200"
+                          ? "bg-[#181822] border-zinc-500 text-white font-semibold shadow-sm"
+                          : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200"
                       }`}
                     >
                       <asp.icon className="w-4 h-4" />
@@ -588,17 +576,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#202025]">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-[#1C1C22]">
                 <button
                   type="button"
                   onClick={() => setIsNewProjectModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md transition"
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold text-black bg-white hover:bg-zinc-200 transition active:scale-95 shadow-sm"
                 >
                   Create & Launch
                 </button>
@@ -611,15 +599,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Modal: Create New Folder */}
       {isNewFolderModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[#0B0B0D] border border-[#202025] rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center justify-between border-b border-[#202025] pb-3">
-              <h3 className="text-sm font-bold text-zinc-100 flex items-center space-x-2">
-                <Folder className="w-4 h-4 text-amber-400" />
+          <div className="w-full max-w-sm bg-[#0A0A0D] border border-[#1C1C22] rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between border-b border-[#1C1C22] pb-3">
+              <h3 className="text-sm font-semibold text-zinc-100 flex items-center space-x-2">
+                <Folder className="w-4 h-4 text-zinc-400" />
                 <span>New Project Folder</span>
               </h3>
               <button
                 onClick={() => setIsNewFolderModalOpen(false)}
-                className="text-zinc-400 hover:text-white"
+                className="text-zinc-500 hover:text-white transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -627,30 +615,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <form onSubmit={handleCreateFolder} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-medium text-zinc-300 block mb-1.5">
                   Folder Name
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Q4 Client Campaigns"
+                  placeholder="e.g. Client Deliverables"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
                   autoFocus
-                  className="w-full bg-[#121215] border border-[#202025] focus:border-indigo-500 text-xs text-zinc-200 rounded-xl px-3 py-2 outline-none"
+                  className="w-full bg-[#111114] border border-[#1C1C22] focus:border-zinc-500 text-xs text-zinc-200 rounded-lg px-3 py-2 outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#202025]">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-[#1C1C22]">
                 <button
                   type="button"
                   onClick={() => setIsNewFolderModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition shadow-md"
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold text-black bg-white hover:bg-zinc-200 transition active:scale-95 shadow-sm"
                 >
                   Create Folder
                 </button>

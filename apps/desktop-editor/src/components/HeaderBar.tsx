@@ -68,13 +68,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onToggleLeftPanel,
 }) => {
   return (
-    <header className="h-12 border-b border-[#1F1F24] bg-[#0A0A0C] flex items-center justify-between px-3 z-30 select-none">
+    <header className="h-12 border-b border-[#1C1C22] bg-[#08080A] flex items-center justify-between px-3 z-30 select-none">
       {/* Left: Navigation, Studio Identity & Project Details */}
       <div className="flex items-center space-x-2">
         {onNavigateHome && (
           <button
             onClick={onNavigateHome}
-            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-[#111114] hover:bg-[#1C1C22] text-zinc-300 hover:text-white border border-[#1F1F24] text-xs font-medium transition active:scale-95 shadow-sm group"
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-[#111114] hover:bg-[#18181E] text-zinc-300 hover:text-white border border-[#1C1C22] text-xs font-medium transition active:scale-95 shadow-sm group"
             title="Return to Projects & Files"
           >
             <Home className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-colors" />
@@ -87,8 +87,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             onClick={onToggleLeftPanel}
             className={`p-1.5 rounded-md border text-xs transition ${
               isLeftPanelOpen
-                ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/30"
-                : "bg-[#111114] text-zinc-400 hover:text-white border-[#1F1F24] hover:bg-[#1C1C22]"
+                ? "bg-[#181822] text-white border-zinc-600"
+                : "bg-[#111114] text-zinc-400 hover:text-white border-[#1C1C22] hover:bg-[#18181E]"
             }`}
             title="Toggle Media Bin / Assets Sidebar"
           >
@@ -96,17 +96,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </button>
         )}
 
-        <div className="h-4 w-px bg-[#1F1F24]" />
+        <div className="h-4 w-px bg-[#1C1C22]" />
 
         {/* 180 Media Studio Brand Mark */}
         <div className="flex items-center space-x-2">
-          <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center font-bold text-[11px] text-white shadow-sm">
-            180
-          </div>
-          <span className="font-semibold text-xs tracking-tight text-zinc-200">Media Studio</span>
+          <img src="/white-icon.svg" alt="180" className="w-5 h-5 object-contain" />
+          <span className="font-semibold text-xs tracking-tight text-white">Media Studio</span>
         </div>
 
-        <div className="h-4 w-px bg-[#1F1F24]" />
+        <div className="h-4 w-px bg-[#1C1C22]" />
 
         {/* Project Name & Saved Indicator */}
         <div className="flex items-center space-x-2">
@@ -221,12 +219,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </button>
         </div>
 
-        <div className="h-4 w-px bg-[#1F1F24]" />
+        <div className="h-4 w-px bg-[#1C1C22]" />
 
         {/* Engine Status (Clean, no vendor/OpenAI text) */}
         {isAiProcessing ? (
-          <div className="flex items-center space-x-1.5 bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 text-xs px-2.5 py-1 rounded-md animate-pulse">
-            <Sparkles className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+          <div className="flex items-center space-x-1.5 bg-[#141418] border border-[#22222A] text-zinc-300 text-xs px-2.5 py-1 rounded-md">
+            <Sparkles className="w-3.5 h-3.5 animate-spin text-zinc-300" />
             <span className="font-medium">Processing...</span>
           </div>
         ) : companyAIStatus?.isConfigured ? (
@@ -240,7 +238,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         ) : (
           <button
             onClick={() => window.open("http://localhost:3002/settings/system-configs", "_blank")}
-            className="flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-[#111114] hover:bg-[#1C1C22] px-2.5 py-1 rounded-md border border-[#1F1F24] transition active:scale-95"
+            className="flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-[#111114] hover:bg-[#18181E] px-2.5 py-1 rounded-md border border-[#1C1C22] transition active:scale-95"
             title="Configure Cloud Intelligence in Platform Settings"
           >
             <div className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
@@ -252,7 +250,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         {/* Save */}
         <button
           onClick={onSave}
-          className="flex items-center space-x-1.5 text-xs font-medium text-zinc-200 bg-[#111114] hover:bg-[#1C1C22] hover:text-white px-3 py-1 rounded-md border border-[#1F1F24] transition shadow-sm active:scale-95"
+          className="flex items-center space-x-1.5 text-xs font-medium text-zinc-200 bg-[#111114] hover:bg-[#18181E] hover:text-white px-3 py-1 rounded-md border border-[#1C1C22] transition shadow-sm active:scale-95"
           title="Save Project (Ctrl+S)"
         >
           <Save className="w-3.5 h-3.5 text-zinc-400" />
@@ -262,7 +260,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         {/* Primary Export */}
         <button
           onClick={onOpenExport}
-          className="flex items-center space-x-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1 rounded-md shadow-sm transition active:scale-95"
+          className="flex items-center space-x-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 px-3.5 py-1 rounded-md shadow-sm transition active:scale-95"
           title="Export Video"
         >
           <Download className="w-3.5 h-3.5" />
