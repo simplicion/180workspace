@@ -726,6 +726,52 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     const [isCollapsed, setIsCollapsed] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
     const { meeting } = useMeeting();
+    const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
+
+    const handleDownloadDesktopApp = (targetPlatform?: string) => {
+        setIsDownloadDropdownOpen(false);
+        let plat = targetPlatform;
+        if (!plat) {
+            const ua = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
+            if (ua.includes('android')) plat = 'android';
+            else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) plat = 'ios';
+            else if (ua.includes('mac')) plat = 'macos';
+            else if (ua.includes('linux')) plat = 'linux';
+            else plat = 'windows';
+        }
+
+        if (plat === 'ios') {
+            toast("To install on iOS: Open in Safari, tap Share and select 'Add to Home Screen'.", {
+                icon: '📱',
+                duration: 5000,
+            });
+            return;
+        }
+
+        let fileName = "180Workspace-Setup-x64.exe";
+        let downloadUrl = "/downloads/180Workspace-Setup-x64.exe";
+
+        if (plat === "macos" || plat === "mac") {
+            fileName = "180Workspace-Universal.dmg";
+            downloadUrl = "/api/download/mac";
+        } else if (plat === "linux") {
+            fileName = "180Workspace-x86_64.AppImage";
+            downloadUrl = "/api/download/linux";
+        } else if (plat === "android") {
+            fileName = "180Workspace-v1.0.apk";
+            downloadUrl = "/api/download/android";
+        }
+
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        const label = plat === 'macos' ? 'macOS (.dmg)' : plat === 'windows' ? 'Windows (.exe)' : plat === 'linux' ? 'Linux (.AppImage)' : 'Android (.apk)';
+        toast.success(`Downloading 180 Workspace for ${label}...`);
+    };
 
     // Contextual Help Slug Determination
     const getHelpSlug = () => {
@@ -968,17 +1014,87 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                 <span>Desktop Native</span>
                             </div>
                         ) : (
-                            <a
-                                href={`${process.env.NEXT_PUBLIC_MARKETING_URL || 'http://localhost:3001'}/download`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-700 hover:text-indigo-900 transition-all text-xs font-semibold shadow-xs group"
-                                title="Download 180Workspace Desktop App for Windows, macOS & Linux"
-                            >
-                                <Laptop className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
-                                <span>Download Desktop App</span>
-                                <span className="text-[10px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded-full leading-tight">v1.0</span>
-                            </a>
+                            <div className="relative hidden md:inline-flex items-center rounded-full shadow-xs">
+                                <button
+                                    onClick={() => handleDownloadDesktopApp()}
+                                    className="flex items-center gap-2 pl-3.5 pr-2 py-1.5 rounded-l-full border border-r-0 border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-700 hover:text-indigo-900 transition-all text-xs font-semibold group active:scale-95"
+                                    title="Automatically detect system and download 180 Workspace installer"
+                                >
+                                    <Laptop className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                                    <span>Download Desktop App</span>
+                                    <span className="text-[10px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded-full leading-tight">v1.0</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsDownloadDropdownOpen(!isDownloadDropdownOpen);
+                                    }}
+                                    className="px-2 py-1.5 rounded-r-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-700 hover:text-indigo-900 transition-all text-xs"
+                                    title="Select specific platform"
+                                >
+                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isDownloadDropdownOpen ? "rotate-180" : ""}`} />
+                                </button>
+
+                                {isDownloadDropdownOpen && (
+                                    <>
+                                        <div
+                                            className="fixed inset-0 z-30"
+                                            onClick={() => setIsDownloadDropdownOpen(false)}
+                                        />
+                                        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white border border-gray-200 shadow-xl py-2 z-40 animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                                                Select Your Operating System
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleDownloadDesktopApp('windows')}
+                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Laptop className="w-4 h-4 text-indigo-600" />
+                                                    <span className="font-semibold">Windows</span>
+                                                </div>
+                                                <span className="text-[10px] font-mono text-gray-400">.exe</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleDownloadDesktopApp('macos')}
+                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Laptop className="w-4 h-4 text-purple-600" />
+                                                    <span className="font-semibold">macOS</span>
+                                                </div>
+                                                <span className="text-[10px] font-mono text-gray-400">.dmg</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleDownloadDesktopApp('linux')}
+                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Laptop className="w-4 h-4 text-amber-600" />
+                                                    <span className="font-semibold">Linux</span>
+                                                </div>
+                                                <span className="text-[10px] font-mono text-gray-400">.AppImage</span>
+                                            </button>
+
+                                            <div className="my-1 border-t border-gray-100" />
+
+                                            <button
+                                                onClick={() => handleDownloadDesktopApp('android')}
+                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Laptop className="w-4 h-4 text-emerald-600" />
+                                                    <span className="font-semibold">Android Package</span>
+                                                </div>
+                                                <span className="text-[10px] font-mono text-gray-400">.apk</span>
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         )}
                         <HelpIcon slug={getHelpSlug()} className="w-9 h-9" />
                         <Link
