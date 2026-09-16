@@ -493,8 +493,15 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 if (filteredItems.length === 0) return null;
                 return { ...item, items: filteredItems };
             } else {
-                // Handle single items (Dashboard, CEO Insights)
+                // Handle single items (Dashboard, CEO Insights, 180 Media Studio)
                 if (userRoles.some(r => item.roles?.includes(r as string))) {
+                    if (item.appId && company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
+                        const isAppEnabled =
+                            company.enabledApps.includes(item.appId) ||
+                            company.enabledApps.includes('media-editor') ||
+                            company.enabledApps.includes('video-studio');
+                        if (!isAppEnabled) return null;
+                    }
                     return item;
                 }
                 return null;

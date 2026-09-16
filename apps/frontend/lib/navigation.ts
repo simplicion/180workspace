@@ -102,14 +102,11 @@ export const navigation = [
     },
 
     {
-        group: '180 Media Studio',
+        name: '180 Media Studio',
+        href: '/media-editor',
         appId: 'media-editor',
         icon: Film,
-        roles: ['admin', 'employee'],
-        items: [
-            { id: 'dashboard', name: 'Studio Radar & Exports', href: '/media-editor', exact: true, icon: Film, roles: ['admin', 'employee'] },
-            { id: 'assets', name: 'Cloud Media Assets', href: '/media-editor/assets', icon: FolderOpen, roles: ['admin', 'employee'] },
-        ]
+        roles: ['admin', 'employee']
     },
 
     {

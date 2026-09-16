@@ -37,6 +37,15 @@ const nextConfig = {
             { protocol: 'https', hostname: 'pub-fe44d8a6e623474c9fa7a81b855fb631.r2.dev' },
         ],
     },
+    async redirects() {
+        return [
+            {
+                source: '/media-editor/assets',
+                destination: '/media-editor',
+                permanent: false,
+            },
+        ];
+    },
     async rewrites() {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002';
         return [
