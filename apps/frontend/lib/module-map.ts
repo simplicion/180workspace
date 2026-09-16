@@ -87,7 +87,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
 
   // 180 Media Studio (Autonomous Video Production Engine & NLE)
   '/media-editor': { appId: 'media-editor', moduleId: 'dashboard' },
-  '/media-editor/assets': { appId: 'media-editor', moduleId: 'assets' },
   '/video-studio': { appId: 'media-editor', moduleId: 'dashboard' },
 };
 
@@ -272,9 +271,7 @@ export const APPS_CONFIG: AppConfig[] = [
         tag: 'Productivity',
         description: 'Autonomous video production engine, AI creative director, and zero-drift smart timeline.',
         modules: [
-            { id: 'dashboard', name: 'Studio Radar' },
-            { id: 'assets', name: 'Cloud Media Assets' },
-            { id: 'renders', name: 'Render Farm & Exports' }
+            { id: 'dashboard', name: '180 Media Studio' }
         ]
     }
 ];
