@@ -100,7 +100,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         {/* 180 Media Studio Brand Mark */}
         <div className="flex items-center space-x-2">
-          <img src="/white-icon.svg" alt="180" className="w-5 h-5 object-contain" />
+          <img
+            src="/white-icon.svg"
+            onError={(e) => {
+              e.currentTarget.src = "/white icon.svg";
+            }}
+            alt="180"
+            className="w-5 h-5 object-contain"
+          />
           <span className="font-semibold text-xs tracking-tight text-white">Media Studio</span>
         </div>
 

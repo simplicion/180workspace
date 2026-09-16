@@ -65,7 +65,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {/* Header */}
         <div className="p-4 border-b border-[#1C1C22] bg-[#08080A] flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <img src="/white-icon.svg" alt="180" className="w-5 h-5 object-contain" />
+            <img
+              src="/white-icon.svg"
+              onError={(e) => {
+                e.currentTarget.src = "/white icon.svg";
+              }}
+              alt="180"
+              className="w-5 h-5 object-contain"
+            />
             <div>
               <h3 className="text-sm font-semibold text-white">Export Video</h3>
               <p className="text-[11px] text-zinc-400">Deterministic Smart Stream-Copy Engine</p>
@@ -182,7 +189,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="py-6 space-y-4 text-center">
               <div className="relative flex items-center justify-center w-14 h-14 mx-auto">
                 <div className="w-14 h-14 rounded-full border-2 border-[#1C1C22] border-t-white animate-spin absolute inset-0" />
-                <img src="/white-icon.svg" alt="180" className="w-7 h-7 object-contain" />
+                <img
+                  src="/white-icon.svg"
+                  onError={(e) => {
+                    e.currentTarget.src = "/white icon.svg";
+                  }}
+                  alt="180"
+                  className="w-7 h-7 object-contain"
+                />
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-zinc-100">Rendering Master Video...</h4>

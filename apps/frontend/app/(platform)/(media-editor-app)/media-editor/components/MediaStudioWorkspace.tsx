@@ -778,8 +778,13 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                           t.id === targetAudioTrack!.id ? { ...t, clips: [...t.clips, newAudioClip] } : t
                         );
 
+                        const endSec = currentTimeSeconds + durationSec;
+                        const curTotal = RationalTimeMath.toSeconds(project.editIR.meta.totalDuration);
+                        const newTotal = RationalTimeMath.fromSeconds(Math.max(curTotal, endSec));
+
                         pushHistory({
                           ...project.editIR,
+                          meta: { ...project.editIR.meta, totalDuration: newTotal },
                           tracks: { ...project.editIR.tracks, audioTracks: updatedAudioTracks },
                         });
                       } else {
@@ -795,16 +800,23 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                             anchor: { x: 0.5, y: 0.5 },
                             rotationDeg: 0,
                             opacity: 1.0,
+                            crop: { top: 0, bottom: 0, left: 0, right: 0 },
                           },
                           speedMultiplier: 1.0,
                           effects: [],
                         };
                         const track = project.editIR.tracks.videoTracks[0];
                         if (!track) return;
+                        const endSec = currentTimeSeconds + durationSec;
+                        const curTotal = RationalTimeMath.toSeconds(project.editIR.meta.totalDuration);
+                        const newTotal = RationalTimeMath.fromSeconds(Math.max(curTotal, endSec));
+
                         pushHistory({
                           ...project.editIR,
+                          meta: { ...project.editIR.meta, totalDuration: newTotal },
                           tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: [...track.clips, newClip] }] },
                         });
+                        setSelectedClipId(newClip.id);
                       }
                     }}
                     onRemoveAsset={(id) => setProject({ ...project, assets: project.assets.filter((a) => a.id !== id) })}
@@ -849,6 +861,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               onStepFrame={(dir) => setCurrentTimeSeconds((t) => Math.max(0, t + dir * (1 / 30)))}
               onAspectRatioChange={setAspectRatio}
               onOpenImport={() => fileInputRef.current?.click()}
+              onLoadSampleDemo={handleLoadSampleDemo}
             />
           </div>
 
