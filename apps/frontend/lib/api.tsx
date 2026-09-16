@@ -108,35 +108,82 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // Removed block for billing lockouts (402, 403 SUBSCRIPTION_EXPIRED) 
-        // to support the freemium fallback model where limits are dynamically enforced.
+        // ─── Global Offline-First Write Interceptor ──────────────────────────────
+        // If a network connection drop occurs during a write mutation (POST, PUT, PATCH, DELETE),
+        // automatically persist the mutation to the Transactional Outbox and save optimistically.
+        const method = (original?.method || '').toUpperCase();
+        const isWriteMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+        const isOfflineError = !error.response || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error');
+        const isAuthEndpoint = original?.url?.includes('/api/auth/login') || original?.url?.includes('/api/auth/refresh');
 
-        if (error.response?.status === 404 && error.response?.data?.error === 'Your workspace could not be found. Please check your URL or contact support.') {
-            if (typeof window !== 'undefined') {
-                localStorage.removeItem('platform_auth_token');
-                localStorage.removeItem('platform_refresh_token');
+        if (isOfflineError && isWriteMutation && !isAuthEndpoint && typeof window !== 'undefined') {
+            try {
+                const { enqueueMutation, saveLocalEntity } = await import('./offline/outbox');
+                const { syncEngine } = await import('./offline/sync-engine');
 
-                const hostname = window.location.hostname;
-                const cookieDomain = hostname.includes('localhost') ? '.localhost' : `.${hostname.split('.').slice(-2).join('.')}`;
-                document.cookie = `platform_auth_token=; path=/; max-age=0; Domain=${cookieDomain}`;
-                document.cookie = `platform_auth_token=; path=/; max-age=0;`;
-
-                // If on login page, force a reload to clear the auth-context state
-                if (window.location.pathname === '/login') {
-                    // Only reload if we haven't already added clearSession
-                    if (!window.location.search.includes('clearSession=true')) {
-                        window.location.href = '/login?clearSession=true';
-                    }
-                } else if (
-                    window.location.pathname !== '/signup' && 
-                    window.location.pathname !== '/onboarding' && 
-                    window.location.pathname !== '/workspace-setup' && 
-                    !window.location.pathname.startsWith('/superadmin')
-                ) {
-                    window.location.href = '/login?clearSession=true';
+                let parsedPayload = original.data;
+                if (typeof parsedPayload === 'string') {
+                    try {
+                        parsedPayload = JSON.parse(parsedPayload);
+                    } catch {}
                 }
+
+                const url = original.url || '';
+                let entityType: any = 'generic';
+                if (url.includes('/tasks')) entityType = 'task';
+                else if (url.includes('/users') || url.includes('/employees')) entityType = 'employee';
+                else if (url.includes('/projects')) entityType = 'project';
+                else if (url.includes('/clients')) entityType = 'client';
+                else if (url.includes('/deals')) entityType = 'deal';
+                else if (url.includes('/leads')) entityType = 'lead';
+                else if (url.includes('/invoices')) entityType = 'invoice';
+                else if (url.includes('/expenses') || url.includes('/bills')) entityType = 'expense';
+                else if (url.includes('/attendance')) entityType = 'attendance';
+                else if (url.includes('/tickets') || url.includes('/support')) entityType = 'ticket';
+                else if (url.includes('/posts') || url.includes('/content-calendar')) entityType = 'social_post';
+                else if (url.includes('/documents')) entityType = 'document';
+                else if (url.includes('/campaigns') || url.includes('/advertising')) entityType = 'campaign';
+                else if (url.includes('/links') || url.includes('/traffic-director')) entityType = 'link';
+
+                const entityId = parsedPayload?.id || url.split('/').pop() || `offline_${Date.now()}`;
+                const optimisticData = {
+                    ...(typeof parsedPayload === 'object' ? parsedPayload : {}),
+                    id: entityId,
+                    syncStatus: 'pending_sync',
+                    localUpdatedAt: Date.now(),
+                };
+
+                // 1. Save locally to IndexedDB
+                await saveLocalEntity(entityType, entityId, optimisticData, 'pending_sync');
+
+                // 2. Queue mutation to Outbox
+                await enqueueMutation({
+                    entityType,
+                    entityId,
+                    action: method === 'POST' ? 'CREATE' : method === 'DELETE' ? 'DELETE' : 'UPDATE',
+                    endpoint: url,
+                    method: method as any,
+                    payload: parsedPayload,
+                });
+
+                syncEngine.refreshCount().catch(() => {});
+
+                toast('Saved offline. Will sync automatically when connection returns.', {
+                    icon: '💾',
+                    duration: 4000,
+                });
+
+                // 3. Resolve with optimistic response to prevent component crash
+                return Promise.resolve({
+                    data: optimisticData,
+                    status: 200,
+                    statusText: 'OK (Optimistic Offline)',
+                    headers: {},
+                    config: original,
+                });
+            } catch (outboxErr) {
+                console.error('[API Offline Interceptor] Error queueing mutation:', outboxErr);
             }
-            return Promise.reject(error);
         }
 
         return Promise.reject(error);

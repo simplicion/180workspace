@@ -73,7 +73,7 @@ export class RationalTimeMath {
     if (time.timescale === 0 || fps.denominator === 0) return 0;
     const num = BigInt(time.value) * BigInt(fps.numerator);
     const den = BigInt(time.timescale) * BigInt(fps.denominator);
-    if (den === 0n) return 0;
+    if (den === BigInt(0)) return 0;
     return Number(num / den);
   }
 

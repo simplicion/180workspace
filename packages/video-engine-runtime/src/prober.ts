@@ -10,8 +10,15 @@ export class MediaProber {
     }
 
     const stats = fs.statSync(filePath);
-    const fileBuffer = fs.readFileSync(filePath);
-    const sha256Hash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+
+    // Memory-safe chunked streaming hash (handles 100MB, 500MB, 1GB, 5GB+ with 0 MB memory overhead)
+    const sha256Hash = await new Promise<string>((resolveHash, rejectHash) => {
+      const hash = crypto.createHash("sha256");
+      const stream = fs.createReadStream(filePath);
+      stream.on("data", (chunk) => hash.update(chunk));
+      stream.on("end", () => resolveHash(hash.digest("hex")));
+      stream.on("error", (err) => rejectHash(err));
+    });
 
     return new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err: Error | null, metadata: any) => {

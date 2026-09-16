@@ -1750,7 +1750,7 @@ export default function WebsiteEditorPage() {
                                                         if (mediaUrl) {
                                                             addSection('media', idx + 1, { imageUrl: mediaUrl });
                                                         } else if (type === 'floating') {
-                                                            addSection('floating');
+                                                            addSection('floating', idx + 1);
                                                         } else if (type) {
                                                             addSection(type, idx + 1);
                                                         }
@@ -1798,9 +1798,9 @@ export default function WebsiteEditorPage() {
                                                 onClick={(e) => { e.stopPropagation(); setSelectedElementId('footer'); }}
                                                 title="Click to edit Company Information"
                                             >
-                                                <div className="font-semibold">{brand?.companyName || config.header?.title || settingsCompany?.name || website.name}</div>
-                                                <div className="opacity-90">{brand?.address || settingsCompany?.headquarters || '123 Business Avenue'}</div>
-                                                <div className="opacity-90">{brand?.email || settingsCompany?.email || 'email@example.com'}</div>
+                                                <div className="font-semibold">{brand?.companyName || config.header?.title || (settingsCompany as any)?.companyName || (settingsCompany as any)?.name || website.name}</div>
+                                                <div className="opacity-90">{brand?.address || (settingsCompany as any)?.headquarters || '123 Business Avenue'}</div>
+                                                <div className="opacity-90">{brand?.email || (settingsCompany as any)?.email || 'email@example.com'}</div>
                                                 {brand?.phone && <div className="opacity-90">{brand.phone}</div>}
                                                 {brand?.twitter && (
                                                     <div className="opacity-90 mt-1">

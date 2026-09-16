@@ -628,7 +628,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             if (matches.length === 0) return [];
             const names = matches.map(m => m[1].toLowerCase());
             return activeChat.members
-                .filter(m => m && m.name && names.some(n => m.name.toLowerCase().startsWith(n)))
+                .filter(m => m && m.name && names.some(n => (m.name || '').toLowerCase().startsWith(n)))
                 .map(m => ((m._id || m.id) as string));
         } catch (err) {
             console.error('[Chat] Mention extraction error:', err);
@@ -710,7 +710,11 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
         return other?.name || 'Chat';
     };
     const getChatOther = (chat: Chat) => chat.members.find(m => ((m._id || m.id) as string) !== (user?._id || user?.id));
-    const isOtherOnline = (chat: Chat) => { const o = getChatOther(chat); return o ? onlineUsers.has(o._id || o.id) : false; };
+    const isOtherOnline = (chat: Chat) => { 
+        const o = getChatOther(chat); 
+        const id = o ? (o._id || o.id) : undefined;
+        return id ? onlineUsers.has(id) : false; 
+    };
 
     const handleCallResponse = (accepted: boolean) => {
         if (!incomingCall) return;

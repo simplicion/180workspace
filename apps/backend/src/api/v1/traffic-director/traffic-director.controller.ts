@@ -297,25 +297,6 @@ export class TrafficDirectorController {
     }
   }
 
-
-  static async checkSlug(req: Request, res: Response) {
-    try {
-      const { slug, excludeLinkId } = req.query;
-      if (!slug) {
-        return res.status(400).json({ success: false, error: 'Slug parameter is required' });
-      }
-
-      const result = await TrafficLinksService.checkSlugAvailability(
-        String(slug), 
-        excludeLinkId ? String(excludeLinkId) : undefined
-      );
-      return res.json({ success: true, data: result });
-    } catch (error: any) {
-      console.error('[TrafficDirectorController.checkSlug]', error);
-      return res.status(500).json({ success: false, error: error.message });
-    }
-  }
-
   // ─── Rules ────────────────────────────────────────────────────────
   static async getRules(req: Request, res: Response) {
     try {

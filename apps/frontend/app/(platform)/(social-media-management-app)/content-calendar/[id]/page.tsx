@@ -48,7 +48,7 @@ export default function CalendarDetailView() {
 
     const handleUpdatePieceStatus = async (pieceId: string, status: ContentPiece['status']) => {
         try {
-            await contentCalendarService.updateCalendarPiece(calendar!.id, pieceId, { status });
+            await contentCalendarService.updateCalendarPiece(calendar?.id || '', pieceId, { status });
             toast.success('Status updated');
             fetchDetails(); // Refresh
         } catch (err: any) {
@@ -62,7 +62,7 @@ export default function CalendarDetailView() {
 
         setSavingTemplate(true);
         try {
-            await contentCalendarService.saveAsTemplate(calendar!.id, name);
+            await contentCalendarService.saveAsTemplate(calendar?.id || '', name);
             toast.success('Strategy saved as template!');
             fetchDetails();
         } catch (err: any) {
@@ -265,10 +265,10 @@ export default function CalendarDetailView() {
                                                 </div>
                                                 <ContextActions 
                                                     actions={[
-                                                        { label: 'Mark Ready', icon: Circle, onClick: () => handleUpdatePieceStatus(piece.id, 'ready') },
-                                                        { label: 'In Progress', icon: Edit3, onClick: () => handleUpdatePieceStatus(piece.id, 'in_progress') },
-                                                        { label: 'Pending Review', icon: MessageSquare, onClick: () => handleUpdatePieceStatus(piece.id, 'pending_review') },
-                                                        { label: 'Publish', icon: CheckCircle2, onClick: () => handleUpdatePieceStatus(piece.id, 'published'), variant: 'primary' },
+                                                        { label: 'Mark Ready', icon: Circle, onClick: () => handleUpdatePieceStatus(piece.id || '', 'ready') },
+                                                        { label: 'In Progress', icon: Edit3, onClick: () => handleUpdatePieceStatus(piece.id || '', 'in_progress') },
+                                                        { label: 'Pending Review', icon: MessageSquare, onClick: () => handleUpdatePieceStatus(piece.id || '', 'pending_review') },
+                                                        { label: 'Publish', icon: CheckCircle2, onClick: () => handleUpdatePieceStatus(piece.id || '', 'published'), variant: 'primary' },
                                                     ]}
                                                 />
                                             </div>
@@ -324,7 +324,7 @@ export default function CalendarDetailView() {
             {selectedPiece && (
                 <ContentPieceDrawer 
                     piece={selectedPiece} 
-                    calendarId={calendar.id}
+                    calendarId={calendar?.id || ''}
                     onClose={() => setSelectedPiece(null)} 
                     onSave={() => {
                         fetchDetails();

@@ -34,7 +34,7 @@ export function ImageBlock({ block }: ImageBlockProps) {
           <img 
             src={url} 
             alt={caption || 'Document Image'} 
-            style={{ borderRadius, boxShadow }}
+            style={{ borderRadius, boxShadow: typeof boxShadow === 'string' ? boxShadow : undefined }}
             className="w-full object-contain transition-all"
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x400?text=Image+Load+Error';

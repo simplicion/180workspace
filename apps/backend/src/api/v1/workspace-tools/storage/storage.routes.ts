@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as ctrl from './storage.controller';
 import { requireHR } from '../../../../system-configs/middleware/auth/rbac';
-import { upload, handleUpload } from '../../../../system-configs/middleware/system/central-upload.ts';
+import { upload, handleUpload } from '../../../../system-configs/middleware/system/central-upload';
 
 const router = Router();
 

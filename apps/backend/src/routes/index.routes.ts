@@ -13,7 +13,7 @@ const { rateLimit } = require('express-rate-limit');
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 50,
-    skip: (req) => {
+    skip: (req: any) => {
         const ip = req.ip || req.socket?.remoteAddress || '';
         return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
     },
@@ -49,7 +49,7 @@ const voiceforceRoutes = require('../api/v1/voiceforce/index').default;
 const walletRoutes = require('../api/v1/wallet/index').default;
 // ─── Legacy Route Proxy ────────────────────────────────────────────────────
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
-router.use((req, res, next) => {
+router.use((req: any, res: any, next: any) => {
     // Only intercept requests missing /v1/, /auth, /setup, /public, /company-profile
     if (req.url.startsWith('/v1/') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin')) {
         return next();
@@ -61,7 +61,7 @@ router.use((req, res, next) => {
         req.url = req.url.replace('/billing', '/v1/platform-billing');
     }
     // Explicit rewrites for components like CeoOverview and useSubscription
-    const rewrites = {
+    const rewrites: Record<string, string> = {
         '/insights': '/v1/ai/insights',
         '/weekly-trends': '/v1/hr-management/hrms/weekly-trends',
         '/dashboard': '/v1/hr-management/hrms/dashboard',
@@ -197,13 +197,13 @@ router.use('/v1/finance', protect, moduleGuard('finance'), financeRoutes);
 router.use('/v1/crm-and-sales', protect, moduleGuard('crm'), crmAndSalesRoutes);
 router.use('/v1/workspace-tools', protect, moduleGuard('tools'), workspaceToolsRoutes);
 // Public Edge Traffic Director routes (unauthenticated for client tag / ad review bots / tag verifier)
-router.options('/v1/traffic-director/evaluate/:slug', (req, res) => {
+router.options('/v1/traffic-director/evaluate/:slug', (req: any, res: any) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(200).end();
 });
-router.post('/v1/traffic-director/evaluate/:slug', (req, res, next) => {
+router.post('/v1/traffic-director/evaluate/:slug', (req: any, res: any, next: any) => {
     try {
         const mod = require('../api/v1/traffic-director/public-routing.controller');
         const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
@@ -212,7 +212,7 @@ router.post('/v1/traffic-director/evaluate/:slug', (req, res, next) => {
         next(err);
     }
 });
-router.all('/v1/traffic-director/tag/:slug', (req, res, next) => {
+router.all('/v1/traffic-director/tag/:slug', (req: any, res: any, next: any) => {
     try {
         const mod = require('../api/v1/traffic-director/public-routing.controller');
         const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
@@ -221,7 +221,7 @@ router.all('/v1/traffic-director/tag/:slug', (req, res, next) => {
         next(err);
     }
 });
-router.all('/v1/traffic-director/stream-proxy', (req, res, next) => {
+router.all('/v1/traffic-director/stream-proxy', (req: any, res: any, next: any) => {
     try {
         const mod = require('../api/v1/traffic-director/public-routing.controller');
         const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
@@ -230,7 +230,7 @@ router.all('/v1/traffic-director/stream-proxy', (req, res, next) => {
         next(err);
     }
 });
-router.all('/v1/traffic-director/asset-proxy', (req, res, next) => {
+router.all('/v1/traffic-director/asset-proxy', (req: any, res: any, next: any) => {
     try {
         const mod = require('../api/v1/traffic-director/public-routing.controller');
         const ctrl = mod.PublicRoutingController || mod.default?.PublicRoutingController || mod;
@@ -239,7 +239,7 @@ router.all('/v1/traffic-director/asset-proxy', (req, res, next) => {
         next(err);
     }
 });
-router.post('/v1/traffic-director/verify-tag', (req, res, next) => {
+router.post('/v1/traffic-director/verify-tag', (req: any, res: any, next: any) => {
     try {
         const mod = require('../api/v1/traffic-director/traffic-director.controller');
         const ctrl = mod.TrafficDirectorController || mod.default?.TrafficDirectorController || mod;
@@ -264,24 +264,24 @@ router.use('/public', publicRoutes);
 router.use('/v1/public', publicRoutes);
 router.use('/public', advertisingPublicRoutes);
 router.use('/r', trafficDirectorPublicRoutes);
-router.use('/shield/:slug', (req, res) => {
+router.use('/shield/:slug', (req: any, res: any) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleShieldRoute(req, res);
 });
-router.use('/tag/:slug', (req, res) => {
+router.use('/tag/:slug', (req: any, res: any) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleDynamicTag(req, res);
 });
-router.options('/evaluate/:slug', (req, res) => {
+router.options('/evaluate/:slug', (req: any, res: any) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(200).end();
 });
-router.post('/evaluate/:slug', (req, res) => {
+router.post('/evaluate/:slug', (req: any, res: any) => {
     return require('../api/v1/traffic-director/public-routing.controller').PublicRoutingController.handleEdgeEvaluate(req, res);
 });
 router.use('/setup', setupRoutes);
 // Release notes endpoint
-router.get('/release-notes', async (req, res, next) => {
+router.get('/release-notes', async (req: any, res: any, next: any) => {
     try {
         const { ReleaseNoteService } = require('@workspace/platform-admin');
         const notes = await ReleaseNoteService.listPublished();
@@ -290,7 +290,7 @@ router.get('/release-notes', async (req, res, next) => {
         next(err);
     }
 });
-router.get('/v1/release-notes', async (req, res, next) => {
+router.get('/v1/release-notes', async (req: any, res: any, next: any) => {
     try {
         const { ReleaseNoteService } = require('@workspace/platform-admin');
         const notes = await ReleaseNoteService.listPublished();
@@ -339,24 +339,28 @@ router.use('/v1/wallet', walletRoutes);
 const mediaEditorRoutes = require('../api/v1/media-editor/media-editor.routes').default;
 
 // Public Native Installer Downloads
-router.get(['/media-editor/download/:platform', '/v1/media-editor/download/:platform'], (req, res) => {
+router.get(['/media-editor/download/:platform', '/v1/media-editor/download/:platform'], (req: any, res: any) => {
   const { platform } = req.params;
   const fileNameMap: Record<string, string> = {
-    windows: "180MediaStudio-Setup-x64.exe",
-    win: "180MediaStudio-Setup-x64.exe",
-    msi: "180MediaStudio-Enterprise.msi",
-    mac: "180MediaStudio-arm64.dmg",
-    mac_intel: "180MediaStudio-x64.dmg",
-    linux: "180MediaStudio.AppImage",
+    windows: "180Workspace-Setup-x64.exe",
+    win: "180Workspace-Setup-x64.exe",
+    msi: "180Workspace-Enterprise.msi",
+    mac: "180Workspace-Universal.dmg",
+    mac_intel: "180Workspace-x64.dmg",
+    linux: "180Workspace-x86_64.AppImage",
+    linux_deb: "180Workspace-amd64.deb",
+    android: "180Workspace-v1.0.apk",
+    apk: "180Workspace-v1.0.apk",
   };
-  const fileName = fileNameMap[platform] || "180MediaStudio-Setup-x64.exe";
+  const fileName = fileNameMap[platform] || "180Workspace-Setup-x64.exe";
 
   if (platform === "windows" || platform === "win") {
     const fs = require("fs");
     const path = require("path");
     const candidatePaths = [
-      path.resolve(__dirname, "../../downloads/180MediaStudio-Setup-x64.exe"),
-      path.resolve(__dirname, "../../../desktop-editor/native-windows/180MediaStudio-Setup-x64.exe"),
+      path.resolve(__dirname, "../../../desktop-app/windows/180Workspace-Setup-x64.exe"),
+      path.resolve(__dirname, "../../../desktop-app/windows/180Workspace.exe"),
+      path.resolve(__dirname, "../../downloads/180Workspace-Setup-x64.exe"),
     ];
 
     for (const p of candidatePaths) {
@@ -366,19 +370,42 @@ router.get(['/media-editor/download/:platform', '/v1/media-editor/download/:plat
         return res.sendFile(p);
       }
     }
+  } else if (platform === "android" || platform === "apk") {
+    const fs = require("fs");
+    const path = require("path");
+    const candidatePaths = [
+      path.resolve(__dirname, "../../../frontend/android/app/build/outputs/apk/release/app-release.apk"),
+      path.resolve(__dirname, "../../../frontend/android/app/build/outputs/apk/debug/app-debug.apk"),
+      path.resolve(__dirname, "../../downloads/180Workspace-v1.0.apk"),
+    ];
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+        res.setHeader("Content-Type", "application/vnd.android.package-archive");
+        return res.sendFile(p);
+      }
+    }
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Content-Type", "application/vnd.android.package-archive");
+    return res.send(
+      Buffer.from(
+        `180 Workspace Android Capacitor Package: ${fileName}\nArchitecture: ARM64-v8a / x86_64\nHardware Engine: MediaCodec + WebGL2 / WebGPU Hardware Compositor\n`
+      )
+    );
   }
 
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
   res.setHeader("Content-Type", "application/octet-stream");
   return res.send(
     Buffer.from(
-      `180 Workspace Native Studio Installer Package: ${fileName}\nArchitecture: x86_64 / ARM64\nEngine: Tauri v2 + Rust\nProtocol: workspace180://\n`
+      `180 Workspace Native Desktop Installer Package: ${fileName}\nArchitecture: x86_64 / ARM64\nEngine: WebView2 / Tauri v2 Native Container\nProtocol: workspace180://\n`
     )
   );
 });
 
 // AI Status for Desktop Studio & Workspace
-router.get(['/media-editor/ai-status', '/v1/media-editor/ai-status'], async (req, res) => {
+router.get(['/media-editor/ai-status', '/v1/media-editor/ai-status'], async (req: any, res: any) => {
   try {
     const { AICompanyConfigService } = require('@workspace/ai');
     const companyId = (req.query.companyId as string) || (req.headers["x-company-id"] as string) || (req as any).user?.companyId;
@@ -390,10 +417,15 @@ router.get(['/media-editor/ai-status', '/v1/media-editor/ai-status'], async (req
 });
 
 // AI Direct for Desktop Studio & Autonomous Pipeline
-router.post(['/media-editor/ai-direct', '/v1/media-editor/ai-direct'], (req, res) => {
+router.post(['/media-editor/ai-direct', '/v1/media-editor/ai-direct'], (req: any, res: any) => {
   const { VideoStudioController } = require('../api/v1/workspace-tools/video-studio/video-studio.controller');
   return VideoStudioController.executeAIDirector(req, res);
 });
+
+const syncRoutes = require('../api/v1/sync/sync.routes').default || require('../api/v1/sync/sync.routes');
+
+router.use('/sync', protect, syncRoutes);
+router.use('/v1/sync', protect, syncRoutes);
 
 router.use('/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);
 router.use('/v1/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);

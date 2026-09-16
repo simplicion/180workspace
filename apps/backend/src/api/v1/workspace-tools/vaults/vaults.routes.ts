@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { VaultsController } from './vaults.controller';
+// @ts-ignore
 import multer from 'multer';
 
 const upload = multer({

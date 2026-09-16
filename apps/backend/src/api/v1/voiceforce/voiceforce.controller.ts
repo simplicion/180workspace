@@ -3304,6 +3304,7 @@ export const VoiceforceController = {
       if (!query || !query.trim()) return res.status(400).json({ error: 'Search query is required' });
 
       const { HybridSearchService } = await import('@workspace/rag');
+      const results = await (HybridSearchService as any).search?.({ companyId, query, topK: topK || 5 }) || [];
       return res.json({
         success: true,
         query,

@@ -10,7 +10,8 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import Link from 'next/link';
-import { LogoLoader } from '@workspace/ui';
+import { LogoLoader, OfflineWall } from '@workspace/ui';
+import { useOfflineSync } from '@/lib/offline/useOfflineSync';
 
 interface Recommendation {
   id?: string;
@@ -30,6 +31,7 @@ interface DashboardMetrics {
 }
 
 export default function SalesAiInsightsPage() {
+  const { isOnline } = useOfflineSync();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,59 +281,73 @@ export default function SalesAiInsightsPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm flex flex-col h-[520px] overflow-hidden">
-            {/* Chat Messages */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3">
-              {chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={clsx(
-                    "flex gap-2.5 text-xs",
-                    msg.role === 'user' ? "justify-end" : "justify-start"
-                  )}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
-                      <Sparkles className="w-3.5 h-3.5" />
+            {!isOnline ? (
+              <OfflineWall
+                featureName="Live AI Sales Strategist"
+                reason="Real-time neural pipeline analysis and conversational AI generation require an active internet connection."
+                suggestedActions={[
+                  { label: 'Deals Pipeline', href: '/sales/deals', description: 'Review and update your sales deal stages offline.' },
+                  { label: 'Client Directory', href: '/clients', description: 'View client accounts and interaction logs.' },
+                  { label: 'Projects & Tasks', href: '/tasks', description: 'Work on your CRM action items locally.' }
+                ]}
+              />
+            ) : (
+              <>
+                {/* Chat Messages */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                  {chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={clsx(
+                        "flex gap-2.5 text-xs",
+                        msg.role === 'user' ? "justify-end" : "justify-start"
+                      )}
+                    >
+                      {msg.role === 'assistant' && (
+                        <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                      <div
+                        className={clsx(
+                          "p-3 rounded-2xl max-w-[85%] leading-relaxed",
+                          msg.role === 'user'
+                            ? "bg-purple-600 text-white rounded-br-none"
+                            : "bg-gray-100 text-gray-800 rounded-bl-none"
+                        )}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex items-center gap-2 text-xs text-gray-400 pl-2">
+                      <LogoLoader className="w-4 h-4 animate-spin text-purple-500" />
+                      Analyzing pipeline data...
                     </div>
                   )}
-                  <div
-                    className={clsx(
-                      "p-3 rounded-2xl max-w-[85%] leading-relaxed",
-                      msg.role === 'user'
-                        ? "bg-purple-600 text-white rounded-br-none"
-                        : "bg-gray-100 text-gray-800 rounded-bl-none"
-                    )}
-                  >
-                    {msg.text}
-                  </div>
                 </div>
-              ))}
-              {chatLoading && (
-                <div className="flex items-center gap-2 text-xs text-gray-400 pl-2">
-                  <LogoLoader className="w-4 h-4 animate-spin text-purple-500" />
-                  Analyzing pipeline data...
-                </div>
-              )}
-            </div>
 
-            {/* Input Bar */}
-            <div className="p-3 border-t border-gray-100 bg-gray-50/50 flex gap-2">
-              <input
-                type="text"
-                placeholder="Ask about deals, win probability, pitch advice..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={chatLoading || !inputMessage.trim()}
-                className="p-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white transition-colors shrink-0 shadow-sm"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </button>
-            </div>
+                {/* Input Bar */}
+                <div className="p-3 border-t border-gray-100 bg-gray-50/50 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ask about deals, win probability, pitch advice..."
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={chatLoading || !inputMessage.trim()}
+                    className="p-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white transition-colors shrink-0 shadow-sm"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

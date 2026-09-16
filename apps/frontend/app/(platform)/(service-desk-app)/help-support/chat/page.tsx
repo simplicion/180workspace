@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Send, User, Bot, Paperclip, ArrowLeft } from 'lucide-react';
+import { Send, User, Bot, Paperclip, ArrowLeft, FileText, CheckSquare } from 'lucide-react';
 import Link from 'next/link';
+import { OfflineWall } from '@workspace/ui';
+import { useOfflineSync } from '@/lib/offline/useOfflineSync';
 
 export default function ChatPage() {
+    const { isOnline } = useOfflineSync();
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState([
         { sender: 'bot', text: 'Hello! I am the 180workspace Support Assistant. How can I help you today?', time: '10:00 AM' }
@@ -26,6 +29,28 @@ export default function ChatPage() {
             }]);
         }, 1000);
     };
+
+    if (!isOnline) {
+        return (
+            <div className="w-full max-w-4xl mx-auto h-[calc(100vh-120px)] flex flex-col pb-10">
+                <div className="mb-6">
+                    <Link href='/help-support' className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors mb-4">
+                        <ArrowLeft className="h-4 w-4 mr-1.5" />
+                        Back to Help & Support
+                    </Link>
+                </div>
+                <OfflineWall
+                    featureName="Live Support Chat"
+                    reason="Real-time WebSocket chat with customer support agents requires an active internet connection."
+                    suggestedActions={[
+                        { label: 'Documentation & Guides', href: '/help-support/docs', icon: FileText, description: 'Browse platform knowledge base articles offline.' },
+                        { label: 'Submit Support Ticket', href: '/help-support/tickets', icon: Send, description: 'Create a ticket to be queued and dispatched on reconnect.' },
+                        { label: 'Tasks & Projects', href: '/tasks', icon: CheckSquare, description: 'Continue organizing your platform workload.' }
+                    ]}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full max-w-4xl mx-auto h-[calc(100vh-120px)] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

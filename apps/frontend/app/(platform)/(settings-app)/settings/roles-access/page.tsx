@@ -71,7 +71,7 @@ function buildRoleMatrix() {
 
     for (const item of navigation) {
         if ('group' in item) {
-            modules.push({ name: item.group, roles: item.roles || [] });
+            modules.push({ name: item.group || 'General', roles: item.roles || [] });
         } else {
             modules.push({ name: item.name, roles: item.roles || [] });
         }

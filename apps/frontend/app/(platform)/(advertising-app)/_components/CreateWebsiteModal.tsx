@@ -16,11 +16,11 @@ const ALL_PAGES = [
     { id: 'home',         name: 'Home',             locked: true },
 ];
 
-function FontPicker({ value, onChange }) {
+function FontPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [allFonts, setAllFonts] = useState(TOP_FONTS);
-    const ref = useRef(null);
+    const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetch('https://api.fontsource.org/v1/fonts')

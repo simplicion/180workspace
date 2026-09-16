@@ -1,18 +1,21 @@
 'use client';
 
-import { LogoLoader, Button, Input, Card, CardHeader, CardTitle, CardContent } from "@workspace/ui";
+import { LogoLoader, Button, Input, Card, CardHeader, CardTitle, CardContent, OfflineWall } from "@workspace/ui";
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CreditCard, Check, Shield, ArrowLeft, Tag, AlertCircle, Users, Zap, Building2, Calendar, Lock, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { CreditCard, Check, Shield, ArrowLeft, Tag, AlertCircle, Users, Zap, Building2, Calendar, Lock, CheckCircle2, CheckSquare } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useSubscription } from '@/lib/useSubscription';
 import { useSettings } from '@/lib/settings-context';
+import { useOfflineSync } from '@/lib/offline/useOfflineSync';
 
 declare global { interface Window { Razorpay: any; } }
 
 function CheckoutContent() {
+    const { isOnline } = useOfflineSync();
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user } = useAuth();
@@ -52,7 +55,7 @@ function CheckoutContent() {
             try {
                 if (addonType) {
                     // Get dynamic rate from the platform config
-                    const dynamicRate = platform?.rate || 1;
+                    const dynamicRate = (platform as any)?.rate || 1;
                     const qty = parseInt(searchParams?.get('quantity') || '1', 10);
                     
                     if (addonType === 'storage') {
@@ -278,6 +281,27 @@ function CheckoutContent() {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <LogoLoader className="w-8 h-8 animate-spin text-indigo-600" />
+            </div>
+        );
+    }
+
+    if (!isOnline) {
+        return (
+            <div className="max-w-4xl mx-auto py-10 px-4">
+                <div className="flex items-center gap-2 mb-6">
+                    <Link href="/settings/platform-billing" className="text-xs font-semibold text-gray-500 hover:text-indigo-600 flex items-center gap-1">
+                        <ArrowLeft className="w-3.5 h-3.5" /> Back to Platform Billing
+                    </Link>
+                </div>
+                <OfflineWall
+                    featureName="Secure Payment Gateway"
+                    reason="Card tokenization, payment order creation, and live billing processing require an active secure internet connection."
+                    suggestedActions={[
+                        { label: 'Platform Billing Plans', href: '/settings/platform-billing', icon: Shield, description: 'Review available tier features and quotas.' },
+                        { label: 'Projects & Tasks', href: '/tasks', icon: CheckSquare, description: 'Continue managing your team workload offline.' },
+                        { label: 'Finance & Invoices', href: '/invoices', icon: Tag, description: 'Draft client invoices and financial receipts locally.' }
+                    ]}
+                />
             </div>
         );
     }

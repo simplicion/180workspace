@@ -101,6 +101,7 @@ export default function MediaLibrary({ websiteId, config, onSelectMedia }: Media
     const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
     const [isDragOverDropzone, setIsDragOverDropzone] = useState(false);
     const [filterType, setFilterType] = useState<'all' | 'images' | 'videos'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,9 +170,10 @@ export default function MediaLibrary({ websiteId, config, onSelectMedia }: Media
         return allMedia.filter(item => {
             if (filterType === 'images' && item.isVideo) return false;
             if (filterType === 'videos' && !item.isVideo) return false;
+            if (searchQuery.trim() && !item.filename.toLowerCase().includes(searchQuery.toLowerCase())) return false;
             return true;
         });
-    }, [allMedia, filterType]);
+    }, [allMedia, filterType, searchQuery]);
 
     // Handle bulk multi-file upload
     const handleFilesUpload = async (files: FileList | File[]) => {

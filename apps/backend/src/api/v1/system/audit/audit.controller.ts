@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { AppError } from '../../../../system-configs/middleware/system/error';
 
 export const getAuditLogs = async (req: Request, res: Response) => {
     try {

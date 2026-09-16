@@ -1,4 +1,4 @@
-import ApiError from '../../utils/ApiError';
+import { ApiError } from '../../utils/ApiError';
 import { Request, Response, NextFunction } from 'express';
 
 /**

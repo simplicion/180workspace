@@ -267,7 +267,7 @@ export class FormsService {
     });
 
     // Compute conversion rate for each form
-    return forms.map(f => {
+    return forms.map((f: any) => {
       const submissions = f._count?.submissions || 0;
       const views = f.viewsCount || 0;
       const conversionRate = views > 0 ? Number(((submissions / views) * 100).toFixed(1)) : 0;
@@ -360,19 +360,19 @@ export class FormsService {
       throw new Error('No form found with that ID');
     }
 
-    const updatedForm = await prisma.$transaction(async (tx) => {
+    const updatedForm = await prisma.$transaction(async (tx: any) => {
       if (fields) {
         const existingFields = await tx.formField.findMany({
           where: { formId: id }
         });
-        const existingFieldMap = new Map(existingFields.map(f => [f.id, f]));
-        const incomingFieldIds = new Set(fields.map(f => f.id).filter(Boolean));
+        const existingFieldMap = new Map(existingFields.map((f: any) => [f.id, f]));
+        const incomingFieldIds = new Set(fields.map((f: any) => f.id).filter(Boolean));
 
         // Delete only fields that were explicitly removed by the user
-        const fieldsToDelete = existingFields.filter(f => !incomingFieldIds.has(f.id));
+        const fieldsToDelete = existingFields.filter((f: any) => !incomingFieldIds.has(f.id));
         if (fieldsToDelete.length > 0) {
           await tx.formField.deleteMany({
-            where: { id: { in: fieldsToDelete.map(f => f.id) } }
+            where: { id: { in: fieldsToDelete.map((f: any) => f.id) } }
           });
         }
 
@@ -483,9 +483,9 @@ export class FormsService {
 
     if (submissions.length === 0) return { deletedCount: 0, deletedLeadsCount: 0 };
 
-    const leadIds = submissions.map(s => s.leadId).filter((id): id is string => Boolean(id));
-    const clientIds = submissions.map(s => s.clientId).filter((id): id is string => Boolean(id));
-    const subIds = submissions.map(s => s.id);
+    const leadIds = submissions.map((s: any) => s.leadId).filter((id: any): id is string => Boolean(id));
+    const clientIds = submissions.map((s: any) => s.clientId).filter((id: any): id is string => Boolean(id));
+    const subIds = submissions.map((s: any) => s.id);
 
     let deletedLeadsCount = 0;
 
@@ -559,7 +559,7 @@ export class FormsService {
 
     if (allSubs.length === 0) return { deletedCount: 0, deletedLeadsCount: 0 };
 
-    return await this.deleteSubmissions(allSubs.map(s => s.id));
+    return await this.deleteSubmissions(allSubs.map((s: any) => s.id));
   }
 
   static async getFormSubmissions(id: string) {
@@ -584,33 +584,33 @@ export class FormsService {
     });
 
     // Fetch all linked leads for all submissions to attach accurate status
-    const allLeadIds = submissions.map(s => s.leadId).filter(Boolean) as string[];
+    const allLeadIds = submissions.map((s: any) => s.leadId).filter(Boolean) as string[];
     let allLeadsMap = new Map<string, any>();
     if (allLeadIds.length > 0) {
       const allLeads = await prisma.lead.findMany({ where: { id: { in: allLeadIds } } });
-      allLeadsMap = new Map(allLeads.map(l => [l.id, l]));
+      allLeadsMap = new Map(allLeads.map((l: any) => [l.id, l]));
     }
 
     // Fallback recovery for submissions that have no non-empty values
-    const emptySubs = submissions.filter(s => !s.values || s.values.length === 0 || s.values.every((v: any) => !v.value || !String(v.value).trim()));
-    const emptySubClientIds = emptySubs.map(s => s.clientId).filter(Boolean) as string[];
-    const emptySubLeadIds = emptySubs.map(s => s.leadId).filter(Boolean) as string[];
+    const emptySubs = submissions.filter((s: any) => !s.values || s.values.length === 0 || s.values.every((v: any) => !v.value || !String(v.value).trim()));
+    const emptySubClientIds = emptySubs.map((s: any) => s.clientId).filter(Boolean) as string[];
+    const emptySubLeadIds = emptySubs.map((s: any) => s.leadId).filter(Boolean) as string[];
 
     let clientsMap = new Map<string, any>();
     if (emptySubClientIds.length > 0) {
       const clients = await prisma.client.findMany({
         where: { id: { in: emptySubClientIds } }
       });
-      clientsMap = new Map(clients.map(c => [c.id, c]));
+      clientsMap = new Map(clients.map((c: any) => [c.id, c]));
     }
 
     let dealsMap = new Map<string, any>();
     if (emptySubLeadIds.length > 0) {
       const deals = await prisma.deal.findMany({ where: { id: { in: emptySubLeadIds } } });
-      dealsMap = new Map(deals.map(d => [d.id, d]));
+      dealsMap = new Map(deals.map((d: any) => [d.id, d]));
     }
 
-    const enhanced = submissions.map(sub => {
+    const enhanced = submissions.map((sub: any) => {
       const linkedLead = sub.leadId ? allLeadsMap.get(sub.leadId) : null;
       const status = linkedLead?.status || 'new';
 
@@ -758,14 +758,14 @@ export class FormsService {
       orderBy: { submittedAt: 'desc' }
     });
 
-    const fieldHeaders = form.fields.map(f => f.label.replace(/"/g, '""'));
+    const fieldHeaders = form.fields.map((f: any) => f.label.replace(/"/g, '""'));
     const headers = ['Submission ID', 'Date & Time', ...fieldHeaders, 'IP Address', 'Referrer'];
 
     const escapeCsv = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
 
-    const rows = submissions.map(sub => {
-      const fieldValues = form.fields.map(f => {
-        const match = sub.values.find(v => v.fieldId === f.id);
+    const rows = submissions.map((sub: any) => {
+      const fieldValues = form.fields.map((f: any) => {
+        const match = sub.values.find((v: any) => v.fieldId === f.id);
         if (!match) return '';
         if (match.fileUrl) return `${match.fileName || 'File'}: ${match.fileUrl}`;
         return match.value || '';
@@ -844,9 +844,9 @@ export class FormsService {
     ]);
 
     // Format into clean JSON payload for external developers & CRMs
-    const formattedSubmissions = rawSubmissions.map(sub => {
+    const formattedSubmissions = rawSubmissions.map((sub: any) => {
       const data: Record<string, any> = {};
-      sub.values.forEach(v => {
+      sub.values.forEach((v: any) => {
         const key = v.field.mapping || v.field.label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
         data[key] = v.fileUrl ? { url: v.fileUrl, name: v.fileName, text: v.value } : v.value;
       });
@@ -960,7 +960,7 @@ export class FormsService {
 
     // 1. Validate required fields
     const missingFields: string[] = [];
-    form.fields.forEach(field => {
+    form.fields.forEach((field: any) => {
       if (field.required && !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(field.type)) {
         const val = resolveFieldValue(field);
         if (val === undefined || val === null || val === '') {
@@ -985,7 +985,7 @@ export class FormsService {
 
     const formattedSummaryLines: string[] = [];
 
-    form.fields.forEach(field => {
+    form.fields.forEach((field: any) => {
       const val = resolveFieldValue(field);
       if (val === undefined || val === null || val === '') return;
       
@@ -1068,8 +1068,8 @@ export class FormsService {
 
     // 5. Prepare submission values (handling files and text)
     const submissionValues = form.fields
-      .filter(f => !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(f.type))
-      .map(field => {
+      .filter((f: any) => !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(f.type))
+      .map((field: any) => {
         const val = resolveFieldValue(field);
         let fileUrl: string | null = null;
         let fileName: string | null = null;
@@ -1203,7 +1203,7 @@ export class FormsService {
             submissionId: submission.id,
             submittedAt: submission.submittedAt,
             lead: leadData,
-            answers: submissionValues.map(sv => ({
+            answers: submissionValues.map((sv: any) => ({
               fieldId: sv.fieldId,
               value: sv.value,
               fileUrl: sv.fileUrl,
@@ -1607,7 +1607,7 @@ export class FormsService {
               status: 'completed',
               timestamp: new Date()
             }
-          }).catch(err => console.error('Background activity log error:', err.message));
+          }).catch((err: any) => console.error('Background activity log error:', err.message));
         }
       } catch (crmErr) {
         console.error('CRM Lead auto-creation error during capture:', crmErr);
@@ -1616,8 +1616,8 @@ export class FormsService {
 
     // 7. PREPARE SUBMISSION VALUES
     const submissionValues = currentFields
-      .filter(f => !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(f.type))
-      .map(field => {
+      .filter((f: any) => !['HEADING', 'PARAGRAPH', 'DIVIDER'].includes(f.type))
+      .map((field: any) => {
         const matchedVal = FormsService.resolveFieldValueFromObject(field, flattened);
         const strVal = matchedVal !== undefined && matchedVal !== null ? (typeof matchedVal === 'object' ? JSON.stringify(matchedVal) : String(matchedVal)) : '';
         return {

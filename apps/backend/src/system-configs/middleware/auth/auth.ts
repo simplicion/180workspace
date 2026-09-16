@@ -120,7 +120,7 @@ export function signAccessToken(userId: string, companyId: string) {
         throw new Error('Server configuration error: missing JWT secret');
     }
     return jwt.sign({ id: userId, companyId }, secret, {
-        expiresIn: `${process.env.ACCESS_TOKEN_EXPIRE_MINUTES || 15}m`,
+        expiresIn: `${process.env.ACCESS_TOKEN_EXPIRE_MINUTES || 15}m` as any,
     });
 }
 
@@ -134,7 +134,7 @@ export function signRefreshToken(userId: string, companyId: string) {
         throw new Error('Server configuration error: missing JWT refresh secret');
     }
     return jwt.sign({ id: userId, companyId }, secret, {
-        expiresIn: `${process.env.REFRESH_TOKEN_EXPIRE_DAYS || 7}d`,
+        expiresIn: `${process.env.REFRESH_TOKEN_EXPIRE_DAYS || 7}d` as any,
     });
 }
 

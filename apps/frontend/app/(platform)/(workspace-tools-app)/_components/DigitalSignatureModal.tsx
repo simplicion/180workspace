@@ -44,7 +44,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSuccess }: Di
             onSaveSignature={handleSaveSignature}
             initialSignerName={profile?.name || user?.name || ''}
             signatoryRole={profile?.designation?.name || profile?.role || user?.role || 'Employee / Signatory'}
-            initialSignatureImage={user?.signatureImage || null}
+            initialSignatureImage={(user as any)?.signatureImage || null}
             title="Configure Official Digital Signature"
         />
     );

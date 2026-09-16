@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, ChevronRight, LayoutDashboard, CreditCard, Sparkles, PartyPopper } from 'lucide-react';
 import { useSubscription } from '@/lib/useSubscription';
+import { useSettings } from '@/lib/settings-context';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import api from '@/lib/api';
@@ -101,8 +102,8 @@ function SuccessContent() {
     const hasAI = plan?.features?.some((f: string) => f.toLowerCase().includes('ai assistant'));
     const hasEmail = plan?.features?.some((f: string) => f.toLowerCase().includes('custom email'));
 
-    const displayPrice = fetchedPlan ? fetchedPlan.price : (plan?.price ? Math.round(plan.price * (platform?.rate || 1)) : 0);
-    const currency = fetchedPlan ? fetchedPlan.currency : (platform?.currency || 'USD');
+    const displayPrice = fetchedPlan ? fetchedPlan.price : (plan?.price ? Math.round(plan.price * ((platform as any)?.rate || 1)) : 0);
+    const currency = fetchedPlan ? fetchedPlan.currency : ((platform as any)?.currency || 'USD');
     let currencySymbol = '$';
     try {
         currencySymbol = (0).toLocaleString('en-US', { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).replace(/\d/g, '').trim();
