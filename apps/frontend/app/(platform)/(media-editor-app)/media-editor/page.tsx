@@ -30,6 +30,8 @@ import {
 import api from "@/lib/api";
 import { useSubscription } from "@/lib/useSubscription";
 import { useAuth } from "@/lib/auth-context";
+import { useNativeEngine } from "@/lib/useNativeEngine";
+import { MediaStudioWorkspace } from "./components/MediaStudioWorkspace";
 import { UniversalSkeleton, FeatureLock } from "@workspace/ui";
 import toast from "react-hot-toast";
 
@@ -166,9 +168,16 @@ const TEMPLATES: ProjectTemplate[] = [
 export default function MediaEditorDashboardPage() {
   const { companyConfig, loading: subLoading } = useSubscription();
   const { user, company, token } = useAuth();
+  const { isNativeDesktop, launchNativeApp, getDownloadUrl, specs: nativeSpecs } = useNativeEngine();
+
   const [projects, setProjects] = useState<VideoStudioProject[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [downloadOS, setDownloadOS] = useState<"windows" | "mac" | "linux">("windows");
+
+  // Embedded Studio Workspace State
+  const [isEmbeddedStudioOpen, setIsEmbeddedStudioOpen] = useState(false);
+  const [activeStudioProject, setActiveStudioProject] = useState<string | null>(null);
+  const [activeStudioTemplate, setActiveStudioTemplate] = useState<string | null>(null);
 
   // Launch & Download Modal State
   const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
@@ -234,13 +243,39 @@ export default function MediaEditorDashboardPage() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const proj = params.get("project");
+      const mode = params.get("mode");
+      const template = params.get("template");
+      if (proj || mode === "studio" || isNativeDesktop) {
+        if (proj) setActiveStudioProject(proj);
+        if (template) setActiveStudioTemplate(template);
+        setIsEmbeddedStudioOpen(true);
+      }
+    }
+  }, [isNativeDesktop]);
 
   const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
   const hasApp =
     enabledApps.includes("media-editor") ||
     enabledApps.includes("video-studio") ||
     enabledApps.length === 0;
+
+  if (isEmbeddedStudioOpen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#07090E] flex flex-col">
+        <MediaStudioWorkspace
+          initialProjectId={activeStudioProject}
+          initialTemplate={activeStudioTemplate}
+          onExit={() => {
+            setIsEmbeddedStudioOpen(false);
+            fetchProjects();
+          }}
+        />
+      </div>
+    );
+  }
 
   if (subLoading) {
     return (
@@ -284,10 +319,17 @@ export default function MediaEditorDashboardPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`Downloading 180 Media Studio for ${platform}... Run the installer to start.`);
+    toast.success(`Downloading 180 Workspace Native App for ${platform}...`);
   };
 
   const handleOpenLaunchModal = (projectId?: string, preset?: string) => {
+    if (isNativeDesktop) {
+      // In native desktop app, open studio directly
+      setActiveStudioProject(projectId || null);
+      setActiveStudioTemplate(preset || null);
+      setIsEmbeddedStudioOpen(true);
+      return;
+    }
     setTargetProjectId(projectId);
     setTargetPreset(preset);
     setAppNotInstalled(false);
@@ -295,13 +337,11 @@ export default function MediaEditorDashboardPage() {
     setIsLaunchModalOpen(true);
   };
 
-  const handleOpenNativeApp = () => {
+  const handleOpenNativeApp = async () => {
     const query = buildLaunchQuery(targetProjectId, targetPreset);
-    const nativeDeepLink = `workspace180://editor${query}`;
-
     setIsLaunchingNative(true);
     setAppNotInstalled(false);
-    toast.loading("Connecting to 180 Media Studio Desktop App...", { id: "native-launch" });
+    toast.loading("Opening 180 Workspace Desktop App...", { id: "native-launch" });
 
     let hasBlurred = false;
     const onWindowBlur = () => {
@@ -309,19 +349,7 @@ export default function MediaEditorDashboardPage() {
     };
 
     window.addEventListener("blur", onWindowBlur);
-
-    // Open via hidden iframe to trigger registered protocol
-    try {
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = nativeDeepLink;
-      document.body.appendChild(iframe);
-      setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-      }, 2000);
-    } catch {}
+    await launchNativeApp(query);
 
     setTimeout(() => {
       window.removeEventListener("blur", onWindowBlur);
@@ -330,22 +358,22 @@ export default function MediaEditorDashboardPage() {
 
       if (!hasBlurred) {
         setAppNotInstalled(true);
-        toast.error("180 Media Studio is not installed on your PC. Please install the desktop app below or edit in Browser Web Studio.", {
+        toast.error("180 Workspace Desktop App not detected. Download below or edit right here in browser.", {
           duration: 6000,
         });
       } else {
-        toast.success("Desktop app launch signal accepted!");
+        toast.success("Opened project in 180 Workspace Desktop!");
         setIsLaunchModalOpen(false);
       }
     }, 1800);
   };
 
   const handleOpenWebStudio = () => {
-    const query = buildLaunchQuery(targetProjectId, targetPreset);
-    const webUrl = `http://localhost:5173/${query}`;
-    window.open(webUrl, "_blank");
-    toast.success("Opened Studio Editor in new tab!");
+    setActiveStudioProject(targetProjectId || null);
+    setActiveStudioTemplate(targetPreset || null);
+    setIsEmbeddedStudioOpen(true);
     setIsLaunchModalOpen(false);
+    toast.success("Opening 180 Media Studio in workspace...");
   };
 
   const handleCreateNewProject = async (e: React.FormEvent) => {

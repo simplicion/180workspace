@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '@/lib/api';
+import { saveLocalEntity, getLocalEntity } from '@/lib/offline/outbox';
 
 interface CacheEntry<T = any> {
     data: T;
@@ -121,6 +122,9 @@ export function useFastQuery<T = any>(
                 timestamp: Date.now()
             });
 
+            // Persist to local IndexedDB store for offline access across refreshes
+            saveLocalEntity('query_cache', key, result, 'synced').catch(() => {});
+
             if (isMountedRef.current && keyRef.current === key) {
                 setData(result);
                 setError(null);
@@ -130,6 +134,17 @@ export function useFastQuery<T = any>(
             }
             return result;
         } catch (err: any) {
+            // Check if local cache has fallback data during network error
+            try {
+                const offlineFallback = await getLocalEntity('query_cache', key);
+                if (offlineFallback && isMountedRef.current && keyRef.current === key) {
+                    setData(offlineFallback);
+                    setLoading(false);
+                    setIsRevalidating(false);
+                    return offlineFallback;
+                }
+            } catch {}
+
             if (isMountedRef.current && keyRef.current === key) {
                 setError(err);
                 setLoading(false);
@@ -161,8 +176,19 @@ export function useFastQuery<T = any>(
                 fetchData(true);
             }
         } else {
-            // Cold fetch
-            fetchData(false);
+            // Check IndexedDB local disk cache before cold network fetch
+            getLocalEntity('query_cache', key).then((persisted) => {
+                if (persisted && isMountedRef.current && keyRef.current === key) {
+                    queryCache.set(key, { data: persisted, timestamp: Date.now() });
+                    setData(persisted);
+                    setLoading(false);
+                    fetchData(true);
+                } else {
+                    fetchData(false);
+                }
+            }).catch(() => {
+                fetchData(false);
+            });
         }
 
         return () => {

@@ -331,17 +331,17 @@ export default function PayslipDrawer({
                     <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 max-w-3xl mx-auto overflow-hidden">
                         <div id="payslip-content" className="p-8 md:p-12 relative bg-white">
                             {/* Watermark */}
-                            {company?.logoUrl && (
+                            {((company as any)?.logoUrl || (company as any)?.logo) && (
                                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-                                    <img src={company.logoUrl} alt="watermark" className="w-96 h-auto grayscale" />
+                                    <img src={(company as any)?.logoUrl || (company as any)?.logo} alt="watermark" className="w-96 h-auto grayscale" />
                                 </div>
                             )}
 
                             {/* Company Header */}
                             <div className="flex justify-between items-start mb-8 border-b border-zinc-200 pb-6 relative z-10">
                                 <div>
-                                    {company?.logoUrl ? (
-                                        <img src={company.logoUrl} alt={companyName} className="h-12 w-auto mb-2 object-contain" />
+                                    {((company as any)?.logoUrl || (company as any)?.logo) ? (
+                                        <img src={(company as any)?.logoUrl || (company as any)?.logo} alt={companyName} className="h-12 w-auto mb-2 object-contain" />
                                     ) : (
                                         <div className="flex items-center gap-2 mb-2">
                                             <div className="w-7 h-7 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-black text-xs">

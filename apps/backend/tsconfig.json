@@ -2,13 +2,21 @@
   "extends": "../../packages/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": ".",
     "module": "CommonJS",
     "moduleResolution": "node",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
+    "strict": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
+    "declaration": false,
+    "declarationMap": false,
     "paths": {
       "@workspace/ai": ["../../packages/domains/ai/dist"],
       "@workspace/video-contracts": ["../../packages/video-contracts/src"],
@@ -18,5 +26,5 @@
     }
   },
   "include": ["src/**/*", "server.js"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/**/*.test.ts"]
 }

@@ -13,7 +13,11 @@
         "lint": "next lint",
         "test": "jest",
         "test:coverage": "jest --coverage",
-        "vercel-build": "cd ../../packages/db && pnpm build && cd ../../apps/frontend && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build"
+        "vercel-build": "cd ../../packages/db && pnpm build && cd ../../apps/frontend && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+        "cap:sync": "cap sync",
+        "cap:android": "cap open android",
+        "cap:ios": "cap open ios",
+        "cap:build:android": "next build && cap sync android"
     },
     "engines": {
         "node": "24.x"
@@ -41,6 +45,7 @@
         "@workspace/common": "workspace:^",
         "@workspace/db": "workspace:^",
         "@workspace/ui": "workspace:^",
+        "@workspace/video-contracts": "workspace:^",
         "axios": "^1.7.9",
         "canvas-confetti": "^1.9.4",
         "class-variance-authority": "^0.7.1",

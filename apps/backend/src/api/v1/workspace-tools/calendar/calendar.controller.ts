@@ -183,7 +183,8 @@ export const resendInvite = async (req: Request, res: Response, next: NextFuncti
 
 export const deleteEvent = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const eventToDelete = await CalendarService.getEventById(req.params.id);
+        const id = req.params.id as string;
+        const eventToDelete = await CalendarService.getEventById(id);
         if (!eventToDelete) return res.status(404).json({ error: 'Not found' });
         
         const isAdmin = (req as any).user.role === 'BMSP_SUPER_ADMIN' || (req as any).user.role === 'BMSP_ADMIN';
@@ -191,8 +192,8 @@ export const deleteEvent = async (req: Request, res: Response, next: NextFunctio
             return res.status(403).json({ error: 'Not authorized to delete this event' });
         }
 
-        await CalendarService.deleteEvent(req.params.id);
-        await logAction((req as any).user.id, 'DELETE', 'CalendarEvent', req.params.id, { title: eventToDelete.title }, req);
+        await CalendarService.deleteEvent(id);
+        await logAction((req as any).user.id, 'DELETE', 'CalendarEvent', id, { title: eventToDelete.title }, req);
         res.json({ message: 'Deleted' });
     } catch (err: any) { 
         if (err.code === 'P2025') return res.status(404).json({ error: 'Not found' });

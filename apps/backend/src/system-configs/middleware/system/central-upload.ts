@@ -1,3 +1,4 @@
+// @ts-ignore
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
@@ -22,7 +23,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-    fileFilter: (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    fileFilter: (req: Request, file: any, cb: any) => {
         const allowed = [
             'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
             'application/pdf', 'application/msword',

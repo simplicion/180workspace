@@ -5,13 +5,16 @@ import Link from 'next/link';
 import { 
   Mic, MicOff, Play, AlertTriangle, ShieldCheck, CheckCircle2, 
   Bot, User, Sparkles, Activity, RefreshCw, ArrowLeft, PhoneCall,
-  Volume2, Sliders, Info, Flame, HeartPulse, Car, Home, Wrench, ChevronRight
+  Volume2, Sliders, Info, Flame, HeartPulse, Car, Home, Wrench, ChevronRight, Film
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { OfflineWall } from '@workspace/ui';
+import { useOfflineSync } from '@/lib/offline/useOfflineSync';
 
 export default function PreFlightTestBenchPage() {
+  const { isOnline } = useOfflineSync();
   const [agents, setAgents] = useState<any[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [scenarios, setScenarios] = useState<any[]>([]);
@@ -156,6 +159,27 @@ export default function PreFlightTestBenchPage() {
   };
 
   const selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
+
+  if (!isOnline) {
+    return (
+      <div className="space-y-8 max-w-4xl mx-auto pb-16 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Link href="/voiceforce" className="text-xs font-semibold text-gray-500 hover:text-indigo-600 flex items-center gap-1">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
+          </Link>
+        </div>
+        <OfflineWall
+          featureName="AI Voice Telephony Test Bench"
+          reason="Live bidirectional WebRTC voice streaming and real-time neural voice synthesis require an active internet connection."
+          suggestedActions={[
+            { label: 'Voice Agents', href: '/voiceforce/agents', icon: Bot, description: 'Configure AI agent system prompts, persona traits, and guardrails offline.' },
+            { label: 'Call Campaigns', href: '/voiceforce/campaigns', icon: PhoneCall, description: 'Prepare outbound call campaigns and lead lists locally.' },
+            { label: 'Media Studio', href: '/media-editor', icon: Film, description: 'Work on video and audio assets with local hardware acceleration.' }
+          ]}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">

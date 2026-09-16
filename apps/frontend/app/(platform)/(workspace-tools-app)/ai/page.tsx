@@ -7,13 +7,14 @@ import {
     ChevronLeft, ChevronRight, Menu, X, Paperclip, Scale, XCircle, FileText, 
     TrendingUp, Users, ShieldAlert, Cpu, Database, Info, ExternalLink, Settings,
     Bot, ArrowRight, CheckCircle2, AlertTriangle, Lightbulb, ChevronDown, FileCode,
-    Search, Clock, PanelLeftClose, PanelLeft, MessageCircle
+    Search, Clock, PanelLeftClose, PanelLeft, MessageCircle, WifiOff
 } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { useOfflineSync } from '@/lib/offline/useOfflineSync';
 import { MarkdownRenderer } from './_components/MarkdownRenderer';
 import { InteractiveActionCard } from './_components/InteractiveActionCard';
 import { InteractiveEntitySelectorCard, EntitySelectorDirective, EntitySelectorOption } from './_components/InteractiveEntitySelectorCard';
@@ -181,6 +182,7 @@ export default function AIAssistantPage() {
     const [loading, setLoading] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [attachedDoc, setAttachedDoc] = useState<AttachedDoc | null>(null);
+    const { isOnline } = useOfflineSync();
     const [showModeDropdown, setShowModeDropdown] = useState(false);
     const [searchSessionQuery, setSearchSessionQuery] = useState('');
     
@@ -490,6 +492,11 @@ export default function AIAssistantPage() {
     };
 
     const handleSendMessage = async (textToSend?: string) => {
+        if (!isOnline) {
+            toast.error('AI cloud generation requires an active internet connection. Your past chat sessions and documents are available offline.', { icon: '📡' });
+            return;
+        }
+
         const query = (textToSend || input).trim();
         if ((!query && !attachedDoc) || loading) return;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { ArrowLeft, Monitor, Smartphone, Tablet, Save, GripVertical, Settings2, Undo2, Redo2, Palette, Search, Plus, Trash2, Edit3, Image as ImageIcon, Link as LinkIcon, Type, MousePointer2, Settings, BoxSelect, Maximize, RotateCcw, ChevronDown, Check, Code2, FileCode2, Anchor, Globe, Upload, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, Monitor, Smartphone, Tablet, Save, GripVertical, Settings2, Undo2, Redo2, Palette, Search, Plus, Trash2, Edit3, Image as ImageIcon, Link as LinkIcon, Type, MousePointer2, Settings, BoxSelect, Maximize, RotateCcw, ChevronDown, Check, CheckCircle2, Code2, FileCode2, Anchor, Globe, Upload, ShieldCheck, Sparkles } from 'lucide-react';
 import { ElementType, ElementNode } from './types';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';

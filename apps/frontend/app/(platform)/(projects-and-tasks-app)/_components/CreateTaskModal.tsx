@@ -4,6 +4,7 @@ import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '@/lib/api';
+import { offlineApi } from '@/lib/offline/offline-api';
 import { X, CheckSquare, AlignLeft, FolderKanban, User, Flag, Calendar, Layout, Paperclip, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -148,11 +149,28 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
         if (voiceMessageUrl) payload.voiceMessageUrl = voiceMessageUrl; // any pre-existing URLs
 
         try {
-            // 1. Create the task first without waiting for uploads
-            const { data } = await api.post('/api/tasks', payload);
+            // 1. Create the task through offline-aware API (executes instantly locally & queues for sync if offline)
+            const deterministicId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            const optimisticTask = {
+                id: deterministicId,
+                ...payload,
+                status: form.status || 'todo',
+                priority: form.priority || 'medium',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                syncStatus: 'pending_sync',
+                assignee: availableAssignees.find(a => a.id === form.assigneeId),
+                project: selectedProject,
+            };
+
+            const { data, isOptimisticOffline } = await offlineApi.post('/api/tasks', payload, {
+                entityType: 'task',
+                entityId: deterministicId,
+                optimisticData: optimisticTask,
+            });
             
             // Show email notification status if it was requested
-            if (payload.sendEmailNotification && payload.assigneeId) {
+            if (payload.sendEmailNotification && payload.assigneeId && data?.notificationResult) {
                 if (data.notificationResult?.success) {
                     toast.success('Assignment email sent successfully!');
                 } else if (data.notificationResult?.error) {
@@ -162,7 +180,7 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                 }
             }
             
-            const task = data.task;
+            const task = (data && (data.task || data.id)) ? (data.task || data) : optimisticTask;
             
             // 2. Dispatch background upload job if files are selected
             if (selectedFiles.length > 0 || voiceBlobs.length > 0) {
@@ -173,9 +191,9 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
                     files: selectedFiles,
                     voiceBlobs: voiceBlobs
                 }));
-                toast.success('Task created! Uploads queued in background.');
+                toast.success(isOptimisticOffline ? 'Task saved offline! Uploads queued.' : 'Task created! Uploads queued in background.');
             } else {
-                toast.success('Task created!');
+                toast.success(isOptimisticOffline ? 'Task saved offline! Will sync automatically when online.' : 'Task created!');
             }
 
             onSuccess(task);

@@ -52,7 +52,7 @@ export function PricingTableBlock({ block, isSelected }: PricingTableBlockProps)
             discount: discountAmount,
             taxAmount,
             taxPercent: items.length > 0 ? Number(items[0].taxRate || 18) : 18,
-            totalAmount: grandTotal,
+            totalAmount: String(grandTotal),
             grandTotal,
             showTotalAmount: true
         }));

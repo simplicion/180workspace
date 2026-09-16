@@ -296,7 +296,7 @@ export interface BuilderElementProps {
     duplicateElement?: (id: string) => void;
     moveElementUp?: (id: string) => void;
     moveElementDown?: (id: string) => void;
-    insertElementRelative?: (targetId: string, newType: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside') => void;
+    insertElementRelative?: (targetId: string, newType: string, position: 'left' | 'right' | 'top' | 'bottom' | 'inside', initialData?: any) => void;
     depth?: number;
     isReadOnly?: boolean;
     viewMode?: 'desktop' | 'tablet' | 'mobile';
@@ -750,7 +750,7 @@ export function BuilderElement({
             } else if (['left', 'right', 'top', 'bottom'].includes(dragPosition) && insertElementRelative) {
                 e.preventDefault();
                 e.stopPropagation();
-                insertElementRelative(node.id, 'media', dragPosition, { imageUrl: mediaUrl });
+                insertElementRelative(node.id, 'media', dragPosition as 'left' | 'right' | 'top' | 'bottom', { imageUrl: mediaUrl });
                 setDragPosition('none');
                 return;
             }

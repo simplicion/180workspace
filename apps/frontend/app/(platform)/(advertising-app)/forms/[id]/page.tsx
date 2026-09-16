@@ -754,7 +754,7 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
         budget: Number(testPayloadBudget) || 10000,
         message: 'Interactive live test payload sent directly from Form Studio.'
       };
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002'}/api/public/capture/${formId}`, payload);
+      await api.post(`/api/public/capture/${formId}`, payload);
       toast.success('Live test payload dispatched & captured!');
       fetchForm(false);
     } catch (err: any) {

@@ -61,7 +61,7 @@ export default function DatabaseTab() {
     useEffect(() => {
         if (globalSettings) {
             const isManual = !!globalSettings.useManualUri;
-            setDbHost(isManual ? globalSettings.manualUri : globalSettings.dbHost || '');
+            setDbHost((isManual ? globalSettings.manualUri : globalSettings.dbHost) || '');
             setDbPort(globalSettings.dbPort || 27017);
             setDbUser(globalSettings.dbUser || '');
             setDbPass(globalSettings.dbPass || '');

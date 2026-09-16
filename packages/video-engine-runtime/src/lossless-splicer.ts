@@ -113,6 +113,75 @@ export class LosslessSplicer {
       });
     }
 
+    // Step 2.5: Composite Overlay Tracks (Images, Stickers, PiP, B-roll) if present
+    const overlayTracks = editIR.tracks.videoTracks.filter(
+      (t) => (t.type as any) !== "MAIN_VIDEO" && t.clips.length > 0
+    );
+
+    let compositedVideoPath = mergedRawVideo;
+    if (overlayTracks.length > 0) {
+      const overlaidVideo = path.join(tempDir, "overlaid_composite.mp4");
+      let overlayCmd = ffmpeg(mergedRawVideo);
+      let filterComplex = "";
+      let lastStream = "0:v";
+      let inputIdx = 1;
+
+      for (const track of overlayTracks) {
+        for (const oClip of track.clips) {
+          if (fs.existsSync(oClip.sourcePath)) {
+            overlayCmd = overlayCmd.input(oClip.sourcePath);
+            const oStartSec = RationalTimeMath.toSeconds(oClip.timelineRange.start);
+            const oDurSec = RationalTimeMath.toSeconds(oClip.timelineRange.duration);
+            const oEndSec = oStartSec + oDurSec;
+            const isImg = Boolean(oClip.sourcePath.match(/\.(png|jpg|jpeg|webp|svg)$/i));
+
+            if (isImg) {
+              overlayCmd = overlayCmd.loop(oDurSec);
+            }
+
+            const scaleFactor = oClip.transform?.scale?.start || 1.0;
+            const posX = oClip.transform?.position?.x || 0;
+            const posY = oClip.transform?.position?.y || 0;
+            const opacity = oClip.transform?.opacity ?? 1.0;
+
+            const targetW = Math.round(editIR.meta.resolution.width * 0.35 * scaleFactor);
+            const scaledLabel = `scaled_${inputIdx}`;
+            const outLabel = `v_layer_${inputIdx}`;
+
+            filterComplex += `[${inputIdx}:v]scale=${targetW}:-1,format=rgba,colorchannelmixer=aa=${opacity}[${scaledLabel}];[${lastStream}][${scaledLabel}]overlay=x=(W-w)/2+${posX}:y=(H-h)/2+${posY}:enable='between(t,${oStartSec},${oEndSec})'[${outLabel}];`;
+            lastStream = outLabel;
+            inputIdx++;
+          }
+        }
+      }
+
+      if (inputIdx > 1) {
+        await new Promise<void>((resolve, reject) => {
+          overlayCmd
+            .complexFilter(filterComplex.replace(/;$/, ""))
+            .outputOptions([
+              "-map", `[${lastStream}]`,
+              "-map", "0:a?",
+              "-c:a", "copy",
+              "-c:v", "libx264",
+              "-preset", "fast",
+              "-crf", "18",
+            ])
+            .output(overlaidVideo)
+            .on("end", () => {
+              compositedVideoPath = overlaidVideo;
+              if (onProgress) onProgress({ percent: 80, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
+              resolve();
+            })
+            .on("error", (err) => {
+              console.warn("[LosslessSplicer] Overlay compositing fallback:", err.message);
+              resolve();
+            })
+            .run();
+        });
+      }
+    }
+
     // Step 3: Check for Captions & Audio Ducking
     const hasCaptions = editIR.tracks.captionTrack && editIR.tracks.captionTrack.length > 0;
     const bgmTrack = editIR.tracks.audioTracks.find((t) => t.type === "BGM");
@@ -138,13 +207,13 @@ export class LosslessSplicer {
       const formattedAssPath = assFilePath.replace(/\\/g, "/").replace(/:/g, "\\:");
 
       await new Promise<void>((resolve, reject) => {
-        let cmd = ffmpeg(mergedRawVideo)
+        let cmd = ffmpeg(compositedVideoPath)
           .videoFilters(`ass='${formattedAssPath}'`)
           .videoCodec("libx264")
           .outputOptions(["-preset fast", "-crf 18"]);
 
         if (processedAudioPath && fs.existsSync(processedAudioPath)) {
-          cmd = cmd.input(processedAudioPath).outputOptions(["-map 0:v:0", "-map 1:a:0"]);
+          cmd = cmd.input(processedAudioPath).outputOptions(["-map 0:v:0", "-map 1:a:0", "-c:a aac"]);
         } else {
           cmd = cmd.audioCodec("copy");
         }
@@ -157,16 +226,16 @@ export class LosslessSplicer {
           })
           .on("error", (err: any) => {
             // Fallback: copy raw if subtitle filter is not supported in minimal builds
-            fs.copyFileSync(mergedRawVideo, outputPath);
+            fs.copyFileSync(compositedVideoPath, outputPath);
             resolve();
           })
           .run();
       });
     } else if (processedAudioPath && fs.existsSync(processedAudioPath)) {
       await new Promise<void>((resolve, reject) => {
-        ffmpeg(mergedRawVideo)
+        ffmpeg(compositedVideoPath)
           .input(processedAudioPath)
-          .outputOptions(["-c:v copy", "-map 0:v:0", "-map 1:a:0", "-c:a copy"])
+          .outputOptions(["-c:v copy", "-map 0:v:0", "-map 1:a:0", "-c:a aac"])
           .output(outputPath)
           .on("end", () => {
             if (onProgress) onProgress({ percent: 100, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
@@ -177,7 +246,7 @@ export class LosslessSplicer {
       });
     } else {
       // Direct stream-copy pass
-      fs.copyFileSync(mergedRawVideo, outputPath);
+      fs.copyFileSync(compositedVideoPath, outputPath);
       if (onProgress) onProgress({ percent: 100, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
     }
 

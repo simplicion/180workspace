@@ -40,7 +40,7 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
 
         const result = await StorageService.uploadFile({
             userId,
-            file: req.file,
+            file: (req as any).file,
             storageResult: (req as any).storageResult,
             taggedUsers,
             name,
@@ -63,7 +63,7 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
                         name: result.document.name,
                         fileUrl: result.document.fileUrl,
                         fileType: result.document.fileType,
-                        buffer: req.file?.buffer,
+                        buffer: (req as any).file?.buffer,
                         textContent: req.body?.textContent || result.document.description,
                         category: result.document.category || 'Storage'
                     });
@@ -125,7 +125,7 @@ export const deleteFile = async (req: Request, res: Response, next: NextFunction
         setImmediate(async () => {
             try {
                 const { centralRagIndexer } = await import('@workspace/rag');
-                await centralRagIndexer.removeDocumentChunks(req.params.id);
+                await centralRagIndexer.removeDocumentChunks(req.params.id as string);
             } catch (err: any) {
                 console.warn('[CentralRagIndexer] File deletion chunk cleanup warning:', err.message);
             }

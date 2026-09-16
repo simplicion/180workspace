@@ -564,7 +564,7 @@ export default function ReportsPage() {
         const lines: string[] = [];
 
         lines.push(`180WORKSPACE COMPLETE COMPANY DOSSIER & OPERATIONAL AUDIT`);
-        lines.push(`Company: ${company?.name || 'Your Company'}`);
+        lines.push(`Company: ${(company as any)?.companyName || (company as any)?.name || 'Your Company'}`);
         lines.push(`Generated On: ${new Date().toLocaleString()}`);
         lines.push(`Target Month: ${month}`);
         lines.push(``);
@@ -589,27 +589,43 @@ export default function ReportsPage() {
         });
         lines.push(``);
 
-        // Section 3: Payroll Roster
-        lines.push(`=== 3. PAYROLL BREAKDOWN (${month}) ===`);
-        lines.push(`Employee,Employee ID,Department,Base Salary,Deductions,Bonuses,Net Salary,Status`);
-        salaries.forEach(s => {
-            lines.push(`"${s.employee?.name || s.employeeId?.name || s.user?.name || '—'}","${s.employee?.employeeId || ''}","${s.employee?.department || '—'}",${s.baseSalary || 0},${s.deductions || 0},${s.bonuses || 0},${s.netSalary || 0},"${s.status || 'pending'}"`);
+        // Section 2: Financial Invoices
+        lines.push(`=== 2. FINANCIAL INVOICES ===`);
+        lines.push(`Invoice Number,Client,Amount,Status,Issue Date,Due Date`);
+        invoices.forEach(inv => {
+            lines.push(`"${inv.invoiceNumber || inv.id}","${inv.client?.name || inv.clientName || 'N/A'}",${inv.totalAmount || inv.amount || 0},"${inv.status}","${inv.issueDate || inv.createdAt ? new Date(inv.issueDate || inv.createdAt).toLocaleDateString() : 'N/A'}","${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}"`);
         });
         lines.push(``);
 
-        // Section 4: Projects Status
-        lines.push(`=== 4. ACTIVE PROJECTS & WORKFLOWS ===`);
-        lines.push(`Project Name,Status,Priority,Members,Deadline,Budget`);
-        projects.forEach(p => {
-            lines.push(`"${p.name}","${p.status}","${p.priority || 'medium'}",${p.members?.length || 0},"${p.deadline ? new Date(p.deadline).toLocaleDateString() : ''}","${p.budget || ''}"`);
+        // Section 3: Monthly Expenses Ledger
+        lines.push(`=== 3. MONTHLY EXPENSES LEDGER ===`);
+        lines.push(`Expense Title,Category,Amount,Payment Method,Date,Logged By`);
+        expenses.forEach(exp => {
+            lines.push(`"${exp.title || exp.name || 'Expense'}","${exp.category || 'General'}",${exp.amount || 0},"${exp.paymentMethod || 'Default'}","${exp.date ? new Date(exp.date).toLocaleDateString() : 'N/A'}","${exp.loggedBy || 'System'}"`);
         });
         lines.push(``);
 
-        // Section 5: Digital Assets & Cloud
-        lines.push(`=== 5. DIGITAL ASSETS & INFRASTRUCTURE ===`);
-        lines.push(`Asset Name,Type,Provider,Cost,Billing Cycle,Renewal Date,Status`);
-        assets.forEach(a => {
-            lines.push(`"${a.name}","${a.type}","${a.provider || ''}",${a.cost || 0},"${a.billingCycle}","${a.renewalDate ? new Date(a.renewalDate).toLocaleDateString() : ''}","${a.status}"`);
+        // Section 4: Employee & Payroll Roster
+        lines.push(`=== 4. EMPLOYEE & PAYROLL ROSTER ===`);
+        lines.push(`Employee Name,Department,Role,Salary,Employment Type,Status,Email`);
+        employees.forEach(emp => {
+            lines.push(`"${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim()}","${emp.department || 'General'}","${emp.role || emp.designation || 'Staff'}",${emp.salary || 0},"${emp.type || 'Full-time'}","${emp.status || 'ACTIVE'}","${emp.email || 'N/A'}"`);
+        });
+        lines.push(``);
+
+        // Section 5: Projects & Delivery Pipeline
+        lines.push(`=== 5. PROJECTS & DELIVERY PIPELINE ===`);
+        lines.push(`Project Name,Status,Progress,Budget,Start Date,Deadline,Manager`);
+        projects.forEach(proj => {
+            lines.push(`"${proj.title || proj.name}","${proj.status || 'IN_PROGRESS'}",${proj.progress || 0}%,${proj.budget || 0},"${proj.startDate ? new Date(proj.startDate).toLocaleDateString() : 'N/A'}","${proj.deadline || proj.endDate ? new Date(proj.deadline || proj.endDate).toLocaleDateString() : 'N/A'}","${proj.manager?.name || 'Unassigned'}"`);
+        });
+        lines.push(``);
+
+        // Section 6: Digital & Physical Assets Inventory
+        lines.push(`=== 6. ASSETS & INFRASTRUCTURE INVENTORY ===`);
+        lines.push(`Asset Name,Type,Assigned To,Monthly Cost,Status,Serial Number`);
+        assets.forEach(asset => {
+            lines.push(`"${asset.name}","${asset.type || 'Digital'}","${asset.assignedTo || 'Unassigned'}",${asset.monthlyCost || 0},"${asset.status || 'ACTIVE'}","${asset.serialNumber || 'N/A'}"`);
         });
 
         const csvContent = lines.join('\n');
@@ -617,7 +633,8 @@ export default function ReportsPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Full_Company_Report_${company?.name ? company.name.replace(/\s+/g, '_') : '180workspace'}_${month}.csv`;
+        const compName = (company as any)?.companyName || (company as any)?.name || '180workspace';
+        a.download = `Full_Company_Report_${compName.replace(/\s+/g, '_')}_${month}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         toast.success('Full Company Dossier downloaded successfully!');
@@ -625,7 +642,7 @@ export default function ReportsPage() {
 
     function handleCopyBrief() {
         const brief = `
-📊 *${company?.name || '180workspace'} Executive Operational Briefing (${month})*
+📊 *${(company as any)?.companyName || (company as any)?.name || '180workspace'} Executive Operational Briefing (${month})*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👥 *Team & Staff:* ${activeStaffCount} Active Members across ${Object.keys(deptCounts).length} Departments
 💰 *Invoiced Revenue:* ${currencySymbol}${totalInvoiced.toLocaleString()} (Collected: ${currencySymbol}${totalPaidInvoices.toLocaleString()})
@@ -698,7 +715,7 @@ Generated via ${platform?.platformName || '180workspace'} Reports & Analytics En
 
             {/* Print Header (Visible only when printing) */}
             <div className="hidden print:block mb-6 border-b border-gray-200 pb-4">
-                <h2 className="text-xl font-bold">{company?.name || '180workspace'} — Operational Audit Report</h2>
+                <h2 className="text-xl font-bold">{(company as any)?.companyName || (company as any)?.name || '180workspace'} — Operational Audit Report</h2>
                 <p className="text-xs text-gray-500">Period: {month} | Generated: {new Date().toLocaleString()}</p>
             </div>
 
@@ -852,7 +869,7 @@ Generated via ${platform?.platformName || '180workspace'} Reports & Analytics En
                                     {Object.entries(deptCounts).map(([dept, count]) => (
                                         <div key={dept} className="p-3.5 bg-gray-50/70 border border-gray-100 rounded-xl">
                                             <p className="text-xs font-medium text-gray-500 truncate" title={dept}>{dept}</p>
-                                            <p className="text-lg font-bold text-gray-900 mt-1">{count} <span className="text-xs font-normal text-gray-400">members</span></p>
+                                            <p className="text-lg font-bold text-gray-900 mt-1">{String(count)} <span className="text-xs font-normal text-gray-400">members</span></p>
                                         </div>
                                     ))}
                                 </div>

@@ -1,7 +1,7 @@
 'use client';
 
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, OfflineWall } from "@workspace/ui";
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -12,6 +12,7 @@ import clsx from 'clsx';
 import { useModal } from '@/lib/modal-context';
 import { useSettings } from '@/lib/settings-context';
 import { useMeeting } from '@/lib/meeting-context';
+import { useOfflineSync } from '@/lib/offline/useOfflineSync';
 
 // Type for transcript entries
 interface TranscriptEntry {
@@ -35,6 +36,7 @@ export default function MeetingRoom() {
     const modal = useModal();
     const { platform } = useSettings();
     const { startMeeting, minimizeMeeting, endMeeting: endMeetingCtx, meeting: meetingState, jitsiContainerRef, jitsiApiRef } = useMeeting();
+    const { isOnline } = useOfflineSync();
     const pName = platform?.platformName || 'System';
     const [loading, setLoading] = useState(true);
     const [isValid, setIsValid] = useState(false);
@@ -386,6 +388,19 @@ export default function MeetingRoom() {
             <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-gray-900">
                 <LogoLoader className="w-12 h-12 animate-spin text-indigo-600 mb-4" />
                 <p className="text-xl font-medium">Preparing your meeting room...</p>
+            </div>
+        );
+    }
+
+    if (!isOnline) {
+        return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-50/90 backdrop-blur-sm p-4">
+                <OfflineWall
+                    featureName="Live Video Meeting"
+                    reason="WebRTC peer connections, audio/video streaming, and real-time room signaling require an active internet connection."
+                    onRetry={validateAccess}
+                    fullScreen={false}
+                />
             </div>
         );
     }

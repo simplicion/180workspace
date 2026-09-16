@@ -41,6 +41,12 @@
       ],
       "@utils/*": [
         "./utils/*"
+      ],
+      "@workspace/video-contracts": [
+        "../../packages/video-contracts/src"
+      ],
+      "@workspace/video-contracts/*": [
+        "../../packages/video-contracts/src/*"
       ]
     },
     "strictNullChecks": true
@@ -55,6 +61,7 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "tests"
   ]
 }

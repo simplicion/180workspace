@@ -41,7 +41,7 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const updated = await contentCalendarService.updateCalendarPiece(calendarId, piece.id, editing);
+            const updated = await contentCalendarService.updateCalendarPiece(calendarId, piece.id || '', editing);
             toast.success('Content piece saved!');
             onSave(updated.piece);
             onClose();

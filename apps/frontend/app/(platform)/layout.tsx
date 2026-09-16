@@ -6,12 +6,13 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import { ChevronDown, ChevronLeft, ChevronRight, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye, Laptop } from 'lucide-react';
 import { navigation } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import PinnedItem from '@/app/(platform)/(dashboard)/_components/PinnedItem';
 import RecentItem from '@/app/(platform)/(dashboard)/_components/RecentItem';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useNativeEngine } from '@/lib/useNativeEngine';
 import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
 import { HelpIcon , LogoLoader } from "@workspace/ui";
@@ -47,8 +48,8 @@ import SubscriptionExpiredWall from '@/components/shared/SubscriptionExpiredWall
 import CompanySuspendedWall from '@/components/shared/CompanySuspendedWall';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { MODULE_MAP, APP_DEPENDENCIES } from '@/lib/module-map';
 import UploadQueueManager from '@/components/shared/UploadQueueManager';
+import SyncStatusIndicator from '@/components/shared/SyncStatusIndicator';
 
 
 // navigation moved to ../../lib/navigation.ts
@@ -710,6 +711,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 function DashboardInner({ children }: { children: React.ReactNode }) {
     const { user, company, isLoading: authLoading } = useAuth();
     const pwa = usePWAInstall();
+    const { isNativeDesktop } = useNativeEngine();
     const { isLoading: settingsLoading } = useSettings();
     const { isExpired, status, mandateStatus, paymentsEnabled, loading: subLoading } = useSubscription();
     const router = useRouter();
@@ -943,19 +945,33 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                         </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3">
+                        <SyncStatusIndicator />
                         <SystemSetupStatus />
                         <ToolsDropdown />
-                        {pwa.isInstallable && !pwa.isInstalled && (
-                            <button
-                                onClick={pwa.promptInstall}
-                                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-600 bg-transparent text-indigo-600 hover:bg-indigo-50 transition-colors text-sm font-medium"
-                                title="Open in app"
+                        {isNativeDesktop ? (
+                            <div
+                                className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold shadow-xs select-none"
+                                title="Running 180Workspace Desktop Native Engine"
                             >
-                                <div className="w-5 h-5 flex items-center justify-center text-indigo-600">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                                </div>
-                                Open in app
-                            </button>
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                <Laptop className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Desktop Native</span>
+                            </div>
+                        ) : (
+                            <a
+                                href={`${process.env.NEXT_PUBLIC_MARKETING_URL || 'http://localhost:3001'}/download`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-700 hover:text-indigo-900 transition-all text-xs font-semibold shadow-xs group"
+                                title="Download 180Workspace Desktop App for Windows, macOS & Linux"
+                            >
+                                <Laptop className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                                <span>Download Desktop App</span>
+                                <span className="text-[10px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded-full leading-tight">v1.0</span>
+                            </a>
                         )}
                         <HelpIcon slug={getHelpSlug()} className="w-9 h-9" />
                         <Link

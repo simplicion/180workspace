@@ -27,7 +27,7 @@ const redis: Redis | null = REDIS_URL || 'redis://127.0.0.1:6379'
 if (redis) {
     redis.on('connect', () => console.log('✅ Redis connection initialized'));
     redis.on('ready', () => console.log('✅ Redis is ready'));
-    redis.on('reconnecting', (ms) => console.log(`🔄 Redis reconnecting in ${ms}ms...`));
+    redis.on('reconnecting', (ms: number) => console.log(`🔄 Redis reconnecting in ${ms}ms...`));
     redis.on('end', () => console.warn('🔌 Redis connection ended. Redis-dependent features will fail.'));
     
     redis.on('error', (err: any) => {

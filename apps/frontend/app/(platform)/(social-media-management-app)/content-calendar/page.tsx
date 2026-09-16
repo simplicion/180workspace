@@ -86,7 +86,7 @@ export default function ContentCalendarPage() {
         if (!calendarToArchive) return;
         setIsActionLoading(true);
         try {
-            await contentCalendarService.updateCalendar(calendarToArchive.id, { status: 'archived' });
+            await contentCalendarService.updateCalendar(calendarToArchive.id || '', { status: 'archived' });
             toast.success('Calendar archived');
             fetchCalendars();
         } catch (err: any) {
@@ -101,7 +101,7 @@ export default function ContentCalendarPage() {
         if (!calendarToDelete) return;
         setIsActionLoading(true);
         try {
-            await contentCalendarService.deleteCalendar(calendarToDelete.id);
+            await contentCalendarService.deleteCalendar(calendarToDelete.id || '');
             toast.success('Calendar deleted');
             fetchCalendars();
         } catch (err: any) {

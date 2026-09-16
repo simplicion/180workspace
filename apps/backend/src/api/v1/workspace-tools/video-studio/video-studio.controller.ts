@@ -68,4 +68,24 @@ export class VideoStudioController {
       return res.status(500).json({ success: false, error: err.message });
     }
   }
+
+  static async renderProject(req: any, res: Response) {
+    try {
+      const { editIR, outputPath } = req.body;
+      if (!editIR) {
+        return res.status(400).json({ success: false, error: "Missing editIR payload" });
+      }
+      const path = require("path");
+      const os = require("os");
+      const targetOut = outputPath || path.join(os.tmpdir(), `render_${Date.now()}.mp4`);
+      const tempDir = path.join(os.tmpdir(), `.render_tmp_${Date.now()}`);
+
+      const { LosslessSplicer } = require("@workspace/video-engine-runtime");
+      await LosslessSplicer.render(editIR, targetOut, tempDir);
+
+      return res.status(200).json({ success: true, outputPath: targetOut });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
 }

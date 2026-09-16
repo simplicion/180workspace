@@ -6,7 +6,6 @@ import * as publicController from './public.controller';
 import { protect } from '../../../system-configs/middleware/auth/auth';
 import { requireRole } from '../../../system-configs/middleware/auth/rbac';
 import cacheResponse from '../../../system-configs/middleware/cache/redis-cache';
-import { PublicService } from '@workspace/platform-admin';
 
 // ── Platform Internal Endpoints ──────────────────────────────────────────
 

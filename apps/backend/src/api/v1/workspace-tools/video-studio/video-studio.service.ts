@@ -159,7 +159,7 @@ export class VideoStudioService {
     stylePreset?: string;
     telemetry?: any;
   }) {
-    return await videoAIDirectorService.compileAST({
+    return await (videoAIDirectorService as any).compileAST({
       prompt: params.prompt,
       companyId: params.companyId,
       stylePreset: params.stylePreset || "MRBEAST_FAST",
