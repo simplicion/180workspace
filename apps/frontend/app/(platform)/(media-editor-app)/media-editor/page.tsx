@@ -307,25 +307,27 @@ export default function MediaEditorDashboardPage() {
 
   return (
     <div className="space-y-6 pb-16 max-w-7xl mx-auto select-none">
-      {/* Video Projects Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+      {/* 180 Media Studio Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-gray-200 dark:border-gray-800">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center space-x-2.5">
             <Film className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-            <span>Video Projects</span>
+            <span>180 Media Studio</span>
           </h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Synced across your organization with instant local hardware acceleration.
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed max-w-2xl">
+            An all-in-one video production engine for multi-track timeline editing, automated kinetic captions, camera spring zooms, and lossless hardware-accelerated video rendering.
           </p>
         </div>
 
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-500/20 transition active:scale-95 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Project</span>
-        </button>
+        <div className="flex items-center space-x-3 shrink-0">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-500/20 transition active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Video Project</span>
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
