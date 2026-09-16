@@ -339,12 +339,19 @@ router.use('/v1/wallet', walletRoutes);
 const mediaEditorRoutes = require('../api/v1/media-editor/media-editor.routes').default;
 
 // Public Native Installer Downloads
-router.get(['/media-editor/download/:platform', '/v1/media-editor/download/:platform'], (req: any, res: any) => {
+router.get([
+  '/download/:platform',
+  '/v1/download/:platform',
+  '/workspace/download/:platform',
+  '/v1/workspace/download/:platform',
+  '/media-editor/download/:platform',
+  '/v1/media-editor/download/:platform',
+], (req: any, res: any) => {
   const { platform } = req.params;
   const fileNameMap: Record<string, string> = {
     windows: "180Workspace-Setup-x64.exe",
     win: "180Workspace-Setup-x64.exe",
-    msi: "180Workspace-Enterprise.msi",
+    msi: "180Workspace-Setup-x64.exe",
     mac: "180Workspace-Universal.dmg",
     mac_intel: "180Workspace-x64.dmg",
     linux: "180Workspace-x86_64.AppImage",
@@ -354,12 +361,14 @@ router.get(['/media-editor/download/:platform', '/v1/media-editor/download/:plat
   };
   const fileName = fileNameMap[platform] || "180Workspace-Setup-x64.exe";
 
-  if (platform === "windows" || platform === "win") {
+  if (platform === "windows" || platform === "win" || platform === "msi") {
     const fs = require("fs");
     const path = require("path");
     const candidatePaths = [
       path.resolve(__dirname, "../../../desktop-app/windows/180Workspace-Setup-x64.exe"),
       path.resolve(__dirname, "../../../desktop-app/windows/180Workspace.exe"),
+      path.resolve(__dirname, "../../../frontend/public/downloads/180Workspace-Setup-x64.exe"),
+      path.resolve(__dirname, "../../../marketing-web/public/downloads/180Workspace-Setup-x64.exe"),
       path.resolve(__dirname, "../../downloads/180Workspace-Setup-x64.exe"),
     ];
 

@@ -314,12 +314,12 @@ export default function MediaEditorDashboardPage() {
 
   const triggerDownload = (platform: string) => {
     const link = document.createElement("a");
-    link.href = `/api/v1/media-editor/download/${platform}`;
-    link.download = platform === "windows" ? "180MediaStudio-Setup-x64.exe" : `180MediaStudio-${platform}`;
+    link.href = `/downloads/180Workspace-Setup-x64.exe`;
+    link.download = "180Workspace-Setup-x64.exe";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`Downloading 180 Workspace Native App for ${platform}...`);
+    toast.success(`Downloading 180 Workspace Desktop Suite (Installer)...`);
   };
 
   const handleOpenLaunchModal = (projectId?: string, preset?: string) => {
@@ -1027,10 +1027,10 @@ export default function MediaEditorDashboardPage() {
             <div className="p-4 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/30 space-y-2">
               <div className="flex items-center space-x-2 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
                 <Sparkles className="w-4 h-4 text-pink-500" />
-                <span>Native Desktop App (Recommended)</span>
+                <span>180 Workspace Native Desktop App (Includes Media Studio)</span>
               </div>
               <p className="text-xs text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed">
-                The desktop app connects directly to your GPU for <strong>&gt;500 FPS NVENC stream-copy</strong>, eliminates cloud upload wait times, and runs 100% offline.
+                Download the complete 180 Workspace desktop suite. Enjoy CRM, Meetings, Docs, and built-in <strong>&gt;500 FPS NVENC GPU</strong> video production with zero cloud upload wait times and 100% offline workflow.
               </p>
             </div>
 
@@ -1043,7 +1043,7 @@ export default function MediaEditorDashboardPage() {
                 <div>
                   <p className="text-xs font-bold text-gray-900 dark:text-white">Download & Install the App</p>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Click below to download <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-400 font-mono">180MediaStudio-Setup.exe</code> and install in 5 seconds.
+                    Click below to download <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-400 font-mono">180Workspace-Setup-x64.exe</code> and install in 5 seconds.
                   </p>
                 </div>
               </div>

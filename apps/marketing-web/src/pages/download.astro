@@ -6,17 +6,17 @@ import FAQAccordion from '../components/apps/FAQAccordion.astro';
 import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
 import JSONLDSchema from '../components/apps/JSONLDSchema.astro';
 
-const backendUrl = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:5000';
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
 
 const downloadLinks = {
-  windowsExe: `${backendUrl}/api/v1/media-editor/download/windows`,
-  windowsMsi: `${backendUrl}/api/v1/media-editor/download/msi`,
-  macArm: `${backendUrl}/api/v1/media-editor/download/mac`,
-  macIntel: `${backendUrl}/api/v1/media-editor/download/mac_intel`,
-  linuxAppImage: `${backendUrl}/api/v1/media-editor/download/linux`,
-  linuxDeb: `${backendUrl}/api/v1/media-editor/download/linux_deb`,
-  androidApk: `${backendUrl}/api/v1/media-editor/download/android`,
+  windowsExe: '/downloads/180Workspace-Setup-x64.exe',
+  windowsMsi: '/downloads/180Workspace-Setup-x64.exe',
+  windowsPortable: '/downloads/180Workspace.exe',
+  macArm: '/downloads/180Workspace-Universal.dmg',
+  macIntel: '/downloads/180Workspace-x64.dmg',
+  linuxAppImage: '/downloads/180Workspace-x86_64.AppImage',
+  linuxDeb: '/downloads/180Workspace-amd64.deb',
+  androidApk: '/downloads/180Workspace-v1.0.apk',
 };
 
 const desktopPlatforms = [
@@ -25,23 +25,24 @@ const desktopPlatforms = [
     name: 'Windows',
     badge: 'Windows 11 & 10 (64-bit)',
     iconSvg: '<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.801"/></svg>',
-    tagline: 'Direct3D 12 & NVIDIA NVENC / AMD AMF Hardware Acceleration',
+    tagline: 'Complete 180 Workspace Enterprise Suite with Direct3D 12 & NVENC Acceleration',
     version: 'v2.0.0 Stable (x64 / ARM64)',
     size: '34.5 MB',
+    fileName: '180Workspace-Setup-x64.exe',
     primaryDownload: {
       label: 'Download for Windows (.exe)',
       url: downloadLinks.windowsExe,
-      sublabel: 'Includes installer & automatic protocol registry',
+      sublabel: 'Full unified workspace suite • Installer & protocol registry',
     },
     alternatives: [
-      { label: 'Enterprise MSI Package (.msi)', url: downloadLinks.windowsMsi },
-      { label: 'Portable Standalone Executable', url: downloadLinks.windowsExe },
+      { label: 'Portable Standalone (.exe)', url: downloadLinks.windowsPortable, fileName: '180Workspace.exe' },
+      { label: 'Enterprise Setup (.msi)', url: downloadLinks.windowsMsi, fileName: '180Workspace-Setup-x64.exe' },
     ],
     features: [
-      'Direct3D 12 & NVENC stream-copy (>500 FPS video rendering)',
-      'Direct local NVMe SSD file streaming (zero cloud upload wait)',
-      'workspace180:// custom deep link protocol integration',
-      'Local heuristic AI director & kinetic caption generator',
+      'Complete Workspace Suite: CRM, Chat, HD Meetings, Docs, Projects & Drive in one app',
+      'Built-in 180 Media Studio with lossless 4K timeline & NVENC GPU stream-copy',
+      '100% Offline-First Mode: Edit documents, leads, and timelines without internet connection',
+      'Native OS integration: workspace180:// deep link protocol, system tray & dock shortcuts',
     ]
   },
   {
@@ -49,23 +50,24 @@ const desktopPlatforms = [
     name: 'macOS',
     badge: 'macOS 12.0+ (Apple Silicon & Intel)',
     iconSvg: '<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 1.01-2.87-.96.04-2.07.65-2.73 1.42-.56.66-.98 1.72-.94 2.76 1.07.08 2.11-.56 2.66-1.31z"/></svg>',
-    tagline: 'Metal 3 & Apple Neural Engine Hardware Compositor',
+    tagline: 'Full Native macOS Workspace Suite with Metal 3 Hardware Compositor',
     version: 'v2.0.0 Universal Binary',
     size: '38.2 MB',
+    fileName: '180Workspace-Universal.dmg',
     primaryDownload: {
       label: 'Download for Mac (Apple Silicon)',
       url: downloadLinks.macArm,
       sublabel: 'Native M1, M2, M3, M4 ARM64 execution',
     },
     alternatives: [
-      { label: 'Mac with Intel Core Processor (.dmg)', url: downloadLinks.macIntel },
-      { label: 'Homebrew: brew install --cask 180workspace', url: '#homebrew' },
+      { label: 'Mac with Intel Core Processor (.dmg)', url: downloadLinks.macIntel, fileName: '180Workspace-x64.dmg' },
+      { label: 'Homebrew: brew install --cask 180workspace', url: '#homebrew', fileName: '' },
     ],
     features: [
-      'Metal 3 hardware compositor & ProRes hardware decoder',
-      'Apple Neural Engine on-device AI transcription',
-      'Menu bar resident assistant & Spotlight deep-search',
-      'Multi-monitor timeline canvas & color-accurate P3 output',
+      'All 17 Workspace Apps: Instant multi-tab workspace switching with zero browser lag',
+      'Integrated 4K Media Studio with Metal 3 timeline compositing & ProRes hardware acceleration',
+      'Native Mac Features: Spotlight deep-search, Menu Bar resident assistant & native notifications',
+      'Offline encrypted local storage with automatic background cloud synchronization',
     ]
   },
   {
@@ -73,23 +75,24 @@ const desktopPlatforms = [
     name: 'Linux',
     badge: 'Ubuntu, Debian, Fedora, Arch, Manjaro',
     iconSvg: '<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12.002 0c-4.484 0-8.118 3.634-8.118 8.118 0 2.062.772 3.945 2.046 5.378-1.571 1.638-2.616 3.844-2.616 6.292 0 .787.108 1.549.309 2.274.654.492 1.464.787 2.342.787 1.036 0 1.979-.411 2.673-1.077 1.025.545 2.199.859 3.447.859 1.258 0 2.441-.318 3.473-.871.695.666 1.637 1.089 2.672 1.089.878 0 1.688-.295 2.342-.787.201-.725.309-1.487.309-2.274 0-2.448-1.045-4.654-2.616-6.292 1.274-1.433 2.046-3.316 2.046-5.378C20.12 3.634 16.486 0 12.002 0z"/></svg>',
-    tagline: 'Vulkan & VAAPI Native Zero-Overhead Pipeline',
+    tagline: 'Universal Linux Desktop Suite with Vulkan Hardware Acceleration',
     version: 'v2.0.0 x86_64 / ARM64',
     size: '36.0 MB',
+    fileName: '180Workspace-x86_64.AppImage',
     primaryDownload: {
       label: 'Download AppImage (Universal)',
       url: downloadLinks.linuxAppImage,
-      sublabel: 'Self-contained executable for all Linux distros',
+      sublabel: 'Self-contained executable for all Linux distributions',
     },
     alternatives: [
-      { label: 'Debian / Ubuntu Package (.deb)', url: downloadLinks.linuxDeb },
-      { label: 'RedHat / Fedora Package (.rpm)', url: downloadLinks.linuxAppImage },
+      { label: 'Debian / Ubuntu Package (.deb)', url: downloadLinks.linuxDeb, fileName: '180Workspace-amd64.deb' },
+      { label: 'RedHat / Fedora Package (.rpm)', url: downloadLinks.linuxAppImage, fileName: '180Workspace-x86_64.AppImage' },
     ],
     features: [
-      'Vulkan hardware acceleration & VAAPI video pipeline',
-      'Wayland and X11 native desktop window management',
-      'System DBus notification & media key integration',
-      'Zero external runtime dependencies packaged inside',
+      'Full 180 Workspace Suite: CRM, Team Messaging, Cloud Storage, Docs & Video Studio',
+      'Self-contained Universal AppImage with Wayland, X11, and DBus notification integration',
+      'Vulkan & VAAPI hardware acceleration for smooth 120Hz canvas & fast video export',
+      'Zero external runtime dependencies packaged inside with multi-tenant company isolation',
     ]
   }
 ];
@@ -100,23 +103,24 @@ const mobilePlatforms = [
     name: 'Android Mobile App',
     badge: 'Android 10.0+ (Phones & Tablets)',
     iconSvg: '<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5802 8.411 13.8444 8.082 12 8.082c-1.8444 0-3.5802.329-5.1368.8677L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>',
-    tagline: 'Snapdragon Adreno / Mali GPU WebGL2 & MediaCodec Engine',
+    tagline: 'All-in-One Mobile Enterprise Suite with Snapdragon/Mali GPU Engine',
     version: 'v2.0.0 APK / Capacitor 8',
     size: '22.4 MB',
+    fileName: '180Workspace-v1.0.apk',
     primaryDownload: {
       label: 'Download Android APK (.apk)',
       url: downloadLinks.androidApk,
-      sublabel: 'Direct APK installation for Android devices',
+      sublabel: 'Direct APK installation for Android phones & tablets',
     },
     alternatives: [
-      { label: 'Get it on Google Play (Coming Soon)', url: '#play-store' },
-      { label: 'Samsung Galaxy Store (Coming Soon)', url: '#galaxy-store' },
+      { label: 'Get it on Google Play (Coming Soon)', url: '#play-store', fileName: '' },
+      { label: 'Samsung Galaxy Store (Coming Soon)', url: '#galaxy-store', fileName: '' },
     ],
     features: [
-      'Direct MediaCodec hardware video encoding & decoding',
-      'Snapdragon Adreno & Mali GPU WebGL2/WebGPU compositor',
-      'Direct camera roll (DCIM) instant video timeline editing',
-      'Full push notifications for CRM leads & team mentions',
+      'Complete Mobile Workspace: Chat with teams, track CRM deals, review docs & manage tasks',
+      'Mobile Media Studio: Trim, edit & export reels straight from camera roll (DCIM)',
+      'Real-time push notifications for urgent customer leads, mentions, and calendar meetings',
+      'Biometric security (Fingerprint / Face Unlock) with full offline cache mode',
     ]
   },
   {
@@ -124,30 +128,47 @@ const mobilePlatforms = [
     name: 'iOS & iPadOS App',
     badge: 'iOS 16.0+ (iPhone & iPad)',
     iconSvg: '<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 1.01-2.87-.96.04-2.07.65-2.73 1.42-.56.66-.98 1.72-.94 2.76 1.07.08 2.11-.56 2.66-1.31z"/></svg>',
-    tagline: 'Apple VideoToolbox & Metal 3 Hardware Compositor',
+    tagline: 'Enterprise Workspace Suite with Apple VideoToolbox & Metal 3',
     version: 'v2.0.0 TestFlight Beta',
     size: '26.1 MB',
+    fileName: '',
     primaryDownload: {
       label: 'Join iOS TestFlight Beta',
       url: 'https://testflight.apple.com/join/workspace180',
-      sublabel: 'Available on iPhone, iPad, and iPad Pro with Apple Pencil',
+      sublabel: 'Available on iPhone, iPad, and iPad Pro with Apple Pencil support',
     },
     alternatives: [
-      { label: 'Download on Apple App Store (Coming Soon)', url: '#app-store' },
-      { label: 'Install as iOS Home Screen PWA', url: '#pwa' },
+      { label: 'Download on Apple App Store (Coming Soon)', url: '#app-store', fileName: '' },
+      { label: 'Install as iOS Home Screen PWA', url: '#pwa', fileName: '' },
     ],
     features: [
-      'Apple VideoToolbox hardware-accelerated 4K ProRes rendering',
-      'WKWebView Metal-backed high frame-rate canvas preview',
-      'Apple Pencil precision timeline scrubbing & keyframe drawing',
-      'Live Activities & dynamic island task progress updates',
+      'Universal iOS Workplace: Unified pipeline for messages, documents, meetings & CRM',
+      'Integrated Mobile Studio: 4K ProRes timeline editing with Apple Pencil precision scrub',
+      'Live Activities & Dynamic Island updates for render jobs, calls, and task deadlines',
+      'Offline-first encrypted vault with bi-directional cloud synchronization',
     ]
   }
 ];
 
 const featureComparison = [
   {
-    feature: 'Video & Timeline Rendering FPS',
+    feature: 'Complete Workspace Apps Included',
+    web: 'All 17 Apps (Browser Tabs)',
+    pwa: 'All 17 Apps (Cached Window)',
+    mobile: 'All 17 Apps (Mobile Native UI)',
+    native: 'All 17 Apps + Native Desktop Engine',
+    highlight: true,
+  },
+  {
+    feature: 'Offline Work & Document Storage',
+    web: 'Requires Active Internet',
+    pwa: 'Cached UI Only',
+    mobile: 'Full Mobile Offline Cache',
+    native: '100% Offline-First Encrypted Vault',
+    highlight: true,
+  },
+  {
+    feature: 'Integrated 4K Media Studio Engine',
     web: '30 FPS (Browser Canvas API)',
     pwa: '45-60 FPS (ServiceWorker Cache)',
     mobile: '60 FPS (MediaCodec / VideoToolbox)',
@@ -155,27 +176,11 @@ const featureComparison = [
     highlight: true,
   },
   {
-    feature: 'Large Video Ingestion (4K/8K)',
+    feature: 'Direct Local Storage (4K Ingestion)',
     web: 'Cloud Upload Wait (Minutes)',
     pwa: 'Cloud Upload Wait (Minutes)',
     mobile: 'Direct Mobile Storage / DCIM (Instant)',
     native: 'Direct NVMe SSD Access (Zero Cloud Upload)',
-    highlight: true,
-  },
-  {
-    feature: 'Hardware GPU Video Silicon',
-    web: 'Sandboxed WebGL2',
-    pwa: 'Sandboxed WebGL2 / WebGPU',
-    mobile: 'Snapdragon Adreno / Apple A-Series GPU',
-    native: 'Direct3D 12, Metal 3, Vulkan, NVENC Hooks',
-    highlight: true,
-  },
-  {
-    feature: 'Offline Heuristic AI Director',
-    web: 'Cloud API Only',
-    pwa: 'Offline UI Only',
-    mobile: 'On-Device Mobile Heuristics',
-    native: '100% Full On-Device Offline AI Compilation',
     highlight: true,
   },
   {
@@ -198,24 +203,24 @@ const featureComparison = [
 
 const faqs = [
   {
-    question: 'What is the difference between Native Desktop, Mobile App, and Web SaaS?',
-    answer: '180 Workspace is a Unified Universal Platform. The Web SaaS runs in any browser tab without installing anything. The Progressive Web App (PWA) adds offline window framing. The Native Desktop App (Windows, macOS, Linux) provides direct hardware access to your GPU (Direct3D 12, Metal, Vulkan), NVENC stream-copy encoders, and local SSD drives for >500 FPS video rendering. The Mobile App (Android & iOS via Capacitor) taps into mobile MediaCodec and VideoToolbox hardware for on-the-go timeline production.'
+    question: 'What is the 180 Workspace Native Desktop App?',
+    answer: 'The 180 Workspace Native Desktop App is the full unified desktop application for Windows, macOS, and Linux. It packages the entire 180 Workspace platform—including CRM, Video Meetings, Team Chat, Cloud Drive, Document Editor, Projects & Sprints, HR Portal, and the Autonomous Media Studio—into a single high-performance desktop application with offline-first synchronization, native system notifications, and direct GPU hardware acceleration.'
   },
   {
-    question: 'How does mobile video editing utilize my phone CPU and GPU?',
-    answer: 'The Android and iOS mobile apps use Capacitor with direct hooks into mobile GPU hardware (Snapdragon Adreno, MediaTek Mali, Apple A/M-Series) via WebGL2/WebGPU compositors and native MediaCodec / VideoToolbox decoders. This allows you to scrub high-resolution video directly from your camera roll without uploading gigabytes to the cloud.'
+    question: 'Is this download just for the video editor or the whole workspace?',
+    answer: 'The installer provides the complete 180 Workspace platform. You get immediate access to all 17 integrated workspace apps plus the built-in GPU-accelerated Media Studio engine, so you never have to juggle multiple separate apps or browser tabs.'
+  },
+  {
+    question: 'Can I use the desktop application completely offline?',
+    answer: 'Yes! The 180 Workspace Native App includes local document compilers, offline task management, local media timeline engines, and local encrypted cache. You can manage your CRM pipeline, write documents, or edit full 4K videos on an airplane or without internet, and your work will automatically sync to your organization when you reconnect.'
   },
   {
     question: 'How do I install the Progressive Web App (PWA)?',
     answer: 'In Google Chrome, Microsoft Edge, or Brave, simply click the "Install App" icon in the address bar, or click "Install PWA" below. On iPhone/iPad Safari, tap "Share" and select "Add to Home Screen". The PWA runs in its own window with offline caching and zero installation prompts.'
   },
   {
-    question: 'Can I use the native desktop application completely offline?',
-    answer: 'Yes! The 180 Workspace Native App includes local timeline compilers, heuristic AI silence trimmers, auto-zoom generators, kinetic caption bounce algorithms, and local storage. You can edit full 4K/8K projects on an airplane or without internet, and your changes will sync to your organization when you reconnect.'
-  },
-  {
     question: 'How does deep linking (workspace180://) work?',
-    answer: 'When you install 180 Workspace Desktop, your operating system registers the custom workspace180:// protocol handler. When you click "Open in Desktop" anywhere in your web dashboard, email, or Slack, Windows, macOS, or Linux immediately launches the native desktop app and opens the exact project or document you requested.'
+    answer: 'When you install 180 Workspace Desktop, your operating system registers the custom workspace180:// protocol handler. When you click "Open in Desktop" anywhere in your web dashboard, email, or Slack, Windows, macOS, or Linux immediately launches the native desktop app and opens the exact project, document, or video timeline you requested.'
   },
   {
     question: 'Is the Desktop & Mobile App free with my 180 Workspace subscription?',
@@ -226,14 +231,14 @@ const faqs = [
 
 <Layout 
   title="Download 180 Workspace Apps | Windows, Mac, Linux, Android, iOS & PWA"
-  description="Download the 180 Workspace unified platform across Native Desktop (Windows, macOS, Linux), Mobile (Android APK, iOS), and Progressive Web App. Hardware-accelerated video editing and enterprise workspace."
+  description="Download the full 180 Workspace unified platform across Native Desktop (Windows, macOS, Linux), Mobile (Android APK, iOS), and Progressive Web App. Complete enterprise suite with CRM, meetings, docs, chat, and built-in hardware-accelerated Media Studio."
   canonicalUrl="https://180workspace.com/download"
   faqs={faqs}
 >
   <JSONLDSchema 
     type="SoftwareApplication"
     name="180 Workspace"
-    description="Unified universal enterprise workspace with hardware-accelerated media studio, CRM, projects, HR, and offline AI director."
+    description="Unified universal enterprise workspace with CRM, team chat, meetings, docs, storage, offline AI director, and hardware-accelerated media studio."
     url="https://180workspace.com/download"
     applicationCategory="BusinessApplication"
   />
@@ -256,7 +261,7 @@ const faqs = [
       </h1>
 
       <p class="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
-        From >500 FPS NVENC GPU video editing on Desktop to seamless Android & iOS mobile management and instant browser PWA access.
+        Experience the entire 180 Workspace suite—CRM, Meetings, Docs, Chat, and hardware-accelerated Media Studio—in one unified, lightning-fast native desktop application.
       </p>
 
       {/* Smart OS Detect Auto-Download Box */}
@@ -269,7 +274,7 @@ const faqs = [
               </div>
               <div class="text-left">
                 <p id="detected-os-text" class="text-sm font-bold text-slate-900 dark:text-white">Detected: Windows 64-bit</p>
-                <p id="detected-specs-text" class="text-xs text-slate-500 dark:text-slate-400">Direct3D 12 • Direct Local Storage</p>
+                <p id="detected-specs-text" class="text-xs text-slate-500 dark:text-slate-400">Full Workspace Suite • Direct3D 12 • Offline Vault</p>
               </div>
             </div>
             <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
@@ -280,6 +285,7 @@ const faqs = [
           <a 
             id="primary-download-btn" 
             href={downloadLinks.windowsExe} 
+            download="180Workspace-Setup-x64.exe"
             class="flex items-center justify-center gap-3 w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base shadow-lg shadow-indigo-600/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
           >
             <svg class="w-5 h-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -293,7 +299,7 @@ const faqs = [
             <span>•</span>
             <span>v2.0.0 Stable</span>
             <span>•</span>
-            <span>Zero Cloud Lag</span>
+            <span>All 17 Apps Included</span>
           </div>
         </div>
       </div>
@@ -306,11 +312,11 @@ const faqs = [
       <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4">
         <a href="#desktop" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-xs">
           <svg class="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          <span>Desktop Apps (Win, Mac, Linux)</span>
+          <span>Desktop Suite (Win, Mac, Linux)</span>
         </a>
         <a href="#mobile" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-xs">
           <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-          <span>Mobile Apps (Android APK & iOS)</span>
+          <span>Mobile Apps (Android & iOS)</span>
         </a>
         <a href="#pwa" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-xs">
           <svg class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
@@ -324,12 +330,12 @@ const faqs = [
   <section id="desktop" class="py-16 lg:py-24 bg-white dark:bg-slate-950">
     <div class="container mx-auto px-4 max-w-7xl space-y-12">
       <div class="text-center space-y-3 max-w-3xl mx-auto">
-        <span class="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Section 1: Desktop Engine</span>
+        <span class="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Section 1: Full Desktop Suite</span>
         <h2 class="text-3xl md:text-4xl font-extrabold text-slate-950 dark:text-white">
-          Native Desktop Applications
+          180 Workspace Native Desktop App
         </h2>
         <p class="text-slate-600 dark:text-slate-400 text-base md:text-lg">
-          Zero-overhead native window runtime with direct GPU Direct3D 12/Metal rendering, NVENC hardware encoding, and direct SSD timeline playback.
+          The complete 180 Workspace platform packaged into a high-performance native desktop application with offline-first synchronization, zero browser overhead, and built-in hardware-accelerated Media Studio.
         </p>
       </div>
 
@@ -354,6 +360,7 @@ const faqs = [
               <div class="space-y-2">
                 <a
                   href={p.primaryDownload.url}
+                  download={p.fileName || undefined}
                   class="flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-xl bg-slate-900 hover:bg-indigo-600 dark:bg-white dark:hover:bg-indigo-500 text-white dark:text-slate-950 dark:hover:text-white font-bold text-sm transition-colors shadow-sm"
                 >
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -364,8 +371,22 @@ const faqs = [
                 <p class="text-[11px] text-center text-slate-500 dark:text-slate-400">{p.primaryDownload.sublabel}</p>
               </div>
 
+              {p.alternatives && p.alternatives.length > 0 && (
+                <div class="pt-2 flex flex-wrap items-center justify-center gap-2">
+                  {p.alternatives.map((alt) => (
+                    <a
+                      href={alt.url}
+                      download={alt.fileName || undefined}
+                      class="text-[11px] text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 underline underline-offset-2"
+                    >
+                      {alt.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+
               <div class="pt-4 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5">
-                <p class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Features</p>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Suite Features</p>
                 <ul class="space-y-2">
                   {p.features.map((f) => (
                     <li class="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -423,6 +444,7 @@ const faqs = [
               <div class="space-y-2">
                 <a
                   href={m.primaryDownload.url}
+                  download={m.fileName || undefined}
                   class="flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors shadow-sm"
                 >
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -434,7 +456,7 @@ const faqs = [
               </div>
 
               <div class="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
-                <p class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Mobile Hardware Features</p>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Mobile Suite Features</p>
                 <ul class="space-y-2">
                   {m.features.map((f) => (
                     <li class="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -481,7 +503,7 @@ const faqs = [
                 rel="noopener noreferrer"
                 class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-sm shadow-lg shadow-indigo-500/30 transition-colors"
               >
-                <span>Launch Instant Web Studio</span>
+                <span>Launch Instant Web Platform</span>
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               </a>
             </div>
@@ -520,7 +542,7 @@ const faqs = [
           Architectural Performance Comparison
         </h2>
         <p class="text-slate-600 dark:text-slate-400 text-base">
-          Choose the right mode for your workflow: from zero-install web browsing to raw native GPU performance.
+          Choose the right mode for your workflow: from zero-install web browsing to raw native desktop power.
         </p>
       </div>
 
@@ -529,11 +551,11 @@ const faqs = [
           <table class="w-full text-left text-sm border-collapse">
             <thead>
               <tr class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800">
-                <th class="p-4 font-bold text-slate-900 dark:text-white w-1/4">Capability / Engine</th>
+                <th class="p-4 font-bold text-slate-900 dark:text-white w-1/4">Capability / Platform</th>
                 <th class="p-4 font-bold text-slate-600 dark:text-slate-400 text-center">Web SaaS</th>
                 <th class="p-4 font-bold text-purple-600 dark:text-purple-400 text-center">Progressive Web App</th>
                 <th class="p-4 font-bold text-emerald-600 dark:text-emerald-400 text-center">Mobile App (Android/iOS)</th>
-                <th class="p-4 font-bold text-indigo-600 dark:text-indigo-400 text-center bg-indigo-50/50 dark:bg-indigo-950/30">Native Desktop App</th>
+                <th class="p-4 font-bold text-indigo-600 dark:text-indigo-400 text-center bg-indigo-50/50 dark:bg-indigo-950/30">Native Desktop Suite</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -579,42 +601,45 @@ const faqs = [
     const downloadBtn = document.getElementById('primary-download-btn');
     const downloadLabel = document.getElementById('primary-download-label');
 
-    const backendUrl = 'http://localhost:5000';
-
     if (ua.includes('android')) {
       if (osText) osText.textContent = 'Detected: Android Device';
-      if (specsText) specsText.textContent = 'MediaCodec Hardware • Snapdragon/Mali WebGL2';
+      if (specsText) specsText.textContent = 'Full Mobile Workspace • MediaCodec GPU Engine';
       if (downloadBtn) {
-        downloadBtn.href = backendUrl + '/api/v1/media-editor/download/android';
+        downloadBtn.href = '/downloads/180Workspace-v1.0.apk';
+        downloadBtn.setAttribute('download', '180Workspace-v1.0.apk');
         if (downloadLabel) downloadLabel.textContent = 'Download Android APK (.apk)';
       }
     } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
       if (osText) osText.textContent = 'Detected: Apple iOS / iPadOS';
-      if (specsText) specsText.textContent = 'VideoToolbox Hardware • Metal 3 Canvas';
+      if (specsText) specsText.textContent = 'Universal Mobile Suite • Metal 3 Canvas';
       if (downloadBtn) {
         downloadBtn.href = 'https://testflight.apple.com/join/workspace180';
+        downloadBtn.removeAttribute('download');
         if (downloadLabel) downloadLabel.textContent = 'Get 180 Workspace on TestFlight';
       }
     } else if (ua.includes('mac')) {
       if (osText) osText.textContent = 'Detected: macOS (Apple Silicon / Intel)';
-      if (specsText) specsText.textContent = 'Metal 3 • ProRes Hardware Acceleration';
+      if (specsText) specsText.textContent = 'Full macOS Suite • Metal 3 • ProRes Engine';
       if (downloadBtn) {
-        downloadBtn.href = backendUrl + '/api/v1/media-editor/download/mac';
-        if (downloadLabel) downloadLabel.textContent = 'Download for Mac (.dmg)';
+        downloadBtn.href = '/downloads/180Workspace-Universal.dmg';
+        downloadBtn.setAttribute('download', '180Workspace-Universal.dmg');
+        if (downloadLabel) downloadLabel.textContent = 'Download 180 Workspace for Mac (.dmg)';
       }
     } else if (ua.includes('linux')) {
       if (osText) osText.textContent = 'Detected: Linux 64-bit';
-      if (specsText) specsText.textContent = 'Vulkan Pipeline • VAAPI Video Acceleration';
+      if (specsText) specsText.textContent = 'Universal Enterprise Suite • Vulkan Engine';
       if (downloadBtn) {
-        downloadBtn.href = backendUrl + '/api/v1/media-editor/download/linux';
-        if (downloadLabel) downloadLabel.textContent = 'Download for Linux (.AppImage)';
+        downloadBtn.href = '/downloads/180Workspace-x86_64.AppImage';
+        downloadBtn.setAttribute('download', '180Workspace-x86_64.AppImage');
+        if (downloadLabel) downloadLabel.textContent = 'Download 180 Workspace for Linux (.AppImage)';
       }
     } else {
       if (osText) osText.textContent = 'Detected: Windows 64-bit';
-      if (specsText) specsText.textContent = 'Direct3D 12 • NVENC Stream-Copy Acceleration';
+      if (specsText) specsText.textContent = 'Full Workspace Suite • Direct3D 12 • Offline Vault';
       if (downloadBtn) {
-        downloadBtn.href = backendUrl + '/api/v1/media-editor/download/windows';
-        if (downloadLabel) downloadLabel.textContent = 'Download for Windows (.exe)';
+        downloadBtn.href = '/downloads/180Workspace-Setup-x64.exe';
+        downloadBtn.setAttribute('download', '180Workspace-Setup-x64.exe');
+        if (downloadLabel) downloadLabel.textContent = 'Download 180 Workspace (.exe)';
       }
     }
   });
