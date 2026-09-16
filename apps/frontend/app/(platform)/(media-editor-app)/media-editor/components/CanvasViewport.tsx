@@ -16,6 +16,7 @@ import {
   Repeat,
   Upload,
   Plus,
+  Film,
 } from "lucide-react";
 import { EditIR, RationalTimeMath, MediaAssetDescriptor } from "@workspace/video-contracts";
 
@@ -31,6 +32,7 @@ interface CanvasViewportProps {
   onStepFrame?: (direction: -1 | 1) => void;
   onAspectRatioChange?: (aspect: "16:9" | "9:16" | "1:1") => void;
   onOpenImport?: () => void;
+  onLoadSampleDemo?: () => void;
 }
 
 export const CanvasViewport: React.FC<CanvasViewportProps> = ({
@@ -45,6 +47,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
   onStepFrame,
   onAspectRatioChange,
   onOpenImport,
+  onLoadSampleDemo,
 }) => {
   const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
@@ -281,12 +284,12 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
   const getAspectClass = () => {
     switch (aspectRatio) {
       case "9:16":
-        return "aspect-[9/16] h-full max-h-full";
+        return "aspect-[9/16] max-h-full max-w-full";
       case "1:1":
-        return "aspect-square h-full max-h-full";
+        return "aspect-square max-h-full max-w-full";
       case "16:9":
       default:
-        return "aspect-video w-full max-w-full max-h-full";
+        return "aspect-video max-h-full max-w-full";
     }
   };
 
@@ -299,6 +302,8 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     }
   };
 
+  const hasActiveMedia = Boolean(activeVideoSrc || overlayLayers.length > 0);
+
   return (
     <div
       ref={containerRef}
@@ -309,15 +314,15 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
         <div
           className={`${getAspectClass()} relative bg-[#000000] border border-[#1F1F24] rounded-xl shadow-2xl shadow-black/90 overflow-hidden flex items-center justify-center transition-all duration-200`}
         >
-          {/* Zoomable Video Layer Container (Camera Spring Zoom) */}
-          <div
-            className="w-full h-full relative overflow-hidden flex items-center justify-center transition-transform duration-150 ease-out"
-            style={{
-              transform: `scale(${zoomScale})`,
-              transformOrigin: `${zoomOriginX}% ${zoomOriginY}%`,
-            }}
-          >
-            {activeVideoSrc || overlayLayers.length > 0 ? (
+          {hasActiveMedia ? (
+            /* Zoomable Video Layer Container (Camera Spring Zoom applies only to real media) */
+            <div
+              className="w-full h-full relative overflow-hidden flex items-center justify-center transition-transform duration-150 ease-out"
+              style={{
+                transform: `scale(${zoomScale})`,
+                transformOrigin: `${zoomOriginX}% ${zoomOriginY}%`,
+              }}
+            >
               <div className="w-full h-full relative flex items-center justify-center">
                 {/* Main Video Layer */}
                 {activeVideoSrc && (
@@ -405,58 +410,74 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                   );
                 })}
               </div>
-            ) : (
-              /* High-End Obsidian Empty State with Official White Logo */
-              <div className="w-full h-full bg-[#000000] flex flex-col items-center justify-center relative select-none p-6">
-                {/* Subtle Dot Grid */}
-                <div className="absolute inset-0 bg-[radial-gradient(#1F1F24_1px,transparent_1px)] [background-size:24px_24px] opacity-35 pointer-events-none" />
 
-                <div className="z-10 flex flex-col items-center text-center max-w-sm">
-                  {/* Official White Logo */}
-                  <div className="w-24 h-24 mb-5 flex items-center justify-center relative group">
-                    <img
-                      src="/white-icon.svg"
-                      alt="180 Media Studio"
-                      className="w-20 h-20 object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.15)] opacity-90 group-hover:opacity-100 transition-opacity"
-                    />
-                  </div>
+              {/* Target Reticle Overlay when Spring Zoom is Active (Only on active media) */}
+              {activeCameraKeyframe && (
+                <div
+                  className="absolute w-28 h-28 border-2 border-indigo-400/80 rounded-xl pointer-events-none animate-pulse flex items-start justify-start p-1.5 shadow-lg shadow-indigo-500/30"
+                  style={{
+                    left: `${zoomOriginX - 14}%`,
+                    top: `${zoomOriginY - 14}%`,
+                  }}
+                >
+                  <span className="text-[9px] font-mono font-bold text-indigo-200 bg-indigo-950/90 px-1.5 py-0.5 rounded border border-indigo-500/40">
+                    FOCUS_ZOOM_{activeCameraKeyframe.scale}X
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* High-End Obsidian Empty State with Official White Logo (Un-zoomed & perfectly centered) */
+            <div className="w-full h-full bg-[#000000] flex flex-col items-center justify-center relative select-none p-4">
+              {/* Subtle Dot Grid */}
+              <div className="absolute inset-0 bg-[radial-gradient(#1F1F24_1px,transparent_1px)] [background-size:24px_24px] opacity-35 pointer-events-none" />
 
-                  <h3 className="text-sm font-semibold text-zinc-200 tracking-tight">
-                    No Media in Timeline
-                  </h3>
-                  <p className="text-xs text-zinc-500 mt-1 mb-5 leading-relaxed">
-                    Import video clips or images to start cutting, arranging, and editing your project.
-                  </p>
+              <div className="z-10 flex flex-col items-center text-center max-w-sm px-4">
+                {/* Official White Logo */}
+                <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3 sm:mb-4 flex items-center justify-center relative group">
+                  <img
+                    src="/white-icon.svg"
+                    onError={(e) => {
+                      e.currentTarget.src = "/white icon.svg";
+                    }}
+                    alt="180 Media Studio"
+                    className="w-14 h-14 sm:w-16 sm:h-16 object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.18)] opacity-90 group-hover:opacity-100 transition-opacity"
+                  />
+                </div>
 
+                <h3 className="text-sm sm:text-base font-semibold text-zinc-100 tracking-tight">
+                  No Media in Timeline
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1 mb-4 leading-relaxed">
+                  Import video clips or images to start cutting, arranging, and editing your project.
+                </p>
+
+                <div className="flex items-center space-x-2.5">
                   {onOpenImport && (
                     <button
                       onClick={onOpenImport}
-                      className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition active:scale-95 shadow-xl shadow-white/10 group cursor-pointer"
+                      className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition active:scale-95 shadow-lg shadow-white/10 group cursor-pointer"
                       title="Import Video or Image Files"
                     >
                       <Plus className="w-4 h-4 text-black group-hover:rotate-90 transition-transform duration-200" />
                       <span>Add Media</span>
                     </button>
                   )}
+
+                  {onLoadSampleDemo && (
+                    <button
+                      onClick={onLoadSampleDemo}
+                      className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#141417] hover:bg-[#1E1E24] text-zinc-300 hover:text-white border border-[#282830] font-semibold text-xs transition active:scale-95 cursor-pointer"
+                      title="Load Sample Demo Footage"
+                    >
+                      <Film className="w-4 h-4 text-indigo-400" />
+                      <span>Load Sample</span>
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
-
-            {/* Target Reticle Overlay when Spring Zoom is Active */}
-            {activeCameraKeyframe && (
-              <div
-                className="absolute w-28 h-28 border-2 border-indigo-400/80 rounded-xl pointer-events-none animate-pulse flex items-start justify-start p-1.5 shadow-lg shadow-indigo-500/30"
-                style={{
-                  left: `${zoomOriginX - 14}%`,
-                  top: `${zoomOriginY - 14}%`,
-                }}
-              >
-                <span className="text-[9px] font-mono font-bold text-indigo-200 bg-indigo-950/90 px-1.5 py-0.5 rounded border border-indigo-500/40">
-                  FOCUS_ZOOM_{activeCameraKeyframe.scale}X
-                </span>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Kinetic Subtitles Dynamic Overlay */}
           {activeCaption && (

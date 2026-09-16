@@ -460,24 +460,33 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
 
           {/* 1. Camera Track Lane */}
-          <div className="h-12 border-b border-surface-border/40 relative bg-[#09090B]/80">
-            {cameraTrack.map((cam) => {
-              const startSec = RationalTimeMath.toSeconds(cam.timeRange.start);
-              const durationSec = RationalTimeMath.toSeconds(cam.timeRange.duration);
-              return (
-                <div
-                  key={cam.id}
-                  className="timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 px-2 flex items-center space-x-1.5 text-amber-300 text-[10px] font-mono shadow-sm cursor-default"
-                  style={{
-                    left: `${startSec * pixelsPerSecond}px`,
-                    width: `${durationSec * pixelsPerSecond}px`,
-                  }}
-                >
-                  <Camera className="w-3 h-3 text-amber-400 shrink-0" />
-                  <span className="truncate font-bold">Auto-Zoom {cam.scale}x (Spring)</span>
-                </div>
-              );
-            })}
+          <div className="h-12 border-b border-surface-border/40 relative bg-[#09090B]/80 flex items-center">
+            {cameraTrack.length > 0 ? (
+              cameraTrack.map((cam) => {
+                const startSec = RationalTimeMath.toSeconds(cam.timeRange.start);
+                const durationSec = RationalTimeMath.toSeconds(cam.timeRange.duration);
+                const widthPx = Math.max(48, durationSec * pixelsPerSecond);
+
+                return (
+                  <div
+                    key={cam.id}
+                    className="timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 px-2 flex items-center space-x-1.5 text-amber-300 text-[10px] font-mono shadow-sm cursor-default min-w-[48px] overflow-hidden"
+                    style={{
+                      left: `${startSec * pixelsPerSecond}px`,
+                      width: `${widthPx}px`,
+                    }}
+                    title={`Auto-Zoom ${cam.scale}x (Spring Physics) [${startSec.toFixed(1)}s - ${(startSec + durationSec).toFixed(1)}s]`}
+                  >
+                    <Camera className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span className="truncate font-bold whitespace-nowrap">Auto-Zoom {cam.scale}x</span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-[10px] text-zinc-600 font-mono italic px-4 select-none pointer-events-none">
+                No camera keyframes on C1
+              </div>
+            )}
           </div>
 
           {/* 2. Captions Track Lane */}
@@ -613,21 +622,79 @@ export const Timeline: React.FC<TimelineProps> = ({
 
           {/* 4. Audio Waveform Track Lane */}
           <div className="h-12 border-b border-surface-border/40 relative bg-[#08080A] flex items-center">
-            <div
-              className="h-8 flex items-center space-x-1 px-3 opacity-75 relative"
-              style={{ width: `${totalDurationSec * pixelsPerSecond}px` }}
-            >
-              {Array.from({ length: Math.max(1, Math.floor((totalDurationSec * pixelsPerSecond) / 6)) }).map((_, i) => {
-                const heightPercent = 25 + Math.abs(Math.sin(i * 0.45) * 65) + (i % 6 === 0 ? 15 : 0);
+            {editIR.tracks.audioTracks &&
+            editIR.tracks.audioTracks[0]?.clips &&
+            editIR.tracks.audioTracks[0].clips.length > 0 ? (
+              editIR.tracks.audioTracks[0].clips.map((aClip) => {
+                const startSec = RationalTimeMath.toSeconds(aClip.timelineRange.start);
+                const durationSec = RationalTimeMath.toSeconds(aClip.timelineRange.duration);
+                const clipWidthPx = durationSec * pixelsPerSecond;
+                const barCount = Math.max(1, Math.floor(clipWidthPx / 6));
+
                 return (
                   <div
-                    key={i}
-                    className="w-1 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-full"
-                    style={{ height: `${heightPercent}%` }}
-                  />
+                    key={aClip.id}
+                    className="timeline-clip absolute top-1 bottom-1 rounded-lg bg-emerald-950/50 border border-emerald-500/40 px-2 flex items-center space-x-1 overflow-hidden group shadow-sm"
+                    style={{
+                      left: `${startSec * pixelsPerSecond}px`,
+                      width: `${clipWidthPx}px`,
+                    }}
+                    title={`Audio Clip: ${aClip.sourcePath.split(/[\/\\]/).pop() || "Audio"} (${durationSec.toFixed(1)}s)`}
+                  >
+                    <div className="flex items-center space-x-0.5 h-full flex-1">
+                      {Array.from({ length: barCount }).map((_, i) => {
+                        const heightPercent = 25 + Math.abs(Math.sin(i * 0.45) * 65) + (i % 6 === 0 ? 15 : 0);
+                        return (
+                          <div
+                            key={i}
+                            className="w-1 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-full"
+                            style={{ height: `${heightPercent}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
-              })}
-            </div>
+              })
+            ) : videoTrack && videoTrack.clips.length > 0 ? (
+              /* Linked Primary Video Audio Waveform for active video clips */
+              videoTrack.clips.map((vClip) => {
+                const startSec = RationalTimeMath.toSeconds(vClip.timelineRange.start);
+                const durationSec = RationalTimeMath.toSeconds(vClip.timelineRange.duration);
+                const clipWidthPx = durationSec * pixelsPerSecond;
+                const barCount = Math.max(1, Math.floor(clipWidthPx / 6));
+
+                return (
+                  <div
+                    key={`v_audio_${vClip.id}`}
+                    className="absolute top-1 bottom-1 rounded-lg bg-emerald-950/20 border border-emerald-500/20 px-2 flex items-center space-x-1 overflow-hidden"
+                    style={{
+                      left: `${startSec * pixelsPerSecond}px`,
+                      width: `${clipWidthPx}px`,
+                    }}
+                    title={`Embedded Audio Track (${durationSec.toFixed(1)}s)`}
+                  >
+                    <div className="flex items-center space-x-0.5 h-full flex-1 opacity-70">
+                      {Array.from({ length: barCount }).map((_, i) => {
+                        const heightPercent = 20 + Math.abs(Math.sin(i * 0.45) * 60);
+                        return (
+                          <div
+                            key={i}
+                            className="w-1 bg-gradient-to-t from-emerald-700 to-emerald-400 rounded-full"
+                            style={{ height: `${heightPercent}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              /* Clean Empty State when no clips exist */
+              <div className="text-[10px] text-zinc-600 font-mono italic px-4 select-none pointer-events-none">
+                No audio clips on track A1
+              </div>
+            )}
           </div>
         </div>
       </div>
