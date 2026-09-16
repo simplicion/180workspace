@@ -52,48 +52,31 @@ class DesktopEngineBridge implements EngineBridge {
 
   async openProject(projectPath?: string): Promise<ProjectPackageManifest> {
     console.log(`[EngineBridge] Opening project: ${projectPath || "Default"}`);
-    // Default initial blank project manifest
     return {
       schemaVersion: 1,
       engineVersion: "0.1.0",
       project: {
-        id: "proj_auton_01",
-        name: "180 Workspace Autonomous Showcase",
+        id: `proj_${Date.now()}`,
+        name: "Untitled Project",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
-      assets: [
-        {
-          id: "asset_sample_1",
-          name: "raw_sample_input.mp4",
-          filePath: "C:/Users/saavi/Desktop/180workspace/scratch/raw_sample_input.mp4",
-          fileSizeBytes: 100903,
-          mimeType: "video/mp4",
-          durationSeconds: 4.0,
-          width: 1280,
-          height: 720,
-          fps: 30,
-          hasAudio: true,
-          codecVideo: "h264",
-          codecAudio: "aac",
-          sha256Hash: "demo_hash_01",
-        },
-      ],
+      assets: [],
       editIR: {
         version: "1.0.0",
         meta: {
-          projectId: "proj_auton_01",
-          title: "180 Workspace Autonomous Showcase",
+          projectId: `proj_${Date.now()}`,
+          title: "Untitled Project",
           targetAspect: "16:9",
           resolution: { width: 1920, height: 1080 },
           fps: { numerator: 30, denominator: 1 },
-          totalDuration: RationalTimeMath.fromSeconds(4.0),
+          totalDuration: RationalTimeMath.fromSeconds(0.0),
         },
         directorStyle: {
           preset: "MRBEAST_FAST",
-          pacingMultiplier: 1.25,
-          zoomAggressiveness: 0.75,
-          brollFrequencySeconds: 12.0,
+          pacingMultiplier: 1.0,
+          zoomAggressiveness: 0.5,
+          brollFrequencySeconds: 10.0,
         },
         tracks: {
           videoTracks: [
@@ -101,127 +84,7 @@ class DesktopEngineBridge implements EngineBridge {
               id: "vtrack_01",
               type: "MAIN_VIDEO",
               zIndex: 0,
-              clips: [
-                {
-                  id: "clip_01",
-                  assetId: "asset_sample_1",
-                  sourcePath: "C:/Users/saavi/Desktop/180workspace/scratch/raw_sample_input.mp4",
-                  sourceRange: {
-                    start: RationalTimeMath.fromSeconds(0.0),
-                    duration: RationalTimeMath.fromSeconds(2.0),
-                  },
-                  timelineRange: {
-                    start: RationalTimeMath.fromSeconds(0.0),
-                    duration: RationalTimeMath.fromSeconds(2.0),
-                  },
-                  transform: {
-                    scale: { start: 1.0, end: 1.0, easing: "spring" },
-                    position: { x: 0, y: 0 },
-                    anchor: { x: 0.5, y: 0.5 },
-                    rotationDeg: 0,
-                    opacity: 1.0,
-                  },
-                  speedMultiplier: 1.0,
-                  effects: [],
-                },
-                {
-                  id: "clip_02",
-                  assetId: "asset_sample_1",
-                  sourcePath: "C:/Users/saavi/Desktop/180workspace/scratch/raw_sample_input.mp4",
-                  sourceRange: {
-                    start: RationalTimeMath.fromSeconds(2.0),
-                    duration: RationalTimeMath.fromSeconds(2.0),
-                  },
-                  timelineRange: {
-                    start: RationalTimeMath.fromSeconds(2.0),
-                    duration: RationalTimeMath.fromSeconds(2.0),
-                  },
-                  transform: {
-                    scale: { start: 1.0, end: 1.0, easing: "spring" },
-                    position: { x: 0, y: 0 },
-                    anchor: { x: 0.5, y: 0.5 },
-                    rotationDeg: 0,
-                    opacity: 1.0,
-                  },
-                  speedMultiplier: 1.0,
-                  effects: [],
-                },
-              ],
-            },
-          ],
-          cameraTrack: [
-            {
-              id: "cam_zoom_01",
-              timeRange: {
-                start: RationalTimeMath.fromSeconds(0.6),
-                duration: RationalTimeMath.fromSeconds(1.4),
-              },
-              targetType: "FACE",
-              targetCoords: { x: 0.5, y: 0.4 },
-              scale: 1.35,
-              spring: { stiffness: 180, damping: 18, mass: 1, overshootClamping: false },
-              motionBlur: true,
-            },
-          ],
-          captionTrack: [
-            {
-              id: "cap_01",
-              timeRange: {
-                start: RationalTimeMath.fromSeconds(0.5),
-                duration: RationalTimeMath.fromSeconds(0.9),
-              },
-              text: "ACTIONABLE RESULTS",
-              style: {
-                preset: "HORMOZI_BOUNCE",
-                fontFamily: "Inter",
-                fontSize: 48,
-                textColor: "#FACC15",
-                highlightColor: "#00FF88",
-                position: { x: 0.5, y: 0.82 },
-                shadow: true,
-              },
-              words: [
-                {
-                  word: "ACTIONABLE",
-                  start: RationalTimeMath.fromSeconds(0.5),
-                  end: RationalTimeMath.fromSeconds(0.9),
-                  highlight: true,
-                  scaleMultiplier: 1.1,
-                },
-              ],
-            },
-            {
-              id: "cap_02",
-              timeRange: {
-                start: RationalTimeMath.fromSeconds(2.2),
-                duration: RationalTimeMath.fromSeconds(0.8),
-              },
-              text: "AUTONOMOUS EDIT",
-              style: {
-                preset: "HORMOZI_BOUNCE",
-                fontFamily: "Inter",
-                fontSize: 48,
-                textColor: "#38BDF8",
-                highlightColor: "#00FF88",
-                position: { x: 0.5, y: 0.82 },
-                shadow: true,
-              },
-              words: [
-                {
-                  word: "AUTONOMOUS",
-                  start: RationalTimeMath.fromSeconds(2.2),
-                  end: RationalTimeMath.fromSeconds(2.6),
-                  highlight: true,
-                  scaleMultiplier: 1.1,
-                },
-                {
-                  word: "EDIT",
-                  start: RationalTimeMath.fromSeconds(2.65),
-                  end: RationalTimeMath.fromSeconds(3.0),
-                  highlight: true,
-                  scaleMultiplier: 1.1,
-                },
-              ],
+              clips: [],
             },
           ],
           audioTracks: [
@@ -233,6 +96,8 @@ class DesktopEngineBridge implements EngineBridge {
               clips: [],
             },
           ],
+          cameraTrack: [],
+          captionTrack: [],
         },
       },
       history: [],
