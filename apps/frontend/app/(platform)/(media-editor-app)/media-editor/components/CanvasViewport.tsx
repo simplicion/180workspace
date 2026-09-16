@@ -32,7 +32,6 @@ interface CanvasViewportProps {
   onStepFrame?: (direction: -1 | 1) => void;
   onAspectRatioChange?: (aspect: "16:9" | "9:16" | "1:1") => void;
   onOpenImport?: () => void;
-  onLoadSampleDemo?: () => void;
 }
 
 export const CanvasViewport: React.FC<CanvasViewportProps> = ({
@@ -47,7 +46,6 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
   onStepFrame,
   onAspectRatioChange,
   onOpenImport,
-  onLoadSampleDemo,
 }) => {
   const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
@@ -461,17 +459,6 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                     >
                       <Plus className="w-4 h-4 text-black group-hover:rotate-90 transition-transform duration-200" />
                       <span>Add Media</span>
-                    </button>
-                  )}
-
-                  {onLoadSampleDemo && (
-                    <button
-                      onClick={onLoadSampleDemo}
-                      className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#141417] hover:bg-[#1E1E24] text-zinc-300 hover:text-white border border-[#282830] font-semibold text-xs transition active:scale-95 cursor-pointer"
-                      title="Load Sample Demo Footage"
-                    >
-                      <Film className="w-4 h-4 text-indigo-400" />
-                      <span>Load Sample</span>
                     </button>
                   )}
                 </div>

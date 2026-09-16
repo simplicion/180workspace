@@ -576,60 +576,6 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [project, historyIndex, history, selectedClipId, currentTimeSeconds]);
 
-  const handleLoadSampleDemo = () => {
-    if (!project) return;
-    const demoAsset: MediaAssetDescriptor = {
-      id: "00000000-0000-0000-0000-000000000001",
-      name: "BigBuckBunny_Sample.mp4",
-      filePath: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      fileSizeBytes: 15000000,
-      mimeType: "video/mp4",
-      durationSeconds: 15.0,
-      width: 1920,
-      height: 1080,
-      fps: 30,
-      hasAudio: true,
-      sha256Hash: "sample-demo-hash-001",
-      codecVideo: "h264",
-      codecAudio: "aac",
-    };
-    const clipDur = RationalTimeMath.fromSeconds(15.0);
-    const demoClip: VideoClip = {
-      id: `clip_sample_${Date.now()}`,
-      assetId: demoAsset.id,
-      sourcePath: demoAsset.filePath,
-      sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDur },
-      timelineRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDur },
-      transform: {
-        scale: { start: 1.0, end: 1.0, easing: "spring" },
-        position: { x: 0, y: 0 },
-        anchor: { x: 0.5, y: 0.5 },
-        rotationDeg: 0,
-        opacity: 1.0,
-      },
-      speedMultiplier: 1.0,
-      effects: [],
-    };
-    const updatedIR: EditIR = {
-      ...project.editIR,
-      meta: {
-        ...project.editIR.meta,
-        totalDuration: clipDur,
-      },
-      tracks: {
-        ...project.editIR.tracks,
-        videoTracks: [{ ...project.editIR.tracks.videoTracks[0], clips: [demoClip] }],
-      },
-    };
-    const nextProject = {
-      ...project,
-      assets: [...project.assets.filter((a) => a.id !== demoAsset.id), demoAsset],
-      editIR: updatedIR,
-    };
-    setProject(nextProject);
-    pushHistory(updatedIR);
-  };
-
   const handlePerformExport = async (settings: { format: string; resolution: string; fps: number }) => {
     if (!project) return;
     setIsExporting(true);
@@ -820,7 +766,6 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                       }
                     }}
                     onRemoveAsset={(id) => setProject({ ...project, assets: project.assets.filter((a) => a.id !== id) })}
-                    onLoadSampleDemo={handleLoadSampleDemo}
                   />
                 ) : (
                   <AIDirectorPanel
@@ -861,7 +806,6 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               onStepFrame={(dir) => setCurrentTimeSeconds((t) => Math.max(0, t + dir * (1 / 30)))}
               onAspectRatioChange={setAspectRatio}
               onOpenImport={() => fileInputRef.current?.click()}
-              onLoadSampleDemo={handleLoadSampleDemo}
             />
           </div>
 

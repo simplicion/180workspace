@@ -24,171 +24,64 @@ export interface SavedProjectSummary {
 
 const STORAGE_FOLDERS_KEY = "180_media_studio_folders";
 const STORAGE_PROJECTS_KEY = "180_media_studio_projects";
+const STORAGE_CLOUD_ASSETS_KEY = "180_media_studio_cloud_assets";
 
-// Default Seed Data
-const DEFAULT_FOLDERS: ProjectFolder[] = [
-  { id: "folder_social", name: "Shorts & Viral Reels", parentId: null, createdAt: new Date().toISOString(), color: "#3B82F6" },
-  { id: "folder_product", name: "Product Walkthroughs", parentId: null, createdAt: new Date().toISOString(), color: "#10B981" },
-  { id: "folder_client", name: "Client Deliverables", parentId: null, createdAt: new Date().toISOString(), color: "#F59E0B" },
-];
-
-const DEFAULT_SAMPLE_PROJECT: SavedProjectSummary = {
-  id: "proj_auton_showcase",
-  name: "180 Studio Showcase",
-  folderId: "folder_social",
-  durationSeconds: 15.0,
-  resolution: { width: 1920, height: 1080 },
-  fps: 30,
-  aspectRatio: "16:9",
-  createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-  updatedAt: new Date().toISOString(),
-  manifest: {
-    schemaVersion: 1,
-    engineVersion: "0.1.0",
-    project: {
-      id: "proj_auton_showcase",
-      name: "180 Studio Showcase",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    assets: [
-      {
-        id: "asset_sample_demo",
-        name: "saas_platform_walkthrough.mp4",
-        filePath: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        fileSizeBytes: 18 * 1024 * 1024,
-        mimeType: "video/mp4",
-        durationSeconds: 15.0,
-        width: 1920,
-        height: 1080,
-        fps: 30,
-        hasAudio: true,
-        codecVideo: "h264",
-        codecAudio: "aac",
-        sha256Hash: "demo_hash_999",
-      },
-    ],
-    editIR: {
-      version: "1.0.0",
-      meta: {
-        projectId: "proj_auton_showcase",
-        title: "180 Studio Showcase",
-        targetAspect: "16:9",
-        resolution: { width: 1920, height: 1080 },
-        fps: { numerator: 30, denominator: 1 },
-        totalDuration: RationalTimeMath.fromSeconds(15.0),
-      },
-      directorStyle: {
-        preset: "MRBEAST_FAST",
-        pacingMultiplier: 1.3,
-        zoomAggressiveness: 0.8,
-        brollFrequencySeconds: 8.0,
-      },
-      tracks: {
-        videoTracks: [
-          {
-            id: "track_v1",
-            type: "MAIN_VIDEO",
-            zIndex: 0,
-            clips: [
-              {
-                id: "clip_showcase_1",
-                assetId: "asset_sample_demo",
-                sourcePath: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                sourceRange: {
-                  start: RationalTimeMath.fromSeconds(0.0),
-                  duration: RationalTimeMath.fromSeconds(15.0),
-                },
-                timelineRange: {
-                  start: RationalTimeMath.fromSeconds(0.0),
-                  duration: RationalTimeMath.fromSeconds(15.0),
-                },
-                transform: {
-                  scale: { start: 1.0, end: 1.0, easing: "spring" },
-                  position: { x: 0, y: 0 },
-                  anchor: { x: 0.5, y: 0.5 },
-                  rotationDeg: 0,
-                  opacity: 1.0,
-                },
-                speedMultiplier: 1.0,
-                effects: [],
-              },
-            ],
-          },
-        ],
-        audioTracks: [
-          {
-            id: "track_a1",
-            type: "PRIMARY_VOICE",
-            volumeDb: 0.0,
-            duckWithSpeech: false,
-            clips: [],
-          },
-          {
-            id: "track_a2",
-            type: "BGM",
-            volumeDb: -6.0,
-            duckWithSpeech: true,
-            clips: [],
-          },
-        ],
-        cameraTrack: [
-          {
-            id: "cam_showcase_1" as any,
-            timeRange: {
-              start: RationalTimeMath.fromSeconds(1.0),
-              duration: RationalTimeMath.fromSeconds(2.5),
-            },
-            targetType: "FACE",
-            targetCoords: { x: 0.5, y: 0.4 },
-            scale: 1.25,
-            spring: { stiffness: 180, damping: 18, mass: 1, overshootClamping: false },
-            motionBlur: true,
-          },
-        ],
-        captionTrack: [
-          {
-            id: "cap_showcase_1" as any,
-            timeRange: {
-              start: RationalTimeMath.fromSeconds(0.5),
-              duration: RationalTimeMath.fromSeconds(2.0),
-            },
-            text: "PRECISION VIDEO EDITING",
-            words: [
-              { word: "PRECISION", start: RationalTimeMath.fromSeconds(0.5), end: RationalTimeMath.fromSeconds(1.4), highlight: true, scaleMultiplier: 1.1 },
-              { word: "VIDEO", start: RationalTimeMath.fromSeconds(1.4), end: RationalTimeMath.fromSeconds(1.8), highlight: false, scaleMultiplier: 1.0 },
-              { word: "EDITING", start: RationalTimeMath.fromSeconds(1.8), end: RationalTimeMath.fromSeconds(2.5), highlight: true, scaleMultiplier: 1.15 },
-            ],
-            style: {
-              preset: "HORMOZI_BOUNCE",
-              fontFamily: "Inter",
-              fontSize: 48,
-              textColor: "#FACC15",
-              highlightColor: "#38BDF8",
-              position: { x: 0.5, y: 0.8 },
-              shadow: true,
-            },
-          },
-        ],
-      },
-    },
-    history: [],
-  },
-};
+export interface CloudMediaAsset {
+  id: string;
+  name: string;
+  type: "video" | "audio" | "image";
+  duration?: string;
+  size: string;
+  resolution?: string;
+  uploadedAt: string;
+  url?: string;
+}
 
 export class ProjectStorageService {
+  // Cloud Media Asset Operations
+  static getCloudAssets(): CloudMediaAsset[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem(STORAGE_CLOUD_ASSETS_KEY);
+      if (!stored) return [];
+      const parsed: CloudMediaAsset[] = JSON.parse(stored);
+      // Filter out any legacy mock assets
+      return parsed.filter(
+        (a) => !["asset_01", "asset_02", "asset_03", "asset_04"].includes(a.id)
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  static saveCloudAsset(asset: CloudMediaAsset): void {
+    if (typeof window === "undefined") return;
+    const existing = this.getCloudAssets().filter((a) => a.id !== asset.id);
+    localStorage.setItem(STORAGE_CLOUD_ASSETS_KEY, JSON.stringify([asset, ...existing]));
+  }
+
+  static deleteCloudAsset(id: string): void {
+    if (typeof window === "undefined") return;
+    const existing = this.getCloudAssets().filter((a) => a.id !== id);
+    localStorage.setItem(STORAGE_CLOUD_ASSETS_KEY, JSON.stringify(existing));
+  }
+
   // Folder Operations
   static getFolders(): ProjectFolder[] {
-    if (typeof window === "undefined") return DEFAULT_FOLDERS;
+    if (typeof window === "undefined") return [];
     try {
       const stored = localStorage.getItem(STORAGE_FOLDERS_KEY);
       if (!stored) {
-        localStorage.setItem(STORAGE_FOLDERS_KEY, JSON.stringify(DEFAULT_FOLDERS));
-        return DEFAULT_FOLDERS;
+        return [];
       }
-      return JSON.parse(stored);
+      const parsed: ProjectFolder[] = JSON.parse(stored);
+      // Clean old default mock folders if present
+      const cleaned = parsed.filter(
+        (f) => !["folder_social", "folder_product", "folder_client"].includes(f.id)
+      );
+      return cleaned;
     } catch {
-      return DEFAULT_FOLDERS;
+      return [];
     }
   }
 
@@ -222,30 +115,23 @@ export class ProjectStorageService {
 
   // Project Operations
   static getProjects(): SavedProjectSummary[] {
-    if (typeof window === "undefined") return [DEFAULT_SAMPLE_PROJECT];
+    if (typeof window === "undefined") return [];
     try {
       const stored = localStorage.getItem(STORAGE_PROJECTS_KEY);
       if (!stored) {
-        localStorage.setItem(STORAGE_PROJECTS_KEY, JSON.stringify([DEFAULT_SAMPLE_PROJECT]));
-        return [DEFAULT_SAMPLE_PROJECT];
+        return [];
       }
       const parsed: SavedProjectSummary[] = JSON.parse(stored);
-      // Clean legacy names and broken external thumbnails
-      const sanitized = parsed.map((p) => {
-        let name = p.name;
-        if (name.includes("Autonomous")) {
-          name = name.replace(/Autonomous\s*/i, "").trim() || "180 Studio Showcase";
-        }
-        const hasBrokenThumbnail = p.thumbnailUrl?.includes("commondatastorage.googleapis.com");
-        return {
-          ...p,
-          name,
-          thumbnailUrl: hasBrokenThumbnail ? undefined : p.thumbnailUrl,
-        };
-      });
-      return sanitized;
+      // Clean legacy mock projects
+      const filtered = parsed.filter(
+        (p) =>
+          p.id !== "proj_auton_showcase" &&
+          !p.id?.startsWith("proj_sample_") &&
+          p.name !== "180 Studio Showcase"
+      );
+      return filtered;
     } catch {
-      return [DEFAULT_SAMPLE_PROJECT];
+      return [];
     }
   }
 

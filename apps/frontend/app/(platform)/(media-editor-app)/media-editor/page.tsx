@@ -66,32 +66,17 @@ export default function MediaEditorDashboardPage() {
       const res = await api.get("/api/v1/media-editor/projects").catch(async () => {
         return await api.get("/api/v1/workspace-tools/video-studio/projects");
       });
-      if (res.data?.data) {
-        setProjects(res.data.data);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setProjects(
+          res.data.data.filter(
+            (p: any) => !p.id?.startsWith("proj_sample_") && p.id !== "proj_auton_showcase"
+          )
+        );
+      } else {
+        setProjects([]);
       }
     } catch {
-      setProjects([
-        {
-          id: "proj_sample_01",
-          companyId: "curr_company",
-          name: "Product Launch Announcement",
-          templatePreset: "SAAS_DEMO",
-          aspectRatio: "16:9",
-          durationSeconds: 124,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "proj_sample_02",
-          companyId: "curr_company",
-          name: "Viral TikTok Feature Teaser",
-          templatePreset: "MRBEAST_FAST",
-          aspectRatio: "9:16",
-          durationSeconds: 45,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]);
+      setProjects([]);
     } finally {
       setLoadingProjects(false);
     }

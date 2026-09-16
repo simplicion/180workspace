@@ -22,7 +22,6 @@ interface AssetBinProps {
   onImportFiles: (files: FileList | File[]) => void;
   onAddClipToTimeline: (asset: MediaAssetDescriptor) => void;
   onRemoveAsset?: (assetId: string) => void;
-  onLoadSampleDemo?: () => void;
 }
 
 export const AssetBin: React.FC<AssetBinProps> = ({
@@ -30,7 +29,6 @@ export const AssetBin: React.FC<AssetBinProps> = ({
   onImportFiles,
   onAddClipToTimeline,
   onRemoveAsset,
-  onLoadSampleDemo,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -200,16 +198,6 @@ export const AssetBin: React.FC<AssetBinProps> = ({
               >
                 Choose Local File...
               </button>
-
-              {onLoadSampleDemo && (
-                <button
-                  onClick={onLoadSampleDemo}
-                  className="w-full py-1.5 px-3 rounded-md bg-[#141417] hover:bg-[#1F1F24] border border-[#1F1F24] text-xs text-indigo-300 flex items-center justify-center space-x-1.5 transition"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Load Sample Demo</span>
-                </button>
-              )}
             </div>
           </div>
         ) : (
