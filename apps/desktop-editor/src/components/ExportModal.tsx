@@ -61,22 +61,20 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none">
-      <div className="w-full max-w-xl bg-surface/95 border border-surface-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+      <div className="w-full max-w-xl bg-[#0A0A0D] border border-[#1C1C22] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
         {/* Header */}
-        <div className="p-4 border-b border-surface-border flex items-center justify-between">
+        <div className="p-4 border-b border-[#1C1C22] bg-[#08080A] flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-indigo-500 to-pink-500 text-white shadow-md shadow-indigo-500/20">
-              <Download className="w-4 h-4" />
-            </div>
+            <img src="/white-icon.svg" alt="180" className="w-5 h-5 object-contain" />
             <div>
-              <h3 className="text-sm font-bold text-gray-100">Export Video</h3>
-              <p className="text-[11px] text-gray-400">Deterministic Smart Stream-Copy Engine</p>
+              <h3 className="text-sm font-semibold text-white">Export Video</h3>
+              <p className="text-[11px] text-zinc-400">Deterministic Smart Stream-Copy Engine</p>
             </div>
           </div>
           {!isExporting && (
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-surface-hover transition"
+              className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-[#16161C] transition"
             >
               <X className="w-4 h-4" />
             </button>
@@ -84,15 +82,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto bg-[#0A0A0D]">
           {/* Smart Stream-Copy Banner */}
-          <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-500/30 flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0">
-              <Zap className="w-5 h-5" />
+          <div className="p-3 rounded-xl bg-[#0E0E12] border border-[#1C1C22] flex items-center space-x-3">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+              <Zap className="w-4 h-4" />
             </div>
             <div className="text-xs">
-              <p className="font-bold text-emerald-300">Lossless Stream-Copy Enabled</p>
-              <p className="text-gray-400 text-[11px] leading-relaxed">
+              <p className="font-semibold text-emerald-300">Lossless Stream-Copy Enabled</p>
+              <p className="text-zinc-400 text-[11px] leading-relaxed">
                 Untouched video segments bypass re-encoding and render at &gt;500 FPS with master source fidelity.
               </p>
             </div>
@@ -102,7 +100,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="space-y-4">
               {/* Resolution Setting */}
               <div>
-                <label className="text-xs font-semibold text-gray-200 block mb-2">
+                <label className="text-xs font-semibold text-zinc-200 block mb-2">
                   Export Resolution
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -117,13 +115,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       onClick={() => setResolution(res.id)}
                       className={`p-3 rounded-xl border text-left transition ${
                         resolution === res.id
-                          ? "bg-indigo-600/20 border-indigo-500 text-white shadow-md shadow-indigo-500/10"
-                          : "bg-surface-subtle/80 border-surface-border text-gray-400 hover:text-gray-200 hover:bg-surface-hover"
+                          ? "bg-[#181822] border-zinc-500 text-white shadow-sm"
+                          : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold">{res.label}</span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface border border-surface-border text-gray-400">
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#08080A] border border-[#1C1C22] text-zinc-400">
                           {res.tag}
                         </span>
                       </div>
@@ -135,7 +133,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               {/* Framerate & Format Controls */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-200 block mb-1.5">
+                  <label className="text-xs font-semibold text-zinc-200 block mb-1.5">
                     Framerate
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -145,8 +143,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         onClick={() => setFps(rate)}
                         className={`p-2 rounded-xl border text-xs font-bold transition text-center ${
                           fps === rate
-                            ? "bg-indigo-600/20 border-indigo-500 text-indigo-300"
-                            : "bg-surface-subtle border-surface-border text-gray-400 hover:text-gray-200 hover:bg-surface-hover"
+                            ? "bg-[#181822] border-zinc-500 text-white"
+                            : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
                         }`}
                       >
                         {rate} FPS
@@ -156,7 +154,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-gray-200 block mb-1.5">
+                  <label className="text-xs font-semibold text-zinc-200 block mb-1.5">
                     Container Format
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -166,8 +164,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         onClick={() => setFormat(fmt)}
                         className={`p-2 rounded-xl border text-xs font-bold uppercase transition text-center ${
                           format === fmt
-                            ? "bg-indigo-600/20 border-indigo-500 text-indigo-300"
-                            : "bg-surface-subtle border-surface-border text-gray-400 hover:text-gray-200 hover:bg-surface-hover"
+                            ? "bg-[#181822] border-zinc-500 text-white"
+                            : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
                         }`}
                       >
                         {fmt}
@@ -182,22 +180,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {/* Export Rendering Progress State */}
           {isExporting && (
             <div className="py-6 space-y-4 text-center">
-              <div className="w-14 h-14 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/30 animate-pulse shadow-lg shadow-indigo-500/25">
-                <Cpu className="w-7 h-7 animate-spin" />
+              <div className="relative flex items-center justify-center w-14 h-14 mx-auto">
+                <div className="w-14 h-14 rounded-full border-2 border-[#1C1C22] border-t-white animate-spin absolute inset-0" />
+                <img src="/white-icon.svg" alt="180" className="w-7 h-7 object-contain" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-gray-100">Rendering Master Video...</h4>
-                <p className="text-[11px] text-gray-400 mt-0.5">Synthesizing audio, spring zoom framing & kinetic captions</p>
+                <h4 className="text-sm font-semibold text-zinc-100">Rendering Master Video...</h4>
+                <p className="text-[11px] text-zinc-400 mt-0.5">Synthesizing audio, spring zoom framing & kinetic captions</p>
               </div>
 
-              <div className="w-full bg-surface-subtle h-3 rounded-full overflow-hidden border border-surface-border">
+              <div className="w-full bg-[#111114] h-2.5 rounded-full overflow-hidden border border-[#1C1C22]">
                 <div
-                  className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-full transition-all duration-150"
+                  className="bg-white h-full transition-all duration-150 rounded-full"
                   style={{ width: `${exportProgress || 0}%` }}
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs font-mono text-gray-400 px-1">
+              <div className="flex items-center justify-between text-xs font-mono text-zinc-400 px-1">
                 <span>{exportProgress || 0}% Completed</span>
                 <span className="text-emerald-400">Stream-Copy @ &gt;500 FPS</span>
               </div>
@@ -207,13 +206,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {/* Export Completed State with Video Preview & Download */}
           {(exportedResult || exportedPath) && (
             <div className="py-2 space-y-3">
-              <div className="flex items-center space-x-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="flex items-center space-x-3 p-3 rounded-xl bg-[#0E0E12] border border-[#1C1C22]">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-emerald-300">Video Rendered Successfully!</h4>
-                  <p className="text-[11px] text-gray-400">
+                  <h4 className="text-xs font-semibold text-emerald-300">Video Rendered Successfully!</h4>
+                  <p className="text-[11px] text-zinc-400">
                     {exportedResult?.downloadName || "master_render.mp4"} • {exportedResult ? `${(exportedResult.sizeBytes / (1024 * 1024)).toFixed(2)} MB` : "Ready"}
                   </p>
                 </div>
@@ -221,7 +220,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
               {/* Video Player Preview */}
               {exportedResult?.blobUrl && (
-                <div className="rounded-xl overflow-hidden border border-surface-border bg-black/60 shadow-xl">
+                <div className="rounded-xl overflow-hidden border border-[#1C1C22] bg-black shadow-xl">
                   <video
                     src={exportedResult.blobUrl}
                     controls
@@ -236,13 +235,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               {exportedResult ? (
                 <button
                   onClick={handleDownloadFile}
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-pink-600 hover:from-indigo-500 hover:to-pink-500 active:scale-98 text-white text-xs font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center space-x-2 transition"
+                  className="w-full py-3 px-4 rounded-xl bg-white hover:bg-zinc-200 active:scale-98 text-black text-xs font-semibold shadow-lg flex items-center justify-center space-x-2 transition"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download Video File ({exportedResult.downloadName})</span>
                 </button>
               ) : (
-                <div className="text-xs text-gray-400 font-mono break-all bg-surface-subtle p-2.5 rounded-xl border border-surface-border">
+                <div className="text-xs text-zinc-400 font-mono break-all bg-[#111114] p-2.5 rounded-xl border border-[#1C1C22]">
                   {exportedPath}
                 </div>
               )}
@@ -251,18 +250,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-surface-border bg-surface-subtle/80 flex items-center justify-end space-x-2.5">
+        <div className="p-4 border-t border-[#1C1C22] bg-[#08080A] flex items-center justify-end space-x-2.5">
           {!isExporting && !exportedResult && !exportedPath && (
             <>
               <button
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-gray-400 hover:text-white transition"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleExport}
-                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 active:scale-95 shadow-lg shadow-indigo-600/30 transition"
+                className="px-5 py-2 rounded-xl text-xs font-semibold text-black bg-white hover:bg-zinc-200 active:scale-95 shadow-sm transition"
               >
                 Start Export
               </button>
@@ -272,7 +271,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {(exportedResult || exportedPath) && (
             <button
               onClick={onClose}
-              className="px-5 py-2 rounded-xl text-xs font-semibold text-gray-200 bg-surface hover:bg-surface-hover border border-surface-border transition"
+              className="px-5 py-2 rounded-xl text-xs font-medium text-zinc-200 bg-[#141418] hover:bg-[#1C1C22] border border-[#1C1C22] transition"
             >
               Close
             </button>

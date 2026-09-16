@@ -34,13 +34,12 @@ const DEFAULT_FOLDERS: ProjectFolder[] = [
 
 const DEFAULT_SAMPLE_PROJECT: SavedProjectSummary = {
   id: "proj_auton_showcase",
-  name: "180 Workspace Autonomous Showcase",
+  name: "180 Studio Showcase",
   folderId: "folder_social",
   durationSeconds: 15.0,
   resolution: { width: 1920, height: 1080 },
   fps: 30,
   aspectRatio: "16:9",
-  thumbnailUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg",
   createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
   updatedAt: new Date().toISOString(),
   manifest: {
@@ -48,7 +47,7 @@ const DEFAULT_SAMPLE_PROJECT: SavedProjectSummary = {
     engineVersion: "0.1.0",
     project: {
       id: "proj_auton_showcase",
-      name: "180 Workspace Autonomous Showcase",
+      name: "180 Studio Showcase",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -73,7 +72,7 @@ const DEFAULT_SAMPLE_PROJECT: SavedProjectSummary = {
       version: "1.0.0",
       meta: {
         projectId: "proj_auton_showcase",
-        title: "180 Workspace Autonomous Showcase",
+        title: "180 Studio Showcase",
         targetAspect: "16:9",
         resolution: { width: 1920, height: 1080 },
         fps: { numerator: 30, denominator: 1 },
@@ -154,9 +153,9 @@ const DEFAULT_SAMPLE_PROJECT: SavedProjectSummary = {
               start: RationalTimeMath.fromSeconds(0.5),
               duration: RationalTimeMath.fromSeconds(2.0),
             },
-            text: "AUTONOMOUS VIDEO EDITING",
+            text: "PRECISION VIDEO EDITING",
             words: [
-              { word: "AUTONOMOUS", start: RationalTimeMath.fromSeconds(0.5), end: RationalTimeMath.fromSeconds(1.4), highlight: true, scaleMultiplier: 1.1 },
+              { word: "PRECISION", start: RationalTimeMath.fromSeconds(0.5), end: RationalTimeMath.fromSeconds(1.4), highlight: true, scaleMultiplier: 1.1 },
               { word: "VIDEO", start: RationalTimeMath.fromSeconds(1.4), end: RationalTimeMath.fromSeconds(1.8), highlight: false, scaleMultiplier: 1.0 },
               { word: "EDITING", start: RationalTimeMath.fromSeconds(1.8), end: RationalTimeMath.fromSeconds(2.5), highlight: true, scaleMultiplier: 1.15 },
             ],
@@ -230,7 +229,21 @@ export class ProjectStorageService {
         localStorage.setItem(STORAGE_PROJECTS_KEY, JSON.stringify([DEFAULT_SAMPLE_PROJECT]));
         return [DEFAULT_SAMPLE_PROJECT];
       }
-      return JSON.parse(stored);
+      const parsed: SavedProjectSummary[] = JSON.parse(stored);
+      // Clean legacy names and broken external thumbnails
+      const sanitized = parsed.map((p) => {
+        let name = p.name;
+        if (name.includes("Autonomous")) {
+          name = name.replace(/Autonomous\s*/i, "").trim() || "180 Studio Showcase";
+        }
+        const hasBrokenThumbnail = p.thumbnailUrl?.includes("commondatastorage.googleapis.com");
+        return {
+          ...p,
+          name,
+          thumbnailUrl: hasBrokenThumbnail ? undefined : p.thumbnailUrl,
+        };
+      });
+      return sanitized;
     } catch {
       return [DEFAULT_SAMPLE_PROJECT];
     }

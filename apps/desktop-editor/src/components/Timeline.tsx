@@ -223,7 +223,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] active:scale-95 text-xs font-semibold text-gray-200 border border-[#26262D] transition shadow-sm"
             title="Split Clip at Playhead (S)"
           >
-            <Scissors className="w-3.5 h-3.5 text-indigo-400" />
+            <Scissors className="w-3.5 h-3.5 text-zinc-300" />
             <span>Split</span>
             <span className="text-[10px] text-gray-500 font-mono">S</span>
           </button>
@@ -246,7 +246,7 @@ export const Timeline: React.FC<TimelineProps> = ({
               className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] text-xs font-medium text-gray-300 border border-[#26262D] disabled:opacity-25 disabled:pointer-events-none transition"
               title="Duplicate Clip (Ctrl+D)"
             >
-              <Copy className="w-3 h-3 text-indigo-400" />
+              <Copy className="w-3 h-3 text-zinc-300" />
               <span>Duplicate</span>
             </button>
           )}
@@ -258,7 +258,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             onClick={() => setIsSnappingEnabled(!isSnappingEnabled)}
             className={`flex items-center space-x-1 px-2 py-1 rounded-md text-xs font-medium border transition ${
               isSnappingEnabled
-                ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/30"
+                ? "bg-[#181822] text-white border-zinc-500"
                 : "bg-[#141417] text-gray-500 border-[#26262D] hover:text-gray-300"
             }`}
             title={isSnappingEnabled ? "Snapping Enabled (N)" : "Snapping Disabled"}
@@ -275,7 +275,7 @@ export const Timeline: React.FC<TimelineProps> = ({
               className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] text-xs font-medium text-gray-300 border border-[#26262D] transition shadow-sm ml-1"
               title="Keyboard Shortcuts (?)"
             >
-              <Keyboard className="w-3.5 h-3.5 text-indigo-400" />
+              <Keyboard className="w-3.5 h-3.5 text-zinc-300" />
               <span>Hotkeys</span>
             </button>
           )}
@@ -285,7 +285,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         <div className="flex items-center space-x-1.5">
           <button
             onClick={() => onZoomChange(Math.max(0.5, zoomLevel - 0.25))}
-            className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-[#1F1F24] transition"
+            className="p-1 rounded-md bg-[#141417] hover:bg-[#1F1F24] text-gray-400 hover:text-gray-200 border border-[#26262D] transition"
             title="Zoom Out (-)"
           >
             <ZoomOut className="w-3.5 h-3.5" />
@@ -366,17 +366,17 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
 
           {/* 3. Main Video Track Header */}
-          <div className="h-16 border-b border-surface-border px-3 flex items-center justify-between text-xs font-semibold text-indigo-400 bg-surface/60">
+          <div className="h-16 border-b border-surface-border px-3 flex items-center justify-between text-xs font-semibold text-zinc-300 bg-[#0A0A0D]">
             <div className="flex items-center space-x-1.5 truncate">
-              <Film className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <Film className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
               <span className="truncate">Video (V1)</span>
             </div>
-            <div className="flex items-center space-x-1 text-gray-400">
+            <div className="flex items-center space-x-1 text-zinc-400">
               <button
                 onClick={() => toggleTrackLock("v1")}
                 className="p-1 hover:text-white transition"
               >
-                {lockedTracks["v1"] ? <Lock className="w-3 h-3 text-indigo-400" /> : <Unlock className="w-3 h-3" />}
+                {lockedTracks["v1"] ? <Lock className="w-3 h-3 text-zinc-300" /> : <Unlock className="w-3 h-3" />}
               </button>
               <button
                 onClick={() => toggleTrackHide("v1")}
@@ -507,10 +507,10 @@ export const Timeline: React.FC<TimelineProps> = ({
                       });
                     }
                   }}
-                  className={`timeline-clip absolute top-1 bottom-1 rounded-xl bg-gradient-to-r from-indigo-950/80 via-zinc-900/80 to-indigo-950/80 border ${
+                  className={`timeline-clip absolute top-1 bottom-1 rounded-xl bg-gradient-to-r from-[#141418] via-[#1A1A22] to-[#141418] border ${
                     isSelected
-                      ? "border-indigo-400 ring-2 ring-indigo-500/50 shadow-xl shadow-indigo-500/30"
-                      : "border-indigo-500/40 hover:border-indigo-400"
+                      ? "border-zinc-400 ring-1 ring-white/20 shadow-xl shadow-black/50"
+                      : "border-[#262630] hover:border-zinc-500"
                   } p-2 flex flex-col justify-between cursor-grab active:cursor-grabbing transition-all group overflow-hidden`}
                   style={{
                     left: `${startSec * pixelsPerSecond}px`,
@@ -530,23 +530,23 @@ export const Timeline: React.FC<TimelineProps> = ({
                         initialDuration: durationSec,
                       });
                     }}
-                    className="absolute left-0 top-0 bottom-0 w-2.5 bg-indigo-400/0 group-hover:bg-indigo-400/40 hover:!bg-indigo-400 cursor-ew-resize transition-colors rounded-l-xl z-10"
+                    className="absolute left-0 top-0 bottom-0 w-2.5 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-l-xl z-10"
                     title="Drag to trim start"
                   />
 
                   {/* Header Row */}
-                  <div className="flex items-center justify-between text-[11px] text-indigo-100 font-semibold px-1">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-200 font-semibold px-1">
                     <span className="truncate flex items-center space-x-1.5">
-                      <Film className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <Film className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                       <span className="truncate">{clip.sourcePath.split(/[\/\\]/).pop()}</span>
                     </span>
-                    <span className="text-[10px] font-mono text-indigo-300 bg-black/40 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-mono text-zinc-300 bg-black/60 px-1.5 py-0.5 rounded border border-white/5">
                       {durationSec.toFixed(1)}s
                     </span>
                   </div>
 
                   {/* Footer Row */}
-                  <div className="flex items-center justify-between text-[9px] font-mono text-indigo-300/80 px-1">
+                  <div className="flex items-center justify-between text-[9px] font-mono text-zinc-400 px-1">
                     <span>Lossless Stream-Copy</span>
                     <span>1.0x</span>
                   </div>
@@ -564,7 +564,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                         initialDuration: durationSec,
                       });
                     }}
-                    className="absolute right-0 top-0 bottom-0 w-2.5 bg-indigo-400/0 group-hover:bg-indigo-400/40 hover:!bg-indigo-400 cursor-ew-resize transition-colors rounded-r-xl z-10"
+                    className="absolute right-0 top-0 bottom-0 w-2.5 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-r-xl z-10"
                     title="Drag to trim end"
                   />
                 </div>

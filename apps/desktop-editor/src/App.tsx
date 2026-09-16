@@ -883,10 +883,13 @@ export const App: React.FC = () => {
 
   if (!project) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#050505] text-zinc-400 font-mono text-xs">
-        <div className="flex flex-col items-center space-y-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 animate-spin" />
-          <span>Loading 180 Media Studio...</span>
+      <div className="h-screen w-screen flex items-center justify-center bg-[#000000] text-zinc-400 font-sans text-xs select-none">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="relative flex items-center justify-center w-12 h-12">
+            <div className="w-12 h-12 rounded-full border-2 border-[#1C1C22] border-t-white animate-spin absolute inset-0" />
+            <img src="/white-icon.svg" alt="180" className="w-6 h-6 object-contain" />
+          </div>
+          <span className="text-zinc-400 tracking-wide font-medium">Loading 180 Media Studio...</span>
         </div>
       </div>
     );
