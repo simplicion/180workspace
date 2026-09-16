@@ -6,7 +6,7 @@ const appCategories = [
   {
     category: "Revenue & Growth",
     apps: [
-      { name: "Voiceforce (AI Calling)", slug: "voiceforce", desc: "Autonomous AI phone agents & global calls", badge: "New" },
+      { name: "Voiceforce (AI Calling)", slug: "voiceforce", desc: "Autonomous AI phone agents & global calls", badge: "AI" },
       { name: "CRM & Sales", slug: "crm-and-sales", desc: "Lead pipelines, deal stages & contracts", badge: "Popular" },
       { name: "Traffic Director", slug: "traffic-director", desc: "Dynamic URL cloaking & bot shielding", badge: "Core" },
       { name: "Finance & Invoicing", slug: "finance", desc: "Cash flow, invoices & vendor bills", badge: "" },
@@ -41,65 +41,92 @@ const appCategories = [
     ]
   }
 ];
+
+const resources = [
+  {
+    title: "Case Studies",
+    href: "/case-studies",
+    desc: "Real-world customer success and Work Graph ROI stories",
+    badge: "Results"
+  },
+  {
+    title: "Developers & API",
+    href: "/developers",
+    desc: "REST APIs, webhooks, and developer SDK documentation",
+    badge: "Docs"
+  },
+  {
+    title: "Blog & Product News",
+    href: "/blog",
+    desc: "Latest release notes, engineering insights, and playbooks",
+    badge: ""
+  },
+  {
+    title: "Work Graph Architecture",
+    href: "/whitepaper",
+    desc: "Architectural blueprint of our zero-redundancy unified database",
+    badge: "Tech"
+  }
+];
 ---
 
-<header class="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
-  <div class="container mx-auto px-4 max-w-7xl flex h-16 items-center justify-between">
+<header class="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-slate-950/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] transition-all">
+  <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex h-16 items-center justify-between gap-4">
     
     {/* Brand Logo */}
-    <div class="flex items-center gap-8">
-      <a href="/" class="flex items-center gap-2.5 group" aria-label="180workspace Home">
-        <img src="/icons/black-icon.svg" alt="180workspace" class="w-9 h-9 group-hover:scale-105 transition-transform dark:hidden" width="36" height="36" />
-        <img src="/icons/white-icon.svg" alt="180workspace" class="w-9 h-9 group-hover:scale-105 transition-transform hidden dark:block" width="36" height="36" />
-        <span class="text-xl font-black tracking-tight text-slate-950 dark:text-white">
-          180<span class="text-indigo-600">workspace</span>
+    <div class="flex items-center gap-6 xl:gap-8 shrink-0">
+      <a href="/" class="flex items-center gap-2.5 group shrink-0" aria-label="180workspace Home">
+        <img src="/icons/black-icon.svg" alt="180workspace" class="w-8 h-8 sm:w-9 sm:h-9 group-hover:scale-105 transition-transform dark:hidden" width="36" height="36" />
+        <img src="/icons/white-icon.svg" alt="180workspace" class="w-8 h-8 sm:w-9 sm:h-9 group-hover:scale-105 transition-transform hidden dark:block" width="36" height="36" />
+        <span class="text-lg sm:text-xl font-black tracking-tight text-slate-950 dark:text-white whitespace-nowrap">
+          180<span class="text-indigo-600 dark:text-indigo-400">workspace</span>
         </span>
       </a>
 
       {/* Desktop Navigation */}
-      <nav class="hidden lg:flex items-center gap-1" aria-label="Main Navigation">
+      <nav class="hidden lg:flex items-center gap-1 xl:gap-1.5" aria-label="Main Navigation">
         
         {/* Apps Mega-Menu Trigger */}
         <div class="relative group">
           <button 
             type="button" 
             aria-expanded="false" 
-            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap cursor-pointer"
           >
             <span>Apps</span>
-            <svg class="w-4 h-4 text-slate-400 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+            <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
           </button>
 
           {/* Mega-Menu Dropdown Panel */}
-          <div class="absolute left-0 top-full pt-2 w-[850px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
-            <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/15 backdrop-blur-2xl">
+          <div class="absolute left-0 top-full pt-2 w-[840px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
+            <div class="bg-white/95 dark:bg-slate-900/95 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/15 backdrop-blur-2xl">
               <div class="grid grid-cols-3 gap-6">
                 {appCategories.slice(0, 3).map((col) => (
                   <div>
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 px-2.5">
+                    <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 px-2">
                       {col.category}
                     </h4>
                     <div class="space-y-1">
                       {col.apps.map((app) => (
                         <a 
                           href={`/apps/${app.slug}`} 
-                          class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group/item"
+                          class="flex items-start gap-2.5 p-2 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-slate-800/80 transition-colors group/item"
                         >
-                          <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 mt-0.5 text-indigo-600 dark:text-indigo-400 group-hover/item:bg-indigo-600 group-hover/item:text-white transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                          <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 mt-0.5 text-indigo-600 dark:text-indigo-400 group-hover/item:bg-indigo-600 group-hover/item:text-white transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                           </div>
-                          <div>
+                          <div class="min-w-0">
                             <div class="flex items-center gap-1.5">
-                              <span class="text-sm font-bold text-slate-900 dark:text-white group-hover/item:text-indigo-600 transition-colors">
+                              <span class="text-xs font-bold text-slate-900 dark:text-white group-hover/item:text-indigo-600 transition-colors truncate">
                                 {app.name}
                               </span>
                               {app.badge && (
-                                <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                <span class="text-[8px] font-black uppercase px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 shrink-0">
                                   {app.badge}
                                 </span>
                               )}
                             </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
                               {app.desc}
                             </p>
                           </div>
@@ -111,9 +138,9 @@ const appCategories = [
               </div>
 
               {/* Mega-Menu Bottom Bar */}
-              <div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between px-2.5 text-xs">
-                <span class="text-slate-500 font-medium">All 15 applications share one unified Work Graph database</span>
-                <a href="/apps" class="font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+              <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-2 text-xs">
+                <span class="text-slate-500 font-medium">All 15 applications operate on one unified Work Graph database</span>
+                <a href="/apps" class="font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors">
                   <span>Explore All Apps Directory</span>
                   <span>→</span>
                 </a>
@@ -122,45 +149,88 @@ const appCategories = [
           </div>
         </div>
 
-        <a href="/download" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors flex items-center gap-1.5">
-          <span>Download</span>
-          <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">App</span>
-        </a>
-        <a href="/tools" class="px-3 py-2 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 rounded-lg hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-colors flex items-center gap-1.5">
-          <span>Free Tools</span>
-          <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Free</span>
-        </a>
-        <a href="/pricing" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+        {/* Pricing */}
+        <a href="/pricing" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap">
           Pricing
         </a>
-        <a href="/enterprise" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+
+        {/* Enterprise */}
+        <a href="/enterprise" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap">
           Enterprise
         </a>
-        <a href="/case-studies" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-          Case Studies
+
+        {/* Free Tools */}
+        <a href="/tools" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors flex items-center gap-1.5 whitespace-nowrap">
+          <span>Free Tools</span>
+          <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shrink-0">
+            ⚡
+          </span>
         </a>
-        <a href="/developers" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-          Developers
+
+        {/* Download App */}
+        <a href="/download" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors flex items-center gap-1.5 whitespace-nowrap">
+          <span>Download</span>
+          <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 shrink-0">
+            App
+          </span>
         </a>
-        <a href="/blog" class="px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-          Blog
-        </a>
+
+        {/* Resources Dropdown */}
+        <div class="relative group">
+          <button 
+            type="button" 
+            aria-expanded="false" 
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap cursor-pointer"
+          >
+            <span>Resources</span>
+            <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+
+          {/* Resources Dropdown Menu */}
+          <div class="absolute left-0 top-full pt-2 w-72 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
+            <div class="bg-white/95 dark:bg-slate-900/95 rounded-2xl p-3 border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-900/10 backdrop-blur-xl space-y-1">
+              {resources.map((res) => (
+                <a 
+                  href={res.href} 
+                  class="block p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group/res"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-900 dark:text-white group-hover/res:text-indigo-600 dark:group-hover/res:text-indigo-400 transition-colors">
+                      {res.title}
+                    </span>
+                    {res.badge && (
+                      <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {res.badge}
+                      </span>
+                    )}
+                  </div>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                    {res.desc}
+                  </p>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+
       </nav>
     </div>
 
-    {/* Auth & CTA Buttons + Mobile Menu Toggle */}
-    <div class="flex items-center gap-3">
+    {/* Auth & CTA Area + Mobile Toggle */}
+    <div class="flex items-center gap-2 sm:gap-3 shrink-0">
       <a 
         href={`${saasUrl}/login`} 
-        class="hidden lg:inline-flex text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 px-3 py-2 rounded-lg transition-colors"
+        class="hidden md:inline-flex text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap"
       >
         Sign In
       </a>
+      
       <a 
         href={`${saasUrl}/signup?plan=momentum`} 
-        class="hidden lg:inline-flex btn-sm-primary"
+        class="inline-flex items-center justify-center gap-1.5 px-4.5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap shrink-0 group cursor-pointer"
       >
-        Start with $12 Plan
+        <span>Start with $12 Plan</span>
+        <svg class="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
 
       {/* Mobile Menu Hamburger Button */}
@@ -170,47 +240,47 @@ const appCategories = [
         aria-label="Toggle mobile menu"
         class="lg:hidden p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
-        <svg id="hamburger-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-        <svg id="close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        <svg id="hamburger-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <svg id="close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
     </div>
 
   </div>
 
   {/* Mobile Navigation Drawer */}
-  <div id="mobile-drawer" class="lg:hidden hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-6 space-y-4">
-    <div class="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
-      <a href="/download" class="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-200 dark:border-indigo-800/60 text-sm font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2 flex items-center justify-center gap-2">
+  <div id="mobile-drawer" class="lg:hidden hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl px-4 py-6 space-y-4">
+    <div class="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+      <a href="/download" class="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-200 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2 flex items-center justify-center gap-2">
         <span>💻 Download Native Desktop App</span>
       </a>
-      <a href="/tools" class="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-sm font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2">
+      <a href="/tools" class="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2">
         ⚡ Free Tools Suite
       </a>
-      <a href="/apps" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/apps" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         All 15 Apps
       </a>
-      <a href="/pricing" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/pricing" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         Pricing Plans
       </a>
-      <a href="/enterprise" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/enterprise" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         Enterprise
       </a>
-      <a href="/case-studies" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/case-studies" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         Case Studies
       </a>
-      <a href="/developers" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/developers" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         Developers
       </a>
-      <a href="/blog" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/blog" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         Blog & News
       </a>
     </div>
-    <div class="flex flex-col gap-2 pt-2">
-      <a href={`${saasUrl}/login`} class="btn-secondary w-full text-center">
+    <div class="flex flex-col gap-2 pt-1">
+      <a href={`${saasUrl}/login`} class="btn-secondary w-full text-center py-2.5 text-xs font-bold">
         Sign In
       </a>
-      <a href={`${saasUrl}/signup?plan=momentum`} class="btn-primary w-full text-center">
-        Start with $12 Plan
+      <a href={`${saasUrl}/signup?plan=momentum`} class="btn-primary w-full text-center py-2.5 text-xs font-bold">
+        Start with $12 Plan →
       </a>
     </div>
   </div>
