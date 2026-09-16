@@ -10,7 +10,6 @@ import {
   Laptop,
   Clock,
   Plus,
-  FolderOpen,
   X,
   ArrowRight,
   AlertTriangle,
@@ -308,79 +307,28 @@ export default function MediaEditorDashboardPage() {
 
   return (
     <div className="space-y-6 pb-16 max-w-7xl mx-auto select-none">
-      {/* 1. Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/60 dark:from-gray-900 dark:via-indigo-950/20 dark:to-gray-900 p-8 shadow-sm dark:shadow-[0_0_40px_rgba(255,255,255,0.03)] backdrop-blur-md">
-        <div className="absolute -right-16 -top-16 w-80 h-80 bg-indigo-500/10 dark:bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center space-x-1.5 bg-indigo-100/80 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-pink-500" />
-                <span>Autonomous Video Production Engine</span>
-              </span>
-              <span className="bg-emerald-100/80 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono px-2.5 py-0.5 rounded-full">
-                Tauri v2 + Rust Core
-              </span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              180 Media Studio
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-              Industrial-grade, local-first NLE powered by deterministic telemetry feature extraction and micro-token AI Creative Direction. Renders untouched cuts at <span className="text-emerald-600 dark:text-emerald-400 font-bold">&gt;500 FPS</span> with zero quality loss.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center justify-center space-x-2 px-5 py-3 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 shadow-sm transition active:scale-95"
-            >
-              <Plus className="w-4 h-4 text-indigo-500" />
-              <span>New Project</span>
-            </button>
-
-            <button
-              onClick={handleOpenWebStudio}
-              className="flex items-center justify-center space-x-2 px-4 py-3 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-500/30 shadow-sm transition active:scale-95"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Web Studio</span>
-            </button>
-
-            <button
-              onClick={() => handleOpenLaunchModal()}
-              className="flex items-center justify-center space-x-2.5 px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/30 transition transform active:scale-95"
-            >
-              <Laptop className="w-4 h-4" />
-              <span>Launch Studio Desktop</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </button>
-          </div>
+      {/* Video Projects Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center space-x-2.5">
+            <Film className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+            <span>Video Projects</span>
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Synced across your organization with instant local hardware acceleration.
+          </p>
         </div>
+
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-500/20 transition active:scale-95 shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>New Project</span>
+        </button>
       </div>
 
-      {/* 4. Cloud Synced Projects Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center space-x-2">
-              <FolderOpen className="w-5 h-5 text-indigo-500" />
-              <span>Your Video Projects</span>
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Synced across your organization with instant local hardware acceleration.
-            </p>
-          </div>
-
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 transition shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Video</span>
-          </button>
-        </div>
-
         {loadingProjects ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="h-36 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
