@@ -31,19 +31,17 @@ interface HeaderBarProps {
   aspectRatio?: "16:9" | "9:16" | "1:1";
   onAspectRatioChange?: (aspect: "16:9" | "9:16" | "1:1") => void;
   onOpenExport: () => void;
-  onOpenCaptions: () => void;
-  onOpenMixer: () => void;
-  onOpenProxies?: () => void;
-  onOpenPlugins: () => void;
-  onOpenCache: () => void;
   onOpenCritic: () => void;
-  onExportOtio: () => void;
   onSave: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onNavigateHome?: () => void;
   isLeftPanelOpen?: boolean;
   onToggleLeftPanel?: () => void;
+  isRightPanelOpen?: boolean;
+  onToggleRightPanel?: () => void;
+  activeRightTab?: string;
+  onSelectRightTab?: (tab: "assets" | "inspector" | "critic" | "captions" | "mixer" | "plugins") => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -54,18 +52,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   canUndo,
   canRedo,
   onOpenExport,
-  onOpenCaptions,
-  onOpenMixer,
-  onOpenPlugins,
-  onOpenCache,
   onOpenCritic,
-  onExportOtio,
   onSave,
   onUndo,
   onRedo,
   onNavigateHome,
   isLeftPanelOpen = true,
   onToggleLeftPanel,
+  isRightPanelOpen = false,
+  onToggleRightPanel,
+  activeRightTab = "assets",
+  onSelectRightTab,
 }) => {
   return (
     <header className="h-12 border-b border-[#1C1C22] bg-[#08080A] flex items-center justify-between px-3 z-30 select-none">
@@ -87,10 +84,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             onClick={onToggleLeftPanel}
             className={`p-1.5 rounded-md border text-xs transition ${
               isLeftPanelOpen
-                ? "bg-[#181822] text-white border-zinc-600"
+                ? "bg-[#181822] text-indigo-300 border-indigo-500/40"
                 : "bg-[#111114] text-zinc-400 hover:text-white border-[#1C1C22] hover:bg-[#18181E]"
             }`}
-            title="Toggle Media Bin / Assets Sidebar"
+            title="Toggle AI Director Panel (Left)"
           >
             <PanelLeft className="w-3.5 h-3.5" />
           </button>
@@ -123,83 +120,27 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <span>Saved</span>
           </span>
 
-          {/* Clean Tenant Workspace Badge (No duplicate names) */}
+          {/* Clean Tenant Workspace Badge */}
           {authSession?.isAuthenticated && (
             <div className="hidden xl:flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-[#111114] border border-[#1F1F24] text-zinc-300 text-[11px]">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span className="font-medium text-zinc-300 truncate max-w-[120px]">
                 {authSession.userName || authSession.companyId || "Workspace"}
               </span>
-              {authSession.companyId &&
-                authSession.userName &&
-                authSession.companyId !== authSession.userName && (
-                  <span className="text-[10px] text-zinc-500 truncate max-w-[90px]">
-                    ({authSession.companyId})
-                  </span>
-                )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Center: Studio Production Workspaces & Pipelines */}
-      <div className="flex items-center space-x-1 bg-[#111114] p-0.5 rounded-lg border border-[#1F1F24]">
-        {/* Core Studio Editors */}
-        <button
-          onClick={onOpenCaptions}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-300 hover:text-white hover:bg-[#1C1C22] transition"
-          title="Captions & Subtitles Studio"
-        >
-          <Subtitles className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Captions</span>
-        </button>
-
-        <button
-          onClick={onOpenMixer}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-300 hover:text-white hover:bg-[#1C1C22] transition"
-          title="Multitrack Audio Mixer & Ducking"
-        >
-          <Sliders className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Mixer</span>
-        </button>
-
+      {/* Center: Simplified QA Critic Button */}
+      <div className="flex items-center space-x-1.5">
         <button
           onClick={onOpenCritic}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-300 hover:text-white hover:bg-[#1C1C22] transition"
-          title="Pacing & Retention Review"
+          className="flex items-center space-x-1.5 px-3 py-1 rounded-md text-xs font-medium bg-[#131118] hover:bg-[#1E1A26] text-pink-300 hover:text-pink-200 border border-pink-500/20 hover:border-pink-500/40 shadow-sm transition active:scale-95"
+          title="AI Critic & Pacing Retention QA"
         >
-          <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Critic</span>
-        </button>
-
-        <div className="h-3.5 w-px bg-[#1F1F24] mx-0.5" />
-
-        {/* Extensions & Pipelines */}
-        <button
-          onClick={onOpenPlugins}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-300 hover:text-white hover:bg-[#1C1C22] transition"
-          title="Sandboxed Plugins & Shaders"
-        >
-          <Puzzle className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Plugins</span>
-        </button>
-
-        <button
-          onClick={onOpenCache}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-300 hover:text-white hover:bg-[#1C1C22] transition"
-          title="Cache & Storage Management"
-        >
-          <Database className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Cache</span>
-        </button>
-
-        <button
-          onClick={onExportOtio}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-300 hover:text-white hover:bg-[#1C1C22] transition"
-          title="Export OpenTimelineIO (Premiere / DaVinci Resolve)"
-        >
-          <FileCode className="w-3.5 h-3.5 text-zinc-400" />
-          <span>OTIO</span>
+          <Sparkles className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+          <span>Critic QA</span>
         </button>
       </div>
 
@@ -228,7 +169,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         <div className="h-4 w-px bg-[#1C1C22]" />
 
-        {/* Engine Status (Clean, no vendor/OpenAI text) */}
+        {/* Engine Status */}
         {isAiProcessing ? (
           <div className="flex items-center space-x-1.5 bg-[#141418] border border-[#22222A] text-zinc-300 text-xs px-2.5 py-1 rounded-md">
             <Sparkles className="w-3.5 h-3.5 animate-spin text-zinc-300" />
