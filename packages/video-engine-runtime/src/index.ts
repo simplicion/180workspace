@@ -10,3 +10,5 @@ export * from "./cache-manager";
 export * from "./intelligence";
 export * from "./cinematic-color-grade-pipeline";
 export * from "./motion-graphic-card-generator";
+export * from "./tools";
+export * from "./planner";

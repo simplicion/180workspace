@@ -1,0 +1,53 @@
+export * from "./base-tool";
+export * from "./registry";
+
+// Analysis Tools
+export * from "./analysis/probe-media.tool";
+export * from "./analysis/speech-transcribe.tool";
+export * from "./analysis/silence-detector.tool";
+
+// Composition Tools
+export * from "./composition/take-curation.tool";
+export * from "./composition/timeline-assembly.tool";
+export * from "./composition/camera-zoom.tool";
+export * from "./composition/kinetic-caption.tool";
+export * from "./composition/audio-ducking.tool";
+
+// Quality Tools
+export * from "./quality/critic-audit.tool";
+
+// Render Tools
+export * from "./render/lossless-render.tool";
+
+import { DirectorToolRegistry } from "./registry";
+import { ProbeMediaTool } from "./analysis/probe-media.tool";
+import { SpeechTranscribeTool } from "./analysis/speech-transcribe.tool";
+import { SilenceDetectorTool } from "./analysis/silence-detector.tool";
+import { TakeCurationTool } from "./composition/take-curation.tool";
+import { TimelineAssemblyTool } from "./composition/timeline-assembly.tool";
+import { CameraZoomTool } from "./composition/camera-zoom.tool";
+import { KineticCaptionTool } from "./composition/kinetic-caption.tool";
+import { AudioDuckingTool } from "./composition/audio-ducking.tool";
+import { CriticAuditTool } from "./quality/critic-audit.tool";
+import { LosslessRenderTool } from "./render/lossless-render.tool";
+
+/**
+ * Initializes the default tools catalog in the singleton registry
+ */
+export function initializeDefaultDirectorTools(): DirectorToolRegistry {
+  const registry = DirectorToolRegistry.getInstance();
+  registry.register(new ProbeMediaTool());
+  registry.register(new SpeechTranscribeTool());
+  registry.register(new SilenceDetectorTool());
+  registry.register(new TakeCurationTool());
+  registry.register(new TimelineAssemblyTool());
+  registry.register(new CameraZoomTool());
+  registry.register(new KineticCaptionTool());
+  registry.register(new AudioDuckingTool());
+  registry.register(new CriticAuditTool());
+  registry.register(new LosslessRenderTool());
+  return registry;
+}
+
+// Auto-initialize on import
+initializeDefaultDirectorTools();
