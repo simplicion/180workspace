@@ -50,7 +50,7 @@ export class VideoStudioController {
   static async executeAIDirector(req: any, res: Response) {
     try {
       const companyId = req.user?.companyId || req.headers["x-company-id"] || req.body?.companyId || req.query?.companyId || "default_company";
-      const { prompt, stylePreset, telemetry } = req.body;
+      const { prompt, stylePreset, telemetry, currentEditIR, availableAssets, selectedClipId, playheadSec } = req.body;
 
       if (!prompt) {
         return res.status(400).json({ success: false, error: "Missing prompt parameter" });
@@ -61,6 +61,10 @@ export class VideoStudioController {
         companyId,
         stylePreset,
         telemetry,
+        currentEditIR,
+        availableAssets,
+        selectedClipId,
+        playheadSec,
       });
 
       return res.status(200).json({ success: true, data: result });

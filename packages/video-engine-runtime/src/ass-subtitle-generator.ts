@@ -9,14 +9,33 @@ export class AssSubtitleGenerator {
   }
 
   /**
+   * Converts standard CSS hex colors (#RRGGBB) to ASS color format (&H00BBGGRR&).
+   */
+  private static hexToAssBgr(hex: string, defaultBgr = "&H0000FFFF&"): string {
+    if (!hex) return defaultBgr;
+    const clean = hex.replace("#", "").trim();
+    if (clean.length === 6) {
+      const r = clean.substring(0, 2);
+      const g = clean.substring(2, 4);
+      const b = clean.substring(4, 6);
+      return `&H00${b}${g}${r}&`;
+    }
+    return defaultBgr;
+  }
+
+  /**
    * Generates a complete, compliant Advanced SubStation Alpha (.ass v4.00+) script
-   * with karaoke word timing, bounce popups, and high-retention styling.
+   * with karaoke word timing, bounce popups, safe-zone margins, and high-retention styling.
    */
   static generateAss(
     captions: CaptionSegment[],
     resolution: { width: number; height: number } = { width: 1920, height: 1080 }
   ): string {
     const lines: string[] = [];
+    const isVertical = resolution.height > resolution.width;
+    const marginV = isVertical ? Math.round(resolution.height * 0.22) : 70;
+    const fontSize = isVertical ? Math.max(38, Math.round(resolution.width * 0.058)) : 48;
+    const outlineSize = isVertical ? 4 : 3;
 
     // 1. Script Info Header
     lines.push("[Script Info]");
@@ -32,12 +51,12 @@ export class AssSubtitleGenerator {
     lines.push("[V4+ Styles]");
     lines.push("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding");
     
-    // Hormozi Style (Bold Yellow text, Pure Black outline & shadow)
-    lines.push("Style: HormoziBounce,Inter,64,&H0000FFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,5,3,2,30,30,80,1");
+    // Hormozi Style (Bold Yellow text, Pure Black outline & shadow, safe margin)
+    lines.push(`Style: HormoziBounce,Arial,${fontSize},&H0000FFFF,&H0000FFFF,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,${outlineSize},3,2,30,30,${marginV},1`);
     // Ali Abdaal Clean (Elegant White with subtle drop shadow)
-    lines.push("Style: AbdaalClean,Inter,48,&H00FFFFFF,&H00FFFFFF,&H001A1A1A,&H60000000,0,0,0,0,100,100,0,0,1,2,2,2,30,30,70,1");
-    // Neon Punch (Vibrant Cyan text)
-    lines.push("Style: NeonPunch,Inter,60,&H00FFFF00,&H00FFFF00,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,4,2,2,30,30,80,1");
+    lines.push(`Style: AbdaalClean,Arial,${Math.round(fontSize * 0.85)},&H00FFFFFF,&H00FFFFFF,&H001A1A1A,&H60000000,0,0,0,0,100,100,0,0,1,2,2,2,30,30,${marginV},1`);
+    // Neon Punch (Vibrant Cyan/Green text)
+    lines.push(`Style: NeonPunch,Arial,${fontSize},&H00FFFF00,&H00FFFF00,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,${outlineSize},3,2,30,30,${marginV},1`);
     lines.push("");
 
     // 3. Dialogue Events
@@ -61,14 +80,17 @@ export class AssSubtitleGenerator {
       let dialogueText = "";
 
       if (cap.words && cap.words.length > 0) {
-        // Build Karaoke string with word timings
+        // Build Karaoke string with word timings & highlight effects
         dialogueText = cap.words
           .map((w) => {
             const wStart = RationalTimeMath.toSeconds(w.start);
             const wEnd = RationalTimeMath.toSeconds(w.end);
             const durationCs = Math.max(1, Math.round((wEnd - wStart) * 100)); // Centiseconds
 
-            const highlightTag = w.highlight ? "{\\c&H0000FFFF&\\fscx115\\fscy115}" : "{\\c&H00FFFFFF&\\fscx100\\fscy100}";
+            const highlightColor = this.hexToAssBgr(w.color || cap.style?.highlightColor || "#00FF88");
+            const highlightTag = w.highlight
+              ? `{\\c${highlightColor}\\fscx115\\fscy115}`
+              : `{\\c&H00FFFFFF&\\fscx100\\fscy100}`;
             return `{\\k${durationCs}}${highlightTag}${w.word}{\\r}`;
           })
           .join(" ");
@@ -92,3 +114,4 @@ export class AssSubtitleGenerator {
     return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
   }
 }
+

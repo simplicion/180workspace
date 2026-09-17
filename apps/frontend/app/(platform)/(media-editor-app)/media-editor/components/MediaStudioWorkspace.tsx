@@ -33,19 +33,29 @@ import { Folder, Sparkles, ArrowLeft, Maximize2, Minimize2 } from "lucide-react"
 import { OtioService } from "../services/otio-service";
 import { engineBridge, CompanyAIStatus, ExportResult } from "../services/tauri-bridge";
 
+function safeUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 interface MediaStudioWorkspaceProps {
-  initialProjectId?: string | null;
-  initialTemplate?: string | null;
-  onExit?: () => void;
+  initialProjectId?: string;
+  initialTemplate?: string;
+  onNavigateHome?: () => void;
 }
 
 export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   initialProjectId,
   initialTemplate,
-  onExit,
+  onNavigateHome,
 }) => {
   const [activeView, setActiveView] = useState<"home" | "editor">(() => {
-    if (initialProjectId) return "editor";
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("project")) return "editor";
@@ -66,6 +76,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16" | "1:1">("16:9");
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiProgress, setAiProgress] = useState<AIDirectorProgressEvent | null>(null);
 
   // Modals state
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -278,6 +289,30 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
   const handleApplyAiPrompt = async (promptText: string) => {
     if (!project) return;
+
+    const trimmed = promptText.trim();
+    const isConsent = /^(yes|proceed|apply|go\s*ahead|looks\s*good|do\s*it|sure|ok|confirm|let's\s*do\s*it|yes\s*go)[!?.]*$/i.test(trimmed);
+    const lastPendingMessage = [...aiMessages].reverse().find((m) => m.pendingConfirmation);
+
+    // If user is confirming an active proposal
+    if (isConsent && lastPendingMessage?.pendingConfirmation?.targetEditIR) {
+      handleConfirmAutonomousEdit(lastPendingMessage);
+      const userMsg: DirectorChatMessage = {
+        id: `msg_user_${Date.now()}`,
+        sender: "user",
+        text: promptText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      const confirmReply: DirectorChatMessage = {
+        id: `msg_dir_${Date.now() + 1}`,
+        sender: "director",
+        text: "✨ Done! I've applied the edit plan to your timeline. Your cuts, camera zooms, and visual styling are now active.\n\nPress **Space** to preview the playback, and let me know if you want to tweak anything!",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setAiMessages((prev) => [...prev, userMsg, confirmReply]);
+      return;
+    }
+
     setIsAiProcessing(true);
 
     const now = new Date();
@@ -299,35 +334,105 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         project.editIR.directorStyle.preset,
         promptText,
         authSession.companyId,
-        project.editIR
+        project.editIR,
+        {
+          availableAssets: project.assets,
+          selectedClipId,
+          playheadSec: currentTimeSeconds,
+          onProgress: (evt: AIDirectorProgressEvent) => setAiProgress(evt),
+        }
       );
 
-      if (result && result.editIR) {
-        pushHistory(result.editIR);
+      if (result) {
+        if (result.requiresConfirmation && result.confirmationDetails) {
+          // PROPOSAL: Wait for user consent before changing timeline!
+          const directorMsg: DirectorChatMessage = {
+            id: `msg_dir_${Date.now()}`,
+            sender: "director",
+            text: result.reply || "I analyzed your media and timeline. Here is the proposed edit plan:",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            actions: result.actions && result.actions.length > 0 ? result.actions : undefined,
+            snapshotEditIR: previousEditIRSnapshot,
+            pendingConfirmation: {
+              whatFound: result.confirmationDetails.whatFound,
+              whatWillChange: result.confirmationDetails.whatWillChange,
+              assumptions: result.confirmationDetails.assumptions,
+              targetEditIR: result.editIR,
+            },
+          };
+          setAiMessages((prev) => [...prev, directorMsg]);
+        } else if (result.actions && result.actions.length > 0 && result.editIR) {
+          // DIRECT SPECIFIC COMMAND: Apply immediately
+          pushHistory(result.editIR);
 
-        const directorMsg: DirectorChatMessage = {
-          id: `msg_dir_${Date.now()}`,
-          sender: "director",
-          text: result.reply || "Timeline AST updated directly according to your instructions.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          actions: result.actions || ["Applied directives to timeline AST"],
-          snapshotEditIR: previousEditIRSnapshot,
-        };
+          const directorMsg: DirectorChatMessage = {
+            id: `msg_dir_${Date.now()}`,
+            sender: "director",
+            text: result.reply || "Applied the edit to your timeline.",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            actions: result.actions,
+            snapshotEditIR: previousEditIRSnapshot,
+          };
 
-        setAiMessages((prev) => [...prev, directorMsg]);
+          setAiMessages((prev) => [...prev, directorMsg]);
+        } else {
+          // CONVERSATIONAL CHAT / GREETING (0 operations):
+          // No timeline change! Pure conversational reply.
+          const directorMsg: DirectorChatMessage = {
+            id: `msg_dir_${Date.now()}`,
+            sender: "director",
+            text: result.reply || "Hey! I'm here to help you brainstorm ideas, structure hooks, and direct your edit. What kind of video are we creating today?",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+
+          setAiMessages((prev) => [...prev, directorMsg]);
+        }
       }
     } catch (err) {
       console.error("AI Director pipeline failed:", err);
       const errorMsg: DirectorChatMessage = {
         id: `msg_dir_err_${Date.now()}`,
         sender: "director",
-        text: "Encountered an issue compiling the timeline AST. Please try another directive.",
+        text: "I encountered an issue discussing that. Let's try again—tell me how you'd like to edit your clips!",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setAiMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsAiProcessing(false);
+      setAiProgress(null);
     }
+
+  };
+
+  const handleConfirmAutonomousEdit = (message: DirectorChatMessage) => {
+    if (message.pendingConfirmation?.targetEditIR) {
+      pushHistory(message.pendingConfirmation.targetEditIR);
+      setAiMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? {
+                ...m,
+                pendingConfirmation: undefined,
+                text: `${m.text}\n\n✅ Edit plan applied to timeline.`,
+              }
+            : m
+        )
+      );
+    }
+  };
+
+  const handleCancelAutonomousEdit = (message: DirectorChatMessage) => {
+    setAiMessages((prev) =>
+      prev.map((m) =>
+        m.id === message.id
+          ? {
+              ...m,
+              pendingConfirmation: undefined,
+              text: `${m.text}\n\n❌ Edit plan cancelled.`,
+            }
+          : m
+      )
+    );
   };
 
   const handleRevertToAiMessage = (msg: DirectorChatMessage) => {
@@ -379,7 +484,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       const clipStart = RationalTimeMath.fromSeconds(currentOffsetSec);
 
       const newClip: VideoClip = {
-        id: `clip_${Date.now()}_${i}`,
+        id: safeUUID(),
         assetId: asset.id,
         sourcePath: asset.filePath,
         sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDuration },
@@ -457,7 +562,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
     const firstClip: VideoClip = {
       ...clipToSplit,
-      id: `clip_${Date.now()}_a`,
+      id: safeUUID(),
       sourceRange: {
         start: clipToSplit.sourceRange.start,
         duration: firstHalfDuration,
@@ -470,7 +575,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
     const secondClip: VideoClip = {
       ...clipToSplit,
-      id: `clip_${Date.now()}_b`,
+      id: safeUUID(),
       sourceRange: {
         start: RationalTimeMath.fromSeconds(
           RationalTimeMath.toSeconds(clipToSplit.sourceRange.start) + splitPointRelSec
@@ -791,7 +896,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                         });
                       } else {
                         const newClip: VideoClip = {
-                          id: `clip_${Date.now()}`,
+                          id: safeUUID(),
                           assetId: asset.id,
                           sourcePath: asset.filePath,
                           sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDuration },
@@ -829,6 +934,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                     onSelectPreset={handleSelectPreset}
                     onApplyPrompt={handleApplyAiPrompt}
                     isProcessing={isAiProcessing}
+                    currentProgress={aiProgress}
                     companyAIStatus={companyAIStatus}
                     onRefreshAIStatus={() => fetchCompanyAIStatus(authSession.companyId)}
                     messages={aiMessages}
@@ -837,7 +943,11 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                     currentAspect={aspectRatio}
                     timelineDurationSec={RationalTimeMath.toSeconds(project.editIR.meta.totalDuration)}
                     clipsCount={project.editIR.tracks.videoTracks[0]?.clips?.length || 0}
+                    selectedClipId={selectedClipId}
+                    onConfirmAutonomousEdit={handleConfirmAutonomousEdit}
+                    onCancelAutonomousEdit={handleCancelAutonomousEdit}
                   />
+
                 )}
               </div>
             </div>
@@ -914,7 +1024,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                 const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start) + RationalTimeMath.toSeconds(clip.timelineRange.duration);
                 const dup: VideoClip = {
                   ...clip,
-                  id: `clip_${Date.now()}`,
+                  id: safeUUID(),
                   timelineRange: {
                     ...clip.timelineRange,
                     start: RationalTimeMath.fromSeconds(startSec),

@@ -139,11 +139,12 @@ export class TrafficLinksService {
 
   static async getLinkByCustomDomain(domain: string) {
     const cleanDomain = domain.toLowerCase().split(':')[0].trim();
+    const subdomainPrefix = cleanDomain.includes('.') ? cleanDomain.split('.')[0] : cleanDomain;
     
     // 1. Try finding in DomainRegistry
     const registry = await db.domainRegistry.findFirst({
       where: {
-        domain: { in: [cleanDomain, `${cleanDomain}.localhost`, cleanDomain.replace('.localhost', '')] },
+        domain: { in: [cleanDomain, `${cleanDomain}.localhost`, cleanDomain.replace('.localhost', ''), subdomainPrefix] },
         type: 'TRAFFIC_LINK'
       }
     });
@@ -168,7 +169,8 @@ export class TrafficLinksService {
           OR: [
             { customDomain: cleanDomain },
             { customDomain: `${cleanDomain}.localhost` },
-            { customDomain: cleanDomain.replace('.localhost', '') }
+            { customDomain: cleanDomain.replace('.localhost', '') },
+            { customDomain: subdomainPrefix }
           ]
         },
         include: {

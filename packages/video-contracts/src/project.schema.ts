@@ -6,7 +6,7 @@ import { CommandTransactionSchema } from "./commands.schema";
  * Imported Media Asset Reference Descriptor
  */
 export const MediaAssetDescriptorSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   name: z.string(),
   filePath: z.string(),
   fileSizeBytes: z.number().int(),
@@ -16,6 +16,10 @@ export const MediaAssetDescriptorSchema = z.object({
   height: z.number().int(),
   fps: z.number(),
   hasAudio: booleanSchema(true),
+  audioChannels: z.number().int().optional(),
+  audioSampleRate: z.number().int().optional(),
+  isAudioOnly: z.boolean().optional(),
+  isVfr: z.boolean().optional(),
   codecVideo: z.string().optional(),
   codecAudio: z.string().optional(),
   proxyPath: z.string().optional(),
@@ -37,9 +41,9 @@ export const ProjectPackageManifestSchema = z.object({
   schemaVersion: z.literal(1),
   engineVersion: z.string().default("0.1.0"),
   project: z.object({
-    id: z.string().uuid(),
+    id: z.string().min(1),
     name: z.string(),
-    companyId: z.string().uuid().optional(),
+    companyId: z.string().min(1).optional(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   }),

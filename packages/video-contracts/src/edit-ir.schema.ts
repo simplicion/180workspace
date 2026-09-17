@@ -68,7 +68,7 @@ export type Transition = z.infer<typeof TransitionSchema>;
  * Video / Overlay Timeline Clip
  */
 export const VideoClipSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   assetId: z.string(),
   sourcePath: z.string(),
   sourceRange: TimeRangeSchema,
@@ -92,7 +92,7 @@ export type VideoClip = z.infer<typeof VideoClipSchema>;
  * Automated Camera Zoom & Attention Track Event
  */
 export const CameraEventSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   timeRange: TimeRangeSchema,
   targetType: z.enum(["FACE", "CURSOR", "OBJECT", "SCREEN_ROI", "MANUAL"]),
   targetCoords: z.object({
@@ -123,7 +123,7 @@ export const TimedWordSchema = z.object({
 export type TimedWord = z.infer<typeof TimedWordSchema>;
 
 export const CaptionSegmentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   timeRange: TimeRangeSchema,
   text: z.string(),
   words: z.array(TimedWordSchema),
@@ -144,7 +144,7 @@ export type CaptionSegment = z.infer<typeof CaptionSegmentSchema>;
  * Audio Track & Dynamic Ducking Envelope
  */
 export const AudioTrackSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   type: z.enum(["PRIMARY_VOICE", "BGM", "SFX", "VOICEOVER"]),
   volumeDb: z.number().default(0.0), // 0dB = unity gain
   duckWithSpeech: z.boolean().default(false),
@@ -157,7 +157,7 @@ export const AudioTrackSchema = z.object({
     .optional(),
   clips: z.array(
     z.object({
-      id: z.string().uuid(),
+      id: z.string().min(1),
       sourcePath: z.string(),
       sourceRange: TimeRangeSchema,
       timelineRange: TimeRangeSchema,
@@ -176,7 +176,7 @@ export type AudioTrack = z.infer<typeof AudioTrackSchema>;
 export const EditIRSchema = z.object({
   version: z.literal("1.0.0"),
   meta: z.object({
-    projectId: z.string().uuid(),
+    projectId: z.string().min(1),
     title: z.string(),
     targetAspect: z.enum(["16:9", "9:16", "1:1", "4:5"]),
     resolution: z.object({
@@ -195,7 +195,7 @@ export const EditIRSchema = z.object({
   tracks: z.object({
     videoTracks: z.array(
       z.object({
-        id: z.string().uuid(),
+        id: z.string().min(1),
         type: z.enum(["MAIN_VIDEO", "B_ROLL_OVERLAY", "STICKER_OVERLAY", "PICTURE_IN_PICTURE"]),
         zIndex: z.number().int(),
         clips: z.array(VideoClipSchema),

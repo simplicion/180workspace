@@ -61,7 +61,6 @@ export default function MediaEditorDashboardPage() {
   // Project Creation Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
-  const [selectedPreset, setSelectedPreset] = useState<string>("MRBEAST_FAST");
   const [selectedAspect, setSelectedAspect] = useState<"16:9" | "9:16" | "1:1">("16:9");
   const [isCreating, setIsCreating] = useState(false);
 
@@ -265,7 +264,7 @@ export default function MediaEditorDashboardPage() {
           totalDuration: { value: 0, timescale: 30 },
         },
         directorStyle: {
-          preset: selectedPreset,
+          preset: "CUSTOM",
           pacingMultiplier: 1.0,
           zoomAggressiveness: 0.5,
           brollFrequencySeconds: 15.0,
@@ -289,13 +288,13 @@ export default function MediaEditorDashboardPage() {
       try {
         res = await api.post("/api/v1/media-editor/projects", {
           name: projectName.trim(),
-          templatePreset: selectedPreset,
+          templatePreset: "CUSTOM",
           editIR: newEditIR,
         });
       } catch {
         res = await api.post("/api/v1/workspace-tools/video-studio/projects", {
           name: projectName.trim(),
-          templatePreset: selectedPreset,
+          templatePreset: "CUSTOM",
           editIR: newEditIR,
         });
       }
@@ -305,11 +304,11 @@ export default function MediaEditorDashboardPage() {
       setIsCreateModalOpen(false);
       setProjectName("");
       fetchProjects();
-      handleOpenWebStudio(createdProjId, selectedPreset);
+      handleOpenWebStudio(createdProjId, "CUSTOM");
     } catch {
       toast.success("Project saved locally! Opening Web Studio...");
       setIsCreateModalOpen(false);
-      handleOpenWebStudio(undefined, selectedPreset);
+      handleOpenWebStudio(undefined, "CUSTOM");
     } finally {
       setIsCreating(false);
     }
@@ -678,22 +677,6 @@ export default function MediaEditorDashboardPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                  Director Style Preset
-                </label>
-                <select
-                  value={selectedPreset}
-                  onChange={(e) => setSelectedPreset(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
-                >
-                  <option value="MRBEAST_FAST">MrBeast Fast (Viral Retention, Jump-Cuts)</option>
-                  <option value="ALI_ABDAAL_CLEAN">Ali Abdaal Clean (Calm, Minimal, Face-Framed)</option>
-                  <option value="HORMOZI_PUNCH">Hormozi Punch (Kinetic Bouncy Word Captions)</option>
-                  <option value="SAAS_DEMO">SaaS Demo (Screen ROI, Cursor Tracking)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                   Aspect Ratio
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -716,6 +699,11 @@ export default function MediaEditorDashboardPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="pt-1 text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span>You can instruct the AI Creative Director naturally inside the studio editor.</span>
               </div>
 
               <div className="pt-3 flex items-center justify-end space-x-2">

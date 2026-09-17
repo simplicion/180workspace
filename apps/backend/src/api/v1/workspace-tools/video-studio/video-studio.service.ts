@@ -158,12 +158,23 @@ export class VideoStudioService {
     companyId: string;
     stylePreset?: string;
     telemetry?: any;
+    currentEditIR?: any;
+    availableAssets?: any[];
+    selectedClipId?: string | null;
+    playheadSec?: number;
   }) {
     return await (videoAIDirectorService as any).compileAST({
       prompt: params.prompt,
       companyId: params.companyId,
-      stylePreset: params.stylePreset || "MRBEAST_FAST",
-      telemetry: params.telemetry,
+      userId: "user_api",
+      existingAST: params.currentEditIR,
+      meta: {
+        stylePreset: params.stylePreset || "MRBEAST_FAST",
+        telemetry: params.telemetry,
+        availableAssets: params.availableAssets,
+        selectedClipId: params.selectedClipId,
+        playheadSec: params.playheadSec,
+      },
     });
   }
 }

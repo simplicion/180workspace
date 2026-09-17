@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const nextConfig = {
-    transpilePackages: ['@workspace/ui', '@workspace/common'],
+    transpilePackages: ['@workspace/ui', '@workspace/common', '@workspace/video-contracts'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
     output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
     outputFileTracingRoot: path.join(__dirname, '../../'),

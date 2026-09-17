@@ -64,3 +64,16 @@ apps/backend/debug-module-guard.txt
 apps/backend/perf-analysis.jsonl
 apps/worker/perf-analysis.jsonl
 scratch/
+
+# Media & Generated Video/Audio
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.wav
+*.mp3
+*.aac
+*.m4a
+*.flac
+
