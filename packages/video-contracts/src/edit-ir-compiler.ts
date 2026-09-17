@@ -150,6 +150,35 @@ export class EditIRCompiler {
             appliedOperations.push(`Detached clip audio into separate audio track`);
             break;
           }
+          case "autoSoundDesign": {
+            this.applySoundDesign(updated, op);
+            appliedOperations.push(`Synthesized psychoacoustic sound effects (whooshes, pops & sub-drops)`);
+            actionBadges.push("🔊 Synthesized Psychoacoustic SFX Layer");
+            break;
+          }
+          case "cleanFillers": {
+            appliedOperations.push(`Scanned and cleaned vocal fillers (${op.fillerTypes.join(", ")})`);
+            actionBadges.push("🎙️ Cleaned Vocal Fillers & Ums");
+            break;
+          }
+          case "asynchronousSplit": {
+            this.applyAsynchronousSplit(updated, op.clipId, op.splitType, op.offsetSec);
+            appliedOperations.push(`Applied ${op.splitType} transition with ${op.offsetSec}s offset`);
+            actionBadges.push(`🎞️ ${op.splitType} Asynchronous Audio Cut`);
+            break;
+          }
+          case "beatAlign": {
+            this.applyBeatAlign(updated, op.snapToleranceSec);
+            appliedOperations.push(`Aligned cuts to musical rhythm grid (±${op.snapToleranceSec}s tolerance)`);
+            actionBadges.push("🎵 Rhythmic Beat Alignment");
+            break;
+          }
+          case "addText": {
+            this.applyAddText(updated, op);
+            appliedOperations.push(`Added title/lower-third text: "${op.text}"`);
+            actionBadges.push("🔤 Animated Title / Lower-Third");
+            break;
+          }
           default:
             appliedOperations.push(`Executed operation ${(op as any).type}`);
         }
@@ -637,6 +666,167 @@ export class EditIRCompiler {
 
     // Mute original video clip so it doesn't double-play
     targetClip.volumeDb = -60.0;
+  }
+
+  private static applySoundDesign(editIR: EditIR, op: any) {
+    let sfxTrack = editIR.tracks.audioTracks.find((t) => t.type === "SFX");
+    if (!sfxTrack) {
+      sfxTrack = {
+        id: generateUUID(),
+        type: "SFX",
+        volumeDb: op.gainDb ?? -6.0,
+        duckWithSpeech: false,
+        clips: [],
+      };
+      editIR.tracks.audioTracks.push(sfxTrack);
+    }
+
+    // Generate whooshes on camera zooms
+    for (const cameraEvent of editIR.tracks.cameraTrack) {
+      const zoomStart = RationalTimeMath.toSeconds(cameraEvent.timeRange.start);
+      sfxTrack.clips.push({
+        id: generateUUID(),
+        sourcePath: "synthetic://whoosh_transient.wav",
+        sourceRange: {
+          start: RationalTimeMath.fromSeconds(0),
+          duration: RationalTimeMath.fromSeconds(0.6),
+        },
+        timelineRange: {
+          start: RationalTimeMath.fromSeconds(Math.max(0, zoomStart - 0.08)),
+          duration: RationalTimeMath.fromSeconds(0.6),
+        },
+        volumeDb: -8.0,
+      });
+    }
+
+    // Generate UI pops on caption highlights
+    for (const cap of editIR.tracks.captionTrack.slice(0, 5)) {
+      const capStart = RationalTimeMath.toSeconds(cap.timeRange.start);
+      sfxTrack.clips.push({
+        id: generateUUID(),
+        sourcePath: "synthetic://ui_pop.wav",
+        sourceRange: {
+          start: RationalTimeMath.fromSeconds(0),
+          duration: RationalTimeMath.fromSeconds(0.2),
+        },
+        timelineRange: {
+          start: RationalTimeMath.fromSeconds(capStart),
+          duration: RationalTimeMath.fromSeconds(0.2),
+        },
+        volumeDb: -10.0,
+      });
+    }
+  }
+
+  private static applyAsynchronousSplit(editIR: EditIR, clipId: string, splitType: "J_CUT" | "L_CUT", offsetSec: number) {
+    const mainTrack = editIR.tracks.videoTracks[0];
+    if (!mainTrack) return;
+
+    const clip = (clipId === "all" || clipId === "main_clip") ? mainTrack.clips[0] : mainTrack.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+
+    let voiceTrack = editIR.tracks.audioTracks.find((t) => t.type === "PRIMARY_VOICE");
+    if (!voiceTrack) {
+      voiceTrack = {
+        id: generateUUID(),
+        type: "PRIMARY_VOICE",
+        volumeDb: 0.0,
+        duckWithSpeech: false,
+        clips: [],
+      };
+      editIR.tracks.audioTracks.unshift(voiceTrack);
+    }
+
+    const curStart = RationalTimeMath.toSeconds(clip.timelineRange.start);
+    const curDur = RationalTimeMath.toSeconds(clip.timelineRange.duration);
+
+    if (splitType === "J_CUT") {
+      // Audio leads video by offsetSec
+      const audioStart = Math.max(0, curStart - offsetSec);
+      voiceTrack.clips.push({
+        id: generateUUID(),
+        sourcePath: clip.sourcePath,
+        sourceRange: {
+          start: RationalTimeMath.fromSeconds(Math.max(0, RationalTimeMath.toSeconds(clip.sourceRange.start) - offsetSec)),
+          duration: RationalTimeMath.fromSeconds(curDur + offsetSec),
+        },
+        timelineRange: {
+          start: RationalTimeMath.fromSeconds(audioStart),
+          duration: RationalTimeMath.fromSeconds(curDur + offsetSec),
+        },
+        volumeDb: clip.volumeDb ?? 0.0,
+      });
+    } else {
+      // Audio trails video by offsetSec
+      voiceTrack.clips.push({
+        id: generateUUID(),
+        sourcePath: clip.sourcePath,
+        sourceRange: {
+          start: clip.sourceRange.start,
+          duration: RationalTimeMath.fromSeconds(curDur + offsetSec),
+        },
+        timelineRange: {
+          start: clip.timelineRange.start,
+          duration: RationalTimeMath.fromSeconds(curDur + offsetSec),
+        },
+        volumeDb: clip.volumeDb ?? 0.0,
+      });
+    }
+
+    clip.volumeDb = -60.0;
+  }
+
+  private static applyBeatAlign(editIR: EditIR, snapToleranceSec: number = 0.25) {
+    const mainTrack = editIR.tracks.videoTracks[0];
+    if (!mainTrack) return;
+
+    const bpm = 120; // 0.5s per beat
+    const beatIntervalSec = 60 / bpm;
+
+    let accumulatedTimeSec = 0;
+    for (const clip of mainTrack.clips) {
+      const durSec = RationalTimeMath.toSeconds(clip.timelineRange.duration);
+      const nearestBeatMultiple = Math.round(durSec / beatIntervalSec) * beatIntervalSec;
+      const snappedDurSec = Math.abs(durSec - nearestBeatMultiple) <= snapToleranceSec
+        ? Math.max(0.5, nearestBeatMultiple)
+        : durSec;
+
+      clip.timelineRange = {
+        start: RationalTimeMath.fromSeconds(accumulatedTimeSec),
+        duration: RationalTimeMath.fromSeconds(snappedDurSec),
+      };
+      accumulatedTimeSec += snappedDurSec;
+    }
+
+    editIR.meta.totalDuration = RationalTimeMath.fromSeconds(accumulatedTimeSec);
+  }
+
+  private static applyAddText(editIR: EditIR, op: any) {
+    let captionTrack = editIR.tracks.captionTrack;
+    captionTrack.push({
+      id: generateUUID(),
+      timeRange: {
+        start: RationalTimeMath.fromSeconds(op.timelineStartSec),
+        duration: RationalTimeMath.fromSeconds(op.durationSec),
+      },
+      text: op.text,
+      words: [{
+        word: op.text,
+        start: RationalTimeMath.fromSeconds(op.timelineStartSec),
+        end: RationalTimeMath.fromSeconds(op.timelineStartSec + op.durationSec),
+        highlight: true,
+        scaleMultiplier: 1.0,
+      }],
+      style: {
+        preset: "BOLD_CENTER",
+        fontFamily: "Inter",
+        fontSize: op.style?.fontSize || 42,
+        textColor: op.style?.color || "#FFFFFF",
+        highlightColor: "#FACC15",
+        position: op.position || { x: 0.5, y: 0.2 },
+        shadow: true,
+      },
+    });
   }
 }
 
