@@ -525,11 +525,13 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         id: `voice_track_${Date.now()}`,
         type: "PRIMARY_VOICE",
         volumeDb: 0.0,
+        duckWithSpeech: false,
         clips: [],
       };
       existingAudioTracks.unshift(voiceTrack);
     }
 
+    const targetVoiceTrackId = voiceTrack.id;
     const detachedAudioClip = {
       id: `aclip_detached_${Date.now()}`,
       sourcePath: clip.sourcePath,
@@ -539,7 +541,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     };
 
     const updatedAudioTracks = existingAudioTracks.map((t) =>
-      t.id === voiceTrack!.id ? { ...t, clips: [...t.clips, detachedAudioClip] } : t
+      t.id === targetVoiceTrackId ? { ...t, clips: [...t.clips, detachedAudioClip] } : t
     );
 
     // Mute the video clip
