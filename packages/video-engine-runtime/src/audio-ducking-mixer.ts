@@ -1,7 +1,7 @@
 import ffmpeg from "./ffmpeg-setup";
 import * as path from "path";
 import * as fs from "fs";
-import { AudioTrack, AudioDuckingConfig } from "@workspace/video-contracts";
+import { AudioTrack, AudioDuckingConfig, RationalTimeMath } from "@workspace/video-contracts";
 
 export class AudioDuckingMixer {
   /**
@@ -11,7 +11,7 @@ export class AudioDuckingMixer {
     tracks: AudioTrack[],
     options: { duckThresholdDb?: number; attenuationDb?: number; attackMs?: number; releaseMs?: number } = {}
   ): string {
-    const dialogueTrack = tracks.find((t) => (t.type === "PRIMARY_VOICE" || (t.type as any) === "DIALOGUE"));
+    const dialogueTrack = tracks.find((t) => t.type === "PRIMARY_VOICE" || (t.type as any) === "DIALOGUE");
     const bgmTrack = tracks.find((t) => t.type === "BGM");
 
     if (dialogueTrack && bgmTrack) {
@@ -37,7 +37,6 @@ export class AudioDuckingMixer {
   /**
    * Generates an FFmpeg complex filter string to dynamically duck Background Music
    * whenever Dialogue audio exceeds the specified volume threshold.
-   * Hardened: Pre-formats all inputs to stereo 48kHz to eliminate mono/stereo channel mismatches.
    */
   static buildDuckingFiltergraph(
     dialogueInputIndex: number,
@@ -51,14 +50,9 @@ export class AudioDuckingMixer {
       holdMs: 100,
     }
   ): string {
-    const thresholdLin = Math.pow(10, config.thresholdDb / 20); // convert dB to linear amplitude
+    const thresholdLin = Math.pow(10, config.thresholdDb / 20);
     const ratio = Math.abs(config.duckAmountDb) / 4;
 
-    // Production Hardening:
-    // 1. Format BGM to 48kHz stereo
-    // 2. Format Dialogue (even if mono lavalier) to 48kHz stereo
-    // 3. Sidechain compression
-    // 4. Mix both stereo streams
     return (
       `[${bgmInputIndex}:a]aformat=channel_layouts=stereo:sample_rates=48000[bgm_fmt];` +
       `[${dialogueInputIndex}:a]aformat=channel_layouts=stereo:sample_rates=48000,asplit=2[dia_sc][dia_mix];` +
@@ -70,8 +64,96 @@ export class AudioDuckingMixer {
   }
 
   /**
-   * Mixes multiple audio tracks with speech ducking into a master AAC audio track.
-   * Gracefully handles cases where dialogue video has no audio stream.
+   * Mixes Dialogue, Ducked BGM, and all timeline SFX transients into a single master stereo AAC track.
+   */
+  static async mixProjectAudio(
+    dialoguePath: string,
+    tracks: AudioTrack[],
+    outputPath: string,
+    config?: AudioDuckingConfig
+  ): Promise<string> {
+    const bgmTrack = tracks.find((t) => t.type === "BGM");
+    const bgmClip = bgmTrack?.clips[0];
+    const sfxTrack = tracks.find((t) => t.type === "SFX");
+    const sfxClips = sfxTrack?.clips || [];
+
+    const hasBgm = bgmClip && fs.existsSync(bgmClip.sourcePath);
+    const validSfxClips = sfxClips.filter((c) => fs.existsSync(c.sourcePath));
+
+    if (!hasBgm && validSfxClips.length === 0) {
+      if (dialoguePath !== outputPath) {
+        fs.copyFileSync(dialoguePath, outputPath);
+      }
+      return outputPath;
+    }
+
+    let cmd = ffmpeg(dialoguePath);
+    let inputIdx = 1;
+    let bgmIdx = -1;
+    const sfxIndices: { idx: number; delayMs: number; volumeDb: number }[] = [];
+
+    if (hasBgm) {
+      cmd = cmd.input(bgmClip!.sourcePath);
+      bgmIdx = inputIdx++;
+    }
+
+    for (const sfx of validSfxClips) {
+      cmd = cmd.input(sfx.sourcePath);
+      const delayMs = Math.max(0, Math.round(RationalTimeMath.toSeconds(sfx.timelineRange.start) * 1000));
+      sfxIndices.push({ idx: inputIdx++, delayMs, volumeDb: sfx.volumeDb ?? -3.0 });
+    }
+
+    let filterComplex = "";
+    let mixInputs: string[] = [];
+
+    if (hasBgm) {
+      const thresholdLin = Math.pow(10, (config?.thresholdDb ?? -24.0) / 20);
+      const ratio = Math.abs(config?.duckAmountDb ?? -18.0) / 4;
+      filterComplex +=
+        `[${bgmIdx}:a]aformat=channel_layouts=stereo:sample_rates=48000[bgm_fmt];` +
+        `[0:a]aformat=channel_layouts=stereo:sample_rates=48000,asplit=2[dia_sc][dia_mix];` +
+        `[bgm_fmt][dia_sc]sidechaincompress=threshold=${thresholdLin.toFixed(
+          4
+        )}:ratio=${ratio.toFixed(2)}:attack=${config?.attackMs ?? 120}:release=${config?.releaseMs ?? 350}[ducked_bgm];`;
+      mixInputs.push("[dia_mix]", "[ducked_bgm]");
+    } else {
+      filterComplex += `[0:a]aformat=channel_layouts=stereo:sample_rates=48000[dia_mix];`;
+      mixInputs.push("[dia_mix]");
+    }
+
+    for (let i = 0; i < sfxIndices.length; i++) {
+      const s = sfxIndices[i];
+      const label = `sfx_delayed_${i}`;
+      const volLinear = Math.pow(10, s.volumeDb / 20).toFixed(2);
+      filterComplex += `[${s.idx}:a]aformat=channel_layouts=stereo:sample_rates=48000,volume=${volLinear},adelay=${s.delayMs}|${s.delayMs}[${label}];`;
+      mixInputs.push(`[${label}]`);
+    }
+
+    filterComplex += `${mixInputs.join("")}amix=inputs=${mixInputs.length}:duration=first:dropout_transition=0[out_audio]`;
+
+    return new Promise((resolve, reject) => {
+      cmd
+        .complexFilter(filterComplex, ["out_audio"])
+        .audioCodec("aac")
+        .audioBitrate("256k")
+        .output(outputPath)
+        .on("end", () => resolve(outputPath))
+        .on("error", (err: any) => {
+          console.warn("[AudioDuckingMixer] Fallback mix due to error:", err.message);
+          // Fallback to simple dialogue copy
+          try {
+            fs.copyFileSync(dialoguePath, outputPath);
+            resolve(outputPath);
+          } catch (e) {
+            reject(err);
+          }
+        })
+        .run();
+    });
+  }
+
+  /**
+   * Backwards compatible 2-track mixer
    */
   static async mixTracks(
     dialoguePath: string,
@@ -79,54 +161,28 @@ export class AudioDuckingMixer {
     outputPath: string,
     config?: AudioDuckingConfig
   ): Promise<string> {
-    if (!bgmPath || !fs.existsSync(bgmPath)) {
-      // If no BGM, pass dialogue audio or silence
-      if (dialoguePath !== outputPath) {
-        fs.copyFileSync(dialoguePath, outputPath);
-      }
-      return outputPath;
-    }
-
-    // Check if dialogue media has an audio stream
-    const hasDialogueAudio = await new Promise<boolean>((resolve) => {
-      ffmpeg.ffprobe(dialoguePath, (err, metadata) => {
-        if (err || !metadata || !metadata.streams) {
-          resolve(false);
-          return;
-        }
-        const aStream = metadata.streams.find((s: any) => s.codec_type === "audio");
-        resolve(!!aStream);
-      });
-    });
-
-    if (!hasDialogueAudio) {
-      // Dialogue has no audio: Output formatted BGM directly without ducking
-      return new Promise((resolve, reject) => {
-        ffmpeg()
-          .input(bgmPath)
-          .audioFilters("aformat=channel_layouts=stereo:sample_rates=48000")
-          .audioCodec("aac")
-          .audioBitrate("192k")
-          .output(outputPath)
-          .on("end", () => resolve(outputPath))
-          .on("error", (err: any) => reject(err))
-          .run();
-      });
-    }
-
-    const filtergraph = this.buildDuckingFiltergraph(0, 1, config);
-
-    return new Promise((resolve, reject) => {
-      ffmpeg()
-        .input(dialoguePath)
-        .input(bgmPath)
-        .complexFilter(filtergraph, ["out_audio"])
-        .audioCodec("aac")
-        .audioBitrate("192k")
-        .output(outputPath)
-        .on("end", () => resolve(outputPath))
-        .on("error", (err: any) => reject(err))
-        .run();
-    });
+    if (!bgmPath) return this.mixProjectAudio(dialoguePath, [], outputPath, config);
+    return this.mixProjectAudio(
+      dialoguePath,
+      [
+        {
+          id: "bgm_track",
+          type: "BGM",
+          volumeDb: 0,
+          duckWithSpeech: true,
+          clips: [
+            {
+              id: "bgm_clip_1",
+              sourcePath: bgmPath,
+              sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: RationalTimeMath.fromSeconds(60) },
+              timelineRange: { start: RationalTimeMath.fromSeconds(0), duration: RationalTimeMath.fromSeconds(60) },
+              volumeDb: 0,
+            },
+          ],
+        },
+      ],
+      outputPath,
+      config
+    );
   }
 }

@@ -5,12 +5,18 @@ export * from "./registry";
 export * from "./analysis/probe-media.tool";
 export * from "./analysis/speech-transcribe.tool";
 export * from "./analysis/silence-detector.tool";
+export * from "./analysis/mood-classifier.tool";
+
+// Sourcing Tools
+export * from "./sourcing/asset-search.tool";
+export * from "./sourcing/sfx-search.tool";
 
 // Composition Tools
 export * from "./composition/take-curation.tool";
 export * from "./composition/timeline-assembly.tool";
 export * from "./composition/camera-zoom.tool";
 export * from "./composition/kinetic-caption.tool";
+export * from "./composition/motion-overlay.tool";
 export * from "./composition/audio-ducking.tool";
 
 // Quality Tools
@@ -23,10 +29,14 @@ import { DirectorToolRegistry } from "./registry";
 import { ProbeMediaTool } from "./analysis/probe-media.tool";
 import { SpeechTranscribeTool } from "./analysis/speech-transcribe.tool";
 import { SilenceDetectorTool } from "./analysis/silence-detector.tool";
+import { MoodClassifierTool } from "./analysis/mood-classifier.tool";
+import { AssetSearchTool } from "./sourcing/asset-search.tool";
+import { SfxSearchTool } from "./sourcing/sfx-search.tool";
 import { TakeCurationTool } from "./composition/take-curation.tool";
 import { TimelineAssemblyTool } from "./composition/timeline-assembly.tool";
 import { CameraZoomTool } from "./composition/camera-zoom.tool";
 import { KineticCaptionTool } from "./composition/kinetic-caption.tool";
+import { MotionOverlayTool } from "./composition/motion-overlay.tool";
 import { AudioDuckingTool } from "./composition/audio-ducking.tool";
 import { CriticAuditTool } from "./quality/critic-audit.tool";
 import { LosslessRenderTool } from "./render/lossless-render.tool";
@@ -39,10 +49,14 @@ export function initializeDefaultDirectorTools(): DirectorToolRegistry {
   registry.register(new ProbeMediaTool());
   registry.register(new SpeechTranscribeTool());
   registry.register(new SilenceDetectorTool());
+  registry.register(new MoodClassifierTool());
+  registry.register(new AssetSearchTool());
+  registry.register(new SfxSearchTool());
   registry.register(new TakeCurationTool());
   registry.register(new TimelineAssemblyTool());
   registry.register(new CameraZoomTool());
   registry.register(new KineticCaptionTool());
+  registry.register(new MotionOverlayTool());
   registry.register(new AudioDuckingTool());
   registry.register(new CriticAuditTool());
   registry.register(new LosslessRenderTool());

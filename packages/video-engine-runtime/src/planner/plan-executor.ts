@@ -3,6 +3,7 @@ import * as fs from "fs";
 import { ProductionPlan, ProductionTask } from "@workspace/video-contracts";
 import { DirectorToolRegistry } from "../tools/registry";
 import { DirectorExecutionContext } from "../tools/base-tool";
+import "../tools";
 
 export interface PlanExecutorOptions {
   tempDir: string;
