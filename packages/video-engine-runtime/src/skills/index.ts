@@ -1,5 +1,3 @@
 export * from "./base-skill";
-export * from "./medical-doctor-authority.skill";
-export * from "./short-form-viral-reel.skill";
-export * from "./saas-tech-demo.skill";
+export * from "./dynamic-skill-loader";
 export * from "./skill-registry";
