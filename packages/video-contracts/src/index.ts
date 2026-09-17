@@ -19,3 +19,4 @@ export * from "./deterministic-planner";
 export * from "./director-style-resolver";
 export * from "./director-intent-classifier";
 export * from "./production-plan.schema";
+export * from "./director-memory.schema";

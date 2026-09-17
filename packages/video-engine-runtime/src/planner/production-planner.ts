@@ -2,6 +2,7 @@ import crypto from "crypto";
 import * as path from "path";
 import { ProductionPlan, ProductionTask } from "@workspace/video-contracts";
 import { SkillRegistry } from "../skills/skill-registry";
+import { DirectorMemoryEngine } from "../intelligence/director-memory";
 
 export interface PlannerInputOptions {
   userPrompt: string;
@@ -10,6 +11,8 @@ export interface PlannerInputOptions {
   targetAspect?: "16:9" | "9:16" | "1:1";
   customStyleKey?: string;
   skillId?: string;
+  companyId?: string;
+  userId?: string;
 }
 
 export class ProductionPlanner {
@@ -18,6 +21,23 @@ export class ProductionPlanner {
    */
   static createPlan(options: PlannerInputOptions): ProductionPlan {
     const planId = crypto.randomUUID();
+    const companyId = options.companyId || "default_workspace";
+    const userId = options.userId;
+
+    // 0. Query Self-Learning Long-Term Memory (Mem0 Paradigm)
+    const memoryEngine = DirectorMemoryEngine.getInstance();
+    const userProfile = memoryEngine.buildUserEditingProfile(companyId, userId);
+
+    // Also extract and store any immediate preference signals from user prompt
+    const newlyDiscoveredFacts = memoryEngine.extractFacts({
+      userPrompt: options.userPrompt,
+      editContext: { targetAspect: options.targetAspect },
+    });
+    if (newlyDiscoveredFacts.length > 0) {
+      const existingMems = memoryEngine.queryMemories({ companyId, userId });
+      const ops = memoryEngine.reconcileMemories(newlyDiscoveredFacts, existingMems);
+      memoryEngine.applyOperations(companyId, userId, ops);
+    }
 
     // 1. Resolve Skill & Style
     const skillRegistry = SkillRegistry.getInstance();
@@ -26,7 +46,16 @@ export class ProductionPlanner {
       : skillRegistry.matchBestSkill(options.userPrompt);
 
     const resolvedStyle = activeSkill.resolveStyle(options.userPrompt);
-    const targetAspect = options.targetAspect || resolvedStyle.targetAspect;
+
+    // Override with personalized memory preferences if learned
+    if (userProfile.captionStyle?.highlightColor) {
+      resolvedStyle.captionColors.highlight = userProfile.captionStyle.highlightColor;
+    }
+    if (userProfile.pacingPreference?.zoomScale) {
+      resolvedStyle.zoomScale = userProfile.pacingPreference.zoomScale;
+    }
+
+    const targetAspect = options.targetAspect || userProfile.pacingPreference?.targetAspect || resolvedStyle.targetAspect;
     const isVertical = targetAspect === "9:16";
 
     // Filter raw source files (ignore previous render outputs)
@@ -126,6 +155,22 @@ export class ProductionPlanner {
     });
 
     tasks.push({
+      id: "task_06b_bgm_search",
+      title: "Source Mood-Matched Background Music (CC-0)",
+      description: "Retrieve public-domain background soundtrack with sidechain ducking configuration",
+      stage: "TIMELINE_COMPOSITION",
+      toolName: "bgm_search",
+      toolInput: {
+        genre: userProfile.audioPreference?.bgmGenre || (activeSkill.genre === "SHORT_FORM_VIRAL" ? "ELECTRONIC_UPBEAT" : "AMBIENT_CALM"),
+        volumeDb: userProfile.audioPreference?.bgmVolumeDb ?? -22.0,
+        targetDurationSec: 60.0,
+      },
+      dependencies: ["task_04_mood_classifier"],
+      status: "PENDING",
+      progressPercent: 0,
+    });
+
+    tasks.push({
       id: "task_07_assemble_timeline",
       title: "Compile Multi-Track EditIR AST",
       description: `Reframe and sequence winning takes into ${targetAspect} timeline`,
@@ -149,6 +194,18 @@ export class ProductionPlanner {
       toolName: "motion_overlay",
       toolInput: { enableSfx: true },
       dependencies: ["task_05_asset_search", "task_06_sfx_search", "task_07_assemble_timeline"],
+      status: "PENDING",
+      progressPercent: 0,
+    });
+
+    tasks.push({
+      id: "task_08b_audio_ducking",
+      title: "Sidechain Duck BGM & Mix Sound Design",
+      description: "Sidechain duck BGM against primary voice and align tactile SFX to EditIR",
+      stage: "TIMELINE_COMPOSITION",
+      toolName: "audio_ducking_mixer",
+      toolInput: { duckDb: -18.0 },
+      dependencies: ["task_06b_bgm_search", "task_08_motion_overlay"],
       status: "PENDING",
       progressPercent: 0,
     });
@@ -195,7 +252,7 @@ export class ProductionPlanner {
       stage: "CRITIC_QA_AUDIT",
       toolName: "critic_retention_audit",
       toolInput: { minAcceptableScore: 70 },
-      dependencies: ["task_09_camera_zooms", "task_10_kinetic_captions"],
+      dependencies: ["task_09_camera_zooms", "task_10_kinetic_captions", "task_08b_audio_ducking"],
       status: "PENDING",
       progressPercent: 0,
     });

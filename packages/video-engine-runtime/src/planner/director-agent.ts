@@ -12,6 +12,8 @@ export interface DirectorAgentRunOptions {
   targetAspect?: "16:9" | "9:16" | "1:1";
   customStyleKey?: string;
   tempDir?: string;
+  companyId?: string;
+  userId?: string;
   onPlanGenerated?: (plan: ProductionPlan) => void;
   onTaskStart?: (task: ProductionTask) => void;
   onTaskProgress?: (task: ProductionTask, percent: number, message: string) => void;
@@ -69,6 +71,8 @@ export class DirectorAgent {
       outputPath,
       targetAspect: options.targetAspect,
       customStyleKey: options.customStyleKey,
+      companyId: options.companyId,
+      userId: options.userId,
     };
 
     const plan = ProductionPlanner.createPlan(plannerOptions);

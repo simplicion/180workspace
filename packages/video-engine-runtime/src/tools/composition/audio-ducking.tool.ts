@@ -27,14 +27,19 @@ export class AudioDuckingTool extends VideoDirectorTool<AudioDuckingInput, any[]
     const audioTracks: any[] = [];
     const totalDurationSec = RationalTimeMath.toSeconds(editIR.meta.totalDuration);
 
-    if (input.bgmPath) {
+    const sourcedBgm = context.artifacts.get("sourced_bgm_track");
+    const effectiveBgmPath = input.bgmPath || sourcedBgm?.filePath;
+    const bgmVolumeDb = sourcedBgm?.volumeDb ?? -18.0;
+
+    if (effectiveBgmPath) {
+      context.log?.(`[AudioDuckingTool] Attaching BGM track: ${effectiveBgmPath} at ${bgmVolumeDb}dB with sidechain ducking.`);
       audioTracks.push({
         id: crypto.randomUUID(),
         type: "BGM",
-        volumeDb: -14.0,
+        volumeDb: bgmVolumeDb,
         duckWithSpeech: true,
         duckingConfig: {
-          duckDb: input.duckDb,
+          duckDb: input.duckDb ?? -18.0,
           attackMs: input.attackMs,
           releaseMs: input.releaseMs,
         },
@@ -42,7 +47,11 @@ export class AudioDuckingTool extends VideoDirectorTool<AudioDuckingInput, any[]
           {
             id: crypto.randomUUID(),
             assetId: "bgm_track_1",
-            sourcePath: input.bgmPath,
+            sourcePath: effectiveBgmPath,
+            timelineRange: {
+              start: RationalTimeMath.fromSeconds(0),
+              duration: editIR.meta.totalDuration,
+            },
             timelineStart: 0,
             duration: totalDurationSec,
           },
