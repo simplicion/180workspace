@@ -42,7 +42,7 @@ export class DirectorStyleResolver {
     let style: ResolvedDirectorStyle;
 
     // 1. Dan Koe Minimalist / Linear / Apple Design
-    if (p.includes("dan koe") || p.includes("minimal") || p.includes("apple") || p.includes("clean") || p.includes("subtle") || p.includes("linear")) {
+    if (p.includes("dan koe") || p.includes("minimalist") || p.includes("apple design") || p.includes("linear design")) {
       const isVertical = p.includes("vertical") || p.includes("reel") || p.includes("short") || p.includes("tiktok") || p.includes("9:16");
       style = {
         presetKey: "DAN_KOE_MINIMALIST",

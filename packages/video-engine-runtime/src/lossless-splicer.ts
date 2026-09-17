@@ -115,7 +115,7 @@ export class LosslessSplicer {
           command = command
             .videoFilters(vFilters.join(","))
             .videoCodec("libx264")
-            .outputOptions(["-preset fast", "-crf 18", "-movflags +faststart"]);
+            .outputOptions(["-y", "-pix_fmt yuv420p", "-preset fast", "-crf 18", "-movflags +faststart"]);
 
           if (clip.volumeDb !== undefined && clip.volumeDb <= -40) {
             command = command.noAudio();
@@ -159,7 +159,7 @@ export class LosslessSplicer {
         ffmpeg()
           .input(concatListPath)
           .inputOptions(["-f concat", "-safe 0"])
-          .outputOptions(["-c copy"])
+          .outputOptions(["-y", "-c copy"])
           .output(mergedRawVideo)
           .on("end", () => {
             if (onProgress) onProgress({ percent: 75, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
@@ -232,10 +232,12 @@ export class LosslessSplicer {
           overlayCmd
             .complexFilter(filterComplex.replace(/;$/, ""))
             .outputOptions([
+              "-y",
               "-map", `[${lastStream}]`,
               "-map", "0:a?",
               "-c:a", "copy",
               "-c:v", "libx264",
+              "-pix_fmt", "yuv420p",
               "-preset", "fast",
               "-crf", "18",
               "-t", `${totalProjectDurationSec}`,
@@ -283,7 +285,7 @@ export class LosslessSplicer {
         let cmd = ffmpeg(compositedVideoPath)
           .videoFilters(`ass='${formattedAssPath}'`)
           .videoCodec("libx264")
-          .outputOptions(["-preset fast", "-crf 18", "-movflags +faststart"]);
+          .outputOptions(["-y", "-pix_fmt yuv420p", "-preset fast", "-crf 18", "-movflags +faststart"]);
 
         if (processedAudioPath && fs.existsSync(processedAudioPath)) {
           cmd = cmd.input(processedAudioPath).outputOptions(["-map 0:v:0", "-map 1:a:0", "-c:a aac"]);
@@ -308,7 +310,7 @@ export class LosslessSplicer {
       await new Promise<void>((resolve, reject) => {
         ffmpeg(compositedVideoPath)
           .input(processedAudioPath)
-          .outputOptions(["-c:v copy", "-map 0:v:0", "-map 1:a:0", "-c:a aac", "-movflags +faststart"])
+          .outputOptions(["-y", "-c:v copy", "-map 0:v:0", "-map 1:a:0", "-c:a aac", "-movflags +faststart"])
           .output(outputPath)
           .on("end", () => {
             if (onProgress) onProgress({ percent: 100, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
@@ -321,7 +323,7 @@ export class LosslessSplicer {
       // Direct stream-copy pass with FastStart metadata
       await new Promise<void>((resolve) => {
         ffmpeg(compositedVideoPath)
-          .outputOptions(["-c copy", "-movflags +faststart"])
+          .outputOptions(["-y", "-c copy", "-movflags +faststart"])
           .output(outputPath)
           .on("end", () => {
             if (onProgress) onProgress({ percent: 100, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });

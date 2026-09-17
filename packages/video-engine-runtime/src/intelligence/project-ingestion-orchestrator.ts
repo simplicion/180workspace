@@ -47,12 +47,27 @@ export class ProjectIngestionOrchestrator {
     if (typeof inputFilesOrDirectory === "string") {
       if (fs.existsSync(inputFilesOrDirectory) && fs.statSync(inputFilesOrDirectory).isDirectory()) {
         const entries = fs.readdirSync(inputFilesOrDirectory);
-        filePaths = entries.map((e) => path.join(inputFilesOrDirectory, e));
+        filePaths = entries
+          .filter((e) => !e.startsWith("."))
+          .map((e) => path.join(inputFilesOrDirectory, e))
+          .filter((p) => {
+            try {
+              return fs.existsSync(p) && fs.statSync(p).isFile();
+            } catch {
+              return false;
+            }
+          });
       } else if (fs.existsSync(inputFilesOrDirectory)) {
         filePaths = [inputFilesOrDirectory];
       }
     } else if (Array.isArray(inputFilesOrDirectory)) {
-      filePaths = inputFilesOrDirectory.filter((f) => fs.existsSync(f));
+      filePaths = inputFilesOrDirectory.filter((f) => {
+        try {
+          return fs.existsSync(f) && fs.statSync(f).isFile();
+        } catch {
+          return false;
+        }
+      });
     }
 
     if (filePaths.length === 0) {
