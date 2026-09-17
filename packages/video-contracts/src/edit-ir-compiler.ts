@@ -473,12 +473,17 @@ export class EditIRCompiler {
     editIR: EditIR,
     preset: string,
     highlightColor?: string,
-    position?: { x: number; y: number }
+    position?: { x?: number; y?: number }
   ) {
     for (const cap of editIR.tracks.captionTrack) {
       cap.style.preset = preset as any;
       if (highlightColor) cap.style.highlightColor = highlightColor;
-      if (position) cap.style.position = position;
+      if (position) {
+        cap.style.position = {
+          x: position.x ?? cap.style.position?.x ?? 0.5,
+          y: position.y ?? cap.style.position?.y ?? 0.8,
+        };
+      }
     }
   }
 
