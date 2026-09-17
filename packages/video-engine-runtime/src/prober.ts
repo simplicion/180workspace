@@ -18,6 +18,9 @@ export class MediaProber {
     }
 
     const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
+      throw new Error(`MediaProber: Expected a file path but received a directory: ${filePath}`);
+    }
 
     // Memory-safe chunked streaming hash (handles 100MB, 500MB, 1GB, 5GB+ with 0 MB memory overhead)
     const sha256Hash = await new Promise<string>((resolveHash, rejectHash) => {

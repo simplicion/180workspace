@@ -74,6 +74,7 @@ export class TelemetryExtractor {
       let currentStart: number | null = null;
 
       ffmpeg(videoPath)
+        .noVideo()
         .audioFilters("silencedetect=noise=-35dB:d=0.4")
         .format("null")
         .output("-")
@@ -112,9 +113,9 @@ export class TelemetryExtractor {
         transitionScore: 1.0,
       });
 
-      // Probe scene score
+      // Probe scene score with fast downscale
       ffmpeg(videoPath)
-        .videoFilters("select='gt(scene,0.35)',showinfo")
+        .videoFilters("scale=320:-2,select='gt(scene,0.35)',showinfo")
         .format("null")
         .output("-")
         .on("stderr", (line: string) => {
