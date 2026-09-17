@@ -1199,7 +1199,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                     isOpen={true}
                     onClose={() => setIsRightPanelOpen(false)}
                     editIR={project.editIR}
-                    onExecutePrompt={handleSendDirectorPrompt}
+                    onExecutePrompt={handleApplyAiPrompt}
                     onApplyRepairs={(repairs) => {
                       let updated: EditIR = JSON.parse(JSON.stringify(project.editIR));
                       for (const cmd of repairs) {
@@ -1305,7 +1305,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         isDuckingEnabled={isDuckingEnabled}
         onAutoSoundDesign={() => {
           setIsMixerModalOpen(false);
-          handleSendDirectorPrompt("Add auto sound design and psychoacoustic SFX");
+          handleApplyAiPrompt("Add auto sound design and psychoacoustic SFX");
         }}
       />
 
