@@ -9,7 +9,7 @@ export const TranscriptWordSchema = z.object({
   startSeconds: z.number(),
   endSeconds: z.number(),
   confidence: z.number().min(0).max(1),
-  isEmphasis: z.boolean().default(false),
+  isEmphasis: z.boolean().optional().default(false),
 });
 
 export type TranscriptWord = z.infer<typeof TranscriptWordSchema>;
