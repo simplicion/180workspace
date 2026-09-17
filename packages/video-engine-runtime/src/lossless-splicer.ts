@@ -257,15 +257,18 @@ export class LosslessSplicer {
       }
     }
 
-    // Step 3: Check for Captions & Audio Ducking
+    // Step 3: Check for Captions & Multi-Track Audio Mixing (Dialogue + Ducked BGM + SFX Transients)
     const hasCaptions = editIR.tracks.captionTrack && editIR.tracks.captionTrack.length > 0;
     const bgmTrack = editIR.tracks.audioTracks.find((t) => t.type === "BGM");
-    const bgmClip = bgmTrack?.clips[0];
+    const sfxTrack = editIR.tracks.audioTracks.find((t) => t.type === "SFX");
+    const hasAudioMixing =
+      (bgmTrack && bgmTrack.clips.some((c) => fs.existsSync(c.sourcePath))) ||
+      (sfxTrack && sfxTrack.clips.some((c) => fs.existsSync(c.sourcePath)));
 
     let processedAudioPath: string | null = null;
-    if (bgmClip && fs.existsSync(bgmClip.sourcePath)) {
+    if (hasAudioMixing) {
       const duckedAudio = path.join(tempDir, "master_ducked_audio.aac");
-      await AudioDuckingMixer.mixTracks(mergedRawVideo, bgmClip.sourcePath, duckedAudio);
+      await AudioDuckingMixer.mixProjectAudio(mergedRawVideo, editIR.tracks.audioTracks, duckedAudio);
       processedAudioPath = duckedAudio;
     }
 

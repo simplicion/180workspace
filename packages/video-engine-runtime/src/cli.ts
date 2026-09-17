@@ -570,14 +570,55 @@ program
     console.log(`Total Footprint: ${(stats.totalSizeBytes / (1024 * 1024)).toFixed(2)} MB\n`);
   });
 
+// 10. AUTONOMOUS AI DIRECTOR AGENT (Skills System + Multimodal Asset Sourcing + Dynamic Planner-Worker)
 program
-  .command("cache-clear")
-  .description("ADR-010: Purge content-addressed local cache")
-  .option("-d, --dir <path>", "Cache directory", path.join(process.cwd(), ".vproj_cache"))
-  .action((options: any) => {
-    const cacheManager = new ContentAddressedCacheManager(path.resolve(options.dir));
-    cacheManager.clear();
-    console.log(`✓ Purged cache directory: ${path.resolve(options.dir)}`);
+  .command("direct")
+  .description("Direct an entire video project autonomously from raw takes using AI Director Skills and dynamic tools")
+  .requiredOption("-i, --input <path>", "Input media folder or file path")
+  .requiredOption("-p, --prompt <prompt>", "Directing prompt and aesthetic requirements")
+  .requiredOption("-o, --out <path>", "Master export video file path (.mp4)")
+  .option("--aspect <aspect>", "Target aspect ratio (9:16, 16:9, 1:1)", "9:16")
+  .option("--skill <skill>", "Explicit Director Skill package ID (e.g. medical-doctor-authority, short-form-viral-reel)")
+  .action(async (options: any) => {
+    try {
+      console.log(`\n🎬 180 Autonomous AI Video Director Agent Initializing...`);
+      console.log(`Input Source: ${path.resolve(options.input)}`);
+      console.log(`Directing Prompt: "${options.prompt}"`);
+      console.log(`Target Aspect: ${options.aspect}\n`);
+
+      const result = await DirectorAgent.directProject({
+        userPrompt: options.prompt,
+        inputFilesOrDirectory: path.resolve(options.input),
+        outputPath: path.resolve(options.out),
+        targetAspect: options.aspect,
+        customStyleKey: options.skill,
+        onPlanGenerated: (plan) => {
+          console.log(`\n📋 Production Plan Created: "${plan.title}"`);
+          console.log(`Total Tasks: ${plan.tasks.length}`);
+          plan.tasks.forEach((t, idx) => {
+            console.log(`  [${String(idx + 1).padStart(2, "0")}] (${t.stage}) ${t.title} [Tool: ${t.toolName}]`);
+          });
+          console.log("");
+        },
+        onTaskStart: (task) => {
+          console.log(`▶ Starting [${task.id}] ${task.title}...`);
+        },
+        onTaskProgress: (task, percent, message) => {
+          if (percent % 25 === 0 || percent === 100) {
+            console.log(`  [${task.id}] ${percent}% - ${message}`);
+          }
+        },
+        onTaskComplete: (task) => {
+          console.log(`✓ Completed [${task.id}] (${task.durationMs}ms)`);
+        },
+      });
+
+      console.log(`\n🎉 Autonomous AI Video Direction Complete!`);
+      console.log(`Master Video Exported to: ${result.masterExportPath}\n`);
+    } catch (err: any) {
+      console.error(`\n✗ Director Agent failed: ${err.message}`);
+      process.exit(1);
+    }
   });
 
 program.parse(process.argv);

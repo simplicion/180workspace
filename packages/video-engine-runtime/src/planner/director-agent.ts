@@ -3,6 +3,7 @@ import * as fs from "fs";
 import { ProductionPlan, ProductionTask } from "@workspace/video-contracts";
 import { ProductionPlanner, PlannerInputOptions } from "./production-planner";
 import { PlanExecutor, PlanExecutorOptions } from "./plan-executor";
+import "../tools";
 
 export interface DirectorAgentRunOptions {
   userPrompt: string;
