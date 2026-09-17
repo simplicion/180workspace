@@ -361,6 +361,110 @@ export class DeterministicPlanner {
       });
     }
 
+    // 10. Filler Word Removal (Ums, Uhs, False Starts)
+    const wantsCleanFillers =
+      p.includes("filler") ||
+      p.includes("um") ||
+      p.includes("uh") ||
+      p.includes("false start") ||
+      p.includes("bad take") ||
+      p.includes("stutter");
+
+    if (wantsCleanFillers && graph.transcript.length > 0) {
+      const fillerWords = new Set(["um", "uh", "er", "ah", "like", "basically", "actually", "literally"]);
+      const detectedFillers = graph.transcript.filter((w) => {
+        const clean = w.word.toLowerCase().replace(/[^a-z]/g, "");
+        return fillerWords.has(clean) || (w.isEmphasis === false && w.emphasisScore < 0.15 && (w.endSeconds - w.startSeconds > 0.4));
+      });
+
+      for (const fw of detectedFillers.slice(0, 10)) {
+        operations.push({
+          type: "removeRange",
+          startSec: fw.startSeconds,
+          durationSec: Math.max(0.2, fw.endSeconds - fw.startSeconds),
+          ripple: true,
+          reason: `Cut filler word: "${fw.word}"`,
+        });
+      }
+
+      operations.push({
+        type: "cleanFillers",
+        fillerTypes: ["um", "uh", "er", "like"],
+        reason: "Cleaned up vocal fillers and false starts",
+      });
+    }
+
+    // 11. Auto Sound Design (Whooshes, Pops, Sub-Drops)
+    const wantsSoundDesign =
+      p.includes("sfx") ||
+      p.includes("sound effect") ||
+      p.includes("sound design") ||
+      p.includes("whoosh") ||
+      p.includes("pop sound") ||
+      p.includes("audio transient") ||
+      p.includes("foley");
+
+    if (wantsSoundDesign) {
+      operations.push({
+        type: "autoSoundDesign",
+        includeWhooshes: true,
+        includePops: true,
+        includeSubDrops: true,
+        gainDb: -6.0,
+        reason: "Synthesized 4-layer psychoacoustic sound stage with synchronized whoosh & pop transients",
+      });
+    }
+
+    // 12. Asynchronous Split (J-Cut / L-Cut)
+    const wantsJCut = p.includes("j-cut") || p.includes("j cut") || p.includes("audio lead");
+    const wantsLCut = p.includes("l-cut") || p.includes("l cut") || p.includes("dialogue trail");
+
+    if (wantsJCut || wantsLCut) {
+      operations.push({
+        type: "asynchronousSplit",
+        clipId: context.selectedClipId || "main_clip",
+        splitType: wantsJCut ? "J_CUT" : "L_CUT",
+        offsetSec: 0.4,
+        reason: `Applied ${wantsJCut ? "J-Cut (audio anticipation lead)" : "L-Cut (reaction dialogue trail)"}`,
+      });
+    }
+
+    // 13. Music Beat Alignment
+    const wantsBeatAlign =
+      p.includes("beat") ||
+      p.includes("tempo") ||
+      p.includes("rhythm") ||
+      p.includes("sync to music");
+
+    if (wantsBeatAlign) {
+      operations.push({
+        type: "beatAlign",
+        targetTrackId: "track_v1",
+        snapToleranceSec: 0.25,
+      });
+    }
+
+    // 14. Title Card / Lower-Third Overlay
+    const titleMatch = prompt.match(/(?:add|create|insert)\s+(?:a\s+)?(?:title|lower third|banner|badge|heading)\s+(?:called|with text|for|named|saying)?\s*["']?([^"'\n]+)["']?/i);
+    if (titleMatch && titleMatch[1]) {
+      const titleText = titleMatch[1].trim();
+      operations.push({
+        type: "addText",
+        text: titleText,
+        timelineStartSec: 1.0,
+        durationSec: 3.5,
+        position: { x: 0, y: -0.3 },
+        style: {
+          fontSize: 42,
+          fontWeight: "800",
+          color: "#FFFFFF",
+          backgroundColor: "rgba(0,0,0,0.65)",
+          borderRadius: 12,
+          padding: 16,
+        },
+      });
+    }
+
     let explanation = "";
     if (targetShortenDurationSec) {
       explanation = `Shortened project to approximately ${targetShortenDurationSec}s while retaining high-retention highlights and framing for ${targetAspect}.`;

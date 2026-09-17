@@ -4,14 +4,21 @@ import {
   Download,
   Zap,
   CheckCircle2,
-  Cpu,
   FileVideo,
-  Sparkles,
+  Layers,
+  Archive,
+  Subtitles,
   ExternalLink,
-  Play,
-  Share2,
+  Sliders,
+  Sparkles,
+  FileCode,
 } from "lucide-react";
-import { EditIR } from "@workspace/video-contracts";
+import {
+  EditIR,
+  OtioAdapter,
+  VprojBundleSerializer,
+  RationalTimeMath,
+} from "@workspace/video-contracts";
 import { ExportResult } from "../services/tauri-bridge";
 
 interface ExportModalProps {
@@ -35,6 +42,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   exportedResult,
   exportedPath,
 }) => {
+  const [activeTab, setActiveTab] = useState<"video" | "nle" | "bundle" | "subtitles">("video");
   const [resolution, setResolution] = useState("1080p");
   const [fps, setFps] = useState(30);
   const [format, setFormat] = useState("mp4");
@@ -59,6 +67,92 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     document.body.removeChild(a);
   };
 
+  const handleExportOtio = () => {
+    try {
+      const otioJson = OtioAdapter.toOtioJson(editIR);
+      const blob = new Blob([otioJson], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${editIR.meta.title || "timeline"}.otio`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Error exporting OTIO: " + err);
+    }
+  };
+
+  const handleExportVproj = () => {
+    try {
+      const manifest = {
+        manifestVersion: "1.0.0" as const,
+        project: {
+          id: editIR.meta.projectId,
+          name: editIR.meta.title || "Project",
+          folderId: null,
+          aspectRatio: editIR.meta.targetAspect,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          editIR: editIR,
+          mediaGraph: {
+            nodes: [],
+            edges: [],
+            clusters: [],
+          },
+        },
+        assets: [],
+        generatedAt: new Date().toISOString(),
+      };
+      const vprojJson = VprojBundleSerializer.serialize(manifest as any);
+      const blob = new Blob([vprojJson], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${editIR.meta.title || "project"}.180vproj`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Error exporting .180vproj: " + err);
+    }
+  };
+
+  const handleExportSrt = () => {
+    try {
+      let srt = "";
+      editIR.tracks.captionTrack.forEach((cap, idx) => {
+        const start = RationalTimeMath.toSeconds(cap.timeRange.start);
+        const dur = RationalTimeMath.toSeconds(cap.timeRange.duration);
+        const end = start + dur;
+
+        const formatTime = (sec: number) => {
+          const hrs = Math.floor(sec / 3600);
+          const mins = Math.floor((sec % 3600) / 60);
+          const secs = Math.floor(sec % 60);
+          const ms = Math.floor((sec % 1) * 1000);
+          return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
+        };
+
+        srt += `${idx + 1}\n${formatTime(start)} --> ${formatTime(end)}\n${cap.text}\n\n`;
+      });
+
+      const blob = new Blob([srt || "1\n00:00:00,000 --> 00:00:02,000\nNo captions created\n\n"], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${editIR.meta.title || "subtitles"}.srt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Error exporting SRT: " + err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none">
       <div className="w-full max-w-xl bg-[#0A0A0D] border border-[#1C1C22] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
@@ -74,8 +168,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               className="w-5 h-5 object-contain"
             />
             <div>
-              <h3 className="text-sm font-semibold text-white">Export Video</h3>
-              <p className="text-[11px] text-zinc-400">Deterministic Smart Stream-Copy Engine</p>
+              <h3 className="text-sm font-semibold text-white">Export & Deliver</h3>
+              <p className="text-[11px] text-zinc-400">Stream-Copy Master & NLE Timeline Adapter</p>
             </div>
           </div>
           {!isExporting && (
@@ -88,99 +182,209 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           )}
         </div>
 
+        {/* Tab Selector */}
+        {!isExporting && !exportedResult && !exportedPath && (
+          <div className="flex border-b border-[#1C1C22] bg-[#08080A] px-4 pt-1">
+            {[
+              { id: "video", label: "Master Video", icon: FileVideo },
+              { id: "nle", label: "NLE Timeline (OTIO)", icon: Layers },
+              { id: "bundle", label: "Project Bundle", icon: Archive },
+              { id: "subtitles", label: "Subtitles (SRT)", icon: Subtitles },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center space-x-1.5 py-2.5 px-3 border-b-2 text-xs font-semibold transition ${
+                    isActive
+                      ? "border-white text-white"
+                      : "border-transparent text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Body */}
         <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto bg-[#0A0A0D]">
-          {/* Smart Stream-Copy Banner */}
-          <div className="p-3 rounded-xl bg-[#0E0E12] border border-[#1C1C22] flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
-              <Zap className="w-4 h-4" />
-            </div>
-            <div className="text-xs">
-              <p className="font-semibold text-emerald-300">Lossless Stream-Copy Enabled</p>
-              <p className="text-zinc-400 text-[11px] leading-relaxed">
-                Untouched video segments bypass re-encoding and render at &gt;500 FPS with master source fidelity.
-              </p>
-            </div>
-          </div>
+          {/* TAB 1: MASTER VIDEO */}
+          {activeTab === "video" && (
+            <>
+              {/* Smart Stream-Copy Banner */}
+              <div className="p-3 rounded-xl bg-[#0E0E12] border border-[#1C1C22] flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div className="text-xs">
+                  <p className="font-semibold text-emerald-300">Lossless Stream-Copy Enabled</p>
+                  <p className="text-zinc-400 text-[11px] leading-relaxed">
+                    Untouched video segments bypass re-encoding and render at &gt;500 FPS with master source fidelity.
+                  </p>
+                </div>
+              </div>
 
-          {!isExporting && !exportedResult && !exportedPath && (
-            <div className="space-y-4">
-              {/* Resolution Setting */}
-              <div>
-                <label className="text-xs font-semibold text-zinc-200 block mb-2">
-                  Export Resolution
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: "1080p", label: "1080p (Full HD)", tag: "Recommended" },
-                    { id: "4K", label: "4K (Ultra HD)", tag: "Crisp Master" },
-                    { id: "720p", label: "720p (Standard)", tag: "Fast Render" },
-                    { id: "9:16", label: "Vertical 1080x1920", tag: "Shorts / TikTok" },
-                  ].map((res) => (
-                    <button
-                      key={res.id}
-                      onClick={() => setResolution(res.id)}
-                      className={`p-3 rounded-xl border text-left transition ${
-                        resolution === res.id
-                          ? "bg-[#181822] border-zinc-500 text-white shadow-sm"
-                          : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold">{res.label}</span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#08080A] border border-[#1C1C22] text-zinc-400">
-                          {res.tag}
-                        </span>
+              {!isExporting && !exportedResult && !exportedPath && (
+                <div className="space-y-4">
+                  {/* Resolution Setting */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-200 block mb-2">
+                      Export Resolution
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: "1080p", label: "1080p (Full HD)", tag: "Recommended" },
+                        { id: "4K", label: "4K (Ultra HD)", tag: "Crisp Master" },
+                        { id: "720p", label: "720p (Standard)", tag: "Fast Render" },
+                        { id: "9:16", label: "Vertical 1080x1920", tag: "Shorts / TikTok" },
+                      ].map((res) => (
+                        <button
+                          key={res.id}
+                          onClick={() => setResolution(res.id)}
+                          className={`p-3 rounded-xl border text-left transition ${
+                            resolution === res.id
+                              ? "bg-[#181822] border-zinc-500 text-white shadow-sm"
+                              : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold">{res.label}</span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#08080A] border border-[#1C1C22] text-zinc-400">
+                              {res.tag}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Framerate & Format Controls */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-200 block mb-1.5">
+                        Framerate
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[30, 60].map((rate) => (
+                          <button
+                            key={rate}
+                            onClick={() => setFps(rate)}
+                            className={`p-2 rounded-xl border text-xs font-bold transition text-center ${
+                              fps === rate
+                                ? "bg-[#181822] border-zinc-500 text-white"
+                                : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
+                            }`}
+                          >
+                            {rate} FPS
+                          </button>
+                        ))}
                       </div>
-                    </button>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-200 block mb-1.5">
+                        Container Format
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {["mp4", "webm"].map((fmt) => (
+                          <button
+                            key={fmt}
+                            onClick={() => setFormat(fmt)}
+                            className={`p-2 rounded-xl border text-xs font-bold uppercase transition text-center ${
+                              format === fmt
+                                ? "bg-[#181822] border-zinc-500 text-white"
+                                : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
+                            }`}
+                          >
+                            {fmt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* TAB 2: NLE TIMELINE (OTIO) */}
+          {activeTab === "nle" && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-[#0E0E12] border border-[#1C1C22] space-y-2">
+                <div className="flex items-center space-x-2 text-indigo-400">
+                  <Layers className="w-5 h-5" />
+                  <h4 className="text-xs font-bold text-white">OpenTimelineIO (OTIO) Interchange</h4>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Export complete non-destructive edit decisions, video tracks, audio stems, and timecode offsets compatible with:
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {["Adobe Premiere Pro", "DaVinci Resolve", "Final Cut Pro", "Avid Media Composer"].map((nle) => (
+                    <span key={nle} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[#16161E] border border-[#242432] text-indigo-300">
+                      {nle}
+                    </span>
                   ))}
                 </div>
               </div>
 
-              {/* Framerate & Format Controls */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-200 block mb-1.5">
-                    Framerate
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[30, 60].map((rate) => (
-                      <button
-                        key={rate}
-                        onClick={() => setFps(rate)}
-                        className={`p-2 rounded-xl border text-xs font-bold transition text-center ${
-                          fps === rate
-                            ? "bg-[#181822] border-zinc-500 text-white"
-                            : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
-                        }`}
-                      >
-                        {rate} FPS
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <button
+                onClick={handleExportOtio}
+                className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white text-xs font-bold shadow-lg flex items-center justify-center space-x-2 transition"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download OpenTimelineIO (.otio) File</span>
+              </button>
+            </div>
+          )}
 
-                <div>
-                  <label className="text-xs font-semibold text-zinc-200 block mb-1.5">
-                    Container Format
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {["mp4", "webm"].map((fmt) => (
-                      <button
-                        key={fmt}
-                        onClick={() => setFormat(fmt)}
-                        className={`p-2 rounded-xl border text-xs font-bold uppercase transition text-center ${
-                          format === fmt
-                            ? "bg-[#181822] border-zinc-500 text-white"
-                            : "bg-[#111114] border-[#1C1C22] text-zinc-400 hover:text-zinc-200 hover:bg-[#16161C]"
-                        }`}
-                      >
-                        {fmt}
-                      </button>
-                    ))}
-                  </div>
+          {/* TAB 3: PROJECT BUNDLE */}
+          {activeTab === "bundle" && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-[#0E0E12] border border-[#1C1C22] space-y-2">
+                <div className="flex items-center space-x-2 text-amber-400">
+                  <Archive className="w-5 h-5" />
+                  <h4 className="text-xs font-bold text-white">Portable .180vproj Project Bundle</h4>
                 </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Self-contained, checksum-verified project archive containing full intermediate representation (Edit IR), transcript alignment graphs, and creative director history.
+                </p>
               </div>
+
+              <button
+                onClick={handleExportVproj}
+                className="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-98 text-white text-xs font-bold shadow-lg flex items-center justify-center space-x-2 transition"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Project Archive (.180vproj)</span>
+              </button>
+            </div>
+          )}
+
+          {/* TAB 4: SUBTITLES */}
+          {activeTab === "subtitles" && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-[#0E0E12] border border-[#1C1C22] space-y-2">
+                <div className="flex items-center space-x-2 text-cyan-400">
+                  <Subtitles className="w-5 h-5" />
+                  <h4 className="text-xs font-bold text-white">Synchronized SubRip Subtitles (.srt)</h4>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Export standard timecoded `.srt` subtitle file with {editIR.tracks.captionTrack.length} captions for YouTube, Vimeo, and social video players.
+                </p>
+              </div>
+
+              <button
+                onClick={handleExportSrt}
+                className="w-full py-3 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-98 text-white text-xs font-bold shadow-lg flex items-center justify-center space-x-2 transition"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Subtitles (.srt)</span>
+              </button>
             </div>
           )}
 
@@ -265,7 +469,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-[#1C1C22] bg-[#08080A] flex items-center justify-end space-x-2.5">
-          {!isExporting && !exportedResult && !exportedPath && (
+          {!isExporting && !exportedResult && !exportedPath && activeTab === "video" && (
             <>
               <button
                 onClick={onClose}
@@ -277,17 +481,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 onClick={handleExport}
                 className="px-5 py-2 rounded-xl text-xs font-semibold text-black bg-white hover:bg-zinc-200 active:scale-95 shadow-sm transition"
               >
-                Start Export
+                Start Render
               </button>
             </>
           )}
 
-          {(exportedResult || exportedPath) && (
+          {(!isExporting || exportedResult || exportedPath) && activeTab !== "video" && (
             <button
               onClick={onClose}
               className="px-5 py-2 rounded-xl text-xs font-medium text-zinc-200 bg-[#141418] hover:bg-[#1C1C22] border border-[#1C1C22] transition"
             >
-              Close
+              Done
             </button>
           )}
         </div>

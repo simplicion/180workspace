@@ -252,6 +252,29 @@ export const ReorderSegmentOpSchema = z.object({
   reason: z.string(),
 });
 
+export const AutoSoundDesignOpSchema = z.object({
+  type: z.literal("autoSoundDesign"),
+  includeWhooshes: z.boolean().default(true),
+  includePops: z.boolean().default(true),
+  includeSubDrops: z.boolean().default(true),
+  gainDb: z.number().default(-6.0),
+  reason: z.string().optional(),
+});
+
+export const CleanFillersOpSchema = z.object({
+  type: z.literal("cleanFillers"),
+  fillerTypes: z.array(z.string()).default(["um", "uh", "er", "like", "you know"]),
+  reason: z.string().optional(),
+});
+
+export const AsynchronousSplitOpSchema = z.object({
+  type: z.literal("asynchronousSplit"),
+  clipId: z.string(),
+  splitType: z.enum(["J_CUT", "L_CUT"]),
+  offsetSec: z.number().default(0.4),
+  reason: z.string().optional(),
+});
+
 export const CreativeOperationSchema = z.discriminatedUnion("type", [
   RemoveRangeOpSchema,
   RippleDeleteOpSchema,
@@ -280,6 +303,9 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   DetachAudioOpSchema,
   SelectTakeOpSchema,
   ReorderSegmentOpSchema,
+  AutoSoundDesignOpSchema,
+  CleanFillersOpSchema,
+  AsynchronousSplitOpSchema,
 ]);
 
 export type CreativeOperation = z.infer<typeof CreativeOperationSchema>;
