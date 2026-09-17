@@ -196,50 +196,160 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
 
       context.log?.(`[AssetSearchTool] Resolving asset for query: "${cue.assetQuery}" (${cue.category})...`);
 
-      // 1. Check local procedural vector library
-      const vectorSvg = AssetSearchTool.VECTOR_GRAPHICS_LIBRARY[cue.assetQuery];
+      let resolved = false;
 
+      // Tier 1: Check built-in procedural vector library
+      const vectorSvg = AssetSearchTool.VECTOR_GRAPHICS_LIBRARY[cue.assetQuery];
       if (vectorSvg) {
-        await sharp(Buffer.from(vectorSvg.trim()))
-          .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .png()
-          .toFile(pngPath);
-      } else {
-        // Fallback 1: Try fetching SVG from Iconify API
-        let fetchedOnline = false;
         try {
-          const searchRes = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(cue.assetQuery)}&limit=1`);
+          await sharp(Buffer.from(vectorSvg.trim()))
+            .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .png()
+            .toFile(pngPath);
+          resolved = true;
+        } catch {
+          // Fall through
+        }
+      }
+
+      // Tier 2: Microsoft Fluent 3D Emoji / Twemoji CDN (Pandas, Dinosaurs, Fire, Money, etc.)
+      if (!resolved) {
+        const queryLower = cue.assetQuery.toLowerCase().replace(/_/g, "");
+        const fluentMap: Record<string, string> = {
+          panda: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Panda/3D/panda_3d.png",
+          dinosaur: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/T-rex/3D/t-rex_3d.png",
+          trex: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/T-rex/3D/t-rex_3d.png",
+          ant: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Ant/3D/ant_3d.png",
+          fire: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/3D/fire_3d.png",
+          flame: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/3D/fire_3d.png",
+          money: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Money%20bag/3D/money_bag_3d.png",
+          moneybag: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Money%20bag/3D/money_bag_3d.png",
+          rocket: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Rocket/3D/rocket_3d.png",
+          brain: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Brain/3D/brain_3d.png",
+          warning: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Warning/3D/warning_3d.png",
+          star: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Glowing%20star/3D/glowing_star_3d.png",
+        };
+
+        const cdnUrl = fluentMap[queryLower];
+        if (cdnUrl) {
+          try {
+            const res = await fetch(cdnUrl);
+            if (res.ok) {
+              const arrayBuf = await res.arrayBuffer();
+              const buf = Buffer.from(arrayBuf);
+              await sharp(buf)
+                .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .png()
+                .toFile(pngPath);
+              resolved = true;
+              context.log?.(`[AssetSearchTool] Sourced 3D sticker from Fluent CDN for "${cue.assetQuery}".`);
+            }
+          } catch {
+            // Fall through
+          }
+        }
+      }
+
+      // Tier 3: Iconify Universal Vector API (100,000+ vector icons with dynamic theme colors)
+      if (!resolved) {
+        try {
+          const themeColor =
+            cue.mood === "CLINICAL_AUTHORITY"
+              ? "%2338BDF8"
+              : cue.mood === "URGENT_WARNING"
+              ? "%23EF4444"
+              : cue.mood === "EXCITED_VIRAL"
+              ? "%23FFE600"
+              : "%2300FF88";
+
+          const cleanQuery = cue.assetQuery.replace(/_/g, " ");
+          const searchRes = await fetch(
+            `https://api.iconify.design/search?query=${encodeURIComponent(cleanQuery)}&limit=5`
+          );
           const searchData: any = await searchRes.json();
           if (searchData.icons && searchData.icons.length > 0) {
             const iconName = searchData.icons[0];
             const [prefix, name] = iconName.split(":");
-            const svgRes = await fetch(`https://api.iconify.design/${prefix}/${name}.svg?color=%2300FF88`);
+            const svgRes = await fetch(
+              `https://api.iconify.design/${prefix}/${name}.svg?color=${themeColor}`
+            );
             const svgText = await svgRes.text();
             if (svgText.includes("<svg")) {
               await sharp(Buffer.from(svgText))
                 .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
                 .png()
                 .toFile(pngPath);
-              fetchedOnline = true;
+              resolved = true;
+              context.log?.(`[AssetSearchTool] Sourced Iconify vector "${iconName}" for "${cue.assetQuery}".`);
             }
           }
         } catch {
-          // Ignore network errors and fallback to procedural badge
+          // Fall through
         }
+      }
 
-        if (!fetchedOnline) {
-          // Fallback 2: Procedural Glass Badge Card
-          const proceduralSvg = `
-            <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-              <rect x="20" y="20" width="472" height="472" rx="36" fill="#0F172A" fill-opacity="0.92" stroke="#38BDF8" stroke-width="8"/>
-              <text x="256" y="240" text-anchor="middle" font-size="120">💡</text>
-              <text x="256" y="380" text-anchor="middle" fill="#38BDF8" font-family="Arial, sans-serif" font-weight="bold" font-size="32">${cue.assetQuery.replace(/_/g, " ").toUpperCase()}</text>
-            </svg>
-          `;
-          await sharp(Buffer.from(proceduralSvg.trim()))
-            .png()
-            .toFile(pngPath);
+      // Tier 4: Wikimedia Commons Open API (Diagrams, Medical & Educational Illustrations)
+      if (!resolved && (cue.category === "ANATOMICAL_DIAGRAM" || cue.category === "CALLOUT_CARD")) {
+        try {
+          const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(
+            cue.assetQuery.replace(/_/g, " ")
+          )}+filetype:bitmap|drawing&gsrlimit=1&prop=imageinfo&iiprop=url|mime&format=json`;
+          const wikiRes = await fetch(wikiUrl);
+          const wikiData: any = await wikiRes.json();
+          const pages = wikiData.query?.pages;
+          if (pages) {
+            const firstKey = Object.keys(pages)[0];
+            const imgInfo = pages[firstKey]?.imageinfo?.[0];
+            if (imgInfo?.url) {
+              const imgRes = await fetch(imgInfo.url);
+              if (imgRes.ok) {
+                const arrayBuf = await imgRes.arrayBuffer();
+                await sharp(Buffer.from(arrayBuf))
+                  .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                  .png()
+                  .toFile(pngPath);
+                resolved = true;
+                context.log?.(`[AssetSearchTool] Sourced Wikimedia Commons illustration for "${cue.assetQuery}".`);
+              }
+            }
+          }
+        } catch {
+          // Fall through
         }
+      }
+
+      // Tier 5: Procedural Glass Badge Card Synthesizer
+      if (!resolved) {
+        const themeColor =
+          cue.mood === "CLINICAL_AUTHORITY"
+            ? "#38BDF8"
+            : cue.mood === "URGENT_WARNING"
+            ? "#EF4444"
+            : cue.mood === "EXCITED_VIRAL"
+            ? "#FFE600"
+            : "#00FF88";
+
+        const iconEmoji =
+          cue.category === "ANATOMICAL_DIAGRAM"
+            ? "🩺"
+            : cue.category === "WARNING_BADGE"
+            ? "⚠️"
+            : cue.category === "METRIC_STAT"
+            ? "📈"
+            : "💡";
+
+        const proceduralSvg = `
+          <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="472" height="472" rx="40" fill="#0F172A" fill-opacity="0.94" stroke="${themeColor}" stroke-width="8"/>
+            <text x="256" y="240" text-anchor="middle" font-size="120">${iconEmoji}</text>
+            <text x="256" y="380" text-anchor="middle" fill="${themeColor}" font-family="Arial, sans-serif" font-weight="900" font-size="32" letter-spacing="1">${cue.assetQuery
+          .replace(/_/g, " ")
+          .toUpperCase()}</text>
+          </svg>
+        `;
+        await sharp(Buffer.from(proceduralSvg.trim()))
+          .png()
+          .toFile(pngPath);
       }
 
       sourcedAssets.push({

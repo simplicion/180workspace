@@ -81,4 +81,4 @@ scratch/
 .vproj_temp/
 .vproj_cache/
 temp_brand_test_*/
-
+.director_memory/

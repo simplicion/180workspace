@@ -10,6 +10,7 @@ export * from "./analysis/mood-classifier.tool";
 // Sourcing Tools
 export * from "./sourcing/asset-search.tool";
 export * from "./sourcing/sfx-search.tool";
+export * from "./sourcing/bgm-search.tool";
 
 // Composition Tools
 export * from "./composition/take-curation.tool";
@@ -18,6 +19,7 @@ export * from "./composition/camera-zoom.tool";
 export * from "./composition/kinetic-caption.tool";
 export * from "./composition/motion-overlay.tool";
 export * from "./composition/audio-ducking.tool";
+export * from "./composition/generative-motion.tool";
 
 // Quality Tools
 export * from "./quality/critic-audit.tool";
@@ -32,12 +34,14 @@ import { SilenceDetectorTool } from "./analysis/silence-detector.tool";
 import { MoodClassifierTool } from "./analysis/mood-classifier.tool";
 import { AssetSearchTool } from "./sourcing/asset-search.tool";
 import { SfxSearchTool } from "./sourcing/sfx-search.tool";
+import { BgmSearchTool } from "./sourcing/bgm-search.tool";
 import { TakeCurationTool } from "./composition/take-curation.tool";
 import { TimelineAssemblyTool } from "./composition/timeline-assembly.tool";
 import { CameraZoomTool } from "./composition/camera-zoom.tool";
 import { KineticCaptionTool } from "./composition/kinetic-caption.tool";
 import { MotionOverlayTool } from "./composition/motion-overlay.tool";
 import { AudioDuckingTool } from "./composition/audio-ducking.tool";
+import { GenerativeMotionTool } from "./composition/generative-motion.tool";
 import { CriticAuditTool } from "./quality/critic-audit.tool";
 import { LosslessRenderTool } from "./render/lossless-render.tool";
 
@@ -52,12 +56,14 @@ export function initializeDefaultDirectorTools(): DirectorToolRegistry {
   registry.register(new MoodClassifierTool());
   registry.register(new AssetSearchTool());
   registry.register(new SfxSearchTool());
+  registry.register(new BgmSearchTool());
   registry.register(new TakeCurationTool());
   registry.register(new TimelineAssemblyTool());
   registry.register(new CameraZoomTool());
   registry.register(new KineticCaptionTool());
   registry.register(new MotionOverlayTool());
   registry.register(new AudioDuckingTool());
+  registry.register(new GenerativeMotionTool());
   registry.register(new CriticAuditTool());
   registry.register(new LosslessRenderTool());
   return registry;

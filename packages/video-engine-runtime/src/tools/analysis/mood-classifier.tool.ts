@@ -3,6 +3,7 @@ import { VideoDirectorTool, DirectorExecutionContext } from "../base-tool";
 import { SkillRegistry } from "../../skills/skill-registry";
 import { MoodTone } from "../../skills/base-skill";
 import { CuratedTakeManifest } from "../../intelligence/semantic-take-curator";
+import { SemanticEntityExtractor } from "../../intelligence/semantic-entity-extractor";
 
 export interface VisualCueTarget {
   id: string;
@@ -60,7 +61,16 @@ export class MoodClassifierTool extends VideoDirectorTool<MoodClassifierInput, M
     const visualCues: VisualCueTarget[] = [];
     const rules = skill.visualCueRules;
 
-    // 3. Scan timeline segments to anchor visual cues
+    // 3. Extract open-world entities using SemanticEntityExtractor (pandas, dinos, money, medical terms, etc.)
+    const openWorldCues = SemanticEntityExtractor.extractAnchors(segmentsToScan, {
+      userPrompt: prompt,
+      genre: skill.genre,
+      minIntervalSeconds: 6.0,
+      defaultDurationSeconds: 3.5,
+    });
+    visualCues.push(...openWorldCues);
+
+    // 4. Scan timeline segments against active skill-specific rules
     let currentTimelineOffset = 0;
     const alternatingPositions: Array<"UPPER_RIGHT" | "UPPER_LEFT"> = ["UPPER_RIGHT", "UPPER_LEFT"];
 
@@ -79,7 +89,7 @@ export class MoodClassifierTool extends VideoDirectorTool<MoodClassifierInput, M
             const triggerTime = Number((currentTimelineOffset + Math.min(1.2, segDuration * 0.25)).toFixed(2));
             
             const lastCue = visualCues[visualCues.length - 1];
-            if (!lastCue || triggerTime - lastCue.timestampSec >= 8.0) {
+            if (!lastCue || triggerTime - lastCue.timestampSec >= 6.0) {
               const pos = alternatingPositions[visualCues.length % alternatingPositions.length];
               visualCues.push({
                 id: `cue_${visualCues.length + 1}_${rule.suggestedAssetQuery}`,

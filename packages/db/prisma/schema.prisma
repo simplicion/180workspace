@@ -3466,3 +3466,23 @@ model VideoStudioExport {
   @@index([companyId, status])
   @@map("video_studio_render_jobs")
 }
+
+model DirectorMemory {
+  id              String   @id @default(uuid())
+  scope           String   @default("GLOBAL")
+  companyId       String?
+  userId          String?
+  category        String
+  key             String
+  value           Json     @default("{}")
+  confidence      Float    @default(1.0)
+  occurrenceCount Int      @default(1)
+  lastAccessedAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([scope, category])
+  @@index([companyId, category])
+  @@index([companyId, userId])
+  @@map("director_memories")
+}
