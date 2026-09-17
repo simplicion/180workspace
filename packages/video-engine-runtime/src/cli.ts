@@ -18,6 +18,8 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import { ProductionPlanner, DirectorAgent } from "./planner";
+import "./tools";
 
 const program = new Command();
 
@@ -231,7 +233,56 @@ program
     }
   });
 
-// 6. DIRECT (AI Director Autonomous Directing & Full Infrastructure Orchestration)
+// 6. PLAN (AI Director Production Plan Decomposer)
+program
+  .command("plan")
+  .description("Decompose project assets and user prompt into a structured DAG ProductionPlan")
+  .requiredOption("-i, --input <path>", "Input video file path or directory of project assets")
+  .requiredOption("-p, --prompt <prompt>", "Natural language directing prompt for the AI Director")
+  .option("-o, --out <path>", "Target output video path", "master_render.mp4")
+  .option("-a, --aspect <aspect>", "Target aspect ratio: 9:16 | 16:9 | 1:1", "9:16")
+  .action((options: any) => {
+    try {
+      const inputPath = path.resolve(options.input);
+      let filePaths: string[] = [];
+
+      if (fs.existsSync(inputPath) && fs.statSync(inputPath).isDirectory()) {
+        filePaths = fs.readdirSync(inputPath)
+          .filter((e) => !e.startsWith("."))
+          .map((e) => path.join(inputPath, e))
+          .filter((p) => fs.existsSync(p) && fs.statSync(p).isFile());
+      } else if (fs.existsSync(inputPath)) {
+        filePaths = [inputPath];
+      }
+
+      const plan = ProductionPlanner.createPlan({
+        userPrompt: options.prompt,
+        inputFiles: filePaths,
+        outputPath: path.resolve(options.out),
+        targetAspect: options.aspect as any,
+      });
+
+      console.log(`\n=================================================================`);
+      console.log(`  180 AI DIRECTOR - TWO-TIER PRODUCTION PLAN (DAG)              `);
+      console.log(`=================================================================\n`);
+      console.log(`Plan ID: ${plan.id}`);
+      console.log(`Director Preset: ${plan.directorPreset} | Aspect: ${plan.targetAspect}`);
+      console.log(`Objective: "${plan.userPrompt}"\n`);
+      console.log(`Tasks Sequence (${plan.tasks.length} tasks):`);
+
+      plan.tasks.forEach((t, idx) => {
+        const deps = t.dependencies.length > 0 ? ` [Depends on: ${t.dependencies.join(", ")}]` : "";
+        console.log(`  [Stage ${t.stage}] Task ${idx + 1}: ${t.title} (${t.toolName})${deps}`);
+        console.log(`    → ${t.description}`);
+      });
+      console.log(`\n=================================================================\n`);
+    } catch (err: any) {
+      console.error(`✗ Error generating production plan: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+// 7. DIRECT (Two-Tier Planner-Worker AI Director Execution)
 program
   .command("direct")
   .description("Direct and edit video via AI Director with conscious style intelligence, safe margins, and hardware render")
@@ -246,48 +297,36 @@ program
       const tempDir = path.join(path.dirname(outputPath), ".ai_director_tmp");
 
       console.log(`\n=================================================================`);
-      console.log(`  180 AI DIRECTOR - AUTONOMOUS MEDIA STUDIO ORCHESTRATION ENGINE  `);
+      console.log(`  180 AI DIRECTOR - TWO-TIER PLANNER-WORKER AGENTIC STUDIO ENGINE `);
       console.log(`=================================================================\n`);
       console.log(`[Director Command] "${options.prompt}"`);
       console.log(`[Input Asset] ${inputPath}`);
       console.log(`[Target Export] ${outputPath}\n`);
 
-      console.log(`[Stage 1/4] Ingesting Assets & Probing Telemetry...`);
-      const assembly = await ProjectIngestionOrchestrator.ingestAndAssemble(inputPath, {
+      const result = await DirectorAgent.directProject({
         userPrompt: options.prompt,
+        inputFilesOrDirectory: inputPath,
+        outputPath,
         targetAspect: options.aspect as any,
-        outputDir: tempDir,
+        tempDir,
+        onPlanGenerated: (plan) => {
+          console.log(`[Tier 1: Planner] Generated ProductionPlan: ${plan.tasks.length} discrete DAG tasks across 6 stages.`);
+        },
+        onTaskStart: (task) => {
+          console.log(`\n[Tier 2: Tool Execution] ▶ [${task.stage}] ${task.title} (Tool: ${task.toolName})...`);
+        },
+        onTaskProgress: (task, percent, message) => {
+          process.stdout.write(`\r  [Task Progress] ${percent}% - ${message}   `);
+        },
+        onTaskComplete: (task) => {
+          console.log(`\r  ✓ Completed in ${task.durationMs}ms: ${task.title}                          `);
+        },
       });
 
-      console.log(`  ✓ Primary A-Roll Identified: ${assembly.primaryARollPath}`);
-      console.log(`  ✓ Duration: ${assembly.totalDurationSec.toFixed(2)}s | Target Aspect: ${assembly.resolvedStyle.targetAspect}`);
-      console.log(`  ✓ Style Preset: ${assembly.resolvedStyle.presetKey}`);
-      console.log(`  ✓ Theme Colors: Primary ${assembly.resolvedStyle.captionColors.primary} | Highlight ${assembly.resolvedStyle.captionColors.highlight}`);
-      console.log(`  ✓ Pacing Multiplier: ${assembly.resolvedStyle.pacingMultiplier}x | Spring Zoom Scale: ${assembly.resolvedStyle.zoomScale}x`);
-
-      console.log(`\n[Stage 2/4] Compiling Multi-Track EditIR AST & Directorial Directives...`);
-      console.log(`  ✓ Camera Track: ${assembly.editIR.tracks.cameraTrack.length} spring zoom punch event(s)`);
-      console.log(`  ✓ Caption Track: ${assembly.editIR.tracks.captionTrack.length} kinetic bouncing caption segment(s)`);
-      console.log(`  ✓ Video Tracks: ${assembly.editIR.tracks.videoTracks.length} track(s)`);
-      console.log(`  ✓ Audio Tracks: ${assembly.editIR.tracks.audioTracks.length} track(s) with speech ducking`);
-      console.log(`  ✓ Safe Margin: ${(assembly.resolvedStyle.safeMarginVPercent * 100).toFixed(0)}% bottom envelope (Instagram Ads UI safe)`);
-
-      console.log(`\n[Stage 3/4] Running AI Critic & Retention QA Heuristics...`);
-      const criticReport = VideoCriticService.analyze(assembly.editIR);
-      console.log(`  ✓ Retention Quality Score: ${criticReport.overallScore}/100`);
-      console.log(`  ✓ Predicted Viewer Retention: ${criticReport.retentionPrediction}%`);
-      console.log(`  ✓ Heuristic Diagnostic Status: Clean (0 Critical Blockers)`);
-
-      console.log(`\n[Stage 4/4] Hardware-Accelerated Single-Pass Compositor & Lossless Render...`);
-      await LosslessSplicer.render(assembly.editIR, outputPath, tempDir, (progress) => {
-        process.stdout.write(`\r  [Render Progress] ${progress.percent}% completed (Chunk ${progress.currentChunk}/${progress.totalChunks})`);
-      });
-      console.log("\n");
-
-      console.log(`=================================================================`);
+      console.log(`\n=================================================================`);
       console.log(`🎉 AI DIRECTOR EXECUTION COMPLETE`);
-      console.log(`Exported Master: ${outputPath}`);
-      console.log(`Rationale: ${assembly.resolvedStyle.aestheticRationale}`);
+      console.log(`Exported Master: ${result.masterExportPath}`);
+      console.log(`Tasks Completed: ${result.plan.tasks.filter((t) => t.status === "COMPLETED").length}/${result.plan.tasks.length}`);
       console.log(`=================================================================\n`);
     } catch (err: any) {
       console.error(`\n✗ AI Director execution failed: ${err.message}`);
