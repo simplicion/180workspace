@@ -7,3 +7,6 @@ export * from "./ass-subtitle-generator";
 export * from "./audio-ducking-mixer";
 export * from "./object-tracker";
 export * from "./cache-manager";
+export * from "./intelligence";
+export * from "./cinematic-color-grade-pipeline";
+export * from "./motion-graphic-card-generator";

@@ -82,6 +82,35 @@ export class VideoCriticService {
       lastEventEnd = start + duration;
     });
 
+    if (totalDurationSec - lastEventEnd > 6.0) {
+      issues.push({
+        id: generateUUID(),
+        severity: "WARNING",
+        category: "PACING",
+        title: "Low Retention Talking Head Segment",
+        description: `No camera zoom, cut, or visual hook found between ${lastEventEnd.toFixed(1)}s and ${totalDurationSec.toFixed(1)}s (${(totalDurationSec - lastEventEnd).toFixed(1)}s span).`,
+        timeRangeSec: { start: lastEventEnd, duration: totalDurationSec - lastEventEnd },
+        autoFixAvailable: true,
+        suggestedAction: "Insert dynamic 1.25x punch zoom on speaker face",
+      });
+
+      recommendedRepairs.push({
+        type: "ADD_CAMERA_EVENT",
+        event: {
+          id: generateUUID(),
+          timeRange: {
+            start: RationalTimeMath.fromSeconds(lastEventEnd + 2.0),
+            duration: RationalTimeMath.fromSeconds(2.0),
+          },
+          targetType: "FACE",
+          targetCoords: { x: 0.5, y: 0.35 },
+          scale: 1.25,
+          spring: { stiffness: 180, damping: 18, mass: 1, overshootClamping: false },
+          motionBlur: true,
+        },
+      });
+    }
+
     // 2. Check for Jarring Micro Cuts (< 250ms clips)
     mainTrack?.clips.forEach((clip, idx) => {
       const durSec = RationalTimeMath.toSeconds(clip.timelineRange.duration);

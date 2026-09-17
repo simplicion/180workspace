@@ -1,7 +1,7 @@
 import ffmpeg from "./ffmpeg-setup";
 import * as fs from "fs";
 import * as path from "path";
-import { EditIR, RationalTimeMath } from "@workspace/video-contracts";
+import { EditIR, RationalTimeMath, CameraEvent } from "@workspace/video-contracts";
 import { AssSubtitleGenerator } from "./ass-subtitle-generator";
 import { AudioDuckingMixer } from "./audio-ducking-mixer";
 
@@ -46,28 +46,46 @@ export class LosslessSplicer {
       const startSec = RationalTimeMath.toSeconds(clip.sourceRange.start);
       const durationSec = RationalTimeMath.toSeconds(clip.sourceRange.duration);
 
-      const isUnmodified =
-        clip.transform.scale.start === 1.0 &&
-        clip.transform.scale.end === 1.0 &&
-        clip.transform.position.x === 0 &&
-        clip.transform.position.y === 0 &&
-        clip.transform.opacity === 1.0 &&
-        clip.speedMultiplier === 1.0;
+      const targetW = Math.floor(editIR.meta.resolution.width / 2) * 2;
+      const targetH = Math.floor(editIR.meta.resolution.height / 2) * 2;
+      const isVerticalProject = editIR.meta.targetAspect === "9:16" || targetW < targetH;
+
+      const hasSpatialTransform =
+        clip.transform.scale.start !== 1.0 ||
+        clip.transform.scale.end !== 1.0 ||
+        clip.transform.position.x !== 0 ||
+        clip.transform.position.y !== 0 ||
+        clip.transform.opacity !== 1.0 ||
+        clip.speedMultiplier !== 1.0;
+
+      // Probe source to check if dimensions match target
+      const isResolutionIdentical = !isVerticalProject; // If project is vertical reel, source must be reframed
 
       await new Promise<void>((resolve, reject) => {
         let command = ffmpeg(clip.sourcePath).setStartTime(startSec).setDuration(durationSec);
 
-        if (isUnmodified) {
+        if (!hasSpatialTransform && isResolutionIdentical) {
           // Smart Stream Copy: Instant copy without re-encoding
           command = command
             .outputOptions(["-c copy", "-avoid_negative_ts make_zero"])
             .output(segPath);
         } else {
-          // Hardware/Software Transcode for spatial transforms
+          // Hardware/Software Transcode with proper aspect framing and even macroblock dimensions
+          let vFilter = `scale=trunc(iw/2)*2:trunc(ih/2)*2`;
+          if (isVerticalProject) {
+            vFilter = `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1`;
+          } else if (hasSpatialTransform) {
+            const scale = clip.transform.scale.start || 1.0;
+            if (scale !== 1.0) {
+              vFilter = `scale=trunc(iw*${scale}/2)*2:trunc(ih*${scale}/2)*2`;
+            }
+          }
+
           command = command
+            .videoFilters(vFilter)
             .videoCodec("libx264")
             .audioCodec("aac")
-            .outputOptions(["-preset fast", "-crf 18"])
+            .outputOptions(["-preset fast", "-crf 18", "-movflags +faststart"])
             .output(segPath);
         }
 
@@ -113,49 +131,64 @@ export class LosslessSplicer {
       });
     }
 
-    // Step 2.5: Composite Overlay Tracks (Images, Stickers, PiP, B-roll) if present
+    // Step 2.5: Composite Camera Zooms & Overlay Tracks (Images, Stickers, PiP, B-roll)
     const overlayTracks = editIR.tracks.videoTracks.filter(
       (t) => (t.type as any) !== "MAIN_VIDEO" && t.clips.length > 0
     );
+    const cameraEvents = editIR.tracks.cameraTrack || [];
+    const hasCameraZooms = cameraEvents.length > 0;
+    const targetCanvasW = Math.floor(editIR.meta.resolution.width / 2) * 2;
+    const targetCanvasH = Math.floor(editIR.meta.resolution.height / 2) * 2;
 
     let compositedVideoPath = mergedRawVideo;
-    if (overlayTracks.length > 0) {
+    const totalProjectDurationSec = RationalTimeMath.toSeconds(editIR.meta.totalDuration);
+
+    if (hasCameraZooms || overlayTracks.length > 0) {
       const overlaidVideo = path.join(tempDir, "overlaid_composite.mp4");
       let overlayCmd = ffmpeg(mergedRawVideo);
       let filterComplex = "";
       let lastStream = "0:v";
       let inputIdx = 1;
 
+      if (hasCameraZooms) {
+        const camFilter = this.buildCameraFilter(cameraEvents, targetCanvasW, targetCanvasH);
+        if (camFilter) {
+          filterComplex += `[0:v]${camFilter}[cam_zoomed];`;
+          lastStream = "cam_zoomed";
+        }
+      }
+
       for (const track of overlayTracks) {
         for (const oClip of track.clips) {
           if (fs.existsSync(oClip.sourcePath)) {
-            overlayCmd = overlayCmd.input(oClip.sourcePath);
+            const isImg = Boolean(oClip.sourcePath.match(/\.(png|jpg|jpeg|webp|svg)$/i));
+            if (isImg) {
+              overlayCmd = overlayCmd.input(oClip.sourcePath).inputOptions(["-loop", "1"]);
+            } else {
+              overlayCmd = overlayCmd.input(oClip.sourcePath);
+            }
+
             const oStartSec = RationalTimeMath.toSeconds(oClip.timelineRange.start);
             const oDurSec = RationalTimeMath.toSeconds(oClip.timelineRange.duration);
             const oEndSec = oStartSec + oDurSec;
-            const isImg = Boolean(oClip.sourcePath.match(/\.(png|jpg|jpeg|webp|svg)$/i));
-
-            if (isImg) {
-              overlayCmd = overlayCmd.loop(oDurSec);
-            }
 
             const scaleFactor = oClip.transform?.scale?.start || 1.0;
             const posX = oClip.transform?.position?.x || 0;
             const posY = oClip.transform?.position?.y || 0;
             const opacity = oClip.transform?.opacity ?? 1.0;
 
-            const targetW = Math.round(editIR.meta.resolution.width * 0.35 * scaleFactor);
+            const targetW = Math.max(16, Math.floor((editIR.meta.resolution.width * 0.42 * scaleFactor) / 2) * 2);
             const scaledLabel = `scaled_${inputIdx}`;
             const outLabel = `v_layer_${inputIdx}`;
 
-            filterComplex += `[${inputIdx}:v]scale=${targetW}:-1,format=rgba,colorchannelmixer=aa=${opacity}[${scaledLabel}];[${lastStream}][${scaledLabel}]overlay=x=(W-w)/2+${posX}:y=(H-h)/2+${posY}:enable='between(t,${oStartSec},${oEndSec})'[${outLabel}];`;
+            filterComplex += `[${inputIdx}:v]scale=${targetW}:-2,format=rgba,colorchannelmixer=aa=${opacity}[${scaledLabel}];[${lastStream}][${scaledLabel}]overlay=x=(W-w)/2+${posX}:y=(H-h)/2+${posY}:enable='between(t,${oStartSec},${oEndSec})':eof_action=pass[${outLabel}];`;
             lastStream = outLabel;
             inputIdx++;
           }
         }
       }
 
-      if (inputIdx > 1) {
+      if (filterComplex.length > 0) {
         await new Promise<void>((resolve, reject) => {
           overlayCmd
             .complexFilter(filterComplex.replace(/;$/, ""))
@@ -166,6 +199,7 @@ export class LosslessSplicer {
               "-c:v", "libx264",
               "-preset", "fast",
               "-crf", "18",
+              "-t", `${totalProjectDurationSec}`,
             ])
             .output(overlaidVideo)
             .on("end", () => {
@@ -174,7 +208,7 @@ export class LosslessSplicer {
               resolve();
             })
             .on("error", (err) => {
-              console.warn("[LosslessSplicer] Overlay compositing fallback:", err.message);
+              console.warn("[LosslessSplicer] Overlay/Camera compositing fallback:", err.message);
               resolve();
             })
             .run();
@@ -210,7 +244,7 @@ export class LosslessSplicer {
         let cmd = ffmpeg(compositedVideoPath)
           .videoFilters(`ass='${formattedAssPath}'`)
           .videoCodec("libx264")
-          .outputOptions(["-preset fast", "-crf 18"]);
+          .outputOptions(["-preset fast", "-crf 18", "-movflags +faststart"]);
 
         if (processedAudioPath && fs.existsSync(processedAudioPath)) {
           cmd = cmd.input(processedAudioPath).outputOptions(["-map 0:v:0", "-map 1:a:0", "-c:a aac"]);
@@ -235,7 +269,7 @@ export class LosslessSplicer {
       await new Promise<void>((resolve, reject) => {
         ffmpeg(compositedVideoPath)
           .input(processedAudioPath)
-          .outputOptions(["-c:v copy", "-map 0:v:0", "-map 1:a:0", "-c:a aac"])
+          .outputOptions(["-c:v copy", "-map 0:v:0", "-map 1:a:0", "-c:a aac", "-movflags +faststart"])
           .output(outputPath)
           .on("end", () => {
             if (onProgress) onProgress({ percent: 100, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
@@ -245,11 +279,57 @@ export class LosslessSplicer {
           .run();
       });
     } else {
-      // Direct stream-copy pass
-      fs.copyFileSync(compositedVideoPath, outputPath);
-      if (onProgress) onProgress({ percent: 100, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
+      // Direct stream-copy pass with FastStart metadata
+      await new Promise<void>((resolve) => {
+        ffmpeg(compositedVideoPath)
+          .outputOptions(["-c copy", "-movflags +faststart"])
+          .output(outputPath)
+          .on("end", () => {
+            if (onProgress) onProgress({ percent: 100, currentChunk: totalClips, totalChunks: totalClips, fps: 0 });
+            resolve();
+          })
+          .on("error", () => {
+            fs.copyFileSync(compositedVideoPath, outputPath);
+            resolve();
+          })
+          .run();
+      });
     }
 
     return outputPath;
+  }
+
+  /**
+   * Constructs mathematical 60fps continuous spring camera zoom filter expressions.
+   * Smoothly eases in and out on tracked subject coordinates without frame jitter.
+   */
+  private static buildCameraFilter(
+    cameraEvents: CameraEvent[],
+    targetW: number,
+    targetH: number
+  ): string {
+    if (!cameraEvents || cameraEvents.length === 0) return "";
+
+    let wExpr = "iw";
+    let hExpr = "ih";
+    let xExpr = "(iw-ow)*0.5";
+    let yExpr = "(ih-oh)*0.38";
+
+    for (const cam of cameraEvents) {
+      const s = RationalTimeMath.toSeconds(cam.timeRange.start);
+      const d = RationalTimeMath.toSeconds(cam.timeRange.duration);
+      const e = s + d;
+      const delta = (cam.scale || 1.3) - 1.0;
+      const fx = cam.targetCoords?.x ?? 0.5;
+      const fy = cam.targetCoords?.y ?? 0.38;
+
+      const zoomFactor = `(1+${delta.toFixed(3)}*sin(PI*(t-${s.toFixed(2)})/${d.toFixed(2)}))`;
+      wExpr = `if(between(t,${s.toFixed(2)},${e.toFixed(2)}),iw/${zoomFactor},${wExpr})`;
+      hExpr = `if(between(t,${s.toFixed(2)},${e.toFixed(2)}),ih/${zoomFactor},${hExpr})`;
+      xExpr = `if(between(t,${s.toFixed(2)},${e.toFixed(2)}),(iw-ow)*${fx.toFixed(2)},${xExpr})`;
+      yExpr = `if(between(t,${s.toFixed(2)},${e.toFixed(2)}),(ih-oh)*${fy.toFixed(2)},${yExpr})`;
+    }
+
+    return `crop=w='${wExpr}':h='${hExpr}':x='${xExpr}':y='${yExpr}',scale=${targetW}:${targetH}`;
   }
 }

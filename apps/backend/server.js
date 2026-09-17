@@ -179,12 +179,12 @@ app.use(globalLimiter);
 
 // ─── Public Traffic Director Edge Routing (Zero-overhead Unauthenticated Edge) ───
 const { PublicRoutingController } = require('./src/api/v1/traffic-director/public-routing.controller');
-app.get('/r/_proxy/stream', (req, res, next) => PublicRoutingController.handleProxyStream(req, res).catch(next));
-app.get('/r/_proxy/asset', (req, res, next) => PublicRoutingController.handleProxyAsset(req, res).catch(next));
-app.get('/api/v1/traffic-director/stream-proxy', (req, res, next) => PublicRoutingController.handleProxyStream(req, res).catch(next));
-app.get('/api/v1/traffic-director/asset-proxy', (req, res, next) => PublicRoutingController.handleProxyAsset(req, res).catch(next));
-app.get('/r/:slug', (req, res, next) => PublicRoutingController.handleRedirect(req, res).catch(next));
-app.get('/shield/:slug', (req, res, next) => PublicRoutingController.handleShieldRoute(req, res).catch(next));
+app.all('/r/_proxy/stream', (req, res, next) => PublicRoutingController.handleProxyStream(req, res).catch(next));
+app.all('/r/_proxy/asset', (req, res, next) => PublicRoutingController.handleProxyAsset(req, res).catch(next));
+app.all('/api/v1/traffic-director/stream-proxy', (req, res, next) => PublicRoutingController.handleProxyStream(req, res).catch(next));
+app.all('/api/v1/traffic-director/asset-proxy', (req, res, next) => PublicRoutingController.handleProxyAsset(req, res).catch(next));
+app.all(['/r/:slug', '/r/:slug/*'], (req, res, next) => PublicRoutingController.handleRedirect(req, res).catch(next));
+app.all('/shield/:slug', (req, res, next) => PublicRoutingController.handleShieldRoute(req, res).catch(next));
 app.all('/tag/:slug', (req, res, next) => PublicRoutingController.handleDynamicTag(req, res).catch(next));
 app.post('/evaluate/:slug', (req, res, next) => PublicRoutingController.handleEdgeEvaluate(req, res).catch(next));
 app.post('/api/v1/traffic-director/evaluate/:slug', (req, res, next) => PublicRoutingController.handleEdgeEvaluate(req, res).catch(next));

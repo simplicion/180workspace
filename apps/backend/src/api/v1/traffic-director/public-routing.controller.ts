@@ -11,7 +11,17 @@ import {
 export class PublicRoutingController {
   static async handleRedirect(req: Request, res: Response) {
     try {
-      const { slug } = req.params;
+      const rawSlug = req.params.slug || (req.params as any)['0'] || '';
+      let slug = rawSlug;
+      let pathFromParams = '';
+      if (slug.includes('/')) {
+        const parts = slug.split('/');
+        slug = parts[0];
+        pathFromParams = parts.slice(1).join('/');
+      } else if ((req.params as any)['0']) {
+        pathFromParams = (req.params as any)['0'];
+      }
+
       const domainQuery = (req.query.domain as string) || (req.headers['x-forwarded-host'] as string) || (req.headers.host as string);
 
       let link = null;
@@ -63,22 +73,24 @@ export class PublicRoutingController {
 
       // 5. Compute destination URL and handle subpaths for assets or deep routes
       let finalDestination = result.destinationUrl;
-      const subpath = req.query.subpath ? String(req.query.subpath).replace(/^\/+/, '') : '';
+      const subpath = req.query.subpath 
+        ? String(req.query.subpath).replace(/^\/+/, '') 
+        : (pathFromParams ? String(pathFromParams).replace(/^\/+/, '') : '');
       
       if (subpath) {
         try {
           const parsedDest = new URL(finalDestination);
-          const targetOrigin = `${parsedDest.protocol}//${parsedDest.host}`;
-          const isStaticAsset = /\.(png|jpe?g|svg|webp|avif|ico|gif|mp4|webm|woff2?|ttf|eot|css|js|map|json|webmanifest)$/i.test(subpath.split('?')[0]);
+          const isStaticAsset = /\.(png|jpe?g|svg|webp|avif|ico|gif|mp4|webm|ogv|mov|mp3|wav|ogg|oga|opus|m4a|aac|flac|weba|mid|midi|woff2?|ttf|eot|otf|css|js|mjs|map|json|webmanifest|txt|xml|pdf)$/i.test(subpath.split('?')[0]);
           
           if (isStaticAsset) {
-            // Direct static asset streaming proxy (e.g. /logo.png, /favicon.ico)
-            const assetUrl = `${targetOrigin}/${subpath}`;
+            // Direct static asset & media streaming proxy (e.g. /logo.png, /audio.mp3, /favicon.ico)
+            const assetUrl = new URL(subpath, parsedDest.href).toString();
             const assetResult = await ReverseProxyService.fetchAndStreamAsset(assetUrl, {
               customHeaders: {
                 'user-agent': req.get('user-agent') || '',
                 'accept-language': req.get('accept-language') || '',
-                'accept': req.get('accept') || '*/*'
+                'accept': req.get('accept') || '*/*',
+                'range': req.get('range') || ''
               }
             });
 
@@ -88,6 +100,10 @@ export class PublicRoutingController {
             res.removeHeader('X-Frame-Options');
 
             res.setHeader('Content-Type', assetResult.contentType);
+            res.setHeader('Accept-Ranges', 'bytes');
+            if (assetResult.headers['Content-Range']) {
+              res.setHeader('Content-Range', assetResult.headers['Content-Range']);
+            }
             res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
@@ -96,7 +112,7 @@ export class PublicRoutingController {
             return res.status(assetResult.statusCode || 200).send(assetResult.body);
           } else {
             // Append page subpath to destination
-            finalDestination = `${targetOrigin}/${subpath}`;
+            finalDestination = new URL(subpath, parsedDest.href).toString();
           }
         } catch (e) {}
       }
@@ -104,6 +120,7 @@ export class PublicRoutingController {
       // Preserve non-subpath query params from original request
       const urlObj = new URL(req.url, 'http://localhost');
       urlObj.searchParams.delete('subpath');
+      urlObj.searchParams.delete('domain');
       const extraQuery = urlObj.searchParams.toString();
       if (extraQuery) {
         const separator = finalDestination.includes('?') ? '&' : '?';
@@ -436,7 +453,8 @@ export class PublicRoutingController {
         customHeaders: {
           'user-agent': req.get('user-agent') || '',
           'accept-language': req.get('accept-language') || '',
-          'accept': req.get('accept') || '*/*'
+          'accept': req.get('accept') || '*/*',
+          'range': req.get('range') || ''
         }
       });
 
@@ -446,6 +464,10 @@ export class PublicRoutingController {
       res.removeHeader('X-Frame-Options');
 
       res.setHeader('Content-Type', assetResult.contentType);
+      res.setHeader('Accept-Ranges', 'bytes');
+      if (assetResult.headers['Content-Range']) {
+        res.setHeader('Content-Range', assetResult.headers['Content-Range']);
+      }
       res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');

@@ -98,11 +98,27 @@ export class ReverseProxyService {
     if (cleanPath.endsWith('.webp')) return 'image/webp';
     if (cleanPath.endsWith('.avif')) return 'image/avif';
     if (cleanPath.endsWith('.ico')) return 'image/x-icon';
+    if (cleanPath.endsWith('.gif')) return 'image/gif';
     if (cleanPath.endsWith('.woff2')) return 'font/woff2';
     if (cleanPath.endsWith('.woff')) return 'font/woff';
     if (cleanPath.endsWith('.ttf')) return 'font/ttf';
     if (cleanPath.endsWith('.otf')) return 'font/otf';
+    if (cleanPath.endsWith('.eot')) return 'application/vnd.ms-fontobject';
+    // Audio formats
+    if (cleanPath.endsWith('.mp3')) return 'audio/mpeg';
+    if (cleanPath.endsWith('.wav')) return 'audio/wav';
+    if (cleanPath.endsWith('.ogg') || cleanPath.endsWith('.oga') || cleanPath.endsWith('.opus')) return 'audio/ogg';
+    if (cleanPath.endsWith('.m4a') || cleanPath.endsWith('.aac')) return 'audio/mp4';
+    if (cleanPath.endsWith('.flac')) return 'audio/flac';
+    if (cleanPath.endsWith('.weba')) return 'audio/webm';
+    if (cleanPath.endsWith('.mid') || cleanPath.endsWith('.midi')) return 'audio/midi';
+    // Video formats
+    if (cleanPath.endsWith('.mp4')) return 'video/mp4';
+    if (cleanPath.endsWith('.webm')) return 'video/webm';
+    if (cleanPath.endsWith('.ogv')) return 'video/ogg';
+    if (cleanPath.endsWith('.mov')) return 'video/quicktime';
     if (cleanPath.endsWith('.html') || cleanPath.endsWith('.htm')) return 'text/html; charset=utf-8';
+    if (cleanPath.endsWith('.pdf')) return 'application/pdf';
     
     if (upstreamType && upstreamType !== 'text/plain') {
       return upstreamType;
@@ -277,7 +293,29 @@ export class ReverseProxyService {
         return `<${tag}${updatedAttrs}>`;
       });
 
-      // 4. Ensure a real destination favicon is present in <head>
+      // 5. Rewrite media tags (audio, video, source, track) through the edge asset proxy (/r/_proxy/asset)
+      html = html.replace(/<(audio|video|source|track)([^>]*?)>/gi, (_match, tag, attrs) => {
+        let updatedAttrs = attrs;
+        const srcMatch = updatedAttrs.match(/\bsrc=["']([^"']+)["']/i);
+        if (srcMatch) {
+          const rawSrc = srcMatch[1];
+          let absoluteAsset = '';
+          if (rawSrc.startsWith('//')) {
+            absoluteAsset = `${parsedUrl.protocol}${rawSrc}`;
+          } else if (rawSrc.startsWith('/')) {
+            absoluteAsset = `${origin}${rawSrc}`;
+          } else if (rawSrc.startsWith(origin)) {
+            absoluteAsset = rawSrc;
+          }
+          if (absoluteAsset) {
+            const proxiedSrc = `${assetProxyBase}?url=${encodeURIComponent(absoluteAsset)}`;
+            updatedAttrs = updatedAttrs.replace(/\bsrc=["'][^"']+["']/i, `src="${proxiedSrc}"`);
+          }
+        }
+        return `<${tag}${updatedAttrs}>`;
+      });
+
+      // 6. Ensure a real destination favicon is present in <head>
       if (!/<link[^>]*rel=["'](icon|shortcut icon)["']/i.test(html)) {
         const defaultFaviconUrl = `${origin}/favicon.ico`;
         const faviconTag = `\n  <link rel="icon" href="${assetProxyBase}?url=${encodeURIComponent(defaultFaviconUrl)}">`;
@@ -286,7 +324,7 @@ export class ReverseProxyService {
         }
       }
 
-      // 5. Rewrite remaining general root-relative assets (images, audio, video posters, etc.) to absolute target URLs
+      // 7. Rewrite remaining general root-relative assets (images, audio, video posters, etc.) to absolute target URLs
       // (Explicitly excluding our edge asset proxy path /r/_proxy/)
       html = html
         .replace(/\b(src|poster|data-src)=["']\/(?!r\/_proxy\/|\/)([^"']*)["']/gi, `$1="${origin}/$2"`)
@@ -299,7 +337,15 @@ export class ReverseProxyService {
         })
         .replace(/url\(\s*["']?\/(?!r\/_proxy\/|\/)([^"')]+)["']?\s*\)/gi, `url("${origin}/$1")`);
 
-      // 6. Inject SPA path normalizer, network interceptor & animation fallback into <head> (WITHOUT <base href>)
+      // 8. Rewrite internal links (<a href>) and forms (<form action>) pointing to origin so clicking internal navigation stays on the cloaked domain
+      const originEscaped = origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const originHostEscaped = parsedUrl.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const linkRegex = new RegExp(`\\b(href|action)=["'](?:${originEscaped}|https?:\\/\\/${originHostEscaped}|\\/\\/${originHostEscaped})(\\/[^"']*)?["']`, 'gi');
+      html = html.replace(linkRegex, (_match, attr, path) => {
+        return `${attr}="${path || '/'}"`;
+      });
+
+      // 9. Inject SPA path normalizer, media & network interceptor, and audio unlocker into <head> (WITHOUT <base href>)
       const targetPath = parsedUrl.pathname || '/';
       const compatScript = `<script id="__td_compat__">
 (function() {
@@ -307,6 +353,23 @@ export class ReverseProxyService {
     var targetOrigin = "${origin}";
     var targetPath = "${targetPath}";
     var assetProxyBase = "${assetProxyBase}";
+
+    // Helper to resolve full asset URL
+    function resolveAssetUrl(u) {
+      if (!u || typeof u !== 'string') return u;
+      if (u.startsWith('data:') || u.startsWith('blob:') || u.startsWith(assetProxyBase)) return u;
+      var full = '';
+      if (u.startsWith('//')) {
+        full = window.location.protocol + u;
+      } else if (u.startsWith('/')) {
+        full = targetOrigin + u;
+      } else if (u.startsWith(targetOrigin)) {
+        full = u;
+      } else if (!u.startsWith('http://') && !u.startsWith('https://')) {
+        full = targetOrigin + '/' + u;
+      }
+      return full ? (assetProxyBase + '?url=' + encodeURIComponent(full)) : u;
+    }
 
     // SPA Router Path Normalizer (Next.js App Router, Vite, Nuxt, Remix, SvelteKit)
     var curPath = window.location.pathname;
@@ -316,7 +379,41 @@ export class ReverseProxyService {
       }
     }
 
-    // Intercept window.fetch for RSC flight payloads, RUM beacons, and dynamic asset chunks
+    // Intercept window.Audio constructor so dynamic new Audio('/audio.mp3') proxies seamlessly
+    var OrigAudio = window.Audio;
+    if (OrigAudio) {
+      window.Audio = function(src) {
+        var proxiedSrc = src ? resolveAssetUrl(src) : src;
+        var audioInstance = new OrigAudio(proxiedSrc);
+        audioInstance.crossOrigin = 'anonymous';
+        return audioInstance;
+      };
+      window.Audio.prototype = OrigAudio.prototype;
+    }
+
+    // Intercept media and image property setters (HTMLAudioElement, HTMLVideoElement, HTMLSourceElement, HTMLImageElement)
+    var mediaClasses = [window.HTMLAudioElement, window.HTMLVideoElement, window.HTMLSourceElement, window.HTMLMediaElement, window.HTMLImageElement];
+    mediaClasses.forEach(function(cls) {
+      if (cls && cls.prototype) {
+        var proto = cls.prototype;
+        var srcDesc = Object.getOwnPropertyDescriptor(proto, 'src');
+        if (srcDesc && srcDesc.set) {
+          var origSet = srcDesc.set;
+          var origGet = srcDesc.get;
+          Object.defineProperty(proto, 'src', {
+            get: function() { return origGet ? origGet.call(this) : this.getAttribute('src'); },
+            set: function(val) {
+              var rewritten = resolveAssetUrl(val);
+              return origSet.call(this, rewritten);
+            },
+            configurable: true,
+            enumerable: true
+          });
+        }
+      }
+    });
+
+    // Intercept window.fetch for RSC flight payloads, RUM beacons, dynamic audio/asset chunks
     var originalFetch = window.fetch;
     if (originalFetch) {
       window.fetch = function(resource, init) {
@@ -346,7 +443,7 @@ export class ReverseProxyService {
       };
     }
 
-    // Intercept XMLHttpRequest for relative XHR / Beacon calls
+    // Intercept XMLHttpRequest for relative XHR / Audio buffer calls
     var OriginalXHR = window.XMLHttpRequest;
     if (OriginalXHR) {
       var origOpen = OriginalXHR.prototype.open;
@@ -368,47 +465,40 @@ export class ReverseProxyService {
       };
     }
 
-    // Intercept dynamic client-side image loading (e.g. React /logo.png, <img src="/logo.png">)
-    var imgProto = window.HTMLImageElement ? window.HTMLImageElement.prototype : null;
-    if (imgProto) {
-      var origSrcDesc = Object.getOwnPropertyDescriptor(imgProto, 'src') || 
-                        Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, 'src') ||
-                        Object.getOwnPropertyDescriptor(window.Element.prototype, 'src');
-      if (origSrcDesc && origSrcDesc.set) {
-        var origSet = origSrcDesc.set;
-        var origGet = origSrcDesc.get;
-        Object.defineProperty(imgProto, 'src', {
-          get: function() {
-            return origGet ? origGet.call(this) : this.getAttribute('src');
-          },
-          set: function(val) {
-            try {
-              if (typeof val === 'string' && val) {
-                if (val.startsWith('/') && !val.startsWith('/r/_proxy/')) {
-                  val = assetProxyBase + '?url=' + encodeURIComponent(targetOrigin + val);
-                } else if (val.startsWith(targetOrigin)) {
-                  val = assetProxyBase + '?url=' + encodeURIComponent(val);
-                }
-              }
-            } catch(ie) {}
-            return origSet.call(this, val);
-          },
-          configurable: true,
-          enumerable: true
+    // Auto-unlock Audio & Resume Web Audio Context on first user interaction (Bypasses Browser Autoplay Restrictions)
+    var unlockAudio = function() {
+      try {
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          if (window.__td_audio_ctx__ && window.__td_audio_ctx__.state === 'suspended') {
+            window.__td_audio_ctx__.resume();
+          }
+        }
+        var audios = document.querySelectorAll('audio, video');
+        audios.forEach(function(el) {
+          if (el.paused && (el.autoplay || el.dataset.tdAutoplay === 'true')) {
+            el.play().catch(function(){});
+          }
         });
-      }
-    }
+      } catch(e) {}
+    };
+    ['click', 'touchstart', 'touchend', 'keydown', 'pointerdown', 'mousedown'].forEach(function(evt) {
+      window.addEventListener(evt, unlockAudio, { once: false, passive: true });
+    });
 
-    // Auto-recover any broken image loads to target origin
+    // Auto-recover any broken image/media loads to target origin
     window.addEventListener('error', function(e) {
       try {
         var target = e.target;
-        if (target && target.tagName === 'IMG' && target.src && !target.dataset.tdRetried) {
+        if (target && (target.tagName === 'IMG' || target.tagName === 'AUDIO' || target.tagName === 'VIDEO') && target.src && !target.dataset.tdRetried) {
           target.dataset.tdRetried = 'true';
           var rawSrc = target.getAttribute('src') || target.src;
           if (rawSrc && rawSrc.indexOf('/r/_proxy/asset') === -1) {
-            var fullTarget = rawSrc.startsWith('/') ? targetOrigin + rawSrc : (rawSrc.indexOf('http') !== 0 ? targetOrigin + '/' + rawSrc : rawSrc);
-            target.src = assetProxyBase + '?url=' + encodeURIComponent(fullTarget);
+            target.src = resolveAssetUrl(rawSrc);
+            if (target.tagName === 'AUDIO' || target.tagName === 'VIDEO') {
+              target.load();
+              if (target.autoplay) target.play().catch(function(){});
+            }
           }
         }
       } catch(ee) {}
@@ -485,15 +575,20 @@ export class ReverseProxyService {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 10000);
 
+    const requestHeaders: Record<string, string> = {
+      'User-Agent': options.customHeaders?.['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Accept': options.customHeaders?.['accept'] || '*/*',
+      'Accept-Language': options.customHeaders?.['accept-language'] || 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br'
+    };
+    if (options.customHeaders?.['range']) {
+      requestHeaders['Range'] = options.customHeaders['range'];
+    }
+
     try {
       const response = await fetch(cleanUrl, {
         method: 'GET',
-        headers: {
-          'User-Agent': options.customHeaders?.['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-          'Accept': options.customHeaders?.['accept'] || '*/*',
-          'Accept-Language': options.customHeaders?.['accept-language'] || 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br'
-        },
+        headers: requestHeaders,
         signal: controller.signal
       });
 
@@ -506,6 +601,7 @@ export class ReverseProxyService {
 
       const headers: Record<string, string> = {
         'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
@@ -514,6 +610,10 @@ export class ReverseProxyService {
         'Timing-Allow-Origin': '*',
         'X-Powered-By': '180workspace-Traffic-Director'
       };
+
+      if (response.headers.get('content-range')) {
+        headers['Content-Range'] = response.headers.get('content-range')!;
+      }
 
       // Cache if under 10MB
       if (body.length < 10 * 1024 * 1024) {

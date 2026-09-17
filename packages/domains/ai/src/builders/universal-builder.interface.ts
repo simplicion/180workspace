@@ -1,4 +1,4 @@
-export type BuilderType = 'document' | 'form' | 'website' | 'workflow';
+export type BuilderType = 'document' | 'form' | 'website' | 'workflow' | 'video';
 
 export interface BuilderGenerationParams {
     prompt: string;
@@ -23,7 +23,14 @@ export interface BuilderResult<T = any> {
     shareUrl?: string;
     reply: string;
     explanation?: string;
+    actions?: string[];
     ast: T;
+    requiresConfirmation?: boolean;
+    confirmationDetails?: {
+        whatFound: string;
+        whatWillChange: string;
+        assumptions: string;
+    };
     actionCards?: Array<{
         type: 'edit' | 'send' | 'preview' | 'delete';
         label: string;

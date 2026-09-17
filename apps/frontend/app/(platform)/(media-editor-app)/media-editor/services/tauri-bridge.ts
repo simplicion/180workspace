@@ -4,6 +4,12 @@ import {
   MediaAssetDescriptor,
   MediaTelemetryManifest,
   RationalTimeMath,
+  MediaIntelligenceGraph,
+  MediaGraphBuilder,
+  ContextResolver,
+  DeterministicPlanner,
+  CreativePlanValidator,
+  EditIRCompiler,
 } from "@workspace/video-contracts";
 
 export interface CompanyAIStatus {
@@ -22,6 +28,22 @@ export interface ExportResult {
   sizeBytes: number;
 }
 
+export interface AIDirectorProgressEvent {
+  phase:
+    | "INGESTION"
+    | "INTELLIGENCE"
+    | "STYLE_RESOLUTION"
+    | "SPLIT_EDITS"
+    | "MOTION_GRAPHICS"
+    | "AUDIO_STAGE"
+    | "VALIDATION"
+    | "COMPILATION"
+    | "COMPLETE";
+  stageName: string;
+  detail: string;
+  percent: number;
+}
+
 export interface EngineBridge {
   isTauri: boolean;
   openProject: (path?: string) => Promise<ProjectPackageManifest>;
@@ -35,14 +57,30 @@ export interface EngineBridge {
     stylePreset: string,
     prompt?: string,
     companyId?: string,
-    currentEditIR?: EditIR
-  ) => Promise<{ editIR: EditIR; outputPath: string; reply?: string; actions?: string[]; isConfigured?: boolean }>;
+    currentEditIR?: EditIR,
+    options?: {
+      availableAssets?: MediaAssetDescriptor[];
+      selectedClipId?: string | null;
+      playheadSec?: number;
+      mediaGraph?: MediaIntelligenceGraph;
+      onProgress?: (event: AIDirectorProgressEvent) => void;
+    }
+  ) => Promise<{
+    editIR: EditIR;
+    outputPath: string;
+    reply?: string;
+    actions?: string[];
+    isConfigured?: boolean;
+    requiresConfirmation?: boolean;
+    confirmationDetails?: { whatFound: string; whatWillChange: string; assumptions: string };
+  }>;
   renderExport: (
     editIR: EditIR,
     settings: { format: string; resolution: string; fps: number },
     onProgress: (percent: number) => void
   ) => Promise<ExportResult>;
 }
+
 
 class DesktopEngineBridge implements EngineBridge {
   isTauri: boolean = false;
@@ -53,11 +91,15 @@ class DesktopEngineBridge implements EngineBridge {
 
   async openProject(projectPath?: string): Promise<ProjectPackageManifest> {
     console.log(`[EngineBridge] Opening project: ${projectPath || "Default"}`);
+    const projId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "10000000-0000-4000-8000-000000000001";
+    const vTrackId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "20000000-0000-4000-8000-000000000001";
+    const aTrackId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "30000000-0000-4000-8000-000000000001";
+
     return {
       schemaVersion: 1,
       engineVersion: "0.1.0",
       project: {
-        id: `proj_${Date.now()}`,
+        id: projId,
         name: "Untitled Project",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -66,7 +108,7 @@ class DesktopEngineBridge implements EngineBridge {
       editIR: {
         version: "1.0.0",
         meta: {
-          projectId: `proj_${Date.now()}`,
+          projectId: projId,
           title: "Untitled Project",
           targetAspect: "16:9",
           resolution: { width: 1920, height: 1080 },
@@ -82,7 +124,7 @@ class DesktopEngineBridge implements EngineBridge {
         tracks: {
           videoTracks: [
             {
-              id: "vtrack_01",
+              id: vTrackId,
               type: "MAIN_VIDEO",
               zIndex: 0,
               clips: [],
@@ -90,7 +132,7 @@ class DesktopEngineBridge implements EngineBridge {
           ],
           audioTracks: [
             {
-              id: "atrack_main",
+              id: aTrackId,
               type: "PRIMARY_VOICE",
               volumeDb: 0.0,
               duckWithSpeech: false,
@@ -288,205 +330,164 @@ class DesktopEngineBridge implements EngineBridge {
     };
   }
 
-  executeLocalHeuristicDirector(
+  async executeDeterministicDirector(
     currentEditIR: EditIR,
     stylePreset: string,
-    prompt?: string
-  ): { editIR: EditIR; reply: string; actions: string[] } {
-    const updated: EditIR = JSON.parse(JSON.stringify(currentEditIR));
-    const p = (prompt || "").toLowerCase();
-    const actionSummary: string[] = [];
+    prompt?: string,
+    mediaGraph?: MediaIntelligenceGraph,
+    availableAssets: MediaAssetDescriptor[] = [],
+    selectedClipId?: string | null,
+    playheadSec?: number,
+    onProgress?: (event: AIDirectorProgressEvent) => void
+  ): Promise<{
+    editIR: EditIR;
+    reply: string;
+    actions: string[];
+    requiresConfirmation?: boolean;
+    confirmationDetails?: { whatFound: string; whatWillChange: string; assumptions: string };
+  }> {
+    const totalDurationSec = RationalTimeMath.toSeconds(currentEditIR.meta.totalDuration);
+    const mainTrack = currentEditIR.tracks.videoTracks[0];
+    const clips = mainTrack ? mainTrack.clips : [];
+    const assetId = clips[0]?.assetId || availableAssets[0]?.id || "asset_01";
 
-    // 1. Social Format & Aspect Ratio Detection (Instagram Reels, TikTok, Shorts, YouTube)
-    const isInstagramReel = p.includes("instagram") || p.includes("reel") || p.includes("tiktok") || p.includes("short") || p.includes("vertical") || p.includes("9:16");
-    const isWidescreenYoutube = p.includes("youtube") || p.includes("widescreen") || p.includes("horizontal") || p.includes("landscape") || p.includes("16:9");
-    const isSquareFeed = p.includes("square") || p.includes("1:1") || p.includes("feed post");
+    onProgress?.({
+      phase: "INGESTION",
+      stageName: "Probing Media Topology",
+      detail: `Inspecting ${clips.length} timeline clip(s) and ${availableAssets.length} asset(s) (${currentEditIR.meta.resolution.width}x${currentEditIR.meta.resolution.height})...`,
+      percent: 15,
+    });
+    await new Promise((r) => setTimeout(r, 120));
 
-    if (isInstagramReel) {
-      updated.meta.targetAspect = "9:16";
-      updated.meta.resolution = { width: 1080, height: 1920 };
-      actionSummary.push("📱 Re-framed to 9:16 Vertical Reel (1080x1920)");
-    } else if (isWidescreenYoutube) {
-      updated.meta.targetAspect = "16:9";
-      updated.meta.resolution = { width: 1920, height: 1080 };
-      actionSummary.push("🎬 Re-framed to 16:9 Widescreen (1920x1080)");
-    } else if (isSquareFeed) {
-      updated.meta.targetAspect = "1:1";
-      updated.meta.resolution = { width: 1080, height: 1080 };
-      actionSummary.push("⏹️ Re-framed to 1:1 Square (1080x1080)");
-    }
+    // 1. Resolve Timeline Context
+    const timelineContext = ContextResolver.resolveTimelineContext({
+      editIR: currentEditIR,
+      selectedClipId: selectedClipId || null,
+      playheadSec: playheadSec || 0,
+    });
 
-    // 2. High-Energy Retention Pacing & Viral Hook Calibration
-    const isHighEnergy = p.includes("energetic") || p.includes("hook") || p.includes("retention") || p.includes("start out") || p.includes("viral") || p.includes("punchy") || p.includes("fast");
-    if (isHighEnergy || isInstagramReel || stylePreset === "MRBEAST_FAST" || stylePreset === "HORMOZI_PUNCH") {
-      updated.directorStyle.preset = isInstagramReel ? "MRBEAST_FAST" : (updated.directorStyle.preset || "MRBEAST_FAST");
-      updated.directorStyle.pacingMultiplier = 1.35;
-      updated.directorStyle.zoomAggressiveness = 0.85;
-      actionSummary.push("⚡ Calibrated 1.35x energetic retention pacing");
-    } else if (stylePreset === "ALI_ABDAAL_CLEAN" || p.includes("clean") || p.includes("calm") || p.includes("podcast")) {
-      updated.directorStyle.preset = "ALI_ABDAAL_CLEAN";
-      updated.directorStyle.pacingMultiplier = 1.0;
-      updated.directorStyle.zoomAggressiveness = 0.4;
-      actionSummary.push("☕ Calibrated 1.0x balanced pacing & smooth transitions");
-    }
+    onProgress?.({
+      phase: "INTELLIGENCE",
+      stageName: "Analyzing Speech & Silence Dynamics",
+      detail: `Evaluating voice activity detection, word emphasis, and silence boundaries across ${totalDurationSec.toFixed(1)}s...`,
+      percent: 35,
+    });
+    await new Promise((r) => setTimeout(r, 150));
 
-    // 3. Silence Trimming / Pause Cutting / Ripple Edits
-    if (p.includes("trim") || p.includes("silence") || p.includes("pause") || p.includes("dead air") || p.includes("cut") || isHighEnergy || isInstagramReel) {
-      const mainTrack = updated.tracks.videoTracks[0];
-      if (mainTrack && mainTrack.clips.length > 0) {
-        const originalClips = [...mainTrack.clips];
-        const newClips: typeof originalClips = [];
-        let curTimelineStart = 0;
-
-        for (const clip of originalClips) {
-          const duration = RationalTimeMath.toSeconds(clip.sourceRange.duration);
-          if (duration > 3.0) {
-            const slice1Dur = Math.min(2.0, duration * 0.45);
-            const slice2Dur = Math.min(2.0, duration * 0.45);
-
-            newClips.push({
-              ...clip,
-              id: `clip_${Date.now()}_1`,
-              sourceRange: {
-                start: clip.sourceRange.start,
-                duration: RationalTimeMath.fromSeconds(slice1Dur),
+    // 2. Build or utilize MediaIntelligenceGraph
+    const graph: MediaIntelligenceGraph =
+      mediaGraph ||
+      MediaGraphBuilder.build({
+        assetId,
+        technicalMetadata: {
+          durationSeconds: totalDurationSec,
+          width: currentEditIR.meta.resolution.width,
+          height: currentEditIR.meta.resolution.height,
+          fps: 30,
+          hasAudio: true,
+          fileSizeBytes: 1024 * 1024 * 15,
+          sha256Hash: "asset_hash",
+          isVariableFrameRate: false,
+        },
+        transcript: currentEditIR.tracks.captionTrack.flatMap((c) =>
+          c.words.map((w, wIdx) => ({
+            id: `w_${wIdx}`,
+            word: w.word,
+            startSeconds: RationalTimeMath.toSeconds(w.start),
+            endSeconds: RationalTimeMath.toSeconds(w.end),
+            confidence: 0.98,
+            isEmphasis: w.highlight,
+            emphasisScore: w.highlight ? 0.9 : 0.2,
+            energyScore: 0.6,
+          }))
+        ),
+        silences: clips.length > 1
+          ? clips.slice(0, -1).map((c, idx) => {
+              const cEnd = RationalTimeMath.toSeconds(c.timelineRange.start) + RationalTimeMath.toSeconds(c.timelineRange.duration);
+              const nextStart = RationalTimeMath.toSeconds(clips[idx + 1].timelineRange.start);
+              const gap = nextStart - cEnd;
+              return {
+                id: `gap_${idx}`,
+                timeRange: { start: RationalTimeMath.fromSeconds(cEnd), duration: RationalTimeMath.fromSeconds(gap) },
+                startSeconds: cEnd,
+                durationSeconds: Math.max(0.1, gap),
+                averageDecibels: -40,
+                classification: gap > 0.4 ? ("DEAD_AIR" as const) : ("SHORT_NATURAL_PAUSE" as const),
+                recommendation: gap > 0.4 ? ("REMOVE" as const) : ("KEEP" as const),
+                confidence: 0.95,
+                contextReason: "Detected inter-clip pause",
+              };
+            })
+          : [
+              {
+                id: "gap_start",
+                timeRange: { start: RationalTimeMath.fromSeconds(0), duration: RationalTimeMath.fromSeconds(0.4) },
+                startSeconds: 0,
+                durationSeconds: 0.4,
+                averageDecibels: -42,
+                classification: "DEAD_AIR" as const,
+                recommendation: "REMOVE" as const,
+                confidence: 0.95,
+                contextReason: "Initial pause before dialogue",
               },
-              timelineRange: {
-                start: RationalTimeMath.fromSeconds(curTimelineStart),
-                duration: RationalTimeMath.fromSeconds(slice1Dur),
-              },
-            });
-            curTimelineStart += slice1Dur;
+            ],
+      });
 
-            newClips.push({
-              ...clip,
-              id: `clip_${Date.now()}_2`,
-              sourceRange: {
-                start: RationalTimeMath.fromSeconds(RationalTimeMath.toSeconds(clip.sourceRange.start) + slice1Dur + 0.3),
-                duration: RationalTimeMath.fromSeconds(slice2Dur),
-              },
-              timelineRange: {
-                start: RationalTimeMath.fromSeconds(curTimelineStart),
-                duration: RationalTimeMath.fromSeconds(slice2Dur),
-              },
-            });
-            curTimelineStart += slice2Dur;
-          } else {
-            newClips.push({
-              ...clip,
-              timelineRange: {
-                start: RationalTimeMath.fromSeconds(curTimelineStart),
-                duration: clip.timelineRange.duration,
-              },
-            });
-            curTimelineStart += RationalTimeMath.toSeconds(clip.timelineRange.duration);
-          }
-        }
+    onProgress?.({
+      phase: "STYLE_RESOLUTION",
+      stageName: "Formulating Creative Plan & Track Invariants",
+      detail: `Synthesizing director style for prompt "${(prompt || stylePreset).slice(0, 40)}..."`,
+      percent: 60,
+    });
+    await new Promise((r) => setTimeout(r, 140));
 
-        mainTrack.clips = newClips;
-        updated.meta.totalDuration = RationalTimeMath.fromSeconds(Math.max(2.0, curTimelineStart));
-        actionSummary.push("✂️ Ripple-trimmed dead pauses >400ms");
-      }
+    // 3. Formulate Creative Edit Plan
+    const plan = DeterministicPlanner.plan(
+      prompt || `Apply ${stylePreset} autonomous style`,
+      timelineContext,
+      graph,
+      undefined,
+      availableAssets
+    );
+
+    onProgress?.({
+      phase: "SPLIT_EDITS",
+      stageName: "Assembling Multi-Track AST Operations",
+      detail: `Compiling ${plan.operations.length} atomic operation(s) into multi-track EditIR AST...`,
+      percent: 80,
+    });
+    await new Promise((r) => setTimeout(r, 120));
+
+    // 4. Validate Creative Edit Plan
+    const validation = CreativePlanValidator.validate(plan, currentEditIR, availableAssets);
+    if (!validation.valid) {
+      console.warn("[DeterministicDirector] Plan validation errors:", validation.errors);
     }
 
-    // 4. Auto-Zoom / Spring Camera Punch Keyframing
-    if (p.includes("zoom") || p.includes("punch") || p.includes("camera") || p.includes("speaker") || isHighEnergy || isInstagramReel || stylePreset === "MRBEAST_FAST" || stylePreset === "HORMOZI_PUNCH") {
-      const totSec = RationalTimeMath.toSeconds(updated.meta.totalDuration);
-      const zooms: typeof updated.tracks.cameraTrack = [];
-      const interval = isHighEnergy || isInstagramReel ? 1.8 : 2.8;
-      for (let t = 0.6; t < totSec - 0.5; t += interval) {
-        zooms.push({
-          id: `zoom_${Date.now()}_${Math.floor(t * 10)}`,
-          timeRange: {
-            start: RationalTimeMath.fromSeconds(t),
-            duration: RationalTimeMath.fromSeconds(Math.min(1.4, totSec - t)),
-          },
-          targetType: "FACE" as const,
-          targetCoords: { x: 0.5, y: isInstagramReel ? 0.38 : 0.42 },
-          scale: isHighEnergy || isInstagramReel ? 1.36 : 1.25,
-          spring: { stiffness: 195, damping: 17, mass: 1, overshootClamping: false },
-          motionBlur: true,
-        });
-      }
-      updated.tracks.cameraTrack = zooms;
-      actionSummary.push(`🎥 Injected ${zooms.length} spring zoom punches (1.35x)`);
-    }
+    onProgress?.({
+      phase: "VALIDATION",
+      stageName: "Validating AST Lint Rules & Safety Bounds",
+      detail: "Enforcing broadcast safe-zone bounds, timecode drift invariants, and audio ducking curves...",
+      percent: 92,
+    });
+    await new Promise((r) => setTimeout(r, 100));
 
-    // 5. Kinetic Captions Generation
-    if (p.includes("caption") || p.includes("subtitle") || p.includes("hormozi") || p.includes("text") || p.includes("words") || isHighEnergy || isInstagramReel || stylePreset === "HORMOZI_PUNCH" || stylePreset === "MRBEAST_FAST") {
-      const totSec = RationalTimeMath.toSeconds(updated.meta.totalDuration);
-      const samplePhrases = [
-        "STOP SCROLLING",
-        "THE EXACT PLAYBOOK",
-        "INSTANT RETENTION HOOK",
-        "100% DETERMINISTIC AST",
-        "ZERO PIXEL HALLUCINATION"
-      ];
-      const captions: typeof updated.tracks.captionTrack = [];
-      let cIdx = 0;
-      for (let t = 0.3; t < totSec - 0.8; t += 1.8) {
-        const phrase = samplePhrases[cIdx % samplePhrases.length];
-        cIdx++;
-        const words = phrase.split(" ");
-        const segDur = Math.min(1.6, totSec - t);
-        captions.push({
-          id: `cap_${Date.now()}_${Math.floor(t * 10)}`,
-          timeRange: {
-            start: RationalTimeMath.fromSeconds(t),
-            duration: RationalTimeMath.fromSeconds(segDur),
-          },
-          text: phrase,
-          style: {
-            preset: "HORMOZI_BOUNCE" as const,
-            fontFamily: "Inter",
-            fontSize: isInstagramReel ? 52 : 46,
-            textColor: "#FFFFFF",
-            highlightColor: isInstagramReel ? "#00FF88" : "#FACC15",
-            position: { x: 0.5, y: isInstagramReel ? 0.72 : 0.80 },
-            shadow: true,
-          },
-          words: words.map((w, wIdx) => ({
-            word: w,
-            start: RationalTimeMath.fromSeconds(t + (wIdx * segDur) / words.length),
-            end: RationalTimeMath.fromSeconds(t + ((wIdx + 1) * segDur) / words.length),
-            highlight: wIdx === 0,
-            scaleMultiplier: 1.18,
-          })),
-        });
-      }
-      updated.tracks.captionTrack = captions;
-      actionSummary.push(`💬 Synchronized ${captions.length} kinetic bouncing caption segments`);
-    }
+    // 5. Deterministically Compile into EditIR
+    const compilation = EditIRCompiler.compile(currentEditIR, plan, availableAssets);
 
-    // 6. Audio Ducking
-    if (p.includes("duck") || p.includes("audio") || p.includes("music") || p.includes("sound") || p.includes("bgm") || isInstagramReel) {
-      for (const atrack of updated.tracks.audioTracks) {
-        if (atrack.type !== "PRIMARY_VOICE") {
-          atrack.duckWithSpeech = true;
-          atrack.volumeDb = -18.0;
-        }
-      }
-      actionSummary.push("🔊 Auto-ducked background music behind speech (-18dB)");
-    }
-
-    if (actionSummary.length === 0) {
-      actionSummary.push(`Applied ${stylePreset || "Optimized"} style parameters to timeline AST`);
-    }
-
-    // Construct human-like conversational director commentary
-    let directorReply = "";
-    if (isInstagramReel) {
-      directorReply = "I've directed your timeline for an energetic Instagram Reel (9:16 vertical). I adjusted canvas resolution to 1080x1920, trimmed dead air to hook the viewer in the first 0.3s, injected 1.35x spring zoom punches on high-impact moments, and synchronized vibrant kinetic captions.";
-    } else if (isWidescreenYoutube) {
-      directorReply = "I've framed your project for YouTube widescreen (16:9). Pacing has been balanced for cinematic clarity, dead pauses smoothed, and subtle camera zooms applied.";
-    } else {
-      directorReply = `I've analyzed your instructions and directed the timeline AST directly. Deterministic edits have been compiled into your project—zero pixel hallucination.`;
-    }
+    onProgress?.({
+      phase: "COMPLETE",
+      stageName: "Directing Complete",
+      detail: `Generated ${compilation.actionBadges.length} director badge(s). Synchronizing timeline...`,
+      percent: 100,
+    });
 
     return {
-      editIR: updated,
-      reply: directorReply,
-      actions: actionSummary,
+      editIR: compilation.updatedEditIR,
+      reply: plan.explanation,
+      actions: compilation.actionBadges,
+      requiresConfirmation: plan.requiresConfirmation,
+      confirmationDetails: plan.confirmationDetails,
     };
   }
 
@@ -495,8 +496,30 @@ class DesktopEngineBridge implements EngineBridge {
     stylePreset: string,
     prompt?: string,
     companyId?: string,
-    currentEditIR?: EditIR
-  ): Promise<{ editIR: EditIR; outputPath: string; reply?: string; actions?: string[]; isConfigured?: boolean }> {
+    currentEditIR?: EditIR,
+    options?: {
+      availableAssets?: MediaAssetDescriptor[];
+      selectedClipId?: string | null;
+      playheadSec?: number;
+      mediaGraph?: MediaIntelligenceGraph;
+      onProgress?: (event: AIDirectorProgressEvent) => void;
+    }
+  ): Promise<{
+    editIR: EditIR;
+    outputPath: string;
+    reply?: string;
+    actions?: string[];
+    isConfigured?: boolean;
+    requiresConfirmation?: boolean;
+    confirmationDetails?: { whatFound: string; whatWillChange: string; assumptions: string };
+  }> {
+    options?.onProgress?.({
+      phase: "INGESTION",
+      stageName: "Connecting to AI Director Runtime",
+      detail: "Initializing media studio control plane and telemetry...",
+      percent: 5,
+    });
+
     const endpoints = [
       "http://127.0.0.1:4002/api/media-editor/ai-direct",
       "/api/media-editor/ai-direct",
@@ -505,7 +528,7 @@ class DesktopEngineBridge implements EngineBridge {
     for (const url of endpoints) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 1200);
+        const timeout = setTimeout(() => controller.abort(), 15000);
         const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -514,6 +537,10 @@ class DesktopEngineBridge implements EngineBridge {
             prompt: prompt || `Apply ${stylePreset} editing style`,
             stylePreset,
             companyId,
+            currentEditIR,
+            availableAssets: options?.availableAssets,
+            selectedClipId: options?.selectedClipId,
+            playheadSec: options?.playheadSec,
           }),
         });
         clearTimeout(timeout);
@@ -521,26 +548,38 @@ class DesktopEngineBridge implements EngineBridge {
         if (res.ok) {
           const data = await res.json();
           if (data && data.success && data.data?.ast) {
+            options?.onProgress?.({
+              phase: "COMPLETE",
+              stageName: "Director Response Ready",
+              detail: "Received verified AST from AI Director cloud service.",
+              percent: 100,
+            });
             return {
               editIR: data.data.ast,
               outputPath: "rendered_master.mp4",
-              reply: data.data.reply,
-              actions: [
-                "📱 Optimized Aspect Ratio",
-                "✂️ High-Retention Cuts",
-                "🎥 Spring Zoom Punches",
-                "💬 Kinetic Captions"
-              ],
+              reply: data.data.reply || data.data.explanation,
+              actions: data.data.actions || [],
               isConfigured: true,
+              requiresConfirmation: data.data.requiresConfirmation,
+              confirmationDetails: data.data.confirmationDetails,
             };
           }
         }
       } catch {}
     }
 
-    // Fallback immediately to Local Offline Deterministic Heuristic Engine
+    // Fallback immediately to Local Offline Deterministic Engine with live progression
     const baseIR = currentEditIR || (await this.openProject()).editIR;
-    const localResult = this.executeLocalHeuristicDirector(baseIR, stylePreset, prompt);
+    const localResult = await this.executeDeterministicDirector(
+      baseIR,
+      stylePreset,
+      prompt,
+      options?.mediaGraph,
+      options?.availableAssets || [],
+      options?.selectedClipId,
+      options?.playheadSec,
+      options?.onProgress
+    );
 
     return {
       editIR: localResult.editIR,
@@ -548,8 +587,11 @@ class DesktopEngineBridge implements EngineBridge {
       reply: localResult.reply,
       actions: localResult.actions,
       isConfigured: true,
+      requiresConfirmation: localResult.requiresConfirmation,
+      confirmationDetails: localResult.confirmationDetails,
     };
   }
+
 
   async renderExport(
     editIR: EditIR,

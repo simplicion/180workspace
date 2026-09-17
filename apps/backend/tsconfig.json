@@ -3,7 +3,6 @@
   "compilerOptions": {
     "outDir": "dist",
     "module": "CommonJS",
-    "moduleResolution": "node",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
@@ -12,17 +11,12 @@
     "strictFunctionTypes": false,
     "strictBindCallApply": false,
     "strictPropertyInitialization": false,
-    "noImplicitAny": false,
-    "noImplicitThis": false,
-    "alwaysStrict": false,
     "declaration": false,
     "declarationMap": false,
     "paths": {
       "@workspace/ai": ["../../packages/domains/ai/dist"],
-      "@workspace/video-contracts": ["../../packages/video-contracts/src"],
-      "@workspace/video-contracts/*": ["../../packages/video-contracts/src/*"],
-      "@workspace/video-engine-runtime": ["../../packages/video-engine-runtime/src"],
-      "@workspace/video-engine-runtime/*": ["../../packages/video-engine-runtime/src/*"]
+      "@workspace/video-contracts": ["../../packages/video-contracts/dist"],
+      "@workspace/video-contracts/*": ["../../packages/video-contracts/dist/*"]
     }
   },
   "include": ["src/**/*", "server.js"],

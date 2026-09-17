@@ -241,9 +241,9 @@ async function runFullVerificationSuite() {
           },
           text: "180 WORKSPACE AUTONOMOUS EDIT",
           words: [
-            { word: "180", start: RationalTimeMath.fromSeconds(0.5), end: RationalTimeMath.fromSeconds(0.9), highlight: true },
-            { word: "WORKSPACE", start: RationalTimeMath.fromSeconds(0.95), end: RationalTimeMath.fromSeconds(1.5), highlight: false },
-            { word: "EDIT", start: RationalTimeMath.fromSeconds(1.55), end: RationalTimeMath.fromSeconds(2.3), highlight: false },
+            { word: "180", start: RationalTimeMath.fromSeconds(0.5), end: RationalTimeMath.fromSeconds(0.9), highlight: true, scaleMultiplier: 1.15 },
+            { word: "WORKSPACE", start: RationalTimeMath.fromSeconds(0.95), end: RationalTimeMath.fromSeconds(1.5), highlight: false, scaleMultiplier: 1.0 },
+            { word: "EDIT", start: RationalTimeMath.fromSeconds(1.55), end: RationalTimeMath.fromSeconds(2.3), highlight: false, scaleMultiplier: 1.0 },
           ],
           style: {
             preset: "HORMOZI_BOUNCE",
@@ -286,6 +286,8 @@ async function runFullVerificationSuite() {
   const aiDirector = VideoAIDirectorService.getInstance();
   const directResult = await aiDirector.compileAST({
     prompt: "Make high energy short with auto-zoom on speaking points",
+    companyId: "test_company",
+    userId: "test_user",
     meta: {
       videoPath: testVideoPath,
       stylePreset: "HORMOZI_PUNCH",

@@ -9,3 +9,13 @@ export * from "./plugin-sdk";
 export * from "./cache-hasher";
 export * from "./critic";
 export * from "./vproj-bundle";
+export * from "./media-intelligence.schema";
+export * from "./creative-plan.schema";
+export * from "./plan-validator";
+export * from "./edit-ir-compiler";
+export * from "./media-graph";
+export * from "./context-resolver";
+export * from "./deterministic-planner";
+export * from "./director-style-resolver";
+export * from "./director-intent-classifier";
+

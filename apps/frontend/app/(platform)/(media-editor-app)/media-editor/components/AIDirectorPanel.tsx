@@ -1,27 +1,26 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   Sparkles,
-  Zap,
-  Scissors,
-  Camera,
-  Subtitles,
-  Volume2,
   Send,
-  RotateCcw,
   Trash2,
   Undo2,
   Smartphone,
   Monitor,
-  Film,
   Bot,
   User,
-  Clock,
+  Lightbulb,
   CheckCircle2,
-  Layers,
-  ArrowRight,
+  AlertCircle,
+  Scissors,
+  Subtitles,
+  Mic,
+  Film,
+  Zap,
+  BarChart3,
+  Palette,
 } from "lucide-react";
 import { DirectorStylePreset, EditIR } from "@workspace/video-contracts";
-import { CompanyAIStatus } from "../services/tauri-bridge";
+import { CompanyAIStatus, AIDirectorProgressEvent } from "../services/tauri-bridge";
 
 export interface DirectorChatMessage {
   id: string;
@@ -30,6 +29,12 @@ export interface DirectorChatMessage {
   timestamp: string;
   actions?: string[];
   snapshotEditIR?: EditIR;
+  pendingConfirmation?: {
+    whatFound: string;
+    whatWillChange: string;
+    assumptions: string;
+    targetEditIR: EditIR;
+  };
 }
 
 interface AIDirectorPanelProps {
@@ -37,6 +42,7 @@ interface AIDirectorPanelProps {
   onSelectPreset?: (preset: DirectorStylePreset) => void;
   onApplyPrompt: (prompt: string) => Promise<void> | void;
   isProcessing: boolean;
+  currentProgress?: AIDirectorProgressEvent | null;
   companyAIStatus?: CompanyAIStatus | null;
   onRefreshAIStatus?: () => void;
   messages: DirectorChatMessage[];
@@ -45,65 +51,77 @@ interface AIDirectorPanelProps {
   currentAspect?: "16:9" | "9:16" | "1:1";
   timelineDurationSec?: number;
   clipsCount?: number;
+  selectedClipId?: string | null;
+  onConfirmAutonomousEdit?: (message: DirectorChatMessage) => void;
+  onCancelAutonomousEdit?: (message: DirectorChatMessage) => void;
 }
 
-const QUICK_PROMPTS = [
+
+const INSPIRATION_SUGGESTIONS = [
   {
-    label: "📱 Instagram Reel (9:16 vertical & energetic)",
-    prompt: "Create this video for Instagram reels, make sure it feels energetic, starts with a strong hook, trims dead pauses, and syncs bouncing captions.",
+    label: "📱 9:16 Vertical Reel",
+    prompt: "Convert to 9:16 vertical Reel with high-retention pacing and bouncing captions.",
     icon: Smartphone,
   },
   {
-    label: "✂️ Trim all silences & dead air (>400ms)",
-    prompt: "Trim all silent pauses and dead air greater than 400ms across all clips.",
-    icon: Scissors,
-  },
-  {
-    label: "🎥 Add dynamic spring camera zooms",
-    prompt: "Add spring camera zoom punches with motion blur on key speaker emphasis beats.",
-    icon: Camera,
-  },
-  {
-    label: "💬 Hormozi kinetic bouncing captions",
-    prompt: "Generate Hormozi-style bouncing kinetic word-by-word captions with high contrast.",
+    label: "💬 Blue Kinetic Captions",
+    prompt: "Add blue animated kinetic captions in safe zone.",
     icon: Subtitles,
   },
   {
-    label: "🔊 Auto-duck background music (-18dB)",
-    prompt: "Auto-duck background music tracks -18dB whenever speech is active.",
-    icon: Volume2,
+    label: "📊 Motion Graphic Cards",
+    prompt: "Add visuals and animated explanation cards according to what I'm explaining.",
+    icon: BarChart3,
   },
   {
-    label: "🎬 Format for YouTube Widescreen (16:9)",
-    prompt: "Format this video for YouTube widescreen 16:9 with smooth pacing and clean camera pans.",
-    icon: Monitor,
+    label: "🎙️ Multi-Cam Podcast",
+    prompt: "Direct as a multi-cam podcast with speaker diarization, reaction cutaways, and J/L-cuts.",
+    icon: Mic,
+  },
+  {
+    label: "🎬 Cinematic Color Grade",
+    prompt: "Apply a cinematic teal and orange film look with S-curve contrast.",
+    icon: Palette,
+  },
+  {
+    label: "⚡ MrBeast Fast Pacing",
+    prompt: "Edit with MrBeast high-retention style: aggressive 1.35x cuts, punch zooms, and neon highlights.",
+    icon: Zap,
+  },
+  {
+    label: "💡 Dan Koe Minimalist",
+    prompt: "Apply Dan Koe minimalist aesthetic: clean typography, calm pacing, and subtle zoom.",
+    icon: Lightbulb,
+  },
+  {
+    label: "✂️ Trim Dead Air",
+    prompt: "Clean up awkward pauses and dead air across my clips.",
+    icon: Scissors,
   },
 ];
 
+
 export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
-  currentPreset,
-  onSelectPreset,
   onApplyPrompt,
   isProcessing,
-  companyAIStatus,
-  onRefreshAIStatus,
+  currentProgress,
   messages,
   onRevertToMessage,
   onClearMessages,
   currentAspect = "16:9",
   timelineDurationSec = 0,
   clipsCount = 0,
+  onConfirmAutonomousEdit,
+  onCancelAutonomousEdit,
 }) => {
   const [prompt, setPrompt] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const isCloudConnected = companyAIStatus?.status === "connected";
-
   // Auto-scroll messages to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isProcessing]);
+  }, [messages, isProcessing, currentProgress]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -120,166 +138,197 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
     }
   };
 
-  const handleQuickPromptClick = (quickPromptText: string) => {
+  const handleSuggestionClick = (suggestedText: string) => {
     if (isProcessing) return;
-    onApplyPrompt(quickPromptText);
+    onApplyPrompt(suggestedText);
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col select-none relative bg-[#090A0D] text-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="p-3 border-b border-[#1A1C23] bg-[#0C0E14] shrink-0">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center space-x-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-tr from-indigo-600/30 to-purple-600/20 border border-indigo-500/30 text-indigo-400 shadow-sm shadow-indigo-950">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-300 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-1.5">
-                <span className="font-semibold text-xs tracking-wide text-white">AI Creative Director</span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  Co-Pilot
-                </span>
-              </div>
-              <span className="text-[9px] text-gray-400 block font-normal">
-                Compiles deterministic Timeline AST • Zero pixel hallucination
-              </span>
-            </div>
+    <div className="w-full flex-1 flex flex-col select-none relative bg-[#090A0E] text-gray-200 overflow-hidden font-sans">
+      {/* Clean, Minimalist Header */}
+      <div className="px-3.5 py-3 border-b border-[#1A1C24] bg-[#0C0E15] shrink-0 flex items-center justify-between">
+        <div className="flex items-center space-x-2.5">
+          <div className="p-1.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
+            <Sparkles className="w-4 h-4 text-indigo-300" />
           </div>
-
-          <div className="flex items-center space-x-1">
-            {onClearMessages && messages.length > 0 && (
-              <button
-                onClick={onClearMessages}
-                className="p-1.5 rounded-md text-gray-400 hover:text-red-400 hover:bg-[#1A1C23] transition text-xs"
-                title="Clear conversation history"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {onRefreshAIStatus && (
-              <button
-                onClick={onRefreshAIStatus}
-                className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#1A1C23] transition"
-                title="Refresh Engine Status"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-            )}
+          <div>
+            <div className="flex items-center space-x-1.5">
+              <span className="font-semibold text-xs tracking-wide text-white">Creative Director</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+            <span className="text-[10px] text-gray-400 block">AI Editing Co-Pilot</span>
           </div>
         </div>
 
-        {/* Live Timeline Telemetry Bar */}
-        <div className="flex items-center space-x-2 pt-1.5 border-t border-[#161820] text-[10px] text-gray-400">
-          <div className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-[#13151D] border border-[#1F222E]">
-            {currentAspect === "9:16" ? (
-              <Smartphone className="w-3 h-3 text-pink-400" />
-            ) : (
-              <Monitor className="w-3 h-3 text-cyan-400" />
-            )}
-            <span className="font-medium text-gray-300">{currentAspect} Canvas</span>
+        <div className="flex items-center space-x-2">
+          <div className="px-2 py-0.5 rounded-full bg-[#141722] border border-[#212638] text-[10px] text-gray-400 font-mono">
+            {currentAspect} • {timelineDurationSec.toFixed(1)}s • {clipsCount} {clipsCount === 1 ? "clip" : "clips"}
           </div>
 
-          <div className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-[#13151D] border border-[#1F222E]">
-            <Clock className="w-3 h-3 text-amber-400" />
-            <span>{timelineDurationSec.toFixed(1)}s</span>
-          </div>
-
-          <div className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-[#13151D] border border-[#1F222E]">
-            <Layers className="w-3 h-3 text-indigo-400" />
-            <span>{clipsCount} {clipsCount === 1 ? "Clip" : "Clips"}</span>
-          </div>
-
-          <div className="ml-auto flex items-center space-x-1">
-            <span className={`w-1.5 h-1.5 rounded-full ${isCloudConnected ? "bg-emerald-400 animate-pulse" : "bg-indigo-400"}`} />
-            <span className="text-[9px] font-mono text-gray-400">
-              {isCloudConnected ? "Cloud LLM" : "Offline AST"}
-            </span>
-          </div>
+          {onClearMessages && messages.length > 0 && (
+            <button
+              onClick={onClearMessages}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-[#1A1D2A] transition"
+              title="Start fresh conversation"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Conversational Stream */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3.5 scrollbar-thin scrollbar-thumb-[#1F222E] scrollbar-track-transparent">
-        {/* Welcome Greeting from Director */}
-        <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-950/30 via-[#10121A] to-[#0D0F16] border border-indigo-500/20 shadow-sm">
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="w-6 h-6 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-300">
-              <Bot className="w-3.5 h-3.5" />
+      {/* Message Thread */}
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 scrollbar-thin scrollbar-thumb-[#1F222E] scrollbar-track-transparent">
+        {/* Welcome State when no messages */}
+        {messages.length === 0 && (
+          <div className="p-4 rounded-2xl bg-gradient-to-b from-[#121522] to-[#0D0F17] border border-indigo-500/20 shadow-sm space-y-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-7 h-7 rounded-xl bg-indigo-600/25 border border-indigo-500/35 flex items-center justify-center text-indigo-300">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-white">Creative Director Ready</span>
+                <span className="text-[10px] text-gray-400 block">Collaborative video editing</span>
+              </div>
             </div>
-            <div>
-              <span className="text-xs font-semibold text-indigo-200">Creative Director Ready</span>
-              <span className="text-[9px] text-gray-400 block font-mono">100% Non-Destructive Video Direction</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-gray-300 leading-relaxed">
-            Upload your clips, then talk to me in normal conversation. Tell me how you want your video styled (e.g. <span className="text-indigo-300 italic">"Create this for Instagram reels, energetic pacing, hook the viewer, and sync bounce captions"</span>).
-          </p>
-          <div className="mt-2.5 pt-2 border-t border-indigo-500/15 flex items-center space-x-1.5 text-[10px] text-indigo-300/80">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-            <span>Zero pixel hallucination: I compile edits directly into your timeline AST.</span>
-          </div>
-        </div>
 
-        {/* Message Thread */}
+            <p className="text-xs text-gray-300 leading-relaxed">
+              I&apos;m your creative partner. Talk to me naturally about your video vision, ask for ideas on hooks and pacing, or tell me how you want your clips cut.
+            </p>
+
+            <div className="pt-2 border-t border-white/5">
+              <span className="text-[10px] uppercase font-semibold tracking-wider text-gray-400 block mb-1.5">
+                Try asking:
+              </span>
+              <div className="grid grid-cols-1 gap-1.5">
+                {INSPIRATION_SUGGESTIONS.map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSuggestionClick(item.prompt)}
+                    className="text-left px-2.5 py-1.5 rounded-xl bg-[#141825] hover:bg-indigo-950/40 hover:border-indigo-500/40 border border-white/5 text-[11px] text-gray-300 hover:text-white transition flex items-center justify-between group"
+                  >
+                    <span>{item.prompt}</span>
+                    <item.icon className="w-3 h-3 text-indigo-400 opacity-60 group-hover:opacity-100 shrink-0 ml-1.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Message Bubble Stream */}
         {messages.map((msg) => {
           const isUser = msg.sender === "user";
 
           return (
             <div
               key={msg.id}
-              className={`flex flex-col ${isUser ? "items-end" : "items-start"} space-y-1`}
+              className={`flex items-start space-x-2 ${
+                isUser ? "flex-row-reverse space-x-reverse" : "flex-row"
+              }`}
             >
-              <div className="flex items-center space-x-1.5 px-1 text-[9px] text-gray-500">
-                {isUser ? (
-                  <>
-                    <span>{msg.timestamp}</span>
-                    <span className="font-semibold text-gray-400">You</span>
-                    <User className="w-3 h-3 text-gray-400" />
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3 h-3 text-indigo-400" />
-                    <span className="font-semibold text-indigo-300">Director</span>
-                    <span>{msg.timestamp}</span>
-                  </>
-                )}
+              <div
+                className={`w-6 h-6 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs ${
+                  isUser
+                    ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
+                    : "bg-[#161824] border border-indigo-500/30 text-indigo-300"
+                }`}
+              >
+                {isUser ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
               </div>
 
               <div
-                className={`max-w-[92%] rounded-xl p-3 text-xs leading-relaxed transition shadow-sm ${
+                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed transition-all shadow-sm ${
                   isUser
-                    ? "bg-indigo-600/20 text-indigo-100 border border-indigo-500/30 rounded-tr-sm"
-                    : "bg-[#12141C] text-gray-200 border border-[#1E212D] rounded-tl-sm"
+                    ? "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-tr-sm"
+                    : "bg-[#11131C] border border-[#1E212E] text-gray-200 rounded-tl-sm"
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.text}</p>
+                <div className="flex items-center justify-between space-x-3 mb-1 text-[10px] text-gray-400">
+                  <span className="font-semibold tracking-wide text-gray-300">
+                    {isUser ? "You" : "Director"}
+                  </span>
+                  <span className="font-mono text-[9px] opacity-75">{msg.timestamp}</span>
+                </div>
 
-                {/* Director AST Action Badges */}
-                {!isUser && msg.actions && msg.actions.length > 0 && (
-                  <div className="mt-2.5 pt-2 border-t border-[#1C1F2B] space-y-1.5">
-                    <span className="text-[9px] uppercase tracking-wider font-semibold text-gray-400 block">
-                      Compiled AST Directives:
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {msg.actions.map((act, aIdx) => (
-                        <span
-                          key={aIdx}
-                          className="text-[10px] px-2 py-0.5 rounded-md bg-[#0A0B0F] border border-[#232736] text-indigo-300 font-medium inline-flex items-center space-x-1"
-                        >
-                          <span>{act}</span>
+                <div className="whitespace-pre-wrap font-sans text-[12px]">{msg.text}</div>
+
+                {/* Structured Confirmation Card */}
+                {msg.pendingConfirmation && onConfirmAutonomousEdit && (
+                  <div className="mt-3 p-3 rounded-xl bg-[#161926] border border-indigo-500/40 text-xs space-y-2.5 shadow-md">
+                    <div className="flex items-center space-x-1.5 text-indigo-300 font-semibold text-[11px]">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                      <span>Review Proposed Direction</span>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px] text-gray-300">
+                      <div>
+                        <span className="font-semibold text-gray-400 block text-[10px] uppercase">
+                          Findings:
                         </span>
-                      ))}
+                        <p className="text-gray-300">{msg.pendingConfirmation.whatFound}</p>
+                      </div>
+
+                      <div>
+                        <span className="font-semibold text-gray-400 block text-[10px] uppercase">
+                          Proposed Changes:
+                        </span>
+                        <div className="whitespace-pre-line text-indigo-200 bg-black/25 p-2 rounded-lg font-mono text-[10px] border border-white/5">
+                          {msg.pendingConfirmation.whatWillChange}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="font-semibold text-gray-400 block text-[10px] uppercase">
+                          Creative Rationale:
+                        </span>
+                        <p className="text-gray-400 italic text-[10px]">
+                          {msg.pendingConfirmation.assumptions}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 pt-1 border-t border-white/5">
+                      <button
+                        onClick={() => onConfirmAutonomousEdit(msg)}
+                        className="flex-1 py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 transition shadow-sm active:scale-95"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Apply Plan to Timeline</span>
+                      </button>
+
+                      {onCancelAutonomousEdit && (
+                        <button
+                          onClick={() => onCancelAutonomousEdit(msg)}
+                          className="py-1.5 px-3 rounded-lg bg-[#202434] hover:bg-[#282D42] text-gray-300 text-xs transition"
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* Undo / Revert Button */}
-                {!isUser && msg.snapshotEditIR && onRevertToMessage && (
+                {/* Action Badges */}
+                {msg.actions && msg.actions.length > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-white/5 flex flex-wrap gap-1">
+                    {msg.actions.map((act, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded-md bg-indigo-950/50 border border-indigo-500/30 text-indigo-300 text-[10px] font-mono tracking-tight"
+                      >
+                        {act}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Revert Step Button */}
+                {!isUser && msg.snapshotEditIR && onRevertToMessage && !msg.pendingConfirmation && (
                   <div className="mt-2.5 pt-1.5 flex justify-end">
                     <button
                       onClick={() => onRevertToMessage(msg)}
-                      className="inline-flex items-center space-x-1 text-[10px] text-gray-400 hover:text-indigo-300 transition py-0.5 px-1.5 rounded hover:bg-[#1A1C27]"
+                      className="inline-flex items-center space-x-1 text-[10px] text-gray-500 hover:text-indigo-300 transition py-0.5 px-1.5 rounded hover:bg-white/5"
                       title="Revert timeline back to before this prompt"
                     >
                       <Undo2 className="w-3 h-3" />
@@ -292,21 +341,45 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
           );
         })}
 
-        {/* Processing Indicator */}
+        {/* Live Real-Time Multi-Step Progression Card */}
         {isProcessing && (
-          <div className="flex flex-col items-start space-y-1">
+          <div className="flex flex-col items-start space-y-1.5 w-full">
             <div className="flex items-center space-x-1.5 px-1 text-[9px] text-gray-500">
               <Sparkles className="w-3 h-3 text-indigo-400 animate-spin" />
-              <span className="font-semibold text-indigo-300">Director</span>
-              <span>Thinking...</span>
+              <span className="font-semibold text-indigo-300">Director Agent</span>
+              <span className="text-emerald-400 font-mono">Live Execution</span>
             </div>
-            <div className="rounded-xl p-3 bg-[#12141C] border border-indigo-500/30 rounded-tl-sm flex items-center space-x-2 text-xs text-indigo-300">
-              <div className="flex space-x-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+
+            <div className="w-full rounded-2xl p-3.5 bg-gradient-to-br from-[#121524] to-[#0E101A] border border-indigo-500/40 rounded-tl-sm text-xs text-indigo-300 space-y-2.5 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="font-semibold text-white text-xs tracking-wide">
+                    {currentProgress?.stageName || "Directing Project Media..."}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-900/60 border border-indigo-400/30 text-[9px] font-mono text-cyan-300 uppercase">
+                    {currentProgress?.phase || "EXECUTING"}
+                  </span>
+                  <span className="font-mono text-[10px] text-emerald-400 font-bold">
+                    {currentProgress?.percent ?? 45}%
+                  </span>
+                </div>
               </div>
-              <span className="text-[11px] text-gray-300">Analyzing cadence & compiling Timeline AST...</span>
+
+              {/* Live Status Detail String */}
+              <p className="text-[11px] text-gray-300 leading-relaxed font-sans bg-black/30 p-2 rounded-lg border border-white/5">
+                {currentProgress?.detail || "Analyzing speech dynamics, silence gaps, and camera keyframes..."}
+              </p>
+
+              {/* Glowing Dynamic Progress Meter */}
+              <div className="w-full bg-[#181C2B] rounded-full h-1.5 overflow-hidden border border-white/5">
+                <div
+                  className="bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+                  style={{ width: `${Math.max(5, currentProgress?.percent ?? 45)}%` }}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -314,23 +387,18 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Conversational Starters Chips */}
-      <div className="px-3 pt-2 pb-1.5 border-t border-[#171922] bg-[#0A0C12] shrink-0">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[9px] uppercase tracking-wider font-semibold text-gray-500">
-            Quick Directives
-          </span>
-          <span className="text-[9px] text-gray-600">Click to direct</span>
-        </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-          {QUICK_PROMPTS.map((qp, idx) => {
+
+      {/* Suggestion Chips */}
+      <div className="px-3 py-2 border-t border-[#171922] bg-[#0B0D14] shrink-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          {INSPIRATION_SUGGESTIONS.map((qp, idx) => {
             const QPIcon = qp.icon;
             return (
               <button
                 key={idx}
-                onClick={() => handleQuickPromptClick(qp.prompt)}
+                onClick={() => handleSuggestionClick(qp.prompt)}
                 disabled={isProcessing}
-                className="whitespace-nowrap flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#12141D] hover:bg-indigo-950/40 hover:border-indigo-500/50 border border-[#1F2230] text-[10px] text-gray-300 hover:text-indigo-200 transition active:scale-95 disabled:opacity-40 shrink-0"
+                className="whitespace-nowrap flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#131622] hover:bg-indigo-950/40 hover:border-indigo-500/40 border border-[#202536] text-[10px] text-gray-300 hover:text-white transition active:scale-95 disabled:opacity-40 shrink-0"
               >
                 <QPIcon className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
                 <span>{qp.label}</span>
@@ -340,9 +408,9 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
         </div>
       </div>
 
-      {/* Conversational Input Bar */}
-      <div className="p-2.5 border-t border-[#1A1C24] bg-[#0D0F17] shrink-0">
-        <form onSubmit={handleSubmit} className="relative flex flex-col space-y-1.5">
+      {/* Clean Conversational Input Bar */}
+      <div className="p-3 border-t border-[#1A1C24] bg-[#0C0E16] shrink-0">
+        <form onSubmit={handleSubmit} className="relative flex flex-col space-y-1">
           <div className="relative flex items-center">
             <textarea
               ref={textareaRef}
@@ -350,26 +418,23 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Direct AI: e.g., 'Make this an energetic Instagram Reel with hook & bounce captions'..."
+              placeholder="Discuss ideas or direct your edit (e.g. 'How should we edit the opening?')..."
               disabled={isProcessing}
-              className="w-full bg-[#12141D] text-xs text-gray-100 placeholder-gray-500 pl-3 pr-10 py-2 rounded-xl border border-[#202434] focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none transition resize-none disabled:opacity-40"
+              className="w-full bg-[#131622] text-xs text-gray-100 placeholder-gray-500 pl-3 pr-10 py-2.5 rounded-xl border border-[#202538] focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 focus:outline-none transition resize-none disabled:opacity-40"
             />
             <button
               type="submit"
               disabled={!prompt.trim() || isProcessing}
-              className="absolute right-2 bottom-2 p-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 active:scale-95 text-white disabled:opacity-30 transition shadow-md shadow-indigo-950/50 flex items-center justify-center"
-              title="Send directive to AI Director (Enter)"
+              className="absolute right-2 bottom-2 p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white disabled:opacity-25 transition shadow-sm flex items-center justify-center"
+              title="Send message (Enter)"
             >
               <Send className="w-3.5 h-3.5" />
             </button>
           </div>
 
           <div className="flex items-center justify-between text-[9px] text-gray-500 px-1">
-            <span className="flex items-center space-x-1">
-              <Zap className="w-2.5 h-2.5 text-amber-400" />
-              <span>Directs native engine AST • Non-destructive</span>
-            </span>
-            <span className="font-mono text-gray-500">Press Enter ↵</span>
+            <span>Ask questions, discuss ideas, or propose cuts</span>
+            <span className="font-mono text-gray-500">Enter ↵ to send</span>
           </div>
         </form>
       </div>

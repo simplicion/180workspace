@@ -63,20 +63,16 @@ export async function middleware(req: NextRequest) {
   const pathname = url.pathname;
   const hostname = req.headers.get("host") || "";
 
-  // 1. Internal dynamic site rewrites and fast redirect routes always bypass auth middleware
+  // 1. Internal dynamic site rewrites and static next assets bypass auth middleware
   if (
-    pathname.startsWith('/sites') ||
-    pathname.startsWith('/r/') ||
-    pathname.startsWith('/shield/') ||
-    pathname.startsWith('/tag/') ||
-    pathname.startsWith('/evaluate/') ||
-    pathname.startsWith('/f/') ||
-    pathname.startsWith('/payslip') ||
-    pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/.well-known') ||
-    pathname === '/favicon.ico'
+    pathname.startsWith('/.well-known')
   ) {
+    return NextResponse.next();
+  }
+
+  // If already rewritten to internal sites handler or fast proxy handler
+  if (pathname.startsWith('/sites') || pathname.startsWith('/r/')) {
     return NextResponse.next();
   }
 
@@ -137,7 +133,20 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(new URL(`/sites/${domainKey}${pathname}${search}`, req.url));
   }
 
-  // 3. Extract Token - Try multiple extraction strategies to avoid proxy/cookie prefix pitfalls
+  // 3. Fast redirect routes & public forms/payslips on main platform domains bypass auth
+  if (
+    pathname.startsWith('/shield/') ||
+    pathname.startsWith('/tag/') ||
+    pathname.startsWith('/evaluate/') ||
+    pathname.startsWith('/f/') ||
+    pathname.startsWith('/payslip') ||
+    pathname.startsWith('/api') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
+
+  // 4. Extract Token - Try multiple extraction strategies to avoid proxy/cookie prefix pitfalls
   let token = await getToken({ req, secret: NEXTAUTH_SECRET, secureCookie: true });
   if (!token) {
     token = await getToken({ req, secret: NEXTAUTH_SECRET, secureCookie: false });
@@ -159,7 +168,7 @@ export async function middleware(req: NextRequest) {
   const isWorkspaceSetupComplete = token ? !!token.isOnboardingComplete : (!!platformCookie && !isSetupPage);
   const isOnboardingDone = token ? (token.isFirstLogin === false || !!token.isOnboardingComplete) : !!platformCookie;
 
-  // 4. Authenticated users hitting "/" (Landing / Dashboard root)
+  // 5. Authenticated users hitting "/" (Landing / Dashboard root)
   if (isAuth && pathname === "/") {
     if (!isOnboardingDone) {
       return NextResponse.redirect(new URL("/signup", req.url));
@@ -173,7 +182,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 5. Unauthenticated users
+  // 6. Unauthenticated users
   if (!isAuth) {
     if (is180workspaceRoute || isAuthPage || isSetupPage) {
       return NextResponse.next();
@@ -183,12 +192,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(`/login?from=${encodeURIComponent(from)}`, req.url));
   }
 
-  // 6. Auth pages (/login, /signup, /onboarding) always render safely without server loops
+  // 7. Auth pages (/login, /signup, /onboarding) always render safely without server loops
   if (isAuthPage) {
     return NextResponse.next();
   }
 
-  // 7. Workspace Setup route
+  // 8. Workspace Setup route
   if (isSetupPage) {
     if (token?.isOnboardingComplete) {
       return NextResponse.redirect(new URL("/", req.url));
@@ -196,7 +205,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 8. Protected app routes
+  // 9. Protected app routes
   if (!isOnboardingDone) {
     return NextResponse.redirect(new URL("/signup", req.url));
   }
@@ -209,6 +218,11 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|r/|tag/|shield/|evaluate/|.*\\..*).*)",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     */
+    "/((?!_next/static|_next/image).*)",
   ],
 };
