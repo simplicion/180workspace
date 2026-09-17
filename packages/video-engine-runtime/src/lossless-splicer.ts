@@ -50,13 +50,23 @@ export class LosslessSplicer {
       const targetH = Math.floor(editIR.meta.resolution.height / 2) * 2;
       const isVerticalProject = editIR.meta.targetAspect === "9:16" || targetW < targetH;
 
+      const hasToneAdjustments =
+        (clip.transform.brightness !== undefined && clip.transform.brightness !== 1.0) ||
+        (clip.transform.contrast !== undefined && clip.transform.contrast !== 1.0) ||
+        (clip.transform.saturation !== undefined && clip.transform.saturation !== 1.0) ||
+        (clip.transform.filterPreset && clip.transform.filterPreset !== "NORMAL");
+
+      const hasAudioAdjustments = clip.volumeDb !== undefined && clip.volumeDb !== 0.0;
+
       const hasSpatialTransform =
         clip.transform.scale.start !== 1.0 ||
         clip.transform.scale.end !== 1.0 ||
         clip.transform.position.x !== 0 ||
         clip.transform.position.y !== 0 ||
         clip.transform.opacity !== 1.0 ||
-        clip.speedMultiplier !== 1.0;
+        clip.speedMultiplier !== 1.0 ||
+        hasToneAdjustments ||
+        hasAudioAdjustments;
 
       // Probe source to check if dimensions match target
       const isResolutionIdentical = !isVerticalProject; // If project is vertical reel, source must be reframed
@@ -71,22 +81,51 @@ export class LosslessSplicer {
             .output(segPath);
         } else {
           // Hardware/Software Transcode with proper aspect framing and even macroblock dimensions
-          let vFilter = `scale=trunc(iw/2)*2:trunc(ih/2)*2`;
+          let vFilters: string[] = [`scale=trunc(iw/2)*2:trunc(ih/2)*2`];
           if (isVerticalProject) {
-            vFilter = `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1`;
-          } else if (hasSpatialTransform) {
+            vFilters = [`scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1`];
+          } else if (clip.transform.scale.start !== 1.0) {
             const scale = clip.transform.scale.start || 1.0;
-            if (scale !== 1.0) {
-              vFilter = `scale=trunc(iw*${scale}/2)*2:trunc(ih*${scale}/2)*2`;
-            }
+            vFilters = [`scale=trunc(iw*${scale}/2)*2:trunc(ih*${scale}/2)*2`];
+          }
+
+          // Apply Tone & Visual Filterchains
+          const preset = clip.transform.filterPreset;
+          const b = clip.transform.brightness ?? 1.0;
+          const c = clip.transform.contrast ?? 1.0;
+          const s = clip.transform.saturation ?? 1.0;
+
+          if (preset === "NOIR_BW") {
+            vFilters.push("hue=s=0,eq=contrast=1.3");
+          } else if (preset === "VIVID") {
+            vFilters.push("eq=contrast=1.2:saturation=1.35:brightness=0.05");
+          } else if (preset === "CINEMATIC_TEAL_ORANGE") {
+            vFilters.push("colorbalance=rs=-0.05:bs=0.08:rh=0.07:bh=-0.05,eq=contrast=1.25:saturation=1.2");
+          } else if (preset === "VINTAGE_WARM") {
+            vFilters.push("colorbalance=rh=0.08:gh=0.04:bh=-0.04,eq=contrast=1.1:saturation=1.15:brightness=0.05");
+          } else if (preset === "CYBER_NEON") {
+            vFilters.push("hue=h=15,eq=contrast=1.35:saturation=1.5:brightness=0.1");
+          } else if (preset === "GLOW") {
+            vFilters.push("eq=contrast=1.08:brightness=0.12");
+          } else if (b !== 1.0 || c !== 1.0 || s !== 1.0) {
+            const bOffset = (b - 1.0).toFixed(2);
+            vFilters.push(`eq=brightness=${bOffset}:contrast=${c.toFixed(2)}:saturation=${s.toFixed(2)}`);
           }
 
           command = command
-            .videoFilters(vFilter)
+            .videoFilters(vFilters.join(","))
             .videoCodec("libx264")
-            .audioCodec("aac")
-            .outputOptions(["-preset fast", "-crf 18", "-movflags +faststart"])
-            .output(segPath);
+            .outputOptions(["-preset fast", "-crf 18", "-movflags +faststart"]);
+
+          if (clip.volumeDb !== undefined && clip.volumeDb <= -40) {
+            command = command.noAudio();
+          } else if (clip.volumeDb !== undefined && clip.volumeDb !== 0.0) {
+            command = command.audioCodec("aac").audioFilters(`volume=${clip.volumeDb.toFixed(1)}dB`);
+          } else {
+            command = command.audioCodec("aac");
+          }
+
+          command = command.output(segPath);
         }
 
         command

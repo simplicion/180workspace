@@ -49,6 +49,10 @@ export const TransformSchema = z.object({
       offsetY: z.number().default(10),
     })
     .optional(),
+  brightness: z.number().default(1.0).optional(), // 0.5 to 1.5
+  contrast: z.number().default(1.0).optional(), // 0.5 to 1.5
+  saturation: z.number().default(1.0).optional(), // 0.0 to 2.0
+  filterPreset: z.string().default("NORMAL").optional(), // NORMAL, NOIR_BW, VIVID, CINEMATIC_TEAL_ORANGE, VINTAGE_WARM, CYBER_NEON, GLOW
 });
 
 export type Transform = z.infer<typeof TransformSchema>;
@@ -83,6 +87,7 @@ export const VideoClipSchema = z.object({
   transitionIn: TransitionSchema.optional(),
   transitionOut: TransitionSchema.optional(),
   speedMultiplier: z.number().positive().default(1.0),
+  volumeDb: z.number().default(0.0).optional(),
   effects: z.array(z.string()).default([]),
 });
 

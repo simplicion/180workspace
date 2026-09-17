@@ -509,6 +509,118 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     setSelectedClipId(null);
   };
 
+  const handleDetachAudio = () => {
+    if (!project || !selectedClipId) return;
+    const mainTrack = project.editIR.tracks.videoTracks[0];
+    if (!mainTrack) return;
+
+    const clip = mainTrack.clips.find((c) => c.id === selectedClipId);
+    if (!clip) return;
+
+    const existingAudioTracks = [...(project.editIR.tracks.audioTracks || [])];
+    let voiceTrack = existingAudioTracks.find((t) => t.type === "PRIMARY_VOICE");
+
+    if (!voiceTrack) {
+      voiceTrack = {
+        id: `voice_track_${Date.now()}`,
+        type: "PRIMARY_VOICE",
+        volumeDb: 0.0,
+        clips: [],
+      };
+      existingAudioTracks.unshift(voiceTrack);
+    }
+
+    const detachedAudioClip = {
+      id: `aclip_detached_${Date.now()}`,
+      sourcePath: clip.sourcePath,
+      sourceRange: { ...clip.sourceRange },
+      timelineRange: { ...clip.timelineRange },
+      volumeDb: clip.volumeDb ?? 0.0,
+    };
+
+    const updatedAudioTracks = existingAudioTracks.map((t) =>
+      t.id === voiceTrack!.id ? { ...t, clips: [...t.clips, detachedAudioClip] } : t
+    );
+
+    // Mute the video clip
+    const updatedClips = mainTrack.clips.map((c) =>
+      c.id === selectedClipId ? { ...c, volumeDb: -60.0 } : c
+    );
+
+    const updatedIR: EditIR = {
+      ...project.editIR,
+      tracks: {
+        ...project.editIR.tracks,
+        videoTracks: [{ ...mainTrack, clips: updatedClips }],
+        audioTracks: updatedAudioTracks,
+      },
+    };
+
+    pushHistory(updatedIR);
+  };
+
+  const handleAddTextOverlay = () => {
+    if (!project) return;
+    const isVertical = aspectRatio === "9:16";
+    const newCaption: CaptionSegment = {
+      id: safeUUID(),
+      timeRange: {
+        start: RationalTimeMath.fromSeconds(currentTimeSeconds),
+        duration: RationalTimeMath.fromSeconds(3.0),
+      },
+      text: "NEW TITLE OVERLAY",
+      words: [
+        {
+          word: "NEW",
+          start: RationalTimeMath.fromSeconds(currentTimeSeconds),
+          end: RationalTimeMath.fromSeconds(currentTimeSeconds + 0.8),
+          highlight: true,
+          color: isVertical ? "#FFE600" : "#FACC15",
+          scaleMultiplier: 1.1,
+        },
+        {
+          word: "TITLE",
+          start: RationalTimeMath.fromSeconds(currentTimeSeconds + 0.8),
+          end: RationalTimeMath.fromSeconds(currentTimeSeconds + 1.8),
+          highlight: false,
+          color: "#FFFFFF",
+          scaleMultiplier: 1.0,
+        },
+        {
+          word: "OVERLAY",
+          start: RationalTimeMath.fromSeconds(currentTimeSeconds + 1.8),
+          end: RationalTimeMath.fromSeconds(currentTimeSeconds + 3.0),
+          highlight: false,
+          color: "#FFFFFF",
+          scaleMultiplier: 1.0,
+        },
+      ],
+      style: {
+        preset: "HORMOZI_BOUNCE",
+        fontFamily: "Inter",
+        fontSize: isVertical ? 52 : 46,
+        textColor: "#FFFFFF",
+        highlightColor: isVertical ? "#FFE600" : "#FACC15",
+        position: { x: 0.5, y: isVertical ? 0.76 : 0.8 },
+        shadow: true,
+      },
+    };
+
+    const updatedCaptions = [...(project.editIR.tracks.captionTrack || []), newCaption];
+    const totalSec = RationalTimeMath.toSeconds(project.editIR.meta.totalDuration);
+    const newTotal = RationalTimeMath.fromSeconds(Math.max(totalSec, currentTimeSeconds + 3.0));
+
+    pushHistory({
+      ...project.editIR,
+      meta: { ...project.editIR.meta, totalDuration: newTotal },
+      tracks: { ...project.editIR.tracks, captionTrack: updatedCaptions },
+    });
+  };
+
+  const handleAddMusicTrack = () => {
+    fileInputRef.current?.click();
+  };
+
   // Real-time Playback Loop
   useEffect(() => {
     if (!isPlaying || !project) return;
@@ -829,6 +941,8 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                 });
                 setSelectedClipId(dup.id);
               }}
+              onAddTextOverlay={handleAddTextOverlay}
+              onAddAudioTrack={handleAddMusicTrack}
               onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
             />
           </div>
@@ -1027,6 +1141,40 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                           tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
                         });
                       }}
+                      onUpdateVolume={(volumeDb) => {
+                        if (!selectedClipId) return;
+                        const track = project.editIR.tracks.videoTracks[0];
+                        if (!track) return;
+                        const updated = track.clips.map((c) =>
+                          c.id === selectedClipId ? { ...c, volumeDb } : c
+                        );
+                        pushHistory({
+                          ...project.editIR,
+                          tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+                        });
+                      }}
+                      onDetachAudio={handleDetachAudio}
+                      onDuplicateClip={() => {
+                        if (!selectedClipId) return;
+                        const track = project.editIR.tracks.videoTracks[0];
+                        const clip = track?.clips.find((c) => c.id === selectedClipId);
+                        if (!clip || !track) return;
+                        const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start) + RationalTimeMath.toSeconds(clip.timelineRange.duration);
+                        const dup: VideoClip = {
+                          ...clip,
+                          id: safeUUID(),
+                          timelineRange: {
+                            ...clip.timelineRange,
+                            start: RationalTimeMath.fromSeconds(startSec),
+                          },
+                        };
+                        pushHistory({
+                          ...project.editIR,
+                          tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: [...track.clips, dup] }] },
+                        });
+                        setSelectedClipId(dup.id);
+                      }}
+                      onDeleteClip={handleDeleteSelectedClip}
                       onClose={() => setSelectedClipId(null)}
                     />
                   ) : (

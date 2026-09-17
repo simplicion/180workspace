@@ -140,6 +140,16 @@ export class EditIRCompiler {
             appliedOperations.push(`Adjusted volume for track ${op.trackId} to ${op.volumeDb}dB`);
             break;
           }
+          case "applyFilter": {
+            this.applyFilter(updated, op);
+            appliedOperations.push(`Applied visual filter ${op.preset || "custom"} (brightness=${op.brightness ?? 1.0}, contrast=${op.contrast ?? 1.0}, saturation=${op.saturation ?? 1.0})`);
+            break;
+          }
+          case "detachAudio": {
+            this.applyDetachAudio(updated, op.clipId);
+            appliedOperations.push(`Detached clip audio into separate audio track`);
+            break;
+          }
           default:
             appliedOperations.push(`Executed operation ${(op as any).type}`);
         }
@@ -172,6 +182,17 @@ export class EditIRCompiler {
     const duckCount = plan.operations.filter((o) => o.type === "duckAudio").length;
     if (duckCount > 0) {
       actionBadges.push("🔊 Speech-reactive BGM audio ducking (-18dB)");
+    }
+
+    const filterCount = plan.operations.filter((o) => o.type === "applyFilter").length;
+    if (filterCount > 0) {
+      const fOp = plan.operations.find((o) => o.type === "applyFilter") as any;
+      actionBadges.push(`🎨 Applied ${fOp?.preset || "Custom"} Tone Filter`);
+    }
+
+    const detachCount = plan.operations.filter((o) => o.type === "detachAudio").length;
+    if (detachCount > 0) {
+      actionBadges.push("🎵 Detached dialogue into isolated audio track");
     }
 
     return {
@@ -566,4 +587,56 @@ export class EditIRCompiler {
       atrack.volumeDb = volumeDb;
     }
   }
+
+  private static applyFilter(editIR: EditIR, op: any) {
+    const mainTrack = editIR.tracks.videoTracks[0];
+    if (!mainTrack) return;
+
+    for (const clip of mainTrack.clips) {
+      if (!op.clipId || clip.id === op.clipId) {
+        clip.transform = {
+          ...clip.transform,
+          filterPreset: op.preset ?? clip.transform.filterPreset ?? "NORMAL",
+          brightness: op.brightness ?? clip.transform.brightness ?? 1.0,
+          contrast: op.contrast ?? clip.transform.contrast ?? 1.0,
+          saturation: op.saturation ?? clip.transform.saturation ?? 1.0,
+        };
+      }
+    }
+  }
+
+  private static applyDetachAudio(editIR: EditIR, clipId: string) {
+    const mainTrack = editIR.tracks.videoTracks[0];
+    if (!mainTrack) return;
+
+    const targetClip = (clipId === "all" || clipId === "main_clip")
+      ? mainTrack.clips[0]
+      : mainTrack.clips.find((c) => c.id === clipId);
+
+    if (!targetClip) return;
+
+    let voiceTrack = editIR.tracks.audioTracks.find((t) => t.type === "PRIMARY_VOICE");
+    if (!voiceTrack) {
+      voiceTrack = {
+        id: generateUUID(),
+        type: "PRIMARY_VOICE",
+        volumeDb: 0.0,
+        duckWithSpeech: false,
+        clips: [],
+      };
+      editIR.tracks.audioTracks.unshift(voiceTrack);
+    }
+
+    voiceTrack.clips.push({
+      id: generateUUID(),
+      sourcePath: targetClip.sourcePath,
+      sourceRange: { ...targetClip.sourceRange },
+      timelineRange: { ...targetClip.timelineRange },
+      volumeDb: targetClip.volumeDb ?? 0.0,
+    });
+
+    // Mute original video clip so it doesn't double-play
+    targetClip.volumeDb = -60.0;
+  }
 }
+

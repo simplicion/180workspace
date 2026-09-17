@@ -19,6 +19,8 @@ import {
   Maximize2,
   Copy,
   Keyboard,
+  Type,
+  Music,
 } from "lucide-react";
 import {
   EditIR,
@@ -42,6 +44,8 @@ interface TimelineProps {
   onUpdateClipTiming?: (clipId: string, newStartSec: number, newDurationSec: number) => void;
   onCommitHistory?: () => void;
   onDuplicateClip?: () => void;
+  onAddTextOverlay?: () => void;
+  onAddAudioTrack?: () => void;
   onOpenShortcuts?: () => void;
 }
 
@@ -59,6 +63,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   onUpdateClipTiming,
   onCommitHistory,
   onDuplicateClip,
+  onAddTextOverlay,
+  onAddAudioTrack,
   onOpenShortcuts,
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -248,6 +254,32 @@ export const Timeline: React.FC<TimelineProps> = ({
             >
               <Copy className="w-3 h-3 text-zinc-300" />
               <span>Duplicate</span>
+            </button>
+          )}
+
+          <div className="h-4 w-px bg-[#1F1F24] mx-1" />
+
+          {/* Add Text / Title Overlay Button */}
+          {onAddTextOverlay && (
+            <button
+              onClick={onAddTextOverlay}
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141417] hover:bg-[#1C1C26] active:scale-95 text-xs font-medium text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 transition shadow-sm"
+              title="Add Custom Title / Text Overlay"
+            >
+              <Type className="w-3 h-3 text-cyan-400" />
+              <span>+ Text</span>
+            </button>
+          )}
+
+          {/* Add Music / Audio Track Button */}
+          {onAddAudioTrack && (
+            <button
+              onClick={onAddAudioTrack}
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141417] hover:bg-[#161F1A] active:scale-95 text-xs font-medium text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 transition shadow-sm"
+              title="Add BGM / Audio Track"
+            >
+              <Music className="w-3 h-3 text-emerald-400" />
+              <span>+ Audio</span>
             </button>
           )}
 

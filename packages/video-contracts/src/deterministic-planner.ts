@@ -282,6 +282,85 @@ export class DeterministicPlanner {
       });
     }
 
+    // 8. Visual Filters & Tone Grade (Arbitrary / Named Presets)
+    const wantsFilter =
+      p.includes("filter") ||
+      p.includes("grade") ||
+      p.includes("look") ||
+      p.includes("noir") ||
+      p.includes("black and white") ||
+      p.includes("b&w") ||
+      p.includes("monochrome") ||
+      p.includes("vivid") ||
+      p.includes("teal") ||
+      p.includes("vintage") ||
+      p.includes("warm") ||
+      p.includes("retro") ||
+      p.includes("cyber") ||
+      p.includes("neon") ||
+      p.includes("glow") ||
+      p.includes("brightness") ||
+      p.includes("contrast") ||
+      p.includes("saturation");
+
+    if (wantsFilter) {
+      let filterPreset = "NORMAL";
+      let brightness = 1.0;
+      let contrast = 1.0;
+      let saturation = 1.0;
+
+      if (p.includes("noir") || p.includes("black and white") || p.includes("b&w") || p.includes("monochrome")) {
+        filterPreset = "NOIR_BW";
+        contrast = 1.3;
+        saturation = 0.0;
+      } else if (p.includes("vivid") || p.includes("saturated") || p.includes("punchy")) {
+        filterPreset = "VIVID";
+        brightness = 1.05;
+        contrast = 1.2;
+        saturation = 1.35;
+      } else if (p.includes("teal") || p.includes("orange") || p.includes("blockbuster") || p.includes("cinematic")) {
+        filterPreset = "CINEMATIC_TEAL_ORANGE";
+        brightness = 0.98;
+        contrast = 1.25;
+        saturation = 1.2;
+      } else if (p.includes("vintage") || p.includes("warm") || p.includes("70s") || p.includes("retro")) {
+        filterPreset = "VINTAGE_WARM";
+        brightness = 1.05;
+        contrast = 1.1;
+        saturation = 1.15;
+      } else if (p.includes("cyber") || p.includes("neon") || p.includes("futuristic")) {
+        filterPreset = "CYBER_NEON";
+        brightness = 1.1;
+        contrast = 1.35;
+        saturation = 1.5;
+      } else if (p.includes("glow") || p.includes("soft") || p.includes("dreamy")) {
+        filterPreset = "GLOW";
+        brightness = 1.12;
+        contrast = 1.08;
+        saturation = 1.1;
+      }
+
+      operations.push({
+        type: "applyFilter",
+        clipId: context.selectedClipId || undefined,
+        preset: filterPreset,
+        brightness,
+        contrast,
+        saturation,
+        reason: `Applied visual tone filter (${filterPreset})`,
+      });
+    }
+
+    // 9. Detach Audio
+    const wantsDetachAudio = p.includes("detach audio") || p.includes("split audio") || p.includes("extract audio") || p.includes("separate audio");
+    if (wantsDetachAudio && (context.selectedClipId || context.clipsCount > 0)) {
+      operations.push({
+        type: "detachAudio",
+        clipId: context.selectedClipId || "main_clip",
+        reason: "Detached clip audio into separate audio track",
+      });
+    }
+
     let explanation = "";
     if (targetShortenDurationSec) {
       explanation = `Shortened project to approximately ${targetShortenDurationSec}s while retaining high-retention highlights and framing for ${targetAspect}.`;
