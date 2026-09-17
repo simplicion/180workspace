@@ -222,6 +222,22 @@ export const AddTextOpSchema = z.object({
   style: z.record(z.any()).optional(),
 });
 
+export const ApplyFilterOpSchema = z.object({
+  type: z.literal("applyFilter"),
+  clipId: z.string().optional(),
+  preset: z.string().optional(),
+  brightness: z.number().optional(),
+  contrast: z.number().optional(),
+  saturation: z.number().optional(),
+  reason: z.string().optional(),
+});
+
+export const DetachAudioOpSchema = z.object({
+  type: z.literal("detachAudio"),
+  clipId: z.string(),
+  reason: z.string().optional(),
+});
+
 export const SelectTakeOpSchema = z.object({
   type: z.literal("selectTake"),
   candidateSegmentIndex: z.number().int().nonnegative(),
@@ -260,6 +276,8 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   FreezeFrameOpSchema,
   AddImageOpSchema,
   AddTextOpSchema,
+  ApplyFilterOpSchema,
+  DetachAudioOpSchema,
   SelectTakeOpSchema,
   ReorderSegmentOpSchema,
 ]);

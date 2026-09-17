@@ -123,6 +123,26 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     ? `inset(${crop.top}% ${crop.right}% ${crop.bottom}% ${crop.left}%)`
     : undefined;
 
+  const computeFilterCss = (t?: any) => {
+    if (!t) return undefined;
+    const b = t.brightness ?? 1.0;
+    const c = t.contrast ?? 1.0;
+    const s = t.saturation ?? 1.0;
+    const preset = t.filterPreset || "NORMAL";
+
+    let extra = "";
+    if (preset === "NOIR_BW") extra = "grayscale(100%)";
+    else if (preset === "VIVID") extra = "saturate(1.4) contrast(1.15)";
+    else if (preset === "CINEMATIC_TEAL_ORANGE") extra = "contrast(1.2) hue-rotate(-10deg) saturate(1.2)";
+    else if (preset === "VINTAGE_WARM") extra = "sepia(25%) contrast(1.1) brightness(1.05)";
+    else if (preset === "CYBER_NEON") extra = "contrast(1.3) saturate(1.5) hue-rotate(25deg) drop-shadow(0 0 10px rgba(168,85,247,0.4))";
+    else if (preset === "GLOW") extra = "brightness(1.1) drop-shadow(0 0 12px rgba(255,255,255,0.35))";
+
+    return `brightness(${b}) contrast(${c}) saturate(${s}) ${extra}`.trim();
+  };
+
+  const mainFilterStyle = computeFilterCss(activeVideoClip?.transform);
+
   // Synchronize HTML5 video element with current playhead time
   useEffect(() => {
     if (videoRef.current) {
@@ -336,7 +356,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                         src={activeVideoSrc}
                         alt={activeAsset?.name || "Media"}
                         className="w-full h-full object-contain pointer-events-none select-none"
-                        style={{ clipPath: cropStyle }}
+                        style={{ clipPath: cropStyle, filter: mainFilterStyle }}
                       />
                     ) : (
                       <video
@@ -345,7 +365,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                         playsInline
                         loop={isLooping}
                         className="w-full h-full object-contain"
-                        style={{ clipPath: cropStyle }}
+                        style={{ clipPath: cropStyle, filter: mainFilterStyle }}
                       />
                     )}
 
@@ -374,6 +394,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                   const oPosY = layer.clip.transform?.position?.y ?? 0;
                   const oRot = layer.clip.transform?.rotationDeg ?? 0;
                   const oOpacity = layer.clip.transform?.opacity ?? 1.0;
+                  const oFilter = computeFilterCss(layer.clip.transform);
                   const isSelected = selectedClipId === layer.clip.id;
 
                   return (
@@ -390,6 +411,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                           src={layer.src}
                           alt={layer.asset?.name || "Overlay"}
                           className="w-full h-full object-contain rounded-lg shadow-2xl drop-shadow-lg"
+                          style={{ filter: oFilter }}
                         />
                       ) : (
                         <video
@@ -399,6 +421,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
                           autoPlay
                           loop
                           className="w-full h-full object-contain rounded-lg shadow-2xl"
+                          style={{ filter: oFilter }}
                         />
                       )}
                       {isSelected && (
