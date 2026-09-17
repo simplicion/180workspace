@@ -233,13 +233,15 @@ export class DeterministicPlanner {
           startSec,
           durationSec: Math.max(0.5, endSec - startSec),
           text,
+          highlightColor: activeCaptionHighlight,
+          textColor: resolvedStyle.captionColors.primary || "#FFFFFF",
           words: slice.map((w, wIdx) => ({
             word: w.word,
             startSec: w.startSeconds,
             endSec: w.endSeconds,
             highlight: w.isEmphasis || wIdx === 0,
             scale: w.isEmphasis ? 1.2 : 1.0,
-            color: w.isEmphasis ? activeCaptionHighlight : undefined,
+            color: (w.isEmphasis || wIdx === 0) ? activeCaptionHighlight : (resolvedStyle.captionColors.primary || "#FFFFFF"),
           })),
           stylePreset: resolvedStyle.captionPreset === "HORMOZI_BOUNCE" ? "HORMOZI_BOUNCE" : "ALI_ABDAAL_CLEAN",
         });

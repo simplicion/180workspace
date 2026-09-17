@@ -166,7 +166,7 @@ export class ProjectIngestionOrchestrator {
             start: RationalTimeMath.fromSeconds(w.startSeconds),
             end: RationalTimeMath.fromSeconds(w.endSeconds),
             highlight: w.isEmphasis || false,
-            color: resolvedStyle.captionColors.highlight,
+            color: w.isEmphasis ? resolvedStyle.captionColors.highlight : resolvedStyle.captionColors.primary,
             scaleMultiplier: w.isEmphasis ? 1.2 : 1.0,
           })),
           style: {
