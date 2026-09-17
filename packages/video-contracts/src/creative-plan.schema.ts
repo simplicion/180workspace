@@ -102,6 +102,8 @@ export const AddCaptionOpSchema = z.object({
   startSec: z.number().nonnegative(),
   durationSec: z.number().positive(),
   text: z.string(),
+  highlightColor: z.string().optional(),
+  textColor: z.string().optional(),
   words: z.array(
     z.object({
       word: z.string(),

@@ -76,4 +76,9 @@ scratch/
 *.aac
 *.m4a
 *.flac
+.*_tmp/
+.temp_*/
+.vproj_temp/
+.vproj_cache/
+temp_brand_test_*/
 

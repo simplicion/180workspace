@@ -87,10 +87,11 @@ export class AssSubtitleGenerator {
             const wEnd = RationalTimeMath.toSeconds(w.end);
             const durationCs = Math.max(1, Math.round((wEnd - wStart) * 100)); // Centiseconds
 
-            const highlightColor = this.hexToAssBgr(w.color || cap.style?.highlightColor || "#00FF88");
+            const highlightColor = this.hexToAssBgr(w.color || cap.style?.highlightColor || "#FFE600");
+            const normalColor = this.hexToAssBgr(cap.style?.textColor || "#FFFFFF", "&H00FFFFFF&");
             const highlightTag = w.highlight
               ? `{\\c${highlightColor}\\fscx115\\fscy115}`
-              : `{\\c&H00FFFFFF&\\fscx100\\fscy100}`;
+              : `{\\c${normalColor}\\fscx100\\fscy100}`;
             return `{\\k${durationCs}}${highlightTag}${w.word}{\\r}`;
           })
           .join(" ");

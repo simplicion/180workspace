@@ -439,6 +439,8 @@ export class EditIRCompiler {
 
   private static applyAddCaption(editIR: EditIR, op: any) {
     const isVertical = editIR.meta.targetAspect === "9:16";
+    const highlightCol = op.highlightColor || (op.words && op.words.find((w: any) => w.color)?.color) || (isVertical ? "#FFE600" : "#FACC15");
+    const textCol = op.textColor || "#FFFFFF";
     const caption: CaptionSegment = {
       id: generateUUID(),
       timeRange: {
@@ -451,16 +453,16 @@ export class EditIRCompiler {
         start: RationalTimeMath.fromSeconds(w.startSec),
         end: RationalTimeMath.fromSeconds(w.endSec),
         highlight: w.highlight ?? false,
-        color: w.color,
+        color: w.color || (w.highlight ? highlightCol : textCol),
         scaleMultiplier: w.scale ?? 1.0,
       })),
       style: {
         preset: (op.stylePreset as any) || "HORMOZI_BOUNCE",
         fontFamily: "Inter",
         fontSize: isVertical ? 52 : 46,
-        textColor: "#FFFFFF",
-        highlightColor: isVertical ? "#00FF88" : "#FACC15",
-        position: { x: 0.5, y: isVertical ? 0.72 : 0.8 },
+        textColor: textCol,
+        highlightColor: highlightCol,
+        position: op.position || { x: 0.5, y: isVertical ? 0.76 : 0.8 },
         shadow: true,
       },
     };
