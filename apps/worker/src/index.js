@@ -75,6 +75,10 @@ async function bootstrap() {
     const voiceforceW = setupVoiceforceWorker();
     if (voiceforceW) activeWorkers.push(voiceforceW);
 
+    const setupSocialPublishWorker = require('./workers/socialPublishWorker');
+    const socialPublishW = setupSocialPublishWorker();
+    if (socialPublishW) activeWorkers.push(socialPublishW);
+
     if (typeof setupReelWorker === 'function') {
         const reelW = setupReelWorker();
         if (reelW) activeWorkers.push(reelW);

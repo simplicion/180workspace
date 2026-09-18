@@ -249,6 +249,9 @@ router.post('/v1/traffic-director/verify-tag', (req: any, res: any, next: any) =
     }
 });
 
+// Public Social Media Review Session (Magic Link Portal)
+router.use('/v1/social-media/reviews/public', require('../api/v1/social-media/reviews/client-review.routes').publicReviewRouter);
+
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
 router.use('/v1/traffic-director', protect, moduleGuard('traffic-director'), trafficDirectorRoutes);

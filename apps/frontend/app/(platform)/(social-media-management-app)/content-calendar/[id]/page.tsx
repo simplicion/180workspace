@@ -1,16 +1,21 @@
 'use client';
 
-
 import { LogoLoader } from "@workspace/ui";
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { contentCalendarService, ContentCalendar, ContentPiece } from '@/lib/services/content-calendar.service';
-import { CalendarDays, ArrowLeft, Calendar, Target, Hash, Info, CheckCircle2, Circle, Edit3, Image as ImageIcon, MessageSquare, Download, Bookmark, Sparkles } from 'lucide-react';
+import { 
+    CalendarDays, ArrowLeft, Calendar, Target, Hash, Info, CheckCircle2, 
+    Circle, Edit3, Image as ImageIcon, MessageSquare, Download, Bookmark, 
+    Sparkles, Plus, Share2, Link2, Send, Video
+} from 'lucide-react';
 
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import api from '@/lib/api';
 import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 import ContentPieceDrawer from '@/app/(platform)/(social-media-management-app)/_components/ContentPieceDrawer';
+import { MasterComposerModal } from '@/app/(platform)/(social-media-management-app)/_components/MasterComposerModal';
 
 const STATUS_COLORS: Record<string, string> = {
     ready: 'badge-gray',
@@ -28,6 +33,9 @@ export default function CalendarDetailView() {
     const [selectedPiece, setSelectedPiece] = useState<ContentPiece | null>(null);
     const [exporting, setExporting] = useState(false);
     const [savingTemplate, setSavingTemplate] = useState(false);
+    const [isComposerOpen, setIsComposerOpen] = useState(false);
+    const [generatingMagicLink, setGeneratingMagicLink] = useState(false);
+    const [selectedPieceForComposer, setSelectedPieceForComposer] = useState<ContentPiece | null>(null);
 
     const fetchDetails = async () => {
         try {
@@ -106,6 +114,27 @@ export default function CalendarDetailView() {
         }
     };
 
+    const handleGenerateMagicLink = async () => {
+        setGeneratingMagicLink(true);
+        try {
+            const { data } = await api.post('/api/social-media/reviews/sessions', {
+                clientId: (calendar as any)?.clientId || 'general-client',
+                name: `${calendar?.brandName} Review Portal`,
+                startDate: calendar?.startDate || new Date(),
+                endDate: new Date(Date.now() + 30 * 86400000)
+            });
+            if (data.success) {
+                const fullUrl = `${window.location.origin}${data.session.publicReviewUrl}`;
+                navigator.clipboard.writeText(fullUrl);
+                toast.success(`Client Magic Link copied to clipboard!\n${fullUrl}`, { duration: 6000, icon: '🔗' });
+            }
+        } catch (err: any) {
+            toast.error('Failed to generate magic link');
+        } finally {
+            setGeneratingMagicLink(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -122,28 +151,38 @@ export default function CalendarDetailView() {
 
     return (
         <div className="max-w-7xl mx-auto pb-12">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
                 <button 
                     onClick={() => router.push('/content-calendar')} 
                     className="flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4 mr-1" /> Back to Calendars
                 </button>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                    <button 
+                        onClick={handleGenerateMagicLink}
+                        disabled={generatingMagicLink}
+                        className="btn flex items-center gap-2 text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
+                    >
+                        <Share2 className="w-4 h-4" />
+                        {generatingMagicLink ? 'Generating...' : 'Client Magic Link'}
+                    </button>
+                    <button 
+                        onClick={() => {
+                            setSelectedPieceForComposer(null);
+                            setIsComposerOpen(true);
+                        }}
+                        className="btn flex items-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm font-bold"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Multi-Channel Post
+                    </button>
                     <button 
                         onClick={() => router.push(`/content-calendar/create?extendFrom=${calendar.id}`)}
                         className="btn flex items-center gap-2 text-sm bg-white hover:bg-indigo-50 text-indigo-600 border-indigo-200"
                     >
                         <Sparkles className="w-4 h-4" />
                         Extend for Next Month
-                    </button>
-                    <button 
-                        onClick={handleSaveAsTemplate}
-                        disabled={savingTemplate}
-                        className="btn flex items-center gap-2 text-sm"
-                    >
-                        {savingTemplate ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Bookmark className="w-4 h-4" />}
-                        Save as Template
                     </button>
                     <button 
                         onClick={exportToCSV}
@@ -329,6 +368,21 @@ export default function CalendarDetailView() {
                     onSave={() => {
                         fetchDetails();
                         setSelectedPiece(null);
+                    }}
+                />
+            )}
+
+            {/* Master Multi-Platform Composer Modal with Live Previews & Studio Sync */}
+            {isComposerOpen && (
+                <MasterComposerModal
+                    isOpen={isComposerOpen}
+                    onClose={() => setIsComposerOpen(false)}
+                    calendarId={calendar?.id}
+                    calendarPieceId={selectedPieceForComposer?.id}
+                    initialDate={selectedPieceForComposer?.dateScheduled || undefined}
+                    onSuccess={() => {
+                        fetchDetails();
+                        setIsComposerOpen(false);
                     }}
                 />
             )}
