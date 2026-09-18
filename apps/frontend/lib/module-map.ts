@@ -243,10 +243,11 @@ export const APPS_CONFIG: AppConfig[] = [
         name: 'Social Media Management',
         icon: Share2,
         tag: 'Marketing',
-        description: 'Content calendar, asset hub, AI brainstormer, and social post visualizer',
+        description: 'Content calendar, asset hub, unified inbox, AI brand voice, and social publishing suite',
         modules: [
             { id: 'content-calendar', name: 'Content Calendar' },
-            { id: 'social-media-assets', name: 'Social Media Assets' }
+            { id: 'social-media-assets', name: 'Social Media Assets' },
+            { id: 'social-inbox', name: 'Unified Social Inbox' }
         ]
     },
 
@@ -287,7 +288,7 @@ export const STARTER_SET = {
         'analytics', 'reports', 'website-analytics',
         'chat', 'meeting', 'emails', 
         'calendar', 'documents', 'assets', 'ai-assistant',
-        'content-calendar', 'social-media-assets'
+        'content-calendar', 'social-media-assets', 'social-inbox'
     ]
 };
 

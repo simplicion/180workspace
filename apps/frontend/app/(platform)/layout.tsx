@@ -476,6 +476,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                         const isModOn = (item.appId === 'ai') ||
                             (item.appId === 'voiceforce') ||
                             (item.appId === 'media-editor') ||
+                            (item.appId === 'social-media') ||
                             (subItem.id === 'orbit-copilot') ||
                             (subItem.id === 'agent-requests') ||
                             (subItem.id === 'bills-and-expenses' && (company.enabledModules.includes('expenses') || company.enabledModules.includes('bills-and-expenses'))) ||

@@ -84,6 +84,12 @@ router.use((req: any, res: any, next: any) => {
 
     if (rewrites[path]) {
         req.url = req.url.replace(path, rewrites[path]);
+    } else if (path.startsWith('/content-calendar/') || path === '/content-calendar') {
+        req.url = req.url.replace('/content-calendar', '/v1/social-media/content-calendar');
+    } else if (path.startsWith('/saved-banks/') || path === '/saved-banks') {
+        req.url = req.url.replace('/saved-banks', '/v1/social-media/saved-banks');
+    } else if (path.startsWith('/social-media/') || path === '/social-media') {
+        req.url = req.url.replace('/social-media', '/v1/social-media');
     } else if (path.startsWith('/calendar/')) {
         req.url = req.url.replace('/calendar', '/v1/workspace-tools/calendar');
     } else if (path.startsWith('/files/')) {
@@ -255,7 +261,10 @@ router.use('/v1/social-media/reviews/public', require('../api/v1/social-media/re
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
 router.use('/v1/traffic-director', protect, moduleGuard('traffic-director'), trafficDirectorRoutes);
-router.use('/v1/social-media', protect, moduleGuard('tools'), socialMediaRoutes);
+router.use('/v1/social-media', protect, moduleGuard('social-media'), socialMediaRoutes);
+router.use('/social-media', protect, moduleGuard('social-media'), socialMediaRoutes);
+router.use('/content-calendar', protect, moduleGuard('social-media'), require('../api/v1/social-media/content-calendar/content-calendar.routes').default);
+router.use('/saved-banks', protect, moduleGuard('social-media'), require('../api/v1/social-media/saved-banks/saved-banks.routes').default);
 router.use('/v1/insights', protect, moduleGuard('insights'), insightsRoutes);
 router.use('/v1/platform-billing', protect, platformBillingRoutes);
 router.use('/v1/ai', require('../api/v1/ai').default);
