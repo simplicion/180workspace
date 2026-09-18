@@ -114,7 +114,8 @@ const SALARY_STATUS_CONFIG: Record<string, { cls: string; icon: any; label: stri
     rejected: { cls: 'text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900/40', icon: XCircle, label: 'Rejected' },
 };
 
-export default function FinancialDashboard({ initialView }: FinancialDashboardProps) {
+export default function FinancialDashboard(props?: any) {
+    const { initialView } = (props || {}) as FinancialDashboardProps;
     const searchParams = useSearchParams();
     const router = useRouter();
     const urlView = searchParams.get('view') as ViewMode | null;

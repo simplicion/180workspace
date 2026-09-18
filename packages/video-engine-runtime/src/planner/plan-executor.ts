@@ -73,6 +73,29 @@ export class PlanExecutor {
         completedTaskIds.add(task.id);
         options.onTaskComplete?.(task, result);
 
+        // Pipeline Artifact Bus: synchronize tool results for downstream DAG tools
+        if (result && typeof result === "object") {
+          if (task.toolName === "mood_classifier" && (result as any).visualCues) {
+            context.artifacts.set("extracted_visual_cues", (result as any).visualCues);
+            context.artifacts.set("visual_cues", (result as any).visualCues);
+          }
+          if (task.toolName === "asset_search" && (result as any).sourcedAssets) {
+            context.artifacts.set("sourced_visual_assets", (result as any).sourcedAssets);
+          }
+          if (task.toolName === "bgm_search" && (result as any).bgmTrack) {
+            context.artifacts.set("sourced_bgm_track", (result as any).bgmTrack);
+          }
+          if (task.toolName === "sfx_search") {
+            context.artifacts.set("sfx_catalog", (result as any).catalog || (result as any).sfxCatalog || result);
+          }
+          if (task.toolName === "take_curator") {
+            context.artifacts.set("curatedManifest", result);
+          }
+          if (task.toolName === "timeline_assembler") {
+            context.artifacts.set("editIR", result);
+          }
+        }
+
         // =========================================================================
         // Tier 3 Closed-Loop Critic QA: Dynamic Self-Correction & Auto-Repair
         // =========================================================================

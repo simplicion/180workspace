@@ -3,6 +3,16 @@ import * as path from "path";
 import * as fs from "fs";
 import { VideoDirectorTool, DirectorExecutionContext } from "../base-tool";
 import { VisualCueTarget } from "../analysis/mood-classifier.tool";
+import { OpenWorldStockCrawler } from "./open-world-stock-crawler";
+
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
 
 export interface SourcedVisualAsset {
   cueId: string;
@@ -36,144 +46,9 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
   readonly inputSchema = AssetSearchInputSchema;
 
   /**
-   * Broadcast-grade Procedural Vector Asset Definitions (renders 100% crisp with transparent alpha channel)
+   * Broadcast-grade Procedural Vector Asset Definitions (purged of crude cartoons)
    */
-  private static readonly VECTOR_GRAPHICS_LIBRARY: Record<string, string> = {
-    sciatica_spine_nerve_diagram: `
-      <svg width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="spineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#E2E8F0"/>
-            <stop offset="100%" stop-color="#94A3B8"/>
-          </linearGradient>
-          <linearGradient id="nerveGlow" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#FF3366"/>
-            <stop offset="100%" stop-color="#FFE600"/>
-          </linearGradient>
-          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="6" result="blur"/>
-            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-          </filter>
-        </defs>
-        <!-- Dark Translucent Glass Card Background -->
-        <rect x="20" y="20" width="560" height="560" rx="40" fill="#0F172A" fill-opacity="0.88" stroke="#38BDF8" stroke-width="4"/>
-        
-        <!-- Header Tag -->
-        <rect x="180" y="45" width="240" height="42" rx="21" fill="#EF4444" fill-opacity="0.25" stroke="#EF4444" stroke-width="2"/>
-        <text x="300" y="72" text-anchor="middle" fill="#FF4444" font-family="Arial, sans-serif" font-weight="900" font-size="22" letter-spacing="1">⚠️ SCIATIC NERVE</text>
-        
-        <!-- Lumbar Spine Vertebrae (L4-L5-S1) -->
-        <g transform="translate(190, 110)">
-          <!-- L3 -->
-          <rect x="30" y="10" width="160" height="45" rx="12" fill="url(#spineGrad)" stroke="#FFFFFF" stroke-width="2"/>
-          <text x="110" y="38" text-anchor="middle" fill="#1E293B" font-family="Arial, sans-serif" font-weight="bold" font-size="18">L3 VERTEBRA</text>
-          
-          <!-- Disc -->
-          <rect x="45" y="60" width="130" height="16" rx="8" fill="#38BDF8" stroke="#0284C7" stroke-width="2"/>
-          
-          <!-- L4 -->
-          <rect x="30" y="82" width="160" height="45" rx="12" fill="url(#spineGrad)" stroke="#FFFFFF" stroke-width="2"/>
-          <text x="110" y="110" text-anchor="middle" fill="#1E293B" font-family="Arial, sans-serif" font-weight="bold" font-size="18">L4 VERTEBRA</text>
-          
-          <!-- Herniated Disc / Pinch Point -->
-          <rect x="45" y="132" width="130" height="18" rx="9" fill="#EF4444" stroke="#B91C1C" stroke-width="2"/>
-          <circle cx="175" cy="141" r="14" fill="#FF0000" filter="url(#glow)"/>
-          <text x="175" y="146" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-weight="bold" font-size="14">⚡</text>
-          
-          <!-- L5 -->
-          <rect x="30" y="156" width="160" height="45" rx="12" fill="url(#spineGrad)" stroke="#FFFFFF" stroke-width="2"/>
-          <text x="110" y="184" text-anchor="middle" fill="#1E293B" font-family="Arial, sans-serif" font-weight="bold" font-size="18">L5 VERTEBRA</text>
-          
-          <!-- Sacrum S1 Base -->
-          <polygon points="10,210 210,210 160,290 60,290" fill="url(#spineGrad)" stroke="#FFFFFF" stroke-width="2"/>
-          <text x="110" y="245" text-anchor="middle" fill="#1E293B" font-family="Arial, sans-serif" font-weight="bold" font-size="20">SACRUM (S1)</text>
-        </g>
-        
-        <!-- Radiating Sciatic Nerve Branch -->
-        <path d="M 370 250 Q 420 310 400 390 T 360 480" fill="none" stroke="url(#nerveGlow)" stroke-width="12" stroke-linecap="round" filter="url(#glow)"/>
-        
-        <!-- Callout Banner -->
-        <rect x="60" y="475" width="480" height="60" rx="18" fill="#1E293B" stroke="#FFE600" stroke-width="3"/>
-        <text x="300" y="512" text-anchor="middle" fill="#FFE600" font-family="Arial, sans-serif" font-weight="bold" font-size="24">💥 NERVE COMPRESSION POINT</text>
-      </svg>
-    `,
-    gluteal_massage_therapy_illustration: `
-      <svg width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="alertGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#DC2626"/>
-            <stop offset="100%" stop-color="#991B1B"/>
-          </linearGradient>
-        </defs>
-        <rect x="20" y="20" width="560" height="560" rx="40" fill="#0F172A" fill-opacity="0.90" stroke="#EF4444" stroke-width="4"/>
-        
-        <!-- Header -->
-        <rect x="130" y="45" width="340" height="46" rx="23" fill="url(#alertGrad)"/>
-        <text x="300" y="76" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-weight="900" font-size="22">🚫 WRONG MASSAGE AREA</text>
-        
-        <!-- Gluteal Anatomy Diagram -->
-        <circle cx="300" cy="270" r="140" fill="#334155" stroke="#64748B" stroke-width="4"/>
-        
-        <!-- Piriformis Muscle Band -->
-        <path d="M 200 230 Q 300 280 400 260" stroke="#F43F5E" stroke-width="32" stroke-linecap="round" fill="none"/>
-        <text x="300" y="270" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-weight="bold" font-size="16">PIRIFORMIS MUSCLE</text>
-        
-        <!-- Tennis Ball / Massage Tool Red X -->
-        <circle cx="350" cy="290" r="38" fill="#FACC15" stroke="#CA8A04" stroke-width="4"/>
-        <text x="350" y="298" text-anchor="middle" fill="#000000" font-family="Arial, sans-serif" font-weight="900" font-size="24">🎾</text>
-        <line x1="310" y1="250" x2="390" y2="330" stroke="#EF4444" stroke-width="12" stroke-linecap="round"/>
-        <line x1="390" y1="250" x2="310" y2="330" stroke="#EF4444" stroke-width="12" stroke-linecap="round"/>
-        
-        <!-- Footer Warning -->
-        <rect x="50" y="470" width="500" height="65" rx="20" fill="#450A0A" stroke="#EF4444" stroke-width="2"/>
-        <text x="300" y="510" text-anchor="middle" fill="#FCA5A5" font-family="Arial, sans-serif" font-weight="bold" font-size="22">⚠️ Direct Pressure Irritates Sciatic Nerve</text>
-      </svg>
-    `,
-    medical_caution_warning_badge: `
-      <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="256,30 490,440 22,440" fill="#DC2626" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>
-        <polygon points="256,70 455,420 57,420" fill="#FEF08A"/>
-        <text x="256" y="320" text-anchor="middle" fill="#1E293B" font-family="Arial, sans-serif" font-weight="900" font-size="180">!</text>
-        <rect x="106" y="350" width="300" height="50" rx="14" fill="#DC2626"/>
-        <text x="256" y="384" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-weight="900" font-size="28" letter-spacing="2">DANGER</text>
-      </svg>
-    `,
-    verified_doctor_badge: `
-      <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="256" cy="256" r="230" fill="#0F172A" stroke="#38BDF8" stroke-width="14"/>
-        <circle cx="256" cy="256" r="195" fill="#1E293B"/>
-        <text x="256" y="240" text-anchor="middle" font-size="110">🩺</text>
-        <circle cx="256" cy="340" r="32" fill="#00FF88"/>
-        <text x="256" y="352" text-anchor="middle" fill="#064E3B" font-family="Arial, sans-serif" font-weight="900" font-size="36">✓</text>
-        <text x="256" y="425" text-anchor="middle" fill="#38BDF8" font-family="Arial, sans-serif" font-weight="900" font-size="26" letter-spacing="1">VERIFIED DOCTOR</text>
-      </svg>
-    `,
-    medical_health_cross_checkmark: `
-      <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="256" cy="256" r="220" fill="#059669" stroke="#34D399" stroke-width="16"/>
-        <path d="M 150 260 L 225 335 L 365 185" fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `,
-    fluent_money_bag_3d: `
-      <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="256" cy="256" r="220" fill="#14532D" stroke="#22C55E" stroke-width="12"/>
-        <text x="256" y="320" text-anchor="middle" font-size="200">💰</text>
-      </svg>
-    `,
-    fluent_fire_flame_3d: `
-      <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="256" cy="256" r="220" fill="#7C2D12" stroke="#F97316" stroke-width="12"/>
-        <text x="256" y="320" text-anchor="middle" font-size="200">🔥</text>
-      </svg>
-    `,
-    ant_insect_danger_icon: `
-      <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="256" cy="256" r="220" fill="#450A0A" stroke="#EF4444" stroke-width="12"/>
-        <text x="256" y="320" text-anchor="middle" font-size="200">🐜</text>
-        <polygon points="256,70 300,140 212,140" fill="#EF4444"/>
-      </svg>
-    `,
-  };
+  private static readonly VECTOR_GRAPHICS_LIBRARY: Record<string, string> = {};
 
   async execute(input: AssetSearchInput, context: DirectorExecutionContext): Promise<AssetSearchOutput> {
     context.log?.("[AssetSearchTool] Sourcing visual assets matching mood and cue anchors...");
@@ -198,21 +73,91 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
 
       let resolved = false;
 
-      // Tier 1: Check built-in procedural vector library
-      const vectorSvg = AssetSearchTool.VECTOR_GRAPHICS_LIBRARY[cue.assetQuery];
-      if (vectorSvg) {
-        try {
-          await sharp(Buffer.from(vectorSvg.trim()))
-            .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-            .png()
-            .toFile(pngPath);
-          resolved = true;
-        } catch {
-          // Fall through
+      // Tier 1: Autonomous Open-World Stock & Web Media Crawler (Wikimedia Commons / Openverse / Web Stock)
+      try {
+        const candidate = await OpenWorldStockCrawler.searchAndRank(cue.assetQuery, cue.category, context.log);
+        if (candidate) {
+          const success = await OpenWorldStockCrawler.downloadAndFormatCard(candidate, pngPath);
+          if (success) {
+            resolved = true;
+            context.log?.(`[AssetSearchTool] Autonomously sourced and formatted open-world asset: "${candidate.title}" from ${candidate.source}`);
+          }
+        }
+      } catch (err: any) {
+        context.log?.(`[AssetSearchTool] Open-world crawler notice: ${err?.message}`);
+      }
+
+      // Tier 2: Dedicated Local High-Resolution Medical Asset Library (Offline / Fast Cache)
+      if (!resolved) {
+        const medicalAssetsDir = path.resolve(__dirname, "../../../assets/medical");
+        const medicalMap: Record<string, { fileName: string; tag: string }> = {
+          sciatica_spine_nerve_diagram: { fileName: "sciatica_spine_3d.jpg", tag: "L4-L5 SCIATIC NERVE ROOT" },
+          sciatica_spine_3d: { fileName: "sciatica_spine_3d.jpg", tag: "L4-L5 SCIATIC NERVE ROOT" },
+          spine: { fileName: "sciatica_spine_3d.jpg", tag: "L4-L5 SCIATIC NERVE ROOT" },
+          nerve: { fileName: "sciatica_spine_3d.jpg", tag: "L4-L5 SCIATIC NERVE ROOT" },
+          sciatic_nerve: { fileName: "sciatica_spine_3d.jpg", tag: "L4-L5 SCIATIC NERVE ROOT" },
+          sciatica: { fileName: "sciatica_spine_3d.jpg", tag: "L4-L5 SCIATIC NERVE ROOT" },
+          leg_nerve_tingling_3d: { fileName: "leg_nerve_tingling_3d.jpg", tag: "SENSORY NERVE PATHWAY" },
+          sensory_nerve: { fileName: "leg_nerve_tingling_3d.jpg", tag: "SENSORY NERVE PATHWAY" },
+          tingling: { fileName: "leg_nerve_tingling_3d.jpg", tag: "SENSORY NERVE PATHWAY" },
+          numbness: { fileName: "leg_nerve_tingling_3d.jpg", tag: "SENSORY NERVE PATHWAY" },
+          leg: { fileName: "leg_nerve_tingling_3d.jpg", tag: "SENSORY NERVE PATHWAY" },
+          sciatic_pathway_3d: { fileName: "sciatic_pathway_3d.jpg", tag: "SCIATIC NERVE COMPRESSION" },
+          pathway: { fileName: "sciatic_pathway_3d.jpg", tag: "SCIATIC NERVE COMPRESSION" },
+        };
+
+        const cleanQuery = cue.assetQuery.toLowerCase().replace(/_/g, "");
+        const matchedKey =
+          medicalMap[cue.assetQuery.toLowerCase()]
+            ? cue.assetQuery.toLowerCase()
+            : Object.keys(medicalMap)
+                .sort((a, b) => b.length - a.length)
+                .find(k => k.replace(/_/g, "") === cleanQuery || cleanQuery.includes(k.replace(/_/g, "")));
+        const matchedMedical = matchedKey ? medicalMap[matchedKey] : undefined;
+
+        if (matchedMedical && fs.existsSync(path.join(medicalAssetsDir, matchedMedical.fileName))) {
+          try {
+            const imgPath = path.join(medicalAssetsDir, matchedMedical.fileName);
+            const size = 512;
+            const radius = 28;
+
+            const maskSvg = Buffer.from(`
+              <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <rect x="0" y="0" width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#FFFFFF" />
+              </svg>
+            `);
+
+            const borderSvg = Buffer.from(`
+              <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <rect x="2" y="2" width="${size - 4}" height="${size - 4}" rx="${radius}" ry="${radius}" fill="none" stroke="#38BDF8" stroke-width="4" stroke-opacity="0.85" />
+                <rect x="16" y="${size - 52}" width="${size - 32}" height="36" rx="10" fill="#0F172A" fill-opacity="0.85" stroke="#38BDF8" stroke-width="1.5" stroke-opacity="0.5"/>
+                <text x="${size / 2}" y="${size - 28}" text-anchor="middle" fill="#38BDF8" font-family="Arial, sans-serif" font-weight="bold" font-size="16" letter-spacing="1">${matchedMedical.tag}</text>
+              </svg>
+            `);
+
+            const resized = await sharp(imgPath)
+              .resize(size, size, { fit: "cover" })
+              .toBuffer();
+
+            const masked = await sharp(resized)
+              .composite([{ input: maskSvg, blend: "dest-in" }])
+              .png()
+              .toBuffer();
+
+            await sharp(masked)
+              .composite([{ input: borderSvg, blend: "over" }])
+              .png()
+              .toFile(pngPath);
+
+            resolved = true;
+            context.log?.(`[AssetSearchTool] Sourced authentic 3D medical visual from local archive for "${cue.assetQuery}".`);
+          } catch (err: any) {
+            context.log?.(`[AssetSearchTool] Medical visual render warning: ${err?.message}`);
+          }
         }
       }
 
-      // Tier 2: Microsoft Fluent 3D Emoji / Twemoji CDN (Pandas, Dinosaurs, Fire, Money, etc.)
+      // Tier 3: Microsoft Fluent 3D Emoji / Twemoji CDN (Pandas, Dinosaurs, Fire, Money, 3D Warning, etc.)
       if (!resolved) {
         const queryLower = cue.assetQuery.toLowerCase().replace(/_/g, "");
         const fluentMap: Record<string, string> = {
@@ -250,7 +195,7 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
         }
       }
 
-      // Tier 3: Iconify Universal Vector API (100,000+ vector icons with dynamic theme colors)
+      // Tier 4: Iconify Universal Vector API (100,000+ vector icons with dynamic theme colors)
       if (!resolved) {
         try {
           const themeColor =
@@ -288,7 +233,7 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
         }
       }
 
-      // Tier 4: Wikimedia Commons Open API (Diagrams, Medical & Educational Illustrations)
+      // Tier 5: Wikimedia Commons Open API (Diagrams, Medical & Educational Illustrations)
       if (!resolved && (cue.category === "ANATOMICAL_DIAGRAM" || cue.category === "CALLOUT_CARD")) {
         try {
           const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(
@@ -318,7 +263,7 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
         }
       }
 
-      // Tier 5: Procedural Glass Badge Card Synthesizer
+      // Tier 6: Procedural Glass Badge Card Synthesizer
       if (!resolved) {
         const themeColor =
           cue.mood === "CLINICAL_AUTHORITY"
@@ -342,9 +287,9 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
           <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
             <rect x="20" y="20" width="472" height="472" rx="40" fill="#0F172A" fill-opacity="0.94" stroke="${themeColor}" stroke-width="8"/>
             <text x="256" y="240" text-anchor="middle" font-size="120">${iconEmoji}</text>
-            <text x="256" y="380" text-anchor="middle" fill="${themeColor}" font-family="Arial, sans-serif" font-weight="900" font-size="32" letter-spacing="1">${cue.assetQuery
+            <text x="256" y="380" text-anchor="middle" fill="${themeColor}" font-family="Arial, sans-serif" font-weight="900" font-size="32" letter-spacing="1">${escapeXml(cue.assetQuery
           .replace(/_/g, " ")
-          .toUpperCase()}</text>
+          .toUpperCase())}</text>
           </svg>
         `;
         await sharp(Buffer.from(proceduralSvg.trim()))

@@ -106,10 +106,6 @@ export class PreFlightSimulatorService {
       }
     });
 
-    const livekitHost = process.env.LIVEKIT_URL || process.env.LIVEKIT_HOST || 'https://livekit.180workspace.com';
-    const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
-    const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
-
     const tokenService = new LiveKitTokenService();
     const { token } = await tokenService.generateToken({
       roomName,

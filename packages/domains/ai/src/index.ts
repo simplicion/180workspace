@@ -8,6 +8,9 @@ export * from './providers';
 export * from './kernel/ai-provider.service';
 export * from './kernel/ai-company-config.service';
 
+// Real (ffmpeg/STT-backed) Media Analysis for the Video AI Director
+export * from './media/media-analysis.service';
+
 // Memory & Real-Time Context Aggregator (Redis-Backed Mem0 + Vector Memory)
 export * from './memory/mem0-memory.service';
 export * from './memory/context-aggregator.service';

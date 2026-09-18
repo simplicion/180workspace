@@ -52,8 +52,50 @@ export const TransformSchema = z.object({
   brightness: z.number().default(1.0).optional(), // 0.5 to 1.5
   contrast: z.number().default(1.0).optional(), // 0.5 to 1.5
   saturation: z.number().default(1.0).optional(), // 0.0 to 2.0
+  temperature: z.number().default(0).optional(), // -100 to +100 (cool to warm)
+  tint: z.number().default(0).optional(), // -100 to +100 (green to magenta)
+  exposure: z.number().default(0).optional(), // -2.0 to +2.0
+  highlights: z.number().default(0).optional(), // -100 to +100
+  shadows: z.number().default(0).optional(), // -100 to +100
+  vignette: z.number().default(0).optional(), // 0 to 100
   filterPreset: z.string().default("NORMAL").optional(), // NORMAL, NOIR_BW, VIVID, CINEMATIC_TEAL_ORANGE, VINTAGE_WARM, CYBER_NEON, GLOW
+  colorWheels: z
+    .object({
+      lift: z.object({ hue: z.number(), amount: z.number(), luma: z.number() }).optional(),
+      gamma: z.object({ hue: z.number(), amount: z.number(), luma: z.number() }).optional(),
+      gain: z.object({ hue: z.number(), amount: z.number(), luma: z.number() }).optional(),
+      offset: z.object({ hue: z.number(), amount: z.number(), luma: z.number() }).optional(),
+    })
+    .optional(),
+  rgbCurves: z
+    .object({
+      master: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+      red: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+      green: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+      blue: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+    })
+    .optional(),
+  speedCurvePreset: z.string().optional(),
+  keyframes: z
+    .array(
+      z.object({
+        id: z.string(),
+        timeOffsetSec: z.number(),
+        property: z.enum(["scale", "posX", "posY", "rotation", "opacity", "volume"]),
+        value: z.number(),
+        easing: z.enum(["linear", "spring", "easeIn", "easeOut", "easeInOut"]).default("linear").optional(),
+      })
+    )
+    .optional(),
 });
+
+export type ClipKeyframe = {
+  id: string;
+  timeOffsetSec: number;
+  property: "scale" | "posX" | "posY" | "rotation" | "opacity" | "volume";
+  value: number;
+  easing?: "linear" | "spring" | "easeIn" | "easeOut" | "easeInOut";
+};
 
 export type Transform = z.infer<typeof TransformSchema>;
 
@@ -111,7 +153,24 @@ export const CameraEventSchema = z.object({
 
 export type CameraEvent = z.infer<typeof CameraEventSchema>;
 export type CameraZoomKeyframe = CameraEvent;
-export type DirectorStylePreset = "MRBEAST_FAST" | "ALI_ABDAAL_CLEAN" | "HORMOZI_PUNCH" | "SAAS_DEMO" | "CUSTOM";
+// Kept in sync with `DirectorStyleKey` in director-style-resolver.ts — that resolver is the
+// authoritative source of real style presets the deterministic planner produces, so this
+// union (and the matching zod enum below / in creative-plan.schema.ts's CreativeIntentSchema)
+// must cover every value it can resolve to, or plan/AST validation spuriously fails.
+export type DirectorStylePreset =
+  | "MRBEAST_FAST"
+  | "ALI_ABDAAL_CLEAN"
+  | "HORMOZI_PUNCH"
+  | "SAAS_DEMO"
+  | "CUSTOM"
+  | "MINIMALIST_CLEAN"
+  | "DAN_KOE_MINIMALIST"
+  | "HORMOZI_VIRAL"
+  | "INSTAGRAM_AESTHETIC"
+  | "DOCUMENTARY_DEEPDIVE"
+  | "MAGNATES_MEDIA_MYSTERY"
+  | "VOX_EXPLAINER"
+  | "IMAN_GADZHI_CINEMATIC";
 
 /**
  * Kinetic Word & Caption Definition
@@ -140,6 +199,12 @@ export const CaptionSegmentSchema = z.object({
     highlightColor: z.string().default("#00FF88"),
     position: z.object({ x: z.number().default(0.5), y: z.number().default(0.8) }),
     shadow: z.boolean().default(true),
+    strokeWidth: z.number().default(0).optional(),
+    strokeColor: z.string().default("#000000").optional(),
+    glow: z.boolean().default(false).optional(),
+    pillBackground: z.string().optional(),
+    pillPadding: z.number().default(12).optional(),
+    pillRadius: z.number().default(16).optional(),
   }),
 });
 
@@ -192,7 +257,21 @@ export const EditIRSchema = z.object({
     totalDuration: RationalTimeSchema,
   }),
   directorStyle: z.object({
-    preset: z.enum(["MRBEAST_FAST", "ALI_ABDAAL_CLEAN", "HORMOZI_PUNCH", "SAAS_DEMO", "CUSTOM"]),
+    preset: z.enum([
+      "MRBEAST_FAST",
+      "ALI_ABDAAL_CLEAN",
+      "HORMOZI_PUNCH",
+      "SAAS_DEMO",
+      "CUSTOM",
+      "MINIMALIST_CLEAN",
+      "DAN_KOE_MINIMALIST",
+      "HORMOZI_VIRAL",
+      "INSTAGRAM_AESTHETIC",
+      "DOCUMENTARY_DEEPDIVE",
+      "MAGNATES_MEDIA_MYSTERY",
+      "VOX_EXPLAINER",
+      "IMAN_GADZHI_CINEMATIC",
+    ]),
     pacingMultiplier: z.number().default(1.0),
     zoomAggressiveness: z.number().default(0.5),
     brollFrequencySeconds: z.number().default(15.0),

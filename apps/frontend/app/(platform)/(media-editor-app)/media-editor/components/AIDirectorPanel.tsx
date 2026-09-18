@@ -18,6 +18,10 @@ import {
   Zap,
   BarChart3,
   Palette,
+  Code2,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronLeft,
 } from "lucide-react";
 import { DirectorStylePreset, EditIR } from "@workspace/video-contracts";
 import { CompanyAIStatus, AIDirectorProgressEvent } from "../services/tauri-bridge";
@@ -52,6 +56,12 @@ interface AIDirectorPanelProps {
   timelineDurationSec?: number;
   clipsCount?: number;
   selectedClipId?: string | null;
+  userProfile?: {
+    name?: string;
+    photoUrl?: string;
+    email?: string;
+  } | null;
+  onToggleCollapse?: () => void;
   onConfirmAutonomousEdit?: (message: DirectorChatMessage) => void;
   onCancelAutonomousEdit?: (message: DirectorChatMessage) => void;
 }
@@ -111,6 +121,8 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
   currentAspect = "16:9",
   timelineDurationSec = 0,
   clipsCount = 0,
+  userProfile,
+  onToggleCollapse,
   onConfirmAutonomousEdit,
   onCancelAutonomousEdit,
 }) => {
@@ -145,11 +157,18 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
 
   return (
     <div className="w-full flex-1 flex flex-col select-none relative bg-[#090A0E] text-gray-200 overflow-hidden font-sans">
-      {/* Clean, Minimalist Header */}
+      {/* Clean, Minimalist Header with Official 180 AI Logo & <> Collapse Toggle */}
       <div className="px-3.5 py-3 border-b border-[#1A1C24] bg-[#0C0E15] shrink-0 flex items-center justify-between">
         <div className="flex items-center space-x-2.5">
-          <div className="p-1.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
-            <Sparkles className="w-4 h-4 text-indigo-300" />
+          <div className="p-1 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+            <img
+              src="/white-icon.svg"
+              onError={(e) => {
+                e.currentTarget.src = "/white icon.svg";
+              }}
+              alt="180 AI"
+              className="w-4 h-4 object-contain"
+            />
           </div>
           <div>
             <div className="flex items-center space-x-1.5">
@@ -160,7 +179,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1.5">
           <div className="px-2 py-0.5 rounded-full bg-[#141722] border border-[#212638] text-[10px] text-gray-400 font-mono">
             {currentAspect} • {timelineDurationSec.toFixed(1)}s • {clipsCount} {clipsCount === 1 ? "clip" : "clips"}
           </div>
@@ -174,6 +193,17 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
+
+          {/* Sidebar Collapse Toggle Button (<>) */}
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#1A1D2A] border border-[#212638] transition flex items-center justify-center"
+              title="Collapse AI Director Panel (<>)"
+            >
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -184,7 +214,14 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
           <div className="p-4 rounded-2xl bg-gradient-to-b from-[#121522] to-[#0D0F17] border border-indigo-500/20 shadow-sm space-y-3">
             <div className="flex items-center space-x-2.5">
               <div className="w-7 h-7 rounded-xl bg-indigo-600/25 border border-indigo-500/35 flex items-center justify-center text-indigo-300">
-                <Bot className="w-4 h-4" />
+                <img
+                  src="/white-icon.svg"
+                  onError={(e) => {
+                    e.currentTarget.src = "/white icon.svg";
+                  }}
+                  alt="180 AI"
+                  className="w-4 h-4 object-contain"
+                />
               </div>
               <div>
                 <span className="text-xs font-semibold text-white">Creative Director Ready</span>
@@ -216,7 +253,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
           </div>
         )}
 
-        {/* Message Bubble Stream */}
+        {/* Message Bubble Stream with User Avatar */}
         {messages.map((msg) => {
           const isUser = msg.sender === "user";
 
@@ -227,15 +264,30 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                 isUser ? "flex-row-reverse space-x-reverse" : "flex-row"
               }`}
             >
-              <div
-                className={`w-6 h-6 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs ${
-                  isUser
-                    ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
-                    : "bg-[#161824] border border-indigo-500/30 text-indigo-300"
-                }`}
-              >
-                {isUser ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
-              </div>
+              {isUser ? (
+                userProfile?.photoUrl ? (
+                  <img
+                    src={userProfile.photoUrl}
+                    alt={userProfile.name || "You"}
+                    className="w-6 h-6 rounded-xl object-cover shrink-0 mt-0.5 border border-indigo-500/40"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5 border border-indigo-500/30">
+                    {(userProfile?.name?.[0] || userProfile?.email?.[0] || "U").toUpperCase()}
+                  </div>
+                )
+              ) : (
+                <div className="w-6 h-6 rounded-xl bg-[#161824] border border-indigo-500/30 flex items-center justify-center shrink-0 mt-0.5 text-indigo-300">
+                  <img
+                    src="/white-icon.svg"
+                    onError={(e) => {
+                      e.currentTarget.src = "/white icon.svg";
+                    }}
+                    alt="AI"
+                    className="w-3.5 h-3.5 object-contain"
+                  />
+                </div>
+              )}
 
               <div
                 className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed transition-all shadow-sm ${
@@ -246,7 +298,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
               >
                 <div className="flex items-center justify-between space-x-3 mb-1 text-[10px] text-gray-400">
                   <span className="font-semibold tracking-wide text-gray-300">
-                    {isUser ? "You" : "Director"}
+                    {isUser ? (userProfile?.name || "You") : "Director"}
                   </span>
                   <span className="font-mono text-[9px] opacity-75">{msg.timestamp}</span>
                 </div>

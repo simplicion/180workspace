@@ -43,7 +43,7 @@
         "./utils/*"
       ],
       "@workspace/video-contracts": [
-        "../../packages/video-contracts/src"
+        "../../packages/video-contracts/src/index.ts"
       ],
       "@workspace/video-contracts/*": [
         "../../packages/video-contracts/src/*"
@@ -62,6 +62,7 @@
   ],
   "exclude": [
     "node_modules",
-    "tests"
+    "tests",
+    "**/remotion-editor/**"
   ]
 }

@@ -117,12 +117,16 @@ export class LosslessSplicer {
             .videoCodec("libx264")
             .outputOptions(["-y", "-pix_fmt yuv420p", "-preset fast", "-crf 18", "-movflags +faststart"]);
 
+          const durSec = RationalTimeMath.toSeconds(clip.sourceRange.duration);
+          const fadeOutStart = Math.max(0.01, durSec - 0.05);
+          const audioFadeFilter = `afade=t=in:st=0:d=0.05,afade=t=out:st=${fadeOutStart.toFixed(3)}:d=0.05`;
+
           if (clip.volumeDb !== undefined && clip.volumeDb <= -40) {
             command = command.noAudio();
           } else if (clip.volumeDb !== undefined && clip.volumeDb !== 0.0) {
-            command = command.audioCodec("aac").audioFilters(`volume=${clip.volumeDb.toFixed(1)}dB`);
+            command = command.audioCodec("aac").audioFilters(`volume=${clip.volumeDb.toFixed(1)}dB,${audioFadeFilter}`);
           } else {
-            command = command.audioCodec("aac");
+            command = command.audioCodec("aac").audioFilters(audioFadeFilter);
           }
 
           command = command.output(segPath);
@@ -212,15 +216,18 @@ export class LosslessSplicer {
             const oEndSec = oStartSec + oDurSec;
 
             const scaleFactor = oClip.transform?.scale?.start || 1.0;
-            const posX = oClip.transform?.position?.x || 0;
-            const posY = oClip.transform?.position?.y || 0;
+            const posX = Math.round(oClip.transform?.position?.x || 0);
+            const posY = Math.round(oClip.transform?.position?.y || 0);
             const opacity = oClip.transform?.opacity ?? 1.0;
 
             const targetW = Math.max(16, Math.floor((editIR.meta.resolution.width * 0.42 * scaleFactor) / 2) * 2);
             const scaledLabel = `scaled_${inputIdx}`;
             const outLabel = `v_layer_${inputIdx}`;
 
-            filterComplex += `[${inputIdx}:v]scale=${targetW}:-2,format=rgba,colorchannelmixer=aa=${opacity}[${scaledLabel}];[${lastStream}][${scaledLabel}]overlay=x=(W-w)/2+${posX}:y=(H-h)/2+${posY}:enable='between(t,${oStartSec},${oEndSec})':eof_action=pass[${outLabel}];`;
+            const posXStr = posX >= 0 ? `+${posX}` : `${posX}`;
+            const posYStr = posY >= 0 ? `+${posY}` : `${posY}`;
+
+            filterComplex += `[${inputIdx}:v]scale=${targetW}:-2,format=rgba,colorchannelmixer=aa=${opacity}[${scaledLabel}];[${lastStream}][${scaledLabel}]overlay=x=(W-w)/2${posXStr}:y=(H-h)/2${posYStr}:enable='between(t,${oStartSec.toFixed(2)},${oEndSec.toFixed(2)})':eof_action=pass[${outLabel}];`;
             lastStream = outLabel;
             inputIdx++;
           }
@@ -249,7 +256,9 @@ export class LosslessSplicer {
               resolve();
             })
             .on("error", (err) => {
-              console.warn("[LosslessSplicer] Overlay/Camera compositing fallback:", err.message);
+              console.error("[LosslessSplicer] Overlay/Camera compositing error:", err.message);
+              // overlaidVideo never finished rendering — keep compositedVideoPath on the
+              // last known-good file (mergedRawVideo) instead of pointing at the failed output.
               resolve();
             })
             .run();
@@ -285,15 +294,37 @@ export class LosslessSplicer {
       const formattedAssPath = assFilePath.replace(/\\/g, "/").replace(/:/g, "\\:");
 
       await new Promise<void>((resolve, reject) => {
-        let cmd = ffmpeg(compositedVideoPath)
-          .videoFilters(`ass='${formattedAssPath}'`)
-          .videoCodec("libx264")
-          .outputOptions(["-y", "-pix_fmt yuv420p", "-preset fast", "-crf 18", "-movflags +faststart"]);
+        let cmd = ffmpeg(compositedVideoPath);
 
         if (processedAudioPath && fs.existsSync(processedAudioPath)) {
-          cmd = cmd.input(processedAudioPath).outputOptions(["-map 0:v:0", "-map 1:a:0", "-c:a aac"]);
+          cmd = cmd
+            .input(processedAudioPath)
+            .complexFilter([`[0:v]ass='${formattedAssPath}'[sub_v]`])
+            .outputOptions([
+              "-y",
+              "-map", "[sub_v]",
+              "-map", "1:a:0",
+              "-c:v", "libx264",
+              "-pix_fmt", "yuv420p",
+              "-preset", "fast",
+              "-crf", "18",
+              "-c:a", "aac",
+              "-movflags", "+faststart",
+            ]);
         } else {
-          cmd = cmd.audioCodec("copy");
+          cmd = cmd
+            .complexFilter([`[0:v]ass='${formattedAssPath}'[sub_v]`])
+            .outputOptions([
+              "-y",
+              "-map", "[sub_v]",
+              "-map", "0:a?",
+              "-c:v", "libx264",
+              "-pix_fmt", "yuv420p",
+              "-preset", "fast",
+              "-crf", "18",
+              "-c:a", "copy",
+              "-movflags", "+faststart",
+            ]);
         }
 
         cmd
@@ -363,11 +394,20 @@ export class LosslessSplicer {
       const s = RationalTimeMath.toSeconds(cam.timeRange.start);
       const d = RationalTimeMath.toSeconds(cam.timeRange.duration);
       const e = s + d;
-      const delta = (cam.scale || 1.3) - 1.0;
+      const targetScale = cam.scale || 1.2;
       const fx = cam.targetCoords?.x ?? 0.5;
       const fy = cam.targetCoords?.y ?? 0.38;
 
-      const zoomFactor = `(1+${delta.toFixed(3)}*sin(PI*(t-${s.toFixed(2)})/${d.toFixed(2)}))`;
+      let zoomFactor: string;
+      if (cam.spring?.overshootClamping) {
+        // Persistent multi-cam take framing (e.g. 1.18x medium tight punch across take)
+        zoomFactor = `${targetScale.toFixed(3)}`;
+      } else {
+        // Smooth dynamic emphasis punch
+        const delta = targetScale - 1.0;
+        zoomFactor = `(1+${delta.toFixed(3)}*sin(PI*(t-${s.toFixed(2)})/${d.toFixed(2)}))`;
+      }
+
       wExpr = `if(between(t,${s.toFixed(2)},${e.toFixed(2)}),iw/${zoomFactor},${wExpr})`;
       hExpr = `if(between(t,${s.toFixed(2)},${e.toFixed(2)}),ih/${zoomFactor},${hExpr})`;
       xExpr = `if(between(t,${s.toFixed(2)},${e.toFixed(2)}),(iw-ow)*${fx.toFixed(2)},${xExpr})`;

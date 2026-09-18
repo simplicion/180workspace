@@ -413,23 +413,10 @@ router.get([
   );
 });
 
-// AI Status for Desktop Studio & Workspace
-router.get(['/media-editor/ai-status', '/v1/media-editor/ai-status'], async (req: any, res: any) => {
-  try {
-    const { AICompanyConfigService } = require('@workspace/ai');
-    const companyId = (req.query.companyId as string) || (req.headers["x-company-id"] as string) || (req as any).user?.companyId;
-    const status = await AICompanyConfigService.getStatus(companyId);
-    return res.status(200).json({ success: true, ...status });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// AI Direct for Desktop Studio & Autonomous Pipeline
-router.post(['/media-editor/ai-direct', '/v1/media-editor/ai-direct'], (req: any, res: any) => {
-  const { VideoStudioController } = require('../api/v1/workspace-tools/video-studio/video-studio.controller');
-  return VideoStudioController.executeAIDirector(req, res);
-});
+// NOTE: '/media-editor/ai-status' and '/media-editor/ai-direct' were previously also registered here,
+// unauthenticated, and matched before the protected `/media-editor` mount below could ever run —
+// an auth bypass on the AI Director endpoint. Removed; the identical routes already exist, correctly
+// protected, in media-editor.routes.ts (mounted below via `protect, moduleGuard('media-editor')`).
 
 const syncRoutes = require('../api/v1/sync/sync.routes').default || require('../api/v1/sync/sync.routes');
 

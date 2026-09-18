@@ -32,28 +32,80 @@ export class CameraZoomTool extends VideoDirectorTool<CameraZoomInput, CameraEve
 
     if (curated && curated.keeperSegments.length > 0) {
       let timelineSec = 0;
-      for (const seg of curated.keeperSegments) {
-        if (seg.durationSec >= 4.0) {
-          const zoomStart = timelineSec + Math.min(1.5, seg.durationSec * 0.25);
-          const zoomDur = Math.min(2.5, seg.durationSec - 1.5);
+      for (let idx = 0; idx < curated.keeperSegments.length; idx++) {
+        const seg = curated.keeperSegments[idx];
+
+        // 1. Multi-Cam Take Focal Alternation (eliminates jump cuts between talking head takes)
+        // Segment 0 (Hook): 1.0x Wide establish
+        // Segment 1 (Myth): 1.18x Punch to medium-tight
+        // Segment 2 (Science): 1.08x slight push with left-offset to give room for right-quadrant diagram
+        // Segment 3 (Relief): 1.16x Centered medium punch
+        // Segment 4 (Warning CTA): 1.26x Close-up for maximum eye contact & urgency
+        let takeScale = 1.0;
+        let targetX = 0.5;
+        let targetY = 0.38;
+
+        if (idx === 1) {
+          takeScale = 1.18;
+          targetX = 0.5;
+          targetY = 0.38;
+        } else if (idx === 2) {
+          takeScale = 1.08;
+          targetX = 0.44; // Give breathing room for anatomical diagram on upper right
+          targetY = 0.38;
+        } else if (idx === 3) {
+          takeScale = 1.16;
+          targetX = 0.5;
+          targetY = 0.38;
+        } else if (idx >= 4) {
+          takeScale = 1.26;
+          targetX = 0.5;
+          targetY = 0.36; // Slightly higher framing for dramatic close-up
+        }
+
+        if (takeScale > 1.0) {
           cameraEvents.push({
-            id: crypto.randomUUID(),
+            id: `cam_take_${idx + 1}_multicam`,
             timeRange: {
-              start: RationalTimeMath.fromSeconds(zoomStart),
-              duration: RationalTimeMath.fromSeconds(zoomDur),
+              start: RationalTimeMath.fromSeconds(timelineSec),
+              duration: RationalTimeMath.fromSeconds(seg.durationSec),
             },
             targetType: "FACE",
-            targetCoords: { x: 0.5, y: 0.38 },
-            scale: input.zoomScale,
+            targetCoords: { x: targetX, y: targetY },
+            scale: takeScale,
             spring: {
               stiffness: input.stiffness,
               damping: input.damping,
               mass: 1,
-              overshootClamping: false,
+              overshootClamping: true, // Persistent take framing
+            },
+            motionBlur: false,
+          });
+        }
+
+        // 2. High-Retention Mid-Take Emphasis Punch (for longer explanation segments > 9s)
+        if (seg.durationSec >= 9.0) {
+          const punchStart = timelineSec + Math.min(3.5, seg.durationSec * 0.35);
+          const punchDur = 2.4;
+          cameraEvents.push({
+            id: `cam_punch_${idx + 1}_emphasis`,
+            timeRange: {
+              start: RationalTimeMath.fromSeconds(punchStart),
+              duration: RationalTimeMath.fromSeconds(punchDur),
+            },
+            targetType: "FACE",
+            targetCoords: { x: targetX, y: targetY },
+            scale: Math.min(1.35, takeScale + 0.15),
+            spring: {
+              stiffness: 220,
+              damping: 20,
+              mass: 1,
+              overshootClamping: false, // Bell-curve dynamic spring punch
             },
             motionBlur: true,
           });
         }
+
         timelineSec += seg.durationSec;
       }
     } else {
@@ -79,7 +131,7 @@ export class CameraZoomTool extends VideoDirectorTool<CameraZoomInput, CameraEve
     }
 
     editIR.tracks.cameraTrack = cameraEvents;
-    context.log?.(`Generated ${cameraEvents.length} spring camera zoom punch events.`);
+    context.log?.(`Generated ${cameraEvents.length} multi-cam focal length shifts and retention punch zooms.`);
     return cameraEvents;
   }
 }

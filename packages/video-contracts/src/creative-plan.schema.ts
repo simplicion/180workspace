@@ -13,7 +13,26 @@ export const CreativeIntentSchema = z.object({
     height: z.number().int().positive(),
   }),
   targetDuration: z.number().positive().optional(),
-  stylePreset: z.enum(["MRBEAST_FAST", "ALI_ABDAAL_CLEAN", "HORMOZI_PUNCH", "SAAS_DEMO", "CUSTOM"]).default("CUSTOM"),
+  // Kept in sync with `DirectorStyleKey` (director-style-resolver.ts) and `DirectorStylePreset`
+  // (edit-ir.schema.ts) — the deterministic planner assigns its resolved style key straight into
+  // this field, so a narrower enum here makes CreativePlanValidator reject a valid plan outright.
+  stylePreset: z
+    .enum([
+      "MRBEAST_FAST",
+      "ALI_ABDAAL_CLEAN",
+      "HORMOZI_PUNCH",
+      "SAAS_DEMO",
+      "CUSTOM",
+      "MINIMALIST_CLEAN",
+      "DAN_KOE_MINIMALIST",
+      "HORMOZI_VIRAL",
+      "INSTAGRAM_AESTHETIC",
+      "DOCUMENTARY_DEEPDIVE",
+      "MAGNATES_MEDIA_MYSTERY",
+      "VOX_EXPLAINER",
+      "IMAN_GADZHI_CINEMATIC",
+    ])
+    .default("CUSTOM"),
   energy: z.enum(["high", "medium", "calm"]).default("medium"),
   pacing: z.enum(["fast-natural", "cinematic", "dynamic", "relaxed"]).default("dynamic"),
   captionStyle: z.string().default("HORMOZI_BOUNCE"),

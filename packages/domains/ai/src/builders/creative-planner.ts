@@ -144,10 +144,40 @@ Output strictly valid JSON. No markdown code blocks.`;
       const response = await client.generate(systemPrompt);
       const cleaned = response.replace(/```json/g, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(cleaned);
+
+      // The prompt above only asks the model for explanation/confirmationDetails/operations —
+      // backfill the schema's other required fields from what we already know about the
+      // timeline rather than trusting the LLM to emit a fully-shaped CreativeEditPlan verbatim.
+      if (!parsed.intent) {
+        parsed.intent = {
+          platform: "general",
+          aspectRatio: context.currentAspect,
+          resolution: context.currentResolution,
+          stylePreset: "CUSTOM",
+          energy: "medium",
+          pacing: "dynamic",
+          captionStyle: "HORMOZI_BOUNCE",
+          audioStyle: "VOICE_PRIORITY_DUCKED",
+          visualStyle: "CLEAN_ATTENTION",
+        };
+      }
+      if (parsed.confirmationDetails && Array.isArray(parsed.confirmationDetails.whatWillChange)) {
+        parsed.confirmationDetails.whatWillChange = parsed.confirmationDetails.whatWillChange.join("\n");
+      }
       if (parsed.explanation && (!parsed.operations || parsed.operations.length === 0)) {
         parsed.requiresConfirmation = false;
       }
-      return CreativeEditPlanSchema.parse(parsed);
+      const validated = CreativeEditPlanSchema.parse(parsed);
+
+      // This prompt template only ever asks the LLM for explanation/confirmationDetails —
+      // it never requests real operations, so a validated plan with none is conversational
+      // framing, not an edit. Returning it as-is would silently make EditIRCompiler apply
+      // zero changes; fall through to the deterministic engine instead, which is the only
+      // thing in this pipeline that actually derives operations from real telemetry.
+      if (validated.operations.length === 0) {
+        return null;
+      }
+      return validated;
     } catch (err: any) {
       console.warn("[CreativePlanner] LLM parsing failed:", err?.message);
       return null;

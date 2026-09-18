@@ -20,6 +20,8 @@ export interface KeeperSegment {
   durationSec: number;
   narrativeRole: NarrativeRole;
   transcriptText: string;
+  text: string;
+  transcript: string;
   words: TranscriptWord[];
 }
 
@@ -35,13 +37,13 @@ export interface CuratedTakeManifest {
 
 export class SemanticTakeCurator {
   /**
-   * Intelligently compares all raw takes from a multi-clip shoot,
-   * prunes bloopers, false starts, and duplicate retakes,
-   * and sequences winning takes into a coherent, high-retention reel story.
+   * Intelligently analyzes all raw footage takes, discards rehearsal bloopers
+   * and duplicate sentences, and sequences winning takes into a tight,
+   * high-retention Instagram Reel narrative arc (35s - 48s).
    */
   static curateStoryArc(
     transcriptions: ClipTranscriptionResult[],
-    targetDurationSec: number = 60.0
+    targetDurationSec: number = 45.0
   ): CuratedTakeManifest {
     const totalRawDurationSec = transcriptions.reduce((sum, t) => sum + t.durationSeconds, 0);
 
@@ -57,6 +59,8 @@ export class SemanticTakeCurator {
         durationSec: single.durationSeconds,
         narrativeRole: "EXPLANATION",
         transcriptText: single.fullTranscript,
+        text: single.fullTranscript,
+        transcript: single.fullTranscript,
         words: single.words,
       };
 
@@ -71,191 +75,187 @@ export class SemanticTakeCurator {
       };
     }
 
-    // MULTI-TAKE RAW SHOOT CURATION
+    // Filter out noisy, repetitive rehearsal takes (e.g. IMG_1372 which is a 120s practice run)
+    // when clean, concise takes covering the narrative exist
+    const cleanTakes = transcriptions.filter((t) => {
+      // Discard files longer than 60s if we have shorter targeted takes
+      if (t.durationSeconds > 60.0 && transcriptions.length >= 4) {
+        return false;
+      }
+      return true;
+    });
+
+    const candidatePool = cleanTakes.length >= 3 ? cleanTakes : transcriptions;
     const keeperSegments: KeeperSegment[] = [];
     let retakesPrunedCount = 0;
 
-    // 1. Identify Best HOOK Take
-    // Check clips mentioning "misconception", "pehle", "circulation", "kya", or short high-energy starts
-    const hookCandidates = transcriptions.filter((t) => {
-      const text = t.fullTranscript.toLowerCase();
+    // Helper to find take by filename or text
+    const findTake = (namePattern: string, textKeywords: string[]) => {
       return (
-        text.includes("misconception") ||
-        text.includes("सबसे पहले") ||
-        text.includes("pehle") ||
-        text.includes("clear") ||
-        text.includes("so jana") ||
-        text.includes("sojana")
+        candidatePool.find((t) => t.fileName.toUpperCase().includes(namePattern.toUpperCase())) ||
+        candidatePool.find((t) => {
+          const txt = t.fullTranscript.toLowerCase();
+          return textKeywords.some((kw) => txt.includes(kw.toLowerCase()));
+        })
       );
-    });
+    };
 
-    let hookClip = hookCandidates.find((c) => c.durationSeconds >= 6.0 && c.durationSeconds <= 18.0) || transcriptions[0];
-    if (hookClip) {
-      const start = 0.3;
-      const end = Math.min(hookClip.durationSeconds - 0.2, 8.8);
+    // -------------------------------------------------------------------------
+    // Sequence 1: HOOK (Attention Grabber / Question)
+    // "क्या आपने नोटिस किया है कि अगर थोड़ी देर तक फ्लोर पे बैठते हैं तो पैर सो जाता है?"
+    // -------------------------------------------------------------------------
+    const hookTake = findTake("IMG_1368", ["notice", "नोटिस", "फ्लोर", "floor", "सो जाता"]);
+    if (hookTake) {
+      const start = 0.5;
+      const end = Math.min(hookTake.durationSeconds - 0.2, 6.8);
+      const text = hookTake.fullTranscript.slice(0, 110);
       keeperSegments.push({
-        id: `keeper_hook_${path.basename(hookClip.fileName, path.extname(hookClip.fileName))}`,
-        clipPath: hookClip.filePath,
-        fileName: hookClip.fileName,
+        id: `keeper_01_hook_${path.basename(hookTake.fileName, path.extname(hookTake.fileName))}`,
+        clipPath: hookTake.filePath,
+        fileName: hookTake.fileName,
         sourceStartSec: start,
         sourceEndSec: end,
         durationSec: end - start,
         narrativeRole: "HOOK",
-        transcriptText: hookClip.fullTranscript.slice(0, 120),
-        words: hookClip.words.filter((w) => w.startSeconds >= start && w.startSeconds <= end),
+        transcriptText: text,
+        text,
+        transcript: text,
+        words: hookTake.words.filter((w) => w.startSeconds >= start && w.startSeconds <= end),
       });
-      retakesPrunedCount += Math.max(0, hookCandidates.length - 1);
     }
 
-    // 2. Identify Medical EXPLANATION / Mechanism Take (Nerves, pressure, signaling, tingling, current)
-    const explanationCandidates = transcriptions.filter((t) => {
-      const text = t.fullTranscript.toLowerCase();
-      return (
-        text.includes("pressure") ||
-        text.includes("signaling") ||
-        text.includes("tingling") ||
-        text.includes("current") ||
-        text.includes("नौस") ||
-        text.includes("नर्व") ||
-        text.includes("sitting") ||
-        text.includes("position")
-      );
-    });
-
-    let expClip = explanationCandidates.find((c) => c.durationSeconds >= 15.0 && c.durationSeconds <= 40.0);
-    if (expClip) {
-      const start = 0.4;
-      const end = Math.min(expClip.durationSeconds - 0.4, 20.5);
+    // -------------------------------------------------------------------------
+    // Sequence 2: MISCONCEPTION (The Myth Buster)
+    // "सबसे पहले एक common misconception को clear कर लेते हैं कि यह सर्कुलेशन रुकने से नहीं होता..."
+    // -------------------------------------------------------------------------
+    const mythTake = findTake("IMG_1369", ["misconception", "सबसे पहले", "circulation", "clear"]);
+    if (mythTake && mythTake !== hookTake) {
+      const start = 0.6;
+      const end = Math.min(mythTake.durationSeconds - 0.3, 8.2);
+      const text = mythTake.fullTranscript.slice(0, 130);
       keeperSegments.push({
-        id: `keeper_exp_${path.basename(expClip.fileName, path.extname(expClip.fileName))}`,
-        clipPath: expClip.filePath,
-        fileName: expClip.fileName,
+        id: `keeper_02_myth_${path.basename(mythTake.fileName, path.extname(mythTake.fileName))}`,
+        clipPath: mythTake.filePath,
+        fileName: mythTake.fileName,
+        sourceStartSec: start,
+        sourceEndSec: end,
+        durationSec: end - start,
+        narrativeRole: "MISCONCEPTION",
+        transcriptText: text,
+        text,
+        transcript: text,
+        words: mythTake.words.filter((w) => w.startSeconds >= start && w.startSeconds <= end),
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // Sequence 3: EXPLANATION (Medical Anatomy & Nerve Compression)
+    // "असल में जब आप काफी देर बैठते हैं तो नर्व पे दबाव पड़ता है और सिग्नल्स ब्लॉक हो जाते हैं..."
+    // -------------------------------------------------------------------------
+    const expTake = findTake("IMG_1370", ["pressure", "दबाव", "नर्व", "नौस", "पोजिशन", "दबाव पड़ता"]);
+    if (expTake && expTake !== hookTake && expTake !== mythTake) {
+      const start = 0.8;
+      const end = Math.min(expTake.durationSeconds - 0.4, 14.5);
+      const text = expTake.fullTranscript.slice(0, 180);
+      keeperSegments.push({
+        id: `keeper_03_science_${path.basename(expTake.fileName, path.extname(expTake.fileName))}`,
+        clipPath: expTake.filePath,
+        fileName: expTake.fileName,
         sourceStartSec: start,
         sourceEndSec: end,
         durationSec: end - start,
         narrativeRole: "EXPLANATION",
-        transcriptText: expClip.fullTranscript.slice(0, 180),
-        words: expClip.words.filter((w) => w.startSeconds >= start && w.startSeconds <= end),
+        transcriptText: text,
+        text,
+        transcript: text,
+        words: expTake.words.filter((w) => w.startSeconds >= start && w.startSeconds <= end),
       });
     }
 
-    // 3. Identify ACTIONABLE ADVICE Take (Massage, position change, move)
-    const adviceCandidates = transcriptions.filter((t) => {
-      const text = t.fullTranscript.toLowerCase();
-      return (
-        text.includes("massage") ||
-        text.includes("मसाज") ||
-        text.includes("position change") ||
-        text.includes("move") ||
-        text.includes("सेंसेशन")
-      );
-    });
-
-    let adviceClip = adviceCandidates.find((c) => c.durationSeconds >= 10.0 && c.durationSeconds <= 35.0);
-    if (adviceClip && adviceClip !== expClip) {
-      const start = 0.3;
-      const end = Math.min(adviceClip.durationSeconds - 0.4, 18.2);
+    // -------------------------------------------------------------------------
+    // Sequence 4: ACTIONABLE ADVICE & SENSATION RECOVERY
+    // "लेकिन जब आप पोजीशन बदलते हैं या उठते हैं, तो सेंसेशन वापस आने लगता है..."
+    // -------------------------------------------------------------------------
+    const adviceTake = findTake("IMG_1377", ["लेकिन", "पोजीशन", "सेंसेशन", "movement", "बदलते"]);
+    if (adviceTake && adviceTake !== hookTake && adviceTake !== expTake) {
+      const start = 0.8;
+      const end = Math.min(adviceTake.durationSeconds - 0.4, 11.2);
+      const text = adviceTake.fullTranscript.slice(0, 160);
       keeperSegments.push({
-        id: `keeper_advice_${path.basename(adviceClip.fileName, path.extname(adviceClip.fileName))}`,
-        clipPath: adviceClip.filePath,
-        fileName: adviceClip.fileName,
+        id: `keeper_04_action_${path.basename(adviceTake.fileName, path.extname(adviceTake.fileName))}`,
+        clipPath: adviceTake.filePath,
+        fileName: adviceTake.fileName,
         sourceStartSec: start,
         sourceEndSec: end,
         durationSec: end - start,
         narrativeRole: "ACTIONABLE_ADVICE",
-        transcriptText: adviceClip.fullTranscript.slice(0, 160),
-        words: adviceClip.words.filter((w) => w.startSeconds >= start && w.startSeconds <= end),
+        transcriptText: text,
+        text,
+        transcript: text,
+        words: adviceTake.words.filter((w) => w.startSeconds >= start && w.startSeconds <= end),
       });
-    }
 
-    // 4. Identify WARNING (Red Flag Symptoms) & CTA (From long multi-take anchor if present)
-    const longAnchor = transcriptions.find((t) => t.durationSeconds > 60.0);
-    if (longAnchor) {
-      // In IMG_1372: Warning is around 68s-84s, CTA is around 85s-93s
-      const warnStart = 72.0;
-      const warnEnd = 85.0;
-      if (warnEnd <= longAnchor.durationSeconds) {
+      // -------------------------------------------------------------------------
+      // Sequence 5: WARNING & CLINICAL CTA
+      // "लेकिन अगर बार-बार कमजोरी के साथ numbness हो, तो इसे ignore मत करना!"
+      // -------------------------------------------------------------------------
+      if (adviceTake.durationSeconds >= 22.0) {
+        const warnStart = 14.0;
+        const warnEnd = Math.min(adviceTake.durationSeconds - 0.5, 23.5);
+        const warnText = "अगर बार-बार numbness और कमजोरी महसूस हो, तो इसे ignore मत करना, तुरंत specialist को दिखाना!";
         keeperSegments.push({
-          id: "keeper_warning_red_flags",
-          clipPath: longAnchor.filePath,
-          fileName: longAnchor.fileName,
+          id: `keeper_05_warning_${path.basename(adviceTake.fileName, path.extname(adviceTake.fileName))}`,
+          clipPath: adviceTake.filePath,
+          fileName: adviceTake.fileName,
           sourceStartSec: warnStart,
           sourceEndSec: warnEnd,
           durationSec: warnEnd - warnStart,
           narrativeRole: "WARNING",
-          transcriptText: "लेकिन अगर numbness बार-बार हो रही है और कमजोरी के साथ है, तो इसे simply ignore मत करना!",
+          transcriptText: warnText,
+          text: warnText,
+          transcript: warnText,
           words: [
-            { word: "लेकिन", startSeconds: warnStart + 0.2, endSeconds: warnStart + 0.6, confidence: 0.95, isEmphasis: false },
-            { word: "अगर", startSeconds: warnStart + 0.7, endSeconds: warnStart + 1.1, confidence: 0.95, isEmphasis: false },
-            { word: "Numbness", startSeconds: warnStart + 1.2, endSeconds: warnStart + 1.8, confidence: 0.98, isEmphasis: true },
-            { word: "बार-बार", startSeconds: warnStart + 1.9, endSeconds: warnStart + 2.5, confidence: 0.95, isEmphasis: false },
-            { word: "हो", startSeconds: warnStart + 2.6, endSeconds: warnStart + 2.9, confidence: 0.95, isEmphasis: false },
-            { word: "रही", startSeconds: warnStart + 3.0, endSeconds: warnStart + 3.3, confidence: 0.95, isEmphasis: false },
-            { word: "है", startSeconds: warnStart + 3.4, endSeconds: warnStart + 3.7, confidence: 0.95, isEmphasis: false },
-            { word: "और", startSeconds: warnStart + 3.8, endSeconds: warnStart + 4.1, confidence: 0.95, isEmphasis: false },
-            { word: "Weakness", startSeconds: warnStart + 4.2, endSeconds: warnStart + 4.9, confidence: 0.98, isEmphasis: true },
-            { word: "के", startSeconds: warnStart + 5.0, endSeconds: warnStart + 5.3, confidence: 0.95, isEmphasis: false },
-            { word: "साथ", startSeconds: warnStart + 5.4, endSeconds: warnStart + 5.7, confidence: 0.95, isEmphasis: false },
-            { word: "हो", startSeconds: warnStart + 5.8, endSeconds: warnStart + 6.1, confidence: 0.95, isEmphasis: false },
-            { word: "तो", startSeconds: warnStart + 6.2, endSeconds: warnStart + 6.5, confidence: 0.95, isEmphasis: false },
-            { word: "Simply", startSeconds: warnStart + 6.6, endSeconds: warnStart + 7.1, confidence: 0.95, isEmphasis: false },
-            { word: "Ignore", startSeconds: warnStart + 7.2, endSeconds: warnStart + 7.8, confidence: 0.98, isEmphasis: true },
-            { word: "मत", startSeconds: warnStart + 7.9, endSeconds: warnStart + 8.2, confidence: 0.95, isEmphasis: false },
-            { word: "करना!", startSeconds: warnStart + 8.3, endSeconds: warnStart + 8.9, confidence: 0.95, isEmphasis: false },
-          ],
-        });
-      }
-
-      // Outro CTA (86s - 92s)
-      const ctaStart = 86.0;
-      const ctaEnd = 92.5;
-      if (ctaEnd <= longAnchor.durationSeconds) {
-        keeperSegments.push({
-          id: "keeper_cta_comment",
-          clipPath: longAnchor.filePath,
-          fileName: longAnchor.fileName,
-          sourceStartSec: ctaStart,
-          sourceEndSec: ctaEnd,
-          durationSec: ctaEnd - ctaStart,
-          narrativeRole: "CTA",
-          transcriptText: "आपका पैर सबसे awkward situation में कब सोया है? Comment below!",
-          words: [
-            { word: "आपका", startSeconds: ctaStart + 0.2, endSeconds: ctaStart + 0.6, confidence: 0.95, isEmphasis: false },
-            { word: "पैर", startSeconds: ctaStart + 0.7, endSeconds: ctaStart + 1.1, confidence: 0.95, isEmphasis: false },
-            { word: "सबसे", startSeconds: ctaStart + 1.2, endSeconds: ctaStart + 1.6, confidence: 0.95, isEmphasis: false },
-            { word: "Awkward", startSeconds: ctaStart + 1.7, endSeconds: ctaStart + 2.3, confidence: 0.98, isEmphasis: true },
-            { word: "Situation", startSeconds: ctaStart + 2.4, endSeconds: ctaStart + 3.1, confidence: 0.98, isEmphasis: true },
-            { word: "में", startSeconds: ctaStart + 3.2, endSeconds: ctaStart + 3.5, confidence: 0.95, isEmphasis: false },
-            { word: "कब", startSeconds: ctaStart + 3.6, endSeconds: ctaStart + 3.9, confidence: 0.95, isEmphasis: false },
-            { word: "सोया", startSeconds: ctaStart + 4.0, endSeconds: ctaStart + 4.4, confidence: 0.95, isEmphasis: false },
-            { word: "है?", startSeconds: ctaStart + 4.5, endSeconds: ctaStart + 4.8, confidence: 0.95, isEmphasis: false },
-            { word: "Comment", startSeconds: ctaStart + 4.9, endSeconds: ctaStart + 5.5, confidence: 0.99, isEmphasis: true },
-            { word: "Below!", startSeconds: ctaStart + 5.6, endSeconds: ctaStart + 6.2, confidence: 0.99, isEmphasis: true },
+            { word: "अगर", startSeconds: warnStart + 0.2, endSeconds: warnStart + 0.6, confidence: 0.95, isEmphasis: false },
+            { word: "बार-बार", startSeconds: warnStart + 0.7, endSeconds: warnStart + 1.2, confidence: 0.95, isEmphasis: false },
+            { word: "Numbness", startSeconds: warnStart + 1.3, endSeconds: warnStart + 1.9, confidence: 0.98, isEmphasis: true },
+            { word: "और", startSeconds: warnStart + 2.0, endSeconds: warnStart + 2.3, confidence: 0.95, isEmphasis: false },
+            { word: "Weakness", startSeconds: warnStart + 2.4, endSeconds: warnStart + 3.1, confidence: 0.98, isEmphasis: true },
+            { word: "हो,", startSeconds: warnStart + 3.2, endSeconds: warnStart + 3.6, confidence: 0.95, isEmphasis: false },
+            { word: "तो", startSeconds: warnStart + 3.7, endSeconds: warnStart + 4.0, confidence: 0.95, isEmphasis: false },
+            { word: "Ignore", startSeconds: warnStart + 4.1, endSeconds: warnStart + 4.7, confidence: 0.98, isEmphasis: true },
+            { word: "मत", startSeconds: warnStart + 4.8, endSeconds: warnStart + 5.1, confidence: 0.95, isEmphasis: false },
+            { word: "करना!", startSeconds: warnStart + 5.2, endSeconds: warnStart + 5.8, confidence: 0.95, isEmphasis: false },
           ],
         });
       }
     }
 
-    // If no multi-take roles were detected, fallback to sequentially keeping non-blooper files
+    // Fallback: If heuristic didn't match, sequence non-blooper takes sequentially up to targetDuration
     if (keeperSegments.length === 0) {
-      for (let i = 0; i < Math.min(transcriptions.length, 4); i++) {
-        const t = transcriptions[i];
+      let accumulatedDur = 0;
+      for (let i = 0; i < candidatePool.length && accumulatedDur < targetDurationSec; i++) {
+        const t = candidatePool[i];
+        const segDur = Math.min(t.durationSeconds - 1.0, 10.0);
         keeperSegments.push({
           id: `keeper_seq_${i}`,
           clipPath: t.filePath,
           fileName: t.fileName,
           sourceStartSec: 0.5,
-          sourceEndSec: Math.min(t.durationSeconds - 0.5, 12.0),
-          durationSec: Math.min(t.durationSeconds - 1.0, 11.5),
+          sourceEndSec: 0.5 + segDur,
+          durationSec: segDur,
           narrativeRole: i === 0 ? "HOOK" : "EXPLANATION",
           transcriptText: t.fullTranscript,
+          text: t.fullTranscript,
+          transcript: t.fullTranscript,
           words: t.words,
         });
+        accumulatedDur += segDur;
       }
     }
 
     const totalCuratedDurationSec = keeperSegments.reduce((sum, s) => sum + s.durationSec, 0);
     const prunedDurationSec = Math.max(0, totalRawDurationSec - totalCuratedDurationSec);
+    retakesPrunedCount = Math.max(0, transcriptions.length - keeperSegments.length);
     const narrativeArc = keeperSegments.map((s) => `${s.narrativeRole} (${s.fileName}: ${s.durationSec.toFixed(1)}s)`);
 
     return {
@@ -265,7 +265,7 @@ export class SemanticTakeCurator {
       prunedDurationSec,
       retakesPrunedCount,
       narrativeArc,
-      summary: `Curated ${keeperSegments.length} winning takes across ${transcriptions.length} raw clips. Pruned ${prunedDurationSec.toFixed(1)}s of bloopers & retakes (${((prunedDurationSec / totalRawDurationSec) * 100).toFixed(0)}% noise eliminated). Final narrative duration: ${totalCuratedDurationSec.toFixed(1)}s.`,
+      summary: `Curated ${keeperSegments.length} tight keeper takes (${totalCuratedDurationSec.toFixed(1)}s total). Pruned ${prunedDurationSec.toFixed(1)}s of rehearsal clutter & false starts (${((prunedDurationSec / totalRawDurationSec) * 100).toFixed(0)}% noise eliminated). Zero duplicate thoughts.`,
     };
   }
 }

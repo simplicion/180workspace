@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { WebhookReceiver } from 'livekit-server-sdk';
 import { prisma } from '@workspace/db';
+import { getLiveKitCredentials } from '@workspace/voiceforce';
 import { redisClient as redis } from '../../../system-configs/utils/redis';
 
 export class VoiceforceWebhooksController {
@@ -8,8 +9,7 @@ export class VoiceforceWebhooksController {
 
   private static getReceiver(): WebhookReceiver {
     if (!this.receiver) {
-      const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
-      const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
+      const { apiKey, apiSecret } = getLiveKitCredentials();
       this.receiver = new WebhookReceiver(apiKey, apiSecret);
     }
     return this.receiver;

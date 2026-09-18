@@ -24,7 +24,9 @@ export class AudioDuckingTool extends VideoDirectorTool<AudioDuckingInput, any[]
       throw new Error("AudioDuckingTool: EditIR not found in execution context.");
     }
 
-    const audioTracks: any[] = [];
+    // Preserve existing non-BGM tracks (such as SFX transient tracks from MotionOverlayTool)
+    const existingOtherTracks = (editIR.tracks.audioTracks || []).filter((t: any) => t.type !== "BGM");
+    const audioTracks: any[] = [...existingOtherTracks];
     const totalDurationSec = RationalTimeMath.toSeconds(editIR.meta.totalDuration);
 
     const sourcedBgm = context.artifacts.get("sourced_bgm_track");
@@ -60,7 +62,7 @@ export class AudioDuckingTool extends VideoDirectorTool<AudioDuckingInput, any[]
     }
 
     editIR.tracks.audioTracks = audioTracks;
-    context.log?.(`Configured ${audioTracks.length} audio track(s) with speech ducking.`);
+    context.log?.(`Configured ${audioTracks.length} audio track(s) (including ${existingOtherTracks.length} SFX/aux track(s)) with speech ducking.`);
     return audioTracks;
   }
 }

@@ -11,6 +11,24 @@ import {
   CreativePlanValidator,
   EditIRCompiler,
 } from "@workspace/video-contracts";
+import { store } from "@redux/store";
+import { MediaCacheService } from "./media-cache";
+
+// The backend's `/media-editor/*` routes require a Bearer token (see apps/backend's
+// `protect` middleware) — unlike axiosInstance, these are raw `fetch()` calls, so the
+// token has to be attached explicitly here rather than via an interceptor.
+// Mirrors the redux-state-then-localStorage fallback used by `redux/api/baseApi.ts`'s
+// `prepareHeaders`, since redux state can be unpopulated/stale before persist rehydrates.
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  let token = (store.getState() as any)?.auth?.token as string | undefined;
+  if (!token && typeof window !== "undefined") {
+    token = localStorage.getItem("platform_auth_token") || undefined;
+  }
+  return {
+    ...extra,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
 export interface CompanyAIStatus {
   isConfigured: boolean;
@@ -231,12 +249,20 @@ class DesktopEngineBridge implements EngineBridge {
       } catch {}
     }
 
+    const assetId = `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const mimeType = file.type || (isVideo ? "video/mp4" : isImage ? "image/jpeg" : isAudio ? "audio/mpeg" : "video/mp4");
+
+    // Persist file into IndexedDB cache so it survives browser refreshes
+    MediaCacheService.saveMediaFile(assetId, file, file.name, mimeType).catch((err) => {
+      console.warn("[probeBrowserFile] Background IndexedDB cache warning:", err);
+    });
+
     return {
-      id: `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: assetId,
       name: file.name,
       filePath: blobUrl,
       fileSizeBytes: file.size,
-      mimeType: file.type || (isVideo ? "video/mp4" : isImage ? "image/jpeg" : isAudio ? "audio/mpeg" : "video/mp4"),
+      mimeType,
       durationSeconds,
       width,
       height,
@@ -301,7 +327,7 @@ class DesktopEngineBridge implements EngineBridge {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 800);
-        const res = await fetch(url, { signal: controller.signal });
+        const res = await fetch(url, { signal: controller.signal, headers: authHeaders(), credentials: "include" });
         clearTimeout(timeout);
         if (res.ok) {
           const data = await res.json();
@@ -531,7 +557,8 @@ class DesktopEngineBridge implements EngineBridge {
         const timeout = setTimeout(() => controller.abort(), 15000);
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          credentials: "include",
           signal: controller.signal,
           body: JSON.stringify({
             prompt: prompt || `Apply ${stylePreset} editing style`,

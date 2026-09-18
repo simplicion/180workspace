@@ -17,6 +17,25 @@ const nextConfig = {
     },
 
     webpack: (config, { webpack, isServer }) => {
+        config.resolve.alias = {
+            ...config.resolve.alias,
+            '@workspace/video-contracts': path.resolve(__dirname, '../../packages/video-contracts/src/index.ts'),
+        };
+
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                'https-proxy-agent': false,
+                'http-proxy-agent': false,
+                'agent-base': false,
+            };
+        } else {
+            config.resolve.alias = {
+                ...config.resolve.alias,
+                'https-proxy-agent': path.resolve(__dirname, '../../node_modules/https-proxy-agent'),
+            };
+        }
+
         if (isServer) {
             config.plugins.push(
                 new webpack.NormalModuleReplacementPlugin(

@@ -26,10 +26,13 @@ import { AICriticDrawer } from "./AICriticDrawer";
 import { PluginManagerModal } from "./PluginManagerModal";
 import { CacheManagerModal } from "./CacheManagerModal";
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
+import { ColorScopesModal } from "./ColorScopesModal";
+import { SilenceRemovalModal } from "./SilenceRemovalModal";
 import { HomeScreen } from "./HomeScreen";
 import { ResizableSplitter } from "./ResizableSplitter";
 import { ProjectStorageService } from "../services/project-storage";
-import { Folder, Sparkles, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
+import { MediaCacheService } from "../services/media-cache";
+import { Folder, Sparkles, ArrowLeft, Maximize2, Minimize2, ChevronsRight } from "lucide-react";
 import { OtioService } from "../services/otio-service";
 import { engineBridge, CompanyAIStatus, ExportResult } from "../services/tauri-bridge";
 
@@ -51,6 +54,8 @@ interface MediaStudioWorkspaceProps {
   onExit?: () => void;
 }
 
+import { LeftSidebarDock, LeftSidebarTab } from "./LeftSidebarDock";
+
 export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   initialProjectId,
   initialTemplate,
@@ -66,13 +71,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   });
 
   const [leftPanelWidth, setLeftPanelWidth] = useState<number>(360);
-  const [rightPanelWidth, setRightPanelWidth] = useState<number>(340);
   const [timelineHeight, setTimelineHeight] = useState<number>(280);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [rightSidebarTab, setRightSidebarTab] = useState<
-    "assets" | "inspector" | "critic" | "captions" | "mixer" | "plugins" | "cache"
-  >("assets");
+  const [leftSidebarTab, setLeftSidebarTab] = useState<LeftSidebarTab>("director");
 
   const [project, setProject] = useState<ProjectPackageManifest | null>(null);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(0);
@@ -92,6 +93,8 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const [isPluginModalOpen, setIsPluginModalOpen] = useState(false);
   const [isCacheModalOpen, setIsCacheModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [isScopesModalOpen, setIsScopesModalOpen] = useState(false);
+  const [isSilenceModalOpen, setIsSilenceModalOpen] = useState(false);
   const [isDuckingEnabled, setIsDuckingEnabled] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,6 +129,18 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   };
 
   useEffect(() => {
+    if (typeof document !== "undefined") {
+      const linkId = "google-fonts-180-studio";
+      if (!document.getElementById(linkId)) {
+        const link = document.createElement("link");
+        link.id = linkId;
+        link.rel = "stylesheet";
+        link.href =
+          "https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;700;900&family=Montserrat:wght@700;900&family=Outfit:wght@600;800&family=Poppins:wght@700;900&family=Roboto:wght@700;900&family=Syne:wght@700;800&display=swap";
+        document.head.appendChild(link);
+      }
+    }
+
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const projId = initialProjectId || params?.get("project");
     const template = initialTemplate || params?.get("template");
@@ -162,10 +177,12 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const loadProject = async (id: string) => {
     const loaded = ProjectStorageService.loadProjectManifest(id);
     if (loaded) {
-      setProject(loaded);
-      setHistory([loaded.editIR]);
+      // Re-hydrate any expired browser blob URLs from IndexedDB or replace with safe offline slate
+      const repaired = await MediaCacheService.verifyAndRepairProjectManifest(loaded);
+      setProject(repaired);
+      setHistory([repaired.editIR]);
       setHistoryIndex(0);
-      const aspect = loaded.editIR.meta.targetAspect;
+      const aspect = repaired.editIR.meta.targetAspect;
       if (aspect === "9:16" || aspect === "1:1" || aspect === "16:9") {
         setAspectRatio(aspect);
       } else {
@@ -179,8 +196,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const createNewProject = async (templatePreset: string) => {
     const newProj = await engineBridge.openProject();
     newProj.editIR.directorStyle.preset = (templatePreset as DirectorStylePreset) || "MRBEAST_FAST";
-    setProject(newProj);
-    setHistory([newProj.editIR]);
+    const repaired = await MediaCacheService.verifyAndRepairProjectManifest(newProj);
+    setProject(repaired);
+    setHistory([repaired.editIR]);
     setHistoryIndex(0);
   };
 
@@ -213,6 +231,29 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       setProject({ ...project, editIR: targetIR });
       ProjectStorageService.saveProject({ ...project, editIR: targetIR });
     }
+  };
+
+  const handleRenameProject = (newName: string) => {
+    if (!project) return;
+    const cleanName = newName.trim() || "Untitled Project";
+    const updated = {
+      ...project,
+      project: {
+        ...project.project,
+        name: cleanName,
+        updatedAt: new Date().toISOString(),
+      },
+      editIR: {
+        ...project.editIR,
+        meta: {
+          ...project.editIR.meta,
+          title: cleanName,
+        },
+      },
+    };
+    setProject(updated);
+    ProjectStorageService.saveProject(updated);
+    engineBridge.saveProject(updated);
   };
 
   const handleSelectPreset = (preset: DirectorStylePreset) => {
@@ -793,7 +834,8 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
       {/* Top Header */}
       <HeaderBar
-        projectName={project.project.name}
+        projectName={project.project.name || project.editIR.meta.title || "Untitled Project"}
+        onUpdateProjectName={handleRenameProject}
         authSession={authSession}
         companyAIStatus={companyAIStatus}
         isAiProcessing={isAiProcessing}
@@ -802,10 +844,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         aspectRatio={aspectRatio}
         onAspectRatioChange={setAspectRatio}
         onOpenExport={() => setIsExportModalOpen(true)}
-        onOpenCritic={() => {
-          setIsRightPanelOpen(true);
-          setRightSidebarTab("critic");
-        }}
+        onOpenCaptions={() => setIsCaptionsModalOpen(true)}
         onSave={() => {
           ProjectStorageService.saveProject(project);
           engineBridge.saveProject(project);
@@ -813,45 +852,137 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         onUndo={handleUndo}
         onRedo={handleRedo}
         onNavigateHome={handleNavigateHome}
-        isLeftPanelOpen={isLeftPanelOpen}
-        onToggleLeftPanel={() => setIsLeftPanelOpen((o) => !o)}
-        isRightPanelOpen={isRightPanelOpen}
-        onToggleRightPanel={() => setIsRightPanelOpen((o) => !o)}
-        activeRightTab={rightSidebarTab}
-        onSelectRightTab={(tab) => {
-          setRightSidebarTab(tab as any);
-          setIsRightPanelOpen(true);
-        }}
       />
 
       {/* Main Workspace Body */}
       <div className="flex-1 flex overflow-hidden w-full relative">
-        {/* Left Side: Dedicated AI Director Panel */}
-        {isLeftPanelOpen ? (
-          <div
-            style={{ width: `${leftPanelWidth}px` }}
-            className="h-full border-r border-[#1F1F24] bg-[#090A0F] flex flex-col shrink-0 relative select-none"
-          >
-            <AIDirectorPanel
-              currentPreset={project.editIR.directorStyle.preset}
-              onSelectPreset={handleSelectPreset}
-              onApplyPrompt={handleApplyAiPrompt}
-              isProcessing={isAiProcessing}
-              currentProgress={aiProgress}
-              companyAIStatus={companyAIStatus}
-              onRefreshAIStatus={() => fetchCompanyAIStatus(authSession.companyId)}
-              messages={aiMessages}
-              onRevertToMessage={handleRevertToAiMessage}
-              onClearMessages={handleClearAiMessages}
-              currentAspect={aspectRatio}
-              timelineDurationSec={RationalTimeMath.toSeconds(project.editIR.meta.totalDuration)}
-              clipsCount={project.editIR.tracks.videoTracks[0]?.clips?.length || 0}
-              selectedClipId={selectedClipId}
-              onConfirmAutonomousEdit={handleConfirmAutonomousEdit}
-              onCancelAutonomousEdit={handleCancelAutonomousEdit}
-            />
-          </div>
-        ) : null}
+        {/* Left Side: Single Unified 3-Tab AI & Operations Dock */}
+        <LeftSidebarDock
+          activeTab={leftSidebarTab}
+          onTabChange={setLeftSidebarTab}
+          isOpen={isLeftPanelOpen}
+          onToggleOpen={() => setIsLeftPanelOpen((o) => !o)}
+          width={leftPanelWidth}
+          currentPreset={project.editIR.directorStyle.preset}
+          onSelectPreset={handleSelectPreset}
+          onApplyPrompt={handleApplyAiPrompt}
+          isAiProcessing={isAiProcessing}
+          aiProgress={aiProgress}
+          companyAIStatus={companyAIStatus}
+          onRefreshAIStatus={() => fetchCompanyAIStatus(authSession.companyId)}
+          aiMessages={aiMessages}
+          onRevertToAiMessage={handleRevertToAiMessage}
+          onClearAiMessages={handleClearAiMessages}
+          currentAspect={aspectRatio}
+          timelineDurationSec={RationalTimeMath.toSeconds(project.editIR.meta.totalDuration)}
+          clipsCount={project.editIR.tracks.videoTracks[0]?.clips?.length || 0}
+          userProfile={{
+            name: authSession.userName,
+            email: authSession.userEmail,
+          }}
+          onConfirmAutonomousEdit={handleConfirmAutonomousEdit}
+          onCancelAutonomousEdit={handleCancelAutonomousEdit}
+          selectedClip={selectedClip}
+          selectedClipId={selectedClipId}
+          currentTimeSeconds={currentTimeSeconds}
+          onUpdateTransform={(transform) => {
+            if (!selectedClipId) return;
+            const track = project.editIR.tracks.videoTracks[0];
+            if (!track) return;
+            const updated = track.clips.map((c) =>
+              c.id === selectedClipId ? { ...c, transform } : c
+            );
+            pushHistory({
+              ...project.editIR,
+              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+            });
+          }}
+          onUpdateSpeed={(speed) => {
+            if (!selectedClipId) return;
+            const track = project.editIR.tracks.videoTracks[0];
+            if (!track) return;
+            const updated = track.clips.map((c) =>
+              c.id === selectedClipId ? { ...c, speedMultiplier: speed } : c
+            );
+            pushHistory({
+              ...project.editIR,
+              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+            });
+          }}
+          onUpdateVolume={(volumeDb) => {
+            if (!selectedClipId) return;
+            const track = project.editIR.tracks.videoTracks[0];
+            if (!track) return;
+            const updated = track.clips.map((c) =>
+              c.id === selectedClipId ? { ...c, volumeDb } : c
+            );
+            pushHistory({
+              ...project.editIR,
+              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+            });
+          }}
+          onUpdateTransitions={(transitionIn, transitionOut) => {
+            if (!selectedClipId) return;
+            const track = project.editIR.tracks.videoTracks[0];
+            if (!track) return;
+            const updated = track.clips.map((c) =>
+              c.id === selectedClipId ? { ...c, transitionIn, transitionOut } : c
+            );
+            pushHistory({
+              ...project.editIR,
+              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+            });
+          }}
+          onDetachAudio={handleDetachAudio}
+          onDuplicateClip={() => {
+            if (!selectedClipId) return;
+            const track = project.editIR.tracks.videoTracks[0];
+            const clip = track?.clips.find((c) => c.id === selectedClipId);
+            if (!clip || !track) return;
+            const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start) + RationalTimeMath.toSeconds(clip.timelineRange.duration);
+            const dup: VideoClip = {
+              ...clip,
+              id: safeUUID(),
+              timelineRange: {
+                ...clip.timelineRange,
+                start: RationalTimeMath.fromSeconds(startSec),
+              },
+            };
+            pushHistory({
+              ...project.editIR,
+              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: [...track.clips, dup] }] },
+            });
+            setSelectedClipId(dup.id);
+          }}
+          onDeleteClip={handleDeleteSelectedClip}
+          onCloseInspector={() => setSelectedClipId(null)}
+          editIR={project.editIR}
+          onApplyCriticRepairs={(repairs) => {
+            let updated: EditIR = JSON.parse(JSON.stringify(project.editIR));
+            for (const cmd of repairs) {
+              if (cmd.type === "ADD_CAMERA_EVENT") {
+                updated.tracks.cameraTrack = [...(updated.tracks.cameraTrack || []), cmd.event];
+              } else if (cmd.type === "ADD_CAPTION") {
+                updated.tracks.captionTrack = [...(updated.tracks.captionTrack || []), cmd.caption];
+              } else if (cmd.type === "APPLY_STYLE") {
+                updated.directorStyle.preset = cmd.preset;
+                if (cmd.pacingMultiplier) updated.directorStyle.pacingMultiplier = cmd.pacingMultiplier;
+                if (cmd.zoomAggressiveness) updated.directorStyle.zoomAggressiveness = cmd.zoomAggressiveness;
+              } else if (cmd.type === "ADD_CLIP") {
+                const track =
+                  updated.tracks.videoTracks.find((t) => t.id === cmd.trackId) ||
+                  updated.tracks.videoTracks[0];
+                if (track) track.clips.push(cmd.clip);
+              } else if (cmd.type === "REMOVE_CLIP") {
+                const track =
+                  updated.tracks.videoTracks.find((t) => t.id === cmd.trackId) ||
+                  updated.tracks.videoTracks[0];
+                if (track) track.clips = track.clips.filter((c) => c.id !== cmd.clipId);
+              }
+            }
+            pushHistory(updated);
+          }}
+        />
 
         {isLeftPanelOpen && (
           <ResizableSplitter
@@ -860,7 +991,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           />
         )}
 
-        {/* Center: Canvas Viewport & Multitrack Timeline (Auto-Expanding 100% Flex) */}
+        {/* Center: Remotion Canvas Viewport & Multitrack Timeline (Auto-Expanding 100% Flex) */}
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-[#07090E]">
           <div className="flex-1 min-w-0 overflow-hidden">
             <CanvasViewport
@@ -870,15 +1001,23 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               isPlaying={isPlaying}
               aspectRatio={aspectRatio}
               selectedClipId={selectedClipId}
+              onUpdateTransform={(transform) => {
+                if (!selectedClipId) return;
+                const track = project.editIR.tracks.videoTracks[0];
+                if (!track) return;
+                const updated = track.clips.map((c) =>
+                  c.id === selectedClipId ? { ...c, transform } : c
+                );
+                pushHistory({
+                  ...project.editIR,
+                  tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+                });
+              }}
               onTogglePlay={() => setIsPlaying((p) => !p)}
               onSeek={setCurrentTimeSeconds}
               onStepFrame={(dir) => setCurrentTimeSeconds((t) => Math.max(0, t + dir * (1 / 30)))}
               onAspectRatioChange={setAspectRatio}
-              onOpenImport={() => {
-                setIsRightPanelOpen(true);
-                setRightSidebarTab("assets");
-                fileInputRef.current?.click();
-              }}
+              onOpenImport={() => fileInputRef.current?.click()}
             />
           </div>
 
@@ -893,13 +1032,20 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               currentTimeSeconds={currentTimeSeconds}
               zoomLevel={zoomLevel}
               selectedClipId={selectedClipId}
+              isPlaying={isPlaying}
+              aspectRatio={aspectRatio}
               onSeek={setCurrentTimeSeconds}
               onZoomChange={setZoomLevel}
+              onTogglePlay={() => setIsPlaying((p) => !p)}
+              onStepFrame={(dir) => setCurrentTimeSeconds((t) => Math.max(0, t + dir * (1 / 30)))}
+              onAspectRatioChange={setAspectRatio}
+              onOpenScopes={() => setIsScopesModalOpen(true)}
+              onOpenSilenceTrimmer={() => setIsSilenceModalOpen(true)}
               onSelectClip={(clipId) => {
                 setSelectedClipId(clipId);
                 if (clipId) {
-                  setIsRightPanelOpen(true);
-                  setRightSidebarTab("inspector");
+                  setLeftSidebarTab("inspector");
+                  setIsLeftPanelOpen(true);
                 }
               }}
               onSplitClip={handleSplitClip}
@@ -945,328 +1091,22 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               }}
               onAddTextOverlay={handleAddTextOverlay}
               onAddAudioTrack={handleAddMusicTrack}
+              onOpenCaptions={() => setIsCaptionsModalOpen(true)}
               onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+              onUpdateClipTransition={(clipId, transitionIn, transitionOut) => {
+                const track = project.editIR.tracks.videoTracks[0];
+                if (!track) return;
+                const updated = track.clips.map((c) =>
+                  c.id === clipId ? { ...c, transitionIn, transitionOut } : c
+                );
+                pushHistory({
+                  ...project.editIR,
+                  tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+                });
+              }}
             />
           </div>
         </div>
-
-        {/* Right Side Resizer when open */}
-        {isRightPanelOpen && (
-          <ResizableSplitter
-            direction="horizontal"
-            onResize={(delta) => setRightPanelWidth((w) => Math.max(260, Math.min(560, w - delta)))}
-          />
-        )}
-
-        {/* Right Side Panel: File Uploads & Side Menus */}
-        {isRightPanelOpen && (
-          <div
-            style={{ width: `${rightPanelWidth}px` }}
-            className="h-full border-l border-[#1F1F24] bg-[#0B0B0E] flex flex-col shrink-0 select-none overflow-hidden"
-          >
-            {/* Right Panel Header & Navigation Tabs */}
-            <div className="h-10 border-b border-[#1F1F24] bg-[#0E0E12] flex items-center justify-between px-2">
-              <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar">
-                <button
-                  onClick={() => setRightSidebarTab("assets")}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1.5 transition ${
-                    rightSidebarTab === "assets"
-                      ? "bg-[#181822] text-indigo-300 border border-indigo-500/30"
-                      : "text-zinc-400 hover:text-white hover:bg-[#141418]"
-                  }`}
-                  title="Files & Media Assets"
-                >
-                  <Folder className="w-3.5 h-3.5" />
-                  <span>Files</span>
-                </button>
-
-                <button
-                  onClick={() => setRightSidebarTab("inspector")}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1.5 transition ${
-                    rightSidebarTab === "inspector"
-                      ? "bg-[#181822] text-amber-300 border border-amber-500/30"
-                      : "text-zinc-400 hover:text-white hover:bg-[#141418]"
-                  }`}
-                  title="Clip Inspector & Transforms"
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                  <span>Inspector</span>
-                </button>
-
-                <button
-                  onClick={() => setRightSidebarTab("critic")}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1.5 transition ${
-                    rightSidebarTab === "critic"
-                      ? "bg-[#1E1422] text-pink-300 border border-pink-500/30"
-                      : "text-zinc-400 hover:text-white hover:bg-[#141418]"
-                  }`}
-                  title="Critic & Retention QA"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-                  <span>Critic</span>
-                </button>
-              </div>
-
-              {/* Close Button */}
-              <button
-                onClick={() => setIsRightPanelOpen(false)}
-                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#1C1C22] transition"
-                title="Close Side Menu"
-              >
-                <Minimize2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Right Panel Body */}
-            <div className="flex-1 overflow-hidden flex flex-col">
-              {rightSidebarTab === "assets" && (
-                <AssetBin
-                  assets={project.assets}
-                  onImportFiles={handleImportFiles}
-                  onAddClipToTimeline={(asset) => {
-                    const durationSec = Math.max(1, asset.durationSeconds || 5.0);
-                    const clipDuration = RationalTimeMath.fromSeconds(durationSec);
-                    const isAudio =
-                      asset.mimeType?.startsWith("audio/") ||
-                      Boolean(asset.name.match(/\.(mp3|wav|aac|m4a|flac)$/i));
-
-                    if (isAudio) {
-                      const existingAudioTracks = project.editIR.tracks.audioTracks || [];
-                      let targetAudioTrack =
-                        existingAudioTracks.find((t) => t.type === "BGM") || existingAudioTracks[0];
-
-                      if (!targetAudioTrack) {
-                        targetAudioTrack = {
-                          id: `atrack_${Date.now()}`,
-                          type: "BGM",
-                          volumeDb: 0.0,
-                          duckWithSpeech: true,
-                          clips: [],
-                        };
-                        existingAudioTracks.push(targetAudioTrack);
-                      }
-
-                      const newAudioClip = {
-                        id: `aclip_${Date.now()}`,
-                        sourcePath: asset.filePath,
-                        sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDuration },
-                        timelineRange: {
-                          start: RationalTimeMath.fromSeconds(currentTimeSeconds),
-                          duration: clipDuration,
-                        },
-                        volumeDb: 0.0,
-                      };
-
-                      const updatedAudioTracks = existingAudioTracks.map((t) =>
-                        t.id === targetAudioTrack!.id ? { ...t, clips: [...t.clips, newAudioClip] } : t
-                      );
-
-                      const endSec = currentTimeSeconds + durationSec;
-                      const curTotal = RationalTimeMath.toSeconds(project.editIR.meta.totalDuration);
-                      const newTotal = RationalTimeMath.fromSeconds(Math.max(curTotal, endSec));
-
-                      pushHistory({
-                        ...project.editIR,
-                        meta: { ...project.editIR.meta, totalDuration: newTotal },
-                        tracks: { ...project.editIR.tracks, audioTracks: updatedAudioTracks },
-                      });
-                    } else {
-                      const newClip: VideoClip = {
-                        id: safeUUID(),
-                        assetId: asset.id,
-                        sourcePath: asset.filePath,
-                        sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDuration },
-                        timelineRange: {
-                          start: RationalTimeMath.fromSeconds(currentTimeSeconds),
-                          duration: clipDuration,
-                        },
-                        transform: {
-                          scale: { start: 1.0, end: 1.0, easing: "spring" },
-                          position: { x: 0, y: 0 },
-                          anchor: { x: 0.5, y: 0.5 },
-                          rotationDeg: 0,
-                          opacity: 1.0,
-                          crop: { top: 0, bottom: 0, left: 0, right: 0 },
-                        },
-                        speedMultiplier: 1.0,
-                        effects: [],
-                      };
-                      const track = project.editIR.tracks.videoTracks[0];
-                      if (!track) return;
-                      const endSec = currentTimeSeconds + durationSec;
-                      const curTotal = RationalTimeMath.toSeconds(project.editIR.meta.totalDuration);
-                      const newTotal = RationalTimeMath.fromSeconds(Math.max(curTotal, endSec));
-
-                      pushHistory({
-                        ...project.editIR,
-                        meta: { ...project.editIR.meta, totalDuration: newTotal },
-                        tracks: {
-                          ...project.editIR.tracks,
-                          videoTracks: [{ ...track, clips: [...track.clips, newClip] }],
-                        },
-                      });
-                      setSelectedClipId(newClip.id);
-                    }
-                  }}
-                  onRemoveAsset={(id) =>
-                    setProject({ ...project, assets: project.assets.filter((a) => a.id !== id) })
-                  }
-                />
-              )}
-
-              {rightSidebarTab === "inspector" && (
-                <div className="h-full flex flex-col overflow-y-auto">
-                  {selectedClip ? (
-                    <ClipInspector
-                      selectedClip={selectedClip}
-                      onUpdateTransform={(transform) => {
-                        if (!selectedClipId) return;
-                        const track = project.editIR.tracks.videoTracks[0];
-                        if (!track) return;
-                        const updated = track.clips.map((c) =>
-                          c.id === selectedClipId ? { ...c, transform } : c
-                        );
-                        pushHistory({
-                          ...project.editIR,
-                          tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
-                        });
-                      }}
-                      onUpdateSpeed={(speed) => {
-                        if (!selectedClipId) return;
-                        const track = project.editIR.tracks.videoTracks[0];
-                        if (!track) return;
-                        const updated = track.clips.map((c) =>
-                          c.id === selectedClipId ? { ...c, speedMultiplier: speed } : c
-                        );
-                        pushHistory({
-                          ...project.editIR,
-                          tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
-                        });
-                      }}
-                      onUpdateVolume={(volumeDb) => {
-                        if (!selectedClipId) return;
-                        const track = project.editIR.tracks.videoTracks[0];
-                        if (!track) return;
-                        const updated = track.clips.map((c) =>
-                          c.id === selectedClipId ? { ...c, volumeDb } : c
-                        );
-                        pushHistory({
-                          ...project.editIR,
-                          tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
-                        });
-                      }}
-                      onDetachAudio={handleDetachAudio}
-                      onDuplicateClip={() => {
-                        if (!selectedClipId) return;
-                        const track = project.editIR.tracks.videoTracks[0];
-                        const clip = track?.clips.find((c) => c.id === selectedClipId);
-                        if (!clip || !track) return;
-                        const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start) + RationalTimeMath.toSeconds(clip.timelineRange.duration);
-                        const dup: VideoClip = {
-                          ...clip,
-                          id: safeUUID(),
-                          timelineRange: {
-                            ...clip.timelineRange,
-                            start: RationalTimeMath.fromSeconds(startSec),
-                          },
-                        };
-                        pushHistory({
-                          ...project.editIR,
-                          tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: [...track.clips, dup] }] },
-                        });
-                        setSelectedClipId(dup.id);
-                      }}
-                      onDeleteClip={handleDeleteSelectedClip}
-                      onClose={() => setSelectedClipId(null)}
-                    />
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-zinc-400 space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-[#141419] border border-[#22222A] flex items-center justify-center text-zinc-500">
-                        <Folder className="w-6 h-6" />
-                      </div>
-                      <h4 className="text-sm font-semibold text-zinc-200">No Clip Selected</h4>
-                      <p className="text-xs text-zinc-500 max-w-[200px]">
-                        Click any clip on the timeline to inspect transformations, scale, crop, and speed.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {rightSidebarTab === "critic" && (
-                <div className="h-full flex flex-col overflow-y-auto">
-                  <AICriticDrawer
-                    isOpen={true}
-                    onClose={() => setIsRightPanelOpen(false)}
-                    editIR={project.editIR}
-                    onExecutePrompt={handleApplyAiPrompt}
-                    onApplyRepairs={(repairs) => {
-                      let updated: EditIR = JSON.parse(JSON.stringify(project.editIR));
-                      for (const cmd of repairs) {
-                        if (cmd.type === "ADD_CAMERA_EVENT") {
-                          updated.tracks.cameraTrack = [...(updated.tracks.cameraTrack || []), cmd.event];
-                        } else if (cmd.type === "ADD_CAPTION") {
-                          updated.tracks.captionTrack = [...(updated.tracks.captionTrack || []), cmd.caption];
-                        } else if (cmd.type === "APPLY_STYLE") {
-                          updated.directorStyle.preset = cmd.preset;
-                          if (cmd.pacingMultiplier) updated.directorStyle.pacingMultiplier = cmd.pacingMultiplier;
-                          if (cmd.zoomAggressiveness) updated.directorStyle.zoomAggressiveness = cmd.zoomAggressiveness;
-                        } else if (cmd.type === "ADD_CLIP") {
-                          const track =
-                            updated.tracks.videoTracks.find((t) => t.id === cmd.trackId) ||
-                            updated.tracks.videoTracks[0];
-                          if (track) track.clips.push(cmd.clip);
-                        } else if (cmd.type === "REMOVE_CLIP") {
-                          const track =
-                            updated.tracks.videoTracks.find((t) => t.id === cmd.trackId) ||
-                            updated.tracks.videoTracks[0];
-                          if (track) track.clips = track.clips.filter((c) => c.id !== cmd.clipId);
-                        }
-                      }
-                      pushHistory(updated);
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Ultra-Slim Far-Right Action Strip (When panel is collapsed or open to quickly switch) */}
-        {!isRightPanelOpen && (
-          <div className="w-11 border-l border-[#1F1F24] bg-[#0A0A0D] flex flex-col items-center py-3 space-y-3 shrink-0">
-            <button
-              onClick={() => {
-                setRightSidebarTab("assets");
-                setIsRightPanelOpen(true);
-              }}
-              className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#181822] transition"
-              title="Open Media Files & Uploads"
-            >
-              <Folder className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => {
-                setRightSidebarTab("inspector");
-                setIsRightPanelOpen(true);
-              }}
-              className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#181822] transition"
-              title="Open Clip Inspector"
-            >
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
-            </button>
-            <button
-              onClick={() => {
-                setRightSidebarTab("critic");
-                setIsRightPanelOpen(true);
-              }}
-              className="p-2 rounded-lg text-pink-400 hover:text-pink-300 hover:bg-[#22141E] transition"
-              title="Open AI Critic QA"
-            >
-              <Sparkles className="w-4 h-4" />
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Modals */}
@@ -1313,6 +1153,13 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       <PluginManagerModal isOpen={isPluginModalOpen} onClose={() => setIsPluginModalOpen(false)} />
       <CacheManagerModal isOpen={isCacheModalOpen} onClose={() => setIsCacheModalOpen(false)} />
       <KeyboardShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
+      <ColorScopesModal isOpen={isScopesModalOpen} onClose={() => setIsScopesModalOpen(false)} />
+      <SilenceRemovalModal
+        isOpen={isSilenceModalOpen}
+        onClose={() => setIsSilenceModalOpen(false)}
+        editIR={project.editIR}
+        onApplyTrim={(newIR) => pushHistory(newIR)}
+      />
     </div>
   );
 };

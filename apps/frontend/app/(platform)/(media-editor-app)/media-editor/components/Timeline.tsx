@@ -21,6 +21,16 @@ import {
   Keyboard,
   Type,
   Music,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Rewind,
+  FastForward,
+  Repeat,
+  ChevronDown,
+  Activity,
+  Zap,
 } from "lucide-react";
 import {
   EditIR,
@@ -28,7 +38,9 @@ import {
   VideoClip,
   CameraZoomKeyframe,
   CaptionSegment,
+  Transition,
 } from "@workspace/video-contracts";
+import { VisibleWaveformCanvas } from "./VisibleWaveformCanvas";
 
 interface TimelineProps {
   editIR: EditIR;
@@ -36,6 +48,8 @@ interface TimelineProps {
   zoomLevel: number;
   selectedClipId: string | null;
   height?: number;
+  isPlaying?: boolean;
+  aspectRatio?: "16:9" | "9:16" | "1:1";
   onSelectClip: (id: string | null) => void;
   onSeek: (seconds: number) => void;
   onZoomChange: (newZoom: number) => void;
@@ -46,7 +60,19 @@ interface TimelineProps {
   onDuplicateClip?: () => void;
   onAddTextOverlay?: () => void;
   onAddAudioTrack?: () => void;
+  onOpenCaptions?: () => void;
   onOpenShortcuts?: () => void;
+  onOpenScopes?: () => void;
+  onOpenSilenceTrimmer?: () => void;
+  onUpdateClipTransition?: (
+    clipId: string,
+    transitionIn?: Transition,
+    transitionOut?: Transition
+  ) => void;
+  onTogglePlay?: () => void;
+  onStepFrame?: (direction: -1 | 1) => void;
+  onAspectRatioChange?: (aspect: "16:9" | "9:16" | "1:1") => void;
+  onTakeSnapshot?: () => void;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -55,6 +81,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   zoomLevel,
   selectedClipId,
   height,
+  isPlaying = false,
+  aspectRatio = "16:9",
   onSelectClip,
   onSeek,
   onZoomChange,
@@ -65,13 +93,24 @@ export const Timeline: React.FC<TimelineProps> = ({
   onDuplicateClip,
   onAddTextOverlay,
   onAddAudioTrack,
+  onOpenCaptions,
   onOpenShortcuts,
+  onOpenScopes,
+  onOpenSilenceTrimmer,
+  onUpdateClipTransition,
+  onTogglePlay,
+  onStepFrame,
+  onAspectRatioChange,
+  onTakeSnapshot,
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
 
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [isSnappingEnabled, setIsSnappingEnabled] = useState(true);
+  const [isLooping, setIsLooping] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
 
   // Track control states
   const [mutedTracks, setMutedTracks] = useState<Record<string, boolean>>({});
@@ -88,6 +127,13 @@ export const Timeline: React.FC<TimelineProps> = ({
   } | null>(null);
 
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [activeCutTransition, setActiveCutTransition] = useState<{
+    clipId: string;
+    nextClipId?: string;
+    cutPointSec: number;
+    currentType?: string;
+    durationSec: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!timelineRef.current) return;
@@ -183,6 +229,21 @@ export const Timeline: React.FC<TimelineProps> = ({
     };
   }, [isScrubbing, draggingClip, isSnappingEnabled, currentTimeSeconds, pixelsPerSecond, onSeek, onUpdateClipTiming, onCommitHistory]);
 
+  const fps = 30;
+  const curH = Math.floor(currentTimeSeconds / 3600);
+  const curM = Math.floor((currentTimeSeconds % 3600) / 60);
+  const curS = Math.floor(currentTimeSeconds % 60);
+  const curFrames = Math.floor((currentTimeSeconds % 1) * fps);
+  const currentFrame = Math.floor(currentTimeSeconds * fps);
+  const currentTimecodeFormatted = `${String(curH).padStart(2, "0")}:${String(curM).padStart(2, "0")}:${String(curS).padStart(2, "0")}:${String(curFrames).padStart(2, "0")}`;
+
+  const totH = Math.floor(totalDurationSec / 3600);
+  const totM = Math.floor((totalDurationSec % 3600) / 60);
+  const totS = Math.floor(totalDurationSec % 60);
+  const totalFramesInSec = Math.floor((totalDurationSec % 1) * fps);
+  const totalFrames = Math.floor(totalDurationSec * fps);
+  const totalTimecodeFormatted = `${String(totH).padStart(2, "0")}:${String(totM).padStart(2, "0")}:${String(totS).padStart(2, "0")}:${String(totalFramesInSec).padStart(2, "0")}`;
+
   // Generate ruler tick marks spanning the entire scrollable timeline width
   const maxSec = Math.max(totalDurationSec, timelineWidthPx / pixelsPerSecond);
   const ticks: number[] = [];
@@ -218,10 +279,179 @@ export const Timeline: React.FC<TimelineProps> = ({
   return (
     <div
       style={{ height: height ? `${height}px` : undefined }}
-      className="h-72 border-t border-[#1F1F24] bg-[#0B0B0C] flex flex-col select-none relative z-20 shrink-0"
+      className="h-full border-t border-[#1F1F24] bg-[#0B0B0C] flex flex-col select-none relative z-20 shrink-0"
     >
-      {/* Timeline Toolbar */}
-      <div className="h-10 border-b border-[#1F1F24] bg-[#0E0E10] flex items-center justify-between px-3">
+      {/* 1. Attached Playback Transport Controls Deck (Directly Docked to Timeline) */}
+      <div className="h-10 border-b border-[#1A1A20] bg-[#0B0C10] px-3 flex items-center justify-between">
+        {/* Left: SMPTE Timecode & Playback Speed */}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1.5 font-mono text-xs select-none">
+            <span className="text-sky-400 font-bold tracking-wider">{currentTimecodeFormatted}</span>
+            <span className="text-sky-500/80 font-medium">[{currentFrame}]</span>
+          </div>
+
+          {/* Speed Selector */}
+          <div className="relative flex items-center">
+            <select
+              value={playbackSpeed}
+              onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+              className="bg-[#18191F] hover:bg-[#22242C] text-zinc-300 border border-[#2A2D36] rounded px-2 py-0.5 text-xs font-mono font-medium outline-none cursor-pointer appearance-none pr-5 transition"
+              title="Playback Speed"
+            >
+              <option value={0.25}>x0.25</option>
+              <option value={0.5}>x0.5</option>
+              <option value={0.75}>x0.75</option>
+              <option value={1}>x1</option>
+              <option value={1.25}>x1.25</option>
+              <option value={1.5}>x1.5</option>
+              <option value={2}>x2</option>
+            </select>
+            <ChevronDown className="w-3 h-3 text-zinc-400 absolute right-1.5 pointer-events-none" />
+          </div>
+
+          <button
+            onClick={() => setIsMuted(!isMuted)}
+            className={`p-1 rounded text-zinc-400 hover:text-white transition ${isMuted ? "text-rose-400" : ""}`}
+            title={isMuted ? "Unmute Audio (M)" : "Mute Audio (M)"}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Center: Playback Transport Buttons */}
+        <div className="flex items-center space-x-2">
+          {/* Jump to Start */}
+          <button
+            onClick={() => onSeek(0)}
+            className="p-1 text-zinc-400 hover:text-white transition"
+            title="Jump to Start (Home)"
+          >
+            <SkipBack className="w-4 h-4 fill-current" />
+          </button>
+
+          {/* Step Backward / Rewind */}
+          <button
+            onClick={() => {
+              if (onStepFrame) onStepFrame(-1);
+              else onSeek(Math.max(0, currentTimeSeconds - 1 / fps));
+            }}
+            className="p-1 text-zinc-400 hover:text-white transition"
+            title="Previous Frame (Left Arrow)"
+          >
+            <Rewind className="w-4 h-4 fill-current" />
+          </button>
+
+          {/* Play / Pause Primary Button */}
+          {onTogglePlay && (
+            <button
+              onClick={onTogglePlay}
+              className="p-1 text-zinc-100 hover:text-white hover:scale-110 active:scale-95 transition"
+              title="Play / Pause (Space)"
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 fill-current" />
+              ) : (
+                <Play className="w-4 h-4 fill-current ml-0.5" />
+              )}
+            </button>
+          )}
+
+          {/* Step Forward / Fast Forward */}
+          <button
+            onClick={() => {
+              if (onStepFrame) onStepFrame(1);
+              else onSeek(Math.min(totalDurationSec, currentTimeSeconds + 1 / fps));
+            }}
+            className="p-1 text-zinc-400 hover:text-white transition"
+            title="Next Frame (Right Arrow)"
+          >
+            <FastForward className="w-4 h-4 fill-current" />
+          </button>
+
+          {/* Jump to End */}
+          <button
+            onClick={() => onSeek(totalDurationSec)}
+            className="p-1 text-zinc-400 hover:text-white transition"
+            title="Jump to End (End)"
+          >
+            <SkipForward className="w-4 h-4 fill-current" />
+          </button>
+
+          {/* Loop Toggle */}
+          <button
+            onClick={() => setIsLooping(!isLooping)}
+            className={`p-1 transition ${isLooping ? "text-sky-400" : "text-zinc-500 hover:text-zinc-300"}`}
+            title={isLooping ? "Loop Enabled" : "Loop Disabled"}
+          >
+            <Repeat className="w-4 h-4" />
+          </button>
+
+          {/* Status Badge */}
+          <div className="bg-[#1C1E26] border border-[#2E323E] px-2 py-0.5 rounded text-[10px] font-mono font-bold text-zinc-300 tracking-wider select-none">
+            {isPlaying ? "PLAYING" : "PAUSED"}
+          </div>
+
+          {/* Snapshot Camera */}
+          {onTakeSnapshot && (
+            <button
+              onClick={onTakeSnapshot}
+              className="p-1 text-zinc-400 hover:text-white hover:scale-105 active:scale-95 transition"
+              title="Capture Frame Snapshot (PNG)"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Right: Aspect Ratio & Duration */}
+        <div className="flex items-center space-x-3">
+          {onAspectRatioChange && (
+            <div className="flex items-center space-x-0.5 bg-[#14151B] border border-[#242630] p-0.5 rounded-lg">
+              <button
+                onClick={() => onAspectRatioChange("16:9")}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                  aspectRatio === "16:9"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+                title="Landscape (16:9)"
+              >
+                16:9
+              </button>
+              <button
+                onClick={() => onAspectRatioChange("9:16")}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                  aspectRatio === "9:16"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+                title="Vertical Shorts / Reels (9:16)"
+              >
+                9:16
+              </button>
+              <button
+                onClick={() => onAspectRatioChange("1:1")}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                  aspectRatio === "1:1"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+                title="Square (1:1)"
+              >
+                1:1
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center space-x-1.5 font-mono text-xs text-zinc-400 select-none">
+            <span className="text-zinc-500 font-medium">[{totalFrames}]</span>
+            <span className="tracking-wider">{totalTimecodeFormatted}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Timeline Editing Toolbar */}
+      <div className="h-9 border-b border-[#1F1F24] bg-[#0E0E12] flex items-center justify-between px-3">
         {/* Left: Editing Tools */}
         <div className="flex items-center space-x-1.5">
           <button
@@ -283,6 +513,18 @@ export const Timeline: React.FC<TimelineProps> = ({
             </button>
           )}
 
+          {/* Subtitles & Typography Studio Button */}
+          {onOpenCaptions && (
+            <button
+              onClick={onOpenCaptions}
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141417] hover:bg-[#121E24] active:scale-95 text-xs font-medium text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 transition shadow-sm"
+              title="Open Subtitle & Typography Studio (Google Fonts, Strokes, Glows)"
+            >
+              <Subtitles className="w-3 h-3 text-cyan-400" />
+              <span>Captions</span>
+            </button>
+          )}
+
           <div className="h-4 w-px bg-[#1F1F24] mx-1" />
 
           {/* Snapping Magnet Toggle */}
@@ -300,6 +542,28 @@ export const Timeline: React.FC<TimelineProps> = ({
           </button>
 
           <div className="h-4 w-px bg-[#1F1F24] mx-1" />
+
+          {onOpenSilenceTrimmer && (
+            <button
+              onClick={onOpenSilenceTrimmer}
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#1C1316] hover:bg-[#28181D] text-xs font-medium text-rose-300 border border-rose-500/30 transition shadow-sm ml-1"
+              title="Silence & Dead-Air Auto-Trimmer"
+            >
+              <Scissors className="w-3.5 h-3.5 text-rose-400" />
+              <span>Silence Trimmer</span>
+            </button>
+          )}
+
+          {onOpenScopes && (
+            <button
+              onClick={onOpenScopes}
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#111A16] hover:bg-[#16251E] text-xs font-medium text-emerald-300 border border-emerald-500/30 transition shadow-sm ml-1"
+              title="Color Scopes Monitor (RGB Parade, Vectorscope)"
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Scopes</span>
+            </button>
+          )}
 
           {onOpenShortcuts && (
             <button
@@ -554,98 +818,164 @@ export const Timeline: React.FC<TimelineProps> = ({
                   isMain ? "bg-[#0D0D0F]" : "bg-[#0B0B11]"
                 }`}
               >
-                {vTrack.clips.map((clip) => {
+                {vTrack.clips.map((clip, clipIdx) => {
                   const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start);
                   const durationSec = RationalTimeMath.toSeconds(clip.timelineRange.duration);
                   const isSelected = selectedClipId === clip.id;
 
                   return (
-                    <div
-                      key={clip.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectClip(clip.id);
-                      }}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        onSelectClip(clip.id);
-                        if (!lockedTracks[trackKey]) {
-                          setDraggingClip({
-                            id: clip.id,
-                            mode: "move",
-                            startX: e.clientX,
-                            initialStart: startSec,
-                            initialDuration: durationSec,
-                          });
-                        }
-                      }}
-                      className={`timeline-clip absolute top-1 bottom-1 rounded-xl bg-gradient-to-r ${
-                        isMain
-                          ? "from-[#141418] via-[#1A1A22] to-[#141418]"
-                          : "from-[#161622] via-[#1E1E30] to-[#161622]"
-                      } border ${
-                        isSelected
-                          ? "border-zinc-400 ring-1 ring-white/20 shadow-xl shadow-black/50"
-                          : isMain
-                          ? "border-[#262630] hover:border-zinc-500"
-                          : "border-indigo-900/60 hover:border-indigo-500"
-                      } p-2 flex flex-col justify-between cursor-grab active:cursor-grabbing transition-all group overflow-hidden`}
-                      style={{
-                        left: `${startSec * pixelsPerSecond}px`,
-                        width: `${durationSec * pixelsPerSecond}px`,
-                      }}
-                    >
-                      {/* Left Trim Handle */}
+                    <React.Fragment key={clip.id}>
                       <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectClip(clip.id);
+                        }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
                           onSelectClip(clip.id);
-                          setDraggingClip({
-                            id: clip.id,
-                            mode: "trim-start",
-                            startX: e.clientX,
-                            initialStart: startSec,
-                            initialDuration: durationSec,
-                          });
+                          if (!lockedTracks[trackKey]) {
+                            setDraggingClip({
+                              id: clip.id,
+                              mode: "move",
+                              startX: e.clientX,
+                              initialStart: startSec,
+                              initialDuration: durationSec,
+                            });
+                          }
                         }}
-                        className="absolute left-0 top-0 bottom-0 w-2.5 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-l-xl z-10"
-                        title="Drag to trim start"
-                      />
+                        className={`timeline-clip absolute top-1 bottom-1 rounded-xl bg-gradient-to-r ${
+                          isMain
+                            ? "from-[#141418] via-[#1A1A22] to-[#141418]"
+                            : "from-[#161622] via-[#1E1E30] to-[#161622]"
+                        } border ${
+                          isSelected
+                            ? "border-zinc-400 ring-1 ring-white/20 shadow-xl shadow-black/50"
+                            : isMain
+                            ? "border-[#262630] hover:border-zinc-500"
+                            : "border-indigo-900/60 hover:border-indigo-500"
+                        } p-2 flex flex-col justify-between cursor-grab active:cursor-grabbing transition-all group overflow-hidden`}
+                        style={{
+                          left: `${startSec * pixelsPerSecond}px`,
+                          width: `${durationSec * pixelsPerSecond}px`,
+                        }}
+                      >
+                        {/* Left Trim Handle */}
+                        <div
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            onSelectClip(clip.id);
+                            setDraggingClip({
+                              id: clip.id,
+                              mode: "trim-start",
+                              startX: e.clientX,
+                              initialStart: startSec,
+                              initialDuration: durationSec,
+                            });
+                          }}
+                          className="absolute left-0 top-0 bottom-0 w-2.5 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-l-xl z-10"
+                          title="Drag to trim start"
+                        />
 
-                      {/* Header Row */}
-                      <div className="flex items-center justify-between text-[11px] text-zinc-200 font-semibold px-1">
-                        <span className="truncate flex items-center space-x-1.5">
-                          <Film className={`w-3.5 h-3.5 ${isMain ? "text-zinc-400" : "text-indigo-400"} shrink-0`} />
-                          <span className="truncate">{clip.sourcePath.split(/[\/\\]/).pop()}</span>
-                        </span>
-                        <span className="text-[10px] font-mono text-zinc-300 bg-black/60 px-1.5 py-0.5 rounded border border-white/5">
-                          {durationSec.toFixed(1)}s
-                        </span>
+                        {/* Keyframe Diamonds Track Overlay */}
+                        {clip.transform?.keyframes && clip.transform.keyframes.length > 0 && (
+                          <div className="absolute inset-x-2 top-6 h-3 pointer-events-none z-10">
+                            {clip.transform.keyframes.map((kf) => {
+                              const kfPercent = Math.max(0, Math.min(100, (kf.timeOffsetSec / durationSec) * 100));
+                              const isNearPlayhead = Math.abs(currentTimeSeconds - (startSec + kf.timeOffsetSec)) < 0.1;
+                              return (
+                                <button
+                                  key={kf.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSeek(startSec + kf.timeOffsetSec);
+                                  }}
+                                  className={`absolute -translate-x-1/2 -translate-y-1/2 top-1.5 w-2.5 h-2.5 rotate-45 pointer-events-auto cursor-pointer transition-transform ${
+                                    isNearPlayhead
+                                      ? "bg-cyan-400 border border-white shadow-[0_0_8px_rgba(6,182,212,0.8)] scale-125 z-10"
+                                      : "bg-amber-400 border border-black/80 hover:scale-125 shadow-sm"
+                                  }`}
+                                  style={{ left: `${kfPercent}%` }}
+                                  title={`Keyframe (${kf.property}): ${kf.timeOffsetSec.toFixed(2)}s`}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Header Row */}
+                        <div className="flex items-center justify-between text-[11px] text-zinc-200 font-semibold px-1">
+                          <span className="truncate flex items-center space-x-1.5">
+                            <Film className={`w-3.5 h-3.5 ${isMain ? "text-zinc-400" : "text-indigo-400"} shrink-0`} />
+                            <span className="truncate">{clip.sourcePath.split(/[\/\\]/).pop()}</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-300 bg-black/60 px-1.5 py-0.5 rounded border border-white/5">
+                            {durationSec.toFixed(1)}s
+                          </span>
+                        </div>
+
+                        {/* Footer Row */}
+                        <div className="flex items-center justify-between text-[9px] font-mono text-zinc-400 px-1">
+                          <span>{isMain ? "Lossless Stream-Copy" : "Layer Overlay"}</span>
+                          <span>{clip.speedMultiplier || 1.0}x</span>
+                        </div>
+
+                        {/* Right Trim Handle */}
+                        <div
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            onSelectClip(clip.id);
+                            setDraggingClip({
+                              id: clip.id,
+                              mode: "trim-end",
+                              startX: e.clientX,
+                              initialStart: startSec,
+                              initialDuration: durationSec,
+                            });
+                          }}
+                          className="absolute right-0 top-0 bottom-0 w-2.5 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-r-xl z-10"
+                          title="Drag to trim end"
+                        />
                       </div>
 
-                      {/* Footer Row */}
-                      <div className="flex items-center justify-between text-[9px] font-mono text-zinc-400 px-1">
-                        <span>{isMain ? "Lossless Stream-Copy" : "Layer Overlay"}</span>
-                        <span>{clip.speedMultiplier || 1.0}x</span>
-                      </div>
-
-                      {/* Right Trim Handle */}
+                      {/* Cut-Point Transition Badge at Clip End */}
                       <div
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          onSelectClip(clip.id);
-                          setDraggingClip({
-                            id: clip.id,
-                            mode: "trim-end",
-                            startX: e.clientX,
-                            initialStart: startSec,
-                            initialDuration: durationSec,
-                          });
-                        }}
-                        className="absolute right-0 top-0 bottom-0 w-2.5 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-r-xl z-10"
-                        title="Drag to trim end"
-                      />
-                    </div>
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 pointer-events-auto"
+                        style={{ left: `${(startSec + durationSec) * pixelsPerSecond}px` }}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const nextClip = vTrack.clips[clipIdx + 1];
+                            setActiveCutTransition({
+                              clipId: clip.id,
+                              nextClipId: nextClip?.id,
+                              cutPointSec: startSec + durationSec,
+                              currentType: clip.transitionOut?.type || "CUT",
+                              durationSec: clip.transitionOut?.duration
+                                ? RationalTimeMath.toSeconds(clip.transitionOut.duration)
+                                : 0.5,
+                            });
+                          }}
+                          className={`p-1 rounded-md text-[10px] font-bold transition flex items-center space-x-1 shadow-md cursor-pointer ${
+                            clip.transitionOut && clip.transitionOut.type !== "CUT"
+                              ? "bg-amber-500/90 text-black border border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.7)] scale-105"
+                              : "bg-[#161622]/90 hover:bg-indigo-600 text-zinc-400 hover:text-white border border-[#2D2D3A] opacity-40 hover:opacity-100 hover:scale-110"
+                          }`}
+                          title={
+                            clip.transitionOut && clip.transitionOut.type !== "CUT"
+                              ? `Transition: ${clip.transitionOut.type} (${RationalTimeMath.toSeconds(clip.transitionOut.duration).toFixed(1)}s)`
+                              : "Add Cut-Point Transition"
+                          }
+                        >
+                          <Zap className="w-3 h-3 fill-current" />
+                          {clip.transitionOut && clip.transitionOut.type !== "CUT" && (
+                            <span className="text-[9px] uppercase tracking-wider font-extrabold pr-0.5">
+                              {clip.transitionOut.type.replace("_", " ")}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    </React.Fragment>
                   );
                 })}
               </div>
@@ -661,30 +991,24 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const startSec = RationalTimeMath.toSeconds(aClip.timelineRange.start);
                 const durationSec = RationalTimeMath.toSeconds(aClip.timelineRange.duration);
                 const clipWidthPx = durationSec * pixelsPerSecond;
-                const barCount = Math.max(1, Math.floor(clipWidthPx / 6));
 
                 return (
                   <div
                     key={aClip.id}
-                    className="timeline-clip absolute top-1 bottom-1 rounded-lg bg-emerald-950/50 border border-emerald-500/40 px-2 flex items-center space-x-1 overflow-hidden group shadow-sm"
+                    className="timeline-clip absolute top-1 bottom-1 rounded-lg bg-emerald-950/50 border border-emerald-500/40 px-1 flex items-center overflow-hidden group shadow-sm"
                     style={{
                       left: `${startSec * pixelsPerSecond}px`,
                       width: `${clipWidthPx}px`,
                     }}
                     title={`Audio Clip: ${aClip.sourcePath.split(/[\/\\]/).pop() || "Audio"} (${durationSec.toFixed(1)}s)`}
                   >
-                    <div className="flex items-center space-x-0.5 h-full flex-1">
-                      {Array.from({ length: barCount }).map((_, i) => {
-                        const heightPercent = 25 + Math.abs(Math.sin(i * 0.45) * 65) + (i % 6 === 0 ? 15 : 0);
-                        return (
-                          <div
-                            key={i}
-                            className="w-1 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-full"
-                            style={{ height: `${heightPercent}%` }}
-                          />
-                        );
-                      })}
-                    </div>
+                    <VisibleWaveformCanvas
+                      sourceUrl={aClip.sourcePath}
+                      durationSec={durationSec}
+                      width={clipWidthPx}
+                      height={38}
+                      color="emerald"
+                    />
                   </div>
                 );
               })
@@ -694,30 +1018,24 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const startSec = RationalTimeMath.toSeconds(vClip.timelineRange.start);
                 const durationSec = RationalTimeMath.toSeconds(vClip.timelineRange.duration);
                 const clipWidthPx = durationSec * pixelsPerSecond;
-                const barCount = Math.max(1, Math.floor(clipWidthPx / 6));
 
                 return (
                   <div
                     key={`v_audio_${vClip.id}`}
-                    className="absolute top-1 bottom-1 rounded-lg bg-emerald-950/20 border border-emerald-500/20 px-2 flex items-center space-x-1 overflow-hidden"
+                    className="absolute top-1 bottom-1 rounded-lg bg-cyan-950/30 border border-cyan-500/30 px-1 flex items-center overflow-hidden shadow-inner"
                     style={{
                       left: `${startSec * pixelsPerSecond}px`,
                       width: `${clipWidthPx}px`,
                     }}
                     title={`Embedded Audio Track (${durationSec.toFixed(1)}s)`}
                   >
-                    <div className="flex items-center space-x-0.5 h-full flex-1 opacity-70">
-                      {Array.from({ length: barCount }).map((_, i) => {
-                        const heightPercent = 20 + Math.abs(Math.sin(i * 0.45) * 60);
-                        return (
-                          <div
-                            key={i}
-                            className="w-1 bg-gradient-to-t from-emerald-700 to-emerald-400 rounded-full"
-                            style={{ height: `${heightPercent}%` }}
-                          />
-                        );
-                      })}
-                    </div>
+                    <VisibleWaveformCanvas
+                      sourceUrl={vClip.sourcePath}
+                      durationSec={durationSec}
+                      width={clipWidthPx}
+                      height={38}
+                      color="cyan"
+                    />
                   </div>
                 );
               })
@@ -730,6 +1048,116 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Floating Cut-Point Transition Picker Modal */}
+      {activeCutTransition && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setActiveCutTransition(null)}
+        >
+          <div
+            className="w-84 bg-[#121218] border border-[#262634] rounded-2xl shadow-2xl p-4 space-y-3 animate-in fade-in zoom-in duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#22222E]">
+              <div className="flex items-center space-x-2 text-amber-400">
+                <Zap className="w-4 h-4 fill-current" />
+                <span className="text-xs font-bold text-zinc-100">Cut-Point Transition</span>
+              </div>
+              <button
+                onClick={() => setActiveCutTransition(null)}
+                className="text-zinc-500 hover:text-white text-xs p-1 rounded hover:bg-[#1E1E28]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-[11px] text-zinc-400">
+              Select transition at cut point ({activeCutTransition.cutPointSec.toFixed(2)}s):
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { id: "CUT", name: "None (Cut)" },
+                { id: "CROSSFADE", name: "Crossfade" },
+                { id: "DISSOLVE", name: "Dissolve" },
+                { id: "ZOOM_SWOOSH", name: "Zoom Swoosh" },
+                { id: "SLIDE_LEFT", name: "Whip Pan (Slide)" },
+                { id: "SLIDE_UP", name: "Push Up" },
+                { id: "WIPE", name: "Wipe" },
+                { id: "BLUR_PUNCH", name: "Blur Punch" },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    if (t.id === "CUT") {
+                      onUpdateClipTransition?.(activeCutTransition.clipId, undefined, undefined);
+                      if (activeCutTransition.nextClipId) {
+                        onUpdateClipTransition?.(activeCutTransition.nextClipId, undefined, undefined);
+                      }
+                    } else {
+                      const trans = {
+                        type: t.id as any,
+                        duration: RationalTimeMath.fromSeconds(activeCutTransition.durationSec),
+                      };
+                      onUpdateClipTransition?.(activeCutTransition.clipId, undefined, trans);
+                      if (activeCutTransition.nextClipId) {
+                        onUpdateClipTransition?.(activeCutTransition.nextClipId, trans, undefined);
+                      }
+                    }
+                    setActiveCutTransition(null);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border text-left transition ${
+                    activeCutTransition.currentType === t.id
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm"
+                      : "bg-[#181820] text-zinc-300 border-[#262632] hover:bg-[#20202C] hover:text-white"
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Duration Selector */}
+            <div className="pt-2 border-t border-[#20202A] space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                <span>Transition Duration</span>
+                <span className="font-mono text-zinc-200">{activeCutTransition.durationSec.toFixed(1)}s</span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                {[0.2, 0.5, 0.8, 1.0, 1.5].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      setActiveCutTransition({
+                        ...activeCutTransition,
+                        durationSec: d,
+                      });
+                      if (activeCutTransition.currentType && activeCutTransition.currentType !== "CUT") {
+                        const trans = {
+                          type: activeCutTransition.currentType as any,
+                          duration: RationalTimeMath.fromSeconds(d),
+                        };
+                        onUpdateClipTransition?.(activeCutTransition.clipId, undefined, trans);
+                        if (activeCutTransition.nextClipId) {
+                          onUpdateClipTransition?.(activeCutTransition.nextClipId, trans, undefined);
+                        }
+                      }
+                    }}
+                    className={`flex-1 py-1 rounded text-[10px] font-mono font-semibold border transition ${
+                      activeCutTransition.durationSec === d
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                        : "bg-[#16161E] text-zinc-400 border-[#22222E] hover:text-white"
+                    }`}
+                  >
+                    {d}s
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
