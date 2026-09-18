@@ -63,10 +63,14 @@ export async function middleware(req: NextRequest) {
   const pathname = url.pathname;
   const hostname = req.headers.get("host") || "";
 
-  // 1. Internal dynamic site rewrites and static next assets bypass auth middleware
+  // 1. Static assets, icons, media, public files and Next.js internal assets bypass auth middleware
+  const isStaticFile = /\.(svg|png|jpg|jpeg|gif|webp|ico|json|woff|woff2|ttf|eot|otf|mp3|mp4|webm|pdf|txt|xml|css|js|map)$/i.test(pathname);
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/.well-known')
+    pathname.startsWith('/.well-known') ||
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/downloads/') ||
+    isStaticFile
   ) {
     return NextResponse.next();
   }
@@ -222,7 +226,9 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - Static asset files with extensions (.svg, .png, .jpg, .jpeg, .gif, .webp, .ico, .woff, .woff2, .ttf, etc.)
      */
-    "/((?!_next/static|_next/image).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|woff|woff2|ttf|eot|otf|mp3|mp4|webm|pdf|txt|xml|css|js|map)$).*)",
   ],
 };
